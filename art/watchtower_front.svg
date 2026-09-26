@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="235" height="276" viewBox="-51.64 -107.96 117.5 138">
+  <polygon points="-48.64,-66 -45.44,-64.4 -45.44,-78.4 -48.64,-80" fill="#5e4129" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-45.44,-64.4 -42.24,-66 -42.24,-80 -45.44,-78.4" fill="#43301e" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-45.44,-81.6 -42.24,-80 -45.44,-78.4 -48.64,-80" fill="#7a5738" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-3.2,-43.28 0,-41.68 0,-55.68 -3.2,-57.28" fill="#5e4129" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="0,-41.68 3.2,-43.28 3.2,-57.28 0,-55.68" fill="#43301e" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="0,-58.88 3.2,-57.28 0,-55.68 -3.2,-57.28" fill="#7a5738" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="17.92,-53.84 21.12,-52.24 21.12,-66.24 17.92,-67.84" fill="#5e4129" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="21.12,-52.24 24.32,-53.84 24.32,-67.84 21.12,-66.24" fill="#43301e" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="21.12,-69.44 24.32,-67.84 21.12,-66.24 17.92,-67.84" fill="#7a5738" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polyline points="-48.64,-78 0,-53.68" fill="none" stroke="#43301e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="0,-53.68 48.64,-78" fill="none" stroke="#43301e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,731 @@
+#!/usr/bin/env python3
+"""Generates all SVG art for Veliron's Outpost plus scripts/core/art_manifest.gd.
+
+Everything is authored in 1x world units (an iso tile is 128x64) relative to an
+anchor point (the tile centre on the ground for objects, the feet for units).
+SVGs are written at 2x pixel size for crisp high-DPI rendering; the game draws
+them at 0.5 scale. Run:  python3 tools/gen_art.py
+"""
+import math
+import os
+import random
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ART = os.path.join(ROOT, "art")
+MANIFEST = os.path.join(ROOT, "scripts", "core", "art_manifest.gd")
+
+INK = "#15110d"
+TW, TH = 64, 32  # half tile width/height
+
+# Palette: dark forest fantasy
+GRASS = ["#3e592d", "#3c572c", "#405b2e"]
+GRASS_DARK = "#314a24"
+GRASS_LIGHT = "#4d6b37"
+FOREST_FLOOR = "#2e4422"
+DIRT = "#6e5638"
+DIRT_DARK = "#574329"
+DIRT_LIGHT = "#836a47"
+STONE_L, STONE_R, STONE_T, STONE_D = "#77736c", "#5a5751", "#8b877f", "#46433f"
+WOOD, WOOD_D, WOOD_L = "#5e4129", "#43301e", "#7a5738"
+CRIMSON, CRIMSON_D = "#8c1c2b", "#64121e"
+GOLD, GOLD_D = "#c9a24a", "#8f6f2a"
+GLOW = "#f0b04a"
+
+manifest = {}
+
+
+def P(gx, gy, z=0.0):
+    """Grid offset (tiles) + height (px) -> screen offset from anchor."""
+    return ((gx - gy) * TW, (gx + gy) * TH - z)
+
+
+def fmt(v):
+    return ("%.2f" % v).rstrip("0").rstrip(".")
+
+
+class Art:
+    def __init__(self):
+        self.els = []
+        self.pts = []
+
+    def _track(self, pts):
+        self.pts.extend(pts)
+
+    def poly(self, pts, fill, stroke=INK, sw=1.4, opacity=None, join="round"):
+        self._track(pts)
+        d = " ".join("%s,%s" % (fmt(x), fmt(y)) for x, y in pts)
+        op = ' opacity="%s"' % opacity if opacity is not None else ""
+        st = ' stroke="%s" stroke-width="%s" stroke-linejoin="%s"' % (stroke, sw, join) if stroke else ""
+        self.els.append('<polygon points="%s" fill="%s"%s%s/>' % (d, fill, st, op))
+
+    def line(self, pts, color=INK, sw=1.4, opacity=None, cap="round"):
+        self._track(pts)
+        d = " ".join("%s,%s" % (fmt(x), fmt(y)) for x, y in pts)
+        op = ' opacity="%s"' % opacity if opacity is not None else ""
+        self.els.append('<polyline points="%s" fill="none" stroke="%s" stroke-width="%s" stroke-linecap="%s" stroke-linejoin="round"%s/>' % (d, color, sw, cap, op))
+
+    def ellipse(self, cx, cy, rx, ry, fill, stroke=None, sw=1.4, opacity=None):
+        self._track([(cx - rx, cy - ry), (cx + rx, cy + ry)])
+        op = ' opacity="%s"' % opacity if opacity is not None else ""
+        st = ' stroke="%s" stroke-width="%s"' % (stroke, sw) if stroke else ""
+        self.els.append('<ellipse cx="%s" cy="%s" rx="%s" ry="%s" fill="%s"%s%s/>' % (fmt(cx), fmt(cy), fmt(rx), fmt(ry), fill, st, op))
+
+    def raw(self, svg, bbox):
+        self._track(bbox)
+        self.els.append(svg)
+
+    def box(self, x0, x1, y0, y1, z0, z1, top, left, right, sw=1.4, stroke=INK):
+        """Iso box; draws the two visible side faces and the top."""
+        self.poly([P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)], left, stroke, sw)
+        self.poly([P(x1, y1, z0), P(x1, y0, z0), P(x1, y0, z1), P(x1, y1, z1)], right, stroke, sw)
+        self.poly([P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)], top, stroke, sw)
+
+    def shadow(self, rx, ry=None, cx=0, cy=0, opacity=0.35):
+        self.ellipse(cx, cy, rx, ry if ry else rx / 2, "#000", opacity=opacity)
+
+    def save(self, name, pad=3, extra=None, fixed=None):
+        if fixed:
+            minx, miny, maxx, maxy = fixed
+        else:
+            xs = [p[0] for p in self.pts]
+            ys = [p[1] for p in self.pts]
+            minx, miny, maxx, maxy = min(xs) - pad, min(ys) - pad, max(xs) + pad, max(ys) + pad
+        w, h = maxx - minx, maxy - miny
+        body = "\n  ".join(self.els)
+        svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="%s %s %s %s">\n  %s\n</svg>\n'
+               % (math.ceil(w * 2), math.ceil(h * 2), fmt(minx), fmt(miny), fmt(math.ceil(w * 2) / 2), fmt(math.ceil(h * 2) / 2), body))
+        with open(os.path.join(ART, name + ".svg"), "w") as f:
+            f.write(svg)
+        entry = {"ax": -minx, "ay": -miny, "w": math.ceil(w * 2) / 2, "h": math.ceil(h * 2) / 2}
+        if extra:
+            entry.update(extra)
+        manifest[name] = entry
+
+
+def diamond(scale_x=1.0, scale_y=None, cx=0, cy=0):
+    sy = scale_y if scale_y is not None else scale_x
+    return [(cx, cy - TH * sy), (cx + TW * scale_x, cy), (cx, cy + TH * sy), (cx - TW * scale_x, cy)]
+
+
+def rand_in_diamond(rng, s=0.8):
+    while True:
+        gx, gy = rng.uniform(-0.5, 0.5) * s, rng.uniform(-0.5, 0.5) * s
+        return P(gx, gy)
+
+
+# ---------------------------------------------------------------- ground tiles
+
+def tile_grass(i):
+    rng = random.Random(10 + i)
+    a = Art()
+    a.poly(diamond(1.03), GRASS[i], stroke=None)
+    for _ in range(5):
+        x, y = rand_in_diamond(rng, 0.75)
+        a.ellipse(x, y, rng.uniform(8, 16), rng.uniform(4, 7), GRASS_LIGHT if rng.random() < 0.5 else GRASS_DARK, opacity=0.18)
+    for _ in range(7):
+        x, y = rand_in_diamond(rng, 0.8)
+        a.line([(x - 2, y), (x - 3, y - 4)], GRASS_DARK, 1.1)
+        a.line([(x, y), (x, y - 5)], GRASS_DARK, 1.1)
+        a.line([(x + 2, y), (x + 3, y - 4)], GRASS_DARK, 1.1)
+    if i == 2:
+        for _ in range(2):
+            x, y = rand_in_diamond(rng, 0.6)
+            a.ellipse(x, y, 1.6, 1.6, "#b9a36a")
+    a.save("tile_grass_%d" % i, pad=0, fixed=(-66, -34, 66, 34))
+
+
+def tile_forest():
+    rng = random.Random(77)
+    a = Art()
+    a.poly(diamond(1.03), FOREST_FLOOR, stroke=None)
+    for _ in range(9):
+        x, y = rand_in_diamond(rng, 0.8)
+        a.ellipse(x, y, rng.uniform(4, 10), rng.uniform(2, 4), "#26391c", opacity=0.6)
+    for _ in range(6):
+        x, y = rand_in_diamond(rng, 0.8)
+        a.line([(x - 3, y), (x + 3, y - 1)], "#5a4630", 1.0, opacity=0.7)
+    a.save("tile_forest", pad=0, fixed=(-66, -34, 66, 34))
+
+
+def tile_road():
+    rng = random.Random(5)
+    a = Art()
+    # soft semi-transparent outer rim so neighbouring road tiles blend together
+    a.poly(diamond(1.16), DIRT, stroke=None, opacity=0.45)
+    a.poly(diamond(1.06), DIRT, stroke=None)
+    for _ in range(6):
+        x, y = rand_in_diamond(rng, 0.8)
+        a.ellipse(x, y, rng.uniform(5, 12), rng.uniform(2, 5), DIRT_DARK if rng.random() < 0.6 else DIRT_LIGHT, opacity=0.5)
+    for _ in range(6):
+        x, y = rand_in_diamond(rng, 0.85)
+        a.ellipse(x, y, rng.uniform(1.2, 2.4), rng.uniform(1, 1.6), "#9a8866" if rng.random() < 0.5 else "#4b3a26")
+    a.save("tile_road", pad=0, fixed=(-76, -38, 76, 38))
+
+
+# ------------------------------------------------------------------ trees
+
+def tree_pine(i):
+    rng = random.Random(30 + i)
+    s = 1.0 + 0.12 * i
+    a = Art()
+    a.shadow(28 * s, 13 * s)
+    a.poly([(-3, 0), (3, 0), (3, -16), (-3, -16)], WOOD_D)
+    tiers = [(-12, 30, -52), (-34, 25, -72), (-54, 18, -94)]
+    greens = [("#1f3a28", "#162c1e"), ("#244330", "#193322"), ("#2a4c36", "#1d3827")]
+    for (base, hw, apex), (gl, gr) in zip(tiers, greens):
+        base, hw, apex = base * s, hw * s, apex * s
+        a.poly([(-hw, base), (0, apex), (hw, base), (0, base + 5)], gl)
+        a.poly([(0, apex), (hw, base), (0, base + 5)], gr, stroke=None)
+        a.line([(-hw, base), (0, apex), (hw, base)], INK, 1.4)
+    a.line([(-6 * s, -58 * s), (-2 * s, -80 * s)], "#3a6448", 1.6, opacity=0.8)
+    a.save("tree_pine_%d" % i)
+
+
+def tree_oak():
+    a = Art()
+    a.shadow(34, 16)
+    a.poly([(-5, 0), (5, 0), (4, -30), (-4, -30)], WOOD_D)
+    a.line([(0, -26), (-12, -40)], INK, 4.5)
+    a.line([(0, -26), (-12, -40)], WOOD_D, 2.5)
+    for cx, cy, r, c in [(-18, -50, 20, "#203a22"), (18, -50, 20, "#1b331d"), (0, -68, 26, "#26442a"), (-8, -76, 12, "#2e5232")]:
+        a.ellipse(cx, cy, r, r * 0.9, c, INK, 1.4)
+    a.ellipse(-12, -74, 5, 4, "#3d6a42", opacity=0.8)
+    a.save("tree_oak")
+
+
+def tree_dead():
+    a = Art()
+    a.shadow(18, 8)
+    a.poly([(-4, 0), (4, 0), (2, -46), (-2, -46)], "#4a4036")
+    for pts in [[(0, -30), (-16, -48), (-20, -60)], [(0, -38), (14, -54), (22, -58)], [(1, -46), (4, -64)], [(-10, -42), (-4, -52)]]:
+        a.line(pts, INK, 4.2)
+        a.line(pts, "#5c5145", 2.2)
+    a.save("tree_dead")
+
+
+# --------------------------------------------------------------- buildings
+
+def hut(ruin=False):
+    a = Art()
+    x0, x1, y0, y1 = -0.34, 0.34, -0.3, 0.3
+    if ruin:
+        a.poly(diamond(0.8), "#2d2a26", stroke=None, opacity=0.6)
+        a.box(x0, x1 - 0.2, y1 - 0.12, y1, 0, 14, STONE_T, "#6a5e4e", "#51483c")
+        a.box(x1 - 0.1, x1, y0, y1 - 0.25, 0, 20, STONE_T, "#6a5e4e", "#51483c")
+        a.box(-0.1, 0.1, -0.05, 0.1, 0, 6, "#5a5047", "#4a4138", "#3a332c")
+        a.line([P(-0.3, 0.1, 2), P(0.2, -0.2, 18)], INK, 4.5)
+        a.line([P(-0.3, 0.1, 2), P(0.2, -0.2, 18)], "#2a1e15", 2.6)
+        a.line([P(-0.1, 0.25, 1), P(0.3, 0.15, 10)], INK, 4)
+        a.line([P(-0.1, 0.25, 1), P(0.3, 0.15, 10)], "#3a2a1c", 2.2)
+        for gx, gy in [(-0.2, -0.15), (0.15, 0.2), (0.25, -0.1)]:
+            x, y = P(gx, gy)
+            a.ellipse(x, y, 3.5, 2.2, "#6b665e", INK, 1)
+        a.save("hut_ruin")
+        return
+    a.shadow(44, 22, cy=4)
+    h, ridge, e = 26, 54, 0.07
+    a.box(x0, x1, y0, y1, 0, h, "#8c7b62", "#8c7b62", "#6c5e4a")
+    # timber framing on the left face
+    for t in (0.0, 0.5, 1.0):
+        gx = x0 + (x1 - x0) * t
+        a.line([P(gx, y1, 0), P(gx, y1, h)], "#3b2a1d", 2)
+    a.line([P(x0, y1, h * 0.5), P(x1, y1, h * 0.5)], "#3b2a1d", 1.6)
+    # door + lit window
+    a.poly([P(-0.08, y1, 0), P(0.08, y1, 0), P(0.08, y1, 17), P(-0.08, y1, 17)], "#2b1e14")
+    a.poly([P(x1, 0.15, 10), P(x1, -0.05, 10), P(x1, -0.05, 19), P(x1, 0.15, 19)], GLOW)
+    a.line([P(x1, 0.05, 10), P(x1, 0.05, 19)], "#3b2a1d", 1.2)
+    # gable roof, ridge along gx
+    ym = (y0 + y1) / 2
+    back = [P(x0 - e, y0 - e, h), P(x1 + e, y0 - e, h), P(x1 + e, ym, ridge), P(x0 - e, ym, ridge)]
+    front = [P(x0 - e, ym, ridge), P(x1 + e, ym, ridge), P(x1 + e, y1 + e, h), P(x0 - e, y1 + e, h)]
+    gable = [P(x1, y0, h), P(x1, ym, ridge - 3), P(x1, y1, h)]
+    a.poly(back, "#4a3b24")
+    a.poly(gable, "#7a6a52")
+    a.poly(front, "#5b4a2e")
+    for t in (0.33, 0.66):
+        a.line([P(x0 - e, ym + (y1 + e - ym) * t, ridge - (ridge - h) * t), P(x1 + e, ym + (y1 + e - ym) * t, ridge - (ridge - h) * t)], "#43351f", 1.2)
+    # chimney
+    a.box(0.14, 0.24, -0.1, 0.0, ridge - 14, ridge + 8, STONE_T, STONE_L, STONE_R)
+    a.save("hut")
+
+
+def wall():
+    a = Art()
+    x0, x1, y0, y1, h = -0.5, 0.5, -0.14, 0.14, 34
+    a.box(x0, x1, y0, y1, 0, h, STONE_T, STONE_L, STONE_R)
+    for z in (11, 22):
+        a.line([P(x0, y1, z), P(x1, y1, z)], STONE_D, 1)
+    for gx, z0 in [(-0.25, 0), (0.15, 0), (-0.05, 11), (0.35, 11), (-0.35, 22), (0.05, 22)]:
+        a.line([P(gx, y1, z0), P(gx, y1, z0 + 11)], STONE_D, 1)
+    for gx in (-0.42, -0.08, 0.26):
+        a.box(gx, gx + 0.16, y0, y1, h, h + 8, STONE_T, STONE_L, STONE_R)
+    a.save("wall")
+
+
+def gate():
+    a = Art()
+    x0, x1, y0, y1 = -0.5, 0.5, -0.16, 0.16
+    a.box(x0, -0.22, y0, y1, 0, 46, STONE_T, STONE_L, STONE_R)
+    a.box(0.22, x1, y0, y1, 0, 46, STONE_T, STONE_L, STONE_R)
+    a.box(-0.22, 0.22, y0, y1, 30, 42, STONE_T, STONE_L, STONE_R)
+    # doors in the opening
+    a.poly([P(-0.22, y1 - 0.04, 0), P(0.22, y1 - 0.04, 0), P(0.22, y1 - 0.04, 30), P(-0.22, y1 - 0.04, 30)], WOOD_D)
+    for gx in (-0.11, 0.0, 0.11):
+        a.line([P(gx, y1 - 0.04, 0), P(gx, y1 - 0.04, 30)], "#2b1e14", 1.4)
+    a.line([P(-0.22, y1 - 0.04, 14), P(0.22, y1 - 0.04, 14)], "#8a8a8a", 1.6)
+    for gx in (-0.5, -0.36, 0.22, 0.36):
+        a.box(gx, gx + 0.14, y0, y1, 46, 54, STONE_T, STONE_L, STONE_R)
+    # Veliron banner
+    a.poly([P(-0.36, y1, 44), P(-0.26, y1, 44), P(-0.26, y1, 18), P(-0.31, y1, 23), P(-0.36, y1, 18)], CRIMSON)
+    a.poly([P(0.26, y1, 44), P(0.36, y1, 44), P(0.36, y1, 18), P(0.31, y1, 23), P(0.26, y1, 18)], CRIMSON)
+    x, y = P(-0.31, y1, 34)
+    a.ellipse(x, y, 2.2, 2.2, GOLD)
+    x, y = P(0.31, y1, 34)
+    a.ellipse(x, y, 2.2, 2.2, GOLD)
+    a.save("gate")
+
+
+def merlons(a, s, z, front):
+    """Merlons around a square top of half-size s. front=True draws only the front edges."""
+    k = 0.13
+    spots_back = [(-s, -s), (-s + 0.25 * 2 * s, -s), (s - k, -s), (-s, 0 - k / 2)]
+    spots_front = [(-s, s - k), (0 - k / 2, s - k), (s - k, s - k), (s - k, 0 - k / 2), (s - k, -s)]
+    for gx, gy in (spots_front if front else spots_back):
+        a.box(gx, gx + k, gy, gy + k, z, z + 9, STONE_T, STONE_L, STONE_R)
+
+
+def wall_tower(front=False):
+    a = Art()
+    s, h = 0.36, 74
+    if not front:
+        a.shadow(52, 26, cy=4)
+        a.box(-s, s, -s, s, 0, h, STONE_T, STONE_L, STONE_R)
+        for z in (18, 36, 54):
+            a.line([P(-s, s, z), P(s, s, z)], STONE_D, 1)
+            a.line([P(s, s, z), P(s, -s, z)], STONE_D, 1)
+        a.poly([P(-0.05, s, 34), P(0.05, s, 34), P(0.05, s, 48), P(-0.05, s, 48)], "#1a1612")
+        a.box(-s - 0.03, s + 0.03, -s - 0.03, s + 0.03, h, h + 4, STONE_T, STONE_L, STONE_R)
+        # banner pole at the back
+        a.line([P(-s + 0.06, -s + 0.06, h + 4), P(-s + 0.06, -s + 0.06, h + 44)], INK, 3)
+        x, y = P(-s + 0.06, -s + 0.06, h + 44)
+        a.poly([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], CRIMSON)
+        merlons(a, s + 0.03, h + 4, False)
+        # Anchor the manifest bbox identically for the front overlay by tracking the same extents.
+    else:
+        a._track([P(-s, s, 0), P(s, -s, 0), P(-s, -s, h + 60), P(s, s, 0)])
+        merlons(a, s + 0.03, h + 4, True)
+    return a
+
+
+def watchtower(front=False):
+    a = Art()
+    s, base_h, post_h, plat = 0.3, 16, 60, 0.38
+    if not front:
+        a.shadow(46, 23, cy=4)
+        a.box(-s, s, -s, s, 0, base_h, STONE_T, STONE_L, STONE_R)
+        k = 0.06
+        for gx, gy in [(-s + 0.02, -s + 0.02), (s - 0.08, -s + 0.02), (-s + 0.02, s - 0.08), (s - 0.08, s - 0.08)]:
+            a.box(gx, gx + k, gy, gy + k, base_h, post_h, WOOD_L, WOOD, WOOD_D, sw=1.1)
+        a.line([P(-s, s - 0.05, base_h + 4), P(s, s - 0.05, post_h - 6)], WOOD_D, 2.4)
+        a.line([P(s - 0.05, s, base_h + 4), P(s - 0.05, -s, post_h - 6)], WOOD_D, 2.4)
+        a.box(-plat, plat, -plat, plat, post_h, post_h + 6, WOOD_L, WOOD, WOOD_D)
+        for t in (-0.2, 0.0, 0.2):
+            a.line([P(-plat, t, post_h + 6), P(plat, t, post_h + 6)], WOOD_D, 1)
+        # back railing
+        for gx, gy in [(-plat, -plat), (plat - 0.05, -plat), (-plat, 0)]:
+            a.box(gx, gx + 0.05, gy, gy + 0.05, post_h + 6, post_h + 20, WOOD_L, WOOD, WOOD_D, sw=1)
+        a.line([P(-plat, -plat, post_h + 18), P(plat, -plat, post_h + 18)], WOOD_D, 2.4)
+        a.line([P(-plat, -plat, post_h + 18), P(-plat, plat, post_h + 18)], WOOD_D, 2.4)
+        # little crimson pennant
+        a.line([P(plat - 0.03, -plat, post_h + 18), P(plat - 0.03, -plat, post_h + 44)], INK, 2.2)
+        x, y = P(plat - 0.03, -plat, post_h + 44)
+        a.poly([(x, y), (x + 16, y + 4), (x, y + 9)], CRIMSON)
+    else:
+        a._track([P(-plat, plat, 0), P(plat, -plat, 0), P(-plat, -plat, post_h + 60), P(plat, plat, 0)])
+        for gx, gy in [(-plat, plat - 0.05), (plat - 0.05, plat - 0.05), (plat - 0.05, 0)]:
+            a.box(gx, gx + 0.05, gy, gy + 0.05, post_h + 6, post_h + 20, WOOD_L, WOOD, WOOD_D, sw=1)
+        a.line([P(-plat, plat, post_h + 18), P(plat, plat, post_h + 18)], WOOD_D, 2.6)
+        a.line([P(plat, plat, post_h + 18), P(plat, -plat, post_h + 18)], WOOD_D, 2.6)
+    return a
+
+
+def site():
+    a = Art()
+    a.poly(diamond(0.78), DIRT_DARK, stroke=None, opacity=0.85)
+    for gx, gy in [(-0.38, -0.38), (0.38, -0.38), (-0.38, 0.38), (0.38, 0.38)]:
+        a.box(gx - 0.025, gx + 0.025, gy - 0.025, gy + 0.025, 0, 12, WOOD_L, WOOD, WOOD_D, sw=0.9)
+    a.line([P(-0.38, 0.38, 10), P(0.38, 0.38, 10), P(0.38, -0.38, 10)], "#c9b98f", 1)
+    # scaffold frame
+    for gx, gy in [(-0.25, -0.25), (0.25, -0.25), (-0.25, 0.25), (0.25, 0.25)]:
+        a.line([P(gx, gy, 0), P(gx, gy, 38)], WOOD_D, 2.2)
+    a.line([P(-0.25, 0.25, 30), P(0.25, 0.25, 30), P(0.25, -0.25, 30)], WOOD, 2.2)
+    a.line([P(-0.25, 0.25, 4), P(0.25, 0.25, 30)], WOOD, 1.8)
+    # plank + stone piles
+    a.box(-0.3, 0.05, 0.12, 0.26, 0, 4, WOOD_L, WOOD, WOOD_D, sw=1)
+    a.box(-0.26, 0.09, 0.14, 0.24, 4, 7, WOOD_L, WOOD, WOOD_D, sw=1)
+    a.box(0.1, 0.24, -0.1, 0.06, 0, 6, STONE_T, STONE_L, STONE_R, sw=1)
+    a.save("site")
+
+
+def farm_field(kind):
+    """3x3 flat field, anchor at centre tile. kind: 'field' or 'site'."""
+    a = Art()
+    s = 1.45
+    border = [P(-s, -s), P(s, -s), P(s, s), P(-s, s)]
+    a.poly(border, "#4a3a27" if kind == "field" else "#4f3f2b", INK, 1.4)
+    rng = random.Random(3)
+    if kind == "field":
+        gy = -s + 0.18
+        while gy < s - 0.1:
+            a.line([P(-s + 0.12, gy), P(s - 0.12, gy)], "#3a2c1c", 3.2)
+            a.line([P(-s + 0.12, gy - 0.02), P(s - 0.12, gy - 0.02)], "#8c7a3c", 2.2)
+            gx = -s + 0.2
+            while gx < s - 0.15:
+                x, y = P(gx + rng.uniform(-0.03, 0.03), gy)
+                a.line([(x, y), (x - 1.5, y - 6), (x, y - 8), (x + 1.5, y - 6), (x, y)], "#b0993f", 1.1)
+                gx += 0.22
+            gy += 0.27
+        # fence posts
+        for t in [i / 8 for i in range(9)]:
+            for p in (P(-s + 2 * s * t, s), P(s, s - 2 * s * t)):
+                a.line([p, (p[0], p[1] - 9)], WOOD_D, 2.2)
+        a.line([(P(-s, s)[0], P(-s, s)[1] - 6), (P(s, s)[0], P(s, s)[1] - 6), (P(s, -s)[0], P(s, -s)[1] - 6)], WOOD, 1.6)
+        a.save("farm_field")
+    else:
+        gy = -s + 0.25
+        while gy < s - 0.1:
+            a.line([P(-s + 0.15, gy), P(s - 0.15, gy)], "#3d2f20", 2, opacity=0.8)
+            gy += 0.3
+        for gx, gy in [(-s, -s), (s, -s), (-s, s), (s, s), (0, s), (s, 0), (0, -s), (-s, 0)]:
+            x, y = P(gx, gy)
+            a.line([(x, y), (x, y - 10)], WOOD_L, 2)
+        a.line([(P(-s, s)[0], P(-s, s)[1] - 8), (P(s, s)[0], P(s, s)[1] - 8), (P(s, -s)[0], P(s, -s)[1] - 8)], "#c9b98f", 1)
+        a.save("farm_site")
+
+
+def farm_shed():
+    a = Art()
+    a.shadow(30, 15, cy=2)
+    x0, x1, y0, y1, h = -0.26, 0.26, -0.22, 0.22, 20
+    a.box(x0, x1, y0, y1, 0, h, WOOD_L, WOOD, WOOD_D)
+    for t in (0.25, 0.5, 0.75):
+        gx = x0 + (x1 - x0) * t
+        a.line([P(gx, y1, 0), P(gx, y1, h)], WOOD_D, 1)
+    a.poly([P(-0.08, y1, 0), P(0.08, y1, 0), P(0.08, y1, 14), P(-0.08, y1, 14)], "#241911")
+    e = 0.06
+    a.poly([P(x0 - e, y0 - e, h + 14), P(x1 + e, y0 - e, h + 14), P(x1 + e, y1 + e, h), P(x0 - e, y1 + e, h)], "#5b4a2e")
+    a.poly([P(x1 + e, y0 - e, h + 14), P(x1 + e, y1 + e, h), P(x1, y1, h), P(x1, y0, h + 14)], "#43351f")
+    # hay bale
+    a.box(0.3, 0.46, -0.12, 0.06, 0, 9, "#b49a4a", "#9c8440", "#7d6a33", sw=1)
+    a.save("farm_shed")
+
+
+# -------------------------------------------------------------------- units
+
+def person(name, body, hood=None, hat=None, prop=None, skin="#d8b08c", robe=False, extra=None):
+    """Generic villager, facing right, feet at (0,0), ~42px tall."""
+    a = Art()
+    a.shadow(11, 4.5, opacity=0.4)
+    if prop == "back":
+        pass
+    # legs
+    if robe:
+        a.poly([(-9, -2), (9, -2), (7, -26), (-7, -26)], body[0])
+        a.poly([(0, -2), (9, -2), (7, -26), (0, -26)], body[1], stroke=None)
+        a.line([(-9, -2), (9, -2), (7, -26)], INK, 1.4)
+    else:
+        a.line([(-3, -1), (-3, -12)], INK, 5)
+        a.line([(3, -1), (3, -12)], INK, 5)
+        a.line([(-3, -1.5), (-3, -12)], "#3a3128", 3)
+        a.line([(3, -1.5), (3, -12)], "#3a3128", 3)
+        a.ellipse(-3.5, -1, 3.5, 1.8, "#2a211a", INK, 1)
+        a.ellipse(3.5, -1, 3.5, 1.8, "#2a211a", INK, 1)
+        # torso
+        a.poly([(-7, -11), (7, -11), (6, -27), (-6, -27)], body[0])
+        a.poly([(0, -11), (7, -11), (6, -27), (0, -27)], body[1], stroke=None)
+        a.line([(-7, -11), (7, -11), (6, -27)], INK, 1.2)
+        a.line([(-7, -15), (7, -15)], "#2a1e14", 2)
+    if extra:
+        extra(a, "back")
+    # head
+    a.ellipse(0, -33, 6, 6, skin, INK, 1.3)
+    a.ellipse(3, -33.5, 0.9, 0.9, INK)
+    if hood:
+        a.raw('<path d="M-7,-30 Q-8,-43 0,-43 Q8,-43 7,-34 L4,-36 Q0,-40 -4,-36 Q-5,-33 -5,-28 Z" fill="%s" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % (hood, INK), [(-8, -44), (8, -28)])
+    if hat:
+        hat(a)
+    if extra:
+        extra(a, "front")
+    a.save(name)
+
+
+def builder():
+    def extra(a, layer):
+        if layer == "front":
+            # hammer
+            a.line([(6, -18), (13, -30)], INK, 3.6)
+            a.line([(6, -18), (13, -30)], WOOD_L, 2)
+            a.poly([(9, -33), (17, -29), (15, -26), (8, -30)], "#8a8a8a")
+            a.line([(4, -20), (8, -20)], INK, 4)
+            # apron
+            a.poly([(-5, -12), (5, -12), (4, -23), (-4, -23)], "#7a5a38", INK, 1)
+
+    def hat(a):
+        a.raw('<path d="M-7,-35 Q-6,-42 0,-42 Q7,-42 7,-35 Z" fill="#5c5448" stroke="%s" stroke-width="1.3"/>' % INK, [(-8, -43), (8, -34)])
+        a.line([(-8, -35), (9, -35)], INK, 2)
+    person("unit_builder", ("#7a6048", "#5f4a37"), hat=hat, extra=extra)
+
+
+def farmer():
+    def extra(a, layer):
+        if layer == "front":
+            a.line([(8, -4), (12, -38)], INK, 3)
+            a.line([(8, -4), (12, -38)], WOOD_L, 1.6)
+            a.line([(9, -38), (15, -38)], INK, 1.8)
+            for x in (9, 12, 15):
+                a.line([(x, -38), (x, -44)], "#8a8a8a", 1.4)
+            a.line([(4, -20), (9, -22)], INK, 4)
+
+    def hat(a):
+        a.ellipse(0, -38, 11, 3.2, "#b8a060", INK, 1.2)
+        a.raw('<path d="M-5,-38 Q-4,-45 0,-45 Q4,-45 5,-38 Z" fill="#c9b070" stroke="%s" stroke-width="1.2"/>' % INK, [(-6, -46), (6, -37)])
+    person("unit_farmer", ("#566a3a", "#43532d"), hat=hat, extra=extra)
+
+
+def explorer():
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-10, -14), (-5, -14), (-5, -26), (-10, -26)], "#5a4630")  # pack
+        else:
+            a.line([(5, -20), (10, -18)], INK, 4)
+            a.line([(10, -18), (10, -12)], INK, 1.2)
+            a.poly([(7, -12), (13, -12), (12, -5), (8, -5)], "#3a3128")
+            a.ellipse(10, -8.5, 2.2, 2.6, GLOW)
+            a.ellipse(10, -8.5, 6, 6, GLOW, opacity=0.25)
+    person("unit_explorer", ("#3a4a44", "#2c3934"), hood="#34453f", extra=extra)
+
+
+def archmage():
+    def extra(a, layer):
+        if layer == "front":
+            a.line([(10, 0), (10, -44)], INK, 3.4)
+            a.line([(10, 0), (10, -44)], "#3a2c22", 1.8)
+            a.ellipse(10, -47, 4.2, 4.2, "#b88cff", INK, 1.2)
+            a.ellipse(10, -47, 9, 9, "#9a6cff", opacity=0.3)
+            a.raw('<path d="M-3,-30 Q0,-18 3,-30 Z" fill="#cfcfcf" stroke="%s" stroke-width="1"/>' % INK, [(-4, -31), (4, -18)])
+
+    def hat(a):
+        a.raw('<path d="M-9,-36 L9,-36 L2,-40 L-3,-58 L-4,-40 Z" fill="#2e2442" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-10, -59), (10, -35)])
+        a.ellipse(-3, -58, 1.6, 1.6, GOLD)
+    person("unit_archmage", ("#3a2d55", "#2a2040"), hat=hat, robe=True, extra=extra)
+
+
+def archer():
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-9, -16), (-5, -16), (-3, -30), (-7, -30)], WOOD, INK, 1)
+            a.line([(-6, -30), (-7, -35)], INK, 1.2)
+        else:
+            a.poly([(-7, -24), (7, -18), (7, -15), (-7, -21)], CRIMSON, INK, 0.8)  # sash
+            a.line([(4, -21), (11, -22)], INK, 4)
+            a.raw('<path d="M9,-38 Q19,-22 9,-6" fill="none" stroke="%s" stroke-width="3.4" stroke-linecap="round"/>' % INK, [(8, -39), (18, -5)])
+            a.raw('<path d="M9,-38 Q19,-22 9,-6" fill="none" stroke="%s" stroke-width="1.8" stroke-linecap="round"/>' % "#8a5a30", [(8, -39), (18, -5)])
+            a.line([(9, -38), (9, -6)], "#d8d0b8", 0.8)
+    person("unit_archer", ("#33472f", "#263623"), hood="#2c3f29", extra=extra)
+
+
+def goblin():
+    a = Art()
+    a.shadow(11, 4.5, opacity=0.4)
+    skin, skin_d = "#5f7a36", "#4a6029"
+    a.line([(-3, -1), (-4, -9)], INK, 5)
+    a.line([(3, -1), (4, -9)], INK, 5)
+    a.line([(-3, -1.5), (-4, -9)], skin_d, 3)
+    a.line([(3, -1.5), (4, -9)], skin_d, 3)
+    a.poly([(-8, -8), (7, -8), (8, -22), (-5, -24)], "#4a3a2a")
+    a.line([(-8, -12), (7, -12)], "#2a1e14", 1.6)
+    # cleaver
+    a.line([(5, -14), (12, -24)], INK, 3.4)
+    a.line([(5, -14), (12, -24)], WOOD_D, 1.8)
+    a.poly([(10, -30), (17, -26), (13, -20), (9, -24)], "#7d7a74")
+    a.poly([(10, -30), (17, -26), (16, -25)], "#8c2a1c", stroke=None, opacity=0.8)
+    # head with ears
+    a.poly([(-14, -28), (-5, -27), (-6, -23)], skin)
+    a.poly([(12, -30), (4, -28), (5, -24)], skin)
+    a.ellipse(0, -27, 7.5, 6.5, skin, INK, 1.3)
+    a.ellipse(-2, -28, 1.6, 1.3, "#ff3b2a")
+    a.ellipse(3.5, -28, 1.6, 1.3, "#ff3b2a")
+    a.line([(-2, -23.5), (4, -23.5)], INK, 1.2)
+    a.poly([(-0.5, -23.5), (0.5, -21), (1.5, -23.5)], "#e8e0c8", INK, 0.6)
+    a.raw('<path d="M-7,-30 Q-4,-38 2,-37 Q7,-36 7,-30 Q0,-33 -7,-30Z" fill="#3b3b3b" stroke="%s" stroke-width="1.2"/>' % INK, [(-8, -39), (8, -29)])
+    a.save("unit_goblin")
+
+
+# ---------------------------------------------------------------- small bits
+
+def arrow():
+    a = Art()
+    a.line([(-12, 0), (10, 0)], INK, 2.4)
+    a.line([(-12, 0), (10, 0)], "#b08a58", 1.2)
+    a.poly([(9, -2.5), (15, 0), (9, 2.5)], "#9a9a9a", INK, 1)
+    a.poly([(-15, -2.5), (-10, 0), (-15, 2.5), (-12, 0)], CRIMSON, INK, 0.8)
+    a.save("arrow")
+
+
+def sack():
+    a = Art()
+    a.raw('<path d="M-6,0 Q-8,-8 -3,-10 L-4,-13 L4,-13 L3,-10 Q8,-8 6,0 Z" fill="#b89a60" stroke="%s" stroke-width="1.2" stroke-linejoin="round"/>' % INK, [(-8, -14), (8, 0)])
+    a.line([(-3.5, -10.5), (3.5, -10.5)], "#6a5230", 1.4)
+    a.save("sack")
+
+
+def icon_svg(name, body):
+    with open(os.path.join(ART, name + ".svg"), "w") as f:
+        f.write('<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 64 64">\n%s\n</svg>\n' % body)
+
+
+def icons():
+    icon_svg("icon_gold", f'''
+  <circle cx="32" cy="35" r="24" fill="{GOLD_D}" stroke="{INK}" stroke-width="3.5"/>
+  <circle cx="32" cy="31" r="24" fill="{GOLD}" stroke="{INK}" stroke-width="3.5"/>
+  <circle cx="32" cy="31" r="16" fill="none" stroke="{GOLD_D}" stroke-width="3"/>
+  <path d="M32 19 L36 29 L46 31 L36 33 L32 43 L28 33 L18 31 L28 29Z" fill="{GOLD_D}"/>
+  <path d="M17 21 Q22 12 32 11" fill="none" stroke="#f3dc93" stroke-width="3.5" stroke-linecap="round"/>''')
+    icon_svg("icon_food", f'''
+  <path d="M8 40 Q6 22 24 18 Q32 12 42 16 Q58 20 56 38 Q56 50 32 50 Q10 50 8 40Z" fill="#b07a3a" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M10 38 Q30 44 54 36" fill="none" stroke="#8a5a26" stroke-width="3"/>
+  <path d="M20 24 L26 34 M31 20 L36 31 M42 21 L46 31" stroke="#e0b070" stroke-width="3.5" stroke-linecap="round"/>''')
+    icon_svg("icon_materials", f'''
+  <rect x="6" y="28" width="38" height="14" rx="7" fill="{WOOD}" stroke="{INK}" stroke-width="3.5"/>
+  <ellipse cx="41" cy="35" rx="5" ry="7" fill="#b08a58" stroke="{INK}" stroke-width="3"/>
+  <circle cx="41" cy="35" r="2" fill="{WOOD_D}"/>
+  <rect x="10" y="16" width="34" height="13" rx="6.5" fill="{WOOD_L}" stroke="{INK}" stroke-width="3.5"/>
+  <ellipse cx="41" cy="22.5" rx="5" ry="6.5" fill="#c49a64" stroke="{INK}" stroke-width="3"/>
+  <path d="M34 58 L30 44 L42 38 L58 42 L60 56Z" fill="{STONE_L}" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M42 38 L46 50 L60 56 M46 50 L34 58" fill="none" stroke="{STONE_D}" stroke-width="2.5"/>''')
+    icon_svg("icon_population", f'''
+  <circle cx="22" cy="20" r="8" fill="#d8b08c" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M8 50 Q8 30 22 30 Q36 30 36 50Z" fill="#7a6048" stroke="{INK}" stroke-width="3.5"/>
+  <circle cx="42" cy="22" r="8" fill="#d8b08c" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M28 54 Q28 32 42 32 Q56 32 56 54Z" fill="#566a3a" stroke="{INK}" stroke-width="3.5"/>''')
+    icon_svg("icon_goblin", f'''
+  <path d="M4 22 L22 28 L18 36Z M60 22 L42 28 L46 36Z" fill="#5f7a36" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>
+  <ellipse cx="32" cy="34" rx="17" ry="16" fill="#5f7a36" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M20 28 L28 32 M44 28 L36 32" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="25" cy="35" rx="3.5" ry="3" fill="#ff3b2a"/><ellipse cx="39" cy="35" rx="3.5" ry="3" fill="#ff3b2a"/>
+  <path d="M24 43 Q32 48 40 43" fill="none" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>
+  <path d="M27 44 L28 40 L30 45Z M37 44 L36 40 L34 45Z" fill="#e8e0c8"/>''')
+    icon_svg("icon_skull", f'''
+  <path d="M32 6 Q52 6 52 28 Q52 38 46 42 L46 52 L18 52 L18 42 Q12 38 12 28 Q12 6 32 6Z" fill="#d8d0bc" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <ellipse cx="24" cy="30" rx="6" ry="7" fill="{INK}"/><ellipse cx="40" cy="30" rx="6" ry="7" fill="{INK}"/>
+  <path d="M32 36 L29 43 L35 43Z" fill="{INK}"/>
+  <path d="M25 52 L25 46 M32 52 L32 46 M39 52 L39 46" stroke="{INK}" stroke-width="2.5"/>''')
+    icon_svg("icon_build", f'''
+  <path d="M14 54 L38 30" stroke="{INK}" stroke-width="9" stroke-linecap="round"/>
+  <path d="M14 54 L38 30" stroke="{WOOD_L}" stroke-width="5" stroke-linecap="round"/>
+  <path d="M30 14 L50 34 L56 28 L44 16 Q38 8 30 14Z" fill="#8a8a8a" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')
+    icon_svg("icon_village", f'''
+  <path d="M8 32 L32 12 L56 32Z" fill="#5b4a2e" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <rect x="14" y="32" width="36" height="22" fill="#8c7b62" stroke="{INK}" stroke-width="3.5"/>
+  <rect x="27" y="38" width="10" height="16" fill="#2b1e14"/>
+  <rect x="40" y="37" width="6" height="6" fill="{GLOW}"/>''')
+    icon_svg("icon_army", f'''
+  <path d="M18 8 Q48 32 18 56" fill="none" stroke="{INK}" stroke-width="7" stroke-linecap="round"/>
+  <path d="M18 8 Q48 32 18 56" fill="none" stroke="#8a5a30" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M18 8 L18 56" stroke="#d8d0b8" stroke-width="2"/>
+  <path d="M8 32 L50 32" stroke="{INK}" stroke-width="4"/>
+  <path d="M48 26 L58 32 L48 38Z" fill="#9a9a9a" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M6 27 L12 32 L6 37" fill="{CRIMSON}" stroke="{INK}" stroke-width="2"/>''')
+    icon_svg("icon_pause", f'''
+  <rect x="15" y="12" width="12" height="40" rx="3" fill="#efe3c8" stroke="{INK}" stroke-width="3.5"/>
+  <rect x="37" y="12" width="12" height="40" rx="3" fill="#efe3c8" stroke="{INK}" stroke-width="3.5"/>''')
+    icon_svg("icon_play", f'''
+  <path d="M18 12 L50 32 L18 52Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')
+    icon_svg("icon_fast", f'''
+  <path d="M6 14 L32 32 L6 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M32 14 L58 32 L32 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')
+    icon_svg("icon_collapse", f'''
+  <path d="M24 12 L44 32 L24 52" fill="none" stroke="#efe3c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>''')
+    icon_svg("icon_expand", f'''
+  <path d="M40 12 L20 32 L40 52" fill="none" stroke="#efe3c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>''')
+
+
+def app_icon():
+    with open(os.path.join(ROOT, "icon.svg"), "w") as f:
+        f.write(f'''<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2430"/><stop offset="1" stop-color="#3a4a3a"/></linearGradient></defs>
+  <rect x="8" y="8" width="240" height="240" rx="44" fill="url(#sky)" stroke="{INK}" stroke-width="8"/>
+  <circle cx="186" cy="64" r="22" fill="#e8dcb0" opacity="0.9"/>
+  <path d="M12 200 L40 150 L62 190 L86 140 L110 200Z M150 200 L178 146 L200 186 L222 150 L244 200Z" fill="#1a2c20"/>
+  <path d="M12 204 Q128 180 244 204 L244 210 Q244 244 204 244 L52 244 Q12 244 12 210Z" fill="#314a24"/>
+  <path d="M92 96 L164 96 L158 214 L98 214Z" fill="{STONE_L}" stroke="{INK}" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M128 96 L164 96 L158 214 L128 214Z" fill="{STONE_R}"/>
+  <path d="M84 84 L172 84 L172 100 L84 100Z" fill="{STONE_T}" stroke="{INK}" stroke-width="6"/>
+  <path d="M84 66 h18 v18 h-18z M119 66 h18 v18 h-18z M154 66 h18 v18 h-18z" fill="{STONE_T}" stroke="{INK}" stroke-width="6"/>
+  <path d="M116 214 L116 180 Q128 166 140 180 L140 214Z" fill="#2b1e14" stroke="{INK}" stroke-width="5"/>
+  <rect x="121" y="124" width="14" height="22" rx="7" fill="{GLOW}" stroke="{INK}" stroke-width="4"/>
+  <path d="M128 66 L128 26" stroke="{INK}" stroke-width="6" stroke-linecap="round"/>
+  <path d="M131 28 L170 36 L158 46 L170 56 L131 62Z" fill="{CRIMSON}" stroke="{INK}" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="146" cy="45" r="5" fill="{GOLD}"/>
+</svg>
+''')
+
+
+def write_manifest():
+    lines = ["# Generated by tools/gen_art.py - do not edit by hand.",
+             "# name -> anchor (ax, ay) and size (w, h) in 1x world units; extra keys per sprite.",
+             "class_name ArtManifest", "extends RefCounted", "", "const SPRITES := {"]
+    for name in sorted(manifest):
+        e = manifest[name]
+        kv = ", ".join('"%s": %s' % (k, fmt(v)) for k, v in e.items())
+        lines.append('\t"%s": {%s},' % (name, kv))
+    lines.append("}")
+    with open(MANIFEST, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def main():
+    os.makedirs(ART, exist_ok=True)
+    os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
+    for i in range(3):
+        tile_grass(i)
+    tile_forest()
+    tile_road()
+    tree_pine(0)
+    tree_pine(1)
+    tree_oak()
+    tree_dead()
+    hut()
+    hut(ruin=True)
+    wall()
+    gate()
+    wt = wall_tower()
+    wt.save("wall_tower", extra={"platform": 78})
+    wtf = wall_tower(front=True)
+    wtf.pts = wt.pts[:]  # identical canvas so both layers line up
+    wtf.save("wall_tower_front")
+    w = watchtower()
+    w.save("watchtower", extra={"platform": 66})
+    wf = watchtower(front=True)
+    wf.pts = w.pts[:]
+    wf.save("watchtower_front")
+    site()
+    farm_field("field")
+    farm_field("site")
+    farm_shed()
+    builder()
+    farmer()
+    explorer()
+    archmage()
+    archer()
+    goblin()
+    arrow()
+    sack()
+    icons()
+    app_icon()
+    write_manifest()
+    print("generated %d sprites" % len(manifest))
+
+
+if __name__ == "__main__":
+    main()

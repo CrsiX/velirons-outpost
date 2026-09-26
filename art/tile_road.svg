@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="304" height="152" viewBox="-76 -38 152 76">
+  <polygon points="0,-37.12 74.24,0 0,37.12 -74.24,0" fill="#6e5638" opacity="0.45"/>
+  <polygon points="0,-33.92 67.84,0 0,33.92 -67.84,0" fill="#6e5638"/>
+  <ellipse cx="-6.09" cy="9.34" rx="10.57" ry="4.83" fill="#836a47" opacity="0.5"/>
+  <ellipse cx="45.74" cy="-1.25" rx="8.26" ry="4.83" fill="#836a47" opacity="0.5"/>
+  <ellipse cx="40.33" cy="0.36" rx="8.28" ry="2.74" fill="#574329" opacity="0.5"/>
+  <ellipse cx="28.71" cy="-10.57" rx="6.52" ry="2.84" fill="#836a47" opacity="0.5"/>
+  <ellipse cx="31.03" cy="-1.91" rx="10.58" ry="2.42" fill="#836a47" opacity="0.5"/>
+  <ellipse cx="6.4" cy="-22.31" rx="11.1" ry="2.63" fill="#574329" opacity="0.5"/>
+  <ellipse cx="5.98" cy="23.25" rx="1.55" ry="1.58" fill="#4b3a26"/>
+  <ellipse cx="25.73" cy="-3.19" rx="2.33" ry="1.41" fill="#4b3a26"/>
+  <ellipse cx="32.37" cy="5.24" rx="1.63" ry="1.1" fill="#9a8866"/>
+  <ellipse cx="-12.85" cy="-17.23" rx="1.92" ry="1" fill="#4b3a26"/>
+  <ellipse cx="1.52" cy="-9.58" rx="2.18" ry="1.29" fill="#9a8866"/>
+  <ellipse cx="-12.16" cy="5.06" rx="1.27" ry="1.59" fill="#9a8866"/>
+</svg>

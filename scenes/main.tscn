@@ -1,0 +1,59 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
+[ext_resource type="Script" path="res://scripts/ui/camera_controller.gd" id="2_camera"]
+[ext_resource type="Script" path="res://scripts/world/world.gd" id="3_world"]
+[ext_resource type="Script" path="res://scripts/world/ground_layer.gd" id="4_ground"]
+[ext_resource type="Script" path="res://scripts/world/fog_layer.gd" id="5_fog"]
+[ext_resource type="Script" path="res://scripts/world/world_overlay.gd" id="6_overlay"]
+[ext_resource type="Script" path="res://scripts/systems/economy.gd" id="7_economy"]
+[ext_resource type="Script" path="res://scripts/systems/population.gd" id="8_population"]
+[ext_resource type="Script" path="res://scripts/systems/construction.gd" id="9_construction"]
+[ext_resource type="Script" path="res://scripts/systems/army.gd" id="10_army"]
+[ext_resource type="Script" path="res://scripts/systems/waves.gd" id="11_waves"]
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="12_hud"]
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_game")
+
+[node name="Camera" type="Camera2D" parent="."]
+script = ExtResource("2_camera")
+
+[node name="World" type="Node2D" parent="."]
+script = ExtResource("3_world")
+
+[node name="Ground" type="Node2D" parent="World"]
+script = ExtResource("4_ground")
+
+[node name="Decals" type="Node2D" parent="World"]
+
+[node name="Fog" type="Node2D" parent="World"]
+script = ExtResource("5_fog")
+
+[node name="Overlay" type="Node2D" parent="World"]
+script = ExtResource("6_overlay")
+
+[node name="Objects" type="Node2D" parent="World"]
+y_sort_enabled = true
+
+[node name="Effects" type="Node2D" parent="World"]
+
+[node name="Systems" type="Node" parent="."]
+
+[node name="Economy" type="Node" parent="Systems"]
+script = ExtResource("7_economy")
+
+[node name="Population" type="Node" parent="Systems"]
+script = ExtResource("8_population")
+
+[node name="Construction" type="Node" parent="Systems"]
+script = ExtResource("9_construction")
+
+[node name="Army" type="Node" parent="Systems"]
+script = ExtResource("10_army")
+
+[node name="Waves" type="Node" parent="Systems"]
+script = ExtResource("11_waves")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("12_hud")

@@ -1,0 +1,10 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+/build/
+Godot_*.zip
+# Godot editor data that ended up in the project root
+/export_templates/
+/feature_profiles/
+/script_templates/
+/text_editor_themes/
