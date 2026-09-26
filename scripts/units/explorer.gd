@@ -6,9 +6,10 @@ extends Civilian
 ## - switches to fog closer to the village when their local frontier is much
 ##   farther out than the village's nearest frontier;
 ## - avoids fog another explorer is already heading for;
-## - runs home when a goblin comes close, rests, then heads out again.
+## - runs home when a goblin comes close (shared Civilian evasion), rests,
+##   then heads out again.
 
-enum State { RESTING, EXPLORING, FLEEING }
+enum State { RESTING, EXPLORING, RETURNING }
 
 var state := State.RESTING
 var target := Vector2i(-1, -1)
@@ -30,9 +31,6 @@ func _tick(delta: float) -> void:
 			if _reveal_timer <= 0.0:
 				_reveal_timer = 0.15
 				game.fog.reveal(grid_pos, Config.EXPLORER_REVEAL)
-				if _goblin_nearby():
-					_flee()
-					return
 			var arrived := step_path(delta)
 			_think_timer -= delta
 			# Target already revealed (we see further than we walk): pick the next one.
@@ -40,32 +38,21 @@ func _tick(delta: float) -> void:
 				_think_timer = 0.4
 				if not _pick_target():
 					_go_home_idle()
-		State.FLEEING:
-			game.fog.reveal(grid_pos, Config.EXPLORER_REVEAL * 0.6)
+		State.RETURNING:
 			if step_path(delta):
 				arrive_home()
 				state = State.RESTING
-				rest_timer = Config.EXPLORER_REST
+				rest_timer = 5.0
 
 
-func _goblin_nearby() -> bool:
-	for node in get_tree().get_nodes_in_group("enemies"):
-		var g := node as Goblin
-		if not g.dead and g.visible and g.grid_pos.distance_to(grid_pos) < Config.EXPLORER_FLEE_RADIUS:
-			return true
-	return false
-
-
-func _flee() -> void:
-	state = State.FLEEING
+func _on_evade() -> void:
+	state = State.RESTING
 	target = Vector2i(-1, -1)
-	float_text("Goblins!", Color("ff7a6a"))
-	head_home()
 
 
 func _go_home_idle() -> void:
 	target = Vector2i(-1, -1)
-	state = State.FLEEING  # same "walk home, then rest" handling
+	state = State.RETURNING
 	head_home()
 
 
@@ -120,9 +107,11 @@ func choose_target(from: Vector2i) -> Vector2i:
 
 
 func status() -> String:
+	if evading:
+		return "fleeing from goblins"
 	match state:
 		State.EXPLORING: return "exploring"
-		State.FLEEING: return "returning home"
+		State.RETURNING: return "returning home"
 	return "resting"
 
 

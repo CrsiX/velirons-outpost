@@ -26,6 +26,11 @@ func refresh() -> void:
 	queue_redraw()
 
 
+## Intact huts watch farther than other buildings; ruins still count as buildings.
+func sight_radius() -> float:
+	return Config.HUT_SIGHT if is_intact() else Config.BUILDING_SIGHT
+
+
 func destroy() -> void:
 	ruined = true
 	complete = true

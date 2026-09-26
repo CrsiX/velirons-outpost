@@ -56,14 +56,28 @@ func _tick(delta: float) -> void:
 				_go_home()
 		State.RETURNING:
 			if step_path(delta):
-				if carrying > 0:
-					game.economy.add("food", carrying)
-					float_text("+%d food" % carrying, Color("e0b070"))
-				carrying = 0
+				_deliver()
 				arrive_home()
 				state = State.RESTING
 				rest_timer = Config.FARMER_REST
 	_sack.visible = carrying > 0 and not at_home
+
+
+func _on_evade() -> void:
+	state = State.RETURNING  # keeps whatever food is being carried
+
+
+func _after_evade() -> void:
+	_deliver()
+	state = State.RESTING
+
+
+func _deliver() -> void:
+	if carrying > 0:
+		game.economy.add("food", carrying)
+		float_text("+%d food" % carrying, Color("e0b070"))
+	carrying = 0
+	_sack.visible = false
 
 
 func _go_home() -> void:

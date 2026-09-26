@@ -1,16 +1,19 @@
 class_name Waves
 extends Node
-## Endless goblin waves. The first wave is called by the player; every later
-## wave starts WAVE_BUFFER seconds after the previous one is completely gone.
+## Endless goblin waves. The first wave starts FIRST_WAVE_DELAY seconds into the
+## game; every later wave starts WAVE_BUFFER seconds after the previous one is
+## completely gone. The countdown can be skipped for bonus gold.
 
 signal changed
 signal wave_started(n: int)
+## Emitted when the last enemy of wave `n` is gone.
+signal wave_finished(n: int)
 
 const GOBLIN_SCRIPT := preload("res://scripts/units/goblin.gd")
 
 var game: Game
 var wave := 0
-## Countdown to the next wave; negative while waiting for the player / a wave.
+## Countdown to the next wave; negative while a wave is running.
 var countdown := -1.0
 var _queue: Array[Dictionary] = []
 var _spawn_timer := 0.0
@@ -21,10 +24,7 @@ var _rng := RandomNumberGenerator.new()
 func setup(p_game: Game) -> void:
 	game = p_game
 	_rng.randomize()
-
-
-func waiting_for_first() -> bool:
-	return wave == 0
+	countdown = Config.FIRST_WAVE_DELAY
 
 
 func in_progress() -> bool:
@@ -35,11 +35,16 @@ func can_call() -> bool:
 	return not in_progress()
 
 
+## Enemies alive plus those of the current wave still to come.
+func enemies_left() -> int:
+	return _alive + _queue.size()
+
+
 func early_call_bonus() -> int:
 	return int(maxf(countdown, 0.0) * Config.EARLY_CALL_GOLD_PER_SECOND)
 
 
-## Starts the next wave now (the first call, or skipping the countdown).
+## Starts the next wave now, skipping the countdown.
 func call_next() -> void:
 	if not can_call():
 		return
@@ -84,6 +89,7 @@ func _spawn(spec: Dictionary) -> void:
 	var route := game.world.pathing.enemy_route(spec["spawn"], _rng)
 	var g: Goblin = GOBLIN_SCRIPT.new()
 	g.setup(game, route, spec["hp_scale"])
+	g.wave = wave
 	g.killed.connect(_on_goblin_killed)
 	g.reached_gate.connect(_on_goblin_reached_gate)
 	game.world.objects.add_child(g)
@@ -91,9 +97,11 @@ func _spawn(spec: Dictionary) -> void:
 
 
 func _on_goblin_killed(g: Goblin) -> void:
-	game.economy.add("gold", g.reward)
-	game.world.float_text("+%d gold" % g.reward, g.position + Vector2(0, -50), Color("c9a24a"))
+	var gold: int = Config.ENEMIES[g.kind]["gold_on_kill"]
+	game.economy.add("gold", gold)
+	game.world.float_text("+%d gold" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
 	Sfx.play("coin")
+	game.corpses.spawn(g.kind, g.wave, g.grid_pos)
 	_goblin_gone()
 
 
@@ -106,4 +114,5 @@ func _goblin_gone() -> void:
 	_alive -= 1
 	if not in_progress() and wave > 0:
 		countdown = Config.WAVE_BUFFER
+		wave_finished.emit(wave)
 	changed.emit()

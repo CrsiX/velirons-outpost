@@ -70,6 +70,14 @@ func status() -> String:
 	return "resting"
 
 
+func _on_evade() -> void:
+	# The site keeps its progress; any builder can pick it up again later.
+	if is_instance_valid(site) and site.builder == self:
+		game.construction.release(site, false)
+	site = null
+	state = State.RESTING
+
+
 func _release_jobs() -> void:
 	if is_instance_valid(site) and site.builder == self:
 		game.construction.release(site, false)

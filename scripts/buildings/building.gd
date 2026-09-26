@@ -27,6 +27,7 @@ func setup(p_game: Game, p_kind: String, p_tile: Vector2i, p_complete: bool) -> 
 		size = Config.BUILDINGS[kind]["size"]
 		build_time = Config.BUILDINGS[kind]["build_time"]
 	position = Iso.tile_to_world(tile)
+	add_to_group("observers")
 	_build_visuals()
 	refresh()
 
@@ -69,6 +70,17 @@ func work_tile() -> Vector2i:
 
 func is_solid_when_complete() -> bool:
 	return false
+
+
+# --- surveillance (group "observers") -------------------------------------------
+
+## Finished buildings watch BUILDING_SIGHT tiles beyond their footprint.
+func sight_radius() -> float:
+	return Config.BUILDING_SIGHT + size / 2 if complete else 0.0
+
+
+func sight_center() -> Vector2:
+	return Vector2(tile)
 
 
 ## Advance construction. Returns true once finished.

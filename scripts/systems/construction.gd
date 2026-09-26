@@ -39,6 +39,11 @@ func placement_error(kind: String, tile: Vector2i) -> String:
 					return "Can't build on the road"
 				MapData.Terrain.FOREST:
 					return "Trees are in the way"
+				MapData.Terrain.MOUNTAIN:
+					return "Mountains are in the way"
+				MapData.Terrain.DESERT:
+					if kind == "farm":
+						return "Nothing grows in the desert"
 	if not game.economy.can_afford(spec["cost"]):
 		return "Not enough building material"
 	return ""

@@ -3,9 +3,9 @@ extends RefCounted
 ## Every tunable number lives here so balancing is one-file work.
 ## Costs are dictionaries of resource -> amount ("gold", "food", "materials").
 
-const MAP_SIZE := 50
-const VILLAGE_ORIGIN := Vector2i(23, 23)  # top-left tile of the 5x5 walled village
-const VILLAGE_CENTER := Vector2i(25, 25)
+const MAP_SIZE := 75
+const VILLAGE_CENTER := Vector2i(MAP_SIZE / 2, MAP_SIZE / 2)
+const VILLAGE_ORIGIN := VILLAGE_CENTER - Vector2i(2, 2)  # top-left tile of the 5x5 walled village
 ## Village layout from the design doc. T tower, W wall, G gate, V hut.
 const VILLAGE_LAYOUT: Array[String] = [
 	"TWGWT",
@@ -17,7 +17,28 @@ const VILLAGE_LAYOUT: Array[String] = [
 
 const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
 const START_CIVILIANS: Array[String] = ["builder", "farmer", "explorer"]
-const START_REVEAL_RADIUS := 6.5
+const START_REVEAL_RADIUS := 7.5
+
+## Terrain generation.
+const DESERT_MAX_SHARE := 0.2  # at most this share of all tiles is desert
+const DESERT_MIN_VILLAGE_DIST := 12.0  # no desert right next to the village
+const MOUNTAIN_RANGES := Vector2i(7, 10)  # min/max number of ranges
+const MOUNTAIN_BORDER_BAND := 12  # ranges start within this many tiles of the edge
+const MOUNTAIN_ROAD_MARGIN := 2  # keep this many tiles free around roads
+const MOUNTAIN_MIN_VILLAGE_DIST := 16.0
+const FOREST_CLEARING_RING := 4  # tiles around the village centre kept free (Chebyshev)
+## Meadow buffer between desert and forest: forest is skipped this many tiles
+## from desert with the given chance (so it's typical, not strict).
+const DESERT_FOREST_GAP := 1
+const DESERT_FOREST_GAP_CHANCE := 0.85
+
+## Sight: explored tiles are only "under surveillance" (enemies visible) near
+## observers. Building sight is measured from the edge of the footprint.
+const UNIT_SIGHT := 4.0  # villagers and soldiers outside the walls
+const HUT_SIGHT := 4.0  # every intact hut
+const GATE_SIGHT := 3.0  # every gate, manned or not
+const BUILDING_SIGHT := 3.0  # every other finished building
+const TOWER_SIGHT_BONUS := 1.5  # manned towers see this far beyond their range
 
 ## Buildings the player can order. "size" is the square footprint in tiles.
 const BUILDINGS := {
@@ -51,12 +72,16 @@ const CIVILIANS := {
 		"name": "Explorer", "cost": {"food": 25}, "speed": 2.0,
 		"desc": "Scouts the fog on their own. Flees from goblins.",
 	},
+	"gatherer": {
+		"name": "Gatherer", "cost": {"food": 30}, "speed": 1.6,
+		"desc": "Collects enemy corpses once it's safe, for gold and a little food.",
+	},
 	"archmage": {
 		"name": "Archmage", "cost": {"food": 150, "gold": 600}, "speed": 0.6,
 		"desc": "Coming soon: may one day break the siege of Veliron.",
 	},
 }
-const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "explorer", "archmage"]
+const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "explorer", "gatherer", "archmage"]
 
 const FOOD_UPKEEP := 0.05  # food per civilian per second
 const STARVATION_INTERVAL := 15.0  # a civilian dies this often while food is 0
@@ -67,8 +92,14 @@ const HARVEST_TIME := 2.5
 const FARM_RATE := 0.4  # food per second while a farmer is assigned
 const FARM_CAPACITY := 40.0
 const EXPLORER_REVEAL := 2.6
-const EXPLORER_FLEE_RADIUS := 4.5
-const EXPLORER_REST := 6.0
+const EVADE_RADIUS := 4.5  # civilians run home when an enemy gets this close
+const EVADE_REST := 6.0
+const GATHERER_CAPACITY := 6  # corpses carried per trip
+const GATHERER_LOOT_TIME := 1.0  # seconds per corpse
+const GATHERER_REST := 3.0
+## A corpse is "safe" when no living enemy is this close to it.
+const CORPSE_SAFE_RADIUS := 6.0
+const CORPSE_LIFETIME := 240.0  # seconds before an uncollected corpse rots away
 ## An explorer abandons its local frontier when that target is this much farther
 ## from the village than the closest unexplored tile to the village.
 const EXPLORER_WANDER_FACTOR := 1.6
@@ -78,7 +109,7 @@ const EXPLORER_CLAIM_PENALTY := 30
 
 const MILITARY := {
 	"archer": {
-		"name": "Archer", "cost": {"gold": 40},
+		"name": "Archer", "cost": {"gold": 40}, "speed": 1.8,
 		"desc": "Shoots goblins from a tower.",
 		# Upgrades improve damage and attack speed; range comes from the tower.
 		"levels": [
@@ -92,9 +123,15 @@ const MILITARY := {
 
 const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 
+## gold_on_kill is paid instantly; gold_on_collect and food_on_collect are paid
+## when a gatherer brings the corpse home.
 const ENEMIES := {
-	"goblin": {"name": "Goblin", "hp": 20.0, "speed": 1.1, "reward": 4, "demolition": 1},
+	"goblin": {
+		"name": "Goblin", "hp": 20.0, "speed": 1.1, "demolition": 1,
+		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
+	},
 }
+const FIRST_WAVE_DELAY := 90.0  # seconds from game start to the first wave
 const WAVE_BUFFER := 30.0  # seconds after the previous wave is gone
 const WAVE_SPAWN_GAP := 1.1
 const WAVE_HP_GROWTH := 1.15

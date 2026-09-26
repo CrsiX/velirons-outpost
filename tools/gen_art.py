@@ -162,6 +162,68 @@ def tile_road():
     a.save("tile_road", pad=0, fixed=(-76, -38, 76, 38))
 
 
+def tile_desert(i):
+    rng = random.Random(40 + i)
+    a = Art()
+    base = ["#86724a", "#8a764c"][i]
+    # soft rim so desert blends into neighbouring meadow
+    a.poly(diamond(1.14), base, stroke=None, opacity=0.5)
+    a.poly(diamond(1.04), base, stroke=None)
+    for _ in range(4):
+        x, y = rand_in_diamond(rng, 0.7)
+        w = rng.uniform(16, 30)
+        a.raw('<path d="M%s,%s q%s,-6 %s,0" fill="none" stroke="#6f5d3b" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>' % (fmt(x - w / 2), fmt(y), fmt(w / 2), fmt(w)), [(x - w / 2, y - 6), (x + w / 2, y)])
+        a.raw('<path d="M%s,%s q%s,-5 %s,0" fill="none" stroke="#a08a5c" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>' % (fmt(x - w / 2 + 2), fmt(y - 2), fmt(w / 2 - 2), fmt(w - 4)), [(x - w / 2, y - 7), (x + w / 2, y)])
+    for _ in range(4):
+        x, y = rand_in_diamond(rng, 0.8)
+        a.ellipse(x, y, rng.uniform(1.2, 2.2), rng.uniform(0.9, 1.5), "#5e4f33")
+    a.save("tile_desert_%d" % i, pad=0, fixed=(-74, -37, 74, 37))
+
+
+def tile_rock():
+    rng = random.Random(55)
+    a = Art()
+    a.poly(diamond(1.03), "#4a4740", stroke=None)
+    for _ in range(8):
+        x, y = rand_in_diamond(rng, 0.85)
+        a.ellipse(x, y, rng.uniform(3, 8), rng.uniform(2, 4), "#5c5850" if rng.random() < 0.5 else "#3a3833", opacity=0.8)
+    a.save("tile_rock", pad=0, fixed=(-66, -34, 66, 34))
+
+
+def mountain(i):
+    """Rocky peak filling one tile; neighbouring peaks overlap into ranges."""
+    rng = random.Random(90 + i)
+    a = Art()
+    h = [82, 104, 66][i]
+    ax = [6, -8, 10][i]
+    left, front, right = (-68, 2), (0, 34), (68, 2)
+    apex = (ax, -h)
+    a.poly([left, front, right, (40, -18), apex, (-44, -16)], "#3e3b36", stroke=None, opacity=0.4)  # shadowed back
+    a.poly([left, front, apex], "#77726a")
+    a.poly([front, right, apex], "#57534c")
+    # secondary shoulder peak
+    sh = (ax - 34 if i != 1 else ax + 30, -h * 0.55)
+    a.poly([left if i != 1 else front, (sh[0] - 10, 8), sh], "#6d685f")
+    # strata / cracks
+    for _ in range(4):
+        t = rng.uniform(0.25, 0.8)
+        x0, y0 = front[0] + (apex[0] - front[0]) * t, front[1] + (apex[1] - front[1]) * t
+        a.line([(x0, y0), (x0 - rng.uniform(10, 24), y0 + rng.uniform(4, 10))], "#4f4b45", 1.4)
+        a.line([(x0, y0), (x0 + rng.uniform(10, 24), y0 + rng.uniform(4, 10))], "#403d38", 1.4)
+    # snow cap on the taller peaks
+    if h > 70:
+        k = 0.3
+        sl = (apex[0] + (left[0] - apex[0]) * k, apex[1] + (left[1] - apex[1]) * k)
+        sf = (apex[0] + (front[0] - apex[0]) * k, apex[1] + (front[1] - apex[1]) * k)
+        sr = (apex[0] + (right[0] - apex[0]) * k, apex[1] + (right[1] - apex[1]) * k)
+        a.poly([sl, (sl[0] + 8, sl[1] + 6), sf, apex], "#dcdad2", INK, 1.1)
+        a.poly([sf, (sr[0] - 6, sr[1] + 5), sr, apex], "#b9b7af", INK, 1.1)
+    a.line([front, apex], "#8d887f", 1.6)
+    a.line([left, apex, right], INK, 1.6)
+    a.line([left, front, right], INK, 1.2)
+    a.save("mountain_%d" % i)
+
+
 # ------------------------------------------------------------------ trees
 
 def tree_pine(i):
@@ -534,6 +596,43 @@ def archer():
     person("unit_archer", ("#33472f", "#263623"), hood="#2c3f29", extra=extra)
 
 
+def gatherer():
+    """Hunter-like villager without a bow: feathered cap, leather jerkin, knife, big sack."""
+    def extra(a, layer):
+        if layer == "back":
+            a.raw('<path d="M-15,-12 Q-17,-30 -8,-30 L-4,-28 Q-2,-14 -6,-10 Z" fill="#8a7248" stroke="%s" stroke-width="1.2" stroke-linejoin="round"/>' % INK, [(-18, -31), (-2, -10)])
+            a.line([(-12, -29), (-6, -27)], "#5a4a30", 1.4)
+        else:
+            a.poly([(-6, -12), (6, -12), (5, -26), (-5, -26)], "#6a5236", INK, 1)  # leather jerkin
+            a.line([(-6, -24), (4, -14)], "#3a2c1c", 2)  # strap
+            a.line([(5, -19), (10, -15)], INK, 4)
+            a.line([(10, -15), (15, -13)], "#c9ccd4", 2.2)  # skinning knife
+            a.line([(9, -15.5), (11, -14.5)], "#3a2c1c", 3)
+
+    def hat(a):
+        a.raw('<path d="M-7,-35 Q-5,-43 1,-42 Q8,-41 8,-35 Z" fill="#4a5a36" stroke="%s" stroke-width="1.3"/>' % INK, [(-8, -44), (9, -34)])
+        a.line([(-8, -35), (10, -35)], INK, 1.8)
+        a.raw('<path d="M5,-39 Q13,-48 18,-50 Q13,-43 7,-37 Z" fill="#b8402e" stroke="%s" stroke-width="1"/>' % INK, [(4, -51), (19, -36)])
+    person("unit_gatherer", ("#56643a", "#434f2d"), hat=hat, extra=extra)
+
+
+def corpse_goblin():
+    a = Art()
+    a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
+    a.ellipse(0, 1, 14, 4, "#3a1a14", opacity=0.55)  # dark stain
+    a.poly([(-12, -2), (6, -6), (9, -1), (-10, 3)], "#4a3a2a")  # tunic, lying down
+    a.line([(-12, 0), (-19, 2)], INK, 4.5)
+    a.line([(-12, 0), (-19, 2)], "#4a6029", 2.6)
+    a.ellipse(12, -3, 6, 5, "#56702f", INK, 1.2)  # head
+    a.poly([(15, -6), (22, -9), (17, -3)], "#56702f")  # ear
+    a.line([(10, -4.5), (12, -2.5)], INK, 1.2)
+    a.line([(12, -4.5), (10, -2.5)], INK, 1.2)
+    a.line([(-2, 4), (-12, 8)], INK, 2.8)
+    a.line([(-2, 4), (-12, 8)], "#43301e", 1.4)
+    a.poly([(-12, 5), (-18, 8), (-15, 11), (-10, 8)], "#6d6a64")  # dropped cleaver
+    a.save("corpse_goblin")
+
+
 def goblin():
     a = Art()
     a.shadow(11, 4.5, opacity=0.4)
@@ -636,6 +735,16 @@ def icons():
   <path d="M8 32 L50 32" stroke="{INK}" stroke-width="4"/>
   <path d="M48 26 L58 32 L48 38Z" fill="#9a9a9a" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
   <path d="M6 27 L12 32 L6 37" fill="{CRIMSON}" stroke="{INK}" stroke-width="2"/>''')
+    icon_svg("icon_enemies", f'''
+  <path d="M10 8 L40 38 L46 32 L16 2Z" fill="#9a9a9a" stroke="{INK}" stroke-width="3" stroke-linejoin="round" transform="translate(2 8)"/>
+  <path d="M54 8 L24 38 L18 32 L48 2Z" fill="#8a8a8a" stroke="{INK}" stroke-width="3" stroke-linejoin="round" transform="translate(-2 8)"/>
+  <path d="M14 42 L24 52 M50 42 L40 52" stroke="{INK}" stroke-width="7" stroke-linecap="round"/>
+  <path d="M14 42 L24 52 M50 42 L40 52" stroke="{WOOD_L}" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M10 46 L20 36 M54 46 L44 36" stroke="{INK}" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="32" cy="46" r="7" fill="{CRIMSON}" stroke="{INK}" stroke-width="3"/>''')
+    icon_svg("icon_fullscreen", f'''
+  <path d="M8 24 L8 8 L24 8 M40 8 L56 8 L56 24 M56 40 L56 56 L40 56 M24 56 L8 56 L8 40" fill="none" stroke="{INK}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M8 24 L8 8 L24 8 M40 8 L56 8 L56 24 M56 40 L56 56 L40 56 M24 56 L8 56 L8 40" fill="none" stroke="#efe3c8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>''')
     icon_svg("icon_pause", f'''
   <rect x="15" y="12" width="12" height="40" rx="3" fill="#efe3c8" stroke="{INK}" stroke-width="3.5"/>
   <rect x="37" y="12" width="12" height="40" rx="3" fill="#efe3c8" stroke="{INK}" stroke-width="3.5"/>''')
@@ -691,6 +800,11 @@ def main():
         tile_grass(i)
     tile_forest()
     tile_road()
+    tile_desert(0)
+    tile_desert(1)
+    tile_rock()
+    for i in range(3):
+        mountain(i)
     tree_pine(0)
     tree_pine(1)
     tree_oak()
@@ -719,6 +833,8 @@ def main():
     archmage()
     archer()
     goblin()
+    gatherer()
+    corpse_goblin()
     arrow()
     sack()
     icons()

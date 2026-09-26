@@ -7,6 +7,8 @@ extends Building
 const ARROW_SCRIPT := preload("res://scripts/units/arrow.gd")
 
 var garrison: MilitaryUnit = null
+## Unit currently marching here (reserves the tower).
+var incoming: MilitaryUnit = null
 var _cooldown := 0.0
 var _unit_sprite: Sprite2D
 var _front: Sprite2D
@@ -61,6 +63,14 @@ func is_solid_when_complete() -> bool:
 
 func can_garrison() -> bool:
 	return complete
+
+
+## Every finished tower watches like a building; manned ones watch their range.
+func sight_radius() -> float:
+	var r := super.sight_radius()
+	if complete and garrison != null:
+		r = maxf(r, range_tiles() + Config.TOWER_SIGHT_BONUS)
+	return r
 
 
 func set_garrison(unit: MilitaryUnit) -> void:
@@ -122,13 +132,17 @@ func info() -> Dictionary:
 				"disabled": not game.economy.can_afford(garrison.upgrade_cost()),
 				"action": func() -> void: game.army.upgrade(garrison),
 			})
-		actions.append({"label": "Withdraw", "action": func() -> void: game.army.unstation(garrison)})
+		actions.append({"label": "Withdraw (walks home)", "action": func() -> void: game.army.unstation(garrison)})
+	elif incoming:
+		lines.append("An %s is marching here." % incoming.display_name().to_lower())
+		actions.append({"label": "Call back", "action": func() -> void: game.army.unstation(incoming)})
 	else:
 		lines.append("Unmanned: towers only fight with a unit on them.")
 		var reserve := game.army.reserve()
+		var err := "No archers in reserve" if reserve.is_empty() else game.army.station_error(reserve[0], self)
 		actions.append({
-			"label": "Station archer" if not reserve.is_empty() else "No archers in reserve",
-			"disabled": reserve.is_empty(),
+			"label": "Send archer" if err == "" else err,
+			"disabled": err != "",
 			"action": func() -> void: game.army.station(game.army.reserve()[0], self),
 		})
 	return d

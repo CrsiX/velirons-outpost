@@ -20,6 +20,11 @@ func is_solid_when_complete() -> bool:
 	return is_solid()
 
 
+## Gates always keep watch, even though nobody mans them.
+func sight_radius() -> float:
+	return Config.GATE_SIGHT if kind == "gate" else super.sight_radius()
+
+
 func display_name() -> String:
 	return "Village Gate" if kind == "gate" else "Village Wall"
 

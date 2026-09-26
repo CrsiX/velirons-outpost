@@ -1,10 +1,9 @@
 class_name Pathing
 extends RefCounted
 ## Navigation for both sides.
-## Civilians: AStarGrid2D over everything that isn't a solid building (forest is slow).
-## Goblins: a flow field over road tiles pointing to the nearest gate.
+## Ground units (civilians, soldiers): AStarGrid2D; forest, mountains and solid
+## buildings block. Goblins: a flow field over road tiles to the nearest gate.
 
-const FOREST_WEIGHT := 2.0
 const UNREACHABLE := 1 << 30
 
 var map: MapData
@@ -24,13 +23,14 @@ func _init(p_map: MapData) -> void:
 	for y in map.size:
 		for x in map.size:
 			var t := Vector2i(x, y)
-			if map.is_forest(t):
-				astar.set_point_weight_scale(t, FOREST_WEIGHT)
+			if not map.is_passable(t):
+				astar.set_point_solid(t, true)
 	build_enemy_field()
 
 
+## Buildings toggle solidity; impassable terrain always stays solid.
 func set_solid(t: Vector2i, solid: bool) -> void:
-	astar.set_point_solid(t, solid)
+	astar.set_point_solid(t, solid or not map.is_passable(t))
 
 
 func is_walkable(t: Vector2i) -> bool:

@@ -15,7 +15,7 @@ var map: MapData
 var pathing: Pathing
 var buildings: Array[Building] = []
 
-var _trees: Dictionary = {}  # tile -> Sprite2D
+var _props: Dictionary = {}  # tile -> Sprite2D (trees, mountain peaks)
 var _village_dist := PackedInt32Array()
 var _village_dist_dirty := true
 
@@ -34,21 +34,27 @@ func setup(p_game: Game, seed_value: int) -> void:
 	ground.setup(map)
 	fog.setup(map)
 	fog.revealed.connect(_on_revealed)
-	_spawn_trees()
+	_spawn_props()
 	_spawn_village()
 	fog.reveal(Vector2(Config.VILLAGE_CENTER), Config.START_REVEAL_RADIUS)
+	if map.farm_plot != Vector2i(-1, -1):
+		fog.reveal(Vector2(map.farm_plot), 2.0)
 
 
-func _spawn_trees() -> void:
-	for t: Vector2i in map.trees:
-		var s := Art.sprite(map.trees[t])
-		# Slight random offset/scale so the forest doesn't look like a grid.
+func _spawn_props() -> void:
+	for t: Vector2i in map.props:
+		var s := Art.sprite(map.props[t])
 		var h := absi(hash(t))
-		s.position = Iso.tile_to_world(t) + Vector2((h % 11) - 5, ((h / 11) % 7) - 3)
-		s.scale *= 0.9 + ((h / 77) % 5) * 0.05
+		if map.is_mountain(t):
+			s.position = Iso.tile_to_world(t) + Vector2((h % 9) - 4, 0)
+			s.scale *= 0.95 + ((h / 9) % 4) * 0.08
+		else:
+			# Slight random offset/scale so the forest doesn't look like a grid.
+			s.position = Iso.tile_to_world(t) + Vector2((h % 11) - 5, ((h / 11) % 7) - 3)
+			s.scale *= 0.9 + ((h / 77) % 5) * 0.05
 		s.visible = false
 		objects.add_child(s)
-		_trees[t] = s
+		_props[t] = s
 
 
 func _spawn_village() -> void:
@@ -63,8 +69,8 @@ func _spawn_village() -> void:
 
 func _on_revealed(tiles: Array[Vector2i]) -> void:
 	for t in tiles:
-		if _trees.has(t):
-			_trees[t].visible = true
+		if _props.has(t):
+			_props[t].visible = true
 
 
 # --- building registry -------------------------------------------------------------

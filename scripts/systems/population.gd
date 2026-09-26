@@ -10,6 +10,7 @@ const ROLE_SCRIPTS := {
 	"builder": preload("res://scripts/units/builder.gd"),
 	"farmer": preload("res://scripts/units/farmer.gd"),
 	"explorer": preload("res://scripts/units/explorer.gd"),
+	"gatherer": preload("res://scripts/units/gatherer.gd"),
 	"archmage": preload("res://scripts/units/archmage.gd"),
 }
 

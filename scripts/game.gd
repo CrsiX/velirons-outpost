@@ -26,6 +26,7 @@ var _info_timer := 0.0
 @onready var construction: Construction = $Systems/Construction
 @onready var army: Army = $Systems/Army
 @onready var waves: Waves = $Systems/Waves
+@onready var corpses: Corpses = $Systems/Corpses
 @onready var hud: Hud = $HUD
 
 
@@ -37,6 +38,7 @@ func _ready() -> void:
 	construction.setup(self)
 	army.setup(self)
 	waves.setup(self)
+	corpses.setup(self)
 	hud.setup(self)
 
 	camera.bounds = world.world_rect().grow(-200.0)
@@ -124,11 +126,13 @@ func _on_tapped(world_pos: Vector2) -> void:
 			_try_place(tile)
 		Mode.STATION:
 			var t := world.pick_building(world_pos)
-			if t is Tower and army.station(station_unit, t):
+			var err := army.station_error(station_unit, t as Tower)
+			if err == "" and army.station(station_unit, t):
 				cancel_mode()
 				select(t)
+				hud.toast("The %s is marching out" % station_unit_name(t), Color("c9a24a"))
 			else:
-				hud.toast("Pick a finished tower", Color("ff9a8a"))
+				hud.toast(err, Color("ff9a8a"))
 		_:
 			var b := world.pick_building(world_pos)
 			if b == selected:
@@ -178,11 +182,17 @@ func _highlight_towers() -> void:
 ## Drop from the HUD's reserve card at a screen position (drag & drop).
 func drop_unit(unit: MilitaryUnit, screen_pos: Vector2) -> bool:
 	var t := world.pick_building(camera.screen_to_world(screen_pos))
-	if t is Tower and army.station(unit, t):
+	var err := army.station_error(unit, t as Tower)
+	if err == "" and army.station(unit, t):
 		select(t)
+		hud.toast("The %s is marching out" % station_unit_name(t), Color("c9a24a"))
 		return true
-	hud.toast("Drop archers onto a finished tower", Color("ff9a8a"))
+	hud.toast(err, Color("ff9a8a"))
 	return false
+
+
+func station_unit_name(t: Tower) -> String:
+	return t.incoming.display_name().to_lower() if t.incoming else "unit"
 
 
 # --- raids and defeat -----------------------------------------------------------------

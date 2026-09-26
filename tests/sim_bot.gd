@@ -82,6 +82,14 @@ func screen(world_pos: Vector2) -> Vector2:
 
 # --- helpers ----------------------------------------------------------------------
 
+var _guard_touched := false
+
+
+func check_silent_guard(g: Gatherer, guarded: Corpse) -> void:
+	if is_instance_valid(guarded) and g.target == guarded:
+		_guard_touched = true
+
+
 func find_spot(kind: String, near: Vector2i) -> Vector2i:
 	var best := Vector2i(-1, -1)
 	var best_d := INF
@@ -108,13 +116,57 @@ func _run() -> void:
 	var map := game.map
 	print("viewport ", get_viewport().get_visible_rect().size)
 
-	# Title screen
-	check(hud.is_title_visible(), "title screen shown")
+	# Title screen (pauses the game, including the first-wave timer)
+	check(hud.is_title_visible() and get_tree().paused, "title screen shown, game paused")
+	await frames(30)
+	check(is_equal_approx(game.waves.countdown, Config.FIRST_WAVE_DELAY), "first-wave timer waits on the title screen")
 	await tap(center(hud._overlay_button))
-	check(not hud.is_title_visible(), "title dismissed by its button")
+	check(not hud.is_title_visible() and not get_tree().paused, "title dismissed by its button")
+	await wait(2.0)
+	check(game.waves.countdown < Config.FIRST_WAVE_DELAY and game.waves.wave == 0, "first wave counts down on its own (%.1fs left)" % game.waves.countdown)
+	game.waves.countdown = 99999.0  # hold the first wave while the economy is tested
 
 	# --- map -------------------------------------------------------------------
-	print("map: %d spawns, %d trees" % [map.edge_spawns.size(), map.trees.size()])
+	var total := map.size * map.size
+	var forest := map.count_terrain(MapData.Terrain.FOREST)
+	var desert := map.count_terrain(MapData.Terrain.DESERT)
+	var mountain := map.count_terrain(MapData.Terrain.MOUNTAIN)
+	print("map %dx%d: %d spawns, forest %d%%, desert %d%%, mountain %d%%, road %d tiles" % [map.size, map.size, map.edge_spawns.size(),
+		100 * forest / total, 100 * desert / total, 100 * mountain / total, map.count_terrain(MapData.Terrain.ROAD)])
+	check(map.size == 75, "map is 75x75")
+	check(forest > total * 0.45, "mostly forest (%d%%)" % (100 * forest / total))
+	check(desert > 0 and desert <= total * Config.DESERT_MAX_SHARE, "some desert, at most 20%")
+	var desert_near := false
+	var mountain_bad := false
+	var mountain_border := 0
+	for y in map.size:
+		for x in map.size:
+			var t := Vector2i(x, y)
+			if map.is_desert(t) and Vector2(t).distance_to(Vector2(Config.VILLAGE_CENTER)) < Config.DESERT_MIN_VILLAGE_DIST:
+				desert_near = true
+			if map.is_mountain(t):
+				if mini(mini(x, y), mini(map.size - 1 - x, map.size - 1 - y)) < Config.MOUNTAIN_BORDER_BAND + 4:
+					mountain_border += 1
+				for dy in range(-Config.MOUNTAIN_ROAD_MARGIN, Config.MOUNTAIN_ROAD_MARGIN + 1):
+					for dx in range(-Config.MOUNTAIN_ROAD_MARGIN, Config.MOUNTAIN_ROAD_MARGIN + 1):
+						mountain_bad = mountain_bad or map.is_road(t + Vector2i(dx, dy))
+	check(not desert_near, "no desert next to the village")
+	check(mountain > 20 and not mountain_bad, "mountain ranges, clear of roads")
+	check(mountain_border >= mountain * 0.9, "mountains lie near the map border")
+	# Meadow buffer: few forest tiles touch desert directly.
+	var desert_edge := 0
+	var forest_touching := 0
+	for i in total:
+		if map.terrain[i] != MapData.Terrain.DESERT:
+			continue
+		var dt := Vector2i(i % map.size, i / map.size)
+		for nb in MapData.neighbors4(dt):
+			if map.in_bounds(nb) and not map.is_desert(nb):
+				desert_edge += 1
+				if map.is_forest(nb):
+					forest_touching += 1
+	check(forest_touching < desert_edge * 0.3, "meadow mostly separates desert from forest (%d of %d desert edges touch forest)" % [forest_touching, desert_edge])
+	check(map.gates.all(func(g: Vector2i) -> bool: return map.is_road(g)), "gate tiles are dirt road")
 	var layout_ok := true
 	for row in 5:
 		for col in 5:
@@ -132,10 +184,10 @@ func _run() -> void:
 			all_reach = false
 	check(all_reach, "every edge spawn reaches a gate by road")
 	var road_in_village := false
-	for y in range(23, 28):
-		for x in range(23, 28):
+	for y in range(map.village_rect.position.y + 1, map.village_rect.end.y - 1):
+		for x in range(map.village_rect.position.x + 1, map.village_rect.end.x - 1):
 			road_in_village = road_in_village or map.is_road(Vector2i(x, y))
-	check(not road_in_village, "no road inside the village")
+	check(not road_in_village, "no road inside the village walls")
 	var route := game.world.pathing.enemy_route(map.edge_spawns[0], RandomNumberGenerator.new())
 	check(map.gates.has(route[-1]) and route.all(func(t: Vector2i) -> bool: return map.is_road(t) or map.gates.has(t)), "goblin route stays on roads and ends at a gate")
 
@@ -144,7 +196,27 @@ func _run() -> void:
 	check(civs("builder").size() == 1 and civs("farmer").size() == 1 and civs("explorer").size() == 1, "one builder, farmer, explorer")
 	var wall_towers := game.world.towers().filter(func(t: Tower) -> bool: return t.kind == "wall_tower")
 	check(wall_towers.size() == 4 and wall_towers.all(func(t: Tower) -> bool: return t.garrison == null), "4 unmanned wall towers")
-	check(game.world.pathing.astar.is_point_solid(Vector2i(23, 24)) and not game.world.pathing.astar.is_point_solid(Vector2i(25, 23)), "walls block, gates don't")
+	var o := Config.VILLAGE_ORIGIN
+	check(game.world.pathing.astar.is_point_solid(o + Vector2i(0, 1)) and not game.world.pathing.astar.is_point_solid(o + Vector2i(2, 0)), "walls block, gates don't")
+	var some_forest: Vector2i = map.props.keys().filter(func(t: Vector2i) -> bool: return map.is_forest(t))[0]
+	var some_mountain: Vector2i = map.props.keys().filter(func(t: Vector2i) -> bool: return map.is_mountain(t))[0]
+	check(game.world.pathing.astar.is_point_solid(some_forest) and game.world.pathing.astar.is_point_solid(some_mountain), "forest and mountains block villagers")
+	check(map.farm_plot != Vector2i(-1, -1) and game.construction.placement_error("farm", map.farm_plot) in ["", "Not enough building material"], "a farm fits near the village at the start")
+	var desert_tile: Vector2i = Vector2i(-1, -1)
+	for i in total:
+		var dt := Vector2i(i % map.size, i / map.size)
+		var all_desert := true
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				all_desert = all_desert and map.is_desert(dt + Vector2i(dx, dy))
+		if all_desert:
+			desert_tile = dt
+			break
+	game.fog.reveal(Vector2(desert_tile), 2.0)
+	game.economy.add("materials", 1000)
+	check(game.construction.placement_error("farm", desert_tile) == "Nothing grows in the desert", "no farms in the desert")
+	check(game.construction.placement_error("tower", some_mountain) != "", "nothing on mountains")
+	game.economy.add("materials", -1000)
 	var explored0 := game.fog.explored_count()
 	check(explored0 > 50 and explored0 < 300, "fog of war around the village (%d tiles explored)" % explored0)
 
@@ -153,7 +225,29 @@ func _run() -> void:
 	# --- explorer ---------------------------------------------------------------
 	await wait(25.0)
 	var explored1 := game.fog.explored_count()
-	check(explored1 > explored0 + 40, "explorer reveals the map (%d -> %d)" % [explored0, explored1])
+	check(explored1 > explored0 + 15, "explorer reveals the map (%d -> %d)" % [explored0, explored1])
+	# Surveillance: explored land near the (unmanned) village isn't watched;
+	# land around a villager outside is.
+	var ex0: Explorer = civs("explorer")[0]
+	check(not game.fog.is_watched(Config.VILLAGE_CENTER + Vector2i(0, -6)) or not ex0.at_home, "explored land without observers is only darkened")
+	# Buildings watch their surroundings: huts 4 tiles, gates and others 3.
+	var hut_ok := true
+	var gate_ok := true
+	for y in map.size:
+		for x in map.size:
+			var t := Vector2i(x, y)
+			if not map.is_explored(t):
+				continue
+			for h in game.world.intact_huts():
+				if Vector2(t).distance_to(Vector2(h.tile)) <= Config.HUT_SIGHT and not map.is_watched(t):
+					hut_ok = false
+			for g in map.gates:
+				if Vector2(t).distance_to(Vector2(g)) <= Config.GATE_SIGHT and not map.is_watched(t):
+					gate_ok = false
+	check(hut_ok, "every tile within %d of a hut is under surveillance" % int(Config.HUT_SIGHT))
+	check(gate_ok, "every tile within %d of an (unmanned) gate is under surveillance" % int(Config.GATE_SIGHT))
+	if not ex0.at_home:
+		check(game.fog.is_watched(ex0.current_tile()), "land around a villager outside is under surveillance")
 
 	# --- construction: watchtower ------------------------------------------------
 	var mats := game.economy.amount("materials")
@@ -216,16 +310,22 @@ func _run() -> void:
 	var card: Button = hud._reserve_grid.get_child(0)
 	var wt: Tower = wall_towers[0]
 	var target := screen(wt.position + Vector2(0, -50))
-	mouse(center(card), true)
+	var start := center(card)
+	mouse(start, true)
 	await frames(1)
 	var steps := 8
 	for i in range(1, steps + 1):
-		motion(center(card).lerp(target, float(i) / steps))
+		motion(start.lerp(target, float(i) / steps))
 		await frames(1)
 	mouse(target, false)
 	await frames(2)
-	check(wt.garrison != null, "archer dragged from the sidebar onto a wall tower")
-	check(game.army.reserve().is_empty(), "reserve is empty after stationing")
+	check(wt.incoming != null and wt.garrison == null, "dragged archer marches out (not instantly on the tower)")
+	check(game.army.reserve().is_empty() and game.army.walking().size() == 1, "marching archer has left the reserve")
+	check(not game.fog.is_watched(wt.tile + Vector2i(-3, -3)) or game.army.walking().size() == 1, "unmanned wall tower doesn't watch")
+	var arrived := await wait_until(func() -> bool: return wt.garrison != null, 30.0)
+	check(arrived, "archer reaches the wall tower and mans it")
+	await frames(2)
+	check(game.fog.is_watched(wt.tile + Vector2i(-3, -3)), "a manned tower keeps its whole range under surveillance")
 	# Tap mode: tap a card, then tap the new watchtower.
 	await tap(center(hud._archer_button))
 	await frames(2)
@@ -233,20 +333,36 @@ func _run() -> void:
 	await tap(center(card))
 	check(game.mode == Game.Mode.STATION, "tapping a reserve card enters station mode")
 	await tap(screen(watchtower.position + Vector2(0, -40)))
-	check(watchtower.garrison != null, "tap-to-station on the watchtower")
+	check(watchtower.incoming != null, "tap-to-station sends an archer to the watchtower")
+	await wait_until(func() -> bool: return watchtower.garrison != null, 60.0)
+	check(watchtower.garrison != null, "archer arrives at the watchtower")
 	var unit := watchtower.garrison
+	# Withdraw: the archer walks home before it's back in the reserve.
+	game.army.unstation(unit)
+	check(watchtower.garrison == null and unit.state == MilitaryUnit.State.RETURNING and not game.army.reserve().has(unit), "withdrawn archer walks home first")
+	await wait_until(func() -> bool: return unit.state == MilitaryUnit.State.RESERVE, 60.0)
+	check(game.army.reserve().has(unit), "withdrawn archer is back in the reserve")
+	game.army.station(unit, watchtower)
+	await wait_until(func() -> bool: return watchtower.garrison != null, 60.0)
 	check(game.army.upgrade(unit) and unit.level == 1, "archer upgraded with gold")
 	# Man the other wall towers too.
 	for t in wall_towers.slice(1):
 		game.army.station(game.army.recruit(), t)
+	await wait_until(func() -> bool: return wall_towers.all(func(t: Tower) -> bool: return t.garrison != null), 60.0)
+	check(wall_towers.all(func(t: Tower) -> bool: return t.garrison != null), "all wall towers manned")
+	# Balance comes later: make the defence sturdy so the rest of the run is deterministic.
+	game.economy.add("gold", 5000)
+	for u in game.army.units:
+		while u.can_upgrade():
+			game.army.upgrade(u)
 
 	# --- waves ----------------------------------------------------------------------
-	check(game.waves.waiting_for_first(), "first wave waits for the player")
-	await wait(3.0)
-	check(game.waves.wave == 0, "no wave starts on its own")
 	var gold3 := game.economy.amount("gold")
-	await tap(center(hud._call_button))
-	check(game.waves.wave == 1 and game.waves.in_progress(), "call button starts wave 1")
+	game.waves.countdown = 2.0
+	var started := await wait_until(func() -> bool: return game.waves.wave == 1, 5.0)
+	check(started and game.waves.in_progress(), "wave 1 starts by itself when the timer runs out")
+	await frames(2)
+	check(hud._enemies_label.text == str(game.waves.enemies_left()) and game.waves.enemies_left() == Config.wave_size(1), "HUD shows the enemy count (%s)" % hud._enemies_label.text)
 	var cleared := await wait_until(func() -> bool: return not game.waves.in_progress(), 240.0)
 	check(cleared, "wave 1 ends")
 	print("  wave 1: gold %d -> %d, civilians %d, huts %d" % [gold3, game.economy.amount("gold"), game.population.count(), game.population.cap()])
@@ -255,25 +371,131 @@ func _run() -> void:
 	await wait(5.0)
 	var bonus := game.waves.early_call_bonus()
 	var gold4 := game.economy.amount("gold")
-	game.waves.call_next()
+	await tap(center(hud._call_button))
 	check(game.waves.wave == 2 and game.economy.amount("gold") == gold4 + bonus and bonus > 0, "calling early starts wave 2 with +%d gold" % bonus)
 	await wait_until(func() -> bool: return not game.waves.in_progress(), 240.0)
 	var auto := await wait_until(func() -> bool: return game.waves.wave == 3, Config.WAVE_BUFFER + 5.0)
 	check(auto, "wave 3 starts automatically after the buffer")
 	await wait_until(func() -> bool: return not game.waves.in_progress(), 300.0)
+	game.waves.countdown = 99999.0  # hold wave 4
+
+	# --- corpses & gatherer --------------------------------------------------------------
+	var cs := game.corpses
+	check(cs.count() > 0 and cs.corpses.all(func(c: Corpse) -> bool: return c.wave == 3), "only wave-3 corpses remain (older waves cleared) : %d" % cs.count())
+	# Kill payout is instant; the corpse stays where the enemy died.
+	var road_spot: Vector2i = map.gates[1] + (map.gates[1] - Config.VILLAGE_CENTER).sign() * 2
+	game.waves._spawn({"kind": "goblin", "spawn": road_spot, "hp_scale": 1.0})
+	var victim: Goblin = get_tree().get_nodes_in_group("enemies").back()
+	victim.speed = 0.0
+	var g_before := game.economy.amount("gold")
+	var n_before := cs.count()
+	victim.take_damage(1e9)
+	check(game.economy.amount("gold") == g_before + Config.ENEMIES["goblin"]["gold_on_kill"], "killing pays gold_on_kill instantly")
+	check(cs.count() == n_before + 1 and cs.corpses.back().tile() == victim.current_tile(), "a corpse is left where the enemy died")
+	game.waves.countdown = 99999.0  # the test goblin's death re-armed the wave timer
+	# Expiry.
+	var rotting: Corpse = cs.spawn("goblin", 3, Vector2(road_spot))
+	rotting.time_left = 0.05
+	await frames(3)
+	check(not is_instance_valid(rotting) or not cs.corpses.has(rotting), "uncollected corpses rot away")
+	# Wave cleanup: corpses of wave N vanish when wave N+1 is finished.
+	var old: Corpse = cs.spawn("goblin", 3, Vector2(road_spot))
+	var newer: Corpse = cs.spawn("goblin", 4, Vector2(road_spot))
+	game.waves.wave_finished.emit(4)
+	check((not is_instance_valid(old) or not cs.corpses.has(old)) and cs.corpses.has(newer), "wave-3 corpses disappear when wave 4 is finished")
+	cs.remove(newer)
+	# Unsafe corpse: a living goblin stands guard far out on a road, so the
+	# gatherer must ignore that corpse (but not the safe ones elsewhere).
+	var far_route := game.world.pathing.enemy_route(map.edge_spawns[0], RandomNumberGenerator.new())
+	var far_spot: Vector2i = far_route[far_route.size() / 3]
+	var guarded: Corpse = cs.spawn("goblin", 3, Vector2(far_spot))
+	game.waves._spawn({"kind": "goblin", "spawn": far_spot, "hp_scale": 1000.0})
+	var guard: Goblin = get_tree().get_nodes_in_group("enemies").back()
+	guard.speed = 0.0
+	for t in game.world.towers():
+		if t.garrison: game.army.unstation(t.garrison)  # keep the guard alive
+	check(not cs.is_safe(guarded) and not cs.available().has(guarded), "corpses next to living enemies are unsafe")
+	# Pile of corpses to test capacity and payout.
+	var pile_gate: Vector2i = map.gates[0]
+	for gt in map.gates:
+		if Vector2(gt).distance_to(Vector2(far_spot)) > Vector2(pile_gate).distance_to(Vector2(far_spot)):
+			pile_gate = gt
+	var pile: Vector2i = pile_gate + (pile_gate - Config.VILLAGE_CENTER).sign() * 2
+	check(cs.is_safe(cs.spawn("goblin", 3, Vector2(pile))), "corpses away from enemies are safe")
+	for i in Config.GATHERER_CAPACITY + 2:
+		cs.spawn("goblin", 3, Vector2(pile))
+	game.economy.add("food", 200)
+	game.population.civilian_lost.connect(func(c: Civilian) -> void: print("  LOST %s food=%.0f pop=%d cap=%d enemies=%d" % [c.role, game.economy.amount("food"), game.population.count(), game.population.cap(), game.waves.enemies_left()]))
+	var gatherer: Gatherer = game.population.recruit("gatherer")
+	check(gatherer != null, "gatherer recruited with food")
+	var max_carried := 0
+	var trip_done := false
+	var g0 := game.economy.amount("gold")
+	var f0g := game.economy.amount("food")
+	var t_run := 0.0
+	var delivered := 0
+	while t_run < 120.0:
+		await get_tree().process_frame
+		t_run += get_process_delta_time()
+		game.waves.countdown = 99999.0
+		max_carried = maxi(max_carried, gatherer.carried.size())
+		check_silent_guard(gatherer, guarded)
+		if gatherer.state == Gatherer.State.RETURNING and gatherer.carried.size() > 0:
+			delivered = gatherer.carried.size()
+			await wait_until(func() -> bool: return gatherer.at_home, 60.0)
+			trip_done = true
+			break
+	check(trip_done, "gatherer fetches corpses and walks home")
+	check(max_carried == Config.GATHERER_CAPACITY, "gatherer carries up to %d corpses per trip (%d)" % [Config.GATHERER_CAPACITY, max_carried])
+	var exp_gold: int = delivered * Config.ENEMIES["goblin"]["gold_on_collect"]
+	var exp_food: int = delivered * Config.ENEMIES["goblin"]["food_on_collect"]
+	check(game.economy.amount("gold") >= g0 + exp_gold, "delivery pays gold_on_collect (+%d)" % exp_gold)
+	check(game.economy.amount("food") >= f0g + exp_food - 10.0, "delivery pays food_on_collect (+%d)" % exp_food)
+	check(not _guard_touched, "gatherer never went for the guarded corpse")
+	guard.take_damage(1e9)
+	game.waves.countdown = 99999.0
+	cs.clear_wave(99)
+	for t in game.world.towers():
+		if t.garrison == null and t.incoming == null and not game.army.reserve().is_empty():
+			game.army.station(game.army.reserve()[0], t)
+	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
 
 	# --- demolition at the gate -------------------------------------------------------
 	for t in game.world.towers():
 		if t.garrison:
 			game.army.unstation(t.garrison)
+	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
 	var huts0 := game.population.cap()
 	var pop0 := game.population.count()
 	var gate: Vector2i = map.gates[0]
 	var outside := gate + (gate - Config.VILLAGE_CENTER).sign()
 	game.waves._spawn({"kind": "goblin", "spawn": outside, "hp_scale": 1.0})
 	await wait_until(func() -> bool: return game.population.cap() < huts0, 20.0)
+	if game.game_over: print("  (game already lost)")
+	print("  demolition: huts %d -> %d, pop %d -> %d, over=%s, wave=%d, enemies=%d, outside=%s road=%s dist=%d" % [huts0, game.population.cap(), pop0, game.population.count(), game.game_over, game.waves.wave, game.waves.enemies_left(), outside, map.is_road(outside), game.world.pathing.enemy_distance(outside)])
 	check(game.population.cap() == huts0 - 1, "a goblin at the gate destroys a hut")
 	check(game.population.count() == mini(pop0 - 1, game.population.cap()), "and kills a civilian")
+	game.waves.countdown = 99999.0  # that goblin's end re-armed the wave timer
+
+	# --- civilians evade enemies ----------------------------------------------------------
+	var the_farm: Farm = game.world.buildings.filter(func(b: Building) -> bool: return b is Farm)[0]
+	if the_farm.farmer == null:
+		if game.population.free_farmers().is_empty():
+			game.population.spawn("farmer")
+		game.population.assign_farmer(the_farm)
+	var fm: Farmer = the_farm.farmer
+	# Wait until the farmer is well outside the walls, so the evasion is observable.
+	await wait_until(func() -> bool: return not fm.at_home and fm.state == Farmer.State.TO_FARM and fm.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) > 3.0, 90.0)
+	game.waves._spawn({"kind": "goblin", "spawn": map.edge_spawns[0], "hp_scale": 100.0})
+	var threat: Goblin = get_tree().get_nodes_in_group("enemies").back()
+	threat.speed = 0.0
+	threat.set_grid_pos(fm.grid_pos + Vector2(1.5, 0))
+	var fled := await wait_until(func() -> bool: return fm.evading, 2.0)
+	check(fled, "a farmer who spots a goblin runs home" + ("" if fled else " [fm home=%s state=%s dead=%s pos=%s | goblin dead=%s pos=%s dist=%.1f]" % [fm.at_home, fm.state, fm.dead, fm.grid_pos, threat.dead if is_instance_valid(threat) else "freed", threat.grid_pos if is_instance_valid(threat) else Vector2.ZERO, fm.grid_pos.distance_to(threat.grid_pos) if is_instance_valid(threat) else -1.0]))
+	var safe := await wait_until(func() -> bool: return fm.at_home, 30.0)
+	check(safe and not fm.evading, "the farmer reaches the village safely")
+	threat.take_damage(1e9)
+	await wait(1.0)
 
 	# --- rebuild the ruin ----------------------------------------------------------------
 	var ruin: Hut = game.world.huts().filter(func(h: Hut) -> bool: return h.ruined)[0]

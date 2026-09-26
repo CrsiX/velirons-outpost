@@ -8,8 +8,8 @@ signal reached_gate(goblin: Goblin)
 var kind := "goblin"
 var max_hp := 10.0
 var hp := 10.0
-var reward := 4
 var demolition := 1
+var wave := 0
 var dead := false
 
 
@@ -19,7 +19,6 @@ func setup(p_game: Game, route: Array[Vector2i], hp_scale: float) -> void:
 	max_hp = spec["hp"] * hp_scale
 	hp = max_hp
 	speed = spec["speed"] * randf_range(0.92, 1.08)
-	reward = spec["reward"]
 	demolition = spec["demolition"]
 	_init_sprite("unit_" + kind)
 	var pts := PackedVector2Array()
@@ -56,8 +55,9 @@ func _process(delta: float) -> void:
 	_update_visibility()
 
 
+## Only seen while under surveillance (near villagers, soldiers or manned towers).
 func _update_visibility() -> void:
-	visible = game.map.is_explored(current_tile())
+	visible = game.fog.is_watched(current_tile())
 
 
 func take_damage(amount: float) -> void:

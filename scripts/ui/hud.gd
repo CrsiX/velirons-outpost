@@ -17,7 +17,9 @@ var _food_label: Label
 var _materials_button: Button
 var _pop_label: Label
 var _wave_label: Label
+var _enemies_label: Label
 var _call_button: Button
+var _fullscreen_button: Button
 var _speed_button: Button
 var _pause_button: Button
 
@@ -32,6 +34,7 @@ var _reserve_grid: GridContainer
 var _reserve_label: Label
 var _upgrade_reserve_button: Button
 var _selected_unit: MilitaryUnit = null
+var _reserve_signature := ""
 
 var _info_panel: PanelContainer
 var _info_title: Label
@@ -78,7 +81,7 @@ func setup(p_game: Game) -> void:
 	_drag_ghost.modulate.a = 0.85
 	_root.add_child(_drag_ghost)
 
-	for sig in [game.economy.changed, game.population.changed, game.army.changed, game.construction.changed, game.waves.changed]:
+	for sig in [game.economy.changed, game.population.changed, game.army.changed, game.construction.changed, game.waves.changed, game.corpses.changed]:
 		sig.connect(_queue_refresh)
 	_select_tab("build")
 	_refresh()
@@ -163,7 +166,10 @@ func _build_topbar() -> void:
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(spacer)
 
-	row.add_child(_icon(Art.tex("icon_goblin"), 34))
+	var enemies := _chip("icon_enemies", "Enemies on the map and still to come this wave")
+	_enemies_label = enemies[1]
+	_enemies_label.custom_minimum_size.x = 34
+	row.add_child(enemies[0])
 	_wave_label = _label("", 18)
 	row.add_child(_wave_label)
 	_call_button = _button("Call wave", Vector2(150, 44))
@@ -177,6 +183,9 @@ func _build_topbar() -> void:
 	_pause_button = _icon_button("icon_pause", "Pause")
 	_pause_button.pressed.connect(func() -> void: set_paused(not get_tree().paused))
 	row.add_child(_pause_button)
+	_fullscreen_button = _icon_button("icon_fullscreen", "Fullscreen (F11)")
+	_fullscreen_button.pressed.connect(toggle_fullscreen)
+	row.add_child(_fullscreen_button)
 
 
 func _icon_button(icon_name: String, tooltip: String) -> Button:
@@ -192,6 +201,16 @@ func _toggle_speed() -> void:
 	_fast = not _fast
 	Engine.time_scale = 2.0 if _fast else 1.0
 	_speed_button.icon = Art.tex("icon_fast" if _fast else "icon_play")
+
+
+func toggle_fullscreen() -> void:
+	var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_pressed() and not event.is_echo() and (event as InputEventKey).keycode == KEY_F11:
+		toggle_fullscreen()
 
 
 func set_paused(p: bool) -> void:
@@ -360,11 +379,19 @@ func _build_page_army() -> Control:
 
 
 func _rebuild_reserve() -> void:
-	for c in _reserve_grid.get_children():
-		c.queue_free()
 	var reserve := game.army.reserve()
 	if _selected_unit and not reserve.has(_selected_unit):
 		_selected_unit = null
+	_refresh_reserve_texts(reserve)
+	# Only rebuild the cards when the reserve really changed, and never while a
+	# card is being pressed or dragged (that would free the card under the finger).
+	var sig := ",".join(reserve.map(func(u: MilitaryUnit) -> String: return "%d:%d" % [u.id, u.level])) + "|%s" % (_selected_unit.id if _selected_unit else -1)
+	if sig == _reserve_signature or _press_unit != null:
+		return
+	_reserve_signature = sig
+	for c in _reserve_grid.get_children():
+		_reserve_grid.remove_child(c)
+		c.queue_free()
 	for u in reserve:
 		var card := _button("Lv %d" % (u.level + 1), Vector2(62, 76))
 		card.icon = Art.tex("unit_" + u.kind)
@@ -376,7 +403,10 @@ func _rebuild_reserve() -> void:
 		UiTheme.style_selected(card, u == _selected_unit)
 		card.button_down.connect(_on_card_down.bind(u))
 		_reserve_grid.add_child(card)
-	_reserve_label.text = "Reserve: %d   Stationed: %d\nDrag an archer onto a tower, or tap it and then tap a tower." % [reserve.size(), game.army.stationed().size()]
+
+
+func _refresh_reserve_texts(reserve: Array[MilitaryUnit]) -> void:
+	_reserve_label.text = "Reserve: %d   Walking: %d   On duty: %d\nDrag an archer onto a tower, or tap it and then tap a tower. Soldiers walk there, and walk back when withdrawn." % [reserve.size(), game.army.walking().size(), game.army.stationed().size()]
 	_upgrade_reserve_button.visible = _selected_unit != null
 	if _selected_unit:
 		_upgrade_reserve_button.disabled = not _selected_unit.can_upgrade() or not game.economy.can_afford(_selected_unit.upgrade_cost())
@@ -405,6 +435,7 @@ func _input(event: InputEvent) -> void:
 		var unit := _press_unit
 		_press_unit = null
 		_drag_ghost.visible = false
+		_queue_refresh()  # catch up on any reserve change deferred during the press
 		# The release is left unhandled on purpose so the card button resets.
 		if _dragging_unit:
 			_dragging_unit = false
@@ -612,11 +643,14 @@ func show_title() -> void:
 	_overlay_sub.text = ("The goblins are coming for the last outpost of Veliron.\n\n"
 		+ "Place watchtowers and farms in the Build tab. Your builder walks out and builds them. "
 		+ "Buy archers in the Army tab and put them on towers. Assign farmers to farms so the village doesn't starve. "
-		+ "Your explorer clears the fog on their own.\n\n"
+		+ "Your explorer clears the fog on their own; land is only watched near villagers and manned towers.\n\n"
 		+ "Drag to move the map, pinch or scroll to zoom.")
 	_overlay_button.text = "Defend the outpost"
 	_overlay.visible = true
-	_connect_overlay(func() -> void: _overlay.visible = false)
+	get_tree().paused = true  # the first-wave timer waits for the player
+	_connect_overlay(func() -> void:
+		_overlay.visible = false
+		get_tree().paused = false)
 
 
 func show_game_over(title: String, subtitle: String) -> void:
@@ -667,6 +701,8 @@ func _refresh() -> void:
 		(e["button"] as Button).disabled = game.population.recruit_error(role) != ""
 		if role == "farmer":
 			(e["desc"] as Label).text = "%s\nWithout a farm: %d" % [Config.CIVILIANS[role]["desc"], game.population.free_farmers().size()]
+		elif role == "gatherer":
+			(e["desc"] as Label).text = "%s\nCorpses lying around: %d" % [Config.CIVILIANS[role]["desc"], game.corpses.count()]
 	_archer_button.disabled = not game.economy.can_afford(Config.MILITARY["archer"]["cost"])
 	for b in _trade_buttons:
 		b.disabled = false
@@ -686,16 +722,13 @@ func _refresh_resources() -> void:
 
 func _refresh_wave() -> void:
 	var w := game.waves
-	if w.waiting_for_first():
-		_wave_label.text = "No goblins yet"
-		_call_button.text = "Call wave 1"
-		_call_button.disabled = false
-	elif w.in_progress():
+	_enemies_label.text = str(w.enemies_left())
+	if w.in_progress():
 		_wave_label.text = "Wave %d attacking" % w.wave
 		_call_button.text = "Fighting..."
 		_call_button.disabled = true
 	else:
-		var s := int(ceil(w.countdown))
+		var s := int(ceil(maxf(w.countdown, 0.0)))
 		_wave_label.text = "Wave %d in %d:%02d" % [w.wave + 1, s / 60, s % 60]
 		_call_button.text = "Call now +%dg" % w.early_call_bonus()
 		_call_button.disabled = false

@@ -8,7 +8,9 @@ var _wait := 0.0
 
 func _tick(delta: float) -> void:
 	if at_home:
-		_wander()
+		rest_timer -= delta
+		if rest_timer <= 0.0:
+			_wander()
 		return
 	if step_path(delta):
 		_wait -= delta
@@ -26,6 +28,10 @@ func _wander() -> void:
 		if not game.map.in_village(t) and game.world.pathing.is_walkable(t):
 			head_out(t)
 			return
+
+
+func _after_evade() -> void:
+	_wait = Config.EVADE_REST
 
 
 func status() -> String:
