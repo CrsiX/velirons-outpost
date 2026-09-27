@@ -1,7 +1,8 @@
 class_name Population
 extends Node
-## Civilian registry: recruiting (capped by intact huts), food upkeep,
-## starvation, random deaths from goblin raids, and farmer assignment.
+## Civilian registry: recruiting, food upkeep, starvation, and job assignment.
+## Every villager lives in exactly one intact hut; when that hut is destroyed
+## the villager dies with it, so the hut count caps the population implicitly.
 
 signal changed
 signal civilian_lost(civ: Civilian)
@@ -43,9 +44,14 @@ func food_per_second() -> float:
 	return Config.FARM_RATE * farms.size() - Config.FOOD_UPKEEP * civilians.size()
 
 
+## Intact huts nobody lives in yet.
+func free_huts() -> Array[Building]:
+	return game.world.intact_huts().filter(func(h: Hut) -> bool: return h.resident == null)
+
+
 ## Returns "" when recruiting is possible, else the reason why not.
 func recruit_error(role: String) -> String:
-	if count() >= cap():
+	if free_huts().is_empty():
 		return "No free hut (%d/%d)" % [count(), cap()]
 	if not game.economy.can_afford(Config.CIVILIANS[role]["cost"]):
 		return "Not enough resources"
@@ -60,9 +66,16 @@ func recruit(role: String) -> Civilian:
 	return spawn(role)
 
 
+## Creates a villager in a free hut. Returns null when every hut is taken.
 func spawn(role: String) -> Civilian:
+	var homes := free_huts()
+	if homes.is_empty():
+		return null
 	var civ: Civilian = ROLE_SCRIPTS[role].new()
 	civ.setup(game, role)
+	var hut: Hut = homes[0]
+	hut.resident = civ
+	civ.hut = hut
 	game.world.objects.add_child(civ)
 	civilians.append(civ)
 	changed.emit()
@@ -73,6 +86,8 @@ func kill(civ: Civilian) -> void:
 	if not civilians.has(civ):
 		return
 	civilians.erase(civ)
+	if is_instance_valid(civ.hut) and civ.hut.resident == civ:
+		civ.hut.resident = null
 	civ.kill()
 	Sfx.play("death")
 	civilian_lost.emit(civ)
@@ -84,12 +99,6 @@ func kill_random(n: int) -> void:
 		if civilians.is_empty():
 			return
 		kill(civilians[randi() % civilians.size()])
-
-
-## After huts are lost, remove villagers until the population fits again.
-func enforce_cap() -> void:
-	while count() > cap() and count() > 0:
-		kill_random(1)
 
 
 func _process(delta: float) -> void:

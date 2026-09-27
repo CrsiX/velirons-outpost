@@ -1,6 +1,6 @@
 class_name Waves
 extends Node
-## Endless goblin waves. The first wave starts FIRST_WAVE_DELAY seconds into the
+## Endless enemy waves. The first wave starts FIRST_WAVE_DELAY seconds into the
 ## game; every later wave starts WAVE_BUFFER seconds after the previous one is
 ## completely gone. The countdown can be skipped for bonus gold.
 
@@ -9,7 +9,7 @@ signal wave_started(n: int)
 ## Emitted when the last enemy of wave `n` is gone.
 signal wave_finished(n: int)
 
-const GOBLIN_SCRIPT := preload("res://scripts/units/goblin.gd")
+const ENEMY_SCRIPT := preload("res://scripts/units/enemy.gd")
 
 var game: Game
 var wave := 0
@@ -63,12 +63,20 @@ func _start_wave() -> void:
 	spawns.shuffle()
 	spawns = spawns.slice(0, mini(Config.wave_spawn_points(n), spawns.size()))
 	var hp_scale := pow(Config.WAVE_HP_GROWTH, n - 1)
-	for i in Config.wave_size(n):
-		_queue.append({"kind": "goblin", "spawn": spawns[i % spawns.size()], "hp_scale": hp_scale})
+	var count := Config.wave_size(n)
+	var skeletons := roundi(count * Config.skeleton_share(n))
+	for i in count:
+		# Skeletons are spread through the wave rather than bunched at the end.
+		var kind := "skeleton" if skeletons > 0 and i % maxi(1, count / maxi(skeletons, 1)) == 0 and _count_kind("skeleton") < skeletons else "goblin"
+		_queue.append({"kind": kind, "spawn": spawns[i % spawns.size()], "hp_scale": hp_scale})
 	_spawn_timer = 0.5
 	Sfx.play("horn", 0.0)
 	wave_started.emit(wave)
 	changed.emit()
+
+
+func _count_kind(kind: String) -> int:
+	return _queue.filter(func(q: Dictionary) -> bool: return q["kind"] == kind).size()
 
 
 func _process(delta: float) -> void:
@@ -87,30 +95,30 @@ func _process(delta: float) -> void:
 
 func _spawn(spec: Dictionary) -> void:
 	var route := game.world.pathing.enemy_route(spec["spawn"], _rng)
-	var g: Goblin = GOBLIN_SCRIPT.new()
-	g.setup(game, route, spec["hp_scale"])
+	var g: Enemy = ENEMY_SCRIPT.new()
+	g.setup(game, route, spec["hp_scale"], spec.get("kind", "goblin"))
 	g.wave = wave
-	g.killed.connect(_on_goblin_killed)
-	g.reached_gate.connect(_on_goblin_reached_gate)
+	g.killed.connect(_on_enemy_killed)
+	g.reached_gate.connect(_on_enemy_reached_gate)
 	game.world.objects.add_child(g)
 	_alive += 1
 
 
-func _on_goblin_killed(g: Goblin) -> void:
+func _on_enemy_killed(g: Enemy) -> void:
 	var gold := Config.enemy_stat_int(g.kind, "gold_on_kill")
 	game.economy.add("gold", gold)
 	game.world.float_text("+%d gold" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
 	Sfx.play("coin")
 	game.corpses.spawn(g.kind, g.wave, g.grid_pos)
-	_goblin_gone()
+	_enemy_gone()
 
 
-func _on_goblin_reached_gate(g: Goblin) -> void:
-	game.on_goblin_reached_gate(g)
-	_goblin_gone()
+func _on_enemy_reached_gate(g: Enemy) -> void:
+	game.on_enemy_reached_gate(g)
+	_enemy_gone()
 
 
-func _goblin_gone() -> void:
+func _enemy_gone() -> void:
 	_alive -= 1
 	if not in_progress() and wave > 0:
 		countdown = Config.WAVE_BUFFER

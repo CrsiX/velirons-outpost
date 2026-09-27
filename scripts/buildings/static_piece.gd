@@ -32,7 +32,7 @@ func display_name() -> String:
 func info() -> Dictionary:
 	var lines: Array[String] = []
 	if kind == "gate":
-		lines.append("Goblins that reach a gate tear down huts")
+		lines.append("Enemies that reach a gate tear down huts")
 		lines.append("and kill villagers.")
 	else:
 		lines.append("Stone wall around the village of Veliron.")

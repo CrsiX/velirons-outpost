@@ -1,9 +1,10 @@
-class_name Goblin
+class_name Enemy
 extends Unit
-## Walks the road flow field from the map edge to the nearest village gate.
+## Any attacker (goblin, skeleton, ...). Walks the road flow field from the map
+## edge to the nearest village gate. Stats come from Config.ENEMIES[kind].
 
-signal killed(goblin: Goblin)
-signal reached_gate(goblin: Goblin)
+signal killed(enemy: Enemy)
+signal reached_gate(enemy: Enemy)
 
 var kind := "goblin"
 var max_hp := 10.0
@@ -13,15 +14,16 @@ var wave := 0
 var dead := false
 
 
-func setup(p_game: Game, route: Array[Vector2i], hp_scale: float) -> void:
+func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String = "goblin") -> void:
 	game = p_game
+	kind = p_kind
 	max_hp = Config.enemy_stat(kind, "hp") * hp_scale
 	hp = max_hp
 	speed = Config.enemy_stat(kind, "speed") * randf_range(0.92, 1.08)
 	demolition = Config.enemy_stat_int(kind, "demolition")
 	_init_sprite("unit_" + kind)
 	var pts := PackedVector2Array()
-	# A small sideways offset per goblin so groups don't walk in single file.
+	# A small sideways offset per enemy so groups don't walk in single file.
 	var jitter := Vector2(randf_range(-0.18, 0.18), randf_range(-0.18, 0.18))
 	for t in route:
 		pts.append(Vector2(t) + jitter)

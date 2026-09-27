@@ -8,6 +8,8 @@ extends Unit
 signal died(civ: Civilian)
 
 var role := ""
+## The hut this villager lives in (every villager has exactly one).
+var hut: Hut = null
 var at_home := true
 var dead := false
 var rest_timer := 0.0
@@ -51,7 +53,7 @@ func _process(delta: float) -> void:
 
 func enemy_nearby() -> bool:
 	for node in get_tree().get_nodes_in_group("enemies"):
-		var g := node as Goblin
+		var g := node as Enemy
 		if not g.dead and g.grid_pos.distance_to(grid_pos) < Config.EVADE_RADIUS:
 			return true
 	return false
@@ -61,7 +63,7 @@ func _evade() -> void:
 	evading = true
 	_on_evade()
 	sprite.rotation = 0.0
-	float_text("Goblins!", Color("ff7a6a"))
+	float_text("Enemies!", Color("ff7a6a"))
 	head_home()
 
 
@@ -93,7 +95,7 @@ func _tick(_delta: float) -> void:
 ## Short status line for the UI.
 func status() -> String:
 	if evading:
-		return "fleeing from goblins"
+		return "fleeing from enemies"
 	return "resting" if at_home else "out"
 
 

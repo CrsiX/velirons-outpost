@@ -707,12 +707,75 @@ def light_stone(glow_only=False):
     return a
 
 
+def warning_light():
+    """Soft red glow shown where hidden enemies will come out of the dark."""
+    a = Art()
+    a.raw('<defs><radialGradient id="w"><stop offset="0" stop-color="#ff3b2a" stop-opacity="0.75"/><stop offset="0.45" stop-color="#e02a1c" stop-opacity="0.35"/><stop offset="1" stop-color="#e02a1c" stop-opacity="0"/></radialGradient></defs>', [(0, 0)])
+    a.ellipse(0, 0, 52, 26, "url(#w)")
+    a.save("warning_light")
+
+
 def light_halo():
     """Soft ground glow under the light stone."""
     a = Art()
     a.raw('<defs><radialGradient id="g"><stop offset="0" stop-color="#f0d070" stop-opacity="0.45"/><stop offset="1" stop-color="#f0d070" stop-opacity="0"/></radialGradient></defs>', [(0, 0)])
     a.ellipse(0, 0, 150, 75, "url(#g)")
     a.save("light_halo")
+
+
+BONE, BONE_D = "#d8d0bc", "#a89f88"
+
+
+def skeleton():
+    a = Art()
+    a.shadow(11, 4.5, opacity=0.4)
+    # legs
+    for x0, x1 in ((-3, -4), (3, 4)):
+        a.line([(x0, -1), (x1, -12)], INK, 3.6)
+        a.line([(x0, -1), (x1, -12)], BONE, 2)
+        a.ellipse(x0 + (-1 if x0 < 0 else 1), -1, 3, 1.5, BONE, INK, 1)
+    # pelvis + tattered loincloth
+    a.poly([(-6, -13), (6, -13), (4, -9), (-4, -9)], "#4a3a44", INK, 1)
+    a.poly([(-5, -9), (-2, -9), (-4, -5)], "#4a3a44", INK, 0.8)
+    a.poly([(1, -9), (5, -9), (3, -4)], "#4a3a44", INK, 0.8)
+    # spine + ribs
+    a.line([(0, -13), (0, -27)], INK, 3.4)
+    a.line([(0, -13), (0, -27)], BONE, 1.8)
+    for k, y in enumerate((-24, -21, -18)):
+        w = 6 - k
+        a.raw('<path d="M%d,%d Q0,%d %d,%d" fill="none" stroke="%s" stroke-width="3.2" stroke-linecap="round"/>' % (-w, y + 2, y - 1, w, y + 2, INK), [(-w, y - 1), (w, y + 2)])
+        a.raw('<path d="M%d,%d Q0,%d %d,%d" fill="none" stroke="%s" stroke-width="1.6" stroke-linecap="round"/>' % (-w, y + 2, y - 1, w, y + 2, BONE), [(-w, y - 1), (w, y + 2)])
+    # arm with a rusty sword
+    a.line([(3, -25), (8, -18)], INK, 3.4)
+    a.line([(3, -25), (8, -18)], BONE, 1.8)
+    a.line([(8, -18), (15, -32)], INK, 3.6)
+    a.line([(8, -18), (15, -32)], "#8a6a4a", 2)
+    a.line([(6, -20), (10, -16)], INK, 2.6)
+    # skull with glowing sockets
+    a.ellipse(0, -32, 6.5, 6, BONE, INK, 1.3)
+    a.poly([(-3.5, -28), (3.5, -28), (3, -25), (-3, -25)], BONE, INK, 1)
+    a.line([(-1.5, -26.5), (-1.5, -25)], INK, 0.8)
+    a.line([(1.5, -26.5), (1.5, -25)], INK, 0.8)
+    a.ellipse(-2.2, -32.5, 1.8, 2, "#1a1612")
+    a.ellipse(2.5, -32.5, 1.8, 2, "#1a1612")
+    a.ellipse(-2.2, -32.5, 0.9, 0.9, "#9fe8ff")
+    a.ellipse(2.5, -32.5, 0.9, 0.9, "#9fe8ff")
+    a.save("unit_skeleton")
+
+
+def corpse_skeleton():
+    a = Art()
+    a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
+    for (x0, y0, x1, y1) in [(-14, 2, -4, -2), (-2, 4, 9, 1), (4, -4, 14, -1), (-10, -3, -1, -6)]:
+        a.line([(x0, y0), (x1, y1)], INK, 3.4)
+        a.line([(x0, y0), (x1, y1)], BONE, 1.8)
+        for (x, y) in ((x0, y0), (x1, y1)):
+            a.ellipse(x, y, 1.6, 1.3, BONE, INK, 0.8)
+    a.ellipse(12, -5, 5.5, 5, BONE, INK, 1.2)  # skull
+    a.ellipse(10.5, -5.5, 1.4, 1.5, "#1a1612")
+    a.ellipse(13.5, -5.5, 1.4, 1.5, "#1a1612")
+    a.line([(-6, 6), (-16, 9)], "#6d5a48", 2.2)  # dropped rusty sword
+    a.save("corpse_skeleton")
 
 
 def corpse_goblin():
@@ -1024,7 +1087,10 @@ def main():
     lg.pts = ls.pts[:]
     lg.save("light_stone_glow")
     light_halo()
+    warning_light()
     corpse_goblin()
+    skeleton()
+    corpse_skeleton()
     arrow()
     sack()
     icons()

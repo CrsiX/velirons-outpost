@@ -147,7 +147,7 @@ func _after_evade() -> void:
 
 func status() -> String:
 	if evading:
-		return "fleeing from goblins"
+		return "fleeing from enemies"
 	match state:
 		State.TO_CAMP: return "walking to the camp"
 		State.AT_CAMP: return "resting at the camp" if tree != Vector2i(-1, -1) else "resting (looking for trees)"

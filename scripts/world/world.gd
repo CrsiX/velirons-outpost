@@ -22,6 +22,7 @@ var _village_dist_dirty := true
 @onready var ground: GroundLayer = $Ground
 @onready var decals: Node2D = $Decals
 @onready var fog: FogLayer = $Fog
+@onready var warnings: WarningLights = $Warnings
 @onready var objects: Node2D = $Objects
 @onready var effects: Node2D = $Effects
 @onready var overlay: WorldOverlay = $Overlay
@@ -34,14 +35,15 @@ func setup(p_game: Game, seed_value: int) -> void:
 	ground.setup(map)
 	fog.setup(map)
 	fog.revealed.connect(_on_revealed)
+	warnings.setup(game)
 	_spawn_props()
 	_spawn_village()
 	fog.reveal(Vector2(Config.VILLAGE_CENTER), Config.START_REVEAL_RADIUS)
 	if map.farm_plot != Vector2i(-1, -1):
 		fog.reveal(Vector2(map.farm_plot), 2.0)
-	if Config.REVEAL_MAP:
+	if game.reveal_map:
 		fog.reveal_all()
-	if Config.DISABLE_FOG:
+	if game.disable_fog:
 		fog.set_disabled(true)
 
 

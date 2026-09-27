@@ -1,11 +1,14 @@
 class_name Game
 extends Node2D
 ## Composition root: creates the world and systems, routes player input
-## (select / build / station), and resolves goblin raids and defeat.
+## (select / build / station), and resolves enemy raids and defeat.
 
 enum Mode { NONE, BUILD, STATION }
 
 @export var map_seed := 0  # 0 = random every game
+## Debug switches, defaulting to config.gd (tests may override before _ready).
+var reveal_map := Config.REVEAL_MAP
+var disable_fog := Config.DISABLE_FOG
 
 var mode := Mode.NONE
 var build_kind := ""
@@ -200,17 +203,17 @@ func station_unit_name(t: Tower) -> String:
 
 # --- raids and defeat -----------------------------------------------------------------
 
-func on_goblin_reached_gate(g: Goblin) -> void:
+func on_enemy_reached_gate(g: Enemy) -> void:
 	if game_over:
 		return
+	# One random hut per point of demolition. Only a villager who happens to
+	# live in a destroyed hut dies; nobody else is killed.
 	var intact := world.intact_huts()
 	intact.shuffle()
 	for i in mini(g.demolition, intact.size()):
 		(intact[i] as Hut).destroy()
-	population.kill_random(g.demolition)
-	population.enforce_cap()
 	Sfx.play("raid")
-	hud.toast("Goblins broke into the village!", Color("ff7a6a"))
+	hud.toast("Enemies broke into the village!", Color("ff7a6a"))
 	population.changed.emit()
 	_check_defeat()
 

@@ -21,7 +21,7 @@ const START_REVEAL_RADIUS := 7.5
 
 ## Debug / sandbox switches.
 const REVEAL_MAP := false  # true: the whole map starts explored (terrain known)
-const DISABLE_FOG := false  # true: no fog of war at all; everything is visible
+const DISABLE_FOG := true  # true: no fog of war at all; everything is visible
 
 ## Terrain generation.
 const DESERT_MAX_SHARE := 0.2  # at most this share of all tiles is desert
@@ -83,7 +83,7 @@ const CIVILIANS := {
 	},
 	"explorer": {
 		"name": "Explorer", "cost": {"food": 25}, "speed": 2.0,
-		"desc": "Scouts the fog on their own. Flees from goblins.",
+		"desc": "Scouts the fog on their own. Flees from enemies.",
 	},
 	"gatherer": {
 		"name": "Gatherer", "cost": {"food": 30}, "speed": 1.6,
@@ -134,7 +134,7 @@ const EXPLORER_CLAIM_PENALTY := 30
 const MILITARY := {
 	"archer": {
 		"name": "Archer", "cost": {"gold": 40}, "speed": 1.8,
-		"desc": "Shoots goblins from a tower.",
+		"desc": "Shoots enemies from a tower.",
 		# Upgrades improve damage and attack speed; range comes from the tower.
 		"levels": [
 			{"damage": 7.0, "cooldown": 1.0},
@@ -154,15 +154,30 @@ const ENEMIES := {
 		"name": "Goblin", "hp": 20.0, "speed": 1.1, "demolition": 1,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
 	},
+	# Same stats as goblins, but bones give no food, only gold.
+	"skeleton": {
+		"name": "Skeleton", "hp": 20.0, "speed": 1.1, "demolition": 1,
+		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 0,
+	},
 }
+## Share of skeletons in wave n (the rest are goblins).
+static func skeleton_share(n: int) -> float:
+	return clampf((n - 1) * 0.12, 0.0, 0.5)
+
+
+## Warning lights (easy/normal only) show where hidden enemies will emerge.
+const WARNING_LIGHT_WAVES := 5  # only during the first N waves
 ## An enemy value scaled by the chosen difficulty (see Settings). Whole-number
-## values (demolition, loot) are rounded and never drop below 1.
+## values (demolition, loot) are rounded and never drop below 1, except values
+## that are 0 to begin with (e.g. skeletons give no food).
 static func enemy_stat(kind: String, key: String) -> float:
 	var base: float = ENEMIES[kind][key]
 	return base * Settings.enemy_multiplier()
 
 
 static func enemy_stat_int(kind: String, key: String) -> int:
+	if ENEMIES[kind][key] == 0:
+		return 0
 	return maxi(1, roundi(enemy_stat(kind, key)))
 
 

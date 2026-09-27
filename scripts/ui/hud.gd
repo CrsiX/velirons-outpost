@@ -69,7 +69,7 @@ func setup(p_game: Game) -> void:
 	game = p_game
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_root = Control.new()
-	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.theme = UiTheme.build()
 	add_child(_root)
@@ -647,10 +647,11 @@ func _build_overlay() -> void:
 	_overlay.color = Color(0, 0, 0, 0.6)
 	_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(_overlay)
-	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Anchors AND offsets: anchors alone left a zero-size box in the top-left corner.
+	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_overlay.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var panel := PanelContainer.new()
 	center.add_child(panel)
 	var v := VBoxContainer.new()

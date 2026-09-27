@@ -92,11 +92,11 @@ func _process(delta: float) -> void:
 		_shoot(target)
 
 
-func _find_target() -> Goblin:
-	var best: Goblin = null
+func _find_target() -> Enemy:
+	var best: Enemy = null
 	var r := range_tiles()
 	for node in get_tree().get_nodes_in_group("enemies"):
-		var g := node as Goblin
+		var g := node as Enemy
 		if g.dead or g.grid_pos.distance_to(Vector2(tile)) > r:
 			continue
 		# Most dangerous = closest to reaching its gate.
@@ -105,7 +105,7 @@ func _find_target() -> Goblin:
 	return best
 
 
-func _shoot(target: Goblin) -> void:
+func _shoot(target: Enemy) -> void:
 	var arrow: Arrow = ARROW_SCRIPT.new()
 	game.world.effects.add_child(arrow)
 	arrow.launch(to_global(_unit_sprite.position + Vector2(0, -24)), target, garrison.damage())

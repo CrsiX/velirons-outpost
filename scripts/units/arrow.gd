@@ -1,8 +1,8 @@
 class_name Arrow
 extends Sprite2D
-## Arrow on a shallow arc that homes in on its goblin.
+## Arrow on a shallow arc that homes in on its enemy.
 
-var target: Goblin
+var target: Enemy
 var damage := 5.0
 
 var _start := Vector2.ZERO
@@ -12,7 +12,7 @@ var _duration := 0.3
 var _arc := 20.0
 
 
-func launch(from: Vector2, p_target: Goblin, p_damage: float) -> void:
+func launch(from: Vector2, p_target: Enemy, p_damage: float) -> void:
 	Art.apply(self, "arrow")
 	target = p_target
 	damage = p_damage

@@ -1,9 +1,11 @@
 class_name Hut
 extends Building
-## A village hut: houses one civilian. Goblins can burn it down to a ruin,
+## A village hut: houses one civilian. Enemies can burn it down to a ruin,
 ## and the player can order it rebuilt on the same lot.
 
 var ruined := false
+## The one villager living here, if any.
+var resident: Civilian = null
 var _site_overlay: Sprite2D
 
 
@@ -31,7 +33,11 @@ func sight_radius() -> float:
 	return Config.HUT_SIGHT if is_intact() else Config.BUILDING_SIGHT
 
 
+## Burns the hut down; whoever lived here dies with it.
 func destroy() -> void:
+	if is_instance_valid(resident):
+		game.population.kill(resident)
+	resident = null
 	ruined = true
 	complete = true
 	progress = 0.0
@@ -67,7 +73,7 @@ func info() -> Dictionary:
 		d["title"] = "Hut (rebuilding)"
 	elif ruined:
 		d["title"] = "Ruined Hut"
-		lines.append("Destroyed by goblins.")
+		lines.append("Destroyed by enemies.")
 		lines.append("Rebuild for %s." % Config.cost_text(Config.BUILDINGS["hut"]["cost"]))
 		var actions: Array[Dictionary] = d["actions"]
 		actions.append({
@@ -76,7 +82,10 @@ func info() -> Dictionary:
 			"action": func() -> void: game.construction.order_rebuild(self),
 		})
 	else:
-		lines.append("Houses one villager.")
+		if is_instance_valid(resident):
+			lines.append("Home of a %s (%s)." % [resident.display_name().to_lower(), resident.status()])
+		else:
+			lines.append("Empty: room for one villager.")
 		lines.append("Village population: %d / %d" % [game.population.count(), game.population.cap()])
 	return d
 

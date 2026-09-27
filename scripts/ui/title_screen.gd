@@ -20,7 +20,7 @@ var _menu: VBoxContainer
 
 func _ready() -> void:
 	theme = UiTheme.build()
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 
@@ -28,7 +28,7 @@ func _ready() -> void:
 	bg.texture = Art.tex("title_bg")
 	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 
@@ -80,7 +80,7 @@ func _menu_button(text: String, action: Callable) -> Button:
 func _build_levels_panel() -> void:
 	levels_panel = PanelContainer.new()
 	add_child(levels_panel)
-	levels_panel.set_anchors_preset(Control.PRESET_CENTER)
+	levels_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	levels_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	levels_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	var v := VBoxContainer.new()

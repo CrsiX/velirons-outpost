@@ -44,7 +44,7 @@ func clear_wave(wave: int) -> void:
 ## Safe = no living enemy within CORPSE_SAFE_RADIUS.
 func is_safe(c: Corpse) -> bool:
 	for node in get_tree().get_nodes_in_group("enemies"):
-		var g := node as Goblin
+		var g := node as Enemy
 		if not g.dead and g.grid_pos.distance_to(c.grid_pos) < Config.CORPSE_SAFE_RADIUS:
 			return false
 	return true

@@ -160,7 +160,7 @@ static func _terrain_distance(m: MapData, terrain: int) -> PackedInt32Array:
 
 ## Ranges start near a random edge and snake roughly parallel to it.
 ## They never touch roads (plus a margin) or the area around the village,
-## so they shape the land without cutting goblin or villager routes.
+## so they shape the land without cutting enemy or villager routes.
 static func _raise_mountains(m: MapData, rng: RandomNumberGenerator, road_dist: PackedInt32Array) -> void:
 	var ranges := rng.randi_range(Config.MOUNTAIN_RANGES.x, Config.MOUNTAIN_RANGES.y)
 	var band := Config.MOUNTAIN_BORDER_BAND

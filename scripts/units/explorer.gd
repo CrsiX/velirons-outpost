@@ -6,7 +6,7 @@ extends Civilian
 ## - switches to fog closer to the village when their local frontier is much
 ##   farther out than the village's nearest frontier;
 ## - avoids fog another explorer is already heading for;
-## - runs home when a goblin comes close (shared Civilian evasion), rests,
+## - runs home when an enemy comes close (shared Civilian evasion), rests,
 ##   then heads out again.
 
 enum State { RESTING, EXPLORING, RETURNING }
@@ -108,7 +108,7 @@ func choose_target(from: Vector2i) -> Vector2i:
 
 func status() -> String:
 	if evading:
-		return "fleeing from goblins"
+		return "fleeing from enemies"
 	match state:
 		State.EXPLORING: return "exploring"
 		State.RETURNING: return "returning home"

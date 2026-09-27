@@ -135,7 +135,7 @@ func _after_evade() -> void:
 
 func status() -> String:
 	if evading:
-		return "fleeing from goblins"
+		return "fleeing from enemies"
 	match state:
 		State.TO_CORPSE: return "fetching a corpse"
 		State.LOOTING: return "collecting"

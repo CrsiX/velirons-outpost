@@ -2,7 +2,7 @@ class_name Pathing
 extends RefCounted
 ## Navigation for both sides.
 ## Ground units (civilians, soldiers): AStarGrid2D; forest, mountains and solid
-## buildings block. Goblins: a flow field over road tiles to the nearest gate.
+## buildings block. Enemies: a flow field over road tiles to the nearest gate.
 
 const UNREACHABLE := 1 << 30
 

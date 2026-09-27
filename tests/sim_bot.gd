@@ -124,6 +124,19 @@ func find_spot(kind: String, near: Vector2i) -> Vector2i:
 	return best
 
 
+## Every villager lives in exactly one intact hut, and each hut holds at most one.
+func residency_ok() -> bool:
+	var seen := {}
+	for c in game.population.civilians:
+		if not is_instance_valid(c.hut) or c.hut.resident != c or not c.hut.is_intact() or seen.has(c.hut):
+			return false
+		seen[c.hut] = true
+	for h in game.world.huts():
+		if h.resident != null and not game.population.civilians.has(h.resident):
+			return false
+	return true
+
+
 func civs(role: String) -> Array:
 	return game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == role)
 
@@ -135,6 +148,8 @@ func _run() -> void:
 	var scene: PackedScene = load("res://scenes/main.tscn")
 	game = scene.instantiate()
 	game.map_seed = SEED
+	game.reveal_map = false  # the test needs real fog, whatever config.gd says
+	game.disable_fog = false
 	add_child(game)
 	await frames(3)
 	var hud := game.hud
@@ -221,11 +236,12 @@ func _run() -> void:
 			road_in_village = road_in_village or map.is_road(Vector2i(x, y))
 	check(not road_in_village, "no road inside the village walls")
 	var route := game.world.pathing.enemy_route(map.edge_spawns[0], RandomNumberGenerator.new())
-	check(map.gates.has(route[-1]) and route.all(func(t: Vector2i) -> bool: return map.is_road(t) or map.gates.has(t)), "goblin route stays on roads and ends at a gate")
+	check(map.gates.has(route[-1]) and route.all(func(t: Vector2i) -> bool: return map.is_road(t) or map.gates.has(t)), "enemy route stays on roads and ends at a gate")
 
 	# --- start state -----------------------------------------------------------
 	check(game.population.count() == 3 and game.population.cap() == 9, "3 civilians, 9 huts")
 	check(civs("builder").size() == 1 and civs("farmer").size() == 1 and civs("explorer").size() == 1, "one builder, farmer, explorer")
+	check(residency_ok(), "each starting villager lives in its own hut")
 	var wall_towers := game.world.towers().filter(func(t: Tower) -> bool: return t.kind == "wall_tower")
 	check(wall_towers.size() == 4 and wall_towers.all(func(t: Tower) -> bool: return t.garrison == null), "4 unmanned wall towers")
 	var o := Config.VILLAGE_ORIGIN
@@ -452,13 +468,33 @@ func _run() -> void:
 	game.waves.countdown = 2.0
 	var started := await wait_until(func() -> bool: return game.waves.wave == 1, 5.0)
 	check(started and game.waves.in_progress(), "wave 1 starts by itself when the timer runs out")
+	var warned := await wait_until(func() -> bool: return not game.world.warnings.spots.is_empty(), 20.0)
+	check(warned, "early wave on normal: a red warning light marks where hidden enemies are headed")
+	if warned:
+		var wspot: Vector2 = game.world.warnings.spots[0]
+		var near_watched := false
+		var near_unwatched := false
+		for d in [Vector2(0.5, 0), Vector2(-0.5, 0), Vector2(0, 0.5), Vector2(0, -0.5)]:
+			var t := Vector2i((wspot + d).round())
+			near_watched = near_watched or game.fog.is_watched(t)
+			near_unwatched = near_unwatched or not game.fog.is_watched(t)
+		check(near_watched and near_unwatched, "the light sits on the edge between hidden and watched land")
+	Settings.difficulty = Settings.Difficulty.HARD
+	check(not game.world.warnings.enabled(), "no warning lights on hard")
+	Settings.difficulty = Settings.Difficulty.EASY
+	check(game.world.warnings.enabled(), "warning lights on easy")
+	Settings.difficulty = Settings.Difficulty.NORMAL
+	var real_wave := game.waves.wave
+	game.waves.wave = Config.WARNING_LIGHT_WAVES + 1
+	check(not game.world.warnings.enabled(), "no warning lights after wave %d" % Config.WARNING_LIGHT_WAVES)
+	game.waves.wave = real_wave
 	await frames(2)
 	check(hud._enemies_label.text == str(game.waves.enemies_left()) and game.waves.enemies_left() == Config.wave_size(1), "HUD shows the enemy count (%s)" % hud._enemies_label.text)
 	var cleared := await wait_until(func() -> bool: return not game.waves.in_progress(), 240.0)
 	check(cleared, "wave 1 ends")
 	print("  wave 1: gold %d -> %d, civilians %d, huts %d" % [gold3, game.economy.amount("gold"), game.population.count(), game.population.cap()])
-	check(game.economy.amount("gold") > gold3, "archers killed goblins for gold")
-	check(absf(game.waves.countdown - Config.WAVE_BUFFER) < 2.0, "next wave counts down from %ds after the last goblin" % int(Config.WAVE_BUFFER))
+	check(game.economy.amount("gold") > gold3, "archers killed enemies for gold")
+	check(absf(game.waves.countdown - Config.WAVE_BUFFER) < 2.0, "next wave counts down from %ds after the last enemy" % int(Config.WAVE_BUFFER))
 	await wait(5.0)
 	var bonus := game.waves.early_call_bonus()
 	var gold4 := game.economy.amount("gold")
@@ -467,6 +503,8 @@ func _run() -> void:
 	await wait_until(func() -> bool: return not game.waves.in_progress(), 240.0)
 	var auto := await wait_until(func() -> bool: return game.waves.wave == 3, Config.WAVE_BUFFER + 5.0)
 	check(auto, "wave 3 starts automatically after the buffer")
+	var skel := game.waves._queue.filter(func(q: Dictionary) -> bool: return q["kind"] == "skeleton").size() + get_tree().get_nodes_in_group("enemies").filter(func(e: Enemy) -> bool: return e.kind == "skeleton").size()
+	check(skel > 0, "skeletons march with the goblins in wave 3 (%d)" % skel)
 	await wait_until(func() -> bool: return not game.waves.in_progress(), 300.0)
 	game.waves.countdown = 99999.0  # hold wave 4
 
@@ -476,7 +514,7 @@ func _run() -> void:
 	# Kill payout is instant; the corpse stays where the enemy died.
 	var road_spot: Vector2i = map.gates[1] + (map.gates[1] - Config.VILLAGE_CENTER).sign() * 2
 	game.waves._spawn({"kind": "goblin", "spawn": road_spot, "hp_scale": 1.0})
-	var victim: Goblin = get_tree().get_nodes_in_group("enemies").back()
+	var victim: Enemy = get_tree().get_nodes_in_group("enemies").back()
 	victim.speed = 0.0
 	var g_before := game.economy.amount("gold")
 	var n_before := cs.count()
@@ -484,6 +522,22 @@ func _run() -> void:
 	check(game.economy.amount("gold") == g_before + Config.ENEMIES["goblin"]["gold_on_kill"], "killing pays gold_on_kill instantly")
 	check(cs.count() == n_before + 1 and cs.corpses.back().tile() == victim.current_tile(), "a corpse is left where the enemy died")
 	game.waves.countdown = 99999.0  # the test goblin's death re-armed the wave timer
+	# Skeletons: gold only, no food; bones stay behind.
+	game.waves._spawn({"kind": "skeleton", "spawn": road_spot, "hp_scale": 1.0})
+	var bones: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	bones.speed = 0.0
+	var gs := game.economy.amount("gold")
+	bones.take_damage(1e9)
+	check(bones.kind == "skeleton" and game.economy.amount("gold") == gs + Config.enemy_stat_int("skeleton", "gold_on_kill"), "a killed skeleton pays gold")
+	check(cs.corpses.back().kind == "skeleton", "and leaves its bones")
+	var no_food := true
+	for dif in [Settings.Difficulty.EASY, Settings.Difficulty.NORMAL, Settings.Difficulty.HARD]:
+		Settings.difficulty = dif
+		no_food = no_food and Config.enemy_stat_int("skeleton", "food_on_collect") == 0 and Config.enemy_stat_int("skeleton", "gold_on_collect") > 0
+	Settings.difficulty = Settings.Difficulty.NORMAL
+	check(no_food, "skeleton corpses give gold but never food, on every difficulty")
+	cs.remove(cs.corpses.back())
+	game.waves.countdown = 99999.0
 	# Expiry.
 	var rotting: Corpse = cs.spawn("goblin", 3, Vector2(road_spot))
 	rotting.time_left = 0.05
@@ -501,7 +555,7 @@ func _run() -> void:
 	var far_spot: Vector2i = far_route[far_route.size() / 3]
 	var guarded: Corpse = cs.spawn("goblin", 3, Vector2(far_spot))
 	game.waves._spawn({"kind": "goblin", "spawn": far_spot, "hp_scale": 1000.0})
-	var guard: Goblin = get_tree().get_nodes_in_group("enemies").back()
+	var guard: Enemy = get_tree().get_nodes_in_group("enemies").back()
 	guard.speed = 0.0
 	for t in game.world.towers():
 		if t.garrison: game.army.unstation(t.garrison)  # keep the guard alive
@@ -558,14 +612,34 @@ func _run() -> void:
 	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
 	var huts0 := game.population.cap()
 	var pop0 := game.population.count()
+	var homes := {}
+	for h in game.world.intact_huts():
+		homes[h] = h.resident
 	var gate: Vector2i = map.gates[0]
 	var outside := gate + (gate - Config.VILLAGE_CENTER).sign()
 	game.waves._spawn({"kind": "goblin", "spawn": outside, "hp_scale": 1.0})
 	await wait_until(func() -> bool: return game.population.cap() < huts0, 20.0)
-	if game.game_over: print("  (game already lost)")
-	print("  demolition: huts %d -> %d, pop %d -> %d, over=%s, wave=%d, enemies=%d, outside=%s road=%s dist=%d" % [huts0, game.population.cap(), pop0, game.population.count(), game.game_over, game.waves.wave, game.waves.enemies_left(), outside, map.is_road(outside), game.world.pathing.enemy_distance(outside)])
-	check(game.population.cap() == huts0 - 1, "a goblin at the gate destroys a hut")
-	check(game.population.count() == mini(pop0 - 1, game.population.cap()), "and kills a civilian")
+	var burned: Array = homes.keys().filter(func(h: Hut) -> bool: return not h.is_intact())
+	check(burned.size() == 1, "an enemy at the gate destroys exactly one random hut")
+	var had_resident: bool = burned.size() == 1 and homes[burned[0]] != null
+	check(game.population.count() == pop0 - (1 if had_resident else 0), "only that hut's resident dies (hut was %s)" % ("occupied" if had_resident else "empty"))
+	check(residency_ok(), "everyone else still lives in their own hut")
+	# Direct checks for both cases.
+	var empty_huts := game.world.intact_huts().filter(func(h: Hut) -> bool: return h.resident == null)
+	if not empty_huts.is_empty():
+		var p1 := game.population.count()
+		(empty_huts[0] as Hut).destroy()
+		check(game.population.count() == p1, "destroying an empty hut kills nobody")
+	var lived := game.world.intact_huts().filter(func(h: Hut) -> bool: return h.resident != null)
+	if not lived.is_empty():
+		var victim_civ: Civilian = (lived[0] as Hut).resident
+		var p2 := game.population.count()
+		(lived[0] as Hut).destroy()
+		check(game.population.count() == p2 - 1 and not game.population.civilians.has(victim_civ), "destroying an occupied hut kills exactly its resident")
+	huts0 = game.population.cap() + game.world.huts().filter(func(h: Hut) -> bool: return h.ruined).size()
+	for h in game.world.huts().filter(func(h: Hut) -> bool: return h.ruined).slice(1):
+		(h as Hut).finish()  # keep one ruin for the rebuild test
+	huts0 = game.population.cap() + 1
 	game.waves.countdown = 99999.0  # that goblin's end re-armed the wave timer
 
 	# --- civilians evade enemies ----------------------------------------------------------
@@ -578,11 +652,11 @@ func _run() -> void:
 	# Wait until the farmer is well outside the walls, so the evasion is observable.
 	await wait_until(func() -> bool: return not fm.at_home and fm.state == Farmer.State.TO_FARM and fm.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) > 3.0, 90.0)
 	game.waves._spawn({"kind": "goblin", "spawn": map.edge_spawns[0], "hp_scale": 100.0})
-	var threat: Goblin = get_tree().get_nodes_in_group("enemies").back()
+	var threat: Enemy = get_tree().get_nodes_in_group("enemies").back()
 	threat.speed = 0.0
 	threat.set_grid_pos(fm.grid_pos + Vector2(1.5, 0))
 	var fled := await wait_until(func() -> bool: return fm.evading, 2.0)
-	check(fled, "a farmer who spots a goblin runs home" + ("" if fled else " [fm home=%s state=%s dead=%s pos=%s | goblin dead=%s pos=%s dist=%.1f]" % [fm.at_home, fm.state, fm.dead, fm.grid_pos, threat.dead if is_instance_valid(threat) else "freed", threat.grid_pos if is_instance_valid(threat) else Vector2.ZERO, fm.grid_pos.distance_to(threat.grid_pos) if is_instance_valid(threat) else -1.0]))
+	check(fled, "a farmer who spots an enemy runs home" + ("" if fled else " [fm home=%s state=%s dead=%s pos=%s | goblin dead=%s pos=%s dist=%.1f]" % [fm.at_home, fm.state, fm.dead, fm.grid_pos, threat.dead if is_instance_valid(threat) else "freed", threat.grid_pos if is_instance_valid(threat) else Vector2.ZERO, fm.grid_pos.distance_to(threat.grid_pos) if is_instance_valid(threat) else -1.0]))
 	var safe := await wait_until(func() -> bool: return fm.at_home, 30.0)
 	check(safe and not fm.evading, "the farmer reaches the village safely")
 	threat.take_damage(1e9)
@@ -602,7 +676,8 @@ func _run() -> void:
 	var e2: Explorer = game.population.recruit("explorer")
 	check(e2 != null, "explorer recruited with food")
 	while civs("explorer").size() < 2:  # raids may have killed the first one
-		game.population.spawn("explorer")
+		if game.population.spawn("explorer") == null:
+			break
 	var ex := civs("explorer")
 	await wait_until(func() -> bool: return ex.all(func(e: Explorer) -> bool: return e.state == Explorer.State.EXPLORING), 30.0)
 	if ex.size() >= 2 and ex[0].target != Vector2i(-1, -1) and ex[1].target != Vector2i(-1, -1):
@@ -640,6 +715,10 @@ func _run() -> void:
 	await frames(2)
 	check(game.game_over and hud._overlay.visible, "losing every villager ends the game")
 	check(hud._overlay_button.is_visible_in_tree() and hud._overlay_menu_button.is_visible_in_tree(), "defeat screen offers Try again and Main menu")
+	await frames(2)
+	var panel_rect: Rect2 = (hud._overlay_button.get_parent().get_parent() as Control).get_global_rect()
+	var vp_center := get_viewport().get_visible_rect().size / 2.0
+	check(panel_rect.get_center().distance_to(vp_center) < 4.0 and hud._overlay.get_global_rect().size == get_viewport().get_visible_rect().size, "defeat screen is centred and covers the whole screen (%s vs %s)" % [panel_rect.get_center(), vp_center])
 
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
