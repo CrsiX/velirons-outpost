@@ -12,6 +12,12 @@ var hp := 10.0
 var demolition := 1
 var wave := 0
 var dead := false
+## Close combat against summons (earth elementals) that block the way.
+var damage := 4.0
+var attack_cooldown := 1.0
+var _attack_timer := 0.0
+var _foe: Node = null
+var _scan_timer := 0.0
 
 
 func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String = "goblin") -> void:
@@ -21,6 +27,8 @@ func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String
 	hp = max_hp
 	speed = Config.enemy_stat(kind, "speed") * randf_range(0.92, 1.08)
 	demolition = Config.enemy_stat_int(kind, "demolition")
+	damage = Config.enemy_stat(kind, "damage")
+	attack_cooldown = Config.enemy_stat(kind, "attack_cooldown")
 	_init_sprite("unit_" + kind)
 	var pts := PackedVector2Array()
 	# A small sideways offset per enemy so groups don't walk in single file.
@@ -45,6 +53,9 @@ func hit_point() -> Vector2:
 func _process(delta: float) -> void:
 	if dead:
 		return
+	if _fight(delta):
+		_update_visibility()
+		return
 	if step_path(delta):
 		dead = true
 		remove_from_group("enemies")
@@ -54,6 +65,27 @@ func _process(delta: float) -> void:
 		tw.tween_callback(queue_free)
 		return
 	_update_visibility()
+
+
+## Stops to fight a summon standing in the way. Returns true while fighting.
+func _fight(delta: float) -> bool:
+	_attack_timer -= delta
+	_scan_timer -= delta
+	if _scan_timer <= 0.0:
+		_scan_timer = 0.2
+		_foe = null
+		for node in get_tree().get_nodes_in_group("summons"):
+			if node.grid_pos.distance_to(grid_pos) <= Config.SUMMON["attack_range"]:
+				_foe = node
+				break
+	if not is_instance_valid(_foe) or _foe.dead:
+		return false
+	_set_moving(false)
+	sprite.flip_h = Iso.to_world(_foe.grid_pos - grid_pos).x < 0.0
+	if _attack_timer <= 0.0:
+		_attack_timer = attack_cooldown
+		_foe.take_damage(damage)
+	return true
 
 
 ## Only seen while under surveillance (near villagers, soldiers or manned towers).

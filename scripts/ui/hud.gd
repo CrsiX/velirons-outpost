@@ -33,7 +33,8 @@ var _tab_buttons: Dictionary = {}
 var _tab_pages: Dictionary = {}
 var _build_buttons: Dictionary = {}
 var _recruit_rows: Dictionary = {}  # role -> {button, title}
-var _archer_button: Button
+var _military_buttons: Dictionary = {}  # kind -> recruit Button
+var _selected_info: Label
 var _reserve_grid: GridContainer
 var _reserve_label: Label
 var _upgrade_reserve_button: Button
@@ -80,7 +81,7 @@ func setup(p_game: Game) -> void:
 	_build_toasts()
 	_build_trade_dialog()
 	_build_overlay()
-	_drag_ghost = _icon(Art.tex("unit_archer"), 56)
+	_drag_ghost = _icon(null, 56)
 	_drag_ghost.visible = false
 	_drag_ghost.modulate.a = 0.85
 	_root.add_child(_drag_ghost)
@@ -388,12 +389,13 @@ func _recruit(role: String) -> void:
 func _build_page_army() -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
-	var spec: Dictionary = Config.MILITARY["archer"]
-	var e := _entry(Art.tex("unit_archer"), spec["name"], spec["desc"], "Recruit  (%s)" % Config.cost_text(spec["cost"]), func() -> void:
-		if game.army.recruit("archer") == null:
-			toast("Not enough gold", UiTheme.BAD))
-	v.add_child(e["panel"])
-	_archer_button = e["button"]
+	for kind in Config.MILITARY_ORDER:
+		var spec: Dictionary = Config.MILITARY[kind]
+		var e := _entry(Art.tex("unit_" + kind), spec["name"], spec["desc"], "Recruit  (%s)" % Config.cost_text(spec["cost"]), func() -> void:
+			if game.army.recruit(kind) == null:
+				toast("Not enough gold", UiTheme.BAD))
+		v.add_child(e["panel"])
+		_military_buttons[kind] = e["button"]
 	_reserve_label = _label("", 16)
 	_reserve_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_reserve_label)
@@ -402,6 +404,9 @@ func _build_page_army() -> Control:
 	_reserve_grid.add_theme_constant_override("h_separation", 6)
 	_reserve_grid.add_theme_constant_override("v_separation", 6)
 	v.add_child(_reserve_grid)
+	_selected_info = _label("", 15, UiTheme.MUTED)
+	_selected_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_selected_info)
 	_upgrade_reserve_button = _button("Upgrade selected", Vector2(0, 48))
 	_upgrade_reserve_button.pressed.connect(func() -> void:
 		if _selected_unit and not game.army.upgrade(_selected_unit):
@@ -438,17 +443,23 @@ func _rebuild_reserve() -> void:
 
 
 func _refresh_reserve_texts(reserve: Array[MilitaryUnit]) -> void:
-	_reserve_label.text = "Reserve: %d   Walking: %d   On duty: %d\nDrag an archer onto a tower, or tap it and then tap a tower. Soldiers walk there, and walk back when withdrawn." % [reserve.size(), game.army.walking().size(), game.army.stationed().size()]
+	_reserve_label.text = "Reserve: %d   Walking: %d   On duty: %d\nDrag a unit onto a tower, or tap it and then tap a tower. Units walk there, and walk back when withdrawn." % [reserve.size(), game.army.walking().size(), game.army.stationed().size()]
 	_upgrade_reserve_button.visible = _selected_unit != null
+	_selected_info.visible = _selected_unit != null
+	if _selected_unit:
+		var lines: Array[String] = ["%s, level %d" % [_selected_unit.display_name(), _selected_unit.level + 1]]
+		lines.append_array(_selected_unit.behavior.info_lines(_selected_unit))
+		_selected_info.text = "\n".join(lines)
 	if _selected_unit:
 		_upgrade_reserve_button.disabled = not _selected_unit.can_upgrade() or not game.economy.can_afford(_selected_unit.upgrade_cost())
-		_upgrade_reserve_button.text = ("Upgrade selected  (%s)" % Config.cost_text(_selected_unit.upgrade_cost())) if _selected_unit.can_upgrade() else "Selected archer is max level"
+		_upgrade_reserve_button.text = ("Upgrade selected  (%s)" % Config.cost_text(_selected_unit.upgrade_cost())) if _selected_unit.can_upgrade() else "Selected %s is max level" % _selected_unit.display_name().to_lower()
 
 
 # --- reserve card press / drag ----------------------------------------------------------
 
 func _on_card_down(unit: MilitaryUnit) -> void:
 	_press_unit = unit
+	_drag_ghost.texture = Art.tex("unit_" + unit.kind)
 	_dragging_unit = false
 	_press_pos = _root.get_viewport().get_mouse_position()
 
@@ -723,7 +734,8 @@ func _refresh() -> void:
 			(e["desc"] as Label).text = "%s\nWithout a camp: %d" % [Config.CIVILIANS[role]["desc"], game.population.free_foresters().size()]
 		elif role == "gatherer":
 			(e["desc"] as Label).text = "%s\nCorpses lying around: %d" % [Config.CIVILIANS[role]["desc"], game.corpses.count()]
-	_archer_button.disabled = not game.economy.can_afford(Config.MILITARY["archer"]["cost"])
+	for kind in _military_buttons:
+		(_military_buttons[kind] as Button).disabled = not game.economy.can_afford(Config.MILITARY[kind]["cost"])
 	for b in _trade_buttons:
 		b.disabled = false
 	_rebuild_reserve()

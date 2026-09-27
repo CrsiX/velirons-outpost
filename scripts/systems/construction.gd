@@ -91,9 +91,25 @@ func release(site: Building, unreachable: bool) -> void:
 	changed.emit()
 
 
+## Queues a paid tower upgrade as a builder job; the tower keeps fighting.
+func order_upgrade(tower: Tower) -> bool:
+	if not tower.can_upgrade() or not game.economy.spend(tower.upgrade_cost()):
+		return false
+	tower.start_upgrade()
+	queue.append(tower)
+	Sfx.play("place")
+	changed.emit()
+	return true
+
+
 func complete(site: Building) -> void:
 	queue.erase(site)
 	site.builder = null
+	if site.complete and site.upgrading:
+		site.finish_upgrade()
+		Sfx.play("build")
+		changed.emit()
+		return
 	site.finish()
 	game.world.refresh_building(site)
 	Sfx.play("build")
@@ -101,6 +117,13 @@ func complete(site: Building) -> void:
 
 
 func cancel(site: Building) -> void:
+	if site.complete and site.upgrading:
+		queue.erase(site)
+		game.economy.refund(site.pending_upgrade_cost())
+		site.builder = null
+		site.cancel_upgrade()
+		changed.emit()
+		return
 	if site.complete:
 		return
 	queue.erase(site)

@@ -1,0 +1,48 @@
+class_name SummonerBehavior
+extends MilitaryBehavior
+## Summons earth elementals next to its tower while enemies are within the
+## tower's range or sight. Level-ups speed up summoning, raise the cap and make
+## *newly* summoned elementals stronger (existing ones keep their stats).
+
+const ELEMENTAL_SCRIPT := preload("res://scripts/units/earth_elemental.gd")
+
+var summons: Array[EarthElemental] = []
+var _timer := 1.0
+
+
+func tick(tower: Tower, unit: MilitaryUnit, delta: float) -> void:
+	summons = summons.filter(func(s: EarthElemental) -> bool: return is_instance_valid(s) and not s.dead)
+	_timer -= delta
+	if _timer > 0.0:
+		return
+	if summons.size() >= int(unit.stat("max_summons")):
+		return
+	var sight := maxf(tower.range_tiles(), tower.sight_radius())
+	var threats := enemies_near(tower, sight)
+	if threats.is_empty():
+		return
+	_timer = unit.stat("interval")
+	tower.face(threats[0].grid_pos)
+	var e: EarthElemental = ELEMENTAL_SCRIPT.new()
+	e.setup(tower.game, tower.tile, tower.outer_tile(), unit.stat("summon_hp"), unit.stat("summon_damage"))
+	tower.game.world.objects.add_child(e)
+	summons.append(e)
+	tower.recoil()
+	Sfx.play("recruit", 0.2)
+
+
+func on_leave(_tower: Tower, _unit: MilitaryUnit) -> void:
+	# Without their summoner the elementals crumble back into the earth.
+	for s in summons:
+		if is_instance_valid(s) and not s.dead:
+			s.crumble()
+	summons.clear()
+	_timer = 1.0
+
+
+func info_lines(unit: MilitaryUnit) -> Array[String]:
+	var alive := summons.filter(func(s: EarthElemental) -> bool: return is_instance_valid(s) and not s.dead).size()
+	return [
+		"Summons every %.1f s, up to %d at once (%d active)" % [unit.stat("interval"), int(unit.stat("max_summons")), alive],
+		"New elementals: %.0f hp, %.0f damage" % [unit.stat("summon_hp"), unit.stat("summon_damage")],
+	]

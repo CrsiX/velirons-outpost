@@ -32,7 +32,7 @@ func _in_state(s: int) -> Array[MilitaryUnit]:
 	return units.filter(func(u: MilitaryUnit) -> bool: return u.state == s)
 
 
-func recruit(kind: String = "archer") -> MilitaryUnit:
+func recruit(kind: String) -> MilitaryUnit:
 	if not game.economy.spend(Config.MILITARY[kind]["cost"]):
 		return null
 	var u := MilitaryUnit.new(kind)

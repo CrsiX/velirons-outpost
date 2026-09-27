@@ -47,7 +47,7 @@ func _tick(delta: float) -> void:
 
 
 func _site_valid() -> bool:
-	return is_instance_valid(site) and not site.complete and site.builder == self
+	return is_instance_valid(site) and site.has_work() and site.builder == self
 
 
 func _go_home() -> void:

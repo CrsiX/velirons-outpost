@@ -368,7 +368,17 @@ def merlons(a, s, z, front):
         a.box(gx, gx + k, gy, gy + k, z, z + 9, STONE_T, STONE_L, STONE_R)
 
 
-def wall_tower(front=False):
+def hanging_banner(a, face, u0, u1, z_top, z_bot, colour=CRIMSON, emblem=GOLD):
+    """Swallow-tailed banner on a visible face ('left' = gy+, 'right' = gx+)."""
+    def at(u, z):
+        return P(u, face[1], z) if face[0] == "left" else P(face[1], -u, z)
+    um = (u0 + u1) / 2
+    a.poly([at(u0, z_top), at(u1, z_top), at(u1, z_bot), at(um, z_bot + 6), at(u0, z_bot)], colour, INK, 1.2)
+    x, y = at(um, (z_top + z_bot) / 2 + 2)
+    a.ellipse(x, y, 2.6, 2.6, emblem, INK, 0.8)
+
+
+def wall_tower(front=False, level=1):
     a = Art()
     s, h = 0.36, 74
     if not front:
@@ -384,14 +394,31 @@ def wall_tower(front=False):
         x, y = P(-s + 0.06, -s + 0.06, h + 44)
         a.poly([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], CRIMSON)
         merlons(a, s + 0.03, h + 4, False)
+        if level >= 2:  # crimson banner and an iron ring below the parapet
+            hanging_banner(a, ("left", s), -0.22, -0.02, h - 4, h - 34)
+            a.line([P(-s, s, h - 2), P(s, s, h - 2), P(s, -s, h - 2)], "#3a3632", 3)
+        if level >= 3:  # second banner, gold trim, a brazier burning on top
+            hanging_banner(a, ("right", s), -0.12, 0.08, h - 4, h - 34)
+            a.line([P(-s - 0.03, s + 0.03, h + 4), P(s + 0.03, s + 0.03, h + 4), P(s + 0.03, -s - 0.03, h + 4)], GOLD, 2)
+            for u in (-0.25, 0.0, 0.25):
+                x, y = P(u, s, h - 2)
+                a.ellipse(x, y, 1.4, 1.4, GOLD)
+            bx, by = P(s - 0.12, -s + 0.12, h + 4)
+            a.ellipse(bx, by - 14, 16, 12, GLOW, opacity=0.35)
+            a.poly([(bx - 6, by - 6), (bx + 6, by - 6), (bx + 4, by), (bx - 4, by)], "#3a3632", INK, 1)
+            a.poly([(bx - 4, by - 6), (bx, by - 18), (bx + 4, by - 6)], GLOW, "#b8401e", 1)
         # Anchor the manifest bbox identically for the front overlay by tracking the same extents.
     else:
         a._track([P(-s, s, 0), P(s, -s, 0), P(-s, -s, h + 60), P(s, s, 0)])
         merlons(a, s + 0.03, h + 4, True)
+        if level >= 3:  # gilded merlon caps
+            k = 0.13
+            for gx, gy in [(-s - 0.03, s + 0.03 - k), (-k / 2, s + 0.03 - k), (s + 0.03 - k, s + 0.03 - k), (s + 0.03 - k, -k / 2), (s + 0.03 - k, -s - 0.03)]:
+                a.line([P(gx, gy + k, h + 13), P(gx + k, gy + k, h + 13), P(gx + k, gy, h + 13)], GOLD, 1.6)
     return a
 
 
-def watchtower(front=False):
+def watchtower(front=False, level=1):
     a = Art()
     s, base_h, post_h, plat = 0.3, 16, 60, 0.38
     if not front:
@@ -414,12 +441,29 @@ def watchtower(front=False):
         a.line([P(plat - 0.03, -plat, post_h + 18), P(plat - 0.03, -plat, post_h + 44)], INK, 2.2)
         x, y = P(plat - 0.03, -plat, post_h + 44)
         a.poly([(x, y), (x + 16, y + 4), (x, y + 9)], CRIMSON)
+        if level >= 2:  # iron-banded stone base
+            for z in (5, base_h - 4):
+                a.line([P(-s, s, z), P(s, s, z), P(s, -s, z)], "#3a3632", 2.4)
+        if level >= 3:  # gold trim on the platform and a second, golden pennant
+            a.line([P(-plat, plat, post_h + 6), P(plat, plat, post_h + 6), P(plat, -plat, post_h + 6)], GOLD, 2)
+            a.line([P(-plat + 0.02, -plat, post_h + 18), P(-plat + 0.02, -plat, post_h + 40)], INK, 2.2)
+            x, y = P(-plat + 0.02, -plat, post_h + 40)
+            a.poly([(x, y), (x + 14, y + 4), (x, y + 8)], GOLD, INK, 0.8)
     else:
         a._track([P(-plat, plat, 0), P(plat, -plat, 0), P(-plat, -plat, post_h + 60), P(plat, plat, 0)])
         for gx, gy in [(-plat, plat - 0.05), (plat - 0.05, plat - 0.05), (plat - 0.05, 0)]:
             a.box(gx, gx + 0.05, gy, gy + 0.05, post_h + 6, post_h + 20, WOOD_L, WOOD, WOOD_D, sw=1)
         a.line([P(-plat, plat, post_h + 18), P(plat, plat, post_h + 18)], WOOD_D, 2.6)
         a.line([P(plat, plat, post_h + 18), P(plat, -plat, post_h + 18)], WOOD_D, 2.6)
+        if level >= 2:  # crimson shields hung on the front railing
+            for gx, gy in [(-0.12, plat), (plat, -0.1)]:
+                x, y = P(gx, gy, post_h + 12)
+                a.ellipse(x, y, 6, 6.5, CRIMSON, INK, 1.2)
+                a.ellipse(x, y, 2, 2, GOLD, INK, 0.6)
+        if level >= 3:  # lantern on the front corner post
+            x, y = P(-plat + 0.02, plat - 0.02, post_h + 24)
+            a.ellipse(x, y, 11, 11, GLOW, opacity=0.3)
+            a.poly([(x - 3, y - 4), (x + 3, y - 4), (x + 3, y + 4), (x - 3, y + 4)], GLOW, INK, 1)
     return a
 
 
@@ -745,12 +789,12 @@ def skeleton():
         w = 6 - k
         a.raw('<path d="M%d,%d Q0,%d %d,%d" fill="none" stroke="%s" stroke-width="3.2" stroke-linecap="round"/>' % (-w, y + 2, y - 1, w, y + 2, INK), [(-w, y - 1), (w, y + 2)])
         a.raw('<path d="M%d,%d Q0,%d %d,%d" fill="none" stroke="%s" stroke-width="1.6" stroke-linecap="round"/>' % (-w, y + 2, y - 1, w, y + 2, BONE), [(-w, y - 1), (w, y + 2)])
-    # arm with a rusty sword
-    a.line([(3, -25), (8, -18)], INK, 3.4)
-    a.line([(3, -25), (8, -18)], BONE, 1.8)
-    a.line([(8, -18), (15, -32)], INK, 3.6)
-    a.line([(8, -18), (15, -32)], "#8a6a4a", 2)
-    a.line([(6, -20), (10, -16)], INK, 2.6)
+    # bony arms reaching forward, empty-handed
+    for pts in ([(3, -25), (8, -19), (12, -21)], [(-3, -25), (-6, -18), (-5, -13)]):
+        a.line(pts, INK, 3.4)
+        a.line(pts, BONE, 1.8)
+    for fx in (12.5, 14):
+        a.line([(12, -21), (fx, -23)], BONE, 1.2)
     # skull with glowing sockets
     a.ellipse(0, -32, 6.5, 6, BONE, INK, 1.3)
     a.poly([(-3.5, -28), (3.5, -28), (3, -25), (-3, -25)], BONE, INK, 1)
@@ -761,6 +805,44 @@ def skeleton():
     a.ellipse(-2.2, -32.5, 0.9, 0.9, "#9fe8ff")
     a.ellipse(2.5, -32.5, 0.9, 0.9, "#9fe8ff")
     a.save("unit_skeleton")
+
+
+def summoner():
+    """Mage without a staff: pointy hat, dark robe, a glowing purple orb held in the hand."""
+    def extra(a, layer):
+        if layer == "front":
+            a.poly([(-6, -26), (6, -26), (4, -22), (-4, -22)], "#5a3a7a", INK, 0.8)  # violet collar
+            a.line([(4, -22), (11, -24)], INK, 4.2)  # arm held out
+            a.line([(4, -22), (11, -24)], "#243a44", 2.6)
+            a.ellipse(13, -27, 9, 9, "#9a6cff", opacity=0.3)
+            a.ellipse(13, -27, 4.2, 4.2, "#a87cff", INK, 1.2)
+            a.ellipse(12, -28.2, 1.4, 1.4, "#e8dcff")
+
+    def hat(a):
+        a.raw('<path d="M-9,-36 L9,-36 L3,-40 L-1,-57 L-4,-40 Z" fill="#3a2a55" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-10, -58), (10, -35)])
+        a.line([(-6, -38.5), (6, -38.5)], "#9a6cff", 1.6)
+    person("unit_summoner", ("#243a44", "#1a2c34"), hat=hat, robe=True, extra=extra)
+
+
+def earth_elemental():
+    """Small walking boulder with glowing cracks."""
+    a = Art()
+    a.shadow(12, 5, opacity=0.4)
+    rock, rock_d, rock_l = "#7a6e5e", "#5a5044", "#948672"
+    glow = "#e8a040"
+    a.box(-0.07, -0.02, -0.03, 0.02, 0, 8, rock_l, rock, rock_d, sw=1)  # legs
+    a.box(0.02, 0.07, -0.03, 0.02, 0, 8, rock_l, rock, rock_d, sw=1)
+    a.poly([(-10, -8), (-12, -20), (-6, -28), (6, -29), (12, -20), (10, -8)], rock, INK, 1.4)  # body
+    a.poly([(0, -29), (6, -29), (12, -20), (10, -8), (0, -8)], rock_d, stroke=None, opacity=0.6)
+    a.line([(-6, -12), (-2, -18), (-5, -23)], glow, 1.6)  # glowing cracks
+    a.line([(4, -11), (2, -17), (6, -21)], glow, 1.4)
+    for (x, y, r) in [(-15, -18, 4.5), (-17, -11, 3.5), (15, -19, 4.5), (17, -12, 3.8)]:  # boulder fists
+        a.ellipse(x, y, r, r * 0.9, rock_l if x < 0 else rock, INK, 1.2)
+    a.ellipse(0, -33, 6, 5, rock_l, INK, 1.3)  # head
+    a.ellipse(-2, -33.5, 1.2, 1, glow)
+    a.ellipse(2.5, -33.5, 1.2, 1, glow)
+    a.poly([(-3, -38), (-1, -42), (1, -38)], "#6a9a4a", INK, 0.8)  # moss tuft
+    a.save("unit_earth_elemental")
 
 
 def corpse_skeleton():
@@ -774,7 +856,6 @@ def corpse_skeleton():
     a.ellipse(12, -5, 5.5, 5, BONE, INK, 1.2)  # skull
     a.ellipse(10.5, -5.5, 1.4, 1.5, "#1a1612")
     a.ellipse(13.5, -5.5, 1.4, 1.5, "#1a1612")
-    a.line([(-6, 6), (-16, 9)], "#6d5a48", 2.2)  # dropped rusty sword
     a.save("corpse_skeleton")
 
 
@@ -1058,16 +1139,21 @@ def main():
     hut(ruin=True)
     wall()
     gate()
-    wt = wall_tower()
-    wt.save("wall_tower", extra={"platform": 78})
-    wtf = wall_tower(front=True)
-    wtf.pts = wt.pts[:]  # identical canvas so both layers line up
-    wtf.save("wall_tower_front")
-    w = watchtower()
-    w.save("watchtower", extra={"platform": 66})
-    wf = watchtower(front=True)
-    wf.pts = w.pts[:]
-    wf.save("watchtower_front")
+    # Tower levels 1-3 share one canvas so sprites line up when a tower levels up.
+    for lvl in (1, 2, 3):
+        suffix = "" if lvl == 1 else "_%d" % lvl
+        wt = wall_tower(level=lvl)
+        wt.pts = wall_tower(level=3).pts[:]
+        wt.save("wall_tower" + suffix, extra={"platform": 78})
+        wtf = wall_tower(front=True, level=lvl)
+        wtf.pts = wt.pts[:]  # identical canvas so both layers line up
+        wtf.save("wall_tower_front" + suffix)
+        w = watchtower(level=lvl)
+        w.pts = watchtower(level=3).pts[:]
+        w.save("watchtower" + suffix, extra={"platform": 66})
+        wf = watchtower(front=True, level=lvl)
+        wf.pts = w.pts[:]
+        wf.save("watchtower_front" + suffix)
     site()
     farm_field("field")
     farm_field("site")
@@ -1091,6 +1177,8 @@ def main():
     corpse_goblin()
     skeleton()
     corpse_skeleton()
+    summoner()
+    earth_elemental()
     arrow()
     sack()
     icons()

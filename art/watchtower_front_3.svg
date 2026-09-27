@@ -10,4 +10,10 @@
   <polygon points="21.12,-69.44 24.32,-67.84 21.12,-66.24 17.92,-67.84" fill="#7a5738" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
   <polyline points="-48.64,-78 0,-53.68" fill="none" stroke="#43301e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
   <polyline points="0,-53.68 48.64,-78" fill="none" stroke="#43301e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="-32" cy="-63.68" rx="6" ry="6.5" fill="#8c1c2b" stroke="#15110d" stroke-width="1.2"/>
+  <ellipse cx="-32" cy="-63.68" rx="2" ry="2" fill="#c9a24a" stroke="#15110d" stroke-width="0.6"/>
+  <ellipse cx="30.72" cy="-63.04" rx="6" ry="6.5" fill="#8c1c2b" stroke="#15110d" stroke-width="1.2"/>
+  <ellipse cx="30.72" cy="-63.04" rx="2" ry="2" fill="#c9a24a" stroke="#15110d" stroke-width="0.6"/>
+  <ellipse cx="-46.08" cy="-84" rx="11" ry="11" fill="#f0b04a" opacity="0.3"/>
+  <polygon points="-49.08,-88 -43.08,-88 -43.08,-80 -49.08,-80" fill="#f0b04a" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
 </svg>

@@ -411,7 +411,7 @@ func _run() -> void:
 	hud._select_tab("army")
 	await frames(2)
 	var gold2 := game.economy.amount("gold")
-	await tap(center(hud._archer_button))
+	await tap(center(hud._military_buttons["archer"]))
 	check(game.army.reserve().size() == 1 and game.economy.amount("gold") == gold2 - 40, "archer recruited for 40 gold")
 	await frames(2)
 	var card: Button = hud._reserve_grid.get_child(0)
@@ -434,7 +434,7 @@ func _run() -> void:
 	await frames(2)
 	check(game.fog.is_watched(wt.tile + Vector2i(-3, -3)), "a manned tower keeps its whole range under surveillance")
 	# Tap mode: tap a card, then tap the new watchtower.
-	await tap(center(hud._archer_button))
+	await tap(center(hud._military_buttons["archer"]))
 	await frames(2)
 	card = hud._reserve_grid.get_child(0)
 	await tap(center(card))
@@ -454,7 +454,7 @@ func _run() -> void:
 	check(game.army.upgrade(unit) and unit.level == 1, "archer upgraded with gold")
 	# Man the other wall towers too.
 	for t in wall_towers.slice(1):
-		game.army.station(game.army.recruit(), t)
+		game.army.station(game.army.recruit("archer"), t)
 	await wait_until(func() -> bool: return wall_towers.all(func(t: Tower) -> bool: return t.garrison != null), 60.0)
 	check(wall_towers.all(func(t: Tower) -> bool: return t.garrison != null), "all wall towers manned")
 	# Balance comes later: make the defence sturdy so the rest of the run is deterministic.
@@ -605,6 +605,106 @@ func _run() -> void:
 			game.army.station(game.army.reserve()[0], t)
 	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
 
+	# --- tower panel, tower levels -------------------------------------------------------
+	game.waves.countdown = 99999.0
+	var labels: Array = watchtower.info()["actions"].map(func(x: Dictionary) -> String: return x["label"])
+	check(labels.size() == 2 and labels[0].begins_with("Upgrade tower") and labels[1] == "Withdraw", "tower panel offers only Upgrade tower and Withdraw (%s)" % str(labels))
+	var empty_tower: Tower = null
+	for t in game.world.towers():
+		if t.complete and t.garrison == null and t.incoming == null:
+			empty_tower = t
+	if empty_tower:
+		var el: Array = empty_tower.info()["actions"].map(func(x: Dictionary) -> String: return x["label"])
+		check(not el.any(func(l: String) -> bool: return "Send" in l or "Station" in l or "rcher" in l), "unmanned tower has no station button (%s)" % str(el))
+	check(watchtower.level == 1 and wall_towers.all(func(t: Tower) -> bool: return t.level == 1), "all towers start at level 1")
+	game.economy.add("materials", 200)
+	var r1 := watchtower.range_tiles()
+	var m1 := game.economy.amount("materials")
+	check(game.construction.order_upgrade(watchtower) and game.economy.amount("materials") == m1 - Config.TOWER_LEVELS[1]["cost"]["materials"], "tower upgrade ordered for building material")
+	check(watchtower.upgrading and watchtower.complete and watchtower.garrison != null, "tower stays finished and manned while upgrading")
+	game.waves._spawn({"kind": "goblin", "spawn": far_spot, "hp_scale": 1000.0})
+	var dummy: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	dummy.speed = 0.0
+	dummy.set_grid_pos(Vector2(watchtower.tile) + Vector2(2.0, 0.0))
+	var hp_start := dummy.hp
+	var fired_during := await wait_until(func() -> bool: return dummy.hp < hp_start and watchtower.upgrading, 10.0)
+	check(fired_during, "the stationed unit keeps shooting while the tower is being upgraded")
+	dummy.take_damage(1e9)  # (a goblin this close would make the builder flee)
+	var up_done := await wait_until(func() -> bool: return not watchtower.upgrading and watchtower.level == 2, 120.0)
+	check(up_done and watchtower.level == 2, "a builder completes the tower upgrade")
+	check(is_equal_approx(watchtower.range_tiles(), r1 + Config.TOWER_LEVELS[1]["range_bonus"]), "tower level raises the unit's range (%.1f -> %.1f)" % [r1, watchtower.range_tiles()])
+	check(watchtower.sprite.texture == Art.tex("watchtower_2"), "level 2 tower looks different")
+	game.waves.countdown = 99999.0
+
+	# --- summoner & earth elementals ------------------------------------------------------
+	game.economy.add("gold", 2000)
+	var sm_tower: Tower = wall_towers[1]
+	if sm_tower.garrison:
+		game.army.unstation(sm_tower.garrison)
+	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
+	var summoner := game.army.recruit("summoner")
+	check(summoner != null and summoner.kind == "summoner", "summoner recruited with gold")
+	game.army.station(summoner, sm_tower)
+	await wait_until(func() -> bool: return sm_tower.garrison == summoner, 60.0)
+	check(sm_tower.garrison == summoner and sm_tower._unit_sprite.texture == Art.tex("unit_summoner"), "summoner stands on the tower")
+	var sb: SummonerBehavior = summoner.behavior
+	await wait(8.0)
+	check(sb.summons.is_empty(), "no summons while no enemy is in sight")
+	# A tough, stationary goblin next to the tower.
+	var sm_spot := Vector2i(-1, -1)
+	for dy in range(-3, 4):
+		for dx in range(-3, 4):
+			var t := sm_tower.tile + Vector2i(dx, dy)
+			var d := Vector2(t).distance_to(Vector2(sm_tower.tile))
+			if sm_spot == Vector2i(-1, -1) and d >= 2.0 and d <= 3.0 and not map.in_village(t) and game.world.pathing.is_walkable(t):
+				sm_spot = t
+	game.waves._spawn({"kind": "goblin", "spawn": far_spot, "hp_scale": 1000.0})
+	var brute: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	brute.speed = 0.0
+	brute.set_grid_pos(Vector2(sm_spot))
+	for t in game.world.towers():
+		if t.garrison and t.garrison.kind == "archer":
+			game.army.unstation(t.garrison)  # let the elementals do the fighting
+	var got := await wait_until(func() -> bool: return sb.summons.size() >= 1, 20.0)
+	check(got, "summoner summons earth elementals when an enemy comes into sight")
+	var first: EarthElemental = sb.summons[0] if got else null
+	if first:
+		check(is_equal_approx(first.max_hp, Config.ENEMIES["goblin"]["hp"]) and is_equal_approx(first.damage, Config.ENEMIES["goblin"]["damage"]), "a level-1 elemental is as strong as a goblin")
+	await wait(Config.MILITARY["summoner"]["levels"][0]["interval"] * 4.0)
+	check(sb.summons.size() <= int(summoner.stat("max_summons")), "summons never exceed the cap (%d/%d)" % [sb.summons.size(), int(summoner.stat("max_summons"))])
+	var hp_b := brute.hp
+	var fought := await wait_until(func() -> bool: return brute.hp < hp_b and sb.summons.any(func(e: EarthElemental) -> bool: return e.hp < e.max_hp), 30.0)
+	if not fought:
+		print("  detail: brute at %s hp %.0f/%.0f; summons: %s" % [brute.grid_pos, brute.hp, hp_b, str(sb.summons.map(func(e: EarthElemental) -> String: return "%s tgt=%s hp=%.0f path=%d/%d" % [e.grid_pos, e.target != null, e.hp, e.path_index, e.path.size()]))])
+	check(fought, "elementals fight the enemy in close combat, and it fights back")
+	var corpses_before := cs.count()
+	var doomed: EarthElemental = sb.summons[0] if not sb.summons.is_empty() else null
+	if doomed:
+		doomed.take_damage(1e9)
+		await frames(3)
+		check(doomed.dead and cs.count() == corpses_before, "a slain elemental leaves no corpse")
+	var survivor: EarthElemental = null
+	for e in sb.summons:
+		if is_instance_valid(e) and not e.dead:
+			survivor = e
+	var old_hp := survivor.max_hp if survivor else 0.0
+	var old_cap := int(summoner.stat("max_summons"))
+	var old_interval := summoner.stat("interval")
+	check(game.army.upgrade(summoner), "summoner upgraded with gold")
+	check(summoner.stat("interval") < old_interval and int(summoner.stat("max_summons")) > old_cap, "upgrade: faster summoning and a higher cap")
+	var is_new := func(e: EarthElemental) -> bool: return is_instance_valid(e) and not e.dead and e != survivor and is_equal_approx(e.max_hp, summoner.stat("summon_hp"))
+	await wait_until(func() -> bool: return sb.summons.any(is_new), 30.0)
+	var newest: Array = sb.summons.filter(is_new)
+	check(not newest.is_empty(), "new summons get the upgraded stats")
+	if survivor and is_instance_valid(survivor):
+		check(is_equal_approx(survivor.max_hp, old_hp), "existing summons keep their old stats")
+	game.army.unstation(summoner)
+	await frames(3)
+	check(sb.summons.is_empty() and get_tree().get_nodes_in_group("summons").is_empty(), "withdrawing the summoner dismisses its elementals")
+	brute.take_damage(1e9)
+	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
+	game.waves.countdown = 99999.0
+
 	# --- demolition at the gate -------------------------------------------------------
 	for t in game.world.towers():
 		if t.garrison:
@@ -614,14 +714,14 @@ func _run() -> void:
 	var pop0 := game.population.count()
 	var homes := {}
 	for h in game.world.intact_huts():
-		homes[h] = h.resident
+		homes[h] = h.resident != null  # a bool: a dead resident's object would read as null later
 	var gate: Vector2i = map.gates[0]
 	var outside := gate + (gate - Config.VILLAGE_CENTER).sign()
 	game.waves._spawn({"kind": "goblin", "spawn": outside, "hp_scale": 1.0})
 	await wait_until(func() -> bool: return game.population.cap() < huts0, 20.0)
 	var burned: Array = homes.keys().filter(func(h: Hut) -> bool: return not h.is_intact())
 	check(burned.size() == 1, "an enemy at the gate destroys exactly one random hut")
-	var had_resident: bool = burned.size() == 1 and homes[burned[0]] != null
+	var had_resident: bool = burned.size() == 1 and homes[burned[0]]
 	check(game.population.count() == pop0 - (1 if had_resident else 0), "only that hut's resident dies (hut was %s)" % ("occupied" if had_resident else "empty"))
 	check(residency_ok(), "everyone else still lives in their own hut")
 	# Direct checks for both cases.

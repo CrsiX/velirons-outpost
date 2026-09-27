@@ -15,6 +15,11 @@ var progress := 0.0
 var build_time := 1.0
 ## Builder currently assigned to this site (if any).
 var builder: Node = null
+## Builder work on a finished building (e.g. a tower upgrade). The building
+## keeps working normally meanwhile.
+var upgrading := false
+var upgrade_progress := 0.0
+var upgrade_time := 1.0
 var sprite: Sprite2D
 
 
@@ -83,11 +88,43 @@ func sight_center() -> Vector2:
 	return Vector2(tile)
 
 
-## Advance construction. Returns true once finished.
+## Does a builder have anything to do here (construction or an upgrade)?
+func has_work() -> bool:
+	return not complete or upgrading
+
+
+func work_fraction() -> float:
+	if not complete:
+		return clampf(progress / build_time, 0.0, 1.0)
+	return clampf(upgrade_progress / upgrade_time, 0.0, 1.0)
+
+
+## Advance construction (or an upgrade). Returns true once done.
 func add_progress(dt: float) -> bool:
-	progress += dt
 	queue_redraw()
-	return progress >= build_time
+	if not complete:
+		progress += dt
+		return progress >= build_time
+	upgrade_progress += dt
+	return upgrade_progress >= upgrade_time
+
+
+## Override: apply a finished upgrade.
+func finish_upgrade() -> void:
+	upgrading = false
+	queue_redraw()
+
+
+## Override: undo an ordered upgrade (the cost is refunded by Construction).
+func cancel_upgrade() -> void:
+	upgrading = false
+	upgrade_progress = 0.0
+	queue_redraw()
+
+
+## Override: cost refunded when an ordered upgrade is cancelled.
+func pending_upgrade_cost() -> Dictionary:
+	return {}
 
 
 func finish() -> void:
@@ -126,10 +163,15 @@ func pick_rect() -> Rect2:
 
 
 func _draw() -> void:
-	if complete:
+	if not has_work():
 		return
 	var w := 60.0
-	var r := Rect2(-w / 2.0, -78.0, w, 7.0)
+	var r := Rect2(-w / 2.0, _bar_y(), w, 7.0)
 	draw_rect(r.grow(2.0), Color("15110d"))
 	draw_rect(r, Color("3a2e22"))
-	draw_rect(Rect2(r.position, Vector2(w * clampf(progress / build_time, 0.0, 1.0), r.size.y)), Color("c9a24a"))
+	draw_rect(Rect2(r.position, Vector2(w * work_fraction(), r.size.y)), Color("c9a24a") if not complete else Color("8fb8e0"))
+
+
+## Height of the work progress bar above the anchor.
+func _bar_y() -> float:
+	return -78.0

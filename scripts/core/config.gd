@@ -71,6 +71,14 @@ const BUILDINGS := {
 
 ## Tower range in tiles. Towers own the range; units own damage and speed.
 const TOWER_RANGE := {"tower": 3.6, "wall_tower": 4.2}
+## Tower levels (wall towers and watchtowers alike start at 1). Levels only add
+## range for the stationed unit. Upgrading costs building material and a
+## builder's time; the tower keeps fighting meanwhile.
+const TOWER_LEVELS: Array[Dictionary] = [
+	{"range_bonus": 0.0},
+	{"range_bonus": 0.8, "cost": {"materials": 30}, "work_time": 8.0},
+	{"range_bonus": 1.6, "cost": {"materials": 55}, "work_time": 12.0},
+]
 
 const CIVILIANS := {
 	"builder": {
@@ -131,9 +139,11 @@ const EXPLORER_WANDER_SLACK := 8
 const EXPLORER_CLAIM_RADIUS := 7.0
 const EXPLORER_CLAIM_PENALTY := 30
 
+## Military units. Every kind is stationed on a tower; its "behavior" script
+## decides what it does there. Upgrades never change range: towers own range.
 const MILITARY := {
 	"archer": {
-		"name": "Archer", "cost": {"gold": 40}, "speed": 1.8,
+		"name": "Archer", "cost": {"gold": 40}, "speed": 1.8, "behavior": "archer",
 		"desc": "Shoots enemies from a tower.",
 		# Upgrades improve damage and attack speed; range comes from the tower.
 		"levels": [
@@ -143,6 +153,27 @@ const MILITARY := {
 			{"damage": 24.0, "cooldown": 0.6, "cost": {"gold": 130}},
 		],
 	},
+	"summoner": {
+		"name": "Summoner", "cost": {"gold": 60}, "speed": 1.4, "behavior": "summoner",
+		"desc": "Summons earth elementals while enemies are in sight.",
+		# Upgrades speed up summoning, raise the cap, and strengthen *new* summons.
+		"levels": [
+			{"interval": 6.0, "max_summons": 2, "summon_hp": 20.0, "summon_damage": 4.0},
+			{"interval": 5.0, "max_summons": 3, "summon_hp": 26.0, "summon_damage": 5.0, "cost": {"gold": 60}},
+			{"interval": 4.2, "max_summons": 4, "summon_hp": 34.0, "summon_damage": 6.5, "cost": {"gold": 100}},
+			{"interval": 3.5, "max_summons": 5, "summon_hp": 44.0, "summon_damage": 8.5, "cost": {"gold": 150}},
+		],
+	},
+}
+const MILITARY_ORDER: Array[String] = ["archer", "summoner"]
+
+## Earth elementals summoned by summoners. hp/damage come from the summoner's
+## level; at level 1 an elemental is exactly as strong as a goblin.
+const SUMMON := {
+	"name": "Earth Elemental", "speed": 1.1, "attack_cooldown": 1.0,
+	"attack_range": 0.8,  # close combat
+	"sight": 3.5,  # notices enemies this close
+	"leash": 4.0,  # wanders and chases within this distance of its tower
 }
 
 const MATERIALS_TRADE := {"materials": 10, "gold": 15}
@@ -152,11 +183,13 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 const ENEMIES := {
 	"goblin": {
 		"name": "Goblin", "hp": 20.0, "speed": 1.1, "demolition": 1,
+		"damage": 4.0, "attack_cooldown": 1.0,  # close combat against summons
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
 	},
 	# Same stats as goblins, but bones give no food, only gold.
 	"skeleton": {
 		"name": "Skeleton", "hp": 20.0, "speed": 1.1, "demolition": 1,
+		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 0,
 	},
 }
