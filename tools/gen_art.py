@@ -296,16 +296,28 @@ def hut(ruin=False):
     a.poly([P(-0.08, y1, 0), P(0.08, y1, 0), P(0.08, y1, 17), P(-0.08, y1, 17)], "#2b1e14")
     a.poly([P(x1, 0.15, 10), P(x1, -0.05, 10), P(x1, -0.05, 19), P(x1, 0.15, 19)], GLOW)
     a.line([P(x1, 0.05, 10), P(x1, 0.05, 19)], "#3b2a1d", 1.2)
-    # gable roof, ridge along gx
+    # Gable roof, ridge along gx. The eaves overhang the walls along the roof
+    # pitch (so they drop below the wall top), the gable wall reaches the ridge,
+    # and barge boards close both roof ends so nothing looks detached.
     ym = (y0 + y1) / 2
-    back = [P(x0 - e, y0 - e, h), P(x1 + e, y0 - e, h), P(x1 + e, ym, ridge), P(x0 - e, ym, ridge)]
-    front = [P(x0 - e, ym, ridge), P(x1 + e, ym, ridge), P(x1 + e, y1 + e, h), P(x0 - e, y1 + e, h)]
-    gable = [P(x1, y0, h), P(x1, ym, ridge - 3), P(x1, y1, h)]
+    ey, ex = 0.07, 0.03  # overhang across / along the ridge
+    slope = (ridge - h) / (y1 - ym)
+    eave_h = h - slope * ey
+    xa, xb = x0 - ex, x1 + ex
+    back = [P(xa, y0 - ey, eave_h), P(xb, y0 - ey, eave_h), P(xb, ym, ridge), P(xa, ym, ridge)]
+    front = [P(xa, ym, ridge), P(xb, ym, ridge), P(xb, y1 + ey, eave_h), P(xa, y1 + ey, eave_h)]
+    gable = [P(x1, y0, h), P(x1, ym, ridge), P(x1, y1, h)]
     a.poly(back, "#4a3b24")
     a.poly(gable, "#7a6a52")
+    a.line([P(x1, ym, ridge - 8), P(x1, ym, h)], "#3b2a1d", 1.4)  # gable timber
     a.poly(front, "#5b4a2e")
     for t in (0.33, 0.66):
-        a.line([P(x0 - e, ym + (y1 + e - ym) * t, ridge - (ridge - h) * t), P(x1 + e, ym + (y1 + e - ym) * t, ridge - (ridge - h) * t)], "#43351f", 1.2)
+        yy = ym + (y1 + ey - ym) * t
+        zz = ridge - (ridge - eave_h) * t
+        a.line([P(xa, yy, zz), P(xb, yy, zz)], "#43351f", 1.2)
+    # barge board along the visible (right) roof end
+    a.line([P(xb, y0 - ey, eave_h), P(xb, ym, ridge), P(xb, y1 + ey, eave_h)], "#3b2a1d", 3.2)
+    a.line([P(xa, ym, ridge), P(xb, ym, ridge)], "#3b2a1d", 2.4)  # ridge beam
     # chimney
     a.box(0.14, 0.24, -0.1, 0.0, ridge - 14, ridge + 8, STONE_T, STONE_L, STONE_R)
     a.save("hut")
@@ -616,6 +628,93 @@ def gatherer():
     person("unit_gatherer", ("#56643a", "#434f2d"), hat=hat, extra=extra)
 
 
+def forester():
+    """Woodcutter with a big axe over the shoulder."""
+    def extra(a, layer):
+        if layer == "front":
+            a.poly([(-6, -12), (6, -12), (5, -26), (-5, -26)], "#7a3a2a", INK, 1)  # red check shirt
+            for yy in (-16, -21):
+                a.line([(-5.5, yy), (5.5, yy)], "#5a2a1e", 1.2)
+            a.line([(-2, -26), (-2, -12), (2, -26), (2, -12)], "#5a2a1e", 1.0)
+            a.line([(4, -20), (8, -24)], INK, 4)  # arm
+            a.line([(3, -8), (13, -38)], INK, 3.6)  # axe haft
+            a.line([(3, -8), (13, -38)], WOOD_L, 2)
+            a.poly([(10, -40), (19, -41), (20, -32), (12, -34)], "#9a9a9a", INK, 1.2)  # axe head
+            a.line([(19, -41), (20, -32)], "#d8d8d8", 1.2)
+
+    def hat(a):
+        a.raw('<path d="M-7,-34 Q-7,-43 0,-43 Q7,-43 7,-34 Z" fill="#3a4a2a" stroke="%s" stroke-width="1.3"/>' % INK, [(-8, -44), (8, -33)])
+        a.line([(-7.5, -34.5), (7.5, -34.5)], INK, 2)
+        a.raw('<path d="M-6,-30 Q0,-24 6,-30 Q4,-26 0,-25 Q-4,-26 -6,-30Z" fill="#6a4a2a"/>', [(-6, -31), (6, -24)])  # beard
+    person("unit_forester", ("#4a3a2a", "#3a2c1e"), hat=hat, extra=extra)
+
+
+def worker_camp():
+    """Canvas tent with a chopping block, axe and stacked logs in front."""
+    a = Art()
+    a.shadow(44, 22, cy=3)
+    a.poly(diamond(0.8), DIRT, stroke=None, opacity=0.8)
+    # tent: ridge along gx, two canvas slopes
+    x0, x1, y0, y1, ridge = -0.34, 0.28, -0.3, 0.12, 40
+    ym = (y0 + y1) / 2
+    a.poly([P(x0, y0, 0), P(x1, y0, 0), P(x1, ym, ridge), P(x0, ym, ridge)], "#8a8062")
+    a.poly([P(x1, y0, 0), P(x1, ym, ridge), P(x1, y1, 0)], "#6e6650")  # rear-right end
+    a.poly([P(x1, ym - 0.05, 0), P(x1, ym, ridge * 0.6), P(x1, ym + 0.05, 0)], "#2a2419", stroke=None)  # opening
+    a.poly([P(x0, ym, ridge), P(x1, ym, ridge), P(x1, y1, 0), P(x0, y1, 0)], "#a39a78")
+    a.line([P(x0, ym, ridge), P(x1, ym, ridge)], "#5a5240", 2)
+    a.line([P(x0 - 0.06, ym, ridge + 6), P(x0 - 0.06, ym, 0)], WOOD_D, 2.2)  # pole
+    a.line([P(x1 + 0.06, ym, ridge + 6), P(x1 + 0.06, ym, 0)], WOOD_D, 2.2)
+    # tools in front: log pile, chopping block with axe, saw
+    for i, (gx, gy) in enumerate([(-0.3, 0.3), (-0.18, 0.3), (-0.24, 0.3)]):
+        z = 0 if i < 2 else 6
+        a.box(gx - 0.05, gx + 0.05, gy - 0.12, gy + 0.12, z, z + 6, "#b08a58", WOOD, WOOD_D, sw=1)
+    a.box(0.12, 0.24, 0.22, 0.34, 0, 9, "#b08a58", WOOD, WOOD_D, sw=1)
+    x, y = P(0.18, 0.28, 9)
+    a.line([(x, y), (x + 8, y - 14)], INK, 3)
+    a.line([(x, y), (x + 8, y - 14)], WOOD_L, 1.6)
+    a.poly([(x + 5, y - 17), (x + 12, y - 17), (x + 12, y - 11), (x + 7, y - 12)], "#9a9a9a", INK, 1)
+    a.line([P(0.36, -0.1, 2), P(0.36, 0.14, 8)], "#9a9a9a", 2.4)  # leaning saw
+    a.save("worker_camp")
+
+
+def light_stone(glow_only=False):
+    """Carved pillar on a plinth; runes glow dim yellow. Glow is a separate
+    layer (same canvas) so the game can pulse it."""
+    a = Art()
+    rune = "#e8c860"
+    if not glow_only:
+        a.shadow(34, 17, cy=3)
+        a.box(-0.3, 0.3, -0.3, 0.3, 0, 12, STONE_T, STONE_L, STONE_R)  # plinth
+        a.box(-0.14, 0.14, -0.14, 0.14, 12, 84, "#6f6b64", "#6f6b64", "#55524c")  # pillar
+        a.box(-0.19, 0.19, -0.19, 0.19, 84, 92, STONE_T, STONE_L, STONE_R)  # cap
+        a.poly([P(-0.1, -0.1, 92), P(0.1, -0.1, 92), P(0.1, 0.1, 92), P(-0.1, 0.1, 92)], "#4a4740", stroke=None)
+    # runes on both visible faces (drawn in both layers, glow layer adds halos)
+    glyphs = [[(0, 0), (0.6, 1)], [(0.6, 0), (0, 1)], [(0.3, 0), (0.3, 1)], [(0, 0.5), (0.6, 0.5)], [(0, 0), (0.6, 0), (0.3, 1)]]
+    for face in ("left", "right"):
+        for k, g in enumerate(glyphs[:4] if face == "left" else glyphs[1:]):
+            z0 = 20 + k * 15
+            pts = []
+            for (u, v) in g:
+                if face == "left":
+                    pts.append(P(-0.1 + u * 0.33, 0.14, z0 + 10 - v * 10))
+                else:
+                    pts.append(P(0.14, 0.1 - u * 0.33, z0 + 10 - v * 10))
+            if glow_only:
+                a.line(pts, rune, 6, opacity=0.35)
+            a.line(pts, rune if glow_only else "#8a7a3a", 1.8)
+    if glow_only:
+        a._track([P(-0.3, 0.3, 0), P(0.3, -0.3, 0), P(-0.3, -0.3, 0), P(0.3, 0.3, 0), P(0, 0, 92)])
+    return a
+
+
+def light_halo():
+    """Soft ground glow under the light stone."""
+    a = Art()
+    a.raw('<defs><radialGradient id="g"><stop offset="0" stop-color="#f0d070" stop-opacity="0.45"/><stop offset="1" stop-color="#f0d070" stop-opacity="0"/></radialGradient></defs>', [(0, 0)])
+    a.ellipse(0, 0, 150, 75, "url(#g)")
+    a.save("light_halo")
+
+
 def corpse_goblin():
     a = Art()
     a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
@@ -707,18 +806,6 @@ def icons():
   <path d="M8 50 Q8 30 22 30 Q36 30 36 50Z" fill="#7a6048" stroke="{INK}" stroke-width="3.5"/>
   <circle cx="42" cy="22" r="8" fill="#d8b08c" stroke="{INK}" stroke-width="3.5"/>
   <path d="M28 54 Q28 32 42 32 Q56 32 56 54Z" fill="#566a3a" stroke="{INK}" stroke-width="3.5"/>''')
-    icon_svg("icon_goblin", f'''
-  <path d="M4 22 L22 28 L18 36Z M60 22 L42 28 L46 36Z" fill="#5f7a36" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>
-  <ellipse cx="32" cy="34" rx="17" ry="16" fill="#5f7a36" stroke="{INK}" stroke-width="3.5"/>
-  <path d="M20 28 L28 32 M44 28 L36 32" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>
-  <ellipse cx="25" cy="35" rx="3.5" ry="3" fill="#ff3b2a"/><ellipse cx="39" cy="35" rx="3.5" ry="3" fill="#ff3b2a"/>
-  <path d="M24 43 Q32 48 40 43" fill="none" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>
-  <path d="M27 44 L28 40 L30 45Z M37 44 L36 40 L34 45Z" fill="#e8e0c8"/>''')
-    icon_svg("icon_skull", f'''
-  <path d="M32 6 Q52 6 52 28 Q52 38 46 42 L46 52 L18 52 L18 42 Q12 38 12 28 Q12 6 32 6Z" fill="#d8d0bc" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
-  <ellipse cx="24" cy="30" rx="6" ry="7" fill="{INK}"/><ellipse cx="40" cy="30" rx="6" ry="7" fill="{INK}"/>
-  <path d="M32 36 L29 43 L35 43Z" fill="{INK}"/>
-  <path d="M25 52 L25 46 M32 52 L32 46 M39 52 L39 46" stroke="{INK}" stroke-width="2.5"/>''')
     icon_svg("icon_build", f'''
   <path d="M14 54 L38 30" stroke="{INK}" stroke-width="9" stroke-linecap="round"/>
   <path d="M14 54 L38 30" stroke="{WOOD_L}" stroke-width="5" stroke-linecap="round"/>
@@ -753,6 +840,10 @@ def icons():
     icon_svg("icon_fast", f'''
   <path d="M6 14 L32 32 L6 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M32 14 L58 32 L32 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')
+    icon_svg("icon_fastest", f'''
+  <path d="M2 16 L20 32 L2 48Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M22 16 L40 32 L22 48Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M42 16 L60 32 L42 48Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')
     icon_svg("icon_collapse", f'''
   <path d="M24 12 L44 32 L24 52" fill="none" stroke="#efe3c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>''')
     icon_svg("icon_expand", f'''
@@ -778,6 +869,97 @@ def app_icon():
   <circle cx="146" cy="45" r="5" fill="{GOLD}"/>
 </svg>
 ''')
+
+
+def title_background():
+    """1920x1080 title backdrop: moonlit dusk over mountains, the walled outpost
+    on a hill with lit windows, dark pine forest and a few goblin eyes."""
+    rng = random.Random(1337)
+    W, H = 1920, 1080
+    out = []
+    out.append('''<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0a0f1a"/><stop offset="0.55" stop-color="#1c2433"/><stop offset="1" stop-color="#3a3140"/>
+  </linearGradient>
+  <radialGradient id="moonglow"><stop offset="0" stop-color="#efe3b8" stop-opacity="0.55"/><stop offset="1" stop-color="#efe3b8" stop-opacity="0"/></radialGradient>
+  <radialGradient id="windowglow"><stop offset="0" stop-color="#f0b04a" stop-opacity="0.5"/><stop offset="1" stop-color="#f0b04a" stop-opacity="0"/></radialGradient>
+  <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a90a0" stop-opacity="0"/><stop offset="0.5" stop-color="#8a90a0" stop-opacity="0.16"/><stop offset="1" stop-color="#8a90a0" stop-opacity="0"/></linearGradient>
+  <radialGradient id="vignette" cx="0.5" cy="0.45" r="0.75"><stop offset="0.55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.75"/></radialGradient>
+</defs>''')
+    out.append('<rect width="%d" height="%d" fill="url(#sky)"/>' % (W, H))
+    for _ in range(140):
+        x, y = rng.uniform(0, W), rng.uniform(0, 520)
+        out.append('<circle cx="%.0f" cy="%.0f" r="%.1f" fill="#e8e4d0" opacity="%.2f"/>' % (x, y, rng.uniform(0.6, 1.8), rng.uniform(0.2, 0.8)))
+    out.append('<circle cx="1480" cy="230" r="260" fill="url(#moonglow)"/>')
+    out.append('<circle cx="1480" cy="230" r="74" fill="#e8dcb0"/>')
+    out.append('<circle cx="1455" cy="215" r="14" fill="#d2c595"/><circle cx="1505" cy="255" r="10" fill="#d2c595"/>')
+
+    def ridge(base, amp, step, color, seed, snow=None):
+        r = random.Random(seed)
+        pts = [(0, H)]
+        x = 0
+        y = base
+        while x <= W + step:
+            y = base - r.uniform(0, amp)
+            pts.append((x, y))
+            x += r.uniform(step * 0.6, step * 1.4)
+        pts.append((W, H))
+        d = " ".join("%.0f,%.0f" % p for p in pts)
+        out.append('<polygon points="%s" fill="%s"/>' % (d, color))
+        if snow:
+            for (px, py) in pts[1:-1]:
+                if py < base - amp * 0.7:
+                    out.append('<polygon points="%.0f,%.0f %.0f,%.0f %.0f,%.0f" fill="%s" opacity="0.5"/>' % (px, py, px - 22, py + 26, px + 20, py + 24, snow))
+    ridge(640, 260, 150, "#1f2733", 1, snow="#5a6474")
+    out.append('<rect x="0" y="520" width="%d" height="200" fill="url(#mist)"/>' % W)
+    ridge(720, 150, 110, "#18201f", 2)
+    out.append('<rect x="0" y="640" width="%d" height="160" fill="url(#mist)"/>' % W)
+
+    # the outpost on its hill
+    out.append('<path d="M560,860 Q760,640 960,650 Q1160,640 1360,860 Z" fill="#141c18"/>')
+    out.append('<path d="M900,880 Q930,800 960,735 Q990,800 1040,880" fill="none" stroke="#2b241c" stroke-width="18" stroke-linecap="round"/>')
+    wall = "#0f1512"
+    rim = "#3a4a52"
+    out.append('<rect x="820" y="610" width="280" height="90" fill="%s"/>' % wall)
+    for x in range(820, 1100, 28):
+        out.append('<rect x="%d" y="596" width="16" height="16" fill="%s"/>' % (x, wall))
+    for tx in (800, 1080):
+        out.append('<rect x="%d" y="560" width="46" height="140" fill="%s"/>' % (tx, wall))
+        for k in range(3):
+            out.append('<rect x="%d" y="546" width="10" height="16" fill="%s"/>' % (tx + k * 18, wall))
+        out.append('<line x1="%d" y1="546" x2="%d" y2="500" stroke="%s" stroke-width="3"/>' % (tx + 23, tx + 23, wall))
+        out.append('<path d="M%d,502 l34,8 l-10,8 l10,8 l-34,6 Z" fill="#8c1c2b"/>' % (tx + 25))
+        out.append('<line x1="%d" y1="560" x2="%d" y2="700" stroke="%s" stroke-width="2" opacity="0.6"/>' % (tx + 45, tx + 45, rim))
+    for hx, hy in [(860, 590), (920, 575), (985, 585), (1045, 592)]:
+        out.append('<path d="M%d,%d l30,-26 l30,26 Z" fill="#1a1510"/>' % (hx - 30, hy))
+    for wx, wy in [(850, 640), (905, 655), (1010, 645), (1060, 660), (815, 590), (1095, 600)]:
+        out.append('<circle cx="%d" cy="%d" r="30" fill="url(#windowglow)"/>' % (wx, wy))
+        out.append('<rect x="%d" y="%d" width="8" height="11" fill="#f0b04a"/>' % (wx - 4, wy - 5))
+    out.append('<path d="M940,700 L940,668 Q960,648 980,668 L980,700 Z" fill="#050807"/>')
+    out.append('<rect x="0" y="760" width="%d" height="140" fill="url(#mist)"/>' % W)
+
+    def pine(x, base, h, color):
+        w = h * 0.36
+        pts = []
+        for k in range(4):
+            t0 = k / 4.0
+            yb = base - h * t0 * 0.85
+            ww = w * (1 - t0 * 0.7)
+            pts.append("M%.0f,%.0f L%.0f,%.0f L%.0f,%.0f Z" % (x - ww, yb, x, yb - h * 0.38, x + ww, yb))
+        out.append('<path d="%s" fill="%s"/>' % (" ".join(pts), color))
+        out.append('<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" fill="%s"/>' % (x - h * 0.03, base - 4, h * 0.06, h * 0.12, color))
+
+    for layer, (base, hmin, hmax, color, count) in enumerate([(880, 90, 160, "#0e1612", 60), (960, 140, 240, "#0a110d", 46), (1080, 260, 420, "#060a08", 18)]):
+        for i in range(count):
+            x = rng.uniform(-40, W + 40)
+            if layer == 2 and 520 < x < 1400:
+                continue  # keep the centre open so the outpost stays visible
+            pine(x, base + rng.uniform(-20, 30), rng.uniform(hmin, hmax), color)
+    for gx, gy in [(330, 930), (1610, 905), (1290, 985)]:
+        out.append('<circle cx="%d" cy="%d" r="3" fill="#ff3b2a"/><circle cx="%d" cy="%d" r="3" fill="#ff3b2a"/>' % (gx, gy, gx + 12, gy))
+    out.append('<rect width="%d" height="%d" fill="url(#vignette)"/>' % (W, H))
+    with open(os.path.join(ART, "title_bg.svg"), "w") as f:
+        f.write('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">\n%s\n</svg>\n' % (W, H, W, H, "\n".join(out)))
 
 
 def write_manifest():
@@ -834,11 +1016,20 @@ def main():
     archer()
     goblin()
     gatherer()
+    forester()
+    worker_camp()
+    ls = light_stone()
+    ls.save("light_stone")
+    lg = light_stone(glow_only=True)
+    lg.pts = ls.pts[:]
+    lg.save("light_stone_glow")
+    light_halo()
     corpse_goblin()
     arrow()
     sack()
     icons()
     app_icon()
+    title_background()
     write_manifest()
     print("generated %d sprites" % len(manifest))
 

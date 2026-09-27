@@ -19,6 +19,10 @@ const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
 const START_CIVILIANS: Array[String] = ["builder", "farmer", "explorer"]
 const START_REVEAL_RADIUS := 7.5
 
+## Debug / sandbox switches.
+const REVEAL_MAP := false  # true: the whole map starts explored (terrain known)
+const DISABLE_FOG := false  # true: no fog of war at all; everything is visible
+
 ## Terrain generation.
 const DESERT_MAX_SHARE := 0.2  # at most this share of all tiles is desert
 const DESERT_MIN_VILLAGE_DIST := 12.0  # no desert right next to the village
@@ -37,22 +41,31 @@ const DESERT_FOREST_GAP_CHANCE := 0.85
 const UNIT_SIGHT := 4.0  # villagers and soldiers outside the walls
 const HUT_SIGHT := 4.0  # every intact hut
 const GATE_SIGHT := 3.0  # every gate, manned or not
+const LIGHTSTONE_SIGHT := 5.5  # light stones watch this far, entirely passively
 const BUILDING_SIGHT := 3.0  # every other finished building
 const TOWER_SIGHT_BONUS := 1.5  # manned towers see this far beyond their range
 
 ## Buildings the player can order. "size" is the square footprint in tiles.
 const BUILDINGS := {
 	"tower": {
-		"name": "Watchtower", "cost": {"materials": 30}, "build_time": 8.0, "size": 1,
+		"name": "Watchtower", "cost": {"materials": 30}, "build_time": 8.0, "size": 1, "art": "watchtower",
 		"desc": "Built in the wilderness by a builder. Station an archer on it.",
 	},
 	"farm": {
-		"name": "Farm", "cost": {"materials": 50}, "build_time": 12.0, "size": 3,
+		"name": "Farm", "cost": {"materials": 50}, "build_time": 12.0, "size": 3, "art": "farm_field",
 		"desc": "3x3, outside the walls. Produces food while a farmer works it.",
 	},
 	"hut": {
-		"name": "Village Hut", "cost": {"materials": 40}, "build_time": 10.0, "size": 1,
+		"name": "Village Hut", "cost": {"materials": 40}, "build_time": 10.0, "size": 1, "art": "hut",
 		"desc": "Houses one civilian. Can only be rebuilt on a ruined lot.",
+	},
+	"camp": {
+		"name": "Worker Camp", "cost": {"materials": 25}, "build_time": 6.0, "size": 1, "art": "worker_camp",
+		"desc": "Base for one forester, who cuts nearby trees for building material.",
+	},
+	"lightstone": {
+		"name": "Light Stone", "cost": {"materials": 40}, "build_time": 10.0, "size": 1, "art": "light_stone",
+		"desc": "Rune pillar that lights up the land around it. Needs no one to man it.",
 	},
 }
 
@@ -76,12 +89,16 @@ const CIVILIANS := {
 		"name": "Gatherer", "cost": {"food": 30}, "speed": 1.6,
 		"desc": "Collects enemy corpses once it's safe, for gold and a little food.",
 	},
+	"forester": {
+		"name": "Forester", "cost": {"food": 25}, "speed": 1.5,
+		"desc": "Works from a worker camp, chopping nearby trees for building material.",
+	},
 	"archmage": {
 		"name": "Archmage", "cost": {"food": 150, "gold": 600}, "speed": 0.6,
 		"desc": "Coming soon: may one day break the siege of Veliron.",
 	},
 }
-const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "explorer", "gatherer", "archmage"]
+const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "archmage"]
 
 const FOOD_UPKEEP := 0.05  # food per civilian per second
 const STARVATION_INTERVAL := 15.0  # a civilian dies this often while food is 0
@@ -94,6 +111,13 @@ const FARM_CAPACITY := 40.0
 const EXPLORER_REVEAL := 2.6
 const EVADE_RADIUS := 4.5  # civilians run home when an enemy gets this close
 const EVADE_REST := 6.0
+const FORESTER_CHOP_SESSION := 4.0  # seconds of chopping per trip
+const FORESTER_REST := 3.0  # rest at the camp between trips
+const FORESTER_MATERIAL_PER_TRIP := 3  # paid every time the forester is back at camp
+const FORESTER_SEARCH_RADIUS := 10.0  # trees farther than this from the camp are ignored
+## Total chopping time (seconds) before a tree falls and its tile turns to
+## meadow, per tree art/flavour.
+const TREE_CHOP_TIME := {"tree_pine_0": 20.0, "tree_pine_1": 28.0, "tree_oak": 36.0, "tree_dead": 10.0}
 const GATHERER_CAPACITY := 6  # corpses carried per trip
 const GATHERER_LOOT_TIME := 1.0  # seconds per corpse
 const GATHERER_REST := 3.0
@@ -131,6 +155,17 @@ const ENEMIES := {
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
 	},
 }
+## An enemy value scaled by the chosen difficulty (see Settings). Whole-number
+## values (demolition, loot) are rounded and never drop below 1.
+static func enemy_stat(kind: String, key: String) -> float:
+	var base: float = ENEMIES[kind][key]
+	return base * Settings.enemy_multiplier()
+
+
+static func enemy_stat_int(kind: String, key: String) -> int:
+	return maxi(1, roundi(enemy_stat(kind, key)))
+
+
 const FIRST_WAVE_DELAY := 90.0  # seconds from game start to the first wave
 const WAVE_BUFFER := 30.0  # seconds after the previous wave is gone
 const WAVE_SPAWN_GAP := 1.1

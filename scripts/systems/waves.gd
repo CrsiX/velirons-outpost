@@ -97,7 +97,7 @@ func _spawn(spec: Dictionary) -> void:
 
 
 func _on_goblin_killed(g: Goblin) -> void:
-	var gold: int = Config.ENEMIES[g.kind]["gold_on_kill"]
+	var gold := Config.enemy_stat_int(g.kind, "gold_on_kill")
 	game.economy.add("gold", gold)
 	game.world.float_text("+%d gold" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
 	Sfx.play("coin")

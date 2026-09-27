@@ -39,6 +39,10 @@ func setup(p_game: Game, seed_value: int) -> void:
 	fog.reveal(Vector2(Config.VILLAGE_CENTER), Config.START_REVEAL_RADIUS)
 	if map.farm_plot != Vector2i(-1, -1):
 		fog.reveal(Vector2(map.farm_plot), 2.0)
+	if Config.REVEAL_MAP:
+		fog.reveal_all()
+	if Config.DISABLE_FOG:
+		fog.set_disabled(true)
 
 
 func _spawn_props() -> void:
@@ -132,6 +136,94 @@ func pick_building(world_pos: Vector2) -> Building:
 	if best == null:
 		best = map.building_at(Iso.to_tile(world_pos))
 	return best
+
+
+# --- trees (foresters) -----------------------------------------------------------
+
+## Seconds a tree has already been chopped: tile -> float.
+var _chopped: Dictionary = {}
+## Tree reservations so two foresters don't work the same tree: tile -> Node.
+var _tree_claims: Dictionary = {}
+
+
+func is_tree(t: Vector2i) -> bool:
+	return map.is_forest(t) and map.props.has(t)
+
+
+func tree_chop_time(t: Vector2i) -> float:
+	return Config.TREE_CHOP_TIME.get(map.props.get(t, ""), 20.0)
+
+
+func tree_progress(t: Vector2i) -> float:
+	return _chopped.get(t, 0.0) / tree_chop_time(t)
+
+
+func claim_tree(t: Vector2i, who: Node) -> void:
+	_tree_claims[t] = who
+
+
+func release_tree(t: Vector2i, who: Node) -> void:
+	if _tree_claims.get(t) == who:
+		_tree_claims.erase(t)
+
+
+## Closest explored, unclaimed tree to `from` within `radius` tiles that has a
+## walkable tile next to it. Returns {tree, stand} or {} if none.
+func find_tree(from: Vector2i, radius: float, who: Node) -> Dictionary:
+	var dist := pathing.distance_field(from)
+	var best := {}
+	var best_d := Pathing.UNREACHABLE
+	var r := int(ceil(radius))
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			var t := from + Vector2i(dx, dy)
+			if not is_tree(t) or not map.is_explored(t) or Vector2(t).distance_to(Vector2(from)) > radius:
+				continue
+			var owner: Node = _tree_claims.get(t)
+			if owner != null and owner != who and is_instance_valid(owner):
+				continue
+			for ny in range(-1, 2):
+				for nx in range(-1, 2):
+					var st := t + Vector2i(nx, ny)
+					if st == t or not pathing.is_walkable(st):
+						continue
+					var d := dist[map.index(st)]
+					if d < best_d:
+						best_d = d
+						best = {"tree": t, "stand": st}
+	return best
+
+
+## Chops `seconds` off a tree. Returns true when it falls (tile becomes meadow).
+func chop_tree(t: Vector2i, seconds: float) -> bool:
+	if not is_tree(t):
+		return true
+	_chopped[t] = _chopped.get(t, 0.0) + seconds
+	var s: Sprite2D = _props.get(t)
+	if s:
+		s.rotation = sin(Time.get_ticks_msec() / 60.0) * 0.03  # shudders under the axe
+		s.modulate = Color.WHITE.lerp(Color(0.75, 0.65, 0.55), tree_progress(t))
+	if _chopped[t] >= tree_chop_time(t):
+		remove_tree(t)
+		return true
+	return false
+
+
+func remove_tree(t: Vector2i) -> void:
+	var s: Sprite2D = _props.get(t)
+	if s:
+		var tw := s.create_tween()
+		tw.tween_property(s, "rotation", 1.3, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(s, "modulate:a", 0.0, 0.6)
+		tw.tween_callback(s.queue_free)
+	_props.erase(t)
+	map.props.erase(t)
+	_chopped.erase(t)
+	_tree_claims.erase(t)
+	map.set_terrain(t, MapData.Terrain.GRASS)
+	pathing.set_solid(t, false)
+	_village_dist_dirty = true
+	ground.queue_redraw()
 
 
 func float_text(text: String, at: Vector2, color: Color) -> void:

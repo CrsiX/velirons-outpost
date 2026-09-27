@@ -12,11 +12,31 @@ var checks := 0
 
 
 func _ready() -> void:
-	var scene: PackedScene = load("res://scenes/main.tscn")
-	game = scene.instantiate()
-	game.map_seed = SEED
-	add_child(game)
 	_run.call_deferred()
+
+
+## Title screen: menu, difficulty toggle and its effect on enemy stats.
+func _test_title() -> void:
+	var title: TitleScreen = load("res://scenes/title.tscn").instantiate()
+	add_child(title)
+	await frames(3)
+	check(ProjectSettings.get_setting("application/run/main_scene") == "res://scenes/title.tscn", "the game starts on the title screen")
+	check(title.play_button.visible and title.difficulty_button.visible and title.levels_button.visible and title.exit_button.visible, "title has Play, Difficulty, Levels and Exit")
+	var seen: Array[String] = [title.difficulty_button.text]
+	var mults: Array[float] = [Config.enemy_stat("goblin", "hp") / Config.ENEMIES["goblin"]["hp"]]
+	for i in 3:
+		await tap(center(title.difficulty_button))
+		seen.append(title.difficulty_button.text)
+		mults.append(Config.enemy_stat("goblin", "hp") / Config.ENEMIES["goblin"]["hp"])
+	check(seen == ["Difficulty: Normal", "Difficulty: Hard", "Difficulty: Easy", "Difficulty: Normal"], "difficulty toggles normal > hard > easy > normal")
+	check(is_equal_approx(mults[1], 1.5) and is_equal_approx(mults[2], 0.67) and is_equal_approx(mults[3], 1.0), "enemy values scale x1.5 on hard, x0.67 on easy")
+	Settings.difficulty = Settings.Difficulty.HARD
+	check(is_equal_approx(Config.enemy_stat("goblin", "speed"), Config.ENEMIES["goblin"]["speed"] * 1.5) and Config.enemy_stat_int("goblin", "gold_on_kill") == roundi(Config.ENEMIES["goblin"]["gold_on_kill"] * 1.5), "difficulty scales speed and loot too")
+	Settings.difficulty = Settings.Difficulty.NORMAL
+	await tap(center(title.levels_button))
+	check(title.levels_panel.visible, "Levels button opens the level list")
+	title.queue_free()
+	await frames(2)
 
 
 func check(cond: bool, msg: String) -> void:
@@ -111,17 +131,29 @@ func civs(role: String) -> Array:
 # --- the test run -----------------------------------------------------------------
 
 func _run() -> void:
+	await _test_title()
+	var scene: PackedScene = load("res://scenes/main.tscn")
+	game = scene.instantiate()
+	game.map_seed = SEED
+	add_child(game)
 	await frames(3)
 	var hud := game.hud
 	var map := game.map
 	print("viewport ", get_viewport().get_visible_rect().size)
 
-	# Title screen (pauses the game, including the first-wave timer)
-	check(hud.is_title_visible() and get_tree().paused, "title screen shown, game paused")
-	await frames(30)
-	check(is_equal_approx(game.waves.countdown, Config.FIRST_WAVE_DELAY), "first-wave timer waits on the title screen")
-	await tap(center(hud._overlay_button))
-	check(not hud.is_title_visible() and not get_tree().paused, "title dismissed by its button")
+	check(not hud._overlay.visible and not get_tree().paused, "no pop-up over the level; it starts right away")
+
+	# --- HUD layout & speed button ------------------------------------------------
+	var vp := get_viewport().get_visible_rect().size
+	await frames(2)
+	check(absf(hud._sidebar.get_global_rect().end.x - vp.x) < 1.0, "sidebar is flush with the right screen edge (%.0f vs %.0f)" % [hud._sidebar.get_global_rect().end.x, vp.x])
+	check(hud._topbar.get_global_rect().end.x <= vp.x + 0.5 and hud._topbar.get_combined_minimum_size().x <= 1280.0, "top bar fits a 1280px-wide screen (needs %.0f)" % hud._topbar.get_combined_minimum_size().x)
+	check(hud._sidebar_toggle.get_global_rect().end.x <= hud._sidebar.get_global_rect().position.x, "sidebar toggle sits left of the sidebar")
+	var speeds_seen: Array[String] = []
+	for i in 4:
+		await tap(center(hud._speed_button))
+		speeds_seen.append("paused" if get_tree().paused else "%dx" % int(Engine.time_scale))
+	check(speeds_seen == ["2x", "4x", "paused", "1x"], "one speed button cycles 1x > 2x > 4x > paused > 1x (%s)" % str(speeds_seen))
 	await wait(2.0)
 	check(game.waves.countdown < Config.FIRST_WAVE_DELAY and game.waves.wave == 0, "first wave counts down on its own (%.1fs left)" % game.waves.countdown)
 	game.waves.countdown = 99999.0  # hold the first wave while the economy is tested
@@ -298,6 +330,65 @@ func _run() -> void:
 	await wait_until(func() -> bool: return farmer.at_home, 60.0)
 	check(game.economy.amount("food") > f0 + carried * 0.5, "farmer delivers food home (+%d)" % carried)
 	check(food_before > 0.0, "upkeep leaves food positive so far")
+
+	# --- light stone --------------------------------------------------------------------
+	game.economy.add("materials", 500)
+	var ls_spot := find_spot("lightstone", Config.VILLAGE_CENTER + Vector2i(0, 7))
+	var ls: LightStone = game.construction.place("lightstone", ls_spot)
+	check(ls != null, "light stone placed")
+	await wait_until(func() -> bool: return ls.complete, 90.0)
+	check(ls.complete and game.world.pathing.astar.is_point_solid(ls_spot), "builder raises the light stone (it blocks walking)")
+	await wait(0.5)
+	var lit := true
+	for y in range(-6, 7):
+		for x in range(-6, 7):
+			var t := ls_spot + Vector2i(x, y)
+			if map.is_explored(t) and Vector2(x, y).length() <= Config.LIGHTSTONE_SIGHT and not map.is_watched(t):
+				lit = false
+	check(lit, "light stone keeps %.1f tiles under surveillance without anyone in it" % Config.LIGHTSTONE_SIGHT)
+	var ls_building: Building = ls
+	check(not (ls_building is Tower) and game.army.station_error(null, game.world.pick_building(ls.position + Vector2(0, -40)) as Tower) != "", "nobody can be stationed on a light stone")
+
+	# --- worker camp & forester ----------------------------------------------------------
+	var camp_spot := Vector2i(-1, -1)
+	var best_trees := 0
+	for y in map.size:
+		for x in map.size:
+			var t := Vector2i(x, y)
+			if game.construction.placement_error("camp", t) != "":
+				continue
+			var n := 0
+			for dy in range(-4, 5):
+				for dx in range(-4, 5):
+					if game.world.is_tree(t + Vector2i(dx, dy)) and map.is_explored(t + Vector2i(dx, dy)):
+						n += 1
+			if n > best_trees:
+				best_trees = n
+				camp_spot = t
+	var camp: WorkerCamp = game.construction.place("camp", camp_spot)
+	check(camp != null, "worker camp placed near the forest (%d trees around)" % best_trees)
+	await wait_until(func() -> bool: return camp.complete, 90.0)
+	check(camp.complete, "builder puts up the worker camp")
+	game.economy.add("food", 100)
+	var fo: Forester = game.population.recruit("forester")
+	check(fo != null and game.population.assign_forester(camp), "forester recruited and assigned to the camp")
+	check(not game.population.assign_forester(camp), "a camp holds only one forester")
+	await wait_until(func() -> bool: return fo.state == Forester.State.CHOPPING, 90.0)
+	var the_tree := fo.tree
+	check(fo.state == Forester.State.CHOPPING and game.world.is_tree(the_tree), "forester walks from the camp to a tree and chops it")
+	check(is_equal_approx(game.world.tree_chop_time(the_tree), Config.TREE_CHOP_TIME[map.props[the_tree]]), "chop time comes from the tree type (%s: %.0fs)" % [map.props[the_tree], game.world.tree_chop_time(the_tree)])
+	var mats0 := game.economy.amount("materials")
+	await wait_until(func() -> bool: return fo.state == Forester.State.AT_CAMP, 60.0)
+	check(game.economy.amount("materials") >= mats0 + Config.FORESTER_MATERIAL_PER_TRIP, "back at the camp, the forester delivers building material")
+	check(game.world.is_tree(the_tree) and game.world.tree_progress(the_tree) > 0.0, "the tree is partly chopped (%d%%)" % int(100 * game.world.tree_progress(the_tree)))
+	await wait_until(func() -> bool: return fo.state == Forester.State.CHOPPING, 60.0)
+	check(fo.tree == the_tree, "the forester returns to the same tree")
+	game.world._chopped[the_tree] = game.world.tree_chop_time(the_tree) - 0.3
+	await wait_until(func() -> bool: return not game.world.is_tree(the_tree), 10.0)
+	check(map.get_terrain(the_tree) == MapData.Terrain.GRASS and game.world.pathing.is_walkable(the_tree), "a felled tree leaves walkable meadow")
+	await wait_until(func() -> bool: return fo.state == Forester.State.CHOPPING, 90.0)
+	check(fo.tree != the_tree and game.world.is_tree(fo.tree), "the forester moves on to the next tree")
+	game.population.unassign_forester(camp)
 
 	# --- army: recruit + drag & drop onto a wall tower ------------------------------
 	game.economy.add("gold", 500)
@@ -538,10 +629,17 @@ func _run() -> void:
 	await wait(Config.STARVATION_INTERVAL + 2.0)
 	check(game.population.count() < pop1, "a villager starves when food runs out")
 
+	# --- fog switches (Config.REVEAL_MAP / DISABLE_FOG) ---------------------------------------
+	game.fog.set_disabled(true)
+	await frames(2)
+	check(game.fog.explored_count() == map.size * map.size and game.fog.watched_count() == map.size * map.size, "without fog the whole map is explored and visible")
+	game.fog.set_disabled(false)
+
 	# --- defeat -------------------------------------------------------------------------------
 	game.population.kill_random(game.population.count())
 	await frames(2)
 	check(game.game_over and hud._overlay.visible, "losing every villager ends the game")
+	check(hud._overlay_button.is_visible_in_tree() and hud._overlay_menu_button.is_visible_in_tree(), "defeat screen offers Try again and Main menu")
 
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:

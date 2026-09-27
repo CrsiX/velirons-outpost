@@ -1,63 +1,63 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://wv1bypq30pk2"]
 
-[ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
-[ext_resource type="Script" path="res://scripts/ui/camera_controller.gd" id="2_camera"]
-[ext_resource type="Script" path="res://scripts/world/world.gd" id="3_world"]
-[ext_resource type="Script" path="res://scripts/world/ground_layer.gd" id="4_ground"]
-[ext_resource type="Script" path="res://scripts/world/fog_layer.gd" id="5_fog"]
-[ext_resource type="Script" path="res://scripts/world/world_overlay.gd" id="6_overlay"]
-[ext_resource type="Script" path="res://scripts/systems/economy.gd" id="7_economy"]
-[ext_resource type="Script" path="res://scripts/systems/population.gd" id="8_population"]
-[ext_resource type="Script" path="res://scripts/systems/construction.gd" id="9_construction"]
-[ext_resource type="Script" path="res://scripts/systems/army.gd" id="10_army"]
-[ext_resource type="Script" path="res://scripts/systems/waves.gd" id="11_waves"]
-[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="12_hud"]
-[ext_resource type="Script" path="res://scripts/systems/corpses.gd" id="13_corpses"]
+[ext_resource type="Script" uid="uid://dkn54dpxtm3tu" path="res://scripts/game.gd" id="1_game"]
+[ext_resource type="Script" uid="uid://bejujf641eoeh" path="res://scripts/ui/camera_controller.gd" id="2_camera"]
+[ext_resource type="Script" uid="uid://b70om72nwcrg3" path="res://scripts/world/world.gd" id="3_world"]
+[ext_resource type="Script" uid="uid://v1dcrgas40gu" path="res://scripts/world/ground_layer.gd" id="4_ground"]
+[ext_resource type="Script" uid="uid://geh5g1x542tt" path="res://scripts/world/fog_layer.gd" id="5_fog"]
+[ext_resource type="Script" uid="uid://bun2de5h8p6rb" path="res://scripts/world/world_overlay.gd" id="6_overlay"]
+[ext_resource type="Script" uid="uid://csahoml6ivxs2" path="res://scripts/systems/economy.gd" id="7_economy"]
+[ext_resource type="Script" uid="uid://cun03x7cfpy07" path="res://scripts/systems/population.gd" id="8_population"]
+[ext_resource type="Script" uid="uid://buf4uyf7vcgj2" path="res://scripts/systems/construction.gd" id="9_construction"]
+[ext_resource type="Script" uid="uid://cqadlj82yrna7" path="res://scripts/systems/army.gd" id="10_army"]
+[ext_resource type="Script" uid="uid://cleu03ysnngwt" path="res://scripts/systems/waves.gd" id="11_waves"]
+[ext_resource type="Script" uid="uid://cvhfjfulfesel" path="res://scripts/ui/hud.gd" id="12_hud"]
+[ext_resource type="Script" uid="uid://bb15gca3il20m" path="res://scripts/systems/corpses.gd" id="13_corpses"]
 
-[node name="Game" type="Node2D"]
+[node name="Game" type="Node2D" unique_id=1739721340]
 script = ExtResource("1_game")
 
-[node name="Camera" type="Camera2D" parent="."]
+[node name="Camera" type="Camera2D" parent="." unique_id=671715826]
 script = ExtResource("2_camera")
 
-[node name="World" type="Node2D" parent="."]
+[node name="World" type="Node2D" parent="." unique_id=1105982391]
 script = ExtResource("3_world")
 
-[node name="Ground" type="Node2D" parent="World"]
+[node name="Ground" type="Node2D" parent="World" unique_id=2047783095]
 script = ExtResource("4_ground")
 
-[node name="Decals" type="Node2D" parent="World"]
+[node name="Decals" type="Node2D" parent="World" unique_id=592466965]
 
-[node name="Overlay" type="Node2D" parent="World"]
+[node name="Overlay" type="Node2D" parent="World" unique_id=1035580500]
 script = ExtResource("6_overlay")
 
-[node name="Objects" type="Node2D" parent="World"]
+[node name="Objects" type="Node2D" parent="World" unique_id=1734977981]
 y_sort_enabled = true
 
-[node name="Fog" type="Node2D" parent="World"]
+[node name="Fog" type="Node2D" parent="World" unique_id=1897683142]
 script = ExtResource("5_fog")
 
-[node name="Effects" type="Node2D" parent="World"]
+[node name="Effects" type="Node2D" parent="World" unique_id=809662921]
 
-[node name="Systems" type="Node" parent="."]
+[node name="Systems" type="Node" parent="." unique_id=990999268]
 
-[node name="Economy" type="Node" parent="Systems"]
+[node name="Economy" type="Node" parent="Systems" unique_id=179438077]
 script = ExtResource("7_economy")
 
-[node name="Population" type="Node" parent="Systems"]
+[node name="Population" type="Node" parent="Systems" unique_id=1642081583]
 script = ExtResource("8_population")
 
-[node name="Construction" type="Node" parent="Systems"]
+[node name="Construction" type="Node" parent="Systems" unique_id=1383740412]
 script = ExtResource("9_construction")
 
-[node name="Army" type="Node" parent="Systems"]
+[node name="Army" type="Node" parent="Systems" unique_id=1429240058]
 script = ExtResource("10_army")
 
-[node name="Waves" type="Node" parent="Systems"]
+[node name="Waves" type="Node" parent="Systems" unique_id=19502847]
 script = ExtResource("11_waves")
 
-[node name="Corpses" type="Node" parent="Systems"]
+[node name="Corpses" type="Node" parent="Systems" unique_id=1956253983]
 script = ExtResource("13_corpses")
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=1817867325]
 script = ExtResource("12_hud")

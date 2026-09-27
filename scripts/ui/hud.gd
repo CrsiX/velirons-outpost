@@ -4,7 +4,10 @@ extends CanvasLayer
 ## (Build / Village / Army), info panel, trade dialog, toasts and overlays.
 ## Big touch targets throughout; works the same with mouse or fingers.
 
-const SIDEBAR_W := 300.0
+const SIDEBAR_W := 320.0
+## Game speed button cycles through these; 0 = paused.
+const SPEEDS: Array[float] = [1.0, 2.0, 4.0, 0.0]
+const SPEED_ICONS: Array[String] = ["icon_play", "icon_fast", "icon_fastest", "icon_pause"]
 const TOPBAR_H := 64.0
 const DRAG_THRESHOLD := 12.0
 
@@ -20,8 +23,9 @@ var _wave_label: Label
 var _enemies_label: Label
 var _call_button: Button
 var _fullscreen_button: Button
+var _topbar_row: HBoxContainer
 var _speed_button: Button
-var _pause_button: Button
+var _speed_index := 0
 
 var _sidebar: PanelContainer
 var _sidebar_toggle: Button
@@ -51,13 +55,13 @@ var _overlay: ColorRect
 var _overlay_title: Label
 var _overlay_sub: Label
 var _overlay_button: Button
+var _overlay_menu_button: Button
 
 var _press_unit: MilitaryUnit = null
 var _press_pos := Vector2.ZERO
 var _dragging_unit := false
 var _drag_ghost: TextureRect
 var _refresh_queued := false
-var _fast := false
 var _tick := 0.0
 
 
@@ -85,7 +89,6 @@ func setup(p_game: Game) -> void:
 		sig.connect(_queue_refresh)
 	_select_tab("build")
 	_refresh()
-	show_title()
 
 
 # --- small builders -----------------------------------------------------------------
@@ -177,15 +180,28 @@ func _build_topbar() -> void:
 	_call_button.pressed.connect(func() -> void: game.waves.call_next())
 	row.add_child(_call_button)
 
-	_speed_button = _icon_button("icon_play", "Game speed x1 / x2")
-	_speed_button.pressed.connect(_toggle_speed)
+	_speed_button = _icon_button("icon_play", "")
+	_speed_button.pressed.connect(func() -> void: set_speed_index((_speed_index + 1) % SPEEDS.size()))
 	row.add_child(_speed_button)
-	_pause_button = _icon_button("icon_pause", "Pause")
-	_pause_button.pressed.connect(func() -> void: set_paused(not get_tree().paused))
-	row.add_child(_pause_button)
+	set_speed_index(0)
 	_fullscreen_button = _icon_button("icon_fullscreen", "Fullscreen (F11)")
 	_fullscreen_button.pressed.connect(toggle_fullscreen)
 	row.add_child(_fullscreen_button)
+	_topbar_row = row
+	get_viewport().size_changed.connect(_fit_topbar)
+	_fit_topbar.call_deferred()
+
+
+## Keeps the top bar inside the screen on narrow windows by dropping spacing
+## and then the (redundant) wave text, rather than running off the edge.
+func _fit_topbar() -> void:
+	var width := _root.get_viewport_rect().size.x
+	_topbar_row.add_theme_constant_override("separation", 16)
+	_wave_label.visible = true
+	if _topbar.get_combined_minimum_size().x > width:
+		_topbar_row.add_theme_constant_override("separation", 6)
+	if _topbar.get_combined_minimum_size().x > width:
+		_wave_label.visible = false
 
 
 func _icon_button(icon_name: String, tooltip: String) -> Button:
@@ -197,10 +213,26 @@ func _icon_button(icon_name: String, tooltip: String) -> Button:
 	return b
 
 
-func _toggle_speed() -> void:
-	_fast = not _fast
-	Engine.time_scale = 2.0 if _fast else 1.0
-	_speed_button.icon = Art.tex("icon_fast" if _fast else "icon_play")
+## 1x, 2x, 4x or paused (0x), shown by the single speed button.
+func set_speed_index(i: int) -> void:
+	_speed_index = i
+	var speed := SPEEDS[i]
+	get_tree().paused = speed == 0.0
+	if speed > 0.0:
+		Engine.time_scale = speed
+	_speed_button.icon = Art.tex(SPEED_ICONS[i])
+	var next := SPEEDS[(i + 1) % SPEEDS.size()]
+	_speed_button.tooltip_text = "Speed: %s  (click for %s)" % [_speed_name(speed), _speed_name(next)]
+	if speed == 0.0:
+		toast("Paused", UiTheme.GOLD)
+
+
+func _speed_name(speed: float) -> String:
+	return "paused" if speed == 0.0 else "%dx" % int(speed)
+
+
+func current_speed() -> float:
+	return SPEEDS[_speed_index]
 
 
 func toggle_fullscreen() -> void:
@@ -213,13 +245,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		toggle_fullscreen()
 
 
-func set_paused(p: bool) -> void:
-	get_tree().paused = p
-	_pause_button.icon = Art.tex("icon_play" if p else "icon_pause")
-	if p:
-		toast("Paused", UiTheme.GOLD)
-
-
 # --- sidebar --------------------------------------------------------------------------
 
 func _build_sidebar() -> void:
@@ -229,6 +254,9 @@ func _build_sidebar() -> void:
 	_sidebar.anchor_right = 1.0
 	_sidebar.anchor_top = 0.0
 	_sidebar.anchor_bottom = 1.0
+	# Grow towards the left so the panel always hugs the right screen edge,
+	# even if its content ever wants more than SIDEBAR_W.
+	_sidebar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_sidebar.offset_left = -SIDEBAR_W
 	_sidebar.offset_right = 0
 	_sidebar.offset_top = TOPBAR_H + 6
@@ -244,7 +272,9 @@ func _build_sidebar() -> void:
 		var b := _button(tab[1], Vector2(0, 48))
 		b.icon = Art.tex(tab[2])
 		b.expand_icon = false
-		b.add_theme_constant_override("icon_max_width", 26)
+		b.add_theme_constant_override("icon_max_width", 22)
+		b.add_theme_font_size_override("font_size", 16)
+		b.clip_text = true  # may shrink instead of pushing the panel wider
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(_select_tab.bind(tab[0]))
 		tabs.add_child(b)
@@ -271,6 +301,7 @@ func _build_sidebar() -> void:
 	_sidebar_toggle.anchor_left = 1.0
 	_sidebar_toggle.anchor_right = 1.0
 	_sidebar_toggle.pressed.connect(_toggle_sidebar)
+	_sidebar.resized.connect(_place_sidebar_toggle)
 	_place_sidebar_toggle()
 
 
@@ -281,7 +312,7 @@ func _toggle_sidebar() -> void:
 
 
 func _place_sidebar_toggle() -> void:
-	var right := -SIDEBAR_W - 4.0 if _sidebar.visible else -4.0
+	var right := -maxf(_sidebar.size.x, SIDEBAR_W) - 4.0 if _sidebar.visible else -4.0
 	_sidebar_toggle.offset_left = right - 40.0
 	_sidebar_toggle.offset_right = right
 	_sidebar_toggle.offset_top = TOPBAR_H + 12.0
@@ -314,6 +345,7 @@ func _entry(icon_tex: Texture2D, title: String, desc: String, action_text: Strin
 	d.custom_minimum_size.x = 150
 	tv.add_child(d)
 	var b := _button(action_text, Vector2(0, 48))
+	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART  # long costs wrap instead of widening the sidebar
 	b.pressed.connect(action)
 	v.add_child(b)
 	return {"panel": panel, "title": t, "button": b, "desc": d}
@@ -322,9 +354,9 @@ func _entry(icon_tex: Texture2D, title: String, desc: String, action_text: Strin
 func _build_page_build() -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
-	for kind in ["tower", "farm"]:
+	for kind in ["tower", "farm", "camp", "lightstone"]:
 		var spec: Dictionary = Config.BUILDINGS[kind]
-		var icon := Art.tex("watchtower" if kind == "tower" else "farm_field")
+		var icon := Art.tex(spec["art"])
 		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_text(spec["cost"]), game.begin_build.bind(kind))
 		v.add_child(e["panel"])
 		_build_buttons[kind] = e["button"]
@@ -636,21 +668,10 @@ func _build_overlay() -> void:
 	_overlay_button.add_theme_font_size_override("font_size", 24)
 	UiTheme.style_primary(_overlay_button)
 	v.add_child(_overlay_button)
-
-
-func show_title() -> void:
-	_overlay_title.text = "Veliron's Outpost"
-	_overlay_sub.text = ("The goblins are coming for the last outpost of Veliron.\n\n"
-		+ "Place watchtowers and farms in the Build tab. Your builder walks out and builds them. "
-		+ "Buy archers in the Army tab and put them on towers. Assign farmers to farms so the village doesn't starve. "
-		+ "Your explorer clears the fog on their own; land is only watched near villagers and manned towers.\n\n"
-		+ "Drag to move the map, pinch or scroll to zoom.")
-	_overlay_button.text = "Defend the outpost"
-	_overlay.visible = true
-	get_tree().paused = true  # the first-wave timer waits for the player
-	_connect_overlay(func() -> void:
-		_overlay.visible = false
-		get_tree().paused = false)
+	_overlay_menu_button = _button("Main menu", Vector2(0, 56))
+	_overlay_menu_button.pressed.connect(func() -> void: game.go_to_title())
+	v.add_child(_overlay_menu_button)
+	_overlay.visible = false
 
 
 func show_game_over(title: String, subtitle: String) -> void:
@@ -667,10 +688,6 @@ func _connect_overlay(cb: Callable) -> void:
 	for c in _overlay_button.pressed.get_connections():
 		_overlay_button.pressed.disconnect(c["callable"])
 	_overlay_button.pressed.connect(cb)
-
-
-func is_title_visible() -> bool:
-	return _overlay.visible
 
 
 # --- refresh ---------------------------------------------------------------------------------
@@ -701,6 +718,8 @@ func _refresh() -> void:
 		(e["button"] as Button).disabled = game.population.recruit_error(role) != ""
 		if role == "farmer":
 			(e["desc"] as Label).text = "%s\nWithout a farm: %d" % [Config.CIVILIANS[role]["desc"], game.population.free_farmers().size()]
+		elif role == "forester":
+			(e["desc"] as Label).text = "%s\nWithout a camp: %d" % [Config.CIVILIANS[role]["desc"], game.population.free_foresters().size()]
 		elif role == "gatherer":
 			(e["desc"] as Label).text = "%s\nCorpses lying around: %d" % [Config.CIVILIANS[role]["desc"], game.corpses.count()]
 	_archer_button.disabled = not game.economy.can_afford(Config.MILITARY["archer"]["cost"])

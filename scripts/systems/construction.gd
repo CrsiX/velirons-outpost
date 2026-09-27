@@ -8,6 +8,8 @@ signal changed
 const KIND_SCRIPTS := {
 	"tower": preload("res://scripts/buildings/tower.gd"),
 	"farm": preload("res://scripts/buildings/farm.gd"),
+	"camp": preload("res://scripts/buildings/worker_camp.gd"),
+	"lightstone": preload("res://scripts/buildings/light_stone.gd"),
 }
 
 var game: Game

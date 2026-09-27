@@ -15,11 +15,10 @@ var dead := false
 
 func setup(p_game: Game, route: Array[Vector2i], hp_scale: float) -> void:
 	game = p_game
-	var spec: Dictionary = Config.ENEMIES[kind]
-	max_hp = spec["hp"] * hp_scale
+	max_hp = Config.enemy_stat(kind, "hp") * hp_scale
 	hp = max_hp
-	speed = spec["speed"] * randf_range(0.92, 1.08)
-	demolition = spec["demolition"]
+	speed = Config.enemy_stat(kind, "speed") * randf_range(0.92, 1.08)
+	demolition = Config.enemy_stat_int(kind, "demolition")
 	_init_sprite("unit_" + kind)
 	var pts := PackedVector2Array()
 	# A small sideways offset per goblin so groups don't walk in single file.

@@ -41,6 +41,7 @@ func _ready() -> void:
 	corpses.setup(self)
 	hud.setup(self)
 
+	camera.process_mode = Node.PROCESS_MODE_ALWAYS  # pan and zoom while paused
 	camera.bounds = world.world_rect().grow(-200.0)
 	camera.focus(Iso.tile_to_world(Config.VILLAGE_CENTER))
 	camera.zoom = Vector2(0.75, 0.75)
@@ -166,8 +167,10 @@ func _preview(tile: Vector2i) -> void:
 	for dy in range(-r, r + 1):
 		for dx in range(-r, r + 1):
 			tiles.append(tile + Vector2i(dx, dy))
-	var art := "farm_field" if build_kind == "farm" else "watchtower"
+	var art: String = Config.BUILDINGS[build_kind]["art"]
 	var rng := Config.TOWER_RANGE.get(build_kind, 0.0) as float
+	if build_kind == "lightstone":
+		rng = Config.LIGHTSTONE_SIGHT
 	world.overlay.show_ghost(art, Iso.tile_to_world(tile), tiles, ok, Vector2(tile), rng)
 
 
@@ -225,6 +228,12 @@ func _check_defeat() -> void:
 	Sfx.play("lose", 0.0)
 	var why := "No villagers are left." if no_people else "Every hut lies in ruins."
 	hud.show_game_over("Veliron's outpost has fallen", "%s\nYou held out for %d wave%s." % [why, maxi(waves.wave - 1, 0), "" if waves.wave == 2 else "s"])
+
+
+func go_to_title() -> void:
+	Engine.time_scale = 1.0
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://scenes/title.tscn")
 
 
 func restart() -> void:

@@ -18,6 +18,8 @@ const UNWATCHED_ALPHA := 120
 const WATCH_INTERVAL := 0.2
 
 var map: MapData
+## No fog at all: every tile is explored and under surveillance (Config.DISABLE_FOG).
+var disabled := false
 var _image: Image
 var _texture: ImageTexture
 var _pixels := PackedByteArray()
@@ -55,6 +57,25 @@ func reveal(center: Vector2, radius: float) -> void:
 		revealed.emit(fresh)
 
 
+## Marks the whole map explored (Config.REVEAL_MAP). Surveillance still applies.
+func reveal_all() -> void:
+	var fresh: Array[Vector2i] = []
+	for i in map.explored.size():
+		if map.explored[i] == 0:
+			map.explored[i] = 1
+			fresh.append(Vector2i(i % map.size, i / map.size))
+	if not fresh.is_empty():
+		_explored_dirty = true
+		revealed.emit(fresh)
+
+
+func set_disabled(v: bool) -> void:
+	disabled = v
+	if disabled:
+		reveal_all()
+	update_surveillance()
+
+
 func explored_count() -> int:
 	return map.explored.count(1)
 
@@ -76,6 +97,10 @@ func _process(delta: float) -> void:
 
 ## Recomputes which tiles are watched by the current observers.
 func update_surveillance() -> void:
+	if disabled:
+		map.watched.fill(1)
+		_rebuild()
+		return
 	map.watched.fill(0)
 	for node in get_tree().get_nodes_in_group("observers"):
 		var radius: float = node.sight_radius()

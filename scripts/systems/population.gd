@@ -11,6 +11,7 @@ const ROLE_SCRIPTS := {
 	"farmer": preload("res://scripts/units/farmer.gd"),
 	"explorer": preload("res://scripts/units/explorer.gd"),
 	"gatherer": preload("res://scripts/units/gatherer.gd"),
+	"forester": preload("res://scripts/units/forester.gd"),
 	"archmage": preload("res://scripts/units/archmage.gd"),
 }
 
@@ -123,6 +124,32 @@ func assign_farmer(farm: Farm) -> bool:
 	farm.refresh()
 	changed.emit()
 	return true
+
+
+# --- foresters -------------------------------------------------------------------
+
+func free_foresters() -> Array[Civilian]:
+	return civilians.filter(func(c: Civilian) -> bool: return c is Forester and c.camp == null)
+
+
+func assign_forester(camp: WorkerCamp) -> bool:
+	if camp.forester != null or not camp.complete:
+		return false
+	var free := free_foresters()
+	if free.is_empty():
+		return false
+	var f: Forester = free[0]
+	f.assign(camp)
+	camp.forester = f
+	changed.emit()
+	return true
+
+
+func unassign_forester(camp: WorkerCamp) -> void:
+	if camp.forester:
+		(camp.forester as Forester).unassign()
+		camp.forester = null
+		changed.emit()
 
 
 func unassign_farmer(farm: Farm) -> void:

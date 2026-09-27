@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b0xx02l6khu0e"
-path="res://.godot/imported/icon_goblin.svg-fd195e758db9827010247dddf8c21b74.ctex"
+uid="uid://dvq70gtfqmocm"
+path="res://.godot/imported/worker_camp.svg-5d31f6251472bda1b1ea3c811dab057a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/icon_goblin.svg"
-dest_files=["res://.godot/imported/icon_goblin.svg-fd195e758db9827010247dddf8c21b74.ctex"]
+source_file="res://art/worker_camp.svg"
+dest_files=["res://.godot/imported/worker_camp.svg-5d31f6251472bda1b1ea3c811dab057a.ctex"]
 
 [params]
 

@@ -113,8 +113,8 @@ func _deliver() -> void:
 	var gold := 0
 	var food := 0
 	for k in carried:
-		gold += Config.ENEMIES[k]["gold_on_collect"]
-		food += Config.ENEMIES[k]["food_on_collect"]
+		gold += Config.enemy_stat_int(k, "gold_on_collect")
+		food += Config.enemy_stat_int(k, "food_on_collect")
 	game.economy.add("gold", gold)
 	game.economy.add("food", food)
 	float_text("+%d gold  +%d food" % [gold, food], Color("c9a24a"))
