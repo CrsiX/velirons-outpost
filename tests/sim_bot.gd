@@ -181,6 +181,37 @@ func _run() -> void:
 	print("map %dx%d: %d spawns, forest %d%%, desert %d%%, mountain %d%%, road %d tiles" % [map.size, map.size, map.edge_spawns.size(),
 		100 * forest / total, 100 * desert / total, 100 * mountain / total, map.count_terrain(MapData.Terrain.ROAD)])
 	check(map.size == 75, "map is 75x75")
+	# Enemy config is complete and readable.
+	var required := ["name", "art", "behavior", "hp", "speed", "demolition", "damage", "attack_cooldown", "gold_on_kill", "gold_on_collect", "food_on_collect"]
+	var cfg_ok := true
+	for kind in Config.ENEMIES:
+		var e: Dictionary = Config.ENEMIES[kind]
+		cfg_ok = cfg_ok and required.all(func(k: String) -> bool: return e.has(k)) and Enemy.BEHAVIORS.has(e["behavior"])
+		cfg_ok = cfg_ok and ResourceLoader.exists("res://art/unit_%s.svg" % e["art"]) and ResourceLoader.exists("res://art/corpse_%s.svg" % e["art"])
+	check(cfg_ok, "every enemy has all config keys, a known behavior and its art")
+	var mix_ok := true
+	for n in range(1, 16):
+		var comp := Config.wave_composition(n)
+		var in_wave := 0
+		for k in comp:
+			in_wave += comp[k]
+		mix_ok = mix_ok and in_wave == Config.wave_size(n)
+		for kind in Config.WAVE_MIX:
+			if n < Config.WAVE_MIX[kind]["from_wave"] and comp.has(kind):
+				mix_ok = false
+	check(mix_ok, "wave mix adds up and nobody shows up before their first wave")
+	check(not Config.wave_composition(4).has("witch") and Config.wave_composition(5).has("witch"), "witches first appear in wave %d" % Config.WAVE_MIX["witch"]["from_wave"])
+	check(not Config.wave_composition(2).has("ork") and Config.wave_composition(3).has("ork"), "orks first appear in wave %d" % Config.WAVE_MIX["ork"]["from_wave"])
+	var gob: Dictionary = Config.ENEMIES["goblin"]
+	var orc: Dictionary = Config.ENEMIES["ork"]
+	var wit: Dictionary = Config.ENEMIES["witch"]
+	check(orc["speed"] < gob["speed"] and orc["hp"] > gob["hp"] and orc["damage"] > gob["damage"] * 2.0, "orks: slower, tougher, much harder hitting")
+	check(orc["gold_on_kill"] > 0 and orc["gold_on_collect"] == 0 and orc["food_on_collect"] > gob["food_on_collect"], "orks: gold on kill only, more food when gathered")
+	check(wit["hp"] < gob["hp"] and wit["damage"] == 0 and wit["gold_on_kill"] > gob["gold_on_kill"] and wit["gold_on_collect"] == 0 and wit["food_on_collect"] <= gob["food_on_collect"], "witches: frail, no melee, rich kill, no gold and little food as corpses")
+	check(is_equal_approx(wit["spell_cooldown"], 2.0 * Config.MILITARY["archer"]["levels"][0]["cooldown"]), "witch spell cycle is twice an archer's shot interval")
+	Settings.difficulty = Settings.Difficulty.HARD
+	check(is_equal_approx(Config.enemy_stat("goblin", "attack_cooldown"), gob["attack_cooldown"]) and is_equal_approx(Config.enemy_stat("witch", "spell_cooldown"), wit["spell_cooldown"]), "difficulty never stretches cooldowns")
+	Settings.difficulty = Settings.Difficulty.NORMAL
 	check(forest > total * 0.45, "mostly forest (%d%%)" % (100 * forest / total))
 	check(desert > 0 and desert <= total * Config.DESERT_MAX_SHARE, "some desert, at most 20%")
 	var desert_near := false
@@ -705,6 +736,86 @@ func _run() -> void:
 	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
 	game.waves.countdown = 99999.0
 
+	# --- ork ---------------------------------------------------------------------------------
+	game.waves._spawn({"kind": "ork", "spawn": far_spot, "hp_scale": 1.0})
+	var brute_ork: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	check(brute_ork.kind == "ork" and brute_ork.behavior is MeleeBehavior and brute_ork.max_hp == Config.enemy_stat("ork", "hp"), "orks spawn with their own stats and melee behavior")
+	var g_ork := game.economy.amount("gold")
+	brute_ork.take_damage(1e9)
+	check(game.economy.amount("gold") == g_ork + Config.enemy_stat_int("ork", "gold_on_kill") and cs.corpses.back().kind == "ork", "a killed ork pays gold and leaves a corpse")
+	cs.remove(cs.corpses.back())
+	game.waves.countdown = 99999.0
+
+	# --- witch: bewitches manned towers --------------------------------------------------------
+	var wt_tower: Tower = watchtower
+	if wt_tower.garrison == null:
+		game.army.station(game.army.recruit("archer"), wt_tower)
+		await wait_until(func() -> bool: return wt_tower.garrison != null, 60.0)
+	var wspot2 := Vector2i(-1, -1)
+	for dy in range(-5, 6):
+		for dx in range(-5, 6):
+			var t := wt_tower.tile + Vector2i(dx, dy)
+			var d := Vector2(t).distance_to(Vector2(wt_tower.tile))
+			if wspot2 == Vector2i(-1, -1) and d >= 3.0 and d <= 4.0 and game.world.pathing.is_walkable(t) and not map.in_village(t):
+				wspot2 = t
+	game.waves._spawn({"kind": "witch", "spawn": far_spot, "hp_scale": 1000.0})
+	var hag: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	hag.speed = 0.0
+	hag.set_grid_pos(Vector2(wspot2))
+	check(hag.kind == "witch" and hag.behavior is WitchBehavior, "witch spawned with the witch behavior")
+	var bewitched := await wait_until(func() -> bool: return wt_tower.is_enchanted(), 10.0)
+	check(bewitched, "a witch in range bewitches the manned tower with her spell")
+	check(wt_tower._spell_glow.visible, "the bewitched unit has a pink glow around its head")
+	var expected_enchant: float = Config.ENEMIES["witch"]["spell_cooldown"] * Config.ENEMIES["witch"]["enchant_ratio"]
+	check(wt_tower.enchanted <= expected_enchant + 0.01 and wt_tower.enchanted > expected_enchant - 0.5, "the spell lasts %.0f%% of her cooldown (%.2fs)" % [100 * Config.ENEMIES["witch"]["enchant_ratio"], expected_enchant])
+	# While bewitched the unit fires nothing new.
+	var seen_arrows := {}
+	for n in game.world.effects.get_children():
+		if n is Arrow:
+			seen_arrows[n] = true
+	var fired_while_bewitched := false
+	var t_w := 0.0
+	while wt_tower.is_enchanted() and t_w < 3.0:
+		await get_tree().process_frame
+		t_w += get_process_delta_time()
+		for n in game.world.effects.get_children():
+			if n is Arrow and not seen_arrows.has(n) and (n as Arrow).source == wt_tower:
+				fired_while_bewitched = true
+	check(not fired_while_bewitched, "a bewitched unit does not shoot")
+	var gap := await wait_until(func() -> bool: return not wt_tower.is_enchanted(), 3.0)
+	check(gap, "between casts the unit gets a short window to act")
+	hag.take_damage(1e9)
+	await wait(0.5)
+
+	# --- witch vs summoner: attacker first, spells hurt elementals -------------------------------
+	var sm2 := summoner
+	var sm_t: Tower = wall_towers[1]
+	if sm2.state != MilitaryUnit.State.STATIONED:
+		await wait_until(func() -> bool: return sm2.state == MilitaryUnit.State.RESERVE, 60.0)
+		game.army.station(sm2, sm_t)
+		await wait_until(func() -> bool: return sm_t.garrison == sm2, 60.0)
+	var sb2: SummonerBehavior = sm2.behavior
+	game.waves._spawn({"kind": "witch", "spawn": far_spot, "hp_scale": 1000.0})
+	var hag2: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	hag2.speed = 0.0
+	hag2.set_grid_pos(Vector2(sm_spot))
+	var wb: WitchBehavior = hag2.behavior
+	var engaged := await wait_until(func() -> bool: return wb.attacker is EarthElemental, 40.0)
+	check(engaged, "an elemental attacks the witch")
+	if engaged:
+		var foe: EarthElemental = wb.attacker
+		var hp0 := foe.hp
+		var retaliates := await wait_until(func() -> bool: return wb.target == foe, 5.0)
+		check(retaliates, "the witch turns her spells on whoever attacks her")
+		var hurt := await wait_until(func() -> bool: return not is_instance_valid(foe) or foe.hp < hp0, 8.0)
+		check(hurt, "her spell damages earth elementals")
+		var keep_fighting := sb2.summons.any(func(e: EarthElemental) -> bool: return is_instance_valid(e) and not e.dead)
+		check(keep_fighting or not is_instance_valid(foe), "existing elementals keep fighting while their summoner may be bewitched")
+	hag2.take_damage(1e9)
+	game.army.unstation(sm2)
+	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
+	game.waves.countdown = 99999.0
+
 	# --- demolition at the gate -------------------------------------------------------
 	for t in game.world.towers():
 		if t.garrison:
@@ -798,6 +909,7 @@ func _run() -> void:
 	# --- starvation ----------------------------------------------------------------------------
 	for f in game.world.buildings.filter(func(b: Building) -> bool: return b is Farm):
 		game.population.unassign_farmer(f)
+	game.corpses.clear_wave(99)  # gathered corpses would bring in food
 	await wait(8.0)  # let any farmer already carrying food get home
 	var pop1 := game.population.count()
 	game.economy.consume_food(100000.0)

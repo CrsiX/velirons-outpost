@@ -178,34 +178,101 @@ const SUMMON := {
 
 const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 
-## gold_on_kill is paid instantly; gold_on_collect and food_on_collect are paid
-## when a gatherer brings the corpse home.
+# --- enemies ------------------------------------------------------------------------
+## Every enemy kind in one place. Keys (all required):
+##   name, art ........ display name; sprites are unit_<art> and corpse_<art>
+##   behavior ......... what it does besides walking to a gate: "melee" (fights
+##                      summons blocking its way) or "witch" (casts spells)
+##   hp, speed ........ hit points; tiles per second along the road
+##   demolition ....... huts destroyed when it gets through a gate
+##   damage ........... close-combat damage per hit (0 = never fights in melee)
+##   attack_cooldown .. seconds between melee hits
+##   gold_on_kill ..... paid the moment it dies
+##   gold_on_collect, food_on_collect .. paid when a gatherer brings the corpse home
+## Behaviours may add their own keys (see "witch").
 const ENEMIES := {
 	"goblin": {
-		"name": "Goblin", "hp": 20.0, "speed": 1.1, "demolition": 1,
-		"damage": 4.0, "attack_cooldown": 1.0,  # close combat against summons
+		"name": "Goblin", "art": "goblin", "behavior": "melee",
+		"hp": 20.0, "speed": 1.1, "demolition": 1,
+		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
 	},
-	# Same stats as goblins, but bones give no food, only gold.
+	# Same as goblins, but bones give no food.
 	"skeleton": {
-		"name": "Skeleton", "hp": 20.0, "speed": 1.1, "demolition": 1,
+		"name": "Skeleton", "art": "skeleton", "behavior": "melee",
+		"hp": 20.0, "speed": 1.1, "demolition": 1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 0,
 	},
+	# Slower and much tougher; hits hard. Gold only on kill, lots of food as a corpse.
+	"ork": {
+		"name": "Ork", "art": "ork", "behavior": "melee",
+		"hp": 55.0, "speed": 0.8, "demolition": 1,
+		"damage": 11.0, "attack_cooldown": 1.2,
+		"gold_on_kill": 6, "gold_on_collect": 0, "food_on_collect": 6,
+	},
+	# Fragile spell-caster: no melee. Stops at manned towers in range and
+	# enchants their unit (it stops shooting/summoning for a while). Spells hurt
+	# earth elementals. Whoever attacks her becomes her first target.
+	"witch": {
+		"name": "Witch", "art": "witch", "behavior": "witch",
+		"hp": 12.0, "speed": 1.0, "demolition": 1,
+		"damage": 0.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 12, "gold_on_collect": 0, "food_on_collect": 1,
+		"spell_range": 4.5,  # tiles
+		"spell_cooldown": 2.0,  # s between casts: twice an archer's first-level shot interval
+		"enchant_ratio": 0.9,  # a tower unit stays enchanted for 90% of the cooldown
+		"spell_damage": 5.0,  # dealt to earth elementals (tower units take none)
+		"spell_speed": 5.0,  # tiles per second of the pink bolt
+	},
 }
-## Share of skeletons in wave n (the rest are goblins).
-static func skeleton_share(n: int) -> float:
-	return clampf((n - 1) * 0.12, 0.0, 0.5)
+
+## Values scaled by the difficulty multiplier. Timings and ranges are not
+## scaled (a bigger cooldown would make "hard" enemies weaker).
+const DIFFICULTY_SCALED: Array[String] = [
+	"hp", "speed", "demolition", "damage", "spell_damage",
+	"gold_on_kill", "gold_on_collect", "food_on_collect",
+]
+
+## Which enemies march in wave n. Each kind joins from `from_wave`; its share of
+## the wave starts at `share` and grows by `growth` per wave, up to `max_share`.
+## WAVE_FILLER makes up the rest.
+const WAVE_MIX := {
+	"skeleton": {"from_wave": 2, "share": 0.12, "growth": 0.06, "max_share": 0.35},
+	"ork": {"from_wave": 3, "share": 0.10, "growth": 0.03, "max_share": 0.25},
+	"witch": {"from_wave": 5, "share": 0.10, "growth": 0.02, "max_share": 0.2},
+}
+const WAVE_FILLER := "goblin"
+
+
+## Kind -> count for wave n (counts add up to wave_size(n)).
+static func wave_composition(n: int) -> Dictionary:
+	var total := wave_size(n)
+	var out := {}
+	var used := 0
+	for kind in WAVE_MIX:
+		var mix: Dictionary = WAVE_MIX[kind]
+		if n < mix["from_wave"]:
+			continue
+		var share := minf(mix["share"] + mix["growth"] * (n - mix["from_wave"]), mix["max_share"])
+		var c := maxi(1, roundi(total * share))
+		c = mini(c, total - used)
+		if c > 0:
+			out[kind] = c
+			used += c
+	out[WAVE_FILLER] = out.get(WAVE_FILLER, 0) + total - used
+	return out
 
 
 ## Warning lights (easy/normal only) show where hidden enemies will emerge.
 const WARNING_LIGHT_WAVES := 5  # only during the first N waves
-## An enemy value scaled by the chosen difficulty (see Settings). Whole-number
+## An enemy value, scaled by the chosen difficulty if it is in DIFFICULTY_SCALED
+## (see Settings). Whole-number
 ## values (demolition, loot) are rounded and never drop below 1, except values
 ## that are 0 to begin with (e.g. skeletons give no food).
 static func enemy_stat(kind: String, key: String) -> float:
 	var base: float = ENEMIES[kind][key]
-	return base * Settings.enemy_multiplier()
+	return base * Settings.enemy_multiplier() if key in DIFFICULTY_SCALED else base
 
 
 static func enemy_stat_int(kind: String, key: String) -> int:

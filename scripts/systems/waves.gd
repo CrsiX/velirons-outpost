@@ -63,20 +63,19 @@ func _start_wave() -> void:
 	spawns.shuffle()
 	spawns = spawns.slice(0, mini(Config.wave_spawn_points(n), spawns.size()))
 	var hp_scale := pow(Config.WAVE_HP_GROWTH, n - 1)
-	var count := Config.wave_size(n)
-	var skeletons := roundi(count * Config.skeleton_share(n))
-	for i in count:
-		# Skeletons are spread through the wave rather than bunched at the end.
-		var kind := "skeleton" if skeletons > 0 and i % maxi(1, count / maxi(skeletons, 1)) == 0 and _count_kind("skeleton") < skeletons else "goblin"
-		_queue.append({"kind": kind, "spawn": spawns[i % spawns.size()], "hp_scale": hp_scale})
+	# Kinds from Config.wave_composition, shuffled so they arrive mixed.
+	var kinds: Array[String] = []
+	var comp := Config.wave_composition(n)
+	for kind in comp:
+		for i in comp[kind]:
+			kinds.append(kind)
+	kinds.shuffle()
+	for i in kinds.size():
+		_queue.append({"kind": kinds[i], "spawn": spawns[i % spawns.size()], "hp_scale": hp_scale})
 	_spawn_timer = 0.5
 	Sfx.play("horn", 0.0)
 	wave_started.emit(wave)
 	changed.emit()
-
-
-func _count_kind(kind: String) -> int:
-	return _queue.filter(func(q: Dictionary) -> bool: return q["kind"] == kind).size()
 
 
 func _process(delta: float) -> void:
@@ -96,7 +95,7 @@ func _process(delta: float) -> void:
 func _spawn(spec: Dictionary) -> void:
 	var route := game.world.pathing.enemy_route(spec["spawn"], _rng)
 	var g: Enemy = ENEMY_SCRIPT.new()
-	g.setup(game, route, spec["hp_scale"], spec.get("kind", "goblin"))
+	g.setup(game, route, spec["hp_scale"], spec.get("kind", Config.WAVE_FILLER))
 	g.wave = wave
 	g.killed.connect(_on_enemy_killed)
 	g.reached_gate.connect(_on_enemy_reached_gate)

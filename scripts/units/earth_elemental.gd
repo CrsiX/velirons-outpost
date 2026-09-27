@@ -107,7 +107,7 @@ func _wander(delta: float) -> void:
 
 
 func _strike() -> void:
-	target.take_damage(damage)
+	target.take_damage(damage, self)
 	var tw := create_tween()
 	var lunge := (Iso.to_world(target.grid_pos) - position).normalized() * 5.0
 	tw.tween_property(sprite, "position", lunge, 0.08)

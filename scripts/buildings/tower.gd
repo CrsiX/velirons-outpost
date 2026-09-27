@@ -11,6 +11,10 @@ var garrison: MilitaryUnit = null
 ## Unit currently marching here (reserves the tower).
 var incoming: MilitaryUnit = null
 var _unit_sprite: Sprite2D
+var _spell_glow: Sprite2D
+## Seconds the stationed unit stays enchanted by a witch (does nothing meanwhile).
+var enchanted := 0.0
+var _glow_t := 0.0
 var _front: Sprite2D
 var _site_sprite: Sprite2D
 
@@ -73,6 +77,10 @@ func _build_visuals() -> void:
 	_unit_sprite = Sprite2D.new()
 	_unit_sprite.show_behind_parent = true
 	add_child(_unit_sprite)
+	_spell_glow = Art.sprite("spell_glow")
+	_spell_glow.show_behind_parent = true
+	_spell_glow.visible = false
+	add_child(_spell_glow)
 	_front = Sprite2D.new()
 	_front.show_behind_parent = true
 	add_child(_front)
@@ -118,6 +126,8 @@ func set_garrison(unit: MilitaryUnit) -> void:
 	if garrison != null and unit != garrison:
 		garrison.behavior.on_leave(self, garrison)
 	garrison = unit
+	enchanted = 0.0
+	_spell_glow.visible = false
 	refresh()
 
 
@@ -127,8 +137,28 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
+	if enchanted > 0.0:
+		enchanted -= delta
+		_glow_t += delta
+		_spell_glow.modulate.a = 0.6 + 0.3 * sin(_glow_t * 10.0)
+		_spell_glow.visible = enchanted > 0.0 and garrison != null
+		return  # an enchanted unit neither shoots nor summons
 	if complete and garrison != null:
 		garrison.behavior.tick(self, garrison, delta)
+
+
+## A witch's spell: the unit on this tower stops acting for `seconds`
+## (existing summons are not affected; the unit takes no damage).
+func enchant(seconds: float) -> void:
+	if garrison == null:
+		return
+	enchanted = maxf(enchanted, seconds)
+	_spell_glow.position = _unit_sprite.position + Vector2(0, -36)
+	_spell_glow.visible = true
+
+
+func is_enchanted() -> bool:
+	return enchanted > 0.0 and garrison != null
 
 
 # --- helpers for behaviors -------------------------------------------------------
@@ -187,7 +217,7 @@ func info() -> Dictionary:
 		})
 		lines.append("Next level: +%.1f range" % bonus)
 	if garrison:
-		lines.append("%s, level %d" % [garrison.display_name(), garrison.level + 1])
+		lines.append("%s, level %d%s" % [garrison.display_name(), garrison.level + 1, "  (bewitched!)" if is_enchanted() else ""])
 		lines.append_array(garrison.behavior.info_lines(garrison))
 		actions.append({"label": "Withdraw", "action": func() -> void: game.army.unstation(garrison)})
 	elif incoming:

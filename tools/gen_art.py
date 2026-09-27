@@ -807,6 +807,109 @@ def skeleton():
     a.save("unit_skeleton")
 
 
+def ork():
+    """Big, hunched brute with pointy ears, tusks, an iron pauldron and a sword."""
+    a = Art()
+    a.shadow(14, 5.5, opacity=0.45)
+    skin, skin_d = "#6b7a52", "#55623f"
+    for x0, x1 in ((-5, -6), (5, 6)):  # thick legs
+        a.line([(x0, -1), (x1, -12)], INK, 7)
+        a.line([(x0, -1.5), (x1, -12)], "#4a3a2a", 4.6)
+        a.ellipse(x0 + (-1 if x0 < 0 else 1), -1, 4.5, 2, "#2a211a", INK, 1)
+    a.poly([(-11, -11), (10, -11), (12, -30), (-10, -32)], "#5a4432", INK, 1.4)  # leather armour
+    a.poly([(0, -11), (10, -11), (12, -30), (0, -31)], "#4a3828", stroke=None)
+    a.line([(-10, -16), (10, -16)], "#2a1e14", 2.2)
+    a.poly([(-13, -34), (-3, -34), (-2, -26), (-13, -26)], "#7d7a74", INK, 1.2)  # iron pauldron
+    a.ellipse(-8, -30, 1.2, 1.2, "#b0aca4")
+    # sword arm and a broad straight sword
+    a.line([(8, -26), (14, -18)], INK, 5.5)
+    a.line([(8, -26), (14, -18)], skin, 3.4)
+    a.line([(12, -16), (17, -20)], INK, 3)  # guard
+    a.poly([(14.5, -20), (17, -18), (25, -42), (23, -44)], "#b8b8b8", INK, 1.2)  # blade
+    a.line([(15.5, -20), (23.5, -42)], "#e0e0e0", 0.8)
+    # head: heavy jaw, tusks, pointy ears, small red eyes
+    a.poly([(-16, -40), (-7, -38), (-8, -34)], skin, INK, 1.2)
+    a.poly([(15, -41), (7, -38), (8, -34)], skin, INK, 1.2)
+    a.poly([(-8, -46), (8, -46), (9, -35), (5, -30), (-5, -30), (-9, -35)], skin, INK, 1.4)
+    a.poly([(0, -46), (8, -46), (9, -35), (5, -30), (0, -30)], skin_d, stroke=None, opacity=0.7)
+    a.line([(-6, -41), (-1, -40)], INK, 2)  # brow
+    a.line([(6, -41), (1, -40)], INK, 2)
+    a.ellipse(-3.5, -38.5, 1.3, 1.1, "#e03020")
+    a.ellipse(3.5, -38.5, 1.3, 1.1, "#e03020")
+    a.poly([(-4, -32), (-3, -36), (-2, -32)], "#efe8d0", INK, 0.7)  # tusks
+    a.poly([(2, -32), (3, -36), (4, -32)], "#efe8d0", INK, 0.7)
+    a.save("unit_ork")
+
+
+def witch():
+    """Human-like witch: pale face, long dark hair, black dress, wide-brimmed pointy black hat."""
+    def extra(a, layer):
+        if layer == "back":
+            a.raw('<path d="M-7,-34 Q-10,-24 -8,-16 L-4,-18 Q-5,-26 -4,-33 Z" fill="#241c20" stroke="%s" stroke-width="1"/>' % INK, [(-10, -35), (-3, -16)])  # hair
+        else:
+            a.poly([(-5, -24), (5, -24), (3, -20), (-3, -20)], "#5a2a4a", INK, 0.8)  # collar
+            a.line([(4, -21), (11, -26)], INK, 3.8)  # arm raised, casting
+            a.line([(4, -21), (11, -26)], "#1c1820", 2.2)
+            a.ellipse(13, -28, 5, 5, "#ff6ad5", opacity=0.35)
+            a.ellipse(13, -28, 2, 2, "#ffb0ec")
+
+    def hat(a):
+        a.ellipse(0, -37.5, 12, 3.2, "#15121a", INK, 1.2)  # wide brim
+        a.raw('<path d="M-6,-38 L6,-38 L2,-44 L6,-58 L-3,-45 Z" fill="#1c1822" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-7, -59), (7, -37)])
+        a.line([(-5.5, -39.5), (5.5, -39.5)], "#7a3a6a", 1.6)  # band
+    person("unit_witch", ("#1c1820", "#141118"), hat=hat, robe=True, skin="#e8d8c8", extra=extra)
+
+
+def corpse_ork():
+    a = Art()
+    a.ellipse(0, 0, 22, 7, "#000", opacity=0.3)
+    a.ellipse(0, 1, 18, 5, "#3a1a14", opacity=0.5)
+    a.poly([(-15, -3), (8, -8), (12, -1), (-12, 5)], "#5a4432", INK, 1.2)
+    a.line([(-15, 0), (-24, 3)], INK, 6)
+    a.line([(-15, 0), (-24, 3)], "#4a3a2a", 4)
+    a.ellipse(15, -4, 7.5, 6, "#6b7a52", INK, 1.3)
+    a.poly([(19, -8), (27, -12), (21, -3)], "#6b7a52", INK, 1)
+    a.line([(12.5, -6), (15, -3)], INK, 1.3)
+    a.line([(15, -6), (12.5, -3)], INK, 1.3)
+    a.poly([(-4, 7), (-20, 11), (-19, 13), (-3, 9)], "#b8b8b8", INK, 1)  # dropped sword
+    a.save("corpse_ork")
+
+
+def corpse_witch():
+    a = Art()
+    a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
+    a.poly([(-14, 0), (6, -5), (10, 2), (-10, 5)], "#1c1820", INK, 1.2)  # dress
+    a.ellipse(12, -3, 5, 4.5, "#e8d8c8", INK, 1.2)
+    a.line([(12, -3), (16, 2)], "#241c20", 3)  # hair
+    a.ellipse(-4, -9, 9, 2.5, "#15121a", INK, 1)  # hat on the ground
+    a.poly([(-8, -9), (0, -9), (-3, -20)], "#1c1822", INK, 1)
+    a.ellipse(-16, 5, 3, 3, "#ff6ad5", opacity=0.3)  # fading magic
+    a.save("corpse_witch")
+
+
+def spell_bolt():
+    """Whirling, glowing pink ball."""
+    a = Art()
+    a.raw('<defs><radialGradient id="sb"><stop offset="0" stop-color="#ffe0f6"/><stop offset="0.45" stop-color="#ff6ad5"/><stop offset="1" stop-color="#ff6ad5" stop-opacity="0"/></radialGradient></defs>', [(0, 0)])
+    a.ellipse(0, 0, 14, 14, "url(#sb)")
+    for k in range(3):
+        ang = k * 2.094
+        x0, y0 = math.cos(ang) * 3, math.sin(ang) * 3
+        x1, y1 = math.cos(ang + 1.6) * 10, math.sin(ang + 1.6) * 10
+        a.raw('<path d="M%s,%s Q%s,%s %s,%s" fill="none" stroke="#ffd0f0" stroke-width="1.6" stroke-linecap="round"/>' % (fmt(x0), fmt(y0), fmt(math.cos(ang + 0.8) * 9), fmt(math.sin(ang + 0.8) * 9), fmt(x1), fmt(y1)), [(-11, -11), (11, 11)])
+    a.save("spell_bolt")
+
+
+def spell_glow():
+    """Soft pink halo around a bewitched unit's head."""
+    a = Art()
+    a.raw('<defs><radialGradient id="sg"><stop offset="0" stop-color="#ff6ad5" stop-opacity="0.7"/><stop offset="1" stop-color="#ff6ad5" stop-opacity="0"/></radialGradient></defs>', [(0, 0)])
+    a.ellipse(0, 0, 14, 12, "url(#sg)")
+    for (x, y) in [(-8, -6), (7, -8), (9, 3), (-9, 4)]:
+        a.ellipse(x, y, 1.3, 1.3, "#ffd0f0")
+    a.save("spell_glow")
+
+
 def summoner():
     """Mage without a staff: pointy hat, dark robe, a glowing purple orb held in the hand."""
     def extra(a, layer):
@@ -1179,6 +1282,12 @@ def main():
     corpse_skeleton()
     summoner()
     earth_elemental()
+    ork()
+    witch()
+    corpse_ork()
+    corpse_witch()
+    spell_bolt()
+    spell_glow()
     arrow()
     sack()
     icons()

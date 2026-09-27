@@ -4,6 +4,8 @@ extends Sprite2D
 
 var target: Enemy
 var damage := 5.0
+## Tower that shot this arrow (so the victim knows who attacked it).
+var source: Node = null
 
 var _start := Vector2.ZERO
 var _end := Vector2.ZERO
@@ -12,7 +14,8 @@ var _duration := 0.3
 var _arc := 20.0
 
 
-func launch(from: Vector2, p_target: Enemy, p_damage: float) -> void:
+func launch(from: Vector2, p_target: Enemy, p_damage: float, p_source: Node = null) -> void:
+	source = p_source
 	Art.apply(self, "arrow")
 	target = p_target
 	damage = p_damage
@@ -35,6 +38,6 @@ func _process(delta: float) -> void:
 	global_position = p
 	if _t >= 1.0:
 		if is_instance_valid(target) and not target.dead:
-			target.take_damage(damage)
+			target.take_damage(damage, source)
 			Sfx.play("hit", 0.2)
 		queue_free()

@@ -18,7 +18,7 @@ func tick(tower: Tower, unit: MilitaryUnit, delta: float) -> void:
 		_cooldown = unit.stat("cooldown")
 		var arrow: Arrow = ARROW_SCRIPT.new()
 		tower.game.world.effects.add_child(arrow)
-		arrow.launch(tower.muzzle_position(), target, unit.stat("damage"))
+		arrow.launch(tower.muzzle_position(), target, unit.stat("damage"), tower)
 		Sfx.play("shoot", 0.15)
 		tower.recoil()
 

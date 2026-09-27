@@ -18,7 +18,7 @@ func setup(p_game: Game, p_kind: String, p_wave: int, at: Vector2) -> void:
 	wave = p_wave
 	grid_pos = at
 	position = Iso.to_world(at)
-	var s := Art.sprite("corpse_" + kind)
+	var s := Art.sprite("corpse_" + Config.ENEMIES[kind]["art"])
 	s.flip_h = randf() < 0.5
 	add_child(s)
 
