@@ -56,6 +56,7 @@ const HERO_MODE_HINTS: Array[String] = [
 	"Explores like an explorer, with a shorter sight range.",
 	"Gathers corpses like a gatherer, 2 at a time.",
 	"Passes his XP on to the unit at the Training Grounds (free level-ups). Only useful with Training Grounds and a unit stationed there; otherwise he defends.",
+	"Walks back to the village centre and rests there, fighting nobody, until his HP is back.",
 ]
 var _speed_button: Button
 var _speed_index := 0

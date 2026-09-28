@@ -201,6 +201,8 @@ const HERO := {
 	"explore_reveal": 1.8,  # explorers see 2.6
 	"gather_capacity": 2,  # gatherers carry 6
 	"train_rate": 5.0,  # XP per second passed on at the training grounds
+	"rest_regen": 1.0,  # HP per second while resting idle in the village centre
+	"rest_delay": 3.0,  # seconds of idling there before the HP starts coming back
 }
 ## XP the hero earns per action (training earns none).
 const HERO_XP_PER_ACTION := {

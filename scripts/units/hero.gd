@@ -8,6 +8,9 @@ extends Civilian
 ##   Train   - at training grounds with a unit ready, passes his XP on to it;
 ##             without such grounds he defends instead, but drops any fight as
 ##             soon as a unit is ready to train.
+##   Rest    - walks back to the village centre and stays there, fighting nobody.
+## Whenever he idles in the village centre (any mode) he slowly gets his HP
+## back: Config.HERO "rest_regen" per second after "rest_delay" seconds.
 ## Every action except training earns XP (Config.HERO_XP_PER_ACTION). When his
 ## HP runs out he is downed: all XP is lost, he leaves no corpse, and he revives
 ## in the village centre when the wave is over, still in the same mode.
@@ -15,8 +18,8 @@ extends Civilian
 
 signal changed
 
-enum Mode { DEFEND, BUILD, EXPLORE, GATHER, TRAIN }
-const MODE_NAMES: Array[String] = ["Defend", "Build", "Explore", "Gather", "Train"]
+enum Mode { DEFEND, BUILD, EXPLORE, GATHER, TRAIN, REST }
+const MODE_NAMES: Array[String] = ["Defend", "Build", "Explore", "Gather", "Train", "Rest"]
 
 var mode := Mode.DEFEND
 var xp := 0
@@ -32,6 +35,8 @@ var _chase_tile := Vector2i(-9999, -9999)
 var _train_acc := 0.0
 ## Walking back to the village centre after a fight (Defend).
 var _returning := false
+## Seconds he has been idling in the village centre (see _regen).
+var _idle_time := 0.0
 
 
 func setup_hero(p_game: Game) -> void:
@@ -168,6 +173,23 @@ func _tick(delta: float) -> void:
 			else:
 				_stop_training()
 				_defend(delta)  # stand-in until a unit is ready to train
+		Mode.REST:
+			target = null
+			_return_home(delta)
+	_regen(delta)
+
+
+## Idle in the village centre: after a short while the HP slowly comes back.
+func _regen(delta: float) -> void:
+	var idle := at_home and not evading and not is_instance_valid(target) and grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.2
+	_idle_time = _idle_time + delta if idle else 0.0
+	if _idle_time < Config.HERO["rest_delay"] or hp >= max_hp:
+		return
+	hp = minf(max_hp, hp + Config.HERO["rest_regen"] * delta)
+	queue_redraw()
+	if hp >= max_hp:
+		game.events.debug("the hero is fully rested (%d HP)" % int(max_hp))
+	changed.emit()
 
 
 # --- Defend -----------------------------------------------------------------------------------
@@ -198,8 +220,12 @@ func _defend(delta: float) -> void:
 			step_path(delta)
 		return
 	target = null
-	# Nothing to fight: walk back to the village centre (re-targeting on the way,
-	# see _pick_enemy). Never teleport: a chase path may still be half walked.
+	_return_home(delta)
+
+
+## Walks back to the village centre (Defend re-targets on the way, see
+## _pick_enemy). Never teleports: a chase path may still be half walked.
+func _return_home(delta: float) -> void:
 	if not at_home:
 		if not _returning:
 			_returning = true
@@ -361,6 +387,10 @@ func status() -> String:
 			if mode == Mode.TRAIN:
 				return "defending (no unit ready at training grounds)"
 			return "fighting a %s" % target.spec()["name"].to_lower() if is_instance_valid(target) and not target.dead else "guarding the village"
+		Mode.REST:
+			if not at_home:
+				return "walking back to rest"
+			return "resting (HP recovering)" if hp < max_hp else "resting (full HP)"
 		Mode.TRAIN:
 			if xp <= 0:
 				return "at the training grounds: no XP left to pass on"

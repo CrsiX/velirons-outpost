@@ -516,7 +516,7 @@ func _run() -> void:
 	for i in Hero.MODE_NAMES.size():
 		await tap(center(hud._hero_mode_button))
 		seen_modes.append(hero.mode_name())
-	check(seen_modes == ["Build", "Explore", "Gather", "Train", "Defend"], "the mode button cycles Defend > Build > Explore > Gather > Train > Defend")
+	check(seen_modes == ["Build", "Explore", "Gather", "Train", "Rest", "Defend"], "the mode button cycles Defend > Build > Explore > Gather > Train > Rest > Defend")
 	hero.set_mode(Hero.Mode.TRAIN)
 	hud._refresh_hero()
 	check(hud._hero_train_label.visible and "Training Grounds" in hud._hero_train_label.text and "Training Grounds" in hud._hero_mode_hint.text, "Train mode says it needs training grounds")
@@ -1504,6 +1504,37 @@ func _test_hero(far: Vector2i) -> void:
 		walk["last"] = hero.grid_pos
 		return hero.at_home, 40.0)
 	check(walk["ok"], "the whole way back is walked, never jumped")
+	# Resting in the centre brings his HP back, slowly and only up to the max.
+	hero.hp = hero.max_hp * 0.5
+	var hp_low := hero.hp
+	await wait(Config.HERO["rest_delay"] * 0.5)
+	check(is_equal_approx(hero.hp, hp_low), "no healing in the first %.0f s of idling" % Config.HERO["rest_delay"])
+	await wait(Config.HERO["rest_delay"] + 4.0)
+	var gained := hero.hp - hp_low
+	check(gained > 0.0 and gained <= Config.HERO["rest_regen"] * (Config.HERO["rest_delay"] + 4.5), "idle in the village centre he slowly gets HP back (+%.1f)" % gained)
+	hero.hp = hero.max_hp - 0.3
+	await wait(2.0)
+	check(is_equal_approx(hero.hp, hero.max_hp) and logged("the hero is fully rested", EventLog.Level.DEBUG), "healing stops at his max HP")
+	# Rest mode: back to the centre, no fighting, heals there.
+	hero.set_mode(Hero.Mode.EXPLORE)
+	await wait_until(func() -> bool: return not hero.at_home and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) > 4.0, 60.0)
+	hero.hp = hero.max_hp * 0.6
+	hero.set_mode(Hero.Mode.REST)
+	var rest_walk := {"ok": true, "last": hero.grid_pos}
+	var rested := await wait_until(func() -> bool:
+		rest_walk["ok"] = rest_walk["ok"] and hero.grid_pos.distance_to(rest_walk["last"]) < 1.0
+		rest_walk["last"] = hero.grid_pos
+		return hero.at_home, 60.0)
+	check(rested and rest_walk["ok"] and hero.jobs[Hero.Mode.EXPLORE].target == Vector2i(-1, -1), "Rest: the hero drops his job and walks back to the centre")
+	var near := spawn_dummy("goblin", Vector2(outside_gate(gate, 2)), 50.0, far)
+	await wait(2.0)
+	check(hero.target == null and hero.at_home and near.hp == near.max_hp, "Rest: he ignores enemies near the gate")
+	near.take_damage(1e9)
+	game.waves.countdown = 99999.0
+	var hp_r := hero.hp
+	await wait(Config.HERO["rest_delay"] + 2.0)
+	check(hero.hp > hp_r and "resting" in hero.status(), "Rest: he heals in the centre (%s)" % hero.status())
+	hero.set_mode(Hero.Mode.DEFEND)
 	check(home and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.2, "with no enemy about he returns to the centre")
 
 	# Downed: XP lost, no corpse, back at the end of the wave, same mode.
