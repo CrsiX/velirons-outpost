@@ -158,6 +158,42 @@ func _run() -> void:
 
 	check(not hud._overlay.visible and not get_tree().paused, "no pop-up over the level; it starts right away")
 
+	# --- camera, sidebar, fullscreen -----------------------------------------------
+	var cam := game.camera
+	var cam0 := cam.position
+	var from := Vector2(400, 400)
+	mouse(from, true)
+	await frames(1)
+	for i in range(1, 9):
+		motion(from + Vector2(-20.0 * i, -10.0 * i), Vector2(-20, -10))
+		await frames(1)
+	mouse(from + Vector2(-160, -80), false)
+	await frames(2)
+	check(cam.position.distance_to(cam0) > 50.0, "dragging the map pans the camera")
+	var z0 := cam.zoom.x
+	for i in 3:
+		var wheel := InputEventMouseButton.new()
+		wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+		wheel.pressed = true
+		wheel.position = Vector2(400, 400)
+		get_viewport().push_input(wheel, true)
+		await frames(1)
+	check(cam.zoom.x > z0, "mouse wheel zooms in")
+	for i in 40:
+		cam.zoom_at(Vector2(400, 400), 1.3)
+	check(is_equal_approx(cam.zoom.x, CameraController.MAX_ZOOM), "zoom stops at its maximum")
+	cam.position = Vector2(1e6, 1e6)
+	cam.focus(cam.position)
+	check(cam.bounds.has_point(cam.position) or cam.position.is_equal_approx(cam.bounds.end), "the camera can't leave the map")
+	cam.zoom = Vector2(0.75, 0.75)
+	cam.focus(Iso.tile_to_world(Config.VILLAGE_CENTER))
+	await frames(2)
+	await tap(center(hud._sidebar_toggle))
+	check(not hud._sidebar.visible, "sidebar collapses")
+	await tap(center(hud._sidebar_toggle))
+	check(hud._sidebar.visible, "and expands again")
+	check(hud._fullscreen_button.is_visible_in_tree() and hud._fullscreen_button.pressed.is_connected(hud.toggle_fullscreen), "fullscreen button is present and wired")
+
 	# --- HUD layout & speed button ------------------------------------------------
 	var vp := get_viewport().get_visible_rect().size
 	await frames(2)
@@ -182,7 +218,7 @@ func _run() -> void:
 		100 * forest / total, 100 * desert / total, 100 * mountain / total, map.count_terrain(MapData.Terrain.ROAD)])
 	check(map.size == 75, "map is 75x75")
 	# Enemy config is complete and readable.
-	var required := ["name", "art", "behavior", "hp", "speed", "demolition", "damage", "attack_cooldown", "gold_on_kill", "gold_on_collect", "food_on_collect"]
+	var required := ["name", "art", "behavior", "hp", "speed", "damage", "attack_cooldown", "gold_on_kill", "gold_on_collect", "food_on_collect"]
 	var cfg_ok := true
 	for kind in Config.ENEMIES:
 		var e: Dictionary = Config.ENEMIES[kind]
@@ -704,9 +740,9 @@ func _run() -> void:
 	await wait(Config.MILITARY["summoner"]["levels"][0]["interval"] * 4.0)
 	check(sb.summons.size() <= int(summoner.stat("max_summons")), "summons never exceed the cap (%d/%d)" % [sb.summons.size(), int(summoner.stat("max_summons"))])
 	var hp_b := brute.hp
-	var fought := await wait_until(func() -> bool: return brute.hp < hp_b and sb.summons.any(func(e: EarthElemental) -> bool: return e.hp < e.max_hp), 30.0)
+	var fought := await wait_until(func() -> bool: return brute.hp < hp_b and sb.summons.any(func(e) -> bool: return is_instance_valid(e) and e.hp < e.max_hp), 30.0)
 	if not fought:
-		print("  detail: brute at %s hp %.0f/%.0f; summons: %s" % [brute.grid_pos, brute.hp, hp_b, str(sb.summons.map(func(e: EarthElemental) -> String: return "%s tgt=%s hp=%.0f path=%d/%d" % [e.grid_pos, e.target != null, e.hp, e.path_index, e.path.size()]))])
+		print("  detail: brute at %s hp %.0f/%.0f; summons: %s" % [brute.grid_pos, brute.hp, hp_b, str(sb.summons.map(func(e) -> String: return "%s tgt=%s hp=%.0f path=%d/%d" % [e.grid_pos, e.target != null, e.hp, e.path_index, e.path.size()]))])
 	check(fought, "elementals fight the enemy in close combat, and it fights back")
 	var corpses_before := cs.count()
 	var doomed: EarthElemental = sb.summons[0] if not sb.summons.is_empty() else null
@@ -723,7 +759,7 @@ func _run() -> void:
 	var old_interval := summoner.stat("interval")
 	check(game.army.upgrade(summoner), "summoner upgraded with gold")
 	check(summoner.stat("interval") < old_interval and int(summoner.stat("max_summons")) > old_cap, "upgrade: faster summoning and a higher cap")
-	var is_new := func(e: EarthElemental) -> bool: return is_instance_valid(e) and not e.dead and e != survivor and is_equal_approx(e.max_hp, summoner.stat("summon_hp"))
+	var is_new := func(e) -> bool: return is_instance_valid(e) and not e.dead and e != survivor and is_equal_approx(e.max_hp, summoner.stat("summon_hp"))
 	await wait_until(func() -> bool: return sb.summons.any(is_new), 30.0)
 	var newest: Array = sb.summons.filter(is_new)
 	check(not newest.is_empty(), "new summons get the upgraded stats")
@@ -809,10 +845,93 @@ func _run() -> void:
 		check(retaliates, "the witch turns her spells on whoever attacks her")
 		var hurt := await wait_until(func() -> bool: return not is_instance_valid(foe) or foe.hp < hp0, 8.0)
 		check(hurt, "her spell damages earth elementals")
-		var keep_fighting := sb2.summons.any(func(e: EarthElemental) -> bool: return is_instance_valid(e) and not e.dead)
+		var keep_fighting := sb2.summons.any(func(e) -> bool: return is_instance_valid(e) and not e.dead)
 		check(keep_fighting or not is_instance_valid(foe), "existing elementals keep fighting while their summoner may be bewitched")
+	# Regression: elementals dying and being freed while their tower is bewitched
+	# (the tower doesn't update then) used to break the summoner for good.
+	sm_t.enchant(3.0)
+	for e in sb2.summons:
+		if is_instance_valid(e) and not e.dead:
+			e.take_damage(1e9)
+	await wait(1.5)  # long enough for the dead elementals to be freed
+	var resumed := await wait_until(func() -> bool: return sb2.summons.size() > 0 and sb2.summons.all(func(x) -> bool: return is_instance_valid(x)), 20.0)
+	check(resumed, "summoner keeps summoning after its elementals died while it was bewitched")
 	hag2.take_damage(1e9)
 	game.army.unstation(sm2)
+	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
+	game.waves.countdown = 99999.0
+
+	# --- witch anti-stall tracker ----------------------------------------------------------
+	for t in game.world.towers():
+		if t.garrison:
+			game.army.unstation(t.garrison)
+	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
+	var reach: float = Config.ENEMIES["witch"]["spell_range"]
+	# Needs a tower the witch outranges; build a fresh level-1 watchtower if none.
+	var lone: Tower = null
+	for t in game.world.towers():
+		if t.complete and t.range_tiles() < reach - 0.2:
+			lone = t
+	if lone == null:
+		game.economy.add("materials", 100)
+		lone = game.construction.place("tower", find_spot("tower", Config.VILLAGE_CENTER + Vector2i(-7, 0)))
+		await wait_until(func() -> bool: return lone.complete, 90.0)
+	var reserve_archers := game.army.reserve().filter(func(u: MilitaryUnit) -> bool: return u.kind == "archer")
+	game.army.station(reserve_archers[0] if not reserve_archers.is_empty() else game.army.recruit("archer"), lone)
+	await wait_until(func() -> bool: return lone.garrison != null, 60.0)
+	var limit := int(Config.ENEMIES["witch"]["spell_ignore_after"])
+	var cast_cd: float = Config.ENEMIES["witch"]["spell_cooldown"]
+	var outward := (Vector2(lone.tile) - Vector2(Config.VILLAGE_CENTER)).normalized()
+	var stall_pos := Vector2(lone.tile) + outward * ((lone.range_tiles() + reach) / 2.0)
+	game.waves._spawn({"kind": "witch", "spawn": far_spot, "hp_scale": 1.0})
+	var w3: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	w3.speed = 0.0
+	w3.set_grid_pos(stall_pos)
+	var wb3: WitchBehavior = w3.behavior
+	check(stall_pos.distance_to(Vector2(lone.tile)) > lone.range_tiles() and stall_pos.distance_to(Vector2(lone.tile)) <= reach, "witch parked beyond the archer's range but within her own (the old soft-lock)")
+	var gave_up := await wait_until(func() -> bool: return wb3.casts_at(lone) >= limit and wb3.target == null, limit * cast_cd + 20.0)
+	check(gave_up, "after %d spells at a tower that can't reach her, the witch ignores it (%d casts)" % [limit, wb3.casts_at(lone)])
+	check(is_instance_valid(w3) and not w3.dead and is_equal_approx(w3.hp, w3.max_hp), "the tower's unit really could not reach her")
+	await wait(3.0)
+	check(not lone.is_enchanted(), "the ignored tower is no longer bewitched")
+	if is_instance_valid(w3) and not w3.dead:
+		w3.take_damage(1.0, lone)
+		check(wb3.casts_at(lone) == 0, "when that tower attacks her again, her count for it resets")
+		var retarget := await wait_until(func() -> bool: return wb3.target == lone, 3.0)
+		check(retarget, "and she targets it again")
+		w3.take_damage(1e9)
+	game.waves.countdown = 99999.0
+	# A walking witch next to a tower manned only by a summoner must not stall.
+	game.army.unstation(lone.garrison)
+	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
+	await wait_until(func() -> bool: return summoner.state == MilitaryUnit.State.RESERVE, 60.0)
+	game.army.station(summoner, lone)
+	await wait_until(func() -> bool: return lone.garrison == summoner, 60.0)
+	var near_gate: Vector2i = map.gates[0]
+	for gt in map.gates:
+		if Vector2(gt).distance_to(Vector2(lone.tile)) < Vector2(near_gate).distance_to(Vector2(lone.tile)):
+			near_gate = gt
+	var approach: Array[Vector2i] = []
+	for sp in map.edge_spawns:
+		var r := game.world.pathing.enemy_route(sp, RandomNumberGenerator.new())
+		if r[-1] == near_gate:
+			approach = r
+			break
+	if approach.is_empty():
+		check(false, "found a road leading to the summoner's gate")
+	else:
+		game.waves._spawn({"kind": "witch", "spawn": approach[maxi(0, approach.size() - 10)], "hp_scale": 1.0})
+		var w4: Enemy = get_tree().get_nodes_in_group("enemies").back()
+		var wb4: WitchBehavior = w4.behavior
+		var saw_summoner := false
+		var t4 := 0.0
+		while is_instance_valid(w4) and not w4.dead and t4 < limit * cast_cd + 90.0:
+			await get_tree().process_frame
+			t4 += get_process_delta_time()
+			saw_summoner = saw_summoner or wb4.target == lone
+		check(saw_summoner, "the witch bewitches the summoner's tower on her way")
+		check(not is_instance_valid(w4) or w4.dead, "but she never stalls there: she is killed or walks on (after %.0fs)" % t4)
+	game.army.unstation(summoner)
 	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
 	game.waves.countdown = 99999.0
 
@@ -835,6 +954,16 @@ func _run() -> void:
 	var had_resident: bool = burned.size() == 1 and homes[burned[0]]
 	check(game.population.count() == pop0 - (1 if had_resident else 0), "only that hut's resident dies (hut was %s)" % ("occupied" if had_resident else "empty"))
 	check(residency_ok(), "everyone else still lives in their own hut")
+	game.waves.countdown = 99999.0
+	# Hard difficulty: still exactly one hut per enemy that gets in.
+	Settings.difficulty = Settings.Difficulty.HARD
+	var huts_h := game.population.cap()
+	game.waves._spawn({"kind": "ork", "spawn": outside, "hp_scale": 1.0})
+	await wait_until(func() -> bool: return game.population.cap() < huts_h, 20.0)
+	await wait(1.0)
+	check(game.population.cap() == huts_h - 1, "on hard, an enemy at the gate still destroys exactly one hut")
+	Settings.difficulty = Settings.Difficulty.NORMAL
+	game.waves.countdown = 99999.0
 	# Direct checks for both cases.
 	var empty_huts := game.world.intact_huts().filter(func(h: Hut) -> bool: return h.resident == null)
 	if not empty_huts.is_empty():
@@ -916,7 +1045,31 @@ func _run() -> void:
 	await wait(Config.STARVATION_INTERVAL + 2.0)
 	check(game.population.count() < pop1, "a villager starves when food runs out")
 
+	# --- UI texts talk about enemies, not goblins -------------------------------------------
+	var texts := ""
+	for b in game.world.buildings:
+		var inf: Dictionary = b.info()
+		texts += " ".join(inf["lines"]) + " "
+	for role in Config.CIVILIANS:
+		texts += Config.CIVILIANS[role]["desc"] + " "
+	for kind in Config.MILITARY:
+		texts += Config.MILITARY[kind]["desc"] + " "
+	check(not "oblin" in texts, "building panels and descriptions say enemies, not goblins")
+
+	# --- cancelling construction refunds ---------------------------------------------------------
+	game.economy.add("materials", 100)
+	var mat_c := game.economy.amount("materials")
+	var cspot := find_spot("tower", Config.VILLAGE_CENTER + Vector2i(6, 0))
+	var csite := game.construction.place("tower", cspot)
+	if csite:
+		game.construction.cancel(csite)
+		await frames(2)
+		check(game.economy.amount("materials") == mat_c and map.building_at(cspot) == null, "cancelling a construction site refunds it and frees the tile")
+
 	# --- fog switches (Config.REVEAL_MAP / DISABLE_FOG) ---------------------------------------
+	game.fog.reveal_all()
+	await wait(0.5)
+	check(game.fog.explored_count() == map.size * map.size and game.fog.watched_count() < map.size * map.size, "REVEAL_MAP explores everything but unwatched land stays dark")
 	game.fog.set_disabled(true)
 	await frames(2)
 	check(game.fog.explored_count() == map.size * map.size and game.fog.watched_count() == map.size * map.size, "without fog the whole map is explored and visible")

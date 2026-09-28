@@ -5,7 +5,7 @@ extends Node
 enum Difficulty { EASY, NORMAL, HARD }
 
 const NAMES := {Difficulty.EASY: "Easy", Difficulty.NORMAL: "Normal", Difficulty.HARD: "Hard"}
-## Every enemy value (hp, speed, demolition, loot) is multiplied by this.
+## Enemy strength and loot values (Config.DIFFICULTY_SCALED) are multiplied by this.
 const ENEMY_MULTIPLIER := {Difficulty.EASY: 0.67, Difficulty.NORMAL: 1.0, Difficulty.HARD: 1.5}
 ## Order of the title screen's toggle: normal -> hard -> easy -> normal.
 const CYCLE := {Difficulty.NORMAL: Difficulty.HARD, Difficulty.HARD: Difficulty.EASY, Difficulty.EASY: Difficulty.NORMAL}

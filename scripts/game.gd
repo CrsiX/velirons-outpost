@@ -206,12 +206,11 @@ func station_unit_name(t: Tower) -> String:
 func on_enemy_reached_gate(g: Enemy) -> void:
 	if game_over:
 		return
-	# One random hut per point of demolition. Only a villager who happens to
-	# live in a destroyed hut dies; nobody else is killed.
+	# Exactly one random hut per enemy, on every difficulty. Only a villager who
+	# happens to live in that hut dies; nobody else is killed.
 	var intact := world.intact_huts()
-	intact.shuffle()
-	for i in mini(g.demolition, intact.size()):
-		(intact[i] as Hut).destroy()
+	if not intact.is_empty():
+		(intact.pick_random() as Hut).destroy()
 	Sfx.play("raid")
 	hud.toast("Enemies broke into the village!", Color("ff7a6a"))
 	population.changed.emit()

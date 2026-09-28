@@ -7,12 +7,20 @@ extends EnemyBehavior
 ## enchants a tower's unit for `spell_cooldown * enchant_ratio` seconds (it stops
 ## shooting/summoning; no damage), or deals `spell_damage` to an elemental.
 ## Witches never fight in melee.
+##
+## Anti-stall tracker: she counts her casts per target. A target that has taken
+## `spell_ignore_after` casts is ignored from then on, unless that same target
+## attacks her again, which resets its count. So she can't stand still forever
+## bewitching something that never fights back (e.g. a tower just out of its
+## unit's range, or a summoner, whose elementals attack rather than the tower).
 
 const BOLT_SCRIPT := preload("res://scripts/units/enemies/spell_bolt.gd")
 
 var attacker: Node = null
 var target: Node = null
 var _cooldown := 0.4
+## Casts per target, keyed by instance id (targets may be freed meanwhile).
+var _casts: Dictionary = {}
 
 
 func tick(enemy: Enemy, delta: float) -> bool:
@@ -26,22 +34,34 @@ func tick(enemy: Enemy, delta: float) -> bool:
 		var bolt: SpellBolt = BOLT_SCRIPT.new()
 		enemy.game.world.effects.add_child(bolt)
 		bolt.launch(enemy, target)
+		var id := target.get_instance_id()
+		_casts[id] = _casts.get(id, 0) + 1
 	return true
+
+
+## How many spells she has cast at `n` since it last attacked her.
+func casts_at(n: Node) -> int:
+	return _casts.get(n.get_instance_id(), 0)
+
+
+func is_ignoring(n: Node, enemy: Enemy) -> bool:
+	return casts_at(n) >= int(enemy.stat("spell_ignore_after"))
 
 
 func on_damaged(_enemy: Enemy, source: Node) -> void:
 	if source is Tower or source is EarthElemental:
 		attacker = source
+		_casts.erase(source.get_instance_id())  # it fought back: fair game again
 
 
 func _choose_target(enemy: Enemy) -> Node:
 	var reach := enemy.stat("spell_range")
-	if _valid(attacker) and _target_grid(attacker).distance_to(enemy.grid_pos) <= reach:
+	if _valid(attacker) and not is_ignoring(attacker, enemy) and _target_grid(attacker).distance_to(enemy.grid_pos) <= reach:
 		return attacker
 	var best: Tower = null
 	var best_d := INF
 	for t in enemy.game.world.towers():
-		if not _valid(t):
+		if not _valid(t) or is_ignoring(t, enemy):
 			continue
 		var d := Vector2(t.tile).distance_to(enemy.grid_pos)
 		if d <= reach and d < best_d:
@@ -51,7 +71,9 @@ func _choose_target(enemy: Enemy) -> Node:
 
 
 ## A usable target: a finished tower with a unit on duty, or a living elemental.
-static func _valid(n: Node) -> bool:
+## Untyped on purpose: the remembered attacker may already be freed, and a freed
+## object can't be passed as a typed Node argument.
+static func _valid(n) -> bool:
 	if not is_instance_valid(n):
 		return false
 	if n is Tower:

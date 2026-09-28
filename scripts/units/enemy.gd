@@ -16,7 +16,6 @@ const BEHAVIORS := {
 var kind := ""
 var max_hp := 10.0
 var hp := 10.0
-var demolition := 1
 var wave := 0
 var dead := false
 var behavior: EnemyBehavior
@@ -28,7 +27,6 @@ func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String
 	max_hp = stat("hp") * hp_scale
 	hp = max_hp
 	speed = stat("speed") * randf_range(0.92, 1.08)
-	demolition = Config.enemy_stat_int(kind, "demolition")
 	_init_sprite("unit_" + spec()["art"])
 	var pts := PackedVector2Array()
 	# A small sideways offset per enemy so groups don't walk in single file.

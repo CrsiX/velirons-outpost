@@ -70,7 +70,7 @@ const BUILDINGS := {
 }
 
 ## Tower range in tiles. Towers own the range; units own damage and speed.
-const TOWER_RANGE := {"tower": 3.6, "wall_tower": 4.2}
+const TOWER_RANGE := {"tower": 3.6, "wall_tower": 4.8}
 ## Tower levels (wall towers and watchtowers alike start at 1). Levels only add
 ## range for the stationed unit. Upgrading costs building material and a
 ## builder's time; the tower keeps fighting meanwhile.
@@ -184,30 +184,31 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 ##   behavior ......... what it does besides walking to a gate: "melee" (fights
 ##                      summons blocking its way) or "witch" (casts spells)
 ##   hp, speed ........ hit points; tiles per second along the road
-##   demolition ....... huts destroyed when it gets through a gate
 ##   damage ........... close-combat damage per hit (0 = never fights in melee)
 ##   attack_cooldown .. seconds between melee hits
 ##   gold_on_kill ..... paid the moment it dies
 ##   gold_on_collect, food_on_collect .. paid when a gatherer brings the corpse home
 ## Behaviours may add their own keys (see "witch").
+## Any enemy that gets through a gate destroys exactly one random hut, on every
+## difficulty (the villager living there, if any, dies with it).
 const ENEMIES := {
 	"goblin": {
 		"name": "Goblin", "art": "goblin", "behavior": "melee",
-		"hp": 20.0, "speed": 1.1, "demolition": 1,
+		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
 	},
 	# Same as goblins, but bones give no food.
 	"skeleton": {
 		"name": "Skeleton", "art": "skeleton", "behavior": "melee",
-		"hp": 20.0, "speed": 1.1, "demolition": 1,
+		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 0,
 	},
 	# Slower and much tougher; hits hard. Gold only on kill, lots of food as a corpse.
 	"ork": {
 		"name": "Ork", "art": "ork", "behavior": "melee",
-		"hp": 55.0, "speed": 0.8, "demolition": 1,
+		"hp": 55.0, "speed": 0.8,
 		"damage": 11.0, "attack_cooldown": 1.2,
 		"gold_on_kill": 6, "gold_on_collect": 0, "food_on_collect": 6,
 	},
@@ -216,21 +217,24 @@ const ENEMIES := {
 	# earth elementals. Whoever attacks her becomes her first target.
 	"witch": {
 		"name": "Witch", "art": "witch", "behavior": "witch",
-		"hp": 12.0, "speed": 1.0, "demolition": 1,
+		"hp": 12.0, "speed": 1.0,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 12, "gold_on_collect": 0, "food_on_collect": 1,
-		"spell_range": 4.5,  # tiles
-		"spell_cooldown": 2.0,  # s between casts: twice an archer's first-level shot interval
-		"enchant_ratio": 0.9,  # a tower unit stays enchanted for 90% of the cooldown
+		"spell_range": 4.0,  # tiles
+		"spell_cooldown": 2.0, 
+		"enchant_ratio": 0.9,  
 		"spell_damage": 5.0,  # dealt to earth elementals (tower units take none)
 		"spell_speed": 5.0,  # tiles per second of the pink bolt
+		# After this many casts at the same target she ignores it, unless that
+		# target attacks her again (which resets its count). Stops endless stalls.
+		"spell_ignore_after": 20,
 	},
 }
 
 ## Values scaled by the difficulty multiplier. Timings and ranges are not
 ## scaled (a bigger cooldown would make "hard" enemies weaker).
 const DIFFICULTY_SCALED: Array[String] = [
-	"hp", "speed", "demolition", "damage", "spell_damage",
+	"hp", "speed", "damage", "spell_damage",
 	"gold_on_kill", "gold_on_collect", "food_on_collect",
 ]
 
@@ -268,7 +272,7 @@ static func wave_composition(n: int) -> Dictionary:
 const WARNING_LIGHT_WAVES := 5  # only during the first N waves
 ## An enemy value, scaled by the chosen difficulty if it is in DIFFICULTY_SCALED
 ## (see Settings). Whole-number
-## values (demolition, loot) are rounded and never drop below 1, except values
+## values (loot) are rounded and never drop below 1, except values
 ## that are 0 to begin with (e.g. skeletons give no food).
 static func enemy_stat(kind: String, key: String) -> float:
 	var base: float = ENEMIES[kind][key]

@@ -11,7 +11,7 @@ var _timer := 1.0
 
 
 func tick(tower: Tower, unit: MilitaryUnit, delta: float) -> void:
-	summons = summons.filter(func(s: EarthElemental) -> bool: return is_instance_valid(s) and not s.dead)
+	_prune()
 	_timer -= delta
 	if _timer > 0.0:
 		return
@@ -31,6 +31,14 @@ func tick(tower: Tower, unit: MilitaryUnit, delta: float) -> void:
 	Sfx.play("recruit", 0.2)
 
 
+## Drops dead or freed elementals. The lambda parameter is deliberately
+## untyped: a freed object can't be passed as an EarthElemental, which would
+## make filter() fail (this happened when summons died while the tower was
+## bewitched and not ticking).
+func _prune() -> void:
+	summons = summons.filter(func(s) -> bool: return is_instance_valid(s) and not s.dead)
+
+
 func on_leave(_tower: Tower, _unit: MilitaryUnit) -> void:
 	# Without their summoner the elementals crumble back into the earth.
 	for s in summons:
@@ -41,7 +49,8 @@ func on_leave(_tower: Tower, _unit: MilitaryUnit) -> void:
 
 
 func info_lines(unit: MilitaryUnit) -> Array[String]:
-	var alive := summons.filter(func(s: EarthElemental) -> bool: return is_instance_valid(s) and not s.dead).size()
+	_prune()
+	var alive := summons.size()
 	return [
 		"Summons every %.1f s, up to %d at once (%d active)" % [unit.stat("interval"), int(unit.stat("max_summons")), alive],
 		"New elementals: %.0f hp, %.0f damage" % [unit.stat("summon_hp"), unit.stat("summon_damage")],
