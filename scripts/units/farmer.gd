@@ -20,6 +20,10 @@ func setup(p_game: Game, p_role: String) -> void:
 	add_child(_sack)
 
 
+func workplace() -> Building:
+	return farm
+
+
 func assign(p_farm: Farm) -> void:
 	farm = p_farm
 
@@ -75,6 +79,7 @@ func _after_evade() -> void:
 func _deliver() -> void:
 	if carrying > 0:
 		game.economy.add("food", carrying)
+		game.events.debug("%s brings %d food home" % [label(), carrying])
 		float_text("+%d food" % carrying, Color("e0b070"))
 	carrying = 0
 	_sack.visible = false

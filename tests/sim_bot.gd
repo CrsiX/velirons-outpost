@@ -8,6 +8,8 @@ const SEED := 20260926
 
 var game: Game
 var failures: Array[String] = []
+## Every game event logged during the run: [level, text].
+var history: Array = []
 var checks := 0
 
 
@@ -35,6 +37,19 @@ func _test_title() -> void:
 	Settings.difficulty = Settings.Difficulty.NORMAL
 	await tap(center(title.levels_button))
 	check(title.levels_panel.visible, "Levels button opens the level list")
+	var tv := get_viewport().get_visible_rect()
+	check(tv.encloses(title.levels_panel.get_global_rect()), "the level list fits the screen")
+	title.levels_panel.visible = false
+	var land := get_window().size
+	get_window().size = Vector2i(1080, 2400)
+	await frames(4)
+	var pv := get_viewport().get_visible_rect()
+	var menu_ok := true
+	for b in [title.play_button, title.difficulty_button, title.levels_button]:
+		menu_ok = menu_ok and pv.encloses(b.get_global_rect()) and b.get_global_rect().position.y > title._title.get_global_rect().end.y
+	check(Layout.portrait and menu_ok and pv.encloses(title._title.get_global_rect()), "portrait title screen: title and menu fit, menu below the title")
+	get_window().size = land
+	await frames(4)
 	title.queue_free()
 	await frames(2)
 
@@ -161,6 +176,51 @@ func spawn_dummy(kind: String, at: Vector2, hp_scale: float, far: Vector2i) -> E
 	return e
 
 
+## Visible buttons under `n`.
+func buttons_in(n: Node) -> Array[Button]:
+	var out: Array[Button] = []
+	for c in n.find_children("*", "Button", true, false):
+		if (c as Button).is_visible_in_tree():
+			out.append(c)
+	return out
+
+
+## Every visible HUD button outside the dock's scroll area lies fully on screen.
+func hud_buttons_on_screen(hud: Hud) -> String:
+	var vp := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size).grow(0.5)
+	for b in buttons_in(hud._root):
+		if hud._sheet_scroll.is_ancestor_of(b):
+			continue
+		if not vp.encloses(b.get_global_rect()):
+			return "%s '%s' at %s" % [b.get_path(), b.text, b.get_global_rect()]
+	return ""
+
+
+## Was something logged at `level` containing `part` (since the run began)?
+func logged(part: String, level: int = -1) -> bool:
+	for e in history:
+		if part in e[1] and (level == -1 or e[0] == level):
+			return true
+	return false
+
+
+## Screen position of the unit figure standing on `p`.
+func unit_on(p: MilitaryPost) -> Vector2:
+	return screen(p.to_global(p.unit_pick_rect().get_center()))
+
+
+## Press at `from`, move in steps to `to` and release there.
+func drag(from: Vector2, to: Vector2, release: bool = true) -> void:
+	mouse(from, true)
+	await frames(1)
+	for i in range(1, 9):
+		motion(from.lerp(to, i / 8.0), (to - from) / 8.0)
+		await frames(1)
+	if release:
+		mouse(to, false)
+		await frames(2)
+
+
 func civs(role: String) -> Array:
 	return game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == role)
 
@@ -175,6 +235,9 @@ func _run() -> void:
 	game.reveal_map = false  # the test needs real fog, whatever config.gd says
 	game.disable_fog = false
 	add_child(game)
+	for e in game.events.entries:  # logged while the level was set up
+		history.append([e["level"], e["text"]])
+	game.events.logged.connect(func(level: int, text: String) -> void: history.append([level, text]))
 	await frames(3)
 	var hud := game.hud
 	var map := game.map
@@ -216,7 +279,7 @@ func _run() -> void:
 	check(not hud._sidebar.visible, "sidebar collapses")
 	await tap(center(hud._sidebar_toggle))
 	check(hud._sidebar.visible, "and expands again")
-	check(hud._fullscreen_button.is_visible_in_tree() and hud._fullscreen_button.pressed.is_connected(hud.toggle_fullscreen), "fullscreen button is present and wired")
+	check(hud._settings_button.is_visible_in_tree() and hud._settings_button.icon == Art.tex("icon_settings") and hud._settings_button.pressed.is_connected(hud.open_settings), "a settings (gear) button sits in the top bar where fullscreen was")
 
 	# --- HUD layout & speed button ------------------------------------------------
 	var vp := get_viewport().get_visible_rect().size
@@ -232,6 +295,101 @@ func _run() -> void:
 	await wait(2.0)
 	check(game.waves.countdown < Config.FIRST_WAVE_DELAY and game.waves.wave == 0, "first wave counts down on its own (%.1fs left)" % game.waves.countdown)
 	game.waves.countdown = 99999.0  # hold the first wave while the economy is tested
+
+	# --- portrait: the device is turned upright -----------------------------------
+	var win := get_window()
+	var land_size := win.size
+	check(not Layout.portrait and not hud._sheet_handle.visible, "landscape to begin with (window %s)" % land_size)
+	win.size = Vector2i(1080, 2400)
+	await frames(4)
+	var pv := get_viewport().get_visible_rect().size
+	check(Layout.portrait and is_equal_approx(pv.x, 720.0), "turning the screen upright switches to portrait, 720 wide like landscape is 720 high (%s)" % pv)
+	check(hud._topbar_box.vertical and hud._topbar.get_global_rect().end.x <= pv.x + 0.5 and hud._topbar.get_combined_minimum_size().x <= pv.x, "portrait: the top bar takes two rows and fits the width")
+	var sr := hud._sidebar.get_global_rect()
+	check(absf(sr.end.y - pv.y) < 1.0 and absf(sr.size.x - pv.x) < 1.0 and sr.position.x < 0.5, "portrait: the sidebar is now a bar along the bottom")
+	check(not hud._sheet_scroll.visible and hud._tab_buttons["build"].is_visible_in_tree() and sr.size.y < 120.0, "it starts folded: just the handle and the tabs (%.0f px)" % sr.size.y)
+	var off := hud_buttons_on_screen(hud)
+	check(off == "", "portrait: every button is on screen %s" % off)
+	await tap(center(hud._sidebar_toggle))
+	var open_r := hud._sidebar.get_global_rect()
+	check(hud._sheet_scroll.visible and open_r.size.y > sr.size.y + 100.0 and absf(open_r.end.y - pv.y) < 1.0, "the chevron expands it from the bottom (%.0f px)" % open_r.size.y)
+	check(open_r.position.y > hud._topbar.get_global_rect().end.y + 200.0, "the open sheet leaves the map visible above it")
+	await tap(center(hud._sidebar_toggle))
+	check(not hud._sheet_scroll.visible, "the chevron folds it again")
+	await tap(center(hud._tab_buttons["village"]))
+	check(hud._sheet_scroll.visible and hud._tab_pages["village"].visible, "tapping a tab opens the sheet on that page")
+	await tap(center(hud._tab_buttons["village"]))
+	check(not hud._sheet_scroll.visible, "tapping the open tab folds the sheet")
+	# Swipe the handle up to open, down to close.
+	var hc := center(hud._sheet_handle)
+	mouse(hc, true)
+	await frames(1)
+	motion(hc + Vector2(0, -60), Vector2(0, -60))
+	mouse(hc + Vector2(0, -80), false)
+	await frames(3)
+	check(hud._sheet_scroll.visible, "swiping the handle up opens the sheet")
+	hc = center(hud._sheet_handle)
+	mouse(hc, true)
+	await frames(1)
+	motion(hc + Vector2(0, 60), Vector2(0, 60))
+	mouse(hc + Vector2(0, 80), false)
+	await frames(3)
+	check(not hud._sheet_scroll.visible, "swiping it down folds the sheet")
+	# Every button of every page can be scrolled into view inside the open sheet.
+	hud.set_sheet_open(true)
+	var unreachable: Array[String] = []
+	for tab in ["build", "village", "army"]:
+		if hud._current_tab != tab:
+			hud._on_tab_pressed(tab)
+		await frames(3)
+		for b in buttons_in(hud._tab_pages[tab]):
+			hud._sheet_scroll.ensure_control_visible(b)
+			await frames(2)
+			var clip := hud._sheet_scroll.get_global_rect().grow(0.5)
+			if not clip.encloses(b.get_global_rect()) or not Rect2(Vector2.ZERO, pv).encloses(b.get_global_rect()):
+				unreachable.append("%s:%s" % [tab, b.text])
+	check(unreachable.is_empty() and hud._entry_grids[0].columns == 2, "portrait: all dock buttons are reachable (two columns of entries) %s" % str(unreachable))
+	# Placing a building folds the sheet out of the way; Done brings it back.
+	hud._on_tab_pressed("build")
+	await frames(3)
+	check(hud._sheet_scroll.visible, "back on the Build page")
+	await tap(center(hud._build_buttons["tower"]))
+	check(game.mode == Game.Mode.BUILD and not hud._sheet_scroll.visible and hud._mode_panel.visible, "portrait: placing a building folds the sheet")
+	var mp := hud._mode_panel.get_global_rect()
+	check(Rect2(Vector2.ZERO, pv).encloses(mp) and mp.position.y >= hud._topbar.get_global_rect().end.y, "the placement hint fits under the top bar")
+	await tap(center(buttons_in(hud._mode_panel)[0]))
+	check(game.mode == Game.Mode.NONE and hud._sheet_scroll.visible, "Done brings the sheet back")
+	# Selecting something folds the sheet; the info panel sits just above it.
+	game.select(game.world.towers()[0])
+	await frames(3)
+	var ip := hud._info_panel.get_global_rect()
+	check(not hud._sheet_scroll.visible and ip.end.y <= hud._sidebar.get_global_rect().position.y + 0.5 and ip.position.y > 0.0 and ip.end.x <= pv.x + 0.5, "portrait: a selection folds the sheet, its panel sits above it")
+	await tap(center(hud._sidebar_toggle))
+	check(hud._sheet_scroll.visible and not hud._info_panel.visible, "opening the sheet closes the info panel")
+	hud.set_sheet_open(false)
+	# Hero and trade panels fit, and only one of them is open at a time.
+	await tap(center(hud._hero_button))
+	check(hud._hero_panel.visible and Rect2(Vector2.ZERO, pv).encloses(hud._hero_panel.get_global_rect()), "portrait: the hero panel fits the screen")
+	await tap(center(hud._materials_button))
+	check(hud._trade_panel.visible and not hud._hero_panel.visible and Rect2(Vector2.ZERO, pv).encloses(hud._trade_panel.get_global_rect()), "portrait: the trade dialog fits and replaces the hero panel")
+	hud._trade_panel.visible = false
+	off = hud_buttons_on_screen(hud)
+	check(off == "", "portrait: still every button on screen %s" % off)
+	var plog := hud._log_box.get_global_rect()
+	check(absf(plog.size.x - (pv.x - 20.0)) < 1.5 and plog.end.y <= hud._sidebar.get_global_rect().position.y + 0.5, "portrait: the log runs across the screen, just above the bottom bar")
+	# A tablet held upright gets a wider portrait canvas.
+	win.size = Vector2i(1536, 2048)
+	await frames(4)
+	check(Layout.portrait and hud_buttons_on_screen(hud) == "", "portrait tablet: everything fits (%s)" % get_viewport().get_visible_rect().size)
+	# And back to landscape.
+	win.size = land_size
+	await frames(4)
+	vp = get_viewport().get_visible_rect().size
+	check(not Layout.portrait and not hud._topbar_box.vertical and not hud._sheet_handle.visible, "turning back gives the landscape layout")
+	check(hud._sidebar.visible and hud._sheet_scroll.visible and absf(hud._sidebar.get_global_rect().end.x - vp.x) < 1.0 and hud._sidebar_toggle.get_parent() == hud._root, "the sidebar is back on the right with its toggle")
+	check(hud._sidebar_toggle.get_global_rect().end.x <= hud._sidebar.get_global_rect().position.x and hud_buttons_on_screen(hud) == "", "landscape: toggle beside the sidebar, every button on screen")
+	hud._select_tab("build")
+	game.waves.countdown = 99999.0
 
 	# --- map -------------------------------------------------------------------
 	var total := map.size * map.size
@@ -330,14 +488,27 @@ func _run() -> void:
 	check(map.gates.has(route[-1]) and route.all(func(t: Vector2i) -> bool: return map.is_road(t) or map.gates.has(t)), "enemy route stays on roads and ends at a gate")
 
 	# --- start state -----------------------------------------------------------
-	check(game.population.count() == 3 and game.population.cap() == 9, "3 civilians, 9 huts")
-	check(civs("builder").size() == 1 and civs("farmer").size() == 1 and civs("explorer").size() == 1, "one builder, farmer, explorer")
+	check(game.population.count() == 4 and game.population.cap() == 9, "4 civilians, 9 huts")
+	check(civs("builder").size() == 1 and civs("farmer").size() == 1 and civs("forester").size() == 1 and civs("explorer").size() == 1, "one builder, farmer, forester, explorer")
+	var start_farm: Farm = map.building_at(map.farm_plot) as Farm
+	var start_camps := game.world.buildings.filter(func(b: Building) -> bool: return b is WorkerCamp)
+	check(start_farm != null and start_farm.complete and start_camps.size() == 1 and start_camps[0].complete, "a farm and a worker camp stand near the village from the start")
+	var start_camp: WorkerCamp = start_camps[0] if not start_camps.is_empty() else null
+	check(start_camp != null and Vector2(start_camp.tile).distance_to(Vector2(Config.VILLAGE_CENTER)) < 10.0 and game.construction._trees_near(start_camp.tile, 5) >= 6, "the starting camp is close to the village, by the trees")
+	check(game.economy.amount("materials") == Config.START_RESOURCES["materials"] and game.economy.amount("gold") == Config.START_RESOURCES["gold"], "the starting buildings were free")
+	check(start_farm != null and start_farm.farmer == civs("farmer")[0] and start_camp != null and start_camp.forester == civs("forester")[0], "the starting farmer and forester work there")
+	# Keep material income out of the exact economy checks below; the camp
+	# section puts this forester back to work.
+	game.population.unassign_forester(start_camp)
 	check(residency_ok(), "each starting villager lives in its own hut")
+	check(civs("farmer")[0].label() == "farmer 1" and game.world.towers()[0].label() == "wall tower 1" and game.world.huts()[0].label() == "hut 1", "entities are numbered per kind for the log (farmer 1, wall tower 1, hut 1)")
+	check(game.events.shown_level == EventLog.Level.INFO and hud.log_lines().all(func(t: String) -> bool: return not logged(t, EventLog.Level.DEBUG)), "the log shows Info and up at the start")
+	check(logged("assign farmer 1 to farm 1 (automatic)", EventLog.Level.DEBUG) and logged("farmer 1 moves into hut", EventLog.Level.DEBUG), "debug log: villagers moving in and being assigned")
 	# --- hero at the start ---------------------------------------------------------
 	var hero := game.hero
 	check(hero != null and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.1 and hero.visible, "the hero starts in the village centre")
 	check(hero.mode == Hero.Mode.DEFEND and hero.xp == 0 and is_equal_approx(hero.hp, Config.HERO["hp"]), "the hero starts in Defend mode with 0 XP and full HP")
-	check(not game.population.civilians.has(hero) and game.population.count() == 3, "the hero doesn't count as a villager")
+	check(not game.population.civilians.has(hero) and game.population.count() == 4, "the hero doesn't count as a villager")
 	check(hud._hero_button.is_visible_in_tree() and hud._hero_button.text == "XP 0" and hud._hero_button.icon == Art.tex("icon_hero"), "top bar shows the hero button with his XP")
 	await tap(center(hud._hero_button))
 	check(hud._hero_panel.visible and "Defend" in hud._hero_mode_button.text, "tapping the hero button opens his panel (mode: Defend)")
@@ -363,7 +534,7 @@ func _run() -> void:
 	var some_forest: Vector2i = map.props.keys().filter(func(t: Vector2i) -> bool: return map.is_forest(t))[0]
 	var some_mountain: Vector2i = map.props.keys().filter(func(t: Vector2i) -> bool: return map.is_mountain(t))[0]
 	check(game.world.pathing.astar.is_point_solid(some_forest) and game.world.pathing.astar.is_point_solid(some_mountain), "forest and mountains block villagers")
-	check(map.farm_plot != Vector2i(-1, -1) and game.construction.placement_error("farm", map.farm_plot) in ["", "Not enough building material"], "a farm fits near the village at the start")
+	check(map.farm_plot != Vector2i(-1, -1) and start_farm != null and start_farm.tile == map.farm_plot, "the starting farm sits on the guaranteed farm plot")
 	var desert_tile: Vector2i = Vector2i(-1, -1)
 	for i in total:
 		var dt := Vector2i(i % map.size, i / map.size)
@@ -442,6 +613,7 @@ func _run() -> void:
 	await tap(center(hud._trade_buttons[0]))
 	check(game.economy.amount("gold") == gold - 15 and game.economy.amount("materials") == mats - 30 + 10, "bought 10 materials for 15 gold")
 	hud._trade_panel.visible = false
+	game.fog.reveal(Vector2(Config.VILLAGE_CENTER), 12.0)  # the starting farm took the plot next to the walls
 	var farm_spot := find_spot("farm", Config.VILLAGE_CENTER + Vector2i(5, 0))
 	check(farm_spot != Vector2i(-1, -1), "found a 3x3 farm spot")
 	var farm: Farm = game.construction.place("farm", farm_spot)
@@ -449,9 +621,14 @@ func _run() -> void:
 	check(game.construction.placement_error("tower", farm_spot + Vector2i(1, 1)) != "", "farm occupies its 3x3 footprint")
 	done = await wait_until(func() -> bool: return farm.complete, 90.0)
 	check(done, "builder completes the farm")
-	check(game.population.assign_farmer(farm), "farmer assigned to the farm")
+	check(farm.farmer == null and game.population.free_farmers().is_empty(), "the new farm stays empty: the only farmer works the starting farm")
+	game.economy.add("food", 100)
+	var farmer: Farmer = game.population.recruit("farmer")
+	check(farmer != null and farm.farmer == farmer and farmer.farm == farm, "a farmer bought now goes straight to the empty farm")
 	check(not game.population.assign_farmer(farm), "a farm holds only one farmer")
-	var farmer: Farmer = civs("farmer")[0]
+	var spare: Farmer = game.population.recruit("farmer")
+	check(spare != null and spare.farm == null, "with every farm worked, another farmer stays idle")
+	check(game.population.vacant_workplaces("builder").is_empty() and game.population.vacant_workplaces("farmer").is_empty(), "roles without a workplace get none")
 	var food_before := game.economy.amount("food")
 	var got_food := await wait_until(func() -> bool: return farmer.state == Farmer.State.RETURNING and farmer.carrying > 0, 90.0)
 	check(got_food, "farmer harvests food at the farm")
@@ -497,11 +674,15 @@ func _run() -> void:
 				camp_spot = t
 	var camp: WorkerCamp = game.construction.place("camp", camp_spot)
 	check(camp != null, "worker camp placed near the forest (%d trees around)" % best_trees)
+	var idle_fo: Forester = civs("forester")[0]
+	check(idle_fo.camp == null and start_camp.forester == null, "the starting forester is idle (unassigned earlier)")
 	await wait_until(func() -> bool: return camp.complete, 90.0)
 	check(camp.complete, "builder puts up the worker camp")
+	check(camp.forester == idle_fo, "a finished camp takes the idle forester right away")
 	game.economy.add("food", 100)
-	var fo: Forester = game.population.recruit("forester")
-	check(fo != null and game.population.assign_forester(camp), "forester recruited and assigned to the camp")
+	var new_fo: Forester = game.population.recruit("forester")
+	check(new_fo != null and start_camp.forester == new_fo, "a forester bought now goes to the empty starting camp")
+	var fo: Forester = camp.forester
 	check(not game.population.assign_forester(camp), "a camp holds only one forester")
 	await wait_until(func() -> bool: return fo.state == Forester.State.CHOPPING, 90.0)
 	var the_tree := fo.tree
@@ -566,6 +747,53 @@ func _run() -> void:
 	game.army.station(unit, watchtower)
 	await wait_until(func() -> bool: return watchtower.garrison != null, 60.0)
 	check(game.army.upgrade(unit) and unit.level == 1, "archer upgraded with gold")
+
+	# --- stationed units: tap to select, drag & drop to move or withdraw ----------
+	var wa: MilitaryUnit = wt.garrison
+	var t2: Tower = wall_towers[1]
+	await tap(unit_on(wt))
+	check(game.selected_unit == wa and hud._info_panel.visible and hud._info_title.text == "Archer", "tapping the archer on its tower selects the unit, not the tower")
+	var ulabels: Array = []
+	for b in buttons_in(hud._info_actions):
+		ulabels.append(b.text)
+	check(ulabels.any(func(l: String) -> bool: return l.begins_with("Upgrade")) and "Withdraw" in ulabels, "the unit panel offers Upgrade and Withdraw (%s)" % str(ulabels))
+	await tap(screen(wt.position + Vector2(0, -6)))
+	check(game.selected == wt and game.selected_unit == null, "tapping the tower itself still selects the tower")
+	game.deselect()
+	var to2 := screen(t2.position + Vector2(0, -40))
+	check(not hud.is_over_ui(to2) and not hud.is_over_ui(unit_on(wt)), "(both towers are on screen)")
+	await drag(unit_on(wt), to2, false)
+	check(hud._drag_ghost.visible and wt._unit_sprite.modulate.a < 0.5, "dragging: the unit follows the pointer, dimmed on its old post")
+	check(not game.world.overlay._targets.is_empty() and game.world.overlay._hover == t2.tiles() and game.world.overlay._arrow, "dragging: free posts light up, the one under the pointer in green, with an arrow")
+	check(hud._drag_ghost.modulate.g > hud._drag_ghost.modulate.r, "the unit image turns green over a free post")
+	mouse(to2, false)
+	await frames(2)
+	check(wa.state == MilitaryUnit.State.MARCHING and wa.post == t2 and wt.garrison == null and t2.incoming == wa, "dropped on a free tower, the unit walks over from its old post")
+	check(not hud._drag_ghost.visible and game.world.overlay._targets.is_empty() and wt._unit_sprite.modulate.a == 1.0, "the drag preview is gone after the drop")
+	await wait_until(func() -> bool: return t2.garrison == wa, 60.0)
+	check(t2.garrison == wa and wa.state == MilitaryUnit.State.STATIONED, "it takes up the new post")
+	check(logged("drag %s from %s to %s" % [wa.label(), wt.label(), t2.label()], EventLog.Level.DEBUG), "debug log: the drag & drop move")
+	# Onto a manned tower, or bare ground: nothing happens.
+	await drag(unit_on(t2), screen(watchtower.position + Vector2(0, -40)))
+	check(wa.post == t2 and t2.garrison == wa and watchtower.garrison == unit, "dropped on a manned tower: nothing happens")
+	var bare := Vector2i(-1, -1)
+	for dy in range(-4, 5):
+		for dx in range(-4, 5):
+			var bt := t2.tile + Vector2i(dx, dy)
+			if bare == Vector2i(-1, -1) and absi(dx) + absi(dy) >= 3 and map.building_at(bt) == null and game.world.pick_building(Iso.tile_to_world(bt)) == null and not hud.is_over_ui(screen(Iso.tile_to_world(bt))):
+				bare = bt
+	await drag(unit_on(t2), screen(Iso.tile_to_world(bare)))
+	check(wa.post == t2 and t2.garrison == wa and wa.state == MilitaryUnit.State.STATIONED, "dropped on open ground: nothing happens")
+	# Onto the dock: withdraw.
+	var dock_at := hud._sidebar.get_global_rect().get_center()
+	await drag(unit_on(t2), dock_at, false)
+	check(hud._dock_hint.visible and hud._sidebar.modulate != Color.WHITE, "over the sidebar it offers to withdraw the unit")
+	mouse(dock_at, false)
+	await frames(2)
+	check(wa.state == MilitaryUnit.State.RETURNING and t2.garrison == null, "dropped on the sidebar, the unit is withdrawn")
+	await wait_until(func() -> bool: return wa.state == MilitaryUnit.State.RESERVE, 60.0)
+	game.army.station(wa, wt)
+	await wait_until(func() -> bool: return wt.garrison == wa, 60.0)
 	# Man the other wall towers too.
 	for t in wall_towers.slice(1):
 		game.army.station(game.army.recruit("archer"), t)
@@ -607,6 +835,70 @@ func _run() -> void:
 	var cleared := await wait_until(func() -> bool: return not game.waves.in_progress(), 240.0)
 	check(cleared, "wave 1 ends")
 	print("  wave 1: gold %d -> %d, civilians %d, huts %d" % [gold3, game.economy.amount("gold"), game.population.count(), game.population.cap()])
+
+	# --- event log & settings dialog ---------------------------------------------------
+	var ev := game.events
+	var cd0 := game.waves.countdown  # (restored below for the countdown check)
+	await frames(2)
+	check(logged("Wave 1 begins", EventLog.Level.INFO) and hud.log_lines().has("Wave 1 is over"), "the log shows the wave starting and ending at Info level (%s)" % str(hud.log_lines()))
+	check(logged("killed goblin", EventLog.Level.DEBUG) and not hud.log_lines().any(func(t: String) -> bool: return t.begins_with("killed")), "kills are logged at debug level, hidden at Info")
+	var lr := hud._log_box.get_global_rect()
+	var vpl := get_viewport().get_visible_rect().size
+	check(lr.position.x < 12.0 and absf(lr.end.y - (vpl.y - 10.0)) < 1.5 and lr.size.y <= EventLog.MAX_SHOWN * hud.LOG_LINE_H + 1.0, "the log sits bottom left with a capped height (%s)" % lr)
+	check(hud._log_box.mouse_filter == Control.MOUSE_FILTER_IGNORE and hud._log_box.get_class() == "VBoxContainer" and hud._log_box.get_children().all(func(l: Label) -> bool: return (l.get_theme_color("font_color") as Color).a < 0.85), "the log is bare, see-through text that never catches taps")
+	for i in 12:
+		ev.info("test info line %d, long enough to need most of the width of the field" % i)
+	game.select(game.world.towers()[0])
+	hud._hero_panel.visible = true
+	hud._refresh_hero()
+	await frames(3)
+	var lb := hud._log_box.get_global_rect()
+	check(not lb.intersects(hud._info_panel.get_global_rect()) and not lb.intersects(hud._hero_panel.get_global_rect()) and hud._log_box.clip_contents, "a full log stays clear of the info and hero panels")
+	check(hud._log_box.get_children().all(func(l: Label) -> bool: return not l.visible or lb.encloses(l.get_global_rect().grow(-0.5))), "log lines never spill out of the log field")
+	hud._hero_panel.visible = false
+	game.deselect()
+	await frames(2)
+	for i in 25:
+		ev.debug("test debug %d" % i)
+	ev.important("test important")
+	var n_debug := ev.entries.filter(func(e: Dictionary) -> bool: return e["level"] == EventLog.Level.DEBUG).size()
+	check(n_debug == EventLog.MAX_PER_LEVEL and ev.entries.any(func(e: Dictionary) -> bool: return e["text"] == "test important"), "each level keeps only its newest %d messages, so debug spam can't push out important ones" % EventLog.MAX_PER_LEVEL)
+	# Settings: pauses at the current speed, greys the game, colourful dialog.
+	hud.set_speed_index(1)  # 2x
+	await tap(center(hud._settings_button))
+	check(hud._settings.visible and get_tree().paused, "the gear opens the settings and pauses the game")
+	var dialog := hud._settings_continue.get_parent().get_parent() as Control
+	check(dialog.get_global_rect().get_center().distance_to(vpl / 2.0) < 4.0, "the dialog is centred")
+	var gray := hud._settings.get_child(0) as ColorRect
+	check(gray.material is ShaderMaterial and "hint_screen_texture" in (gray.material as ShaderMaterial).shader.code and gray.get_global_rect().size == vpl, "behind it the whole screen is shown in grayscale")
+	check(hud._settings_continue.text == "Continue" and hud._settings_log_button.text == "Log level: Info" and hud._settings_lang_button.icon == Art.tex("flag_gb") and hud._settings_lang_button.text == "" and hud._settings_title_button.text == "Back to title", "buttons: Continue, Log level, a British flag for English, Back to title")
+	var red := hud._settings_title_button.get_theme_stylebox("normal") as StyleBoxFlat
+	check(red.bg_color.r > 0.6 and red.bg_color.g < 0.3 and hud._settings_title_button.pressed.get_connections().size() > 0, "Back to title is red and wired")
+	await tap(center(hud._settings_log_button))
+	await frames(2)
+	check(hud._settings_log_button.text == "Log level: Important" and hud.log_lines().has("test important") and not hud.log_lines().has("Wave 1 is over"), "log level Important: only important messages, old ones included")
+	await tap(center(hud._settings_log_button))
+	await frames(2)
+	check(hud._settings_log_button.text == "Log level: Debug" and hud.log_lines().has("test debug 24") and hud.log_lines().size() == EventLog.MAX_SHOWN, "log level Debug: everything, the newest %d" % EventLog.MAX_SHOWN)
+	await tap(center(hud._settings_log_button))
+	check(hud._settings_log_button.text == "Log level: Info", "and back to Info")
+	await tap(center(hud._settings_lang_button))
+	check(Settings.language == "en" and hud._settings_lang_button.icon == Art.tex("flag_gb"), "language toggles through the supported ones (just English)")
+	await tap(center(hud._settings_continue))
+	check(not hud._settings.visible and not get_tree().paused and is_equal_approx(Engine.time_scale, 2.0), "Continue closes it and resumes at the earlier speed (2x)")
+	hud.set_speed_index(0)
+	Engine.time_scale = 6.0  # (the test's own pace)
+	# Messages disappear 30 s after they were logged.
+	ev.info("fresh message")
+	var aged: Array[String] = []
+	for e in ev.entries:
+		if e["text"] != "fresh message":
+			e["time"] -= EventLog.LIFETIME + 1.0
+			aged.append(e["text"])
+	await wait(1.0)
+	var left := ev.entries.map(func(e: Dictionary) -> String: return e["text"])
+	check(not aged.is_empty() and aged.all(func(t: String) -> bool: return not left.has(t) and not hud.log_lines().has(t)) and hud.log_lines().has("fresh message"), "messages are cleared %d s after they were logged; newer ones stay" % int(EventLog.LIFETIME))
+	game.waves.countdown = cd0
 	check(game.economy.amount("gold") > gold3, "archers killed enemies for gold")
 	check(absf(game.waves.countdown - Config.WAVE_BUFFER) < 2.0, "next wave counts down from %ds after the last enemy" % int(Config.WAVE_BUFFER))
 	await wait(5.0)
@@ -1125,6 +1417,22 @@ func _run() -> void:
 	check(game.fog.explored_count() == map.size * map.size and game.fog.watched_count() == map.size * map.size, "without fog the whole map is explored and visible")
 	game.fog.set_disabled(false)
 
+	# --- the event log saw everything ------------------------------------------------------
+	var expect := {
+		EventLog.Level.DEBUG: ["recruit archer", "recruit farmer", "assign forester", "unassign forester", "place watchtower", "starts work on", "send archer", "takes up its post on",
+			"withdraw archer", "is back in the reserve", "level-up archer", "drag archer", "move archer", "select ", "killed goblin", "killed skeleton", "appears at", "left behind",
+			"collected corpse", "corpses home", "cut down tree", "building material at", "food home", "summoned elemental", "crumbles", "casts a spell at", "bewitched by",
+			"fights elemental", "the hero attacks", "hero mode: ", "flees home", "heads for the fog", "buy 10 building material", "game speed", "open settings", "log level", "rotted away", "order upgrade of", "cancel construction", "broke through the gate"],
+		EventLog.Level.INFO: ["Wave 1 begins", "Wave 1 is over", "watchtower 1 finished", "upgraded to level 2", "The hero returns", "fully trained to level 2", "rebuilt"],
+		EventLog.Level.IMPORTANT: ["destroyed by goblin", "destroyed by ork", "died when", "died of starvation", "The hero was struck down"],
+	}
+	var missing: Array[String] = []
+	for level in expect:
+		for part in expect[level]:
+			if not logged(part, level):
+				missing.append("%s: %s" % [EventLog.LEVEL_NAMES[level], part])
+	check(missing.is_empty(), "the log has entries for every kind of action and event (%d logged) %s" % [history.size(), str(missing)])
+
 	# --- defeat -------------------------------------------------------------------------------
 	game.population.kill_random(game.population.count())
 	await frames(2)
@@ -1178,7 +1486,24 @@ func _test_hero(far: Vector2i) -> void:
 		if is_instance_valid(e):
 			e.take_damage(1e9)
 	game.waves.countdown = 99999.0
-	var home := await wait_until(func() -> bool: return hero.at_home, 40.0)
+	# He walks back (no teleport), and picks up a new threat on the way.
+	var after_fight := hero.grid_pos
+	await frames(3)
+	check(not hero.at_home and hero.grid_pos.distance_to(after_fight) < 0.5 and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) > 1.0, "after the last kill the hero walks back instead of teleporting")
+	await wait(0.6)
+	var on_way := hero.grid_pos
+	check(not hero.at_home and on_way.distance_to(Vector2(Config.VILLAGE_CENTER)) < after_fight.distance_to(Vector2(Config.VILLAGE_CENTER)), "...heading for the village centre")
+	var late := spawn_dummy("goblin", hero.grid_pos + Vector2(1.5, 0.5), 50.0, far)
+	var retargeted := await wait_until(func() -> bool: return hero.target == late, 3.0)
+	check(retargeted, "on the way home he turns on a new threat nearby")
+	late.take_damage(1e9)
+	game.waves.countdown = 99999.0
+	var walk := {"ok": true, "last": hero.grid_pos}  # (lambdas capture locals by value)
+	var home := await wait_until(func() -> bool:
+		walk["ok"] = walk["ok"] and hero.grid_pos.distance_to(walk["last"]) < 1.0
+		walk["last"] = hero.grid_pos
+		return hero.at_home, 40.0)
+	check(walk["ok"], "the whole way back is walked, never jumped")
 	check(home and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.2, "with no enemy about he returns to the centre")
 
 	# Downed: XP lost, no corpse, back at the end of the wave, same mode.

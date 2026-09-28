@@ -7,7 +7,6 @@ extends MilitaryPost
 ## time) to extend that range; they keep working while being upgraded.
 
 var level := 1
-var _unit_sprite: Sprite2D
 var _spell_glow: Sprite2D
 ## Seconds the stationed unit stays enchanted by a witch (does nothing meanwhile).
 var enchanted := 0.0

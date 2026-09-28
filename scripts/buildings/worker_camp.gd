@@ -1,9 +1,11 @@
 class_name WorkerCamp
-extends Building
+extends Workplace
 ## A tent in the wilderness. One forester works from here, chopping nearby
 ## trees and dropping building material off at the camp.
 
-var forester: Node = null
+var forester: Node:
+	get: return worker
+	set(v): worker = v
 var _site_sprite: Sprite2D
 
 

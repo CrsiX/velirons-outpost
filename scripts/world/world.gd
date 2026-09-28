@@ -82,6 +82,8 @@ func _on_revealed(tiles: Array[Vector2i]) -> void:
 # --- building registry -------------------------------------------------------------
 
 func add_building(b: Building) -> void:
+	if b.uid == 0:
+		b.uid = game.next_id(b.kind)
 	if b.get_parent() == null:
 		objects.add_child(b)
 	buildings.append(b)
@@ -133,6 +135,15 @@ func village_distance() -> PackedInt32Array:
 
 
 ## Front-most building whose sprite covers `world_pos`, falling back to the tile.
+## The post whose stationed unit figure is under `world_pos`, or null.
+func pick_unit(world_pos: Vector2) -> MilitaryPost:
+	var best: MilitaryPost = null
+	for p in military_posts():
+		if p.unit_pick_rect().has_point(world_pos - p.position) and (best == null or p.position.y > best.position.y):
+			best = p
+	return best
+
+
 func pick_building(world_pos: Vector2) -> Building:
 	var best: Building = null
 	for b in buildings:
@@ -202,6 +213,11 @@ func find_tree(from: Vector2i, radius: float, who: Node) -> Dictionary:
 
 
 ## Chops `seconds` off a tree. Returns true when it falls (tile becomes meadow).
+## Log name of the tree on `t`, numbered by its tile: "tree 482".
+func tree_label(t: Vector2i) -> String:
+	return "tree %d" % map.index(t)
+
+
 func chop_tree(t: Vector2i, seconds: float) -> bool:
 	if not is_tree(t):
 		return true

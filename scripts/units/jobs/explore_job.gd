@@ -76,6 +76,8 @@ func _pick_target() -> bool:
 		return false
 	if not w.head_out(chosen):
 		return false
+	if chosen != target:
+		w.game.events.debug("%s heads for the fog at %s" % [w.label(), str(chosen)])
 	target = chosen
 	return true
 

@@ -16,7 +16,10 @@ const VILLAGE_LAYOUT: Array[String] = [
 ]
 
 const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
-const START_CIVILIANS: Array[String] = ["builder", "farmer", "explorer"]
+const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explorer"]
+## Built for free near the village at the start (the farm on the guaranteed
+## farm plot, the camp close to the forest); the starting farmer and forester work them.
+const START_BUILDINGS: Array[String] = ["farm", "camp"]
 const START_REVEAL_RADIUS := 7.5
 
 ## Debug / sandbox switches.
@@ -92,6 +95,7 @@ const CIVILIANS := {
 	"farmer": {
 		"name": "Farmer", "cost": {"food": 25}, "speed": 1.5,
 		"desc": "Works one farm and carries its food home.",
+		"works_at": "farm",  # new farmers go straight to a farm without one
 	},
 	"explorer": {
 		"name": "Explorer", "cost": {"food": 25}, "speed": 2.0,
@@ -104,12 +108,21 @@ const CIVILIANS := {
 	"forester": {
 		"name": "Forester", "cost": {"food": 25}, "speed": 1.5,
 		"desc": "Works from a worker camp, chopping nearby trees for building material.",
+		"works_at": "camp",
 	},
 	"archmage": {
 		"name": "Archmage", "cost": {"food": 150, "gold": 600}, "speed": 0.6,
 		"desc": "Coming soon: may one day break the siege of Veliron.",
 	},
 }
+## The role that works at buildings of `kind` ("" if none), from "works_at".
+static func worker_role(kind: String) -> String:
+	for role in CIVILIANS:
+		if CIVILIANS[role].get("works_at", "") == kind:
+			return role
+	return ""
+
+
 const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "archmage"]
 
 const FOOD_UPKEEP := 0.05  # food per civilian per second

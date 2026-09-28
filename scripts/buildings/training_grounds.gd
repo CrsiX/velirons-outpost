@@ -7,7 +7,6 @@ extends MilitaryPost
 
 ## The hero currently training here (null if none).
 var trainee_hero: Node = null
-var _unit_sprite: Sprite2D
 var _site_sprite: Sprite2D
 
 

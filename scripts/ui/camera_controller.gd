@@ -13,6 +13,10 @@ const DRAG_THRESHOLD := 12.0
 const KEY_PAN_SPEED := 900.0
 
 var bounds := Rect2()
+## Optional: called with the screen position of a left press on the map; if it
+## returns true the press belongs to someone else (e.g. dragging a unit off a
+## tower), so the camera neither pans nor reports a tap for it.
+var press_filter: Callable
 
 var _pressing := false
 var _dragging := false
@@ -40,6 +44,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		match mb.button_index:
 			MOUSE_BUTTON_LEFT:
 				if mb.pressed:
+					if press_filter.is_valid() and press_filter.call(mb.position):
+						_pressing = false
+						return
 					_pressing = true
 					_dragging = false
 					_press_pos = mb.position

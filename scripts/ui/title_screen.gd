@@ -16,6 +16,7 @@ var levels_button: Button
 var exit_button: Button
 var levels_panel: PanelContainer
 var _menu: VBoxContainer
+var _title: Label
 
 
 func _ready() -> void:
@@ -33,9 +34,9 @@ func _ready() -> void:
 	add_child(bg)
 
 	var title := Label.new()
+	_title = title
 	title.text = "Veliron's Outpost"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 84)
 	title.add_theme_color_override("font_color", UiTheme.GOLD)
 	title.add_theme_color_override("font_outline_color", UiTheme.INK)
 	title.add_theme_constant_override("outline_size", 14)
@@ -43,18 +44,13 @@ func _ready() -> void:
 	title.add_theme_constant_override("shadow_offset_y", 6)
 	title.anchor_left = 0.0
 	title.anchor_right = 1.0
-	title.anchor_top = 0.08
-	title.anchor_bottom = 0.08
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(title)
 
 	_menu = VBoxContainer.new()
 	_menu.add_theme_constant_override("separation", 14)
 	_menu.custom_minimum_size = Vector2(320, 0)
 	add_child(_menu)
-	_menu.anchor_left = 0.07
-	_menu.anchor_right = 0.07
-	_menu.anchor_top = 0.42
-	_menu.anchor_bottom = 0.42
 
 	play_button = _menu_button("Play", _play)
 	UiTheme.style_primary(play_button)
@@ -64,6 +60,26 @@ func _ready() -> void:
 	exit_button.visible = not OS.has_feature("web")  # browsers can't close the tab
 	_update_difficulty()
 	_build_levels_panel()
+	get_viewport().size_changed.connect(_layout)
+	_layout()
+
+
+## Landscape: title on top, menu on the left over the backdrop.
+## Portrait: smaller title, menu centred lower down.
+func _layout() -> void:
+	var portrait := Layout.portrait
+	_title.add_theme_font_size_override("font_size", 64 if portrait else 84)
+	_title.anchor_top = 0.1 if portrait else 0.08
+	_title.anchor_bottom = _title.anchor_top
+	_title.offset_left = 16.0
+	_title.offset_right = -16.0
+	var x := 0.5 if portrait else 0.07
+	_menu.anchor_left = x
+	_menu.anchor_right = x
+	_menu.offset_left = -160.0 if portrait else 0.0
+	_menu.offset_right = 160.0 if portrait else 0.0
+	_menu.anchor_top = 0.5 if portrait else 0.42
+	_menu.anchor_bottom = _menu.anchor_top
 
 
 func _menu_button(text: String, action: Callable) -> Button:

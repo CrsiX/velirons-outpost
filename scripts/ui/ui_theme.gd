@@ -66,6 +66,20 @@ static func style_primary(b: Button) -> void:
 	b.add_theme_stylebox_override("pressed", box(Color("64121e"), GOLD, 2, 8, 10))
 
 
+## Green "go ahead" button (Continue).
+static func style_good(b: Button) -> void:
+	b.add_theme_stylebox_override("normal", box(Color("2f6b2a"), INK, 2, 8, 10))
+	b.add_theme_stylebox_override("hover", box(Color("3d8a36"), GOLD, 2, 8, 10))
+	b.add_theme_stylebox_override("pressed", box(Color("244f20"), GOLD, 2, 8, 10))
+
+
+## Bright red button for leaving the game (Back to title).
+static func style_danger(b: Button) -> void:
+	b.add_theme_stylebox_override("normal", box(Color("b3261e"), INK, 2, 8, 10))
+	b.add_theme_stylebox_override("hover", box(Color("d33a2f"), Color("ffd0c0"), 2, 8, 10))
+	b.add_theme_stylebox_override("pressed", box(Color("8a1c16"), Color("ffd0c0"), 2, 8, 10))
+
+
 static func style_selected(b: Button, on: bool) -> void:
 	if on:
 		b.add_theme_stylebox_override("normal", box(Color("4a3b2c"), GOLD, 3, 8, 8))

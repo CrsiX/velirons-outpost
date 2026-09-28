@@ -1191,6 +1191,39 @@ def icons():
   <path d="M24 12 L44 32 L24 52" fill="none" stroke="#efe3c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>''')
     icon_svg("icon_expand", f'''
   <path d="M40 12 L20 32 L40 52" fill="none" stroke="#efe3c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>''')
+    # Settings: a gear with 6 teeth.
+    teeth = 6
+    pts = []
+    for i in range(teeth * 4):
+        ang = math.pi * 2 * i / (teeth * 4) - math.pi / 2
+        r = 27 if i % 4 in (1, 2) else 19
+        pts.append((32 + r * math.cos(ang), 32 + r * math.sin(ang)))
+    gear = "M" + " L".join("%.1f %.1f" % p for p in pts) + " Z"
+    icon_svg("icon_settings", f'''
+  <path d="{gear} M32 23 A9 9 0 1 0 32.01 23 Z" fill="#c9ccd4" fill-rule="evenodd" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="9" fill="none" stroke="#8a8f99" stroke-width="2"/>''')
+    icon_svg("icon_sheet_up", f'''
+  <path d="M12 40 L32 20 L52 40" fill="none" stroke="#efe3c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>''')
+    icon_svg("icon_sheet_down", f'''
+  <path d="M12 24 L32 44 L52 24" fill="none" stroke="#efe3c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>''')
+
+
+def flags():
+    """Language flags for the settings dialog (landscape 60x30 viewBox)."""
+    with open(os.path.join(ART, "flag_gb.svg"), "w") as f:
+        f.write('''<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60" viewBox="0 0 60 30">
+<clipPath id="s"><path d="M0,0 v30 h60 v-30 z"/></clipPath>
+<clipPath id="t"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath>
+<g clip-path="url(#s)">
+<path d="M0,0 v30 h60 v-30 z" fill="#012169"/>
+<path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/>
+<path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#t)" stroke="#C8102E" stroke-width="4"/>
+<path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/>
+<path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/>
+</g>
+<rect x="0.5" y="0.5" width="59" height="29" fill="none" stroke="#15110d" stroke-width="1"/>
+</svg>
+''')
 
 
 def app_icon():
@@ -1389,6 +1422,7 @@ def main():
     arrow()
     sack()
     icons()
+    flags()
     app_icon()
     title_background()
     write_manifest()

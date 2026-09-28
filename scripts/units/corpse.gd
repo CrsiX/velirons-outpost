@@ -10,6 +10,12 @@ var grid_pos := Vector2.ZERO
 var time_left := Config.CORPSE_LIFETIME
 ## Gatherer currently heading for this corpse (reserves it).
 var claimed_by: Node = null
+## Numbered across all kinds: "corpse 12".
+var uid := 0
+
+
+func label() -> String:
+	return "corpse %d" % uid
 
 
 func setup(p_game: Game, p_kind: String, p_wave: int, at: Vector2) -> void:
@@ -36,4 +42,5 @@ func _process(delta: float) -> void:
 	if time_left < 10.0:
 		modulate.a = clampf(time_left / 10.0, 0.0, 1.0)
 	if time_left <= 0.0:
+		game.events.debug("%s rotted away" % label())
 		game.corpses.remove(self)

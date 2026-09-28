@@ -1,8 +1,16 @@
 class_name Hud
 extends CanvasLayer
-## All screen UI, built in code: resource bar, wave controls, sidebar
+## All screen UI, built in code: resource bar, wave controls, the dock
 ## (Build / Village / Army), info panel, trade dialog, toasts and overlays.
 ## Big touch targets throughout; works the same with mouse or fingers.
+##
+## Two layouts, picked by `Layout.portrait` whenever the screen turns or resizes:
+##   landscape - one-row top bar; the dock is a sidebar on the right that
+##               collapses to the right edge;
+##   portrait  - two-row top bar; the dock is a bottom sheet: tabs always
+##               visible, pages slide up above them (tap or swipe the handle,
+##               or tap a tab). It gets out of the way while you place a
+##               building, station or drag a unit, or look at a selection.
 
 const SIDEBAR_W := 320.0
 ## Game speed button cycles through these; 0 = paused.
@@ -22,8 +30,16 @@ var _pop_label: Label
 var _wave_label: Label
 var _enemies_label: Label
 var _call_button: Button
-var _fullscreen_button: Button
-var _topbar_row: HBoxContainer
+var _settings_button: Button
+var _settings: Control  # grayscale backdrop + dialog, shown while paused
+var _settings_continue: Button
+var _settings_log_button: Button
+var _settings_lang_button: Button
+var _settings_title_button: Button
+var _speed_before := 0
+var _log_box: VBoxContainer
+var _log_dirty := true
+var _dock_hint: Label
 var _hero_button: Button
 var _hero_panel: PanelContainer
 var _hero_stats: Label
@@ -44,8 +60,27 @@ const HERO_MODE_HINTS: Array[String] = [
 var _speed_button: Button
 var _speed_index := 0
 
-var _sidebar: PanelContainer
+var _sidebar: PanelContainer  # the dock: right sidebar or bottom sheet
 var _sidebar_toggle: Button
+var _sheet_handle: Control
+var _sheet_scroll: ScrollContainer
+var _tabs_row: HBoxContainer
+var _entry_grids: Array[GridContainer] = []
+var _current_tab := "build"
+var _side_open := true  # landscape sidebar shown
+var _sheet_open := false  # portrait sheet expanded
+var _sheet_h := 0.0
+var _auto_closed := false  # sheet folded away for a placement / drag, reopen after
+var _handle_press_y := 0.0
+
+var _portrait := false
+var _top_h := TOPBAR_H
+var _topbar_box: BoxContainer
+var _top_left: HBoxContainer
+var _top_right: HBoxContainer
+var _spacer_land: Control
+var _spacer_port: Control
+var _relayout_queued := false
 var _tab_buttons: Dictionary = {}
 var _tab_pages: Dictionary = {}
 var _build_buttons: Dictionary = {}
@@ -98,15 +133,25 @@ func setup(p_game: Game) -> void:
 	_build_mode_panel()
 	_build_toasts()
 	_build_trade_dialog()
+	_build_log()
 	_build_overlay()
+	_dock_hint = _label("Release to withdraw", 22, UiTheme.GOOD)
+	_dock_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dock_hint.visible = false
+	_root.add_child(_dock_hint)
 	_drag_ghost = _icon(null, 56)
 	_drag_ghost.visible = false
 	_drag_ghost.modulate.a = 0.85
 	_root.add_child(_drag_ghost)
+	_build_settings()
+	game.events.changed.connect(func() -> void: _log_dirty = true)
 
 	for sig in [game.economy.changed, game.population.changed, game.army.changed, game.construction.changed, game.waves.changed, game.corpses.changed]:
 		sig.connect(_queue_refresh)
 	_select_tab("build")
+	get_viewport().size_changed.connect(_queue_relayout)
+	Layout.changed.connect(func(_p: bool) -> void: _queue_relayout())
+	_relayout()
 	_refresh()
 
 
@@ -157,9 +202,17 @@ func _build_topbar() -> void:
 	_root.add_child(_topbar)
 	_topbar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_topbar.custom_minimum_size.y = TOPBAR_H
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
-	_topbar.add_child(row)
+	# Resources and the hero on the left, wave controls on the right: side by
+	# side in landscape, stacked in two rows in portrait.
+	_topbar_box = BoxContainer.new()
+	_topbar_box.add_theme_constant_override("separation", 6)
+	_topbar.add_child(_topbar_box)
+	_top_left = HBoxContainer.new()
+	_topbar_box.add_child(_top_left)
+	_top_right = HBoxContainer.new()
+	_top_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_topbar_box.add_child(_top_right)
+	var row := _top_left
 
 	var gold := _chip("icon_gold", "Gold coins: buy and upgrade military units")
 	_gold_label = gold[1]
@@ -176,7 +229,9 @@ func _build_topbar() -> void:
 	_materials_button.add_theme_constant_override("icon_max_width", 32)
 	_materials_button.add_theme_font_size_override("font_size", 20)
 	_materials_button.tooltip_text = "Building material: tap to buy more with gold"
-	_materials_button.pressed.connect(func() -> void: _trade_panel.visible = not _trade_panel.visible)
+	_materials_button.pressed.connect(func() -> void:
+		_trade_panel.visible = not _trade_panel.visible
+		_hero_panel.visible = _hero_panel.visible and not _trade_panel.visible)
 	row.add_child(_materials_button)
 
 	var pop := _chip("icon_population", "Civilians / huts")
@@ -191,20 +246,21 @@ func _build_topbar() -> void:
 	_hero_button.tooltip_text = "The hero: tap for orders"
 	_hero_button.pressed.connect(func() -> void:
 		_hero_panel.visible = not _hero_panel.visible
+		_trade_panel.visible = _trade_panel.visible and not _hero_panel.visible
 		_refresh_hero())
 	row.add_child(_hero_button)
 
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(spacer)
-
+	row = _top_right
+	_spacer_land = _spacer()
+	row.add_child(_spacer_land)
 	var enemies := _chip("icon_enemies", "Enemies on the map and still to come this wave")
 	_enemies_label = enemies[1]
 	_enemies_label.custom_minimum_size.x = 34
 	row.add_child(enemies[0])
 	_wave_label = _label("", 18)
 	row.add_child(_wave_label)
+	_spacer_port = _spacer()
+	row.add_child(_spacer_port)
 	_call_button = _button("Call wave", Vector2(150, 44))
 	UiTheme.style_primary(_call_button)
 	_call_button.pressed.connect(func() -> void: game.waves.call_next())
@@ -214,22 +270,28 @@ func _build_topbar() -> void:
 	_speed_button.pressed.connect(func() -> void: set_speed_index((_speed_index + 1) % SPEEDS.size()))
 	row.add_child(_speed_button)
 	set_speed_index(0)
-	_fullscreen_button = _icon_button("icon_fullscreen", "Fullscreen (F11)")
-	_fullscreen_button.pressed.connect(toggle_fullscreen)
-	row.add_child(_fullscreen_button)
-	_topbar_row = row
-	get_viewport().size_changed.connect(_fit_topbar)
-	_fit_topbar.call_deferred()
+	_settings_button = _icon_button("icon_settings", "Settings (pauses the game)")
+	_settings_button.pressed.connect(open_settings)
+	row.add_child(_settings_button)
+
+
+func _spacer() -> Control:
+	var c := Control.new()
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return c
 
 
 ## Keeps the top bar inside the screen on narrow windows by dropping spacing
 ## and then the (redundant) wave text, rather than running off the edge.
 func _fit_topbar() -> void:
 	var width := _root.get_viewport_rect().size.x
-	_topbar_row.add_theme_constant_override("separation", 16)
+	for r in [_top_left, _top_right]:
+		r.add_theme_constant_override("separation", 16)
 	_wave_label.visible = true
 	if _topbar.get_combined_minimum_size().x > width:
-		_topbar_row.add_theme_constant_override("separation", 6)
+		for r in [_top_left, _top_right]:
+			r.add_theme_constant_override("separation", 6)
 	if _topbar.get_combined_minimum_size().x > width:
 		_wave_label.visible = false
 
@@ -253,6 +315,8 @@ func set_speed_index(i: int) -> void:
 	_speed_button.icon = Art.tex(SPEED_ICONS[i])
 	var next := SPEEDS[(i + 1) % SPEEDS.size()]
 	_speed_button.tooltip_text = "Speed: %s  (click for %s)" % [_speed_name(speed), _speed_name(next)]
+	if game.events:
+		game.events.debug("game speed: %s" % _speed_name(speed))
 	if speed == 0.0:
 		toast("Paused", UiTheme.GOLD)
 
@@ -271,8 +335,14 @@ func toggle_fullscreen() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if event.is_pressed() and not event.is_echo() and (event as InputEventKey).keycode == KEY_F11:
-		toggle_fullscreen()
+	if not event.is_pressed() or event.is_echo():
+		return
+	match (event as InputEventKey).keycode:
+		KEY_F11:
+			toggle_fullscreen()
+		KEY_ESCAPE:
+			if _settings.visible:
+				close_settings()
 
 
 # --- hero ----------------------------------------------------------------------------
@@ -281,7 +351,6 @@ func _build_hero_panel() -> void:
 	_hero_panel = PanelContainer.new()
 	_root.add_child(_hero_panel)
 	_hero_panel.offset_left = 10
-	_hero_panel.offset_top = TOPBAR_H + 6
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 6)
 	v.custom_minimum_size = Vector2(340, 0)
@@ -321,6 +390,7 @@ func _build_hero_panel() -> void:
 	_hero_goto_button = _button("Go to hero", Vector2(0, 48))
 	_hero_goto_button.pressed.connect(func() -> void:
 		var h: Hero = game.hero
+		game.events.debug("camera: go to the hero")
 		game.camera.focus(Iso.tile_to_world(Config.VILLAGE_CENTER) if h.dead else h.position))
 	v.add_child(_hero_goto_button)
 	_hero_panel.visible = false
@@ -331,6 +401,7 @@ func _refresh_hero() -> void:
 	var h: Hero = game.hero
 	_hero_button.text = "XP %d" % h.xp
 	_hero_button.modulate = Color(1, 0.55, 0.5) if h.dead else Color.WHITE
+	_place_log()
 	if not _hero_panel.visible:
 		return
 	_hero_stats.text = "HP %d / %d     XP %d" % [int(h.hp), int(h.max_hp), h.xp]
@@ -351,29 +422,30 @@ func _refresh_hero() -> void:
 			_hero_train_bar.value = u.train_xp
 
 
-# --- sidebar --------------------------------------------------------------------------
+# --- dock: sidebar (landscape) / bottom sheet (portrait) -----------------------------
 
 func _build_sidebar() -> void:
 	_sidebar = PanelContainer.new()
 	_root.add_child(_sidebar)
-	_sidebar.anchor_left = 1.0
-	_sidebar.anchor_right = 1.0
-	_sidebar.anchor_top = 0.0
-	_sidebar.anchor_bottom = 1.0
-	# Grow towards the left so the panel always hugs the right screen edge,
-	# even if its content ever wants more than SIDEBAR_W.
-	_sidebar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_sidebar.offset_left = -SIDEBAR_W
-	_sidebar.offset_right = 0
-	_sidebar.offset_top = TOPBAR_H + 6
-	_sidebar.offset_bottom = 0
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	_sidebar.add_child(v)
 
-	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 6)
-	v.add_child(tabs)
+	# Grab handle on top of the bottom sheet: tap it, or swipe up / down.
+	_sheet_handle = Control.new()
+	_sheet_handle.custom_minimum_size = Vector2(0, 22)
+	_sheet_handle.mouse_filter = Control.MOUSE_FILTER_STOP
+	_sheet_handle.tooltip_text = "Swipe up to open, down to close"
+	_sheet_handle.draw.connect(func() -> void:
+		var w := 72.0
+		var r := Rect2((_sheet_handle.size.x - w) / 2.0, 6.0, w, 7.0)
+		_sheet_handle.draw_style_box(UiTheme.box(UiTheme.MUTED, UiTheme.MUTED, 0, 4, 0), r))
+	_sheet_handle.gui_input.connect(_on_handle_input)
+	v.add_child(_sheet_handle)
+
+	_tabs_row = HBoxContainer.new()
+	_tabs_row.add_theme_constant_override("separation", 6)
+	v.add_child(_tabs_row)
 	for tab in [["build", "Build", "icon_build"], ["village", "Village", "icon_village"], ["army", "Army", "icon_army"]]:
 		var b := _button(tab[1], Vector2(0, 48))
 		b.icon = Art.tex(tab[2])
@@ -382,56 +454,230 @@ func _build_sidebar() -> void:
 		b.add_theme_font_size_override("font_size", 16)
 		b.clip_text = true  # may shrink instead of pushing the panel wider
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.pressed.connect(_select_tab.bind(tab[0]))
-		tabs.add_child(b)
+		b.pressed.connect(_on_tab_pressed.bind(tab[0]))
+		_tabs_row.add_child(b)
 		_tab_buttons[tab[0]] = b
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	v.add_child(scroll)
+	_sheet_scroll = ScrollContainer.new()
+	_sheet_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_sheet_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(_sheet_scroll)
 	var pages := VBoxContainer.new()
 	pages.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(pages)
+	_sheet_scroll.add_child(pages)
 	_tab_pages["build"] = _build_page_build()
 	_tab_pages["village"] = _build_page_village()
 	_tab_pages["army"] = _build_page_army()
 	for p in _tab_pages.values():
 		pages.add_child(p)
+	pages.minimum_size_changed.connect(func() -> void: _fit_sheet.call_deferred())
 
 	_sidebar_toggle = _button("", Vector2(40, 64))
-	_sidebar_toggle.icon = Art.tex("icon_collapse")
 	_sidebar_toggle.expand_icon = true
-	_sidebar_toggle.tooltip_text = "Hide / show the sidebar"
+	_sidebar_toggle.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root.add_child(_sidebar_toggle)
-	_sidebar_toggle.anchor_left = 1.0
-	_sidebar_toggle.anchor_right = 1.0
 	_sidebar_toggle.pressed.connect(_toggle_sidebar)
 	_sidebar.resized.connect(_place_sidebar_toggle)
-	_place_sidebar_toggle()
 
 
+## The collapse button: beside the sidebar in landscape, in the sheet's tab row in portrait.
 func _toggle_sidebar() -> void:
-	_sidebar.visible = not _sidebar.visible
-	_sidebar_toggle.icon = Art.tex("icon_collapse" if _sidebar.visible else "icon_expand")
-	_place_sidebar_toggle()
+	if _portrait:
+		set_sheet_open(not _sheet_open)
+	else:
+		_side_open = not _side_open
+		_relayout()
+
+
+func set_sheet_open(open: bool, manual: bool = true) -> void:
+	if manual:
+		_auto_closed = false
+	if open == _sheet_open:
+		return
+	_sheet_open = open
+	if open and _portrait and game.selected:
+		game.deselect()  # the sheet and the info panel share the bottom of the screen
+	_relayout()
+
+
+func _on_handle_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	if event.pressed:
+		_handle_press_y = event.position.y
+	else:
+		var dy: float = event.position.y - _handle_press_y
+		set_sheet_open(not _sheet_open if absf(dy) < DRAG_THRESHOLD else dy < 0.0)
+	_sheet_handle.accept_event()
+
+
+func _on_tab_pressed(tab: String) -> void:
+	if _portrait:
+		if not _sheet_open:
+			set_sheet_open(true)
+		elif tab == _current_tab:
+			set_sheet_open(false)  # tapping the open tab folds the sheet
+	_select_tab(tab)
+	if _portrait:
+		_relayout()  # the sheet fits the new page's height
+
+
+## Folds the sheet away while the player needs the map (placing, stationing,
+## dragging a unit); `_auto_restore` brings it back afterwards.
+func _auto_collapse() -> void:
+	if _portrait and _sheet_open:
+		set_sheet_open(false, false)
+		_auto_closed = true
+
+
+func _auto_restore() -> void:
+	if _auto_closed:
+		_auto_closed = false
+		set_sheet_open(true, false)
 
 
 func _place_sidebar_toggle() -> void:
+	if _portrait:
+		return
 	var right := -maxf(_sidebar.size.x, SIDEBAR_W) - 4.0 if _sidebar.visible else -4.0
+	_sidebar_toggle.anchor_left = 1.0
+	_sidebar_toggle.anchor_right = 1.0
+	_sidebar_toggle.anchor_top = 0.0
+	_sidebar_toggle.anchor_bottom = 0.0
 	_sidebar_toggle.offset_left = right - 40.0
 	_sidebar_toggle.offset_right = right
-	_sidebar_toggle.offset_top = TOPBAR_H + 12.0
-	_sidebar_toggle.offset_bottom = TOPBAR_H + 76.0
+	_sidebar_toggle.offset_top = _top_h + 12.0
+	_sidebar_toggle.offset_bottom = _top_h + 76.0
+
+
+# --- layout ------------------------------------------------------------------------------
+
+## Portrait sheet height. Open: as tall as the page needs, at most about half
+## the screen (it scrolls). Re-run when the page's size settles, because
+## wrapped text only knows its height once it has been laid out.
+func _fit_sheet() -> void:
+	if not _portrait:
+		return
+	var vp := _root.get_viewport_rect().size
+	var folded := _handle_and_tabs_height()
+	var content: float = _sheet_scroll.get_child(0).get_combined_minimum_size().y + 8.0
+	var most := clampf(vp.y * 0.5, 320.0, vp.y - _top_h - 140.0)
+	_sheet_h = folded + minf(content, most) if _sheet_open else folded
+	_sidebar.offset_top = -_sheet_h
+	_place_info_panel()
+
+
+func _handle_and_tabs_height() -> float:
+	var style := _sidebar.get_theme_stylebox("panel")
+	var sep := float(_sheet_handle.get_parent().get_theme_constant("separation"))
+	return _sheet_handle.get_combined_minimum_size().y + sep + _tabs_row.get_combined_minimum_size().y + style.get_minimum_size().y
+
+func _queue_relayout() -> void:
+	if not _relayout_queued:
+		_relayout_queued = true
+		_relayout.call_deferred()
+
+
+## Arranges everything for the current orientation and screen size.
+func _relayout() -> void:
+	_relayout_queued = false
+	_portrait = Layout.portrait
+	var vp := _root.get_viewport_rect().size
+
+	_topbar_box.vertical = _portrait
+	_spacer_land.visible = not _portrait
+	_spacer_port.visible = _portrait
+	_fit_topbar()
+	_top_h = maxf(TOPBAR_H, _topbar.get_combined_minimum_size().y)
+
+	var cols := 2 if _portrait and vp.x >= 640.0 else 1
+	for g in _entry_grids:
+		g.columns = cols
+	_reserve_grid.columns = maxi(4, int((vp.x - 40.0) / 68.0)) if _portrait else 4
+
+	_sheet_handle.visible = _portrait
+	if _portrait:
+		_sidebar.visible = true
+		_sidebar.anchor_left = 0.0
+		_sidebar.anchor_right = 1.0
+		_sidebar.anchor_top = 1.0
+		_sidebar.anchor_bottom = 1.0
+		_sidebar.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		_sidebar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		_sheet_scroll.visible = _sheet_open
+		_sidebar.offset_left = 0.0
+		_sidebar.offset_right = 0.0
+		_sidebar.offset_bottom = 0.0
+		_fit_sheet()
+		if _sidebar_toggle.get_parent() != _tabs_row:
+			_sidebar_toggle.reparent(_tabs_row, false)
+		_sidebar_toggle.custom_minimum_size = Vector2(56, 48)
+		_sidebar_toggle.icon = Art.tex("icon_sheet_down" if _sheet_open else "icon_sheet_up")
+		_sidebar_toggle.tooltip_text = "Close the panel" if _sheet_open else "Open the panel"
+	else:
+		_sidebar.visible = _side_open
+		_sheet_scroll.visible = true
+		_sidebar.anchor_left = 1.0
+		_sidebar.anchor_right = 1.0
+		_sidebar.anchor_top = 0.0
+		_sidebar.anchor_bottom = 1.0
+		# Grow towards the left so the panel always hugs the right screen edge,
+		# even if its content ever wants more than SIDEBAR_W.
+		_sidebar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		_sidebar.grow_vertical = Control.GROW_DIRECTION_END
+		_sidebar.offset_left = -SIDEBAR_W
+		_sidebar.offset_right = 0.0
+		_sidebar.offset_top = _top_h + 6.0
+		_sidebar.offset_bottom = 0.0
+		_sheet_h = 0.0
+		if _sidebar_toggle.get_parent() != _root:
+			_sidebar_toggle.reparent(_root, false)
+		_sidebar_toggle.custom_minimum_size = Vector2(40, 64)
+		_sidebar_toggle.icon = Art.tex("icon_collapse" if _side_open else "icon_expand")
+		_sidebar_toggle.tooltip_text = "Hide / show the sidebar"
+		_place_sidebar_toggle()
+
+	_hero_panel.offset_top = _top_h + 6.0
+	_trade_panel.offset_top = _top_h + 6.0
+	_trade_panel.offset_left = 10.0 if _portrait else 330.0
+	_toasts.offset_top = _top_h + 70.0
+	_toasts.offset_right = -SIDEBAR_W if not _portrait and _side_open else 0.0
+	_mode_panel.offset_top = _top_h + 10.0
+	_mode_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if _portrait else TextServer.AUTOWRAP_OFF
+	_mode_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _portrait else Control.SIZE_FILL
+	_place_mode_panel()
+	if _portrait:
+		_info_panel.anchor_right = 1.0
+		_info_panel.offset_right = -10.0
+		_info_panel.custom_minimum_size = Vector2.ZERO
+	else:
+		_info_panel.anchor_right = 0.0
+		_info_panel.offset_right = 370.0
+		_info_panel.custom_minimum_size = Vector2(360, 0)
+	_place_info_panel()
+	_place_log()
 
 
 func _select_tab(tab: String) -> void:
+	_current_tab = tab
 	for k in _tab_pages:
 		_tab_pages[k].visible = k == tab
 		UiTheme.style_selected(_tab_buttons[k], k == tab)
 
 
-## Sidebar entry: icon, title, description and an action button.
+## Grid for a page's entries: one column, two on a wide enough portrait screen.
+func _entry_grid(parent: Control) -> GridContainer:
+	var g := GridContainer.new()
+	g.columns = 1
+	g.add_theme_constant_override("h_separation", 8)
+	g.add_theme_constant_override("v_separation", 8)
+	g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(g)
+	_entry_grids.append(g)
+	return g
+
+
+## Dock entry: icon, title, description and an action button.
 func _entry(icon_tex: Texture2D, title: String, desc: String, action_text: String, action: Callable) -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UiTheme.box(Color(1, 1, 1, 0.04), Color("3a3024"), 1, 6, 6))
@@ -450,6 +696,7 @@ func _entry(icon_tex: Texture2D, title: String, desc: String, action_text: Strin
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	d.custom_minimum_size.x = 150
 	tv.add_child(d)
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var b := _button(action_text, Vector2(0, 48))
 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART  # long costs wrap instead of widening the sidebar
 	b.pressed.connect(action)
@@ -460,11 +707,12 @@ func _entry(icon_tex: Texture2D, title: String, desc: String, action_text: Strin
 func _build_page_build() -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
+	var grid := _entry_grid(v)
 	for kind in ["tower", "farm", "camp", "lightstone", "training"]:
 		var spec: Dictionary = Config.BUILDINGS[kind]
 		var icon := Art.tex(spec["art"])
 		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_text(spec["cost"]), game.begin_build.bind(kind))
-		v.add_child(e["panel"])
+		grid.add_child(e["panel"])
 		_build_buttons[kind] = e["button"]
 	var hint := _label("Village huts can only be rebuilt: tap a ruined hut inside the walls.", 14, UiTheme.MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -475,10 +723,11 @@ func _build_page_build() -> Control:
 func _build_page_village() -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
+	var grid := _entry_grid(v)
 	for role in Config.CIVILIAN_ORDER:
 		var spec: Dictionary = Config.CIVILIANS[role]
 		var e := _entry(Art.tex("unit_" + role), spec["name"], spec["desc"], "Recruit  (%s)" % Config.cost_text(spec["cost"]), _recruit.bind(role))
-		v.add_child(e["panel"])
+		grid.add_child(e["panel"])
 		_recruit_rows[role] = e
 	return v
 
@@ -494,12 +743,13 @@ func _recruit(role: String) -> void:
 func _build_page_army() -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
+	var grid := _entry_grid(v)
 	for kind in Config.MILITARY_ORDER:
 		var spec: Dictionary = Config.MILITARY[kind]
 		var e := _entry(Art.tex("unit_" + kind), spec["name"], spec["desc"], "Recruit  (%s)" % Config.cost_text(spec["cost"]), func() -> void:
 			if game.army.recruit(kind) == null:
 				toast("Not enough gold", UiTheme.BAD))
-		v.add_child(e["panel"])
+		grid.add_child(e["panel"])
 		_military_buttons[kind] = e["button"]
 	_reserve_label = _label("", 16)
 	_reserve_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -577,18 +827,20 @@ func _input(event: InputEvent) -> void:
 		if not _dragging_unit and pos.distance_to(_press_pos) > DRAG_THRESHOLD:
 			_dragging_unit = true
 			_drag_ghost.visible = true
+			_auto_collapse()  # uncover the map to drop onto
 		if _dragging_unit:
-			_drag_ghost.position = pos - _drag_ghost.size / 2.0
+			game.preview_drag(_press_unit, pos)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		var unit := _press_unit
 		_press_unit = null
-		_drag_ghost.visible = false
+		game.end_drag_preview()
 		_queue_refresh()  # catch up on any reserve change deferred during the press
 		# The release is left unhandled on purpose so the card button resets.
 		if _dragging_unit:
 			_dragging_unit = false
 			if not is_over_ui(event.position):
 				game.drop_unit(unit, event.position)
+			_auto_restore()
 		else:
 			_selected_unit = unit
 			_queue_refresh()
@@ -596,7 +848,7 @@ func _input(event: InputEvent) -> void:
 
 
 func is_over_ui(screen_pos: Vector2) -> bool:
-	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay, _hero_panel]:
+	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay, _hero_panel, _settings]:
 		if c.is_visible_in_tree() and c.get_global_rect().has_point(screen_pos):
 			return true
 	return false
@@ -637,6 +889,9 @@ func show_info(data: Dictionary) -> void:
 	var sig := str(data["title"]) + "|" + "|".join(data["lines"])
 	for a in data["actions"]:
 		sig += "|%s:%s" % [a["label"], a.get("disabled", false)]
+	if not _info_panel.visible:
+		_auto_collapse()  # a new selection: fold the sheet so the panel has room
+		_auto_closed = false  # ...and leave it folded afterwards
 	_info_panel.visible = true
 	if sig == _info_signature:
 		return  # unchanged: keep buttons alive so presses aren't interrupted
@@ -647,6 +902,7 @@ func show_info(data: Dictionary) -> void:
 		c.queue_free()
 	for line in data["lines"]:
 		var l := _label(line, 16)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_info_lines.add_child(l)
 	for c in _info_actions.get_children():
 		_info_actions.remove_child(c)
@@ -658,22 +914,28 @@ func show_info(data: Dictionary) -> void:
 		b.pressed.connect(func() -> void:
 			cb.call()
 			_info_signature = ""
-			if game.selected:
+			if game.selected_unit:
+				show_info(game.unit_info(game.selected_unit))
+			elif game.selected:
 				show_info(game.selected.info()))
 		_info_actions.add_child(b)
 	_place_info_panel.call_deferred()
 
 
-## Anchor the panel's bottom edge 10px above the screen bottom, growing upwards.
+## Anchor the panel's bottom edge 10px above the screen bottom (portrait: above
+## the bottom sheet), growing upwards.
 func _place_info_panel() -> void:
+	var bottom := -10.0 - (_sheet_h if _portrait else 0.0)
 	var h := _info_panel.get_combined_minimum_size().y
-	_info_panel.offset_top = -10.0 - h
-	_info_panel.offset_bottom = -10.0
+	_info_panel.offset_top = bottom - h
+	_info_panel.offset_bottom = bottom
+	_place_log()
 
 
 func hide_info() -> void:
 	_info_panel.visible = false
 	_info_signature = ""
+	_place_log()
 
 
 # --- mode hint, toasts, trade -----------------------------------------------------------
@@ -684,7 +946,6 @@ func _build_mode_panel() -> void:
 	_mode_panel.anchor_left = 0.5
 	_mode_panel.anchor_right = 0.5
 	_mode_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_mode_panel.offset_top = TOPBAR_H + 10
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 12)
 	_mode_panel.add_child(h)
@@ -697,12 +958,33 @@ func _build_mode_panel() -> void:
 	_mode_panel.visible = false
 
 
+## Shows the hint for placing / stationing (or hides it with ""). In portrait
+## the bottom sheet folds away meanwhile and comes back when it's done.
 func set_mode_hint(text: String) -> void:
-	_mode_panel.visible = text != ""
+	var was := _mode_panel.visible
 	_mode_label.text = text
+	_mode_panel.visible = text != ""
+	_place_mode_panel()
+	if text != "" and not was:
+		_auto_collapse()
+	elif text == "" and was:
+		_auto_restore()
+
+
+## Centred over the map in landscape; full width under the top bar in portrait.
+func _place_mode_panel() -> void:
+	if _portrait:
+		_mode_panel.anchor_left = 0.0
+		_mode_panel.anchor_right = 1.0
+		_mode_panel.offset_left = 10.0
+		_mode_panel.offset_right = -10.0
+		return
+	_mode_panel.anchor_left = 0.5
+	_mode_panel.anchor_right = 0.5
 	_mode_panel.reset_size()
-	_mode_panel.offset_left = -_mode_panel.size.x / 2.0 - SIDEBAR_W / 2.0
-	_mode_panel.offset_right = _mode_panel.size.x / 2.0 - SIDEBAR_W / 2.0
+	var shift := SIDEBAR_W / 2.0 if _side_open else 0.0
+	_mode_panel.offset_left = -_mode_panel.size.x / 2.0 - shift
+	_mode_panel.offset_right = _mode_panel.size.x / 2.0 - shift
 
 
 func _build_toasts() -> void:
@@ -712,8 +994,6 @@ func _build_toasts() -> void:
 	_root.add_child(_toasts)
 	_toasts.anchor_left = 0.0
 	_toasts.anchor_right = 1.0
-	_toasts.offset_right = -SIDEBAR_W
-	_toasts.offset_top = TOPBAR_H + 70
 
 
 func toast(text: String, color: Color = UiTheme.TEXT) -> void:
@@ -731,8 +1011,6 @@ func toast(text: String, color: Color = UiTheme.TEXT) -> void:
 func _build_trade_dialog() -> void:
 	_trade_panel = PanelContainer.new()
 	_root.add_child(_trade_panel)
-	_trade_panel.offset_left = 330
-	_trade_panel.offset_top = TOPBAR_H + 6
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	_trade_panel.add_child(v)
@@ -747,13 +1025,219 @@ func _build_trade_dialog() -> void:
 		var b := _button("+%d  (%d gold)" % [Config.MATERIALS_TRADE["materials"] * bundles, Config.MATERIALS_TRADE["gold"] * bundles], Vector2(0, 50))
 		b.pressed.connect(func() -> void:
 			if not game.economy.buy_materials(bundles):
-				toast("Not enough gold", UiTheme.BAD))
+				toast("Not enough gold", UiTheme.BAD)
+			else:
+				game.events.debug("buy %d building material for %d gold" % [Config.MATERIALS_TRADE["materials"] * bundles, Config.MATERIALS_TRADE["gold"] * bundles]))
 		h.add_child(b)
 		_trade_buttons.append(b)
 	var close := _button("Close", Vector2(0, 44))
 	close.pressed.connect(func() -> void: _trade_panel.visible = false)
 	v.add_child(close)
 	_trade_panel.visible = false
+
+
+# --- event log field -------------------------------------------------------------------
+
+const LOG_COLORS := [Color("b8ab90"), Color("efe3c8"), Color("ff9a86")]  # debug, info, important
+const LOG_LINE_H := 23.0  # a 15 px line with its outline
+
+
+## Recent game events as plain, slightly see-through text (no box): bottom
+## left in landscape, across the bottom in portrait. Never catches taps.
+func _build_log() -> void:
+	_log_box = VBoxContainer.new()
+	_log_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_log_box.alignment = BoxContainer.ALIGNMENT_END  # newest at the bottom
+	_log_box.add_theme_constant_override("separation", 0)
+	_log_box.anchor_top = 1.0
+	_log_box.anchor_bottom = 1.0
+	_log_box.clip_contents = true  # never spills past its capped height
+	_root.add_child(_log_box)
+
+
+## Above the info panel if one is open, else above the bottom sheet (portrait)
+## or the screen edge; at most MAX_SHOWN lines high.
+func _place_log() -> void:
+	if _log_box == null:
+		return
+	var vp := _root.get_viewport_rect().size
+	var bottom := -10.0 - (_sheet_h if _portrait else 0.0)
+	if _info_panel.visible:
+		bottom = _info_panel.offset_top - 6.0
+	var right := vp.x - 10.0 if _portrait else minf(560.0, vp.x - SIDEBAR_W - 60.0)
+	_log_box.offset_left = 10.0
+	_log_box.offset_right = right
+	_log_box.offset_bottom = bottom
+	var top := bottom - LOG_LINE_H * EventLog.MAX_SHOWN
+	if _hero_panel.visible:  # stay below the hero panel (it opens top left)
+		top = maxf(top, _hero_panel.get_global_rect().end.y + 6.0 - vp.y)
+	_log_box.offset_top = minf(top, bottom)
+
+
+func _refresh_log() -> void:
+	_log_dirty = false
+	var shown := game.events.visible_entries()
+	while _log_box.get_child_count() < shown.size():
+		var nl := _label("", 15)
+		nl.clip_text = true
+		nl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		nl.custom_minimum_size.y = LOG_LINE_H
+		nl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.45))
+		nl.add_theme_constant_override("outline_size", 3)
+		_log_box.add_child(nl)
+	var now := game.events.now()
+	for i in _log_box.get_child_count():
+		var l := _log_box.get_child(i) as Label
+		l.visible = i < shown.size()
+		if not l.visible:
+			continue
+		var e: Dictionary = shown[i]
+		l.text = e["text"]
+		var age: float = now - e["time"]
+		var fade := clampf((EventLog.LIFETIME - age) / 3.0, 0.0, 1.0)  # fades out in its last 3 s
+		l.add_theme_color_override("font_color", Color(LOG_COLORS[e["level"]], 0.78 * fade))
+
+
+## Log lines currently displayed.
+func log_lines() -> Array[String]:
+	var out: Array[String] = []
+	for l in _log_box.get_children():
+		if (l as Label).visible:
+			out.append((l as Label).text)
+	return out
+
+
+# --- settings dialog -----------------------------------------------------------------------
+
+const GRAYSCALE_SHADER := """
+shader_type canvas_item;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear;
+void fragment() {
+	vec3 c = texture(screen_tex, SCREEN_UV).rgb;
+	float g = dot(c, vec3(0.299, 0.587, 0.114));
+	COLOR = vec4(vec3(g) * 0.85, 1.0);
+}
+"""
+
+
+func _build_settings() -> void:
+	_settings = Control.new()
+	_settings.mouse_filter = Control.MOUSE_FILTER_STOP
+	_root.add_child(_settings)
+	_settings.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Everything drawn before this (the map and the rest of the HUD) turns grey.
+	var gray := ColorRect.new()
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = GRAYSCALE_SHADER
+	mat.shader = sh
+	gray.material = mat
+	gray.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_settings.add_child(gray)
+	gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_settings.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UiTheme.box(Color("2a1a14"), UiTheme.GOLD, 4, 14, 22))
+	center.add_child(panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 14)
+	v.custom_minimum_size = Vector2(380, 0)
+	panel.add_child(v)
+	var head := HBoxContainer.new()
+	head.alignment = BoxContainer.ALIGNMENT_CENTER
+	head.add_theme_constant_override("separation", 10)
+	v.add_child(head)
+	head.add_child(_icon(Art.tex("icon_settings"), 40))
+	head.add_child(_label("Settings", 34, UiTheme.GOLD))
+	_settings_continue = _button("Continue", Vector2(0, 60))
+	_settings_continue.add_theme_font_size_override("font_size", 24)
+	UiTheme.style_good(_settings_continue)
+	_settings_continue.pressed.connect(close_settings)
+	v.add_child(_settings_continue)
+	_settings_log_button = _button("", Vector2(0, 56))
+	_settings_log_button.tooltip_text = "Which game events the log shows"
+	_settings_log_button.pressed.connect(func() -> void:
+		game.events.cycle_level()
+		game.events.debug("log level: %s" % game.events.level_name())
+		_refresh_settings())
+	v.add_child(_settings_log_button)
+	_settings_lang_button = _button("", Vector2(0, 64))
+	_settings_lang_button.expand_icon = true
+	_settings_lang_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_settings_lang_button.pressed.connect(func() -> void:
+		Settings.cycle_language()
+		game.events.debug("language: %s" % Settings.language_name())
+		_refresh_settings())
+	v.add_child(_settings_lang_button)
+	_settings_title_button = _button("Back to title", Vector2(0, 56))
+	UiTheme.style_danger(_settings_title_button)
+	_settings_title_button.pressed.connect(func() -> void: game.go_to_title())
+	v.add_child(_settings_title_button)
+	_settings.visible = false
+
+
+## Pauses the game (remembering its speed), greys it out and shows the dialog.
+func open_settings() -> void:
+	if _settings.visible:
+		return
+	_speed_before = _speed_index
+	get_tree().paused = true
+	_trade_panel.visible = false
+	_refresh_settings()
+	_settings.visible = true
+	game.events.debug("open settings (game paused)")
+
+
+## Back to the game at the speed it was running at before.
+func close_settings() -> void:
+	if not _settings.visible:
+		return
+	_settings.visible = false
+	game.events.debug("close settings")
+	set_speed_index(_speed_before)
+
+
+func _refresh_settings() -> void:
+	_settings_log_button.text = "Log level: %s" % game.events.level_name()
+	_settings_lang_button.icon = Art.tex(Settings.language_flag())
+	_settings_lang_button.tooltip_text = "Language: %s" % Settings.language_name()
+
+
+# --- drag feedback -------------------------------------------------------------------------
+
+func is_over_dock(screen_pos: Vector2) -> bool:
+	return _sidebar.is_visible_in_tree() and _sidebar.get_global_rect().has_point(screen_pos)
+
+
+## The unit's image under the pointer while it is dragged. `state`: "move" (over
+## a free post), "withdraw" (over the dock), "none" (nothing would happen here).
+func show_drag_feedback(tex: Texture2D, screen_pos: Vector2, state: String) -> void:
+	_drag_ghost.texture = tex
+	_drag_ghost.visible = true
+	_drag_ghost.position = screen_pos - _drag_ghost.size / 2.0 - Vector2(0, 30)
+	match state:
+		"move":
+			_drag_ghost.modulate = Color(0.75, 1.25, 0.75, 0.95)
+		"withdraw":
+			_drag_ghost.modulate = Color(1, 1, 1, 0.95)
+		_:
+			_drag_ghost.modulate = Color(1, 1, 1, 0.55)
+	var withdraw := state == "withdraw"
+	_sidebar.modulate = Color(0.8, 1.2, 0.8) if withdraw else Color.WHITE
+	_dock_hint.visible = withdraw
+	if withdraw:
+		var r := _sidebar.get_global_rect()
+		_dock_hint.size = Vector2(r.size.x, 30)
+		_dock_hint.position = Vector2(r.position.x, r.position.y - 36 if _portrait else r.position.y + 60)
+
+
+func hide_drag_feedback() -> void:
+	_drag_ghost.visible = false
+	_sidebar.modulate = Color.WHITE
+	_dock_hint.visible = false
 
 
 # --- overlays -------------------------------------------------------------------------------
@@ -816,6 +1300,8 @@ func _queue_refresh() -> void:
 
 
 func _process(delta: float) -> void:
+	if _log_dirty or not game.events.entries.is_empty():
+		_refresh_log()  # (every frame while messages fade)
 	_tick -= delta
 	if _tick <= 0.0:
 		_tick = 0.25

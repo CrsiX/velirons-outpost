@@ -7,6 +7,8 @@ extends Unit
 
 signal died(civ: Civilian)
 
+## Number within its role (see label()).
+var uid := 0
 var role := ""
 ## The hut this villager lives in (every villager has exactly one).
 var hut: Hut = null
@@ -30,6 +32,11 @@ func setup(p_game: Game, p_role: String) -> void:
 
 func display_name() -> String:
 	return Config.CIVILIANS[role]["name"]
+
+
+## Log name, numbered per role: "farmer 3".
+func label() -> String:
+	return "%s %d" % [display_name().to_lower(), uid]
 
 
 func _process(delta: float) -> void:
@@ -60,6 +67,7 @@ func enemy_nearby() -> bool:
 
 
 func _evade() -> void:
+	game.events.debug("%s flees home from enemies" % label())
 	evading = true
 	_on_evade()
 	sprite.rotation = 0.0
@@ -78,6 +86,12 @@ func on_action(_kind: String) -> void:
 
 
 ## Override: unexplored tile this unit is heading for, if exploring.
+## The building this villager works at (farm, camp), or null. Roles with a
+## workplace ("works_at" in Config.CIVILIANS) implement assign(b) / unassign() too.
+func workplace() -> Building:
+	return null
+
+
 func exploring_target() -> Vector2i:
 	return Vector2i(-1, -1)
 

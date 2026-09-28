@@ -1,9 +1,11 @@
 class_name Farm
-extends Building
+extends Workplace
 ## 3x3 field outside the walls. Grows food while a farmer is assigned; the
 ## farmer carries the stored food home.
 
-var farmer: Node = null
+var farmer: Node:
+	get: return worker
+	set(v): worker = v
 var stored := 0.0
 var _field: Sprite2D
 var _shed: Sprite2D

@@ -5,6 +5,8 @@ extends Node2D
 
 signal completed(building: Building)
 
+## Number within its kind (see label()), given when it is added to the world.
+var uid := 0
 var game: Game
 var kind := ""
 ## Anchor tile. For odd-sized footprints this is the centre tile.
@@ -59,6 +61,12 @@ static func anchor_world(anchor: Vector2i, p_size: int) -> Vector2:
 
 func display_name() -> String:
 	return Config.BUILDINGS[kind]["name"] if Config.BUILDINGS.has(kind) else kind.capitalize()
+
+
+## Log name, numbered per kind: "watchtower 2", "farm 1", "hut 4".
+func label() -> String:
+	var n := display_name().to_lower().trim_prefix("village ")
+	return "%s %d" % [n, uid]
 
 
 ## Blocks civilian movement? Sites never do, so builders can walk onto them.

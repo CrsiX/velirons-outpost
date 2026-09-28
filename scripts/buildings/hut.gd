@@ -34,9 +34,12 @@ func sight_radius() -> float:
 
 
 ## Burns the hut down; whoever lived here dies with it.
-func destroy() -> void:
+## `cause` names who did it ("goblin 4"), for the log.
+func destroy(cause: String = "") -> void:
+	var by := " by %s" % cause if cause != "" else ""
+	game.events.important("%s destroyed%s%s" % [label(), by, "" if is_instance_valid(resident) else " (nobody was home)"])
 	if is_instance_valid(resident):
-		game.population.kill(resident)
+		game.population.kill(resident, "when %s burned their home" % (cause if cause != "" else "enemies"))
 	resident = null
 	ruined = true
 	complete = true

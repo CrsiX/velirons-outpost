@@ -36,7 +36,9 @@ func recruit(kind: String) -> MilitaryUnit:
 	if not game.economy.spend(Config.MILITARY[kind]["cost"]):
 		return null
 	var u := MilitaryUnit.new(kind)
+	u.uid = game.next_id(kind)
 	units.append(u)
+	game.events.debug("recruit %s for %s" % [u.label(), Config.cost_text(Config.MILITARY[kind]["cost"])])
 	Sfx.play("recruit")
 	changed.emit()
 	return u
@@ -61,6 +63,7 @@ func station_error(unit: MilitaryUnit, tower: MilitaryPost) -> String:
 func station(unit: MilitaryUnit, tower: MilitaryPost) -> bool:
 	if station_error(unit, tower) != "":
 		return false
+	game.events.debug("send %s from the reserve to %s" % [unit.label(), tower.label()])
 	var s := _spawn_walker(unit, Config.VILLAGE_CENTER)
 	s.walk_to(tower.work_tile())
 	unit.state = MilitaryUnit.State.MARCHING
@@ -72,14 +75,48 @@ func station(unit: MilitaryUnit, tower: MilitaryPost) -> bool:
 	return true
 
 
+## "" if the stationed `unit` can move straight over to `post`, else why not.
+func transfer_error(unit: MilitaryUnit, post: MilitaryPost) -> String:
+	if unit == null or unit.state != MilitaryUnit.State.STATIONED:
+		return "That unit isn't on duty"
+	if post == null or post == unit.post or not post.can_garrison():
+		return "Pick another finished tower or training grounds"
+	if post.incoming != null or post.garrison != null:
+		return "That post is taken"
+	if game.world.pathing.find_path(unit.post.work_tile(), post.work_tile()).is_empty():
+		return "No path there"
+	return ""
+
+
+## Moves a stationed unit from its post straight to another (drag & drop);
+## it walks over and takes up the new post on arrival.
+func transfer(unit: MilitaryUnit, post: MilitaryPost) -> bool:
+	if transfer_error(unit, post) != "":
+		return false
+	var from := unit.post
+	game.events.debug("move %s from %s to %s" % [unit.label(), from.label(), post.label()])
+	from.set_garrison(null)
+	var s := _spawn_walker(unit, from.work_tile())
+	s.walk_to(post.work_tile())
+	unit.state = MilitaryUnit.State.MARCHING
+	unit.post = post
+	post.incoming = unit
+	post.refresh()
+	Sfx.play("place")
+	changed.emit()
+	return true
+
+
 ## Pulls a unit off its tower (or turns it around mid-march) and walks it home.
 func unstation(unit: MilitaryUnit) -> void:
 	match unit.state:
 		MilitaryUnit.State.STATIONED:
 			var tower := unit.post
+			game.events.debug("withdraw %s from %s" % [unit.label(), tower.label()])
 			tower.set_garrison(null)
 			_send_home(unit, _spawn_walker(unit, tower.work_tile()))
 		MilitaryUnit.State.MARCHING:
+			game.events.debug("call %s back on its way to %s" % [unit.label(), unit.post.label() if is_instance_valid(unit.post) else "its post"])
 			if is_instance_valid(unit.post):
 				unit.post.incoming = null
 				unit.post.refresh()
@@ -99,6 +136,7 @@ func train(unit: MilitaryUnit, amount: int) -> int:
 	if unit.train_xp >= unit.train_xp_needed() - 0.001:
 		unit.level += 1
 		unit.train_xp = 0.0
+		game.events.info("%s fully trained to level %d%s" % [unit.label(), unit.level + 1, " at %s" % unit.post.label() if unit.post else ""])
 		if unit.post:
 			unit.post.refresh()
 			game.world.float_text("%s level %d!" % [unit.display_name(), unit.level + 1], unit.post.position + Vector2(0, -90), UiTheme.GOLD)
@@ -112,6 +150,7 @@ func upgrade(unit: MilitaryUnit) -> bool:
 		return false
 	unit.level += 1
 	unit.train_xp = 0.0  # training was towards the level just bought
+	game.events.debug("level-up %s to level %d for %s" % [unit.label(), unit.level + 1, Config.cost_text(unit.spec()["levels"][unit.level]["cost"])])
 	if unit.post and unit.state == MilitaryUnit.State.STATIONED:
 		unit.post.refresh()
 	Sfx.play("build")
@@ -146,8 +185,10 @@ func _on_arrived(s: Soldier) -> void:
 			tower.incoming = null
 			tower.set_garrison(unit)
 			unit.state = MilitaryUnit.State.STATIONED
+			game.events.debug("%s takes up its post on %s" % [unit.label(), tower.label()])
 		MilitaryUnit.State.RETURNING:
 			unit.state = MilitaryUnit.State.RESERVE
+			game.events.debug("%s is back in the reserve" % unit.label())
 	unit.walker = null
 	s.queue_free()
 	changed.emit()

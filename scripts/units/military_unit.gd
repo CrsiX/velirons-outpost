@@ -25,6 +25,8 @@ var train_xp := 0.0
 ## Walking body while MARCHING or RETURNING.
 var walker: Node = null
 var behavior: MilitaryBehavior
+## Number within its kind (see label()), given by Army.recruit.
+var uid := 0
 
 
 func _init(p_kind: String) -> void:
@@ -40,6 +42,11 @@ func spec() -> Dictionary:
 
 func display_name() -> String:
 	return spec()["name"]
+
+
+## Log name, numbered per kind: "archer 5".
+func label() -> String:
+	return "%s %d" % [display_name().to_lower(), uid]
 
 
 func state_text() -> String:

@@ -51,6 +51,7 @@ func tick(delta: float) -> void:
 			w.sprite.rotation = sin(w._bob) * 0.15
 			if _timer <= 0.0:
 				carried.append(target.kind)
+				w.game.events.debug("%s collected %s" % [w.label(), target.label()])
 				w.game.corpses.remove(target)
 				target = null
 				w.sprite.rotation = 0.0
@@ -124,6 +125,7 @@ func _deliver() -> void:
 		food += Config.enemy_stat_int(k, "food_on_collect")
 	w.game.economy.add("gold", gold)
 	w.game.economy.add("food", food)
+	w.game.events.debug("%s brings %d corpse%s home: +%d gold, +%d food" % [w.label(), carried.size(), "" if carried.size() == 1 else "s", gold, food])
 	w.float_text("+%d gold  +%d food" % [gold, food], Color("c9a24a"))
 	Sfx.play("coin")
 	carried.clear()

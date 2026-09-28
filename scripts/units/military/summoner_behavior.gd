@@ -25,6 +25,8 @@ func tick(tower: Tower, unit: MilitaryUnit, delta: float) -> void:
 	tower.face(threats[0].grid_pos)
 	var e: EarthElemental = ELEMENTAL_SCRIPT.new()
 	e.setup(tower.game, tower.tile, tower.outer_tile(), unit.stat("summon_hp"), unit.stat("summon_damage"))
+	e.uid = tower.game.next_id("elemental")
+	tower.game.events.debug("summoned %s by %s on %s" % [e.label(), unit.label(), tower.label()])
 	tower.game.world.objects.add_child(e)
 	summons.append(e)
 	tower.recoil()
@@ -39,10 +41,11 @@ func _prune() -> void:
 	summons = summons.filter(func(s) -> bool: return is_instance_valid(s) and not s.dead)
 
 
-func on_leave(_tower: Tower, _unit: MilitaryUnit) -> void:
+func on_leave(tower: Tower, unit: MilitaryUnit) -> void:
 	# Without their summoner the elementals crumble back into the earth.
 	for s in summons:
 		if is_instance_valid(s) and not s.dead:
+			tower.game.events.debug("%s crumbles: %s left %s" % [s.label(), unit.label(), tower.label()])
 			s.crumble()
 	summons.clear()
 	_timer = 1.0

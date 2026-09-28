@@ -13,6 +13,12 @@ var dead := false
 var target: Enemy = null
 ## The summoner's tower; the elemental stays within its leash of this tile.
 var home := Vector2i.ZERO
+## Numbered across all summoners: "elemental 3".
+var uid := 0
+
+
+func label() -> String:
+	return "elemental %d" % uid
 
 var _attack_timer := 0.0
 var _think_timer := 0.0
@@ -73,6 +79,8 @@ func _pick_target() -> void:
 		if d <= Config.SUMMON["sight"] and e.grid_pos.distance_to(Vector2(home)) <= Config.SUMMON["leash"] + Config.SUMMON["sight"] and d < best_d:
 			best_d = d
 			best = e
+	if best != null and best != target:
+		game.events.debug("%s attacks %s" % [label(), best.label()])
 	target = best
 
 
@@ -116,7 +124,7 @@ func _strike() -> void:
 	Sfx.play("hit", 0.25)
 
 
-func take_damage(amount: float, _source: Node = null) -> void:
+func take_damage(amount: float, source = null) -> void:
 	if dead:
 		return
 	hp -= amount
@@ -124,6 +132,7 @@ func take_damage(amount: float, _source: Node = null) -> void:
 	sprite.modulate = Color(1.0, 0.55, 0.45)
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
 	if hp <= 0.0:
+		game.events.debug("%s destroyed by %s" % [label(), game.who(source)])
 		crumble()
 
 

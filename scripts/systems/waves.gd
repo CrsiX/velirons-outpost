@@ -52,6 +52,7 @@ func call_next() -> void:
 	if bonus > 0:
 		game.economy.add("gold", bonus)
 		game.hud.toast("Called early: +%d gold" % bonus, Color("c9a24a"))
+	game.events.debug("call wave %d early (+%d gold)" % [wave + 1, bonus])
 	_start_wave()
 
 
@@ -73,6 +74,7 @@ func _start_wave() -> void:
 	for i in kinds.size():
 		_queue.append({"kind": kinds[i], "spawn": spawns[i % spawns.size()], "hp_scale": hp_scale})
 	_spawn_timer = 0.5
+	game.events.info("Wave %d begins: %d enemies" % [n, kinds.size()])
 	Sfx.play("horn", 0.0)
 	wave_started.emit(wave)
 	changed.emit()
@@ -97,6 +99,8 @@ func _spawn(spec: Dictionary) -> void:
 	var g: Enemy = ENEMY_SCRIPT.new()
 	g.setup(game, route, spec["hp_scale"], spec.get("kind", Config.WAVE_FILLER))
 	g.wave = wave
+	g.uid = game.next_id(g.kind)
+	game.events.debug("%s appears at %s" % [g.label(), str(route[0])])
 	g.killed.connect(_on_enemy_killed)
 	g.reached_gate.connect(_on_enemy_reached_gate)
 	game.world.objects.add_child(g)
@@ -106,6 +110,7 @@ func _spawn(spec: Dictionary) -> void:
 func _on_enemy_killed(g: Enemy) -> void:
 	var gold := Config.enemy_stat_int(g.kind, "gold_on_kill")
 	game.economy.add("gold", gold)
+	game.events.debug("killed %s (by %s, +%d gold)" % [g.label(), game.who(g.killer), gold])
 	game.world.float_text("+%d gold" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
 	Sfx.play("coin")
 	game.corpses.spawn(g.kind, g.wave, g.grid_pos)
@@ -121,5 +126,6 @@ func _enemy_gone() -> void:
 	_alive -= 1
 	if not in_progress() and wave > 0:
 		countdown = Config.WAVE_BUFFER
+		game.events.info("Wave %d is over" % wave)
 		wave_finished.emit(wave)
 	changed.emit()

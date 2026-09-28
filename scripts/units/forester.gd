@@ -14,6 +14,10 @@ var carrying := 0
 var _timer := 0.0
 
 
+func workplace() -> Building:
+	return camp
+
+
 func assign(p_camp: WorkerCamp) -> void:
 	camp = p_camp
 
@@ -57,6 +61,8 @@ func _tick(delta: float) -> void:
 			_bob += delta * 10.0
 			sprite.rotation = sin(_bob) * 0.25
 			var felled := game.world.chop_tree(tree, delta)
+			if felled:
+				game.events.debug("%s cut down %s" % [label(), game.world.tree_label(tree)])
 			if felled or _timer <= 0.0:
 				carrying = Config.FORESTER_MATERIAL_PER_TRIP
 				if felled:
@@ -79,6 +85,7 @@ func _camp_ok() -> bool:
 func _arrive_camp() -> void:
 	if carrying > 0:
 		game.economy.add("materials", carrying)
+		game.events.debug("%s delivers %d building material at %s" % [label(), carrying, camp.label() if is_instance_valid(camp) else "camp"])
 		float_text("+%d material" % carrying, Color("c9b98f"))
 		carrying = 0
 	state = State.AT_CAMP

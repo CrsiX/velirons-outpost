@@ -19,6 +19,10 @@ var hp := 10.0
 var wave := 0
 var dead := false
 var behavior: EnemyBehavior
+## Number within its kind (see label()).
+var uid := 0
+## Whoever dealt the killing blow (for the log).
+var killer: Node = null
 
 
 func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String) -> void:
@@ -42,6 +46,11 @@ func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String
 
 func spec() -> Dictionary:
 	return Config.ENEMIES[kind]
+
+
+## Log name, numbered per kind: "goblin 4".
+func label() -> String:
+	return "%s %d" % [str(spec()["name"]).to_lower(), uid]
 
 
 ## A config value for this kind, difficulty-scaled where appropriate.
@@ -95,6 +104,7 @@ func take_damage(amount: float, source: Node = null) -> void:
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
 	if hp <= 0.0:
 		dead = true
+		killer = source
 		remove_from_group("enemies")
 		killed.emit(self)
 		var tw := create_tween().set_parallel()

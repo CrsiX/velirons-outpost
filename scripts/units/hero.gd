@@ -30,6 +30,8 @@ var _attack_timer := 0.0
 var _think_timer := 0.0
 var _chase_tile := Vector2i(-9999, -9999)
 var _train_acc := 0.0
+## Walking back to the village centre after a fight (Defend).
+var _returning := false
 
 
 func setup_hero(p_game: Game) -> void:
@@ -58,6 +60,10 @@ func display_name() -> String:
 	return Config.HERO["name"]
 
 
+func label() -> String:
+	return "the hero"
+
+
 # --- modes ---------------------------------------------------------------------------
 
 func set_mode(m: int) -> void:
@@ -65,6 +71,7 @@ func set_mode(m: int) -> void:
 		return
 	_leave_mode()
 	mode = m as Mode
+	game.events.debug("hero mode: %s" % mode_name())
 	changed.emit()
 
 
@@ -102,6 +109,7 @@ func _leave_mode() -> void:
 		jobs[mode].state = 0
 	_stop_training()
 	target = null
+	_returning = false
 	sprite.rotation = 0.0
 
 
@@ -169,8 +177,12 @@ func _defend(delta: float) -> void:
 	_think_timer -= delta
 	if _think_timer <= 0.0:
 		_think_timer = 0.3
-		target = _pick_enemy()
+		var t := _pick_enemy()
+		if t != null and t != target:
+			game.events.debug("the hero attacks %s" % t.label())
+		target = t
 	if is_instance_valid(target) and not target.dead:
+		_returning = false
 		if at_home:
 			_set_home(false)
 		var dist := target.grid_pos.distance_to(grid_pos)
@@ -186,12 +198,36 @@ func _defend(delta: float) -> void:
 			step_path(delta)
 		return
 	target = null
-	# Nothing to fight: back to the village centre.
+	# Nothing to fight: walk back to the village centre (re-targeting on the way,
+	# see _pick_enemy). Never teleport: a chase path may still be half walked.
 	if not at_home:
-		if path_index >= path.size() and grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) > 0.1:
-			head_home()
+		if not _returning:
+			_returning = true
+			_walk_home()
 		if step_path(delta):
-			arrive_home()
+			if grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.1:
+				_returning = false
+				arrive_home()
+			else:
+				_walk_home()  # that path ended elsewhere: plan again
+
+
+## A walkable path from here to the village centre; straight across if none.
+func _walk_home() -> void:
+	var centre := Vector2(Config.VILLAGE_CENTER)
+	var p := game.world.pathing.find_path(current_tile(), Config.VILLAGE_CENTER)
+	if p.is_empty():
+		# Standing on a tile the pathing doesn't allow (e.g. mid-chase on a
+		# corner): try from a walkable neighbour.
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
+			p = game.world.pathing.find_path(current_tile() + d, Config.VILLAGE_CENTER)
+			if not p.is_empty():
+				p.insert(0, grid_pos)
+				break
+	if p.is_empty():
+		p = PackedVector2Array([grid_pos, centre])
+	p[p.size() - 1] = centre
+	follow(p)
 
 
 ## Enemies near a gate (or near him, within his leash), nearest first, then strongest.
@@ -245,6 +281,7 @@ func _train(g: TrainingGrounds, delta: float) -> void:
 		_stop_training()
 		training_at = g
 		g.trainee_hero = self
+		game.events.debug("the hero heads to %s to train %s" % [g.label(), g.trainable_unit().label()])
 		if not head_out(g.work_tile()):
 			return
 	if grid_pos.distance_to(Vector2(g.work_tile())) > 0.2:
@@ -268,7 +305,7 @@ func _train(g: TrainingGrounds, delta: float) -> void:
 
 # --- health -----------------------------------------------------------------------------------
 
-func take_damage(amount: float, _source: Node = null) -> void:
+func take_damage(amount: float, source = null) -> void:
 	if dead:
 		return
 	hp -= amount
@@ -277,17 +314,19 @@ func take_damage(amount: float, _source: Node = null) -> void:
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
 	changed.emit()
 	if hp <= 0.0:
-		_downed()
+		_downed(source)
 
 
 ## Out of the fight until the wave ends. XP is lost; the mode is kept.
-func _downed() -> void:
+func _downed(source = null) -> void:
+	game.events.important("The hero was struck down by %s (%d XP lost); back after the wave" % [game.who(source), xp])
 	float_text("Hero down!", Color("ff7a6a"))
 	if jobs.has(mode):
 		jobs[mode].release()
 		jobs[mode].state = 0
 	_stop_training()
 	target = null
+	_returning = false
 	dead = true
 	evading = false
 	xp = 0
@@ -307,6 +346,7 @@ func revive() -> void:
 	at_home = true
 	visible = true
 	add_to_group("melee_defenders")
+	game.events.info("The hero returns to the village")
 	float_text("The hero returns!", UiTheme.GOLD)
 	changed.emit()
 
