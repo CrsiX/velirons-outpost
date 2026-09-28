@@ -5,6 +5,8 @@ extends Node2D
 
 enum Mode { NONE, BUILD, STATION }
 
+const HERO_SCRIPT := preload("res://scripts/units/hero.gd")
+
 @export var map_seed := 0  # 0 = random every game
 ## Debug switches, defaulting to config.gd (tests may override before _ready).
 var reveal_map := Config.REVEAL_MAP
@@ -14,6 +16,7 @@ var mode := Mode.NONE
 var build_kind := ""
 var station_unit: MilitaryUnit = null
 var selected: Building = null
+var hero: Hero
 var game_over := false
 var map: MapData:
 	get: return world.map
@@ -42,6 +45,9 @@ func _ready() -> void:
 	army.setup(self)
 	waves.setup(self)
 	corpses.setup(self)
+	hero = HERO_SCRIPT.new()
+	hero.setup_hero(self)
+	world.objects.add_child(hero)
 	hud.setup(self)
 
 	camera.process_mode = Node.PROCESS_MODE_ALWAYS  # pan and zoom while paused
@@ -84,7 +90,7 @@ func begin_station(unit: MilitaryUnit) -> void:
 	mode = Mode.STATION
 	station_unit = unit
 	build_kind = ""
-	hud.set_mode_hint("Tap a finished tower to station the %s" % unit.display_name().to_lower())
+	hud.set_mode_hint("Tap a finished tower or training grounds to station the %s" % unit.display_name().to_lower())
 	_highlight_towers()
 
 
@@ -130,7 +136,7 @@ func _on_tapped(world_pos: Vector2) -> void:
 			_try_place(tile)
 		Mode.STATION:
 			var t := world.pick_building(world_pos)
-			var err := army.station_error(station_unit, t as Tower)
+			var err := army.station_error(station_unit, t as MilitaryPost)
 			if err == "" and army.station(station_unit, t):
 				cancel_mode()
 				select(t)
@@ -165,30 +171,26 @@ func _try_place(tile: Vector2i) -> void:
 func _preview(tile: Vector2i) -> void:
 	var ok := construction.placement_error(build_kind, tile) == ""
 	var size: int = Config.BUILDINGS[build_kind]["size"]
-	var tiles: Array[Vector2i] = []
-	var r := size / 2
-	for dy in range(-r, r + 1):
-		for dx in range(-r, r + 1):
-			tiles.append(tile + Vector2i(dx, dy))
+	var tiles := Building.footprint(tile, size)
 	var art: String = Config.BUILDINGS[build_kind]["art"]
 	var rng := Config.TOWER_RANGE.get(build_kind, 0.0) as float
 	if build_kind == "lightstone":
 		rng = Config.LIGHTSTONE_SIGHT
-	world.overlay.show_ghost(art, Iso.tile_to_world(tile), tiles, ok, Vector2(tile), rng)
+	world.overlay.show_ghost(art, Building.anchor_world(tile, size), tiles, ok, Vector2(tile), rng)
 
 
 func _highlight_towers() -> void:
 	var tiles: Array[Vector2i] = []
-	for t in world.towers():
+	for t in world.military_posts():
 		if t.complete:
-			tiles.append(t.tile)
+			tiles.append_array(t.tiles())
 	world.overlay.show_selection(tiles)
 
 
 ## Drop from the HUD's reserve card at a screen position (drag & drop).
 func drop_unit(unit: MilitaryUnit, screen_pos: Vector2) -> bool:
 	var t := world.pick_building(camera.screen_to_world(screen_pos))
-	var err := army.station_error(unit, t as Tower)
+	var err := army.station_error(unit, t as MilitaryPost)
 	if err == "" and army.station(unit, t):
 		select(t)
 		hud.toast("The %s is marching out" % station_unit_name(t), Color("c9a24a"))
@@ -197,7 +199,7 @@ func drop_unit(unit: MilitaryUnit, screen_pos: Vector2) -> bool:
 	return false
 
 
-func station_unit_name(t: Tower) -> String:
+func station_unit_name(t: MilitaryPost) -> String:
 	return t.incoming.display_name().to_lower() if t.incoming else "unit"
 
 
@@ -236,6 +238,14 @@ func go_to_title() -> void:
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/title.tscn")
+
+
+## Everyone who can take on villager jobs: villagers plus the hero.
+func workers() -> Array[Civilian]:
+	var out: Array[Civilian] = population.civilians.duplicate()
+	if is_instance_valid(hero) and not hero.dead:
+		out.append(hero)
+	return out
 
 
 func restart() -> void:

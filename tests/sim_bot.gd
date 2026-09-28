@@ -137,6 +137,30 @@ func residency_ok() -> bool:
 	return true
 
 
+## Takes the hero out of play (or back in) so the older, deterministic checks
+## aren't disturbed by him fighting or taking jobs; his own section tests him.
+func bench_hero(benched: bool) -> void:
+	var h := game.hero
+	h.process_mode = Node.PROCESS_MODE_DISABLED if benched else Node.PROCESS_MODE_INHERIT
+	if benched:
+		h.remove_from_group("melee_defenders")
+	elif not h.dead:
+		h.add_to_group("melee_defenders")
+
+
+## A tile on the road just outside a gate, `dist` tiles out.
+func outside_gate(gate: Vector2i, dist: int) -> Vector2i:
+	return gate + (gate - Config.VILLAGE_CENTER).sign() * dist
+
+
+func spawn_dummy(kind: String, at: Vector2, hp_scale: float, far: Vector2i) -> Enemy:
+	game.waves._spawn({"kind": kind, "spawn": far, "hp_scale": hp_scale})
+	var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	e.speed = 0.0
+	e.set_grid_pos(at)
+	return e
+
+
 func civs(role: String) -> Array:
 	return game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == role)
 
@@ -309,6 +333,29 @@ func _run() -> void:
 	check(game.population.count() == 3 and game.population.cap() == 9, "3 civilians, 9 huts")
 	check(civs("builder").size() == 1 and civs("farmer").size() == 1 and civs("explorer").size() == 1, "one builder, farmer, explorer")
 	check(residency_ok(), "each starting villager lives in its own hut")
+	# --- hero at the start ---------------------------------------------------------
+	var hero := game.hero
+	check(hero != null and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.1 and hero.visible, "the hero starts in the village centre")
+	check(hero.mode == Hero.Mode.DEFEND and hero.xp == 0 and is_equal_approx(hero.hp, Config.HERO["hp"]), "the hero starts in Defend mode with 0 XP and full HP")
+	check(not game.population.civilians.has(hero) and game.population.count() == 3, "the hero doesn't count as a villager")
+	check(hud._hero_button.is_visible_in_tree() and hud._hero_button.text == "XP 0" and hud._hero_button.icon == Art.tex("icon_hero"), "top bar shows the hero button with his XP")
+	await tap(center(hud._hero_button))
+	check(hud._hero_panel.visible and "Defend" in hud._hero_mode_button.text, "tapping the hero button opens his panel (mode: Defend)")
+	var seen_modes: Array[String] = []
+	for i in Hero.MODE_NAMES.size():
+		await tap(center(hud._hero_mode_button))
+		seen_modes.append(hero.mode_name())
+	check(seen_modes == ["Build", "Explore", "Gather", "Train", "Defend"], "the mode button cycles Defend > Build > Explore > Gather > Train > Defend")
+	hero.set_mode(Hero.Mode.TRAIN)
+	hud._refresh_hero()
+	check(hud._hero_train_label.visible and "Training Grounds" in hud._hero_train_label.text and "Training Grounds" in hud._hero_mode_hint.text, "Train mode says it needs training grounds")
+	hero.set_mode(Hero.Mode.DEFEND)
+	game.camera.focus(game.camera.position + Vector2(900, 400))
+	await tap(center(hud._hero_goto_button))
+	check(game.camera.position.distance_to(hero.position) < 2.0, "'Go to hero' centres the camera on him")
+	await tap(center(hud._hero_panel.get_child(0).get_child(0).get_child(2)))
+	check(not hud._hero_panel.visible, "the hero panel closes")
+	bench_hero(true)
 	var wall_towers := game.world.towers().filter(func(t: Tower) -> bool: return t.kind == "wall_tower")
 	check(wall_towers.size() == 4 and wall_towers.all(func(t: Tower) -> bool: return t.garrison == null), "4 unmanned wall towers")
 	var o := Config.VILLAGE_ORIGIN
@@ -1066,6 +1113,9 @@ func _run() -> void:
 		await frames(2)
 		check(game.economy.amount("materials") == mat_c and map.building_at(cspot) == null, "cancelling a construction site refunds it and frees the tile")
 
+	# --- the hero ------------------------------------------------------------------------------
+	await _test_hero(far_spot)
+
 	# --- fog switches (Config.REVEAL_MAP / DISABLE_FOG) ---------------------------------------
 	game.fog.reveal_all()
 	await wait(0.5)
@@ -1090,3 +1140,161 @@ func _run() -> void:
 		print("  - " + f)
 	Engine.time_scale = 1.0
 	get_tree().quit(1 if failures.size() > 0 else 0)
+
+
+## The hero: defend, downed and revival, villager jobs, training grounds.
+func _test_hero(far: Vector2i) -> void:
+	var map := game.map
+	var hero := game.hero
+	var hud := game.hud
+	var cs := game.corpses
+	for t in game.world.towers():
+		if t.garrison:
+			game.army.unstation(t.garrison)  # the hero should do the fighting
+	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
+	bench_hero(false)
+	game.waves.countdown = 99999.0
+	var military_xp0 := {}
+	for u in game.army.units:
+		military_xp0[u] = [u.level, u.train_xp]
+
+	# Defend: goes out to an enemy near a gate, fights it, gains XP; it fights back.
+	var gate: Vector2i = map.gates[0]
+	var brute := spawn_dummy("goblin", Vector2(outside_gate(gate, 3)), 1000.0, far)
+	var went_out := await wait_until(func() -> bool: return hero.target == brute and not hero.at_home, 5.0)
+	check(went_out, "Defend: the hero goes out to an enemy approaching a gate")
+	var hp_b := brute.hp
+	var fought := await wait_until(func() -> bool: return brute.hp < hp_b and hero.hp < hero.max_hp, 40.0)
+	check(fought, "the hero fights it with his sword, and it fights back")
+	check(hero.xp > 0 and hud._hero_button.text == "XP %d" % hero.xp, "each hit earns the hero XP, shown in the top bar (XP %d)" % hero.xp)
+	var xp_fight := hero.xp
+	# Re-targeting: nearest first, then the strongest.
+	var weak := spawn_dummy("goblin", hero.grid_pos + Vector2(1.5, 0.0), 1.0, far)
+	var strong := spawn_dummy("ork", hero.grid_pos + Vector2(0.0, 1.5), 1.0, far)
+	brute.take_damage(1e9)
+	await wait(0.8)
+	check(hero.target == strong or (is_instance_valid(weak) and weak.dead), "after a kill he picks the nearest enemy, the strongest among equals")
+	for e in [weak, strong]:
+		if is_instance_valid(e):
+			e.take_damage(1e9)
+	game.waves.countdown = 99999.0
+	var home := await wait_until(func() -> bool: return hero.at_home, 40.0)
+	check(home and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.2, "with no enemy about he returns to the centre")
+
+	# Downed: XP lost, no corpse, back at the end of the wave, same mode.
+	hero.set_mode(Hero.Mode.GATHER)
+	var corpses0 := cs.count()
+	hero.take_damage(1e9)
+	await frames(2)
+	check(hero.dead and not hero.visible and hero.xp == 0 and cs.count() == corpses0, "a downed hero loses all XP, vanishes and leaves no corpse")
+	check(not game.workers().has(hero) and not hero.is_in_group("melee_defenders"), "a downed hero neither works nor fights")
+	check(hud._hero_button.modulate != Color.WHITE and "downed" in hero.status(), "the HUD shows the hero is down")
+	game.waves.wave_finished.emit(game.waves.wave)
+	await frames(2)
+	check(not hero.dead and hero.visible and is_equal_approx(hero.hp, hero.max_hp) and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.1, "he revives in the village centre when the wave is over")
+	check(hero.mode == Hero.Mode.GATHER, "his mode survives being downed")
+	game.waves.countdown = 99999.0
+
+	# Gather: brings corpses home like a gatherer, a little fewer at a time.
+	for g in civs("gatherer"):
+		game.population.kill(g)
+	var pile: Vector2i = outside_gate(gate, 2)
+	for i in 4:
+		cs.spawn("goblin", 3, Vector2(pile))
+	var gold_g := game.economy.amount("gold")
+	var max_carried := 0
+	var t_run := 0.0
+	var gj: GatherJob = hero.jobs[Hero.Mode.GATHER]
+	while t_run < 90.0 and not (gj.state == GatherJob.State.RESTING and max_carried > 0):
+		await get_tree().process_frame
+		t_run += get_process_delta_time()
+		max_carried = maxi(max_carried, gj.carried.size())
+	check(max_carried == Config.HERO["gather_capacity"] and game.economy.amount("gold") > gold_g, "Gather: the hero brings %d corpses home for gold" % max_carried)
+	check(hero.xp >= max_carried, "each corpse earns him XP (XP %d)" % hero.xp)
+	cs.clear_wave(99)
+
+	# Explore: reveals fog, each step that uncovers land earns XP.
+	hero.set_mode(Hero.Mode.EXPLORE)
+	var xp_e := hero.xp
+	var ex0 := game.fog.explored_count()
+	var explored := await wait_until(func() -> bool: return game.fog.explored_count() > ex0 + 10 and hero.xp > xp_e, 90.0)
+	check(explored, "Explore: the hero uncovers fog and earns XP (+%d tiles)" % (game.fog.explored_count() - ex0))
+	check(not civs("explorer").any(func(e: Explorer) -> bool: return e.target != Vector2i(-1, -1) and Vector2(e.target).distance_to(Vector2(hero.exploring_target())) < 1.0), "explorers don't head for the hero's patch of fog")
+
+	# Build: works on sites like a builder (at half speed) even with no builder left.
+	for b in civs("builder"):
+		game.population.kill(b)
+	hero.set_mode(Hero.Mode.BUILD)
+	game.economy.add("materials", 500)
+	game.economy.add("gold", 500)
+	var spot := find_spot("training", Config.VILLAGE_CENTER + Vector2i(0, 7))
+	var m0 := game.economy.amount("materials")
+	var g0 := game.economy.amount("gold")
+	var grounds: TrainingGrounds = game.construction.place("training", spot)
+	check(grounds != null and grounds is TrainingGrounds, "training grounds placed")
+	if grounds == null:
+		return
+	var cost: Dictionary = Config.BUILDINGS["training"]["cost"]
+	check(game.economy.amount("materials") == m0 - cost["materials"] and game.economy.amount("gold") == g0 - cost["gold"], "training grounds cost %d materials and %d gold" % [cost["materials"], cost["gold"]])
+	check(grounds.tiles().size() == 4 and grounds.tiles().all(func(t: Vector2i) -> bool: return map.building_at(t) == grounds), "training grounds take 2x2 tiles")
+	var xp_b := hero.xp
+	var building := await wait_until(func() -> bool: return hero.jobs[Hero.Mode.BUILD].site == grounds and grounds.progress > 0.0, 60.0)
+	check(building, "Build: the hero builds with no builder around")
+	var built := await wait_until(func() -> bool: return grounds.complete, 120.0)
+	check(built and hero.xp > xp_b, "he finishes the training grounds and earns XP while building (+%d)" % (hero.xp - xp_b))
+
+	# Train without a unit there: he defends instead, and drops the fight once a unit is ready.
+	hero.set_mode(Hero.Mode.TRAIN)
+	await frames(2)
+	check(hero.effective_mode() == Hero.Mode.DEFEND and "defending" in hero.status(), "Train with no unit at the grounds: the hero defends")
+	hud._hero_panel.visible = true
+	hud._refresh_hero()
+	check("No unit ready" in hud._hero_train_label.text and not hud._hero_train_bar.visible, "the panel says no unit is ready")
+	var foe := spawn_dummy("goblin", Vector2(outside_gate(gate, 3)), 1000.0, far)
+	await wait_until(func() -> bool: return hero.target == foe, 10.0)
+	var archer := game.army.recruit("archer")
+	check(archer != null and game.army.station(archer, grounds), "an archer is sent to the training grounds")
+	var arrived := await wait_until(func() -> bool: return grounds.garrison == archer and archer.state == MilitaryUnit.State.STATIONED, 60.0)
+	check(arrived and grounds.is_ready_for_training(), "the archer takes the grounds' unit slot")
+	var dropped := await wait_until(func() -> bool: return hero.target == null and hero.training_at == grounds, 3.0)
+	check(dropped, "as soon as a unit is ready he abandons the fight and heads for the grounds")
+	foe.take_damage(1e9)
+	game.waves.countdown = 99999.0
+
+	# Training: XP moves from the hero to the unit, which levels up without gold.
+	var need0 := archer.train_xp_needed()
+	check(is_equal_approx(need0, Config.MILITARY["archer"]["train_xp"][0]), "level 2 needs %d XP on normal" % int(need0))
+	hero.xp = int(need0) + 25
+	var gold_t := game.economy.amount("gold")
+	var at := await wait_until(func() -> bool: return hero.training_at == grounds and hero.grid_pos.distance_to(Vector2(grounds.work_tile())) < 0.3, 60.0)
+	check(at, "the hero walks to the training grounds")
+	var partial := await wait_until(func() -> bool: return archer.train_xp > 0.0, 10.0)
+	hud._refresh_hero()
+	check(partial and "XP needed" in hud._hero_train_label.text and hud._hero_train_bar.visible and hud._hero_train_bar.value > 0.0, "the panel shows XP needed, XP he has and the progress (%s)" % hud._hero_train_label.text)
+	check("Training to level 2" in " ".join(grounds.info()["lines"]), "the grounds' panel shows the unit's training progress")
+	var leveled := await wait_until(func() -> bool: return archer.level == 1, 60.0)
+	check(leveled and game.economy.amount("gold") == gold_t, "the archer reaches level 2 by training, without gold")
+	check(hero.xp == 25 and archer.train_xp == 0.0, "exactly the XP needed was passed on (hero has %d left)" % hero.xp)
+	check(archer.train_xp_needed() > need0, "the next level needs more XP (%d > %d)" % [int(archer.train_xp_needed()), int(need0)])
+	Settings.difficulty = Settings.Difficulty.HARD
+	var need_hard := archer.train_xp_needed()
+	Settings.difficulty = Settings.Difficulty.EASY
+	var need_easy := archer.train_xp_needed()
+	Settings.difficulty = Settings.Difficulty.NORMAL
+	check(need_hard > archer.train_xp_needed() and need_easy < archer.train_xp_needed(), "XP needed grows with difficulty (easy %d, normal %d, hard %d)" % [int(need_easy), int(archer.train_xp_needed()), int(need_hard)])
+	hero.xp = 0
+	await wait(1.0)
+	check("no XP left" in hero.status() and hero.training_at == grounds, "with no XP left he waits at the grounds")
+	while archer.can_train():
+		archer.level += 1
+	await wait(0.5)
+	check(not grounds.is_ready_for_training() and hero.effective_mode() == Hero.Mode.DEFEND, "a fully trained unit frees the hero to defend")
+	var others_ok := true
+	for u in military_xp0:
+		if is_instance_valid(u) and u != archer:
+			others_ok = others_ok and u.level == military_xp0[u][0] and u.train_xp == military_xp0[u][1]
+	check(others_ok, "other military units gain no XP from fighting")
+	game.army.unstation(archer)
+	hero.set_mode(Hero.Mode.DEFEND)
+	hud._hero_panel.visible = false
+	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)

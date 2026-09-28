@@ -119,6 +119,11 @@ func towers() -> Array[Building]:
 	return buildings.filter(func(b: Building) -> bool: return b is Tower)
 
 
+## Towers and every other building that can hold a military unit.
+func military_posts() -> Array[Building]:
+	return buildings.filter(func(b: Building) -> bool: return b is MilitaryPost)
+
+
 ## Walking distance from the village centre to every tile (cached).
 func village_distance() -> PackedInt32Array:
 	if _village_dist_dirty:

@@ -31,19 +31,30 @@ func setup(p_game: Game, p_kind: String, p_tile: Vector2i, p_complete: bool) -> 
 	if Config.BUILDINGS.has(kind):
 		size = Config.BUILDINGS[kind]["size"]
 		build_time = Config.BUILDINGS[kind]["build_time"]
-	position = Iso.tile_to_world(tile)
+	position = Building.anchor_world(tile, size)
 	add_to_group("observers")
 	_build_visuals()
 	refresh()
 
 
 func tiles() -> Array[Vector2i]:
+	return Building.footprint(tile, size)
+
+
+## Tiles covered by a `size` x `size` building anchored on `anchor`. Odd sizes
+## are centred on the anchor; even sizes extend right/down from it.
+static func footprint(anchor: Vector2i, p_size: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
-	var r := size / 2
-	for dy in range(-r, r + 1):
-		for dx in range(-r, r + 1):
-			out.append(tile + Vector2i(dx, dy))
+	for dy in range(-(p_size - 1) / 2, p_size / 2 + 1):
+		for dx in range(-(p_size - 1) / 2, p_size / 2 + 1):
+			out.append(anchor + Vector2i(dx, dy))
 	return out
+
+
+## World position of a building's visual centre (between tiles for even sizes).
+static func anchor_world(anchor: Vector2i, p_size: int) -> Vector2:
+	var half := 0.5 if p_size % 2 == 0 else 0.0
+	return Iso.to_world(Vector2(anchor) + Vector2(half, half))
 
 
 func display_name() -> String:

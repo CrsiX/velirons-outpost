@@ -49,7 +49,7 @@ func is_ignoring(n: Node, enemy: Enemy) -> bool:
 
 
 func on_damaged(_enemy: Enemy, source: Node) -> void:
-	if source is Tower or source is EarthElemental:
+	if source is Tower or source.is_in_group("melee_defenders"):
 		attacker = source
 		_casts.erase(source.get_instance_id())  # it fought back: fair game again
 
@@ -70,7 +70,8 @@ func _choose_target(enemy: Enemy) -> Node:
 	return best
 
 
-## A usable target: a finished tower with a unit on duty, or a living elemental.
+## A usable target: a finished tower with a unit on duty, or a living melee
+## defender (earth elemental, hero).
 ## Untyped on purpose: the remembered attacker may already be freed, and a freed
 ## object can't be passed as a typed Node argument.
 static func _valid(n) -> bool:
@@ -78,7 +79,7 @@ static func _valid(n) -> bool:
 		return false
 	if n is Tower:
 		return n.complete and n.garrison != null
-	if n is EarthElemental:
+	if n.is_in_group("melee_defenders"):
 		return not n.dead
 	return false
 

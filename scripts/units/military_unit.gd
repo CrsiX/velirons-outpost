@@ -18,8 +18,10 @@ var id := 0
 var kind := ""
 var level := 0
 var state := State.RESERVE
-## Tower it is marching to or stationed on.
-var post: Tower = null
+## Tower (or other military post) it is marching to or stationed on.
+var post: MilitaryPost = null
+## XP passed on by the hero at the training grounds towards the next level.
+var train_xp := 0.0
 ## Walking body while MARCHING or RETURNING.
 var walker: Node = null
 var behavior: MilitaryBehavior
@@ -56,6 +58,17 @@ func _level() -> Dictionary:
 func stat(key: String) -> float:
 	return _level()[key]
 
+
+
+func can_train() -> bool:
+	return can_upgrade()
+
+
+## XP needed for the next level via training (grows by level and difficulty).
+func train_xp_needed() -> float:
+	if not can_train():
+		return 0.0
+	return float(spec()["train_xp"][level]) * Config.TRAIN_XP_DIFFICULTY[Settings.difficulty_key()]
 
 
 func can_upgrade() -> bool:

@@ -43,22 +43,22 @@ func recruit(kind: String) -> MilitaryUnit:
 
 
 ## "" if `unit` can be sent to `tower`, else the reason.
-func station_error(unit: MilitaryUnit, tower: Tower) -> String:
+func station_error(unit: MilitaryUnit, tower: MilitaryPost) -> String:
 	if unit == null or unit.state != MilitaryUnit.State.RESERVE:
 		return "That unit isn't in the reserve"
 	if tower == null or not tower.can_garrison():
-		return "Pick a finished tower"
+		return "Pick a finished tower or training grounds"
 	if tower.incoming != null:
-		return "A unit is already marching to that tower"
+		return "A unit is already marching there"
 	if tower.garrison != null:
-		return "Tower is manned: withdraw its unit first"
+		return "Already manned: withdraw its unit first"
 	if game.world.pathing.find_path(Config.VILLAGE_CENTER, tower.work_tile()).is_empty():
-		return "No path to that tower"
+		return "No path there"
 	return ""
 
 
-## Sends a reserve unit out of the village to man `tower`.
-func station(unit: MilitaryUnit, tower: Tower) -> bool:
+## Sends a reserve unit out of the village to man `tower` (any military post).
+func station(unit: MilitaryUnit, tower: MilitaryPost) -> bool:
 	if station_error(unit, tower) != "":
 		return false
 	var s := _spawn_walker(unit, Config.VILLAGE_CENTER)
@@ -89,10 +89,29 @@ func unstation(unit: MilitaryUnit) -> void:
 	changed.emit()
 
 
+## Passes up to `amount` of the hero's XP on to `unit` (training grounds).
+## When the unit has collected enough it levels up for free. Returns the XP used.
+func train(unit: MilitaryUnit, amount: int) -> int:
+	if amount <= 0 or not unit.can_train():
+		return 0
+	var used := clampi(ceili(unit.train_xp_needed() - unit.train_xp), 0, amount)
+	unit.train_xp += used
+	if unit.train_xp >= unit.train_xp_needed() - 0.001:
+		unit.level += 1
+		unit.train_xp = 0.0
+		if unit.post:
+			unit.post.refresh()
+			game.world.float_text("%s level %d!" % [unit.display_name(), unit.level + 1], unit.post.position + Vector2(0, -90), UiTheme.GOLD)
+		Sfx.play("build")
+		changed.emit()
+	return used
+
+
 func upgrade(unit: MilitaryUnit) -> bool:
 	if not unit.can_upgrade() or not game.economy.spend(unit.upgrade_cost()):
 		return false
 	unit.level += 1
+	unit.train_xp = 0.0  # training was towards the level just bought
 	if unit.post and unit.state == MilitaryUnit.State.STATIONED:
 		unit.post.refresh()
 	Sfx.play("build")

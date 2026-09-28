@@ -962,6 +962,95 @@ def corpse_skeleton():
     a.save("corpse_skeleton")
 
 
+def hero():
+    """Hero: steel helmet with a crimson plume, blue-steel armour, crimson cape, raised sword."""
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-8, -27), (-4, -27), (-3, -4), (-11, -6)], CRIMSON, INK, 1.1)  # cape
+        else:
+            a.poly([(-6, -14), (6, -14), (5, -26), (-5, -26)], "#6a7a8e", INK, 1)  # breastplate
+            a.line([(0, -26), (0, -15)], "#4a5666", 1.2)
+            a.poly([(-7, -26), (-3, -27), (-3, -23), (-8, -23)], "#8a96a6", INK, 1)  # pauldron
+            a.line([(4, -22), (10, -27)], INK, 4)  # sword arm
+            a.line([(4, -22), (10, -27)], "#6a7a8e", 2.4)
+            a.line([(8, -29), (13, -25)], INK, 2.4)  # guard
+            a.line([(8, -29), (13, -25)], GOLD, 1.2)
+            a.poly([(10, -28), (11.5, -26.5), (20, -44), (18.5, -45)], "#d0d4dc", INK, 1)  # blade
+            a.line([(11, -27.5), (19, -44)], "#ffffff", 0.6)
+
+    def hat(a):
+        a.raw('<path d="M-6.5,-32 Q-7,-41 0,-41 Q7,-41 6.5,-32 L4,-31 L4,-34 L-4,-34 L-4,-31 Z" fill="#9aa4b2" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-8, -42), (8, -30)])
+        a.raw('<path d="M-1,-41 Q-2,-50 6,-50 Q2,-46 3,-41 Z" fill="%s" stroke="%s" stroke-width="1"/>' % (CRIMSON, INK), [(-2, -51), (7, -40)])  # plume
+        a.line([(0, -40), (0, -34)], "#6a7482", 1.2)
+    person("unit_hero", ("#3a4656", "#2c3644"), hat=hat, extra=extra)
+
+
+def training_grounds():
+    """2x2 yard: small hut, weapon rack with swords and axes, archery targets with arrows."""
+    a = Art()
+    s = 0.98
+    yard = [P(-s, -s), P(s, -s), P(s, s), P(-s, s)]
+    a.poly(yard, "#7a6446", None)
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], DIRT, INK, 1.2, opacity=0.9)
+    for (gx, gy) in [(-0.3, 0.4), (0.4, -0.2), (0.1, 0.6)]:  # trampled patches
+        x, y = P(gx, gy)
+        a.ellipse(x, y, 14, 6, DIRT_DARK, opacity=0.6)
+    # fence along the two front edges
+    for t in [i / 6 for i in range(7)]:
+        for p in (P(-s + 2 * s * t, s), P(s, s - 2 * s * t)):
+            a.line([p, (p[0], p[1] - 9)], WOOD_D, 2.2)
+    a.line([(P(-s, s)[0], P(-s, s)[1] - 6), (P(s, s)[0], P(s, s)[1] - 6), (P(s, -s)[0], P(s, -s)[1] - 6)], WOOD, 1.6)
+    # small hut at the back corner
+    hx, hy = -0.62, -0.62
+    a.box(hx - 0.25, hx + 0.25, hy - 0.22, hy + 0.22, 0, 18, "#8c7b62", "#8c7b62", "#6c5e4a")
+    a.poly([P(hx - 0.25, hy + 0.22, 0), P(hx - 0.1, hy + 0.22, 0), P(hx - 0.1, hy + 0.22, 12), P(hx - 0.25, hy + 0.22, 12)], "#2b1e14")
+    e = 0.05
+    a.poly([P(hx - 0.25 - e, hy - 0.22 - e, 18), P(hx + 0.25 + e, hy - 0.22 - e, 18), P(hx + 0.25 + e, hy, 34), P(hx - 0.25 - e, hy, 34)], "#4a3b24")
+    a.poly([P(hx - 0.25 - e, hy, 34), P(hx + 0.25 + e, hy, 34), P(hx + 0.25 + e, hy + 0.22 + e, 18), P(hx - 0.25 - e, hy + 0.22 + e, 18)], "#5b4a2e")
+    a.poly([P(hx + 0.25, hy - 0.22, 18), P(hx + 0.25, hy, 32), P(hx + 0.25, hy + 0.22, 18)], "#7a6a52")
+    # weapon rack (left side) with swords and axes
+    rx, ry = -0.55, 0.25
+    a.line([P(rx - 0.2, ry, 0), P(rx - 0.2, ry, 22)], WOOD_D, 3)
+    a.line([P(rx + 0.2, ry, 0), P(rx + 0.2, ry, 22)], WOOD_D, 3)
+    a.line([P(rx - 0.22, ry, 20), P(rx + 0.22, ry, 20)], WOOD, 3)
+    for k, u in enumerate((-0.12, 0.0, 0.12)):
+        x0, y0 = P(rx + u, ry, 20)
+        x1, y1 = P(rx + u, ry, 2)
+        if k != 1:  # swords
+            a.line([(x0, y0 - 4), (x1, y1)], INK, 3)
+            a.line([(x0, y0 - 4), (x1, y1)], "#d0d4dc", 1.6)
+            a.line([(x0 - 3, y0 + 1), (x0 + 3, y0 + 1)], GOLD, 1.6)
+        else:  # axe
+            a.line([(x0, y0 - 2), (x1, y1)], INK, 3)
+            a.line([(x0, y0 - 2), (x1, y1)], WOOD_L, 1.6)
+            a.poly([(x0, y0), (x0 + 7, y0 - 3), (x0 + 7, y0 + 6), (x0, y0 + 4)], "#9a9a9a", INK, 1)
+    # an axe and a sword lying on the ground
+    x, y = P(-0.05, 0.55)
+    a.line([(x - 12, y), (x + 8, y - 4)], INK, 3)
+    a.line([(x - 12, y), (x + 8, y - 4)], "#d0d4dc", 1.4)
+    x, y = P(0.3, 0.2)
+    a.line([(x - 8, y + 3), (x + 8, y - 1)], INK, 3)
+    a.line([(x - 8, y + 3), (x + 8, y - 1)], WOOD_L, 1.6)
+    a.poly([(x + 6, y - 5), (x + 12, y - 3), (x + 10, y + 3), (x + 5, y + 1)], "#9a9a9a", INK, 1)
+    # two archery targets on stands, arrows stuck in them
+    for (tx, ty) in [(0.45, -0.55), (0.7, -0.05)]:
+        bx, by = P(tx, ty, 0)
+        a.line([(bx - 6, by), (bx, by - 26)], WOOD_D, 2.4)
+        a.line([(bx + 6, by), (bx, by - 26)], WOOD_D, 2.4)
+        cx, cy = bx, by - 22
+        a.ellipse(cx, cy, 10, 11, "#c9b070", INK, 1.3)  # straw
+        a.ellipse(cx, cy, 7, 8, "#f0e8d0", None)
+        a.ellipse(cx, cy, 4.6, 5.2, CRIMSON, None)
+        a.ellipse(cx, cy, 2, 2.3, GOLD, None)
+        for (dx, dy, ang) in [(-2, -3, -0.4), (3, 1, 0.3), (0, 4, -0.1)]:
+            ex, ey = cx + dx, cy + dy
+            ox, oy = ex - 9 * math.cos(ang), ey - 9 * math.sin(ang) + 2
+            a.line([(ex, ey), (ox, oy)], INK, 1.8)
+            a.line([(ex, ey), (ox, oy)], "#b08a58", 0.9)
+            a.poly([(ox, oy - 1.5), (ox - 3, oy), (ox, oy + 1.5)], CRIMSON)
+    a.save("training_grounds")
+
+
 def corpse_goblin():
     a = Art()
     a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
@@ -1087,6 +1176,13 @@ def icons():
     icon_svg("icon_fast", f'''
   <path d="M6 14 L32 32 L6 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M32 14 L58 32 L32 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')
+    icon_svg("icon_hero", f'''
+  <path d="M10 54 L44 20 M54 54 L20 20" stroke="{INK}" stroke-width="7" stroke-linecap="round"/>
+  <path d="M10 54 L44 20 M54 54 L20 20" stroke="#d0d4dc" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M16 30 Q15 10 32 10 Q49 10 48 30 L42 32 L42 26 L22 26 L22 32 Z" fill="#9aa4b2" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M30 10 Q28 -2 44 2 Q36 6 36 10 Z" fill="{CRIMSON}" stroke="{INK}" stroke-width="2.5"/>
+  <path d="M32 11 L32 25" stroke="#6a7482" stroke-width="2.5"/>
+  <path d="M12 50 L20 42 M52 50 L44 42" stroke="{GOLD}" stroke-width="4" stroke-linecap="round"/>''')
     icon_svg("icon_fastest", f'''
   <path d="M2 16 L20 32 L2 48Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M22 16 L40 32 L22 48Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
@@ -1278,6 +1374,8 @@ def main():
     light_halo()
     warning_light()
     corpse_goblin()
+    hero()
+    training_grounds()
     skeleton()
     corpse_skeleton()
     summoner()

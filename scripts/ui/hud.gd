@@ -24,6 +24,23 @@ var _enemies_label: Label
 var _call_button: Button
 var _fullscreen_button: Button
 var _topbar_row: HBoxContainer
+var _hero_button: Button
+var _hero_panel: PanelContainer
+var _hero_stats: Label
+var _hero_status: Label
+var _hero_mode_button: Button
+var _hero_mode_hint: Label
+var _hero_train_label: Label
+var _hero_train_bar: ProgressBar
+var _hero_goto_button: Button
+
+const HERO_MODE_HINTS: Array[String] = [
+	"Waits in the village centre and fights enemies that come near a gate.",
+	"Builds like a builder, at half speed.",
+	"Explores like an explorer, with a shorter sight range.",
+	"Gathers corpses like a gatherer, 2 at a time.",
+	"Passes his XP on to the unit at the Training Grounds (free level-ups). Only useful with Training Grounds and a unit stationed there; otherwise he defends.",
+]
 var _speed_button: Button
 var _speed_index := 0
 
@@ -75,6 +92,7 @@ func setup(p_game: Game) -> void:
 	_root.theme = UiTheme.build()
 	add_child(_root)
 	_build_topbar()
+	_build_hero_panel()
 	_build_sidebar()
 	_build_info_panel()
 	_build_mode_panel()
@@ -165,6 +183,17 @@ func _build_topbar() -> void:
 	_pop_label = pop[1]
 	row.add_child(pop[0])
 
+	_hero_button = _button("XP 0", Vector2(0, 44))
+	_hero_button.icon = Art.tex("icon_hero")
+	_hero_button.expand_icon = false
+	_hero_button.add_theme_constant_override("icon_max_width", 30)
+	_hero_button.add_theme_font_size_override("font_size", 18)
+	_hero_button.tooltip_text = "The hero: tap for orders"
+	_hero_button.pressed.connect(func() -> void:
+		_hero_panel.visible = not _hero_panel.visible
+		_refresh_hero())
+	row.add_child(_hero_button)
+
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -244,6 +273,82 @@ func toggle_fullscreen() -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_pressed() and not event.is_echo() and (event as InputEventKey).keycode == KEY_F11:
 		toggle_fullscreen()
+
+
+# --- hero ----------------------------------------------------------------------------
+
+func _build_hero_panel() -> void:
+	_hero_panel = PanelContainer.new()
+	_root.add_child(_hero_panel)
+	_hero_panel.offset_left = 10
+	_hero_panel.offset_top = TOPBAR_H + 6
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	v.custom_minimum_size = Vector2(340, 0)
+	_hero_panel.add_child(v)
+	var head := HBoxContainer.new()
+	v.add_child(head)
+	head.add_child(_icon(Art.tex("icon_hero"), 34))
+	var title := _label("Hero", 22, UiTheme.GOLD)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	var close := _button("X", Vector2(44, 40))
+	close.pressed.connect(func() -> void: _hero_panel.visible = false)
+	head.add_child(close)
+	_hero_stats = _label("", 17)
+	v.add_child(_hero_stats)
+	_hero_status = _label("", 15, UiTheme.MUTED)
+	_hero_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_hero_status)
+	_hero_mode_button = _button("", Vector2(0, 50))
+	_hero_mode_button.tooltip_text = "Tap to change what the hero does"
+	_hero_mode_button.pressed.connect(func() -> void:
+		game.hero.cycle_mode()
+		_refresh_hero())
+	v.add_child(_hero_mode_button)
+	_hero_mode_hint = _label("", 14, UiTheme.MUTED)
+	_hero_mode_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_hero_mode_hint)
+	_hero_train_label = _label("", 15)
+	_hero_train_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_hero_train_label)
+	_hero_train_bar = ProgressBar.new()
+	_hero_train_bar.custom_minimum_size = Vector2(0, 14)
+	_hero_train_bar.show_percentage = false
+	_hero_train_bar.add_theme_stylebox_override("background", UiTheme.box(Color("2a1e3a"), Color("15110d"), 1, 4, 0))
+	_hero_train_bar.add_theme_stylebox_override("fill", UiTheme.box(Color("b07cff"), Color("b07cff"), 0, 4, 0))
+	v.add_child(_hero_train_bar)
+	_hero_goto_button = _button("Go to hero", Vector2(0, 48))
+	_hero_goto_button.pressed.connect(func() -> void:
+		var h: Hero = game.hero
+		game.camera.focus(Iso.tile_to_world(Config.VILLAGE_CENTER) if h.dead else h.position))
+	v.add_child(_hero_goto_button)
+	_hero_panel.visible = false
+	game.hero.changed.connect(_refresh_hero)
+
+
+func _refresh_hero() -> void:
+	var h: Hero = game.hero
+	_hero_button.text = "XP %d" % h.xp
+	_hero_button.modulate = Color(1, 0.55, 0.5) if h.dead else Color.WHITE
+	if not _hero_panel.visible:
+		return
+	_hero_stats.text = "HP %d / %d     XP %d" % [int(h.hp), int(h.max_hp), h.xp]
+	var st := h.status()
+	_hero_status.text = "Now: " + st
+	_hero_mode_button.text = "Mode: %s   (tap to change)" % h.mode_name()
+	_hero_mode_hint.text = HERO_MODE_HINTS[h.mode]
+	var g := h.ready_grounds()
+	var u: MilitaryUnit = g.trainable_unit() if g else null
+	_hero_train_label.visible = h.mode == Hero.Mode.TRAIN
+	_hero_train_bar.visible = h.mode == Hero.Mode.TRAIN and u != null
+	if h.mode == Hero.Mode.TRAIN:
+		if u == null:
+			_hero_train_label.text = "No unit ready at any Training Grounds: defending instead."
+		else:
+			_hero_train_label.text = "%s level %d -> %d: %d / %d XP needed. Hero has %d XP to give." % [u.display_name(), u.level + 1, u.level + 2, int(u.train_xp), int(u.train_xp_needed()), h.xp]
+			_hero_train_bar.max_value = u.train_xp_needed()
+			_hero_train_bar.value = u.train_xp
 
 
 # --- sidebar --------------------------------------------------------------------------
@@ -355,7 +460,7 @@ func _entry(icon_tex: Texture2D, title: String, desc: String, action_text: Strin
 func _build_page_build() -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
-	for kind in ["tower", "farm", "camp", "lightstone"]:
+	for kind in ["tower", "farm", "camp", "lightstone", "training"]:
 		var spec: Dictionary = Config.BUILDINGS[kind]
 		var icon := Art.tex(spec["art"])
 		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_text(spec["cost"]), game.begin_build.bind(kind))
@@ -443,7 +548,7 @@ func _rebuild_reserve() -> void:
 
 
 func _refresh_reserve_texts(reserve: Array[MilitaryUnit]) -> void:
-	_reserve_label.text = "Reserve: %d   Walking: %d   On duty: %d\nDrag a unit onto a tower, or tap it and then tap a tower. Units walk there, and walk back when withdrawn." % [reserve.size(), game.army.walking().size(), game.army.stationed().size()]
+	_reserve_label.text = "Reserve: %d   Walking: %d   On duty: %d\nDrag a unit onto a tower or the training grounds, or tap it and then tap the building. Units walk there, and walk back when withdrawn." % [reserve.size(), game.army.walking().size(), game.army.stationed().size()]
 	_upgrade_reserve_button.visible = _selected_unit != null
 	_selected_info.visible = _selected_unit != null
 	if _selected_unit:
@@ -491,7 +596,7 @@ func _input(event: InputEvent) -> void:
 
 
 func is_over_ui(screen_pos: Vector2) -> bool:
-	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay]:
+	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay, _hero_panel]:
 		if c.is_visible_in_tree() and c.get_global_rect().has_point(screen_pos):
 			return true
 	return false
@@ -716,6 +821,7 @@ func _process(delta: float) -> void:
 		_tick = 0.25
 		_refresh_wave()
 		_refresh_resources()
+		_refresh_hero()
 
 
 func _refresh() -> void:

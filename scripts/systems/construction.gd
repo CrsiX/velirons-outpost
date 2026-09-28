@@ -10,6 +10,7 @@ const KIND_SCRIPTS := {
 	"farm": preload("res://scripts/buildings/farm.gd"),
 	"camp": preload("res://scripts/buildings/worker_camp.gd"),
 	"lightstone": preload("res://scripts/buildings/light_stone.gd"),
+	"training": preload("res://scripts/buildings/training_grounds.gd"),
 }
 
 var game: Game
@@ -23,31 +24,28 @@ func setup(p_game: Game) -> void:
 ## "" if `kind` can be placed with its anchor on `tile`, else the reason.
 func placement_error(kind: String, tile: Vector2i) -> String:
 	var spec: Dictionary = Config.BUILDINGS[kind]
-	var r: int = spec["size"] / 2
 	var map := game.map
-	for dy in range(-r, r + 1):
-		for dx in range(-r, r + 1):
-			var t := tile + Vector2i(dx, dy)
-			if not map.in_bounds(t):
-				return "Outside the map"
-			if not map.is_explored(t):
-				return "Unexplored land"
-			if map.in_village(t):
-				return "Must be outside the village walls"
-			if map.building_at(t) != null:
-				return "Something is already built here"
-			match map.get_terrain(t):
-				MapData.Terrain.ROAD:
-					return "Can't build on the road"
-				MapData.Terrain.FOREST:
-					return "Trees are in the way"
-				MapData.Terrain.MOUNTAIN:
-					return "Mountains are in the way"
-				MapData.Terrain.DESERT:
-					if kind == "farm":
-						return "Nothing grows in the desert"
+	for t in Building.footprint(tile, spec["size"]):
+		if not map.in_bounds(t):
+			return "Outside the map"
+		if not map.is_explored(t):
+			return "Unexplored land"
+		if map.in_village(t):
+			return "Must be outside the village walls"
+		if map.building_at(t) != null:
+			return "Something is already built here"
+		match map.get_terrain(t):
+			MapData.Terrain.ROAD:
+				return "Can't build on the road"
+			MapData.Terrain.FOREST:
+				return "Trees are in the way"
+			MapData.Terrain.MOUNTAIN:
+				return "Mountains are in the way"
+			MapData.Terrain.DESERT:
+				if kind == "farm":
+					return "Nothing grows in the desert"
 	if not game.economy.can_afford(spec["cost"]):
-		return "Not enough building material"
+		return "Not enough building material" if spec["cost"].keys() == ["materials"] else "Not enough resources"
 	return ""
 
 

@@ -22,5 +22,10 @@ func difficulty_name() -> String:
 	return NAMES[difficulty]
 
 
+## "easy" / "normal" / "hard", for string-keyed config tables.
+func difficulty_key() -> String:
+	return NAMES[difficulty].to_lower()
+
+
 func enemy_multiplier() -> float:
 	return ENEMY_MULTIPLIER[difficulty]

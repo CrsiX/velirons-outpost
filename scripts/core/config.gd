@@ -63,6 +63,10 @@ const BUILDINGS := {
 		"name": "Worker Camp", "cost": {"materials": 25}, "build_time": 6.0, "size": 1, "art": "worker_camp",
 		"desc": "Base for one forester, who cuts nearby trees for building material.",
 	},
+	"training": {
+		"name": "Training Grounds", "cost": {"materials": 60, "gold": 80}, "build_time": 14.0, "size": 2, "art": "training_grounds",
+		"desc": "2x2. Station a military unit here; the hero (in Train mode) passes on his XP to level it up for free.",
+	},
 	"lightstone": {
 		"name": "Light Stone", "cost": {"materials": 40}, "build_time": 10.0, "size": 1, "art": "light_stone",
 		"desc": "Rune pillar that lights up the land around it. Needs no one to man it.",
@@ -152,6 +156,8 @@ const MILITARY := {
 			{"damage": 16.0, "cooldown": 0.72, "cost": {"gold": 80}},
 			{"damage": 24.0, "cooldown": 0.6, "cost": {"gold": 130}},
 		],
+		# XP the hero must pass on (training grounds) to reach level 2, 3, 4.
+		"train_xp": [30, 60, 100],
 	},
 	"summoner": {
 		"name": "Summoner", "cost": {"gold": 60}, "speed": 1.4, "behavior": "summoner",
@@ -163,9 +169,33 @@ const MILITARY := {
 			{"interval": 4.2, "max_summons": 4, "summon_hp": 34.0, "summon_damage": 6.5, "cost": {"gold": 100}},
 			{"interval": 3.5, "max_summons": 5, "summon_hp": 44.0, "summon_damage": 8.5, "cost": {"gold": 150}},
 		],
+		"train_xp": [40, 80, 130],
 	},
 }
 const MILITARY_ORDER: Array[String] = ["archer", "summoner"]
+## Training XP needed is multiplied by this per difficulty (see Settings).
+const TRAIN_XP_DIFFICULTY := {"easy": 0.8, "normal": 1.0, "hard": 1.5}
+
+## The hero: a fighter who can also do a little of every villager job.
+## He has no hut, eats nothing and doesn't count as a villager.
+const HERO := {
+	"name": "Hero", "hp": 60.0, "speed": 1.8,
+	"damage": 8.0, "attack_cooldown": 0.9, "attack_range": 0.8,
+	"sight": 4.0,  # surveillance while outside
+	"alert_radius": 6.0,  # Defend: enemies this close to a gate draw him out
+	"leash": 14.0,  # Defend: he won't chase farther than this from the centre
+	"build_efficiency": 0.5,  # "a little" of each job: half a builder's speed
+	"explore_reveal": 1.8,  # explorers see 2.6
+	"gather_capacity": 2,  # gatherers carry 6
+	"train_rate": 5.0,  # XP per second passed on at the training grounds
+}
+## XP the hero earns per action (training earns none).
+const HERO_XP_PER_ACTION := {
+	"hit": 1,  # a melee hit in combat
+	"build_second": 1,  # each second of construction work
+	"explore": 1,  # each exploring step that uncovers new tiles
+	"corpse": 1,  # each corpse picked up
+}
 
 ## Earth elementals summoned by summoners. hp/damage come from the summoner's
 ## level; at level 1 an elemental is exactly as strong as a goblin.

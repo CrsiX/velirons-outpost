@@ -1,5 +1,5 @@
 class_name Tower
-extends Building
+extends MilitaryPost
 ## A tower that holds one military unit of any kind. Used for both the four
 ## pre-built village wall towers ("wall_tower") and player-built watchtowers
 ## ("tower"). The tower never acts itself: its unit's behavior does, using the
@@ -7,9 +7,6 @@ extends Building
 ## time) to extend that range; they keep working while being upgraded.
 
 var level := 1
-var garrison: MilitaryUnit = null
-## Unit currently marching here (reserves the tower).
-var incoming: MilitaryUnit = null
 var _unit_sprite: Sprite2D
 var _spell_glow: Sprite2D
 ## Seconds the stationed unit stays enchanted by a witch (does nothing meanwhile).
@@ -110,10 +107,6 @@ func is_solid_when_complete() -> bool:
 	return true
 
 
-func can_garrison() -> bool:
-	return complete
-
-
 ## Every finished tower watches like a building; manned ones watch their range.
 func sight_radius() -> float:
 	var r := super.sight_radius()
@@ -125,10 +118,9 @@ func sight_radius() -> float:
 func set_garrison(unit: MilitaryUnit) -> void:
 	if garrison != null and unit != garrison:
 		garrison.behavior.on_leave(self, garrison)
-	garrison = unit
 	enchanted = 0.0
 	_spell_glow.visible = false
-	refresh()
+	super.set_garrison(unit)
 
 
 func _exit_tree() -> void:

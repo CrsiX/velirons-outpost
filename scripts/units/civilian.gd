@@ -35,7 +35,7 @@ func display_name() -> String:
 func _process(delta: float) -> void:
 	if dead:
 		return
-	if not at_home and not evading:
+	if not at_home and not evading and wants_to_evade():
 		_threat_timer -= delta
 		if _threat_timer <= 0.0:
 			_threat_timer = 0.25
@@ -65,6 +65,21 @@ func _evade() -> void:
 	sprite.rotation = 0.0
 	float_text("Enemies!", Color("ff7a6a"))
 	head_home()
+
+
+## Override: false for units that stand and fight (the defending hero).
+func wants_to_evade() -> bool:
+	return true
+
+
+## Override: called for every action worth experience (only the hero learns).
+func on_action(_kind: String) -> void:
+	pass
+
+
+## Override: unexplored tile this unit is heading for, if exploring.
+func exploring_target() -> Vector2i:
+	return Vector2i(-1, -1)
 
 
 ## Override: drop or pause the current job when running from enemies.

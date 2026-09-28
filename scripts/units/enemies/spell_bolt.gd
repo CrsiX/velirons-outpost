@@ -1,7 +1,7 @@
 class_name SpellBolt
 extends Node2D
 ## A witch's whirling pink bolt. Homes in on its target: a tower's unit gets
-## enchanted (no damage), an earth elemental takes the spell's damage.
+## enchanted (no damage); a melee defender (earth elemental, hero) takes damage.
 
 var target: Node
 var damage := 0.0
@@ -46,6 +46,6 @@ func _process(delta: float) -> void:
 func _hit() -> void:
 	if target is Tower:
 		(target as Tower).enchant(enchant)
-	elif target is EarthElemental and not target.dead:
-		target.take_damage(damage)
+	elif target.is_in_group("melee_defenders") and not target.dead:
+		target.take_damage(damage)  # elementals, the hero
 	queue_free()

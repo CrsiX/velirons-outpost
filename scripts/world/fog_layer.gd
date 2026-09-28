@@ -40,7 +40,8 @@ func setup(p_map: MapData) -> void:
 
 
 ## Marks tiles within `radius` (grid units) of `center` as explored.
-func reveal(center: Vector2, radius: float) -> void:
+## Returns how many tiles were newly explored.
+func reveal(center: Vector2, radius: float) -> int:
 	var fresh: Array[Vector2i] = []
 	var r := int(ceil(radius))
 	var c := Vector2i(center.round())
@@ -55,6 +56,7 @@ func reveal(center: Vector2, radius: float) -> void:
 	if not fresh.is_empty():
 		_explored_dirty = true
 		revealed.emit(fresh)
+	return fresh.size()
 
 
 ## Marks the whole map explored (Config.REVEAL_MAP). Surveillance still applies.

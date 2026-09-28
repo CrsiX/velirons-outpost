@@ -9,6 +9,6 @@ func tick(_enemy: Enemy, _delta: float) -> bool:
 	return false
 
 
-## Called when the enemy is hurt by `source` (a Tower or an EarthElemental).
+## Called when the enemy is hurt by `source` (a Tower, or a melee defender).
 func on_damaged(_enemy: Enemy, _source: Node) -> void:
 	pass

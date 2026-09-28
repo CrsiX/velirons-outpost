@@ -30,6 +30,7 @@ func setup(p_game: Game, p_home: Vector2i, spawn_tile: Vector2i, p_hp: float, p_
 	_init_sprite("unit_earth_elemental")
 	set_grid_pos(Vector2(spawn_tile))
 	add_to_group("summons")
+	add_to_group("melee_defenders")
 	add_to_group("observers")
 	# Rise out of the ground.
 	sprite.scale = Vector2(0.5, 0.1)
@@ -115,7 +116,7 @@ func _strike() -> void:
 	Sfx.play("hit", 0.25)
 
 
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, _source: Node = null) -> void:
 	if dead:
 		return
 	hp -= amount
@@ -132,6 +133,7 @@ func crumble() -> void:
 		return
 	dead = true
 	remove_from_group("summons")
+	remove_from_group("melee_defenders")
 	remove_from_group("observers")
 	died.emit(self)
 	var tw := create_tween().set_parallel()
