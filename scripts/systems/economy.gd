@@ -41,6 +41,13 @@ func refund(cost: Dictionary) -> void:
 	changed.emit()
 
 
+## Co-op client: the amounts as the host has them.
+func set_amounts(d: Dictionary) -> void:
+	for res in RESOURCES:
+		_amounts[res] = float(d.get(res, _amounts[res]))
+	changed.emit()
+
+
 func add(res: String, value: float) -> void:
 	_amounts[res] += value
 	changed.emit()

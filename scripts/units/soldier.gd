@@ -27,7 +27,12 @@ func walk_to(tile: Vector2i) -> bool:
 
 
 func _process(delta: float) -> void:
-	if step_path(delta):
+	if game.is_client:
+		net_follow(delta)  # the host simulates; we just follow
+		return
+	# A unit sent to another village is theirs as soon as it's inside their walls.
+	var entered := unit.state == MilitaryUnit.State.TRAVELLING and unit.travel_to.rect.has_point(current_tile())
+	if step_path(delta) or entered:
 		arrived.emit(self)
 
 

@@ -15,6 +15,8 @@ var target: Enemy = null
 var home := Vector2i.ZERO
 ## Numbered across all summoners: "elemental 3".
 var uid := 0
+## Its summoner's village.
+var village: Village
 
 
 func label() -> String:
@@ -44,6 +46,9 @@ func setup(p_game: Game, p_home: Vector2i, spawn_tile: Vector2i, p_hp: float, p_
 
 
 func _process(delta: float) -> void:
+	if game.is_client:
+		net_follow(delta)
+		return
 	if dead:
 		return
 	_think_timer -= delta
@@ -80,7 +85,7 @@ func _pick_target() -> void:
 			best_d = d
 			best = e
 	if best != null and best != target:
-		game.events.debug("%s attacks %s" % [label(), best.label()])
+		village.events.debug("%s attacks %s" % [label(), best.label()])
 	target = best
 
 
@@ -132,7 +137,7 @@ func take_damage(amount: float, source = null) -> void:
 	sprite.modulate = Color(1.0, 0.55, 0.45)
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
 	if hp <= 0.0:
-		game.events.debug("%s destroyed by %s" % [label(), game.who(source)])
+		village.events.debug("%s destroyed by %s" % [label(), game.who(source)])
 		crumble()
 
 

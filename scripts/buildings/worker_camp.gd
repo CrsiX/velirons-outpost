@@ -31,16 +31,16 @@ func info() -> Dictionary:
 	var lines: Array[String] = d["lines"]
 	var actions: Array[Dictionary] = d["actions"]
 	if forester:
-		lines.append("Forester: %s" % forester.status())
+		lines.append("Forester: %s" % forester.status_text())
 		lines.append("+%d building material per trip" % Config.FORESTER_MATERIAL_PER_TRIP)
-		actions.append({"label": "Unassign forester", "action": func() -> void: game.population.unassign_forester(self)})
+		actions.append({"label": "Unassign forester", "action": func() -> void: game.command("unassign_worker", {"building": nid})})
 	else:
 		lines.append("Idle: assign a forester to cut trees nearby.")
-		var free := game.population.free_foresters()
+		var free := village.population.free_foresters()
 		actions.append({
 			"label": "Assign forester" if not free.is_empty() else "No free forester",
 			"disabled": free.is_empty(),
-			"action": func() -> void: game.population.assign_forester(self),
+			"action": func() -> void: game.command("assign_worker", {"building": nid}),
 		})
 	return d
 

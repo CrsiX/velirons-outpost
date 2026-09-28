@@ -16,8 +16,11 @@ var pathing: Pathing
 var buildings: Array[Building] = []
 
 var _props: Dictionary = {}  # tile -> Sprite2D (trees, mountain peaks)
-var _village_dist := PackedInt32Array()
+## Walking distance from each village centre (id -> field), rebuilt when dirty.
+var _village_dist: Dictionary = {}
 var _village_dist_dirty := true
+## Name labels floating over the villages (co-op), id -> Label.
+var _village_labels: Dictionary = {}
 
 @onready var ground: GroundLayer = $Ground
 @onready var decals: Node2D = $Decals
@@ -30,17 +33,27 @@ var _village_dist_dirty := true
 
 func setup(p_game: Game, seed_value: int) -> void:
 	game = p_game
-	map = MapGenerator.generate(seed_value)
+	# Co-op clients use the map the host generated and sent (Net.map).
+	map = Net.map if game.is_client and Net.map else MapGenerator.generate(seed_value, game.villages.size())
 	pathing = Pathing.new(map)
 	ground.setup(map)
-	fog.setup(map)
+	fog.setup(map, game.villages.size())
 	fog.revealed.connect(_on_revealed)
 	warnings.setup(game)
 	_spawn_props()
-	_spawn_village()
-	fog.reveal(Vector2(Config.VILLAGE_CENTER), Config.START_REVEAL_RADIUS)
-	if map.farm_plot != Vector2i(-1, -1):
-		fog.reveal(Vector2(map.farm_plot), 2.0)
+	if not game.is_client:  # (clients get every building from the host)
+		_spawn_village()
+	# Each village knows its own surroundings, and every village's 5x5 walls
+	# (docs/multiplayer-design.md §6).
+	for i in map.villages.size():
+		var v: Dictionary = map.villages[i]
+		fog.reveal(Vector2(v["center"]), Config.START_REVEAL_RADIUS, i)
+		if v["farm_plot"] != Vector2i(-1, -1):
+			fog.reveal(Vector2(v["farm_plot"]), 2.0, i)
+		for j in map.villages.size():
+			fog.explore_tiles(_rect_tiles(v["rect"]), j)
+	if map.villages.size() > 1:
+		_spawn_village_labels()
 	if game.reveal_map:
 		fog.reveal_all()
 	if game.disable_fog:
@@ -69,8 +82,23 @@ func _spawn_village() -> void:
 		var b: Building = PIECE_SCRIPTS[kind].new()
 		if b is StaticPiece:
 			b.flip = piece["flip"]
+		b.village = game.villages[piece.get("owner", 0)]
 		b.setup(game, kind, piece["tile"], true)
 		add_building(b)
+
+
+static func _rect_tiles(r: Rect2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for y in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
+			out.append(Vector2i(x, y))
+	return out
+
+
+## Trees and peaks show on explored tiles of the local village's fog.
+func refresh_props() -> void:
+	for t: Vector2i in _props:
+		_props[t].visible = map.is_explored(t)
 
 
 func _on_revealed(tiles: Array[Vector2i]) -> void:
@@ -84,6 +112,8 @@ func _on_revealed(tiles: Array[Vector2i]) -> void:
 func add_building(b: Building) -> void:
 	if b.uid == 0:
 		b.uid = game.next_id(b.kind)
+	if b.nid == 0:
+		b.nid = game.register(b)
 	if b.get_parent() == null:
 		objects.add_child(b)
 	buildings.append(b)
@@ -93,6 +123,7 @@ func add_building(b: Building) -> void:
 
 
 func remove_building(b: Building) -> void:
+	game.unregister(b.nid)
 	buildings.erase(b)
 	for t in b.tiles():
 		if map.buildings.get(t) == b:
@@ -126,12 +157,47 @@ func military_posts() -> Array[Building]:
 	return buildings.filter(func(b: Building) -> bool: return b is MilitaryPost)
 
 
-## Walking distance from the village centre to every tile (cached).
-func village_distance() -> PackedInt32Array:
+## Walking distance from a village's centre to every tile (cached); the local
+## player's village when none is given.
+func village_distance(v: Village = null) -> PackedInt32Array:
+	if v == null:
+		v = game.player_village
 	if _village_dist_dirty:
-		_village_dist = pathing.distance_field(Config.VILLAGE_CENTER)
+		_village_dist.clear()
 		_village_dist_dirty = false
-	return _village_dist
+	if not _village_dist.has(v.id):
+		_village_dist[v.id] = pathing.distance_field(v.center)
+	return _village_dist[v.id]
+
+
+## Co-op: every village's name floats over its centre in its colour. The
+## local player's own village doesn't need one.
+func _spawn_village_labels() -> void:
+	for v in game.villages:
+		var l := Label.new()
+		l.text = v.village_name
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.add_theme_font_size_override("font_size", 30)
+		l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		l.add_theme_constant_override("outline_size", 8)
+		l.size = Vector2(400, 40)
+		l.position = Iso.tile_to_world(map.villages[v.id]["center"]) + Vector2(-200, -150)
+		l.z_index = 50
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		effects.add_child(l)
+		_village_labels[v.id] = l
+	refresh_village_labels()
+
+
+## Label colours and visibility: hidden over the local village, grey while fallen.
+func refresh_village_labels() -> void:
+	for v in game.villages:
+		var l: Label = _village_labels.get(v.id)
+		if l == null:
+			continue
+		l.visible = not v.is_local()
+		l.text = v.village_name + ("  (fallen)" if v.fallen else "")
+		l.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6) if v.fallen else v.color)
 
 
 ## Front-most building whose sprite covers `world_pos`, falling back to the tile.
@@ -195,7 +261,7 @@ func find_tree(from: Vector2i, radius: float, who: Node) -> Dictionary:
 	for dy in range(-r, r + 1):
 		for dx in range(-r, r + 1):
 			var t := from + Vector2i(dx, dy)
-			if not is_tree(t) or not map.is_explored(t) or Vector2(t).distance_to(Vector2(from)) > radius:
+			if not is_tree(t) or not fog.is_explored_by(maxi(0, FogLayer.observer_village(who)), t) or Vector2(t).distance_to(Vector2(from)) > radius:
 				continue
 			var owner: Node = _tree_claims.get(t)
 			if owner != null and owner != who and is_instance_valid(owner):
@@ -250,6 +316,8 @@ func remove_tree(t: Vector2i) -> void:
 
 
 func float_text(text: String, at: Vector2, color: Color) -> void:
+	if game.replicator and game.replicator.hosting:
+		game.replicator.float_text(text, at, color)
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", 20)

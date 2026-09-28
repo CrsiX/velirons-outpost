@@ -2,13 +2,17 @@ class_name Pathing
 extends RefCounted
 ## Navigation for both sides.
 ## Ground units (civilians, soldiers): AStarGrid2D; forest, mountains and solid
-## buildings block. Enemies: a flow field over road tiles to the nearest gate.
+## buildings block. Enemies: flow fields over road tiles: one to the nearest
+## gate of any village, and one per village to that village's own gates (each
+## village's wave goes for that village; see Waves).
 
 const UNREACHABLE := 1 << 30
 
 var map: MapData
 var astar := AStarGrid2D.new()
 var enemy_dist := PackedInt32Array()
+## Per village id: road steps to that village's nearest gate.
+var village_fields: Array[PackedInt32Array] = []
 
 
 func _init(p_map: MapData) -> void:
@@ -87,42 +91,69 @@ func distance_field(from: Vector2i) -> PackedInt32Array:
 # --- enemies ---------------------------------------------------------------------
 
 func build_enemy_field() -> void:
-	enemy_dist.resize(map.size * map.size)
-	enemy_dist.fill(UNREACHABLE)
+	enemy_dist = _road_field(map.gates)
+	village_fields.clear()
+	for v in map.villages:
+		village_fields.append(_road_field(v["gates"]))
+
+
+## Road steps from every road tile to the nearest of `gates`.
+func _road_field(gates: Array) -> PackedInt32Array:
+	var dist := PackedInt32Array()
+	dist.resize(map.size * map.size)
+	dist.fill(UNREACHABLE)
 	var queue: Array[Vector2i] = []
-	for g in map.gates:
-		enemy_dist[map.index(g)] = 0
+	for g in gates:
+		dist[map.index(g)] = 0
 		queue.append(g)
 	var head := 0
 	while head < queue.size():
 		var t := queue[head]
 		head += 1
 		for n in MapData.neighbors4(t):
-			if map.is_road(n) and enemy_dist[map.index(n)] == UNREACHABLE:
-				enemy_dist[map.index(n)] = enemy_dist[map.index(t)] + 1
+			if map.is_road(n) and dist[map.index(n)] == UNREACHABLE:
+				dist[map.index(n)] = dist[map.index(t)] + 1
 				queue.append(n)
+	return dist
 
 
-func enemy_distance(t: Vector2i) -> int:
-	return enemy_dist[map.index(t)] if map.in_bounds(t) else UNREACHABLE
+## Road steps to the nearest gate (of village `village`, or of any village with -1).
+func enemy_distance(t: Vector2i, village: int = -1) -> int:
+	if not map.in_bounds(t):
+		return UNREACHABLE
+	var field := enemy_dist if village < 0 or village >= village_fields.size() else village_fields[village]
+	return field[map.index(t)]
 
 
-## Road route from a spawn to the nearest gate, following the flow field.
-## Ties between equally short branches are broken randomly.
-func enemy_route(from: Vector2i, rng: RandomNumberGenerator) -> Array[Vector2i]:
+## The road tile nearest to `t` (for enemies that have to change course).
+func nearest_road(t: Vector2i) -> Vector2i:
+	if map.is_road(t):
+		return t
+	for r in range(1, 6):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if map.is_road(t + Vector2i(dx, dy)):
+					return t + Vector2i(dx, dy)
+	return t
+
+
+## Road route from a spawn to the nearest gate (of `village`, or of any village
+## with -1), following the flow field. Ties between equally short branches are
+## broken randomly.
+func enemy_route(from: Vector2i, rng: RandomNumberGenerator, village: int = -1) -> Array[Vector2i]:
 	var route: Array[Vector2i] = [from]
 	var t := from
 	var guard := 0
-	while enemy_distance(t) > 0 and guard < map.size * map.size:
+	while enemy_distance(t, village) > 0 and guard < map.size * map.size:
 		guard += 1
 		var best: Array[Vector2i] = []
-		var best_d := enemy_distance(t)
+		var best_d := enemy_distance(t, village)
 		for n in MapData.neighbors4(t):
-			var d := enemy_distance(n)
+			var d := enemy_distance(n, village)
 			if d < best_d:
 				best_d = d
 				best = [n]
-			elif d == best_d and d < enemy_distance(t):
+			elif d == best_d and d < enemy_distance(t, village):
 				best.append(n)
 		if best.is_empty():
 			break

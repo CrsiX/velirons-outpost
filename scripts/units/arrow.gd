@@ -6,6 +6,8 @@ var target: Enemy
 var damage := 5.0
 ## Tower that shot this arrow (so the victim knows who attacked it).
 var source: Node = null
+## Co-op client: only a picture of an arrow the host shot.
+var visual_only := false
 
 var _start := Vector2.ZERO
 var _end := Vector2.ZERO
@@ -27,8 +29,20 @@ func launch(from: Vector2, p_target: Enemy, p_damage: float, p_source: Node = nu
 	_arc = dist * 0.15
 
 
+## Co-op client: an arrow from `from` to `to` (world positions), no damage.
+func fly(from: Vector2, to: Vector2) -> void:
+	Art.apply(self, "arrow")
+	visual_only = true
+	_start = from
+	_end = to
+	global_position = from
+	var dist := from.distance_to(to)
+	_duration = clampf(dist / 700.0, 0.12, 0.7)
+	_arc = dist * 0.15
+
+
 func _process(delta: float) -> void:
-	if is_instance_valid(target) and not target.dead:
+	if not visual_only and is_instance_valid(target) and not target.dead:
 		_end = target.hit_point()
 	_t += delta / _duration
 	var k := minf(_t, 1.0)
@@ -37,7 +51,7 @@ func _process(delta: float) -> void:
 		rotation = (p - global_position).angle()
 	global_position = p
 	if _t >= 1.0:
-		if is_instance_valid(target) and not target.dead:
+		if not visual_only and is_instance_valid(target) and not target.dead:
 			target.take_damage(damage, source)
 			Sfx.play("hit", 0.2)
 		queue_free()

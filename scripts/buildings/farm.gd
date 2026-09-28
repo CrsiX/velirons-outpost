@@ -45,6 +45,8 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
+	if game.is_client:
+		return
 	if complete and farmer != null:
 		stored = minf(stored + Config.FARM_RATE * delta, Config.FARM_CAPACITY)
 
@@ -64,14 +66,14 @@ func info() -> Dictionary:
 	lines.append("Stored food: %d / %d" % [int(stored), int(Config.FARM_CAPACITY)])
 	if farmer:
 		lines.append("Worked by a farmer (+%.1f food/s)" % Config.FARM_RATE)
-		actions.append({"label": "Unassign farmer", "action": func() -> void: game.population.unassign_farmer(self)})
+		actions.append({"label": "Unassign farmer", "action": func() -> void: game.command("unassign_worker", {"building": nid})})
 	else:
 		lines.append("Idle: assign a farmer to grow food.")
-		var free := game.population.free_farmers()
+		var free := village.population.free_farmers()
 		actions.append({
 			"label": "Assign farmer" if not free.is_empty() else "No free farmer",
 			"disabled": free.is_empty(),
-			"action": func() -> void: game.population.assign_farmer(self),
+			"action": func() -> void: game.command("assign_worker", {"building": nid}),
 		})
 	return d
 

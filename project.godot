@@ -21,6 +21,7 @@ config/icon="res://icon.svg"
 Sfx="*res://scripts/core/sfx.gd"
 Settings="*res://scripts/core/settings.gd"
 Layout="*res://scripts/core/screen_layout.gd"
+Net="*res://scripts/net/net.gd"
 
 [display]
 

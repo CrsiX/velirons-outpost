@@ -20,13 +20,18 @@ const ROLE_SCRIPTS := {
 }
 
 var game: Game
+## The village these villagers belong to.
+var village: Village
 var civilians: Array[Civilian] = []
 var starving := false
 var _starve_timer := 0.0
 
 
-func setup(p_game: Game) -> void:
-	game = p_game
+func setup(p_village: Village, spawn_start: bool = true) -> void:
+	village = p_village
+	game = village.game
+	if not spawn_start:
+		return
 	for role in Config.START_CIVILIANS:
 		spawn(role)
 
@@ -38,7 +43,7 @@ func count(role: String = "") -> int:
 
 
 func cap() -> int:
-	return game.world.intact_huts().size()
+	return village.intact_huts().size()
 
 
 ## Net food flow: upkeep plus the average output of worked farms.
@@ -49,14 +54,14 @@ func food_per_second() -> float:
 
 ## Intact huts nobody lives in yet.
 func free_huts() -> Array[Building]:
-	return game.world.intact_huts().filter(func(h: Hut) -> bool: return h.resident == null)
+	return village.intact_huts().filter(func(h: Hut) -> bool: return h.resident == null)
 
 
 ## Returns "" when recruiting is possible, else the reason why not.
 func recruit_error(role: String) -> String:
 	if free_huts().is_empty():
 		return "No free hut (%d/%d)" % [count(), cap()]
-	if not game.economy.can_afford(Config.CIVILIANS[role]["cost"]):
+	if not village.economy.can_afford(Config.CIVILIANS[role]["cost"]):
 		return "Not enough resources"
 	return ""
 
@@ -64,13 +69,13 @@ func recruit_error(role: String) -> String:
 func recruit(role: String) -> Civilian:
 	if recruit_error(role) != "":
 		return null
-	game.economy.spend(Config.CIVILIANS[role]["cost"])
+	village.economy.spend(Config.CIVILIANS[role]["cost"])
 	Sfx.play("recruit")
 	var civ := spawn(role)
 	if civ:
-		game.events.debug("recruit %s for %s" % [civ.label(), Config.cost_text(Config.CIVILIANS[role]["cost"])])
+		village.events.debug("recruit %s for %s" % [civ.label(), Config.cost_text(Config.CIVILIANS[role]["cost"])])
 	if civ and civ.workplace():
-		game.hud.toast("The new %s goes to work at the %s" % [civ.display_name().to_lower(), Config.BUILDINGS[civ.workplace().kind]["name"].to_lower()], UiTheme.GOLD)
+		village.toast("The new %s goes to work at the %s" % [civ.display_name().to_lower(), Config.BUILDINGS[civ.workplace().kind]["name"].to_lower()], UiTheme.GOLD)
 	return civ
 
 
@@ -80,14 +85,16 @@ func spawn(role: String) -> Civilian:
 	if homes.is_empty():
 		return null
 	var civ: Civilian = ROLE_SCRIPTS[role].new()
+	civ.village = village
 	civ.setup(game, role)
+	civ.nid = game.register(civ)
 	civ.uid = game.next_id(role)
 	var hut: Hut = homes[0]
 	hut.resident = civ
 	civ.hut = hut
 	game.world.objects.add_child(civ)
 	civilians.append(civ)
-	game.events.debug("%s moves into %s" % [civ.label(), hut.label()])
+	village.events.debug("%s moves into %s" % [civ.label(), hut.label()])
 	var vacant := vacant_workplaces(role)
 	if not vacant.is_empty():
 		_assign(civ, vacant[0], true)
@@ -99,7 +106,7 @@ func spawn(role: String) -> Civilian:
 func kill(civ: Civilian, reason: String = "of unknown causes") -> void:
 	if not civilians.has(civ):
 		return
-	game.events.important("%s died %s" % [civ.label(), reason])
+	village.events.important("%s died %s" % [civ.label(), reason])
 	civilians.erase(civ)
 	if is_instance_valid(civ.hut) and civ.hut.resident == civ:
 		civ.hut.resident = null
@@ -117,16 +124,16 @@ func kill_random(n: int) -> void:
 
 
 func _process(delta: float) -> void:
-	if civilians.is_empty():
+	if game == null or game.is_client or civilians.is_empty():
 		return
-	starving = game.economy.consume_food(Config.FOOD_UPKEEP * civilians.size() * delta)
+	starving = village.economy.consume_food(Config.FOOD_UPKEEP * civilians.size() * delta)
 	if starving:
 		_starve_timer += delta
 		if _starve_timer >= Config.STARVATION_INTERVAL:
 			_starve_timer = 0.0
 			if not civilians.is_empty():
 				kill(civilians[randi() % civilians.size()], "of starvation")
-			game.hud.toast("A villager starved to death.", Color("ff7a6a"))
+			village.toast("A villager starved to death.", Color("ff7a6a"))
 	else:
 		_starve_timer = 0.0
 
@@ -143,8 +150,8 @@ func vacant_workplaces(role: String) -> Array[Building]:
 	var kind: String = Config.CIVILIANS[role].get("works_at", "")
 	if kind == "":
 		return []
-	var out: Array[Building] = game.world.buildings.filter(func(b: Building) -> bool: return b is Workplace and b.kind == kind and b.complete and b.worker == null)
-	var c := Vector2(Config.VILLAGE_CENTER)
+	var out: Array[Building] = game.world.buildings.filter(func(b: Building) -> bool: return b is Workplace and b.village == village and b.kind == kind and b.complete and b.worker == null)
+	var c := Vector2(village.center)
 	out.sort_custom(func(a: Building, b: Building) -> bool: return Vector2(a.tile).distance_to(c) < Vector2(b.tile).distance_to(c))
 	return out
 
@@ -164,7 +171,7 @@ func assign_worker(place: Workplace, auto: bool = false) -> bool:
 
 func unassign_worker(place: Workplace) -> void:
 	if place.worker:
-		game.events.debug("unassign %s from %s" % [place.worker.label(), place.label()])
+		village.events.debug("unassign %s from %s" % [place.worker.label(), place.label()])
 		place.worker.unassign()
 		place.worker = null
 		place.refresh()
@@ -172,7 +179,7 @@ func unassign_worker(place: Workplace) -> void:
 
 
 func _assign(civ: Civilian, place: Workplace, auto: bool) -> void:
-	game.events.debug("assign %s to %s%s" % [civ.label(), place.label(), " (automatic)" if auto else ""])
+	village.events.debug("assign %s to %s%s" % [civ.label(), place.label(), " (automatic)" if auto else ""])
 	civ.assign(place)
 	place.worker = civ
 	place.refresh()

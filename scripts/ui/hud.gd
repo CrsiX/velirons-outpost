@@ -14,7 +14,6 @@ extends CanvasLayer
 
 const SIDEBAR_W := 320.0
 ## Game speed button cycles through these; 0 = paused.
-const SPEEDS: Array[float] = [1.0, 2.0, 4.0, 0.0]
 const SPEED_ICONS: Array[String] = ["icon_play", "icon_fast", "icon_fastest", "icon_pause"]
 const TOPBAR_H := 64.0
 const DRAG_THRESHOLD := 12.0
@@ -31,6 +30,28 @@ var _wave_label: Label
 var _enemies_label: Label
 var _call_button: Button
 var _settings_button: Button
+var _village_button: Button
+var _gray: ColorRect
+var _settings_note: Label
+var _paused_banner: Label
+# co-op help
+var _send_panel: PanelContainer
+var _send_labels: Dictionary = {}  # resource -> Label
+var _send_amounts := {"gold": 0, "food": 0, "materials": 0}
+var _send_target := -1  # village id
+var _send_target_button: Button
+var _send_tax_label: Label
+var _send_button: Button
+var _send_entry: Dictionary = {}
+var _send_unit_panel: PanelContainer
+var _send_unit_title: Label
+var _send_unit_target := -1
+var _send_unit_target_button: Button
+var _send_unit_go: Button
+var _send_reserve_button: Button
+var _hero_support_button: Button
+## The village whose systems the HUD shows (the local player's).
+var _bound: Village
 var _settings: Control  # grayscale backdrop + dialog, shown while paused
 var _settings_continue: Button
 var _settings_log_button: Button
@@ -57,6 +78,7 @@ const HERO_MODE_HINTS: Array[String] = [
 	"Gathers corpses like a gatherer, 2 at a time.",
 	"Passes his XP on to the unit at the Training Grounds (free level-ups). Only useful with Training Grounds and a unit stationed there; otherwise he defends.",
 	"Walks back to the village centre and rests there, fighting nobody, until his HP is back.",
+	"Walks to another village and defends it like at home: its gates, its centre. He keeps his XP and heals there. That village can't give him orders.",
 ]
 var _speed_button: Button
 var _speed_index := 0
@@ -134,6 +156,7 @@ func setup(p_game: Game) -> void:
 	_build_mode_panel()
 	_build_toasts()
 	_build_trade_dialog()
+	_build_send_dialog()
 	_build_log()
 	_build_overlay()
 	_dock_hint = _label("Release to withdraw", 22, UiTheme.GOOD)
@@ -145,10 +168,11 @@ func setup(p_game: Game) -> void:
 	_drag_ghost.modulate.a = 0.85
 	_root.add_child(_drag_ghost)
 	_build_settings()
-	game.events.changed.connect(func() -> void: _log_dirty = true)
 
-	for sig in [game.economy.changed, game.population.changed, game.army.changed, game.construction.changed, game.waves.changed, game.corpses.changed]:
+
+	for sig in [game.waves.changed, game.corpses.changed]:
 		sig.connect(_queue_refresh)
+	bind_village(game.player_village)
 	_select_tab("build")
 	get_viewport().size_changed.connect(_queue_relayout)
 	Layout.changed.connect(func(_p: bool) -> void: _queue_relayout())
@@ -264,13 +288,26 @@ func _build_topbar() -> void:
 	row.add_child(_spacer_port)
 	_call_button = _button("Call wave", Vector2(150, 44))
 	UiTheme.style_primary(_call_button)
-	_call_button.pressed.connect(func() -> void: game.waves.call_next())
+	_call_button.pressed.connect(func() -> void: _do("call_wave"))
 	row.add_child(_call_button)
 
 	_speed_button = _icon_button("icon_play", "")
-	_speed_button.pressed.connect(func() -> void: set_speed_index((_speed_index + 1) % SPEEDS.size()))
+	_speed_button.pressed.connect(func() -> void: set_speed_index((_speed_index + 1) % Game.SPEEDS.size()))
+	game.speed_changed.connect(_on_speed_changed)
 	row.add_child(_speed_button)
-	set_speed_index(0)
+	if game.is_host_player():
+		set_speed_index(0)
+	else:
+		_on_speed_changed(game.speed_index)  # (co-op client: shows the host's speed)
+	_village_button = _button("", Vector2(0, 44))
+	_village_button.tooltip_text = "Hot-seat: switch to the next village (Tab)"
+	_village_button.add_theme_font_size_override("font_size", 16)
+	_village_button.visible = game.villages.size() > 1
+	_village_button.disabled = game.networked  # networked: just shows whose village this is
+	_village_button.pressed.connect(func() -> void:
+		if not game.networked:
+			game.switch_village())
+	row.add_child(_village_button)
 	_settings_button = _icon_button("icon_settings", "Settings (pauses the game)")
 	_settings_button.pressed.connect(open_settings)
 	row.add_child(_settings_button)
@@ -308,13 +345,18 @@ func _icon_button(icon_name: String, tooltip: String) -> Button:
 
 ## 1x, 2x, 4x or paused (0x), shown by the single speed button.
 func set_speed_index(i: int) -> void:
+	var r := game.command("set_speed", {"index": i})
+	if not r["ok"]:
+		toast(r["error"], UiTheme.BAD)
+
+
+## The button follows the game speed, whoever set it.
+func _on_speed_changed(i: int) -> void:
 	_speed_index = i
-	var speed := SPEEDS[i]
-	get_tree().paused = speed == 0.0
-	if speed > 0.0:
-		Engine.time_scale = speed
+	_speed_button.disabled = not game.is_host_player()
+	var speed := Game.SPEEDS[i]
 	_speed_button.icon = Art.tex(SPEED_ICONS[i])
-	var next := SPEEDS[(i + 1) % SPEEDS.size()]
+	var next := Game.SPEEDS[(i + 1) % Game.SPEEDS.size()]
 	_speed_button.tooltip_text = "Speed: %s  (click for %s)" % [_speed_name(speed), _speed_name(next)]
 	if game.events:
 		game.events.debug("game speed: %s" % _speed_name(speed))
@@ -327,7 +369,7 @@ func _speed_name(speed: float) -> String:
 
 
 func current_speed() -> float:
-	return SPEEDS[_speed_index]
+	return Game.SPEEDS[_speed_index]
 
 
 func toggle_fullscreen() -> void:
@@ -344,6 +386,44 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_ESCAPE:
 			if _settings.visible:
 				close_settings()
+		KEY_TAB:
+			if game.villages.size() > 1:
+				game.switch_village()
+
+
+# --- the village shown ----------------------------------------------------------------
+
+## Shows `v`'s economy, villagers, army, hero and log (the local player's
+## village; hot-seat switches it).
+func bind_village(v: Village) -> void:
+	if _bound:
+		for sig in [_bound.economy.changed, _bound.population.changed, _bound.army.changed, _bound.construction.changed]:
+			sig.disconnect(_queue_refresh)
+		_bound.hero.changed.disconnect(_refresh_hero)
+		_bound.events.changed.disconnect(_on_log_changed)
+	_bound = v
+	for sig in [v.economy.changed, v.population.changed, v.army.changed, v.construction.changed]:
+		sig.connect(_queue_refresh)
+	v.hero.changed.connect(_refresh_hero)
+	v.events.changed.connect(_on_log_changed)
+	_selected_unit = null
+	_reserve_signature = ""
+	_log_dirty = true
+	if _send_panel:
+		_send_panel.visible = false
+		_send_unit_panel.visible = false
+		_send_target = -1
+		_send_unit_target = -1
+	if _village_button:
+		_village_button.text = v.village_name
+		_village_button.add_theme_color_override("font_color", v.color)
+	if _info_panel:
+		hide_info()
+	_queue_refresh()
+
+
+func _on_log_changed() -> void:
+	_log_dirty = true
 
 
 # --- hero ----------------------------------------------------------------------------
@@ -373,9 +453,19 @@ func _build_hero_panel() -> void:
 	_hero_mode_button = _button("", Vector2(0, 50))
 	_hero_mode_button.tooltip_text = "Tap to change what the hero does"
 	_hero_mode_button.pressed.connect(func() -> void:
-		game.hero.cycle_mode()
+		var next := (game.hero.mode + 1) % Hero.MODE_NAMES.size()
+		if next == Hero.Mode.SUPPORT and game.villages.size() < 2:
+			next = (next + 1) % Hero.MODE_NAMES.size()  # single player: nobody to support
+		_do("hero_mode", {"mode": next})
 		_refresh_hero())
 	v.add_child(_hero_mode_button)
+	_hero_support_button = _button("", Vector2(0, 48))
+	_hero_support_button.tooltip_text = "Tap to pick the village he supports"
+	_hero_support_button.pressed.connect(func() -> void:
+		var cur: Village = game.hero.support_target
+		_do("hero_support", {"target": _next_other(cur.id if cur else -1)})
+		_refresh_hero())
+	v.add_child(_hero_support_button)
 	_hero_mode_hint = _label("", 14, UiTheme.MUTED)
 	_hero_mode_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_hero_mode_hint)
@@ -392,10 +482,10 @@ func _build_hero_panel() -> void:
 	_hero_goto_button.pressed.connect(func() -> void:
 		var h: Hero = game.hero
 		game.events.debug("camera: go to the hero")
-		game.camera.focus(Iso.tile_to_world(Config.VILLAGE_CENTER) if h.dead else h.position))
+		game.camera.focus(Iso.tile_to_world(h.village.center) if h.dead else h.position))
 	v.add_child(_hero_goto_button)
 	_hero_panel.visible = false
-	game.hero.changed.connect(_refresh_hero)
+
 
 
 func _refresh_hero() -> void:
@@ -406,10 +496,13 @@ func _refresh_hero() -> void:
 	if not _hero_panel.visible:
 		return
 	_hero_stats.text = "HP %d / %d     XP %d" % [int(h.hp), int(h.max_hp), h.xp]
-	var st := h.status()
+	var st := h.status_text()
 	_hero_status.text = "Now: " + st
 	_hero_mode_button.text = "Mode: %s   (tap to change)" % h.mode_name()
 	_hero_mode_hint.text = HERO_MODE_HINTS[h.mode]
+	_hero_support_button.visible = h.mode == Hero.Mode.SUPPORT
+	if h.support_target:
+		_hero_support_button.text = "Support: %s   (tap to change)" % _village_text(h.support_target.id)
 	var g := h.ready_grounds()
 	var u: MilitaryUnit = g.trainable_unit() if g else null
 	_hero_train_label.visible = h.mode == Hero.Mode.TRAIN
@@ -641,6 +734,9 @@ func _relayout() -> void:
 	_hero_panel.offset_top = _top_h + 6.0
 	_trade_panel.offset_top = _top_h + 6.0
 	_trade_panel.offset_left = 10.0 if _portrait else 330.0
+	for p in [_send_panel, _send_unit_panel]:
+		p.offset_top = _top_h + 6.0
+		p.offset_left = 10.0 if _portrait else 330.0
 	_toasts.offset_top = _top_h + 70.0
 	_toasts.offset_right = -SIDEBAR_W if not _portrait and _side_open else 0.0
 	_mode_panel.offset_top = _top_h + 10.0
@@ -730,15 +826,23 @@ func _build_page_village() -> Control:
 		var e := _entry(Art.tex("unit_" + role), spec["name"], spec["desc"], "Recruit  (%s)" % Config.cost_text(spec["cost"]), _recruit.bind(role))
 		grid.add_child(e["panel"])
 		_recruit_rows[role] = e
+	# Co-op: help another village.
+	_send_entry = _entry(Art.tex("unit_caravan"), "Send resources", "Gold, food or material by caravan to another village, minus a tax that grows with the number of players.", "Send resources...", func() -> void: open_send_dialog())
+	grid.add_child(_send_entry["panel"])
+	_send_entry["panel"].visible = game.villages.size() > 1
 	return v
 
 
 func _recruit(role: String) -> void:
-	var err := game.population.recruit_error(role)
-	if err != "":
-		toast(err, UiTheme.BAD)
-		return
-	game.population.recruit(role)
+	_do("recruit_villager", {"role": role})
+
+
+## Runs a command for the player's village; a refusal shows as a toast.
+func _do(type: String, args: Dictionary = {}) -> Dictionary:
+	var r := game.command(type, args)
+	if not r["ok"]:
+		toast(r["error"], UiTheme.BAD)
+	return r
 
 
 func _build_page_army() -> Control:
@@ -748,8 +852,7 @@ func _build_page_army() -> Control:
 	for kind in Config.MILITARY_ORDER:
 		var spec: Dictionary = Config.MILITARY[kind]
 		var e := _entry(Art.tex("unit_" + kind), spec["name"], spec["desc"], "Recruit  (%s)" % Config.cost_text(spec["cost"]), func() -> void:
-			if game.army.recruit(kind) == null:
-				toast("Not enough gold", UiTheme.BAD))
+			_do("recruit_unit", {"kind": kind}))
 		grid.add_child(e["panel"])
 		_military_buttons[kind] = e["button"]
 	_reserve_label = _label("", 16)
@@ -763,11 +866,20 @@ func _build_page_army() -> Control:
 	_selected_info = _label("", 15, UiTheme.MUTED)
 	_selected_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_selected_info)
+	var rrow := HBoxContainer.new()
+	rrow.add_theme_constant_override("separation", 6)
+	v.add_child(rrow)
 	_upgrade_reserve_button = _button("Upgrade selected", Vector2(0, 48))
+	_upgrade_reserve_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_upgrade_reserve_button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_upgrade_reserve_button.pressed.connect(func() -> void:
-		if _selected_unit and not game.army.upgrade(_selected_unit):
-			toast("Not enough gold", UiTheme.BAD))
-	v.add_child(_upgrade_reserve_button)
+		if _selected_unit:
+			_do("upgrade_unit", {"unit": _selected_unit.nid}))
+	rrow.add_child(_upgrade_reserve_button)
+	_send_reserve_button = _button("Send...", Vector2(96, 48))
+	_send_reserve_button.tooltip_text = "Send the selected unit to another village"
+	_send_reserve_button.pressed.connect(open_send_unit_dialog)
+	rrow.add_child(_send_reserve_button)
 	return v
 
 
@@ -801,6 +913,7 @@ func _rebuild_reserve() -> void:
 func _refresh_reserve_texts(reserve: Array[MilitaryUnit]) -> void:
 	_reserve_label.text = "Reserve: %d   Walking: %d   On duty: %d\nDrag a unit onto a tower or the training grounds, or tap it and then tap the building. Units walk there, and walk back when withdrawn." % [reserve.size(), game.army.walking().size(), game.army.stationed().size()]
 	_upgrade_reserve_button.visible = _selected_unit != null
+	_send_reserve_button.visible = _selected_unit != null and game.villages.size() > 1
 	_selected_info.visible = _selected_unit != null
 	if _selected_unit:
 		var lines: Array[String] = ["%s, level %d" % [_selected_unit.display_name(), _selected_unit.level + 1]]
@@ -849,7 +962,7 @@ func _input(event: InputEvent) -> void:
 
 
 func is_over_ui(screen_pos: Vector2) -> bool:
-	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay, _hero_panel, _settings]:
+	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel]:
 		if c.is_visible_in_tree() and c.get_global_rect().has_point(screen_pos):
 			return true
 	return false
@@ -918,7 +1031,7 @@ func show_info(data: Dictionary) -> void:
 			if game.selected_unit:
 				show_info(game.unit_info(game.selected_unit))
 			elif game.selected:
-				show_info(game.selected.info()))
+				show_info(game.building_info(game.selected)))
 		_info_actions.add_child(b)
 	_place_info_panel.call_deferred()
 
@@ -1025,16 +1138,182 @@ func _build_trade_dialog() -> void:
 	for bundles in [1, 5]:
 		var b := _button("+%d  (%d gold)" % [Config.MATERIALS_TRADE["materials"] * bundles, Config.MATERIALS_TRADE["gold"] * bundles], Vector2(0, 50))
 		b.pressed.connect(func() -> void:
-			if not game.economy.buy_materials(bundles):
-				toast("Not enough gold", UiTheme.BAD)
-			else:
-				game.events.debug("buy %d building material for %d gold" % [Config.MATERIALS_TRADE["materials"] * bundles, Config.MATERIALS_TRADE["gold"] * bundles]))
+			_do("buy_materials", {"bundles": bundles}))
 		h.add_child(b)
 		_trade_buttons.append(b)
 	var close := _button("Close", Vector2(0, 44))
 	close.pressed.connect(func() -> void: _trade_panel.visible = false)
 	v.add_child(close)
 	_trade_panel.visible = false
+
+
+# --- co-op help: send resources, send units ---------------------------------------------
+
+## Other villages, for the "to" toggles.
+func _other_villages() -> Array[Village]:
+	var out: Array[Village] = []
+	for v in game.villages:
+		if v != game.player_village:
+			out.append(v)
+	return out
+
+
+## Next village after `id` among the others (wraps round); -1 if there are none.
+func _next_other(id: int) -> int:
+	var others := _other_villages()
+	if others.is_empty():
+		return -1
+	for i in others.size():
+		if others[i].id == id:
+			return others[(i + 1) % others.size()].id
+	return others[0].id
+
+
+func _village_text(id: int) -> String:
+	if id < 0:
+		return "-"
+	var v := game.villages[id]
+	return v.village_name + ("  (fallen)" if v.fallen else "")
+
+
+func _build_send_dialog() -> void:
+	_send_panel = PanelContainer.new()
+	_root.add_child(_send_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	v.custom_minimum_size = Vector2(380, 0)
+	_send_panel.add_child(v)
+	v.add_child(_label("Send resources", 20, UiTheme.GOLD))
+	v.add_child(_label("A caravan takes them to the other village's centre.", 14, UiTheme.MUTED))
+	for res in Economy.RESOURCES:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		v.add_child(row)
+		row.add_child(_icon(Art.tex("icon_" + res), 30))
+		var l := _label("0", 18)
+		l.custom_minimum_size.x = 64
+		row.add_child(l)
+		_send_labels[res] = l
+		for step in [-50, -10, 10, 50]:
+			var b := _button("%+d" % step, Vector2(50, 44))
+			b.add_theme_font_size_override("font_size", 15)
+			b.pressed.connect(func() -> void: _step_send(res, step))
+			row.add_child(b)
+		var all := _button("All", Vector2(50, 44))
+		all.add_theme_font_size_override("font_size", 15)
+		all.pressed.connect(func() -> void: _step_send(res, 1 << 30))
+		row.add_child(all)
+	_send_target_button = _button("", Vector2(0, 48))
+	_send_target_button.tooltip_text = "Tap to pick the receiving village"
+	_send_target_button.pressed.connect(func() -> void:
+		_send_target = _next_other(_send_target)
+		_refresh_send())
+	v.add_child(_send_target_button)
+	_send_tax_label = _label("", 15)
+	_send_tax_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_send_tax_label)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	v.add_child(h)
+	_send_button = _button("Send caravan", Vector2(0, 50))
+	_send_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiTheme.style_good(_send_button)
+	_send_button.pressed.connect(func() -> void:
+		var args := {"target": _send_target}
+		args.merge(_send_amounts)
+		if _do("send_caravan", args)["ok"]:
+			toast("The caravan sets off for %s" % game.villages[_send_target].village_name, UiTheme.GOLD)
+			for res in _send_amounts:
+				_send_amounts[res] = 0
+			_send_panel.visible = false
+		_refresh_send())
+	h.add_child(_send_button)
+	var close := _button("Close", Vector2(0, 50))
+	close.pressed.connect(func() -> void: _send_panel.visible = false)
+	h.add_child(close)
+	_send_panel.visible = false
+
+	# Sending a reserve unit.
+	_send_unit_panel = PanelContainer.new()
+	_root.add_child(_send_unit_panel)
+	var u := VBoxContainer.new()
+	u.add_theme_constant_override("separation", 8)
+	u.custom_minimum_size = Vector2(340, 0)
+	_send_unit_panel.add_child(u)
+	_send_unit_title = _label("", 20, UiTheme.GOLD)
+	u.add_child(_send_unit_title)
+	u.add_child(_label("It walks there and joins that village's army. It can't be called back.", 14, UiTheme.MUTED))
+	(u.get_child(1) as Label).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_send_unit_target_button = _button("", Vector2(0, 48))
+	_send_unit_target_button.pressed.connect(func() -> void:
+		_send_unit_target = _next_other(_send_unit_target)
+		_refresh_send())
+	u.add_child(_send_unit_target_button)
+	var hu := HBoxContainer.new()
+	hu.add_theme_constant_override("separation", 6)
+	u.add_child(hu)
+	_send_unit_go = _button("Send", Vector2(0, 50))
+	_send_unit_go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiTheme.style_good(_send_unit_go)
+	_send_unit_go.pressed.connect(func() -> void:
+		if _selected_unit and _do("send_unit", {"unit": _selected_unit.nid, "target": _send_unit_target})["ok"]:
+			toast("The %s sets off for %s" % [_selected_unit.display_name().to_lower(), game.villages[_send_unit_target].village_name], UiTheme.GOLD)
+			_selected_unit = null
+			_send_unit_panel.visible = false
+			_queue_refresh())
+	hu.add_child(_send_unit_go)
+	var close_u := _button("Close", Vector2(0, 50))
+	close_u.pressed.connect(func() -> void: _send_unit_panel.visible = false)
+	hu.add_child(close_u)
+	_send_unit_panel.visible = false
+
+
+func open_send_dialog() -> void:
+	if _send_target < 0 or game.villages[_send_target] == game.player_village:
+		_send_target = _next_other(-1)
+	_trade_panel.visible = false
+	_hero_panel.visible = false
+	_send_unit_panel.visible = false
+	_send_panel.visible = true
+	_refresh_send()
+
+
+func open_send_unit_dialog() -> void:
+	if _selected_unit == null:
+		return
+	if _send_unit_target < 0 or game.villages[_send_unit_target] == game.player_village:
+		_send_unit_target = _next_other(-1)
+	_send_panel.visible = false
+	_send_unit_panel.visible = true
+	_refresh_send()
+
+
+func _step_send(res: String, step: int) -> void:
+	var have := int(game.economy.amount(res))
+	_send_amounts[res] = clampi(_send_amounts[res] + step, 0, have)
+	_refresh_send()
+
+
+func _refresh_send() -> void:
+	if _send_panel == null:
+		return
+	var tax := Config.help_tax(game.villages.size())
+	var any := false
+	var got: Array[String] = []
+	for res in Economy.RESOURCES:
+		_send_amounts[res] = mini(_send_amounts[res], int(game.economy.amount(res)))
+		(_send_labels[res] as Label).text = str(_send_amounts[res])
+		if _send_amounts[res] > 0:
+			any = true
+			got.append("%d %s" % [floori(_send_amounts[res] * (1.0 - tax)), "material" if res == "materials" else res])
+	_send_target_button.text = "To: %s   (tap to change)" % _village_text(_send_target)
+	var to_name := game.villages[_send_target].village_name if _send_target >= 0 else "-"
+	_send_tax_label.text = "Tax %d %%: %s receives %s" % [roundi(tax * 100.0), to_name, ", ".join(got) if any else "nothing yet"]
+	_send_button.disabled = not any or _send_target < 0
+	if _selected_unit:
+		_send_unit_title.text = "Send %s (level %d)" % [_selected_unit.display_name(), _selected_unit.level + 1]
+	_send_unit_target_button.text = "To: %s   (tap to change)" % _village_text(_send_unit_target)
+	_send_unit_go.disabled = _selected_unit == null or _send_unit_target < 0
 
 
 # --- event log field -------------------------------------------------------------------
@@ -1128,6 +1407,7 @@ func _build_settings() -> void:
 	_settings.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# Everything drawn before this (the map and the rest of the HUD) turns grey.
 	var gray := ColorRect.new()
+	_gray = gray
 	var mat := ShaderMaterial.new()
 	var sh := Shader.new()
 	sh.code = GRAYSCALE_SHADER
@@ -1173,6 +1453,10 @@ func _build_settings() -> void:
 		game.events.debug("language: %s" % Settings.language_name())
 		_refresh_settings())
 	v.add_child(_settings_lang_button)
+	_settings_note = _label("The game keeps running.", 15, UiTheme.MUTED)
+	_settings_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_settings_note.visible = false
+	v.add_child(_settings_note)
 	_settings_title_button = _button("Back to title", Vector2(0, 56))
 	UiTheme.style_danger(_settings_title_button)
 	_settings_title_button.pressed.connect(func() -> void: game.go_to_title())
@@ -1185,11 +1469,17 @@ func open_settings() -> void:
 	if _settings.visible:
 		return
 	_speed_before = _speed_index
-	get_tree().paused = true
+	# Only the host pauses; for everyone else the game keeps running.
+	var pauses := game.is_host_player()
+	if pauses:
+		get_tree().paused = true
+	_gray.visible = pauses
+	_settings_note.visible = not pauses
+	_settings_title_button.text = "Leave game" if game.networked else "Back to title"
 	_trade_panel.visible = false
 	_refresh_settings()
 	_settings.visible = true
-	game.events.debug("open settings (game paused)")
+	game.events.debug("open settings (game paused)" if pauses else "open settings")
 
 
 ## Back to the game at the speed it was running at before.
@@ -1198,7 +1488,8 @@ func close_settings() -> void:
 		return
 	_settings.visible = false
 	game.events.debug("close settings")
-	set_speed_index(_speed_before)
+	if game.is_host_player():
+		set_speed_index(_speed_before)
 
 
 func _refresh_settings() -> void:
@@ -1276,14 +1567,38 @@ func _build_overlay() -> void:
 	_overlay.visible = false
 
 
+## Co-op client: the host paused the game (or opened its settings).
+func set_host_paused(v: bool) -> void:
+	if _paused_banner == null:
+		_paused_banner = _label("Paused by the host", 26, UiTheme.GOLD)
+		_paused_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_paused_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_root.add_child(_paused_banner)
+		_paused_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+		_paused_banner.offset_top = _top_h + 60.0
+		_paused_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_paused_banner.visible = v
+
+
+## Co-op: the session is over (the host left, connection lost).
+func show_session_ended(reason: String) -> void:
+	_overlay_title.text = reason
+	_overlay_title.add_theme_color_override("font_color", UiTheme.BAD)
+	_overlay_sub.text = "The game can't go on without the host."
+	_overlay_button.text = "Main menu"
+	_overlay.visible = true
+	_info_panel.visible = false
+	_connect_overlay(func() -> void: game.go_to_title())
+
+
 func show_game_over(title: String, subtitle: String) -> void:
 	_overlay_title.text = title
 	_overlay_title.add_theme_color_override("font_color", UiTheme.BAD)
 	_overlay_sub.text = subtitle
-	_overlay_button.text = "Try again"
+	_overlay_button.text = "Main menu" if game.networked else "Try again"
 	_overlay.visible = true
 	_info_panel.visible = false
-	_connect_overlay(func() -> void: game.restart())
+	_connect_overlay(func() -> void: game.go_to_title() if game.networked else game.restart())
 
 
 func _connect_overlay(cb: Callable) -> void:
@@ -1332,6 +1647,7 @@ func _refresh() -> void:
 	for b in _trade_buttons:
 		b.disabled = false
 	_rebuild_reserve()
+	_refresh_send()
 
 
 func _refresh_resources() -> void:

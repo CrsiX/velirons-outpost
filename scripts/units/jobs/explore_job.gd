@@ -34,12 +34,12 @@ func tick(delta: float) -> void:
 			_reveal_timer -= delta
 			if _reveal_timer <= 0.0:
 				_reveal_timer = 0.15
-				if w.game.fog.reveal(w.grid_pos, reveal) > 0:
+				if w.game.fog.reveal(w.grid_pos, reveal, w.village.id) > 0:
 					w.on_action("explore")
 			var arrived := w.step_path(delta)
 			_think_timer -= delta
 			# Target already revealed (we see further than we walk): pick the next one.
-			if arrived or (w.game.map.is_explored(target) and _think_timer <= 0.0):
+			if arrived or (w.game.fog.is_explored_by(w.village.id, target) and _think_timer <= 0.0):
 				_think_timer = 0.4
 				if not _pick_target():
 					_go_home_idle()
@@ -71,13 +71,13 @@ func _go_home_idle() -> void:
 
 ## Chooses the next unexplored tile and starts walking. False if none is reachable.
 func _pick_target() -> bool:
-	var chosen := choose_target(w.current_tile() if not w.at_home else Config.VILLAGE_CENTER)
+	var chosen := choose_target(w.current_tile() if not w.at_home else w.village.center)
 	if chosen == Vector2i(-1, -1):
 		return false
 	if not w.head_out(chosen):
 		return false
 	if chosen != target:
-		w.game.events.debug("%s heads for the fog at %s" % [w.label(), str(chosen)])
+		w.village.events.debug("%s heads for the fog at %s" % [w.label(), str(chosen)])
 	target = chosen
 	return true
 
@@ -85,10 +85,11 @@ func _pick_target() -> bool:
 func choose_target(from: Vector2i) -> Vector2i:
 	var pathing := w.game.world.pathing
 	var map := w.game.map
+	var explored := w.game.fog.explored_of[w.village.id]
 	var from_me := pathing.distance_field(from)
-	var from_village := w.game.world.village_distance()
+	var from_village := w.game.world.village_distance(w.village)
 	var claims: Array[Vector2i] = []
-	for other in w.game.workers():
+	for other in w.village.workers():
 		if other != w and other.exploring_target() != Vector2i(-1, -1):
 			claims.append(other.exploring_target())
 	var best_local := Vector2i(-1, -1)
@@ -99,7 +100,7 @@ func choose_target(from: Vector2i) -> Vector2i:
 		for x in map.size:
 			var t := Vector2i(x, y)
 			var i := map.index(t)
-			if map.explored[i] == 1 or from_me[i] == Pathing.UNREACHABLE:
+			if explored[i] == 1 or from_me[i] == Pathing.UNREACHABLE:
 				continue
 			var penalty := 0
 			for c in claims:

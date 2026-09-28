@@ -51,7 +51,7 @@ func _hit() -> void:
 	if target is Tower:
 		var t := target as Tower
 		if t.garrison:
-			t.game.events.debug("%s bewitched by %s" % [t.game.who(t), t.game.who(source)])
+			t.game.log_for(t, EventLog.Level.DEBUG, "%s bewitched by %s" % [t.game.who(t), t.game.who(source)])
 		t.enchant(enchant)
 	elif target.is_in_group("melee_defenders") and not target.dead:
 		target.take_damage(damage, source)  # elementals, the hero

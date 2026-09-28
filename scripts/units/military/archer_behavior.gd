@@ -19,6 +19,8 @@ func tick(tower: Tower, unit: MilitaryUnit, delta: float) -> void:
 		var arrow: Arrow = ARROW_SCRIPT.new()
 		tower.game.world.effects.add_child(arrow)
 		arrow.launch(tower.muzzle_position(), target, unit.stat("damage"), tower)
+		if tower.game.replicator:
+			tower.game.replicator.arrow(tower.muzzle_position(), target.hit_point())
 		Sfx.play("shoot", 0.15)
 		tower.recoil()
 

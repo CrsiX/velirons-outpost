@@ -37,9 +37,9 @@ func tick(enemy: Enemy, delta: float) -> bool:
 		var id := target.get_instance_id()
 		_casts[id] = _casts.get(id, 0) + 1
 		var who := enemy.game.who(target)
-		enemy.game.events.debug("%s casts a spell at %s" % [enemy.label(), who])
+		enemy.game.log_for(target, EventLog.Level.DEBUG, "%s casts a spell at %s" % [enemy.label(), who])
 		if _casts[id] == int(enemy.stat("spell_ignore_after")):
-			enemy.game.events.debug("%s now ignores %s (%d spells without an answer)" % [enemy.label(), who, _casts[id]])
+			enemy.game.log_for(target, EventLog.Level.DEBUG, "%s now ignores %s (%d spells without an answer)" % [enemy.label(), who, _casts[id]])
 	return true
 
 
@@ -55,7 +55,7 @@ func is_ignoring(n: Node, enemy: Enemy) -> bool:
 func on_damaged(_enemy: Enemy, source: Node) -> void:
 	if source is Tower or source.is_in_group("melee_defenders"):
 		if attacker != source:
-			_enemy.game.events.debug("%s turns on %s, who attacked her" % [_enemy.label(), _enemy.game.who(source)])
+			_enemy.game.log_for(source, EventLog.Level.DEBUG, "%s turns on %s, who attacked her" % [_enemy.label(), _enemy.game.who(source)])
 		attacker = source
 		_casts.erase(source.get_instance_id())  # it fought back: fair game again
 

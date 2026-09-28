@@ -10,8 +10,12 @@ var path := PackedVector2Array()
 var path_index := 0
 var moving := false
 var sprite: Sprite2D
+## Network id (Game.register); co-op clients get their units by it.
+var nid := 0
 
 var _bob := 0.0
+var _net_to := Vector2.ZERO
+var _net_has := false
 
 
 func _init_sprite(art_name: String) -> void:
@@ -77,6 +81,29 @@ func _animate(delta: float) -> void:
 	_bob += delta * 11.0
 	sprite.position.y = -absf(sin(_bob)) * 2.5
 	sprite.rotation = sin(_bob) * 0.06
+
+
+## Co-op client: the host says the unit is at `p` now; glide there.
+func net_move(p: Vector2, snap: bool = false) -> void:
+	_net_to = p
+	_net_has = true
+	if snap or p.distance_to(grid_pos) > 3.0:
+		set_grid_pos(p)
+
+
+## Co-op client: one frame of gliding towards the last position the host sent.
+func net_follow(delta: float) -> void:
+	if not _net_has:
+		return
+	var d := _net_to - grid_pos
+	var dist := d.length()
+	if dist < 0.01:
+		_set_moving(false)
+		return
+	grid_pos = grid_pos.move_toward(_net_to, maxf(speed, dist * 8.0) * delta)
+	position = Iso.to_world(grid_pos)
+	_set_moving(true)
+	_animate(delta)
 
 
 func float_text(text: String, color: Color) -> void:

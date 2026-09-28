@@ -56,17 +56,17 @@ func info() -> Dictionary:
 		return d
 	var lines: Array[String] = d["lines"]
 	var actions: Array[Dictionary] = d["actions"]
-	var hero: Hero = game.hero
+	var hero: Hero = village.hero
 	if garrison:
 		lines.append("%s, level %d" % [garrison.display_name(), garrison.level + 1])
 		if garrison.can_train():
 			lines.append("Training to level %d: %d / %d XP" % [garrison.level + 2, int(garrison.train_xp), int(garrison.train_xp_needed())])
 		else:
 			lines.append("Fully trained (max level).")
-		actions.append({"label": "Withdraw", "action": func() -> void: game.army.unstation(garrison)})
+		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": garrison.nid})})
 	elif incoming:
 		lines.append("%s marching here." % incoming.display_name())
-		actions.append({"label": "Withdraw", "action": func() -> void: game.army.unstation(incoming)})
+		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": incoming.nid})})
 	else:
 		lines.append("No unit. Drag a unit from the Army tab here to train it.")
 	if trainee_hero != null:

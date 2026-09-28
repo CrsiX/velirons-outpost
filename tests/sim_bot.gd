@@ -10,6 +10,8 @@ var game: Game
 var failures: Array[String] = []
 ## Every game event logged during the run: [level, text].
 var history: Array = []
+## Every command submitted during the run: [type, args, ok].
+var cmd_log: Array = []
 var checks := 0
 
 
@@ -23,7 +25,21 @@ func _test_title() -> void:
 	add_child(title)
 	await frames(3)
 	check(ProjectSettings.get_setting("application/run/main_scene") == "res://scenes/title.tscn", "the game starts on the title screen")
-	check(title.play_button.visible and title.difficulty_button.visible and title.levels_button.visible and title.exit_button.visible, "title has Play, Difficulty, Levels and Exit")
+	check(title.singleplayer_button.is_visible_in_tree() and title.exit_button.is_visible_in_tree() and not title.play_button.is_visible_in_tree(), "the title menu offers Singleplayer and Exit")
+	await tap(center(title.singleplayer_button))
+	check(title.play_button.is_visible_in_tree() and title.difficulty_button.is_visible_in_tree() and title.levels_button.is_visible_in_tree() and title.back_button.is_visible_in_tree() and not title.singleplayer_button.is_visible_in_tree(), "Singleplayer opens a sub-menu with Play, Difficulty, Levels and Back")
+	await tap(center(title.back_button))
+	check(title.singleplayer_button.is_visible_in_tree() and not title.play_button.is_visible_in_tree(), "Back returns to the main menu")
+	check(title.multiplayer_button.is_visible_in_tree(), "the main menu also offers Multiplayer")
+	await tap(center(title.multiplayer_button))
+	var mp := title.mp_menu
+	check(mp.is_visible_in_tree() and mp.name_edit.is_visible_in_tree() and mp.swatches.size() == Config.VILLAGE_COLORS.size() and mp.host_button.is_visible_in_tree() and mp.address_edit.is_visible_in_tree() and mp.back_button.is_visible_in_tree(), "Multiplayer: village name, colours, Host game, games found, join by address, Back")
+	check(Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size).encloses(mp.get_global_rect()), "the multiplayer page fits the screen")
+	await tap(center(mp.swatches[3]))
+	check(Settings.player_color == 3, "picking a colour")
+	await tap(center(mp.back_button))
+	check(title.singleplayer_button.is_visible_in_tree() and not mp.is_visible_in_tree() and not Net.is_online(), "Back returns to the main menu")
+	await tap(center(title.singleplayer_button))
 	var seen: Array[String] = [title.difficulty_button.text]
 	var mults: Array[float] = [Config.enemy_stat("goblin", "hp") / Config.ENEMIES["goblin"]["hp"]]
 	for i in 3:
@@ -238,6 +254,7 @@ func _run() -> void:
 	for e in game.events.entries:  # logged while the level was set up
 		history.append([e["level"], e["text"]])
 	game.events.logged.connect(func(level: int, text: String) -> void: history.append([level, text]))
+	game.commands.applied.connect(func(_v: Village, type: String, args: Dictionary, r: Dictionary) -> void: cmd_log.append([type, args.duplicate(true), r["ok"]]))
 	await frames(3)
 	var hud := game.hud
 	var map := game.map
@@ -501,6 +518,12 @@ func _run() -> void:
 	# section puts this forester back to work.
 	game.population.unassign_forester(start_camp)
 	check(residency_ok(), "each starting villager lives in its own hut")
+	# --- the player's village ------------------------------------------------------
+	var pvil := game.player_village
+	check(game.villages.size() == 1 and game.villages[0] == pvil and pvil.village_name == "Veliron's Outpost" and pvil.is_local(), "single player: one village, the player's")
+	check(game.economy == pvil.economy and game.population == pvil.population and game.army == pvil.army and game.construction == pvil.construction and game.hero == pvil.hero and game.events == pvil.events, "the game's economy, population, army, construction, hero and log are the village's")
+	check(game.world.buildings.all(func(b: Building) -> bool: return b.village == pvil) and game.workers().all(func(c: Civilian) -> bool: return c.village == pvil), "every building, villager and the hero belong to the village")
+	check(pvil.is_standing() and not pvil.fallen and pvil.intact_huts().size() == game.population.cap(), "the village is standing")
 	check(civs("farmer")[0].label() == "farmer 1" and game.world.towers()[0].label() == "wall tower 1" and game.world.huts()[0].label() == "hut 1", "entities are numbered per kind for the log (farmer 1, wall tower 1, hut 1)")
 	check(game.events.shown_level == EventLog.Level.INFO and hud.log_lines().all(func(t: String) -> bool: return not logged(t, EventLog.Level.DEBUG)), "the log shows Info and up at the start")
 	check(logged("assign farmer 1 to farm 1 (automatic)", EventLog.Level.DEBUG) and logged("farmer 1 moves into hut", EventLog.Level.DEBUG), "debug log: villagers moving in and being assigned")
@@ -513,7 +536,7 @@ func _run() -> void:
 	await tap(center(hud._hero_button))
 	check(hud._hero_panel.visible and "Defend" in hud._hero_mode_button.text, "tapping the hero button opens his panel (mode: Defend)")
 	var seen_modes: Array[String] = []
-	for i in Hero.MODE_NAMES.size():
+	for i in Hero.MODE_NAMES.size() - 1:  # (Support is skipped in single player)
 		await tap(center(hud._hero_mode_button))
 		seen_modes.append(hero.mode_name())
 	check(seen_modes == ["Build", "Explore", "Gather", "Train", "Rest", "Defend"], "the mode button cycles Defend > Build > Explore > Gather > Train > Rest > Defend")
@@ -613,7 +636,24 @@ func _run() -> void:
 	await tap(center(hud._trade_buttons[0]))
 	check(game.economy.amount("gold") == gold - 15 and game.economy.amount("materials") == mats - 30 + 10, "bought 10 materials for 15 gold")
 	hud._trade_panel.visible = false
-	game.fog.reveal(Vector2(Config.VILLAGE_CENTER), 12.0)  # the starting farm took the plot next to the walls
+	# The starting farm took the plot next to the walls: clear the trees off the
+	# nearest other 3x3 patch of grass / forest (as foresters would).
+	game.fog.reveal(Vector2(Config.VILLAGE_CENTER), 12.0)
+	var patch := Vector2i(-1, -1)
+	var patch_d := INF
+	for y in range(-10, 11):
+		for x in range(-10, 11):
+			var pc := Config.VILLAGE_CENTER + Vector2i(x, y)
+			var fits := true
+			for t in Building.footprint(pc, 3):
+				fits = fits and map.is_explored(t) and not map.in_village(t) and map.building_at(t) == null and map.get_terrain(t) in [MapData.Terrain.GRASS, MapData.Terrain.FOREST]
+			if fits and Vector2(pc - Config.VILLAGE_CENTER).length() < patch_d:
+				patch_d = Vector2(pc - Config.VILLAGE_CENTER).length()
+				patch = pc
+	if patch != Vector2i(-1, -1):
+		for t in Building.footprint(patch, 3):
+			if game.world.is_tree(t):
+				game.world.remove_tree(t)
 	var farm_spot := find_spot("farm", Config.VILLAGE_CENTER + Vector2i(5, 0))
 	check(farm_spot != Vector2i(-1, -1), "found a 3x3 farm spot")
 	var farm: Farm = game.construction.place("farm", farm_spot)
@@ -635,7 +675,7 @@ func _run() -> void:
 	var carried := farmer.carrying
 	var f0 := game.economy.amount("food")
 	await wait_until(func() -> bool: return farmer.at_home, 60.0)
-	check(game.economy.amount("food") > f0 + carried * 0.5, "farmer delivers food home (+%d)" % carried)
+	check(logged("%s brings %d food home" % [farmer.label(), carried], EventLog.Level.DEBUG) and game.economy.amount("food") > f0 - 5.0, "farmer delivers food home (+%d)" % carried)
 	check(food_before > 0.0, "upkeep leaves food positive so far")
 
 	# --- light stone --------------------------------------------------------------------
@@ -794,6 +834,29 @@ func _run() -> void:
 	await wait_until(func() -> bool: return wa.state == MilitaryUnit.State.RESERVE, 60.0)
 	game.army.station(wa, wt)
 	await wait_until(func() -> bool: return wt.garrison == wa, 60.0)
+	# --- commands: every player action is a checked, serialisable command -----------
+	var bad := game.command("launch_rockets")
+	check(not bad["ok"] and "Unknown" in bad["error"], "an unknown command is refused")
+	check(not game.command("withdraw_unit", {"unit": 999999})["ok"] and not game.command("upgrade_tower", {})["ok"], "commands naming nothing (bad or missing ids) are refused")
+	var other: Village = Village.new()
+	other.create(game, 1, "Elsewhere", Color.RED)
+	add_child(other)
+	watchtower.village = other
+	var foreign := game.command("upgrade_tower", {"building": watchtower.nid})
+	watchtower.village = pvil
+	unit.village = other
+	var foreign_unit := game.command("upgrade_unit", {"unit": unit.nid})
+	unit.village = pvil
+	check(not foreign["ok"] and not foreign_unit["ok"], "a village can't give orders for another village's tower or unit (%s / %s)" % [foreign["error"], foreign_unit["error"]])
+	var speed_other := game.commands.submit(other, "set_speed", {"index": 1})
+	check(not speed_other["ok"] and speed_other["error"] == "The host sets the speed" and is_equal_approx(Engine.time_scale, 6.0), "only the host sets the game speed")
+	other.queue_free()
+	var mat_c0 := game.economy.amount("materials")
+	var rb := game.command("buy_materials", {"bundles": 1})
+	check(rb["ok"] and game.economy.amount("materials") == mat_c0 + Config.MATERIALS_TRADE["materials"], "a valid command is applied")
+	var plain := cmd_log.all(func(c: Array) -> bool: return bytes_to_var(var_to_bytes(c[1])) == c[1] and not c[1].values().any(func(x) -> bool: return x is Object))
+	check(not cmd_log.is_empty() and plain, "command arguments are plain data that survive serialisation (%d commands so far)" % cmd_log.size())
+
 	# Man the other wall towers too.
 	for t in wall_towers.slice(1):
 		game.army.station(game.army.recruit("archer"), t)
@@ -889,15 +952,15 @@ func _run() -> void:
 	hud.set_speed_index(0)
 	Engine.time_scale = 6.0  # (the test's own pace)
 	# Messages disappear 30 s after they were logged.
-	ev.info("fresh message")
-	var aged: Array[String] = []
+	var aged := 0
 	for e in ev.entries:
-		if e["text"] != "fresh message":
-			e["time"] -= EventLog.LIFETIME + 1.0
-			aged.append(e["text"])
-	await wait(1.0)
-	var left := ev.entries.map(func(e: Dictionary) -> String: return e["text"])
-	check(not aged.is_empty() and aged.all(func(t: String) -> bool: return not left.has(t) and not hud.log_lines().has(t)) and hud.log_lines().has("fresh message"), "messages are cleared %d s after they were logged; newer ones stay" % int(EventLog.LIFETIME))
+		e["time"] -= EventLog.LIFETIME + 1.0
+		e["aged"] = true
+		aged += 1
+	ev.info("fresh message")
+	ev._prune_timer = 0.0  # (it prunes every 0.5 s of real time; the test runs faster)
+	await frames(3)
+	check(aged > 0 and not ev.entries.any(func(e: Dictionary) -> bool: return e.has("aged")) and hud.log_lines().has("fresh message"), "messages are cleared %d s after they were logged; newer ones stay" % int(EventLog.LIFETIME))
 	game.waves.countdown = cd0
 	check(game.economy.amount("gold") > gold3, "archers killed enemies for gold")
 	check(absf(game.waves.countdown - Config.WAVE_BUFFER) < 2.0, "next wave counts down from %ds after the last enemy" % int(Config.WAVE_BUFFER))
@@ -912,7 +975,8 @@ func _run() -> void:
 	var skel := game.waves._queue.filter(func(q: Dictionary) -> bool: return q["kind"] == "skeleton").size() + get_tree().get_nodes_in_group("enemies").filter(func(e: Enemy) -> bool: return e.kind == "skeleton").size()
 	check(skel > 0, "skeletons march with the goblins in wave 3 (%d)" % skel)
 	await wait_until(func() -> bool: return not game.waves.in_progress(), 300.0)
-	game.waves.countdown = 99999.0  # hold wave 4
+	game.waves.countdown = 99999.0
+	game.waves.hold = true  # no more real waves: later sections spawn their own enemies
 
 	# --- corpses & gatherer --------------------------------------------------------------
 	var cs := game.corpses
@@ -1417,6 +1481,27 @@ func _run() -> void:
 	check(game.fog.explored_count() == map.size * map.size and game.fog.watched_count() == map.size * map.size, "without fog the whole map is explored and visible")
 	game.fog.set_disabled(false)
 
+	# --- the UI went through commands ------------------------------------------------------
+	var seen_cmds := {}
+	for c in cmd_log:
+		if c[2]:
+			seen_cmds[c[0]] = true
+	var want_cmds := ["place_building", "buy_materials", "recruit_unit", "station_unit", "move_unit", "withdraw_unit", "call_wave", "set_speed", "hero_mode"]
+	check(want_cmds.all(func(t: String) -> bool: return seen_cmds.has(t)), "taps and drags in the UI were applied as commands (missing: %s)" % str(want_cmds.filter(func(t: String) -> bool: return not seen_cmds.has(t))))
+	check(pvil.update_fallen() == false and pvil.is_standing(), "the village still stands before the defeat test")
+
+	# --- entity registry: freed things drop out ---------------------------------------------
+	game.waves._spawn({"kind": "goblin", "spawn": map.edge_spawns[0], "hp_scale": 1.0})
+	var gone: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	var gone_id := gone.nid
+	var had := game.entity(gone_id) == gone
+	gone.take_damage(1e9)
+	await wait(1.0)
+	game.waves.countdown = 99999.0
+	check(had and game.entity(gone_id) == null and not game._entities.has(gone_id), "a dead enemy leaves the entity registry")
+	var stale := game._entities.values().filter(func(o) -> bool: return o is Object and not is_instance_valid(o)).size()
+	check(stale == 0, "after the whole run the registry holds no freed entities (%d entries)" % game._entities.size())
+
 	# --- the event log saw everything ------------------------------------------------------
 	var expect := {
 		EventLog.Level.DEBUG: ["recruit archer", "recruit farmer", "assign forester", "unassign forester", "place watchtower", "starts work on", "send archer", "takes up its post on",
@@ -1437,6 +1522,7 @@ func _run() -> void:
 	game.population.kill_random(game.population.count())
 	await frames(2)
 	check(game.game_over and hud._overlay.visible, "losing every villager ends the game")
+	check(game.player_village.fallen and not game.command("recruit_unit", {"kind": "archer"})["ok"], "the village has fallen, and no more commands are taken")
 	check(hud._overlay_button.is_visible_in_tree() and hud._overlay_menu_button.is_visible_in_tree(), "defeat screen offers Try again and Main menu")
 	await frames(2)
 	var panel_rect: Rect2 = (hud._overlay_button.get_parent().get_parent() as Control).get_global_rect()

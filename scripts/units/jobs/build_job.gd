@@ -22,14 +22,14 @@ func tick(delta: float) -> void:
 			if w.rest_timer > 0.0:
 				return
 			w.rest_timer = 1.0  # re-check for work once a second
-			var s := w.game.construction.claim(w)
+			var s := w.village.construction.claim(w)
 			if s == null:
 				return
 			if w.head_out(s.work_tile()):
 				site = s
 				state = State.TO_SITE
 			else:
-				w.game.construction.release(s, true)
+				w.village.construction.release(s, true)
 		State.TO_SITE:
 			if not _site_valid():
 				_go_home()
@@ -48,7 +48,7 @@ func tick(delta: float) -> void:
 				_work_acc -= 1.0
 				w.on_action("build_second")
 			if site.add_progress(delta * efficiency):
-				w.game.construction.complete(site)
+				w.village.construction.complete(site)
 				site = null
 				_go_home()
 		State.RETURNING:
@@ -85,6 +85,6 @@ func on_evade() -> void:
 
 func release() -> void:
 	if is_instance_valid(site) and site.builder == w:
-		w.game.construction.release(site, false)
+		w.village.construction.release(site, false)
 	site = null
 	w.sprite.rotation = 0.0

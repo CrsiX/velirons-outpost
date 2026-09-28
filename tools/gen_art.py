@@ -948,6 +948,39 @@ def earth_elemental():
     a.save("unit_earth_elemental")
 
 
+def caravan():
+    """Two-wheeled cart with sacks and planks, pulled by a brown horse (faces right)."""
+    a = Art()
+    a.ellipse(0, 1, 26, 7, "#000", opacity=0.35)
+    wood, wood_d = WOOD, WOOD_D
+    # cart bed and load
+    a.poly([(-24, -12), (2, -12), (4, -20), (-22, -20)], wood, INK, 1.3)
+    a.poly([(-24, -12), (2, -12), (2, -9), (-24, -9)], wood_d, INK, 1.1)
+    a.ellipse(-16, -24, 6, 5, "#c9a86a", INK, 1.1)  # sacks
+    a.ellipse(-8, -25, 6, 5.5, "#b8955a", INK, 1.1)
+    a.ellipse(-12, -30, 5, 4.2, "#d4b478", INK, 1.0)
+    a.poly([(-3, -21), (3, -21), (1, -31), (-5, -31)], "#8a6a44", INK, 1.0)  # planks
+    a.line([(-2, -21), (-4, -31)], "#6a5034", 0.8)
+    a.ellipse(-12, -6, 6.5, 6.5, wood_d, INK, 1.4)  # wheel
+    a.ellipse(-12, -6, 2, 2, "#3a2a1a")
+    for d in ((-4.5, 0), (4.5, 0), (0, -4.5), (0, 4.5)):
+        a.line([(-12, -6), (-12 + d[0], -6 + d[1])], INK, 0.9)
+    a.line([(3, -14), (12, -12)], wood_d, 2.2)  # shafts
+    # horse
+    horse, horse_d = "#7a5234", "#5a3a22"
+    for x in (13, 17, 25, 29):  # legs
+        a.line([(x, -12), (x + (1 if x % 2 else -1), 0)], INK, 3.2)
+        a.line([(x, -12), (x + (1 if x % 2 else -1), 0)], horse_d, 1.8)
+    a.ellipse(21, -16, 10, 6, horse, INK, 1.3)  # body
+    a.poly([(28, -19), (32, -29), (36, -30), (38, -26), (33, -18)], horse, INK, 1.2)  # neck + head
+    a.poly([(34, -30), (40, -27), (39, -24), (35, -25)], horse, INK, 1.0)
+    a.poly([(29, -21), (31, -30), (33, -30), (31, -20)], "#2a1a10")  # mane
+    a.ellipse(36, -28, 0.9, 0.9, "#111")
+    a.line([(11, -17), (6, -10)], "#2a1a10", 2)  # tail
+    a.poly([(16, -21), (26, -21), (26, -17), (16, -17)], CRIMSON, INK, 0.8, opacity=0.9)  # harness blanket
+    a.save("unit_caravan")
+
+
 def corpse_skeleton():
     a = Art()
     a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
@@ -1408,6 +1441,7 @@ def main():
     warning_light()
     corpse_goblin()
     hero()
+    caravan()
     training_grounds()
     skeleton()
     corpse_skeleton()

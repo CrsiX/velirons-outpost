@@ -8,6 +8,10 @@ signal completed(building: Building)
 ## Number within its kind (see label()), given when it is added to the world.
 var uid := 0
 var game: Game
+## Owner. Set before setup(); the village's systems handle everything for it.
+var village: Village
+## Id that commands use to name this building (Game.register).
+var nid := 0
 var kind := ""
 ## Anchor tile. For odd-sized footprints this is the centre tile.
 var tile := Vector2i.ZERO
@@ -85,7 +89,7 @@ func work_tile() -> Vector2i:
 			var t := tile + Vector2i(dx, dy)
 			if t == tile or not game.world.pathing.is_walkable(t):
 				continue
-			var d := Vector2(t).distance_to(Vector2(Config.VILLAGE_CENTER))
+			var d := Vector2(t).distance_to(Vector2(village.center if village else Config.VILLAGE_CENTER))
 			if d < best_d:
 				best_d = d
 				best = t
@@ -173,7 +177,7 @@ func info() -> Dictionary:
 	if not complete:
 		lines.append("Construction site: %d%%" % int(100.0 * progress / build_time))
 		lines.append("Builder at work" if builder != null else "Waiting for a builder")
-		actions.append({"label": "Cancel (refund)", "action": func() -> void: game.construction.cancel(self)})
+		actions.append({"label": "Cancel (refund)", "action": func() -> void: game.command("cancel_site", {"building": nid})})
 	return {"title": display_name(), "lines": lines, "actions": actions}
 
 

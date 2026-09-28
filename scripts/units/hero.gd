@@ -9,6 +9,10 @@ extends Civilian
 ##             without such grounds he defends instead, but drops any fight as
 ##             soon as a unit is ready to train.
 ##   Rest    - walks back to the village centre and stays there, fighting nobody.
+##   Support - (co-op) walks to another village (`support_target`) and defends
+##             it as in Defend mode: its gates, its centre. He keeps his XP,
+##             heals idling in its centre, and when downed revives at home and
+##             walks back. The village he helps can't give him orders.
 ## Whenever he idles in the village centre (any mode) he slowly gets his HP
 ## back: Config.HERO "rest_regen" per second after "rest_delay" seconds.
 ## Every action except training earns XP (Config.HERO_XP_PER_ACTION). When his
@@ -18,8 +22,8 @@ extends Civilian
 
 signal changed
 
-enum Mode { DEFEND, BUILD, EXPLORE, GATHER, TRAIN, REST }
-const MODE_NAMES: Array[String] = ["Defend", "Build", "Explore", "Gather", "Train", "Rest"]
+enum Mode { DEFEND, BUILD, EXPLORE, GATHER, TRAIN, REST, SUPPORT }
+const MODE_NAMES: Array[String] = ["Defend", "Build", "Explore", "Gather", "Train", "Rest", "Support"]
 
 var mode := Mode.DEFEND
 var xp := 0
@@ -35,19 +39,22 @@ var _chase_tile := Vector2i(-9999, -9999)
 var _train_acc := 0.0
 ## Walking back to the village centre after a fight (Defend).
 var _returning := false
+## Support mode: the village he goes to defend.
+var support_target: Village = null
 ## Seconds he has been idling in the village centre (see _regen).
 var _idle_time := 0.0
 
 
-func setup_hero(p_game: Game) -> void:
+func setup_hero(p_game: Game, p_village: Village) -> void:
 	game = p_game
+	village = p_village
 	role = "hero"
 	var spec: Dictionary = Config.HERO
 	speed = spec["speed"]
 	max_hp = spec["hp"]
 	hp = max_hp
 	_init_sprite("unit_hero")
-	set_grid_pos(Vector2(Config.VILLAGE_CENTER))
+	set_grid_pos(Vector2(village.center))
 	at_home = true
 	add_to_group("observers")
 	add_to_group("melee_defenders")
@@ -76,7 +83,7 @@ func set_mode(m: int) -> void:
 		return
 	_leave_mode()
 	mode = m as Mode
-	game.events.debug("hero mode: %s" % mode_name())
+	village.events.debug("hero mode: %s" % mode_name())
 	changed.emit()
 
 
@@ -93,7 +100,7 @@ func ready_grounds() -> TrainingGrounds:
 	var best: TrainingGrounds = null
 	var best_d := INF
 	for b in game.world.buildings:
-		if b is TrainingGrounds and b.is_ready_for_training():
+		if b is TrainingGrounds and b.village == village and b.is_ready_for_training():
 			var d := Vector2(b.tile).distance_to(grid_pos)
 			if d < best_d:
 				best_d = d
@@ -108,7 +115,28 @@ func effective_mode() -> Mode:
 	return mode
 
 
+## Where he stands guard and rests: the supported village in Support mode,
+## else his own.
+func base() -> Village:
+	if mode == Mode.SUPPORT and support_target != null and support_target != village:
+		return support_target
+	return village
+
+
+func set_support_target(v: Village) -> void:
+	if v == support_target:
+		return
+	support_target = v
+	target = null
+	_returning = false
+	if v:
+		village.events.debug("the hero will support %s" % v.village_name)
+	changed.emit()
+
+
 func _leave_mode() -> void:
+	if mode == Mode.SUPPORT and at_home and base() != village:
+		_set_home(false)  # standing in someone else's village: walk from there
 	if jobs.has(mode):
 		jobs[mode].release()
 		jobs[mode].state = 0
@@ -127,6 +155,13 @@ func _stop_training() -> void:
 # --- Civilian hooks ------------------------------------------------------------------------
 
 ## He stays visible in the village centre (villagers vanish into their huts).
+## Back at his post: his own village centre, or the one he supports.
+func arrive_home() -> void:
+	set_grid_pos(Vector2(base().center))
+	_set_home(true)
+	_set_moving(false)
+
+
 func _set_home(v: bool) -> void:
 	at_home = v
 	visible = not dead
@@ -176,19 +211,21 @@ func _tick(delta: float) -> void:
 		Mode.REST:
 			target = null
 			_return_home(delta)
+		Mode.SUPPORT:
+			_defend(delta)  # relative to base(): the village he supports
 	_regen(delta)
 
 
 ## Idle in the village centre: after a short while the HP slowly comes back.
 func _regen(delta: float) -> void:
-	var idle := at_home and not evading and not is_instance_valid(target) and grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.2
+	var idle := at_home and not evading and not is_instance_valid(target) and grid_pos.distance_to(Vector2(base().center)) < 0.2
 	_idle_time = _idle_time + delta if idle else 0.0
 	if _idle_time < Config.HERO["rest_delay"] or hp >= max_hp:
 		return
 	hp = minf(max_hp, hp + Config.HERO["rest_regen"] * delta)
 	queue_redraw()
 	if hp >= max_hp:
-		game.events.debug("the hero is fully rested (%d HP)" % int(max_hp))
+		village.events.debug("the hero is fully rested (%d HP)" % int(max_hp))
 	changed.emit()
 
 
@@ -201,7 +238,7 @@ func _defend(delta: float) -> void:
 		_think_timer = 0.3
 		var t := _pick_enemy()
 		if t != null and t != target:
-			game.events.debug("the hero attacks %s" % t.label())
+			village.events.debug("the hero attacks %s" % t.label())
 		target = t
 	if is_instance_valid(target) and not target.dead:
 		_returning = false
@@ -226,12 +263,14 @@ func _defend(delta: float) -> void:
 ## Walks back to the village centre (Defend re-targets on the way, see
 ## _pick_enemy). Never teleports: a chase path may still be half walked.
 func _return_home(delta: float) -> void:
+	if at_home and grid_pos.distance_to(Vector2(base().center)) > 0.2:
+		_set_home(false)  # his post moved (Support): set off
 	if not at_home:
 		if not _returning:
 			_returning = true
 			_walk_home()
 		if step_path(delta):
-			if grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.1:
+			if grid_pos.distance_to(Vector2(base().center)) < 0.1:
 				_returning = false
 				arrive_home()
 			else:
@@ -240,13 +279,14 @@ func _return_home(delta: float) -> void:
 
 ## A walkable path from here to the village centre; straight across if none.
 func _walk_home() -> void:
-	var centre := Vector2(Config.VILLAGE_CENTER)
-	var p := game.world.pathing.find_path(current_tile(), Config.VILLAGE_CENTER)
+	var home_tile := base().center
+	var centre := Vector2(home_tile)
+	var p := game.world.pathing.find_path(current_tile(), home_tile)
 	if p.is_empty():
 		# Standing on a tile the pathing doesn't allow (e.g. mid-chase on a
 		# corner): try from a walkable neighbour.
 		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
-			p = game.world.pathing.find_path(current_tile() + d, Config.VILLAGE_CENTER)
+			p = game.world.pathing.find_path(current_tile() + d, home_tile)
 			if not p.is_empty():
 				p.insert(0, grid_pos)
 				break
@@ -260,13 +300,13 @@ func _walk_home() -> void:
 func _pick_enemy() -> Enemy:
 	var best: Enemy = null
 	var best_key := Vector2(INF, INF)
-	var centre := Vector2(Config.VILLAGE_CENTER)
+	var centre := Vector2(base().center)
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
 		if e.dead or e.grid_pos.distance_to(centre) > Config.HERO["leash"]:
 			continue
 		var near_gate := false
-		for g in game.map.gates:
+		for g in base().gates:
 			near_gate = near_gate or e.grid_pos.distance_to(Vector2(g)) <= Config.HERO["alert_radius"]
 		var near_me := not at_home and e.grid_pos.distance_to(grid_pos) <= Config.HERO["sight"]
 		if not (near_gate or near_me):
@@ -307,7 +347,7 @@ func _train(g: TrainingGrounds, delta: float) -> void:
 		_stop_training()
 		training_at = g
 		g.trainee_hero = self
-		game.events.debug("the hero heads to %s to train %s" % [g.label(), g.trainable_unit().label()])
+		village.events.debug("the hero heads to %s to train %s" % [g.label(), g.trainable_unit().label()])
 		if not head_out(g.work_tile()):
 			return
 	if grid_pos.distance_to(Vector2(g.work_tile())) > 0.2:
@@ -324,7 +364,7 @@ func _train(g: TrainingGrounds, delta: float) -> void:
 	var n := mini(int(_train_acc), xp)
 	if n > 0:
 		_train_acc -= n
-		var used := game.army.train(g.trainable_unit(), n)
+		var used := village.army.train(g.trainable_unit(), n)
 		xp -= used
 		changed.emit()
 
@@ -345,7 +385,7 @@ func take_damage(amount: float, source = null) -> void:
 
 ## Out of the fight until the wave ends. XP is lost; the mode is kept.
 func _downed(source = null) -> void:
-	game.events.important("The hero was struck down by %s (%d XP lost); back after the wave" % [game.who(source), xp])
+	village.events.important("The hero was struck down by %s (%d XP lost); back after the wave" % [game.who(source), xp])
 	float_text("Hero down!", Color("ff7a6a"))
 	if jobs.has(mode):
 		jobs[mode].release()
@@ -367,12 +407,12 @@ func _downed(source = null) -> void:
 func revive() -> void:
 	dead = false
 	hp = max_hp
-	set_grid_pos(Vector2(Config.VILLAGE_CENTER))
+	set_grid_pos(Vector2(village.center))
 	path = PackedVector2Array()
 	at_home = true
 	visible = true
 	add_to_group("melee_defenders")
-	game.events.info("The hero returns to the village")
+	village.events.info("The hero returns to the village")
 	float_text("The hero returns!", UiTheme.GOLD)
 	changed.emit()
 
@@ -387,6 +427,13 @@ func status() -> String:
 			if mode == Mode.TRAIN:
 				return "defending (no unit ready at training grounds)"
 			return "fighting a %s" % target.spec()["name"].to_lower() if is_instance_valid(target) and not target.dead else "guarding the village"
+		Mode.SUPPORT:
+			var b := base()
+			if is_instance_valid(target) and not target.dead:
+				return "fighting a %s at %s" % [target.spec()["name"].to_lower(), b.village_name]
+			if b == village:
+				return "no village to support"
+			return "defending %s" % b.village_name if at_home or grid_pos.distance_to(Vector2(b.center)) < 6.0 else "on the way to %s" % b.village_name
 		Mode.REST:
 			if not at_home:
 				return "walking back to rest"

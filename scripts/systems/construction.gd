@@ -14,11 +14,14 @@ const KIND_SCRIPTS := {
 }
 
 var game: Game
+## The village whose construction queue this is.
+var village: Village
 var queue: Array[Building] = []
 
 
-func setup(p_game: Game) -> void:
-	game = p_game
+func setup(p_village: Village) -> void:
+	village = p_village
+	game = village.game
 
 
 ## "" if `kind` can be placed with its anchor on `tile`, else the reason.
@@ -29,7 +32,7 @@ func placement_error(kind: String, tile: Vector2i, free: bool = false) -> String
 	for t in Building.footprint(tile, spec["size"]):
 		if not map.in_bounds(t):
 			return "Outside the map"
-		if not free and not map.is_explored(t):
+		if not free and not game.fog.is_explored_by(village.id, t):
 			return "Unexplored land"
 		if map.in_village(t):
 			return "Must be outside the village walls"
@@ -45,7 +48,7 @@ func placement_error(kind: String, tile: Vector2i, free: bool = false) -> String
 			MapData.Terrain.DESERT:
 				if kind == "farm":
 					return "Nothing grows in the desert"
-	if not free and not game.economy.can_afford(spec["cost"]):
+	if not free and not village.economy.can_afford(spec["cost"]):
 		return "Not enough building material" if spec["cost"].keys() == ["materials"] else "Not enough resources"
 	return ""
 
@@ -53,23 +56,24 @@ func placement_error(kind: String, tile: Vector2i, free: bool = false) -> String
 func place(kind: String, tile: Vector2i) -> Building:
 	if placement_error(kind, tile) != "":
 		return null
-	game.economy.spend(Config.BUILDINGS[kind]["cost"])
+	village.economy.spend(Config.BUILDINGS[kind]["cost"])
 	var b: Building = KIND_SCRIPTS[kind].new()
+	b.village = village
 	b.setup(game, kind, tile, false)
 	game.world.add_building(b)
 	queue.append(b)
-	game.events.debug("place %s at %s for %s" % [b.label(), str(tile), Config.cost_text(Config.BUILDINGS[kind]["cost"])])
+	village.events.debug("place %s at %s for %s" % [b.label(), str(tile), Config.cost_text(Config.BUILDINGS[kind]["cost"])])
 	Sfx.play("place")
 	changed.emit()
 	return b
 
 
 func order_rebuild(hut: Hut) -> bool:
-	if not hut.ruined or not hut.complete or not game.economy.spend(Config.BUILDINGS["hut"]["cost"]):
+	if not hut.ruined or not hut.complete or not village.economy.spend(Config.BUILDINGS["hut"]["cost"]):
 		return false
 	hut.start_rebuild()
 	queue.append(hut)
-	game.events.debug("order rebuilding %s" % hut.label())
+	village.events.debug("order rebuilding %s" % hut.label())
 	Sfx.play("place")
 	changed.emit()
 	return true
@@ -80,7 +84,7 @@ func claim(builder: Node) -> Building:
 	for site in queue:
 		if site.builder == null and not site.get_meta("unreachable_until", 0.0) > Time.get_ticks_msec() / 1000.0:
 			site.builder = builder
-			game.events.debug("%s starts work on %s" % [builder.label(), site.label()])
+			village.events.debug("%s starts work on %s" % [builder.label(), site.label()])
 			changed.emit()
 			return site
 	return null
@@ -95,9 +99,9 @@ func release(site: Building, unreachable: bool) -> void:
 
 ## Queues a paid tower upgrade as a builder job; the tower keeps fighting.
 func order_upgrade(tower: Tower) -> bool:
-	if not tower.can_upgrade() or not game.economy.spend(tower.upgrade_cost()):
+	if not tower.can_upgrade() or not village.economy.spend(tower.upgrade_cost()):
 		return false
-	game.events.debug("order upgrade of %s to level %d for %s" % [tower.label(), tower.level + 1, Config.cost_text(tower.upgrade_cost())])
+	village.events.debug("order upgrade of %s to level %d for %s" % [tower.label(), tower.level + 1, Config.cost_text(tower.upgrade_cost())])
 	tower.start_upgrade()
 	queue.append(tower)
 	Sfx.play("place")
@@ -110,15 +114,15 @@ func complete(site: Building) -> void:
 	site.builder = null
 	if site.complete and site.upgrading:
 		site.finish_upgrade()
-		game.events.info("%s upgraded to level %d" % [site.label(), site.level])
+		village.events.info("%s upgraded to level %d" % [site.label(), site.level])
 		Sfx.play("build")
 		changed.emit()
 		return
 	site.finish()
 	game.world.refresh_building(site)
-	game.events.info("%s %s" % [site.label(), "rebuilt" if site is Hut else "finished"])
+	village.events.info("%s %s" % [site.label(), "rebuilt" if site is Hut else "finished"])
 	if site is Workplace:
-		game.population.assign_worker(site, true)  # an idle farmer / forester takes it
+		village.population.assign_worker(site, true)  # an idle farmer / forester takes it
 	Sfx.play("build")
 	changed.emit()
 
@@ -135,17 +139,18 @@ func build_starting() -> void:
 			push_warning("No room for the starting %s" % kind)
 			continue
 		var b: Building = KIND_SCRIPTS[kind].new()
+		b.village = village
 		b.setup(game, kind, spot, true)
 		game.world.add_building(b)
-		game.events.debug("%s stands ready at %s (free at the start)" % [b.label(), str(spot)])
+		village.events.debug("%s stands ready at %s (free at the start)" % [b.label(), str(spot)])
 		game.fog.reveal(Vector2(spot), 2.5)
 
 
 func _start_spot(kind: String) -> Vector2i:
-	if kind == "farm" and game.map.farm_plot != Vector2i(-1, -1) and placement_error(kind, game.map.farm_plot, true) == "":
-		return game.map.farm_plot
+	if kind == "farm" and village.farm_plot != Vector2i(-1, -1) and placement_error(kind, village.farm_plot, true) == "":
+		return village.farm_plot
 	# Anywhere near the village, not crowding a gate; a camp wants trees close by.
-	var centre := Config.VILLAGE_CENTER
+	var centre := village.center
 	var candidates: Array = []
 	for dy in range(-9, 10):
 		for dx in range(-9, 10):
@@ -183,10 +188,10 @@ func _trees_near(t: Vector2i, r: int) -> int:
 
 
 func cancel(site: Building) -> void:
-	game.events.debug("cancel %s of %s (refunded)" % ["upgrade" if site.complete and site.upgrading else "construction", site.label()])
+	village.events.debug("cancel %s of %s (refunded)" % ["upgrade" if site.complete and site.upgrading else "construction", site.label()])
 	if site.complete and site.upgrading:
 		queue.erase(site)
-		game.economy.refund(site.pending_upgrade_cost())
+		village.economy.refund(site.pending_upgrade_cost())
 		site.builder = null
 		site.cancel_upgrade()
 		changed.emit()
@@ -195,12 +200,13 @@ func cancel(site: Building) -> void:
 		return
 	queue.erase(site)
 	var cost: Dictionary = Config.BUILDINGS[site.kind]["cost"]
-	game.economy.refund(cost)
+	village.economy.refund(cost)
 	if site is Hut:
 		(site as Hut).cancel_rebuild()
 	else:
 		game.world.remove_building(site)
-	game.deselect()
+	if village.is_local():
+		game.deselect()
 	changed.emit()
 
 

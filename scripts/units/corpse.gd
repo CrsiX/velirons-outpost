@@ -12,6 +12,8 @@ var time_left := Config.CORPSE_LIFETIME
 var claimed_by: Node = null
 ## Numbered across all kinds: "corpse 12".
 var uid := 0
+## Network id (Game.register).
+var nid := 0
 
 
 func label() -> String:
@@ -38,9 +40,11 @@ func spec() -> Dictionary:
 
 
 func _process(delta: float) -> void:
+	if game.is_client:
+		return
 	time_left -= delta
 	if time_left < 10.0:
 		modulate.a = clampf(time_left / 10.0, 0.0, 1.0)
 	if time_left <= 0.0:
-		game.events.debug("%s rotted away" % label())
+		game.log_all(EventLog.Level.DEBUG, "%s rotted away" % label())
 		game.corpses.remove(self)

@@ -23,7 +23,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 				_foe = node
 				break
 		if _foe != null and not (is_instance_valid(before) and before == _foe):
-			enemy.game.events.debug("%s fights %s" % [enemy.label(), _foe.label()])
+			enemy.game.log_for(_foe, EventLog.Level.DEBUG, "%s fights %s" % [enemy.label(), _foe.label()])
 	if not is_instance_valid(_foe) or _foe.dead:
 		return false
 	enemy.face(_foe.grid_pos)

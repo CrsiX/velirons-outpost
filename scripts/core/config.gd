@@ -6,6 +6,27 @@ extends RefCounted
 const MAP_SIZE := 75
 const VILLAGE_CENTER := Vector2i(MAP_SIZE / 2, MAP_SIZE / 2)
 const VILLAGE_ORIGIN := VILLAGE_CENTER - Vector2i(2, 2)  # top-left tile of the 5x5 walled village
+
+# --- co-op (docs/multiplayer-design.md) ---------------------------------------------------
+const MAX_PLAYERS := 8
+## Debug: start this many villages on one device (hot-seat test mode; 1 = normal
+## single player). Switch between them with the village button in the top bar or Tab.
+const HOTSEAT_VILLAGES := 1
+const VILLAGE_EDGE_MARGIN := 14  # village centres stay this far from the map edge
+const WAVE_EXTRA_PER_PLAYER := 0.25  # extra enemies: this x one village's wave, per player
+const CARAVAN_SPEED := 1.4  # tiles per second
+const VILLAGE_NAMES: Array[String] = ["Veliron's Outpost", "Rivermoor", "Eastwatch", "Ashford", "Greyholt", "Thornvale", "Kestrel Keep", "Mirefield"]
+const VILLAGE_COLORS: Array[Color] = [Color("e0b340"), Color("4f8fe0"), Color("d8573e"), Color("5fbf5a"), Color("b86fe0"), Color("46c3c0"), Color("e07fb4"), Color("e8e0cf")]
+
+
+## Map side length for `players` villages: +25 for every 2 players beyond the second.
+static func map_size(players: int) -> int:
+	return MAP_SIZE + 25 * (ceili(clampi(players, 1, MAX_PLAYERS) / 2.0) - 1)
+
+
+## Tax on resources sent to another village: 10 % per extra player, at most 50 %.
+static func help_tax(players: int) -> float:
+	return minf(0.1 * (players - 1), 0.5)
 ## Village layout from the design doc. T tower, W wall, G gate, V hut.
 const VILLAGE_LAYOUT: Array[String] = [
 	"TWGWT",

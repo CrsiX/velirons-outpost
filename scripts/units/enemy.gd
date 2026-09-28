@@ -21,8 +21,11 @@ var dead := false
 var behavior: EnemyBehavior
 ## Number within its kind (see label()).
 var uid := 0
-## Whoever dealt the killing blow (for the log).
+## Whoever dealt the killing blow (for the log, and who gets the gold).
 var killer: Node = null
+## The village this enemy is sent against (its raid hits that village's huts).
+var target_village: Village = null
+var _jitter := Vector2.ZERO
 
 
 func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String) -> void:
@@ -34,14 +37,28 @@ func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String
 	_init_sprite("unit_" + spec()["art"])
 	var pts := PackedVector2Array()
 	# A small sideways offset per enemy so groups don't walk in single file.
-	var jitter := Vector2(randf_range(-0.18, 0.18), randf_range(-0.18, 0.18))
+	_jitter = Vector2(randf_range(-0.18, 0.18), randf_range(-0.18, 0.18))
 	for t in route:
-		pts.append(Vector2(t) + jitter)
+		pts.append(Vector2(t) + _jitter)
 	set_grid_pos(pts[0])
 	follow(pts)
 	behavior = BEHAVIORS[spec()["behavior"]].new()
 	add_to_group("enemies")
 	_update_visibility()
+
+
+## Co-op: turns towards `v` (its target fell), along the roads from where it is.
+func retarget(v: Village, rng: RandomNumberGenerator) -> void:
+	var from := game.world.pathing.nearest_road(current_tile())
+	var field := v.id if game.world.pathing.enemy_distance(from, v.id) < Pathing.UNREACHABLE else -1
+	var route := game.world.pathing.enemy_route(from, rng, field)
+	var old := target_village
+	target_village = v
+	var pts := PackedVector2Array([grid_pos])
+	for t in route:
+		pts.append(Vector2(t) + _jitter)
+	follow(pts)
+	game.log_all(EventLog.Level.DEBUG, "%s turns from %s to %s" % [label(), old.village_name if old else "?", v.village_name])
 
 
 func spec() -> Dictionary:
@@ -73,6 +90,9 @@ func face(grid_target: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	if dead:
+		return
+	if game.is_client:
+		net_follow(delta)  # the host simulates; we just follow
 		return
 	# The behavior may hold the enemy in place (fighting, casting).
 	if behavior.tick(self, delta):

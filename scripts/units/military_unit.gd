@@ -10,7 +10,7 @@ const BEHAVIORS := {
 	"summoner": preload("res://scripts/units/military/summoner_behavior.gd"),
 }
 
-enum State { RESERVE, MARCHING, STATIONED, RETURNING }
+enum State { RESERVE, MARCHING, STATIONED, RETURNING, TRAVELLING }
 
 static var _next_id := 1
 
@@ -27,6 +27,15 @@ var walker: Node = null
 var behavior: MilitaryBehavior
 ## Number within its kind (see label()), given by Army.recruit.
 var uid := 0
+## The village it belongs to (whose army it's in).
+var village: Village
+## Id that commands use to name this unit (Game.register).
+var nid := 0
+## The village that recruited it (kept when it's sent to another village;
+## statistics only, never shown).
+var original_owner: Village
+## TRAVELLING: the village it walks to, which becomes its owner on arrival.
+var travel_to: Village
 
 
 func _init(p_kind: String) -> void:
@@ -54,6 +63,7 @@ func state_text() -> String:
 		State.MARCHING: return "marching to a tower"
 		State.STATIONED: return "on duty"
 		State.RETURNING: return "returning to the village"
+		State.TRAVELLING: return "on the way to %s" % (travel_to.village_name if travel_to else "another village")
 	return "in reserve"
 
 

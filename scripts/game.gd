@@ -1,16 +1,35 @@
 class_name Game
 extends Node2D
-## Composition root: creates the world and systems, routes player input
-## (select / build / station), and resolves enemy raids and defeat.
+## Composition root: creates the world, the shared systems (waves, corpses)
+## and the villages, routes player input (select / build / station), and
+## resolves enemy raids and defeat.
+##
+## Per-player state lives in Village nodes (economy, population, construction,
+## army, hero, event log). `economy`, `population`, ... below are shortcuts to
+## the local player's village, for the HUD and input handling; game logic uses
+## the owning village of whatever it works on.
 
 enum Mode { NONE, BUILD, STATION }
 
-const HERO_SCRIPT := preload("res://scripts/units/hero.gd")
+signal speed_changed(index: int)
+
+## Game speeds the speed button cycles through; 0 = paused.
+const SPEEDS: Array[float] = [1.0, 2.0, 4.0, 0.0]
+
+const VILLAGE_SCRIPT := preload("res://scripts/systems/village.gd")
 
 @export var map_seed := 0  # 0 = random every game
 ## Debug switches, defaulting to config.gd (tests may override before _ready).
 var reveal_map := Config.REVEAL_MAP
 var disable_fog := Config.DISABLE_FOG
+## Villages on this device (1 = single player; more = hot-seat co-op test mode).
+var hotseat_villages := Config.HOTSEAT_VILLAGES
+## Co-op client: the host simulates; this game only shows what it sends.
+var is_client := false
+## Co-op (host or client): keeps clients in step (see Replicator).
+var replicator: Replicator
+## Networked game (host or client), not hot-seat.
+var networked := false
 
 var mode := Mode.NONE
 var build_kind := ""
@@ -22,63 +41,117 @@ var selected_unit: MilitaryUnit = null
 ## {"unit", "from" (post), "start" (screen pos), "active" (dragging yet)}.
 var _udrag: Dictionary = {}
 const DRAG_THRESHOLD := 12.0
-var hero: Hero
 var game_over := false
+## Every village in the game (one in single player).
+var villages: Array[Village] = []
+## The village the person at this device plays.
+var player_village: Village
+var economy: Economy:
+	get: return player_village.economy
+var population: Population:
+	get: return player_village.population
+var construction: Construction:
+	get: return player_village.construction
+var army: Army:
+	get: return player_village.army
+var hero: Hero:
+	get: return player_village.hero
+## The local player's event log (HUD log field).
+var events: EventLog:
+	get: return player_village.events
 var map: MapData:
 	get: return world.map
 var fog: FogLayer:
 	get: return world.fog
 
 var _info_timer := 0.0
-## Game event log (HUD log field). Created first so every system can log.
-var events: EventLog
+## All player actions go through here (see Commands and command()).
+var commands: Commands
+## Index into SPEEDS (set by the host only, see apply_speed).
+var speed_index := 0
+## Entities commands can name: id -> Building / MilitaryUnit (see register).
+var _entities: Dictionary = {}
+var _next_nid := 1
 ## Per-kind counters behind the numbers in labels ("farmer 3", "goblin 4").
 var _ids: Dictionary = {}
 
 @onready var camera: CameraController = $Camera
 @onready var world: World = $World
-@onready var economy: Economy = $Systems/Economy
-@onready var population: Population = $Systems/Population
-@onready var construction: Construction = $Systems/Construction
-@onready var army: Army = $Systems/Army
 @onready var waves: Waves = $Systems/Waves
 @onready var corpses: Corpses = $Systems/Corpses
 @onready var hud: Hud = $HUD
 
 
 func _ready() -> void:
-	events = EventLog.new()
-	events.name = "Events"
-	$Systems.add_child(events)
 	var s := map_seed if map_seed != 0 else randi()
-	economy.setup(Config.START_RESOURCES)
+	commands = Commands.new()
+	commands.name = "Commands"
+	commands.setup(self)
+	$Systems.add_child(commands)
+	# Co-op over the network: the lobby decided the villages (Net.setup).
+	networked = Net.in_game and Net.is_online()
+	is_client = networked and Net.is_client()
+	var names: Array = []
+	var colors: Array = []
+	if networked:
+		for pv in Net.setup["villages"]:
+			names.append(pv["name"])
+			colors.append(Config.VILLAGE_COLORS[int(pv["color"])])
+		s = int(Net.setup.get("seed", s))
+		reveal_map = bool(Net.setup.get("reveal_map", reveal_map))
+		disable_fog = bool(Net.setup.get("disable_fog", disable_fog))
+	else:
+		for i in clampi(hotseat_villages, 1, Config.MAX_PLAYERS):
+			names.append(Config.VILLAGE_NAMES[i])
+			colors.append(Config.VILLAGE_COLORS[i])
+	# Villages first (empty), so the world can hand them their buildings.
+	for i in names.size():
+		var v: Village = VILLAGE_SCRIPT.new()
+		v.create(self, i, names[i], colors[i])
+		$Systems.add_child(v)
+		villages.append(v)
+	player_village = villages[int(Net.setup.get("local", 0)) if networked else 0]
 	world.setup(self, s)
-	construction.setup(self)
-	construction.build_starting()  # before the villagers, who then go to work there
-	population.setup(self)
-	army.setup(self)
+	fog.local = player_village.id
+	for village in villages:
+		village.apply_map(map.villages[village.id])
 	waves.setup(self)
 	corpses.setup(self)
-	hero = HERO_SCRIPT.new()
-	hero.setup_hero(self)
-	world.objects.add_child(hero)
+	for village in villages:
+		if is_client:
+			village.setup_client()
+		else:
+			village.setup()
+			village.population.civilian_lost.connect(func(_c: Civilian) -> void: _check_defeat())
 	hud.setup(self)
+	if networked:
+		replicator = Replicator.new()
+		replicator.name = "Replicator"
+		replicator.setup(self, not is_client)
+		add_child(replicator)
+		Net.session_ended.connect(_on_session_ended)
+		Net.command_refused.connect(func(_t: String, err: String) -> void: hud.toast(err, UiTheme.BAD))
+		if is_client:
+			Net.client_game_ready(self)
+		else:
+			Net.host_game_ready(self)
 
 	camera.process_mode = Node.PROCESS_MODE_ALWAYS  # pan and zoom while paused
 	camera.bounds = world.world_rect().grow(-200.0)
-	camera.focus(Iso.tile_to_world(Config.VILLAGE_CENTER))
+	camera.focus(Iso.tile_to_world(player_village.center))
 	camera.zoom = Vector2(0.75, 0.75)
 	camera.tapped.connect(_on_tapped)
 	camera.press_filter = _claim_press
 	camera.hovered.connect(_on_hovered)
 	camera.cancelled.connect(cancel_mode)
-	population.civilian_lost.connect(func(_c: Civilian) -> void: _check_defeat())
 
 
 func _process(delta: float) -> void:
 	_info_timer -= delta
 	if _info_timer <= 0.0:
 		_info_timer = 0.25
+		if villages.size() > 1 and not is_client:
+			_check_defeat()  # co-op: villages fall and rise again at any time
 		if selected_unit != null:
 			if selected_unit.state == MilitaryUnit.State.STATIONED and is_instance_valid(selected_unit.post):
 				hud.show_info(unit_info(selected_unit))
@@ -86,7 +159,7 @@ func _process(delta: float) -> void:
 				deselect()  # it left its post
 		elif selected != null:
 			if is_instance_valid(selected) and selected.is_inside_tree():
-				hud.show_info(selected.info())
+				hud.show_info(building_info(selected))
 			else:
 				deselect()
 
@@ -136,7 +209,7 @@ func select(b: Building) -> void:
 		world.overlay.show_selection(b.tiles(), Vector2(b.tile), b.range_tiles())
 	else:
 		world.overlay.show_selection(b.tiles())
-	hud.show_info(b.info())
+	hud.show_info(building_info(b))
 	_info_timer = 0.25
 
 
@@ -159,13 +232,13 @@ func _on_tapped(world_pos: Vector2) -> void:
 			_try_place(tile)
 		Mode.STATION:
 			var t := world.pick_building(world_pos)
-			var err := army.station_error(station_unit, t as MilitaryPost)
-			if err == "" and army.station(station_unit, t):
+			var r := command("station_unit", {"unit": id_of(station_unit), "post": id_of(t)})
+			if r["ok"]:
 				cancel_mode()
 				select(t)
 				hud.toast("The %s is marching out" % station_unit_name(t), Color("c9a24a"))
 			else:
-				hud.toast(err, Color("ff9a8a"))
+				hud.toast(r["error"], Color("ff9a8a"))
 		_:
 			var b := world.pick_building(world_pos)
 			if b == selected:
@@ -180,13 +253,11 @@ func _on_hovered(world_pos: Vector2) -> void:
 
 
 func _try_place(tile: Vector2i) -> void:
-	var err := construction.placement_error(build_kind, tile)
-	if err != "":
-		_preview(tile)
-		hud.toast(err, Color("ff9a8a"))
-		return
-	construction.place(build_kind, tile)
+	var r := command("place_building", {"kind": build_kind, "tile": tile})
 	_preview(tile)
+	if not r["ok"]:
+		hud.toast(r["error"], Color("ff9a8a"))
+		return
 	if not economy.can_afford(Config.BUILDINGS[build_kind]["cost"]):
 		cancel_mode()
 
@@ -235,10 +306,10 @@ func unit_info(unit: MilitaryUnit) -> Dictionary:
 		actions.append({
 			"label": "Upgrade  (%s)" % Config.cost_text(unit.upgrade_cost()),
 			"disabled": not economy.can_afford(unit.upgrade_cost()),
-			"action": func() -> void: army.upgrade(unit),
+			"action": func() -> void: command("upgrade_unit", {"unit": unit.nid}),
 		})
 	actions.append({"label": "Withdraw", "action": func() -> void:
-		army.unstation(unit)
+		command("withdraw_unit", {"unit": unit.nid})
 		deselect()})
 	return {"title": unit.display_name(), "lines": lines, "actions": actions}
 
@@ -289,13 +360,13 @@ func _drop_stationed(unit: MilitaryUnit, screen_pos: Vector2) -> void:
 	var from: MilitaryPost = _udrag["from"]
 	if hud.is_over_dock(screen_pos):
 		events.debug("drag %s from %s to the reserve (withdraw)" % [unit.label(), from.label()])
-		army.unstation(unit)
+		command("withdraw_unit", {"unit": unit.nid})
 		deselect()
 		return
 	var target := drop_target(unit, screen_pos)
 	if target != null:
 		events.debug("drag %s from %s to %s" % [unit.label(), from.label(), target.label()])
-		army.transfer(unit, target)
+		command("move_unit", {"unit": unit.nid, "post": target.nid})
 		select(target)
 		hud.toast("The %s is on the move" % unit.display_name().to_lower(), Color("c9a24a"))
 	else:
@@ -344,14 +415,14 @@ func end_drag_preview() -> void:
 ## Drop from the HUD's reserve card at a screen position (drag & drop).
 func drop_unit(unit: MilitaryUnit, screen_pos: Vector2) -> bool:
 	var t := world.pick_building(camera.screen_to_world(screen_pos))
-	var err := army.station_error(unit, t as MilitaryPost)
-	if err == "":
+	if army.station_error(unit, t as MilitaryPost) == "":
 		events.debug("drag %s from the reserve to %s" % [unit.label(), t.label()])
-	if err == "" and army.station(unit, t):
+	var r := command("station_unit", {"unit": unit.nid, "post": id_of(t)})
+	if r["ok"]:
 		select(t)
 		hud.toast("The %s is marching out" % station_unit_name(t), Color("c9a24a"))
 		return true
-	hud.toast(err, Color("ff9a8a"))
+	hud.toast(r["error"], Color("ff9a8a"))
 	return false
 
 
@@ -364,25 +435,36 @@ func station_unit_name(t: MilitaryPost) -> String:
 func on_enemy_reached_gate(g: Enemy) -> void:
 	if game_over:
 		return
-	# Exactly one random hut per enemy, on every difficulty. Only a villager who
-	# happens to live in that hut dies; nobody else is killed.
-	events.debug("%s broke through the gate" % g.label())
-	var intact := world.intact_huts()
+	# Exactly one random hut of the village it attacked, on every difficulty.
+	# Only a villager who happens to live in that hut dies; nobody else is killed.
+	var v: Village = g.target_village if is_instance_valid(g.target_village) else player_village
+	v.events.debug("%s broke through the gate" % g.label())
+	var intact := v.intact_huts()
 	if not intact.is_empty():
 		(intact.pick_random() as Hut).destroy(g.label())
-	Sfx.play("raid")
-	hud.toast("Enemies broke into the village!", Color("ff7a6a"))
-	population.changed.emit()
+	if v.is_local():
+		Sfx.play("raid")
+	v.toast("Enemies broke into the village!", Color("ff7a6a"))
+	v.population.changed.emit()
 	_check_defeat()
 
 
+## A village falls with no villagers or no intact huts; the game is lost when
+## every village has fallen.
 func _check_defeat() -> void:
 	if game_over:
 		return
-	var no_people := population.count() == 0
-	var no_huts := world.intact_huts().is_empty()
-	if not (no_people or no_huts):
+	for v in villages:
+		if v.update_fallen() and villages.size() > 1:
+			if v.fallen:
+				log_all(EventLog.Level.IMPORTANT, "%s has fallen" % v.village_name)
+				_reroute_from(v)
+			else:
+				log_all(EventLog.Level.INFO, "%s stands again" % v.village_name)
+			world.refresh_village_labels()
+	if not villages.all(func(v: Village) -> bool: return v.fallen):
 		return
+	var no_people := population.count() == 0
 	game_over = true
 	cancel_mode()
 	Engine.time_scale = 1.0
@@ -393,9 +475,98 @@ func _check_defeat() -> void:
 
 
 func go_to_title() -> void:
+	if Net.is_online():
+		Net.leave()
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/title.tscn")
+
+
+# --- commands, entity ids, speed ---------------------------------------------------------
+
+## Runs a player action for the local player's village; see Commands for the
+## types and arguments. Returns {"ok": bool, "error": String, ...}.
+func command(type: String, args: Dictionary = {}) -> Dictionary:
+	if is_client:
+		Net.send_command(type, args)  # the host applies it; a refusal comes back as a toast
+		return {"ok": true, "sent": true}
+	return commands.submit(player_village, type, args)
+
+
+## Gives `o` (a Building, unit, corpse or MilitaryUnit) an id that commands and
+## the co-op Replicator use to refer to it.
+func register(o) -> int:
+	var id := _next_nid
+	_next_nid += 1
+	register_as(o, id)
+	return id
+
+
+## Co-op client: `o` takes the id the host gave it.
+func register_as(o, id: int) -> void:
+	_entities[id] = o
+	_next_nid = maxi(_next_nid, id + 1)
+	if o is Node:
+		var n := o as Node
+		if not n.is_in_group("replicated"):
+			n.add_to_group("replicated")
+		# Freed nodes (dead enemies, collected corpses, ...) drop out of the registry,
+		# so it doesn't grow all game long. (Only when freed, not when reparented,
+		# and only if the id still means this node.)
+		n.tree_exited.connect(func() -> void:
+			if n.is_queued_for_deletion() and _entities.get(id) == n:
+				_entities.erase(id))
+
+
+## The person at this device controls the game speed (single player, or the co-op host).
+func is_host_player() -> bool:
+	return player_village == host_village() and not is_client
+
+
+func _on_session_ended(reason: String) -> void:
+	game_over = true
+	hud.show_session_ended(reason)
+
+
+func unregister(id: int) -> void:
+	_entities.erase(id)
+
+
+## The entity with id `id`, or null (unknown, or freed meanwhile).
+func entity(id: int):
+	var o = _entities.get(id)
+	if o is Object and not is_instance_valid(o):
+		return null
+	return o
+
+
+## Id to put into a command for `o` (0 = none).
+func id_of(o) -> int:
+	return o.nid if o != null and is_instance_valid(o) and "nid" in o else 0
+
+
+## The village that controls the game speed (the host; single player: the only one).
+func host_village() -> Village:
+	return villages[0]
+
+
+## Sets game speed SPEEDS[i] (0 = paused). Use the "set_speed" command.
+func apply_speed(i: int) -> void:
+	speed_index = i
+	var speed := SPEEDS[i]
+	get_tree().paused = speed == 0.0
+	if speed > 0.0:
+		Engine.time_scale = speed
+	speed_changed.emit(i)
+
+
+## A building's panel; another village's buildings can be looked at, not ordered.
+func building_info(b: Building) -> Dictionary:
+	var d := b.info()
+	if b.village and b.village != player_village:
+		d["actions"] = [] as Array[Dictionary]
+		(d["lines"] as Array).push_front("Belongs to %s." % b.village.village_name)
+	return d
 
 
 ## Next number for `key` (a kind or role), counting from 1 per game.
@@ -416,12 +587,75 @@ func who(n) -> String:
 	return str(n.name)
 
 
-## Everyone who can take on villager jobs: villagers plus the hero.
+## The local player's workers: villagers plus the hero (see Village.workers).
 func workers() -> Array[Civilian]:
-	var out: Array[Civilian] = population.civilians.duplicate()
-	if is_instance_valid(hero) and not hero.dead:
-		out.append(hero)
-	return out
+	return player_village.workers()
+
+
+## The village something belongs to (buildings, villagers, the hero, military
+## units, elementals), or null for enemies, corpses and the like.
+func village_of(n) -> Village:
+	if n is MilitaryUnit:
+		return n.village
+	if not is_instance_valid(n):
+		return null
+	if n is Tower and n.garrison:
+		return n.garrison.village
+	var v = n.get("village")
+	return v if v is Village else null
+
+
+## Hot-seat test mode: the device's player takes over the next village (or `v`).
+func switch_village(v: Village = null) -> void:
+	if v == null:
+		v = villages[(player_village.id + 1) % villages.size()]
+	cancel_mode()
+	player_village = v
+	fog.set_local(v.id)
+	world.refresh_props()
+	camera.focus(Iso.tile_to_world(v.center))
+	hud.bind_village(v)
+	world.refresh_village_labels()
+
+
+## The standing village whose centre is nearest to `t`, or null if all fell.
+func nearest_standing_village(t: Vector2i) -> Village:
+	var best: Village = null
+	var best_d := INF
+	for v in villages:
+		var d := Vector2(t).distance_squared_to(Vector2(v.center))
+		if not v.fallen and d < best_d:
+			best_d = d
+			best = v
+	return best
+
+
+## Enemies on their way to a village that just fell turn to the nearest standing one.
+func _reroute_from(v: Village) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var e := node as Enemy
+		if e.dead or e.target_village != v:
+			continue
+		var nv := nearest_standing_village(e.current_tile())
+		if nv:
+			e.retarget(nv, rng)
+
+
+## Logs to every village (waves, enemies: things everyone may hear about).
+func log_all(level: EventLog.Level, text: String) -> void:
+	for v in villages:
+		v.events.add(level, text)
+
+
+## Logs to the village `about` belongs to, or to every village if none.
+func log_for(about, level: EventLog.Level, text: String) -> void:
+	var v := village_of(about)
+	if v:
+		v.events.add(level, text)
+	else:
+		log_all(level, text)
 
 
 func restart() -> void:

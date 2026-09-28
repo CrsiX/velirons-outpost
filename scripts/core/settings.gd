@@ -12,6 +12,37 @@ const CYCLE := {Difficulty.NORMAL: Difficulty.HARD, Difficulty.HARD: Difficulty.
 
 var difficulty := Difficulty.NORMAL
 var level := 1
+## Multiplayer: this player's village name and colour (index into
+## Config.VILLAGE_COLORS), remembered between sessions in user://player.cfg.
+var player_name := ""
+var player_color := 0
+
+const PLAYER_FILE := "user://player.cfg"
+
+
+func _ready() -> void:
+	var cf := ConfigFile.new()
+	if cf.load(PLAYER_FILE) == OK:
+		player_name = str(cf.get_value("player", "name", ""))
+		player_color = clampi(int(cf.get_value("player", "color", 0)), 0, Config.VILLAGE_COLORS.size() - 1)
+
+
+func save_player() -> void:
+	var cf := ConfigFile.new()
+	cf.set_value("player", "name", player_name)
+	cf.set_value("player", "color", player_color)
+	cf.save(PLAYER_FILE)
+
+
+## "" if `n` is a valid village name (2-20 letters, digits, spaces, ' and -), else why not.
+static func name_error(n: String) -> String:
+	var t := n.strip_edges()
+	if t.length() < 2 or t.length() > 20:
+		return "The village name needs 2 to 20 characters"
+	var re := RegEx.create_from_string("^[\\p{L}\\p{N} '\\-]+$")
+	if re.search(t) == null:
+		return "Only letters, digits, spaces, ' and - please"
+	return ""
 
 
 func cycle_difficulty() -> void:

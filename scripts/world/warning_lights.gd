@@ -30,7 +30,9 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	_timer -= delta
-	if _timer <= 0.0:
+	if game.is_client:
+		pass  # the host sends the spots (show_net)
+	elif _timer <= 0.0:
 		_timer = UPDATE_INTERVAL
 		spots.clear()
 		if enabled():
@@ -42,23 +44,37 @@ func _process(delta: float) -> void:
 
 
 ## For every enemy hidden from view, the point where its route crosses from
-## unwatched into watched land (the edge of the fog).
-func compute_spots() -> Array[Vector2]:
+## unwatched into watched land (the edge of the fog). With `vid`: for that
+## village, the enemies coming for it, as its fog shows them (co-op host).
+func compute_spots(vid: int = -1) -> Array[Vector2]:
 	var out: Array[Vector2] = []
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or e.visible:
+		if e.dead:
+			continue
+		if vid < 0:
+			if e.visible:
+				continue
+		elif (e.target_village and e.target_village.id != vid) or game.fog.is_watched_by(vid, e.current_tile()):
 			continue
 		var prev := e.grid_pos
 		for i in range(e.path_index, e.path.size()):
 			var p := e.path[i]
-			if game.fog.is_watched(Vector2i(p.round())):
+			if (game.fog.is_watched(Vector2i(p.round())) if vid < 0 else game.fog.is_watched_by(vid, Vector2i(p.round()))):
 				var edge := (prev + p) / 2.0
 				if not out.any(func(o: Vector2) -> bool: return o.distance_to(edge) < MERGE_DISTANCE):
 					out.append(edge)
 				break
 			prev = p
 	return out
+
+
+## Co-op client: the spots the host worked out for us.
+func show_net(points: Array) -> void:
+	var pts: Array[Vector2] = []
+	pts.assign(points)
+	spots = pts
+	_show(pts)
 
 
 func _show(points: Array[Vector2]) -> void:

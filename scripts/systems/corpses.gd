@@ -22,7 +22,8 @@ func spawn(kind: String, wave: int, at: Vector2) -> Corpse:
 	var c: Corpse = CORPSE_SCRIPT.new()
 	c.setup(game, kind, wave, at)
 	c.uid = game.next_id("corpse")
-	game.events.debug("%s left behind (%s)" % [c.label(), kind])
+	c.nid = game.register(c)
+	game.log_all(EventLog.Level.DEBUG, "%s left behind (%s)" % [c.label(), kind])
 	game.world.decals.add_child(c)  # flat on the ground, under walking units
 	corpses.append(c)
 	changed.emit()
@@ -44,7 +45,7 @@ func clear_wave(wave: int) -> void:
 			remove(c)
 			n += 1
 	if n > 0:
-		game.events.debug("%d corpse%s of wave %d and older cleared away" % [n, "" if n == 1 else "s", wave])
+		game.log_all(EventLog.Level.DEBUG, "%d corpse%s of wave %d and older cleared away" % [n, "" if n == 1 else "s", wave])
 
 
 ## Safe = no living enemy within CORPSE_SAFE_RADIUS.

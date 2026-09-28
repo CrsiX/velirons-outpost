@@ -41,6 +41,7 @@ const SPRITES := {
 	"unit_archer": {"ax": 14, "ay": 47, "w": 35, "h": 54.5},
 	"unit_archmage": {"ax": 14, "ay": 62.6, "w": 36, "h": 70.5},
 	"unit_builder": {"ax": 14, "ay": 46, "w": 34, "h": 53.5},
+	"unit_caravan": {"ax": 29, "ay": 37.2, "w": 72, "h": 48.5},
 	"unit_earth_elemental": {"ax": 23.5, "ay": 45, "w": 47.5, "h": 53},
 	"unit_explorer": {"ax": 14, "ay": 47, "w": 33, "h": 54.5},
 	"unit_farmer": {"ax": 14, "ay": 49, "w": 32, "h": 56.5},

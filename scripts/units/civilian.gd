@@ -9,7 +9,11 @@ signal died(civ: Civilian)
 
 ## Number within its role (see label()).
 var uid := 0
+## Co-op client: what the host says this villager is doing.
+var net_status := ""
 var role := ""
+## The village this villager (or hero) belongs to; set before setup().
+var village: Village
 ## The hut this villager lives in (every villager has exactly one).
 var hut: Hut = null
 var at_home := true
@@ -24,7 +28,7 @@ func setup(p_game: Game, p_role: String) -> void:
 	role = p_role
 	speed = Config.CIVILIANS[role]["speed"]
 	_init_sprite("unit_" + role)
-	set_grid_pos(Vector2(Config.VILLAGE_CENTER))
+	set_grid_pos(Vector2(village.center))
 	_set_home(true)
 	rest_timer = randf_range(0.2, 1.5)
 	add_to_group("observers")
@@ -34,6 +38,11 @@ func display_name() -> String:
 	return Config.CIVILIANS[role]["name"]
 
 
+## What it's doing, for panels (status(); on co-op clients as the host says).
+func status_text() -> String:
+	return net_status if game.is_client else status()
+
+
 ## Log name, numbered per role: "farmer 3".
 func label() -> String:
 	return "%s %d" % [display_name().to_lower(), uid]
@@ -41,6 +50,9 @@ func label() -> String:
 
 func _process(delta: float) -> void:
 	if dead:
+		return
+	if game.is_client:
+		net_follow(delta)  # the host simulates; we just follow
 		return
 	if not at_home and not evading and wants_to_evade():
 		_threat_timer -= delta
@@ -67,7 +79,7 @@ func enemy_nearby() -> bool:
 
 
 func _evade() -> void:
-	game.events.debug("%s flees home from enemies" % label())
+	village.events.debug("%s flees home from enemies" % label())
 	evading = true
 	_on_evade()
 	sprite.rotation = 0.0
@@ -139,14 +151,14 @@ func head_out(target: Vector2i) -> bool:
 	if p.is_empty():
 		return false
 	if at_home:
-		set_grid_pos(Vector2(Config.VILLAGE_CENTER))
+		set_grid_pos(Vector2(village.center))
 		_set_home(false)
 	follow(p)
 	return true
 
 
 func head_home() -> void:
-	var p := game.world.pathing.find_path(current_tile(), Config.VILLAGE_CENTER)
+	var p := game.world.pathing.find_path(current_tile(), village.center)
 	if p.is_empty():
 		arrive_home()  # stuck somewhere: just teleport home
 		return
@@ -154,7 +166,7 @@ func head_home() -> void:
 
 
 func arrive_home() -> void:
-	set_grid_pos(Vector2(Config.VILLAGE_CENTER))
+	set_grid_pos(Vector2(village.center))
 	_set_home(true)
 	_set_moving(false)
 

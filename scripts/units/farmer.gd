@@ -78,8 +78,8 @@ func _after_evade() -> void:
 
 func _deliver() -> void:
 	if carrying > 0:
-		game.economy.add("food", carrying)
-		game.events.debug("%s brings %d food home" % [label(), carrying])
+		village.economy.add("food", carrying)
+		village.events.debug("%s brings %d food home" % [label(), carrying])
 		float_text("+%d food" % carrying, Color("e0b070"))
 	carrying = 0
 	_sack.visible = false

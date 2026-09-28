@@ -7,10 +7,18 @@ extends Node2D
 ## Explorers explore; units outside the village and manned towers ("observers")
 ## put explored tiles under surveillance.
 ##
+## Every village has its own fog (co-op: players only see what their own
+## explorers explored and their own units and buildings watch). `map.explored`
+## / `map.watched` are the local player's village's, used for drawing and the
+## HUD; game logic for a particular village uses is_explored_by / is_watched_by.
+##
 ## Drawn as one tiny texture (one pixel per tile) through a grid->iso transform,
 ## so linear filtering gives soft edges for free and redraws stay cheap.
 
+## Tiles the local village just explored (World shows the trees there).
 signal revealed(tiles: Array[Vector2i])
+## Any village explored new tiles (the co-op host tells that player).
+signal explored_changed(vid: int, tiles: Array[Vector2i])
 
 const FOG_LUMA := 8  # 0..255, the fog's grey level
 const UNEXPLORED_ALPHA := 255
@@ -18,6 +26,11 @@ const UNWATCHED_ALPHA := 120
 const WATCH_INTERVAL := 0.2
 
 var map: MapData
+## Per village id: 1 = explored / under surveillance.
+var explored_of: Array[PackedByteArray] = []
+var watched_of: Array[PackedByteArray] = []
+## The village whose fog is drawn (the local player's).
+var local := 0
 ## No fog at all: every tile is explored and under surveillance (Config.DISABLE_FOG).
 var disabled := false
 var _image: Image
@@ -27,8 +40,15 @@ var _watch_timer := 0.0
 var _explored_dirty := true
 
 
-func setup(p_map: MapData) -> void:
+func setup(p_map: MapData, villages: int = 1) -> void:
 	map = p_map
+	for i in maxi(1, villages):
+		var e := PackedByteArray()
+		e.resize(map.size * map.size)
+		explored_of.append(e)
+		var w := PackedByteArray()
+		w.resize(map.size * map.size)
+		watched_of.append(w)
 	# Grid space -> iso world: x axis goes down-right, y axis down-left.
 	transform = Transform2D(Vector2(Iso.HALF_W, Iso.HALF_H), Vector2(-Iso.HALF_W, Iso.HALF_H), Vector2.ZERO)
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -39,36 +59,67 @@ func setup(p_map: MapData) -> void:
 	_rebuild()
 
 
-## Marks tiles within `radius` (grid units) of `center` as explored.
-## Returns how many tiles were newly explored.
-func reveal(center: Vector2, radius: float) -> int:
+## Marks tiles within `radius` (grid units) of `center` as explored for
+## village `vid` (-1: the local one). Returns how many tiles were newly explored.
+func reveal(center: Vector2, radius: float, vid: int = -1) -> int:
 	var fresh: Array[Vector2i] = []
 	var r := int(ceil(radius))
 	var c := Vector2i(center.round())
 	for dy in range(-r, r + 1):
 		for dx in range(-r, r + 1):
 			var t := c + Vector2i(dx, dy)
-			if not map.in_bounds(t) or map.explored[map.index(t)] == 1:
-				continue
-			if Vector2(t).distance_to(center) <= radius:
-				map.explored[map.index(t)] = 1
+			if map.in_bounds(t) and Vector2(t).distance_to(center) <= radius:
 				fresh.append(t)
-	if not fresh.is_empty():
-		_explored_dirty = true
-		revealed.emit(fresh)
-	return fresh.size()
+	return explore_tiles(fresh, vid).size()
 
 
-## Marks the whole map explored (Config.REVEAL_MAP). Surveillance still applies.
-func reveal_all() -> void:
+## Marks `tiles` explored for village `vid` (-1: local); returns the new ones.
+func explore_tiles(tiles: Array[Vector2i], vid: int = -1) -> Array[Vector2i]:
+	if vid < 0:
+		vid = local
+	var e := explored_of[vid]
 	var fresh: Array[Vector2i] = []
-	for i in map.explored.size():
-		if map.explored[i] == 0:
-			map.explored[i] = 1
-			fresh.append(Vector2i(i % map.size, i / map.size))
-	if not fresh.is_empty():
+	for t in tiles:
+		var i := map.index(t)
+		if e[i] == 0:
+			e[i] = 1
+			fresh.append(t)
+	if fresh.is_empty():
+		return fresh
+	explored_of[vid] = e
+	explored_changed.emit(vid, fresh)
+	if vid == local:
+		for t in fresh:
+			map.explored[map.index(t)] = 1
 		_explored_dirty = true
 		revealed.emit(fresh)
+	return fresh
+
+
+## Marks the whole map explored (Config.REVEAL_MAP) for every village.
+## Surveillance still applies.
+func reveal_all() -> void:
+	var all: Array[Vector2i] = []
+	for i in map.size * map.size:
+		all.append(Vector2i(i % map.size, i / map.size))
+	for vid in explored_of.size():
+		explore_tiles(all, vid)
+
+
+func is_explored_by(vid: int, t: Vector2i) -> bool:
+	return map.in_bounds(t) and explored_of[clampi(vid, 0, explored_of.size() - 1)][map.index(t)] == 1
+
+
+func is_watched_by(vid: int, t: Vector2i) -> bool:
+	return is_explored_by(vid, t) and watched_of[clampi(vid, 0, watched_of.size() - 1)][map.index(t)] == 1
+
+
+## Shows village `vid`'s fog (hot-seat switching).
+func set_local(vid: int) -> void:
+	local = vid
+	map.explored = explored_of[vid].duplicate()
+	map.watched = watched_of[vid].duplicate()
+	_rebuild()
 
 
 func set_disabled(v: bool) -> void:
@@ -97,26 +148,43 @@ func _process(delta: float) -> void:
 		update_surveillance()
 
 
-## Recomputes which tiles are watched by the current observers.
+## Recomputes which tiles every village's observers watch.
 func update_surveillance() -> void:
-	if disabled:
-		map.watched.fill(1)
-		_rebuild()
-		return
-	map.watched.fill(0)
-	for node in get_tree().get_nodes_in_group("observers"):
-		var radius: float = node.sight_radius()
-		if radius <= 0.0:
-			continue
-		var c: Vector2 = node.sight_center()
-		var r := int(ceil(radius))
-		var ct := Vector2i(c.round())
-		for dy in range(-r, r + 1):
-			for dx in range(-r, r + 1):
-				var t := ct + Vector2i(dx, dy)
-				if map.in_bounds(t) and Vector2(t).distance_to(c) <= radius:
-					map.watched[map.index(t)] = 1
+	var n := watched_of.size()
+	var area := map.size * map.size
+	var all := PackedByteArray()  # every village's surveillance, one after another
+	all.resize(n * area)
+	all.fill(1 if disabled else 0)
+	if not disabled:
+		for node in get_tree().get_nodes_in_group("observers"):
+			var vid := observer_village(node)
+			if vid < 0 or vid >= n:
+				continue
+			var radius: float = node.sight_radius()
+			if radius <= 0.0:
+				continue
+			var base := vid * area
+			var c: Vector2 = node.sight_center()
+			var r := int(ceil(radius))
+			var ct := Vector2i(c.round())
+			for dy in range(-r, r + 1):
+				for dx in range(-r, r + 1):
+					var t := ct + Vector2i(dx, dy)
+					if map.in_bounds(t) and Vector2(t).distance_to(c) <= radius:
+						all[base + map.index(t)] = 1
+	for vid in n:
+		watched_of[vid] = all.slice(vid * area, (vid + 1) * area)
+	map.watched = watched_of[local].duplicate()
 	_rebuild()
+
+
+## Which village an observer watches for: its own (units, buildings, a
+## soldier's unit, a caravan's sender); -1 if none.
+static func observer_village(node: Node) -> int:
+	var v = node.get("village")
+	if v == null and node is Soldier:
+		v = (node as Soldier).unit.village
+	return (v as Village).id if v is Village else -1
 
 
 func _rebuild() -> void:

@@ -128,6 +128,11 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
+	if game.is_client:  # the host runs the unit; we only show the witch's glow
+		_glow_t += delta
+		_spell_glow.visible = enchanted > 0.0 and garrison != null
+		_spell_glow.modulate.a = 0.6 + 0.3 * sin(_glow_t * 10.0)
+		return
 	if enchanted > 0.0:
 		enchanted -= delta
 		_glow_t += delta
@@ -168,7 +173,7 @@ func outer_tile() -> Vector2i:
 			var t := tile + Vector2i(dx, dy)
 			if t == tile or game.map.in_village(t) or not game.world.pathing.is_walkable(t):
 				continue
-			var d := Vector2(t).distance_to(Vector2(Config.VILLAGE_CENTER))
+			var d := Vector2(t).distance_to(Vector2(village.center))
 			if d > best_d:
 				best_d = d
 				best = t
@@ -198,22 +203,22 @@ func info() -> Dictionary:
 	lines.append("Tower level %d of %d: range %.1f tiles" % [level, max_level(), range_tiles()])
 	if upgrading:
 		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
-		actions.append({"label": "Cancel upgrade (refund)", "action": func() -> void: game.construction.cancel(self)})
+		actions.append({"label": "Cancel upgrade (refund)", "action": func() -> void: game.command("cancel_site", {"building": nid})})
 	elif level < max_level():
 		var bonus: float = Config.TOWER_LEVELS[level]["range_bonus"] - Config.TOWER_LEVELS[level - 1]["range_bonus"]
 		actions.append({
 			"label": "Upgrade tower (%s)" % Config.cost_text(upgrade_cost()),
-			"disabled": not game.economy.can_afford(upgrade_cost()),
-			"action": func() -> void: game.construction.order_upgrade(self),
+			"disabled": not village.economy.can_afford(upgrade_cost()),
+			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
 		})
 		lines.append("Next level: +%.1f range" % bonus)
 	if garrison:
 		lines.append("%s, level %d%s" % [garrison.display_name(), garrison.level + 1, "  (bewitched!)" if is_enchanted() else ""])
 		lines.append_array(garrison.behavior.info_lines(garrison))
-		actions.append({"label": "Withdraw", "action": func() -> void: game.army.unstation(garrison)})
+		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": garrison.nid})})
 	elif incoming:
 		lines.append("%s marching here." % incoming.display_name())
-		actions.append({"label": "Withdraw", "action": func() -> void: game.army.unstation(incoming)})
+		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": incoming.nid})})
 	else:
 		lines.append("Unmanned. Drag a unit from the Army tab onto this tower.")
 	return d

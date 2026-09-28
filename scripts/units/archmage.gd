@@ -22,7 +22,7 @@ func _tick(delta: float) -> void:
 ## Picks a random walkable tile on the ring just outside the walls.
 func _wander() -> void:
 	_wait = randf_range(2.0, 5.0)
-	var r := game.map.village_rect.grow(1)
+	var r := village.rect.grow(1)
 	for _i in 12:
 		var t := Vector2i(randi_range(r.position.x, r.end.x - 1), randi_range(r.position.y, r.end.y - 1))
 		if not game.map.in_village(t) and game.world.pathing.is_walkable(t):
