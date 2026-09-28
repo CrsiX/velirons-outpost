@@ -225,9 +225,17 @@ func refresh() -> void:
 		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(chip)
 		var l := _panel_label("%s%s" % [p["name"], "  (you)" if id == me else ""], 20, Config.VILLAGE_COLORS[int(p["color"])])
+		# One line per player: no wrapping (a wrapped label in a row has no width
+		# to wrap in and ends up one letter per line).
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(l)
-		row.add_child(_panel_label("host" if id == 1 else ("ready" if p["ready"] else "not ready"), 16, UiTheme.GOOD if (id == 1 or p["ready"]) else UiTheme.MUTED))
+		var state := _panel_label("host" if id == 1 else ("ready" if p["ready"] else "not ready"), 16, UiTheme.GOOD if (id == 1 or p["ready"]) else UiTheme.MUTED)
+		state.autowrap_mode = TextServer.AUTOWRAP_OFF
+		state.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(state)
 		players_box.add_child(row)
 	var ready_now: bool = mine.get("ready", false)
 	name_edit.editable = not ready_now or Net.is_host()
