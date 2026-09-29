@@ -77,7 +77,7 @@ func info() -> Dictionary:
 	elif ruined:
 		d["title"] = "Ruined Hut"
 		lines.append("Destroyed by enemies.")
-		lines.append("Rebuild for %s." % Config.cost_text(Config.BUILDINGS["hut"]["cost"]))
+		lines.append("Rebuild for %s." % Config.cost_icons(Config.BUILDINGS["hut"]["cost"]))
 		var actions: Array[Dictionary] = d["actions"]
 		actions.append({
 			"label": "Rebuild",

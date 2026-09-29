@@ -221,7 +221,7 @@ func info() -> Dictionary:
 	elif level < max_level():
 		var bonus: float = Config.TOWER_LEVELS[level]["range_bonus"] - Config.TOWER_LEVELS[level - 1]["range_bonus"]
 		actions.append({
-			"label": "Upgrade tower (%s)" % Config.cost_text(upgrade_cost()),
+			"label": "Upgrade tower (%s)" % Config.cost_icons(upgrade_cost()),
 			"disabled": not village.economy.can_afford(upgrade_cost()),
 			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
 		})

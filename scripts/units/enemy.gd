@@ -7,10 +7,13 @@ extends Unit
 
 signal killed(enemy: Enemy)
 signal reached_gate(enemy: Enemy)
+## Gone without a fight (a rat that stopped bothering): no corpse, no gold.
+signal vanished(enemy: Enemy)
 
 const BEHAVIORS := {
 	"melee": preload("res://scripts/units/enemies/melee_behavior.gd"),
 	"witch": preload("res://scripts/units/enemies/witch_behavior.gd"),
+	"rat": preload("res://scripts/units/enemies/rat_behavior.gd"),
 }
 
 var kind := ""
@@ -32,6 +35,8 @@ var _slow := 1.0
 var _slow_left := 0.0
 ## Seconds before a spatial mage can throw it back again.
 var _push_immune := 0.0
+## Set by a behavior that moved the enemy itself this frame (rats off the road).
+var self_moved := false
 
 
 func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String) -> void:
@@ -136,6 +141,26 @@ func face(grid_target: Vector2) -> void:
 	sprite.flip_h = Iso.to_world(grid_target - grid_pos).x < 0.0
 
 
+## Walks its own path (set with follow) for a behavior that took over.
+## Returns true at the end of it.
+func walk_own(delta: float) -> bool:
+	self_moved = true
+	return step_path(delta)
+
+
+## Leaves the map without a fight: no corpse, no gold.
+func vanish() -> void:
+	if dead:
+		return
+	dead = true
+	remove_from_group("enemies")
+	vanished.emit(self)
+	var tw := create_tween().set_parallel()
+	tw.tween_property(self, "modulate:a", 0.0, 0.5)
+	tw.tween_property(self, "scale", Vector2(0.6, 0.6), 0.5)
+	tw.chain().tween_callback(queue_free)
+
+
 ## A melee blow: a quick lunge towards the foe and back, swaying left and
 ## right (like a forester's axe).
 func swing(grid_target: Vector2) -> void:
@@ -162,9 +187,14 @@ func _process(delta: float) -> void:
 			_slow = 1.0
 			speed = base_speed
 			sprite.self_modulate = Color.WHITE
-	# The behavior may hold the enemy in place (fighting, casting).
+	# The behavior may hold the enemy in place (fighting, casting), or move it
+	# itself (rats going for a farm).
+	self_moved = false
 	if behavior.tick(self, delta):
-		_set_moving(false)
+		if dead:
+			return
+		if not self_moved:
+			_set_moving(false)
 	elif step_path(delta):
 		dead = true
 		remove_from_group("enemies")

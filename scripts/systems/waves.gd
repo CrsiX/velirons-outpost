@@ -27,6 +27,11 @@ var _queue: Array[Dictionary] = []
 var _spawn_timer := 0.0
 var _alive := 0
 var _rng := RandomNumberGenerator.new()
+## Rats left over once the rest of the wave is gone get RAT_WAVE_LINGER
+## seconds; then `rats_leave` is set and they all vanish (RatBehavior).
+var rat_deadline := -1.0
+var rats_leave := false
+var _rat_scan := 0.0
 
 
 func setup(p_game: Game) -> void:
@@ -87,6 +92,8 @@ func call_next(caller: Village = null) -> void:
 
 
 func _start_wave() -> void:
+	rat_deadline = -1.0
+	rats_leave = false
 	wave += 1
 	countdown = -1.0
 	var n := wave
@@ -123,6 +130,21 @@ func _share(n: int, hp_scale: float, spawns: Array[Vector2i], target: Village) -
 	var out := []
 	for i in kinds.size():
 		out.append({"kind": kinds[i], "spawn": points[i % points.size()], "hp_scale": hp_scale, "village": target})
+	# Rat packs: whole packs, each from one spawn, the rats a moment apart.
+	var rp: Dictionary = Config.RAT_PACKS
+	if n >= int(rp["from_wave"]) and _rng.randf() < float(rp["chance"]):
+		var packs := _rng.randi_range(int(rp["packs"][0]), int(rp["packs"][1])) + (n - int(rp["from_wave"])) / int(rp["more_every"])
+		for p in packs:
+			var at: Vector2i = points[_rng.randi() % points.size()]
+			var pack := []
+			for k in _rng.randi_range(int(rp["size"][0]), int(rp["size"][1])):
+				var spec := {"kind": "rat", "spawn": at, "hp_scale": hp_scale, "village": target}
+				if k > 0:
+					spec["gap"] = float(rp["gap"])
+				pack.append(spec)
+			var pos := _rng.randi_range(0, out.size())
+			for k in pack.size():
+				out.insert(pos + k, pack[k])
 	return out
 
 
@@ -157,12 +179,46 @@ func _process(delta: float) -> void:
 		if countdown <= 0.0:
 			_start_wave()
 		return
+	_check_rats(delta)
 	if _queue.is_empty():
 		return
 	_spawn_timer -= delta
 	if _spawn_timer <= 0.0:
-		_spawn_timer = Config.WAVE_SPAWN_GAP / game.villages.size()  # each village at its own pace
 		_spawn(_queue.pop_front())
+		# Each village at its own pace; the rats of a pack follow each other closely.
+		var next: Dictionary = _queue[0] if not _queue.is_empty() else {}
+		_spawn_timer = float(next["gap"]) if next.has("gap") else Config.WAVE_SPAWN_GAP / game.villages.size()
+
+
+## Once no enemy but rats is left (and only rats are still to come), the rats
+## get RAT_WAVE_LINGER seconds; then they all vanish.
+func _check_rats(delta: float) -> void:
+	if rats_leave:
+		return
+	if rat_deadline >= 0.0:
+		rat_deadline -= delta
+		if rat_deadline <= 0.0:
+			rats_leave = true
+		return
+	_rat_scan -= delta
+	if _rat_scan > 0.0 or _alive <= 0:
+		return
+	_rat_scan = 0.5
+	if _queue.any(func(sp: Dictionary) -> bool: return sp.get("kind", "") != "rat"):
+		return
+	var others := false
+	var rats := false
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var e := node as Enemy
+		if e.dead or e.behavior is CampBehavior:
+			continue
+		if e.kind == "rat":
+			rats = true
+		else:
+			others = true
+			break
+	if rats and not others:
+		rat_deadline = Config.RAT_WAVE_LINGER
 
 
 func _spawn(spec: Dictionary) -> void:
@@ -184,6 +240,7 @@ func _spawn(spec: Dictionary) -> void:
 	g.target_village.events.debug("%s appears at %s" % [g.label(), str(route[0])])
 	g.killed.connect(_on_enemy_killed)
 	g.reached_gate.connect(_on_enemy_reached_gate)
+	g.vanished.connect(func(_e: Enemy) -> void: _enemy_gone())
 	game.world.objects.add_child(g)
 	_alive += 1
 
@@ -198,7 +255,8 @@ func _on_enemy_killed(g: Enemy) -> void:
 	v.events.debug("killed %s (by %s, +%d gold)" % [g.label(), game.who(g.killer), gold])
 	game.world.float_text("+%d gold" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
 	Sfx.play("coin")
-	game.corpses.spawn(g.kind, g.wave, g.grid_pos)
+	if g.spec().get("corpse", true):
+		game.corpses.spawn(g.kind, g.wave, g.grid_pos)
 	_enemy_gone()
 
 
@@ -210,6 +268,8 @@ func _on_enemy_reached_gate(g: Enemy) -> void:
 func _enemy_gone() -> void:
 	_alive -= 1
 	if not in_progress() and wave > 0:
+		rat_deadline = -1.0
+		rats_leave = false
 		countdown = Config.WAVE_BUFFER
 		game.log_all(EventLog.Level.INFO, "Wave %d is over" % wave)
 		wave_finished.emit(wave)

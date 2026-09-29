@@ -242,14 +242,15 @@ func _free_reservation(unit: MilitaryUnit) -> void:
 
 # --- barracks sorties -----------------------------------------------------------------------
 
-## A unit on a barracks bench goes out to fight.
-func sortie(unit: MilitaryUnit) -> void:
+## A unit on a barracks bench goes out to fight (near the barracks, or to
+## guard `farm` against rats).
+func sortie(unit: MilitaryUnit, farm: Farm = null) -> void:
 	if unit.state != MilitaryUnit.State.STATIONED or unit.out or not (unit.post is Barracks):
 		return
 	var b := unit.post as Barracks
 	unit.out = true
 	var s := _spawn_walker(unit, b.work_tile())
-	s.start_sortie(b)
+	s.start_sortie(b, farm)
 	b.refresh()
 	changed.emit()
 

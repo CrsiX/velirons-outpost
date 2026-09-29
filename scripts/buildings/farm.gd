@@ -7,6 +7,8 @@ var farmer: Node:
 	get: return worker
 	set(v): worker = v
 var stored := 0.0
+## Rats eating the crops right now (enemy -> true): the farm grows nothing.
+var rats: Dictionary = {}
 var _ground_bonus := -1.0  # (computed once: the ground doesn't change)
 var _field: Sprite2D
 var _shed: Sprite2D
@@ -48,8 +50,24 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	if game.is_client:
 		return
-	if complete and farmer != null:
+	if complete and farmer != null and not has_rats():
 		stored = minf(stored + rate() * delta, Config.FARM_CAPACITY)
+
+
+func add_rat(rat: Node) -> void:
+	rats[rat] = true
+
+
+func remove_rat(rat: Node) -> void:
+	rats.erase(rat)
+
+
+## Any rat (still alive) on the field?
+func has_rats() -> bool:
+	for r in rats.keys():
+		if not is_instance_valid(r) or r.dead:
+			rats.erase(r)
+	return not rats.is_empty()
 
 
 ## Food per second while worked: FARM_RATE, +20 % on meadow (most of its
@@ -80,6 +98,8 @@ func info() -> Dictionary:
 	var lines: Array[String] = d["lines"]
 	var actions: Array[Dictionary] = d["actions"]
 	lines.append("Stored food: %d / %d" % [int(stored), int(Config.FARM_CAPACITY)])
+	if has_rats():
+		lines.append("%d rat%s eating the crops: nothing grows!" % [rats.size(), "" if rats.size() == 1 else "s"])
 	if farmer:
 		lines.append("Worked by a farmer (+%.2f food/s)" % rate())
 		if rate() > Config.FARM_RATE + 0.001:

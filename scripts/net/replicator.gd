@@ -208,11 +208,15 @@ func _village_data(v: Village) -> Dictionary:
 	var w := game.waves
 	# Map objects' states (docs/world-design.md §9), global unlocks, relics.
 	var objs := []
+	var sacks := []
 	for o in game.world.map_objects:
-		if o.index < game.map.objects.size() and not o.data.get("sack", false):
+		if o.data.get("sack", false):
+			sacks.append([o.index, o.tile])
+		else:
 			objs.append([o.index] + o.net_state())
 	return {
 		"objs": objs,
+		"sacks": sacks,
 		"unl": game.unlocks.keys(),
 		"rel": v.relics.duplicate(),
 		"eco": [v.economy.amount("gold"), v.economy.amount("food"), v.economy.amount("materials")],
@@ -274,7 +278,7 @@ func _describe(n: Node) -> Array:
 		var c := n as Civilian
 		if c.dead:
 			return []
-		return [c.nid, "c", {"r": c.role, "v": vid, "u": c.uid}, _unit_state(c).merged({"h": c.at_home, "s": c.status_text(), "hut": game.id_of(c.hut)}), c.current_tile(), vid, false]
+		return [c.nid, "c", {"r": c.role, "v": vid, "u": c.uid}, _unit_state(c).merged({"h": c.at_home, "s": c.status_text(), "hut": game.id_of(c.hut), "hp": snappedf(c.hp, 0.5)}), c.current_tile(), vid, false]
 	if n is Enemy:
 		var e := n as Enemy
 		if e.dead:
@@ -378,6 +382,7 @@ func _apply_village(vd: Dictionary) -> void:
 			game.world.on_unlocked(key)
 			game.hud._queue_refresh()
 	v.relics.assign(vd.get("rel", []))
+	game.world.sync_net_sacks(vd.get("sacks", []))
 	var eco: Array = vd["eco"]
 	v.economy.set_amounts({"gold": eco[0], "food": eco[1], "materials": eco[2]})
 	v.population.starving = vd["starve"]
@@ -538,6 +543,9 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		var hut = game.entity(st.get("hut", 0))
 		if hut is Hut:
 			c.hut = hut
+		if st.has("hp") and not (c is Hero):
+			c.hp = st["hp"]
+			c.queue_redraw()
 	if o is Hero:
 		var h := o as Hero
 		h.mode = st["m"]

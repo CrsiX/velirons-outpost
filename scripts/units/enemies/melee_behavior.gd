@@ -22,9 +22,15 @@ func tick(enemy: Enemy, delta: float) -> bool:
 			if not node.dead and node.grid_pos.distance_to(enemy.grid_pos) <= Config.SUMMON["attack_range"]:
 				_foe = node
 				break
+		if _foe == null:  # villagers in reach get hit too (they flee)
+			for node in enemy.get_tree().get_nodes_in_group("villagers"):
+				if node.is_exposed() and node.grid_pos.distance_to(enemy.grid_pos) <= Config.SUMMON["attack_range"]:
+					_foe = node
+					break
 		if _foe != null and not (is_instance_valid(before) and before == _foe):
 			enemy.game.log_for(_foe, EventLog.Level.DEBUG, "%s fights %s" % [enemy.label(), _foe.label()])
-	if not is_instance_valid(_foe) or _foe.dead:
+	if not is_instance_valid(_foe) or _foe.dead or (_foe is Civilian and not (_foe is Hero) and not _foe.is_exposed()) or _foe.grid_pos.distance_to(enemy.grid_pos) > Config.SUMMON["attack_range"] * 1.5:
+		_foe = null
 		return false
 	enemy.face(_foe.grid_pos)
 	if _attack_timer <= 0.0:

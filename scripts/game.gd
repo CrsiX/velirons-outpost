@@ -443,6 +443,15 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 	# Exactly one random hut of the village it attacked, on every difficulty.
 	# Only a villager who happens to live in that hut dies; nobody else is killed.
 	var v: Village = g.target_village if is_instance_valid(g.target_village) else player_village
+	if g.kind == "rat":
+		# Rats burn nothing: they eat food and are gone.
+		var spec: Dictionary = g.spec()
+		var eat := maxi(int(spec["gate_eat"]), roundi(v.economy.amount("food") * float(spec["gate_eat_share"])))
+		eat = mini(eat, int(v.economy.amount("food")))
+		v.economy.add("food", -eat)
+		v.events.info("%s got into the village and ate %d food" % [g.label().capitalize(), eat])
+		v.toast("A rat ate %d food!" % eat, Color("ffb07a"))
+		return
 	v.events.debug("%s broke through the gate" % g.label())
 	var intact := v.intact_huts()
 	if not intact.is_empty():

@@ -29,8 +29,6 @@ var mode := Mode.DEFEND
 var xp := 0
 ## 0-based: level 1 ... Config.HERO_MAX_LEVEL. Bought with his own XP; kept when downed.
 var level := 0
-var max_hp := 60.0
-var hp := 60.0
 var target: Enemy = null
 var training_at: TrainingGrounds = null
 var jobs := {}  # Mode -> CivilianJob
@@ -336,6 +334,21 @@ func _pick_enemy() -> Enemy:
 		if key.x < best_key.x or (key.x == best_key.x and key.y < best_key.y):
 			best_key = key
 			best = e
+	if best != null:
+		return best
+	# Last priority: rats on his village's farms, however far out (no leash).
+	var best_d := INF
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var e := node as Enemy
+		if e.dead or not (e.behavior is RatBehavior):
+			continue
+		var f: Farm = (e.behavior as RatBehavior).farm
+		if not is_instance_valid(f) or f.village != base():
+			continue
+		var d := e.grid_pos.distance_to(grid_pos)
+		if d < best_d:
+			best_d = d
+			best = e
 	return best
 
 
@@ -480,6 +493,11 @@ func _train(g: TrainingGrounds, delta: float) -> void:
 
 
 # --- health -----------------------------------------------------------------------------------
+
+## (The hero heals his own way: see _regen.)
+func _home_regen(_delta: float) -> void:
+	pass
+
 
 func take_damage(amount: float, source = null) -> void:
 	if dead:

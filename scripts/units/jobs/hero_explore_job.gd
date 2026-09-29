@@ -146,31 +146,11 @@ static func _a(name: String) -> String:
 ## Home with the loot: the village gets it.
 func _pay() -> void:
 	task = Task.NONE
-	var v := w.village
 	var r := carrying
 	carrying = {}
-	var parts: Array[String] = []
-	for k in r:
-		match k:
-			"gold", "food", "materials":
-				v.economy.add(k, int(r[k]))
-				parts.append("+%d %s" % [int(r[k]), k])
-			"hero_xp":
-				(w as Hero).xp += int(r[k])
-				parts.append("+%d XP" % int(r[k]))
-			"heal_units":
-				for u in v.army.units:
-					u.heal(u.max_hp())
-				parts.append("units healed")
-			"relic":
-				var key: String = r[k]
-				if not v.relics.has(key):
-					v.relics.append(key)
-				var spec: Dictionary = Config.RELICS[key]
-				v.events.important("Found the %s: %s!" % [spec["name"], spec["desc"]])
-				parts.append(spec["name"])
-	if not parts.is_empty():
-		w.float_text(", ".join(parts), UiTheme.GOLD)
+	var what := Treasure.pay(w.village, r)
+	if what != "":
+		w.float_text(what, UiTheme.GOLD)
 		Sfx.play("coin")
 	(w as Hero).changed.emit()
 

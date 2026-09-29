@@ -435,7 +435,7 @@ func _run() -> void:
 	for kind in Config.ENEMIES:
 		var e: Dictionary = Config.ENEMIES[kind]
 		cfg_ok = cfg_ok and required.all(func(k: String) -> bool: return e.has(k)) and Enemy.BEHAVIORS.has(e["behavior"])
-		cfg_ok = cfg_ok and ResourceLoader.exists("res://art/unit_%s.svg" % e["art"]) and ResourceLoader.exists("res://art/corpse_%s.svg" % e["art"])
+		cfg_ok = cfg_ok and ResourceLoader.exists("res://art/unit_%s.svg" % e["art"]) and (not e.get("corpse", true) or ResourceLoader.exists("res://art/corpse_%s.svg" % e["art"]))
 	check(cfg_ok, "every enemy has all config keys, a known behavior and its art")
 	var mix_ok := true
 	for n in range(1, 16):

@@ -275,6 +275,10 @@ const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explore
 ## (docs/world-design.md §9.4, §9.6). Unlocks are global: for every village.
 const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "miner": "mine"}
 
+## Villagers have HP: any enemy can hurt them (they flee, never fight); at 0
+## they die. At home they heal CIVILIAN_REGEN per second.
+const CIVILIAN_HP := 20.0
+const CIVILIAN_REGEN := 2.0
 const FOOD_UPKEEP := 0.05  # food per civilian per second
 const STARVATION_INTERVAL := 15.0  # a civilian dies this often while food is 0
 
@@ -627,7 +631,36 @@ const ENEMIES := {
 		# target attacks her again (which resets its count). Stops endless stalls.
 		"spell_ignore_after": 20,
 	},
+	# Rats come in packs (RAT_PACKS), faster than anything, frail but growing
+	# with the waves like the rest. They don't burn huts: they go for farms.
+	# On the road they look out for a farm within farm_search; there they eat
+	# (the farm grows nothing, and each rat eats farm_eat stored food per
+	# second) and wander about the field. Villagers and units within
+	# bite_range get bitten (very little damage). A rat that got through a gate
+	# eats max(gate_eat, gate_eat_share x the village's food) and is gone. A rat
+	# on a farm vanishes after vanish_after seconds without being attacked (no
+	# corpse, no gold); left over when the rest of the wave is gone, they all
+	# vanish within RAT_WAVE_LINGER seconds. Killed: a little gold, no corpse.
+	"rat": {
+		"name": "Rat", "art": "rat", "behavior": "rat", "corpse": false,
+		"hp": 7.0, "speed": 2.4,
+		"damage": 0.6, "attack_cooldown": 0.8,
+		"gold_on_kill": 1, "gold_on_collect": 0, "food_on_collect": 0,
+		"farm_search": 6.0, "bite_range": 2.5,
+		"farm_eat": 0.2, "gate_eat": 5, "gate_eat_share": 0.05,
+		"vanish_after": 30.0,
+	},
 }
+## Rat packs: from `from_wave`, a wave gets rat packs with chance `chance`:
+## `packs` of them (more every `more_every` waves), `size` rats each, spawned
+## `gap` seconds apart (a little space between them).
+const RAT_PACKS := {"from_wave": 3, "chance": 0.6, "packs": [1, 2], "more_every": 5, "size": [4, 7], "gap": 0.25}
+const RAT_WAVE_LINGER := 30.0
+## Barracks also guard their village's farms against rats: within this x their
+## range (level 3: 12 tiles), when no other enemy is in their normal range.
+## Units out for a farm stay within FARM_DEFENSE_LEASH of it.
+const BARRACKS_FARM_RANGE_FACTOR := 2.0
+const FARM_DEFENSE_LEASH := 4.0
 
 ## Values scaled by the difficulty multiplier. Timings and ranges are not
 ## scaled (a bigger cooldown would make "hard" enemies weaker).
@@ -696,6 +729,21 @@ static func wave_size(n: int) -> int:
 
 static func wave_spawn_points(n: int) -> int:
 	return mini(1 + n / 2, 4)
+
+
+## A cost for the UI, with icons: "60 {gold}, 30 {materials}" (Hud.set_rich_text
+## draws the tokens as icons). For the log use cost_text.
+static func cost_icons(cost: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for res in ["gold", "food", "materials"]:
+		if cost.has(res):
+			parts.append("%d {%s}" % [cost[res], res])
+	return "  ".join(parts)
+
+
+## Text with icon tokens ({gold} {food} {materials} {xp}) as plain words.
+static func plain_text(text: String) -> String:
+	return text.replace("{gold}", "gold").replace("{food}", "food").replace("{materials}", "materials").replace("{xp}", "XP")
 
 
 static func cost_text(cost: Dictionary) -> String:

@@ -156,6 +156,18 @@ func map_object(i: int) -> MapObject:
 	return _objects_by_index.get(i)
 
 
+## Co-op client: the sacks the host has, [[index, tile], ...]; others go.
+func sync_net_sacks(list: Array) -> void:
+	var keep := {}
+	for e in list:
+		keep[int(e[0])] = true
+		if map_object(int(e[0])) == null:
+			add_dropped_loot(e[1], {}, int(e[0]))
+	for o in map_objects.duplicate():
+		if o.data.get("sack", false) and not keep.has(o.index):
+			remove_map_object(o)
+
+
 func remove_map_object(o: MapObject) -> void:
 	map_objects.erase(o)
 	_objects_by_index.erase(o.index)
@@ -167,11 +179,15 @@ func remove_map_object(o: MapObject) -> void:
 	o.queue_free()
 
 
-## A downed looter's loot, where he fell: anyone can pick it up (host only).
-func add_dropped_loot(t: Vector2i, reward: Dictionary) -> Treasure:
+## A downed looter's loot, where he fell: anyone can pick it up (the hero or
+## a gatherer). The host makes it; co-op clients get it through the snapshots
+## (add_net_sack).
+func add_dropped_loot(t: Vector2i, reward: Dictionary, index: int = -1) -> Treasure:
 	var d := {"kind": "treasure", "treasure": "chest", "sack": true, "art": "sack", "tile": t, "size": 1, "slice": map.slice_of[map.index(t)], "tier": 1, "guard": -1, "reward": reward}
-	map.objects.append(d)
-	var o := _add_map_object(map.objects.size() - 1, d) as Treasure
+	if index < 0:
+		map.objects.append(d)
+		index = map.objects.size() - 1
+	var o := _add_map_object(index, d) as Treasure
 	for v in game.villages:
 		if fog.is_explored_by(v.id, t):
 			o.on_found(v.id, true)

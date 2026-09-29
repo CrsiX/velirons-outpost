@@ -54,7 +54,7 @@ func info() -> Dictionary:
 		lines.append("Yours. A builder can restore it into a watchtower.")
 		var cost := restore_cost()
 		actions.append({
-			"label": "Restore (%s)" % Config.cost_text(cost),
+			"label": "Restore (%s)" % Config.cost_icons(cost),
 			"disabled": not village.economy.can_afford(cost),
 			"action": func() -> void: game.command("restore_ruin", {"ruin": nid}),
 		})

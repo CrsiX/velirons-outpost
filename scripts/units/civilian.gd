@@ -18,6 +18,8 @@ var village: Village
 var hut: Hut = null
 var at_home := true
 var dead := false
+var max_hp := Config.CIVILIAN_HP
+var hp := Config.CIVILIAN_HP
 var rest_timer := 0.0
 var evading := false
 var _threat_timer := 0.0
@@ -32,6 +34,7 @@ func setup(p_game: Game, p_role: String) -> void:
 	_set_home(true)
 	rest_timer = randf_range(0.2, 1.5)
 	add_to_group("observers")
+	add_to_group("villagers")  # (enemies can hurt them; see take_damage)
 
 
 func display_name() -> String:
@@ -54,6 +57,7 @@ func _process(delta: float) -> void:
 	if game.is_client:
 		net_follow(delta)  # the host simulates; we just follow
 		return
+	_home_regen(delta)
 	if not at_home and not evading and wants_to_evade():
 		_threat_timer -= delta
 		if _threat_timer <= 0.0:
@@ -169,6 +173,44 @@ func arrive_home() -> void:
 	set_grid_pos(Vector2(village.center))
 	_set_home(true)
 	_set_moving(false)
+
+
+## Out and about where enemies can get at it (not at home, not inside a mine).
+func is_exposed() -> bool:
+	return not at_home and not dead and visible
+
+
+## Hurt by an enemy (a blow, a bite, a spell): at 0 HP the villager dies.
+## Villagers never fight back; they flee (see _evade).
+func take_damage(amount: float, source = null) -> void:
+	if dead or not is_exposed():
+		return
+	hp -= amount
+	queue_redraw()
+	sprite.modulate = Color(1.0, 0.5, 0.45)
+	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
+	if hp <= 0.0:
+		hp = 0.0
+		village.population.kill(self, "from the attack of %s" % game.who(source))
+	elif not evading and not at_home and wants_to_evade():
+		_evade()
+
+
+## At home, hurt villagers get their HP back.
+func _home_regen(delta: float) -> void:
+	if at_home and hp < max_hp:
+		hp = minf(max_hp, hp + Config.CIVILIAN_REGEN * delta)
+		queue_redraw()
+
+
+func _draw() -> void:
+	if dead or hp >= max_hp or at_home:
+		return
+	var w := 24.0
+	var r := Rect2(-w / 2.0, -44.0, w, 4.0)
+	draw_rect(r.grow(1.5), Color("15110d"))
+	draw_rect(r, Color("3a2a10"))
+	draw_rect(Rect2(r.position, Vector2(w * clampf(hp / max_hp, 0.0, 1.0), r.size.y)), Color("8fd05a"))
 
 
 ## Called by Population when this villager is killed. Subclasses release jobs.

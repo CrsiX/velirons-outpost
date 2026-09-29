@@ -20,6 +20,8 @@ enum Mode { WALK, SORTIE, BACK }
 var unit: MilitaryUnit
 var mode := Mode.WALK
 var barracks: Barracks = null
+## Out to guard this farm against rats (else: around the barracks).
+var farm: Farm = null
 var target: Enemy = null
 var _think := 0.0
 var _strike_cd := 0.0
@@ -59,8 +61,9 @@ func walk_to(tile: Vector2i) -> bool:
 	return true
 
 
-func start_sortie(b: Barracks) -> void:
+func start_sortie(b: Barracks, p_farm: Farm = null) -> void:
 	barracks = b
+	farm = p_farm
 	mode = Mode.SORTIE
 	_calm = 0.0
 	sprite.texture = Art.tex("unit_" + unit.kind)
@@ -96,6 +99,8 @@ func _sortie(delta: float) -> void:
 	_strike_cd -= delta
 	if _think <= 0.0:
 		_think = 0.3
+		if farm != null and (not is_instance_valid(farm) or barracks.enemy_near()):
+			farm = null  # a real threat at the barracks comes first
 		target = _nearest_foe()
 	if target == null:
 		_calm += delta
@@ -140,6 +145,9 @@ func _sortie(delta: float) -> void:
 func _nearest_foe() -> Enemy:
 	var reach := barracks.activation_range() + Config.SORTIE_LEASH
 	var home := barracks.act_center()
+	if farm != null:
+		reach = Config.FARM_DEFENSE_LEASH
+		home = Vector2(farm.tile)
 	var best: Enemy = null
 	var best_d := INF
 	for node in get_tree().get_nodes_in_group("enemies"):

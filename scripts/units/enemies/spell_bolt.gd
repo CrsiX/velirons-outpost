@@ -53,6 +53,6 @@ func _hit() -> void:
 		if t.garrison:
 			t.game.log_for(t, EventLog.Level.DEBUG, "%s bewitched by %s" % [t.game.who(t), t.game.who(source)])
 		t.enchant(enchant)
-	elif target.is_in_group("melee_defenders") and not target.dead:
-		target.take_damage(damage, source)  # elementals, the hero
+	elif (target.is_in_group("melee_defenders") or target.is_in_group("villagers")) and not target.dead:
+		target.take_damage(damage, source)  # elementals, the hero, units, villagers
 	queue_free()

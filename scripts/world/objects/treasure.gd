@@ -75,6 +75,34 @@ func mark_looted() -> void:
 	refresh()
 
 
+## Pays `r` to village `v` (gold, food, material; hero XP to its hero;
+## healing its units; a relic). Returns what it was, for a floating text.
+static func pay(v: Village, r: Dictionary) -> String:
+	var parts: Array[String] = []
+	for k in r:
+		match k:
+			"gold", "food", "materials":
+				v.economy.add(k, int(r[k]))
+				parts.append("+%d %s" % [int(r[k]), k])
+			"hero_xp":
+				if v.hero:
+					v.hero.xp += int(r[k])
+					v.hero.changed.emit()
+				parts.append("+%d XP" % int(r[k]))
+			"heal_units":
+				for u in v.army.units:
+					u.heal(u.max_hp())
+				parts.append("units healed")
+			"relic":
+				var key: String = r[k]
+				if not v.relics.has(key):
+					v.relics.append(key)
+				var spec: Dictionary = Config.RELICS[key]
+				v.events.important("Found the %s: %s!" % [spec["name"], spec["desc"]])
+				parts.append(spec["name"])
+	return ", ".join(parts)
+
+
 ## What the reward is, for the panel.
 static func reward_text(r: Dictionary) -> String:
 	var parts: Array[String] = []

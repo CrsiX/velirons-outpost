@@ -75,7 +75,7 @@ var _log_dirty := true
 var _dock_hint: Label
 var _hero_button: Button
 var _hero_panel: PanelContainer
-var _hero_stats: Label
+var _hero_stats: RichTextLabel
 var _hero_status: Label
 var _hero_mode_button: Button
 var _hero_mode_hint: Label
@@ -218,10 +218,77 @@ func _label(text: String, size: int = 18, color: Color = UiTheme.TEXT) -> Label:
 
 func _button(text: String, min_size: Vector2 = Vector2(0, 52)) -> Button:
 	var b := Button.new()
-	b.text = text
 	b.custom_minimum_size = min_size
 	b.focus_mode = Control.FOCUS_NONE
+	set_rich_text(b, text)
 	return b
+
+
+const ICON_ART := {"{gold}": "icon_gold", "{food}": "icon_food", "{materials}": "icon_materials", "{xp}": "icon_xp"}
+
+
+## Button text with icons: {gold} {food} {materials} {xp} are drawn as their
+## icons. The button keeps the plain words as its text (hidden, for its size
+## and for reading it back); a RichTextLabel on top shows the icons.
+func set_rich_text(b: Button, text: String) -> void:
+	b.text = Config.plain_text(text)
+	var rt: RichTextLabel = b.get_node_or_null("Rich")
+	if not "{" in text:
+		if rt:
+			rt.queue_free()
+			b.remove_child(rt)
+			for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color", "font_disabled_color"]:
+				b.remove_theme_color_override(k)
+		return
+	if rt == null:
+		rt = RichTextLabel.new()
+		rt.name = "Rich"
+		rt.bbcode_enabled = true
+		rt.scroll_active = false
+		rt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		rt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		rt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		rt.add_theme_color_override("default_color", UiTheme.TEXT)
+		b.add_child(rt)
+		rt.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		rt.offset_left = 6
+		rt.offset_right = -6
+		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color", "font_disabled_color"]:
+			b.add_theme_color_override(k, Color(0, 0, 0, 0))
+		b.draw.connect(func() -> void: rt.modulate.a = 0.45 if b.disabled else 1.0)
+	var fs := b.get_theme_font_size("font_size")
+	rt.add_theme_font_size_override("normal_font_size", fs)
+	# (a button with its own icon: the text goes to the right of it)
+	rt.offset_left = 6 + (b.get_theme_constant("icon_max_width") + b.get_theme_constant("h_separation") if b.icon else 0)
+	rt.text = "[center]%s[/center]" % icon_bbcode(text, fs)
+
+
+## BBCode for text with icon tokens, icons at about the font's height.
+static func icon_bbcode(text: String, font_size: int) -> String:
+	var s := text.replace("[", "[lb]")
+	var px := int(font_size * 1.15)
+	for tok in ICON_ART:
+		s = s.replace(tok, "[img=%dx%d]res://art/%s.svg[/img]" % [px, px, ICON_ART[tok]])
+	return s
+
+
+## A label for a line that may hold icon tokens (a RichTextLabel then).
+func _rich_line(text: String, size: int) -> Control:
+	if not "{" in text:
+		var l := _label(text, size)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		return l
+	var rt := RichTextLabel.new()
+	rt.bbcode_enabled = true
+	rt.fit_content = true
+	rt.scroll_active = false
+	rt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rt.add_theme_font_size_override("normal_font_size", size)
+	rt.add_theme_color_override("default_color", UiTheme.TEXT)
+	rt.text = icon_bbcode(text, size)
+	rt.set_meta("plain", Config.plain_text(text))
+	return rt
 
 
 func _chip(icon_name: String, tooltip: String) -> Array:
@@ -460,7 +527,13 @@ func _build_hero_panel() -> void:
 	var close := _button("X", Vector2(44, 40))
 	close.pressed.connect(func() -> void: _hero_panel.visible = false)
 	head.add_child(close)
-	_hero_stats = _label("", 17)
+	_hero_stats = RichTextLabel.new()
+	_hero_stats.bbcode_enabled = true
+	_hero_stats.fit_content = true
+	_hero_stats.scroll_active = false
+	_hero_stats.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_hero_stats.add_theme_font_size_override("normal_font_size", 17)
+	_hero_stats.add_theme_color_override("default_color", UiTheme.TEXT)
 	v.add_child(_hero_stats)
 	_hero_level_button = _button("", Vector2(0, 46))
 	_hero_level_button.tooltip_text = "Spend the hero's XP on his next level: more HP, a harder sword"
@@ -511,14 +584,14 @@ func _build_hero_panel() -> void:
 
 func _refresh_hero() -> void:
 	var h: Hero = game.hero
-	_hero_button.text = "XP %d" % h.xp
+	set_rich_text(_hero_button, "{xp} %d" % h.xp)
 	_hero_button.modulate = Color(1, 0.55, 0.5) if h.dead else Color.WHITE
 	_place_log()
 	if not _hero_panel.visible:
 		return
-	_hero_stats.text = "Level %d     HP %d / %d     XP %d" % [h.level + 1, int(h.hp), int(h.max_hp), h.xp]
+	_hero_stats.text = "Level %d     HP %d / %d     %s %d" % [h.level + 1, int(h.hp), int(h.max_hp), icon_bbcode("{xp}", 17), h.xp]
 	var top := h.level >= Config.HERO_MAX_LEVEL - 1
-	_hero_level_button.text = "Highest level" if top else "Level up to %d  (%d XP)" % [h.level + 2, h.level_up_cost()]
+	set_rich_text(_hero_level_button, "Highest level" if top else "Level up to %d  (%d {xp})" % [h.level + 2, h.level_up_cost()])
 	_hero_level_button.disabled = top or not h.can_level_up() or h.village != game.player_village
 	var st := h.status_text()
 	_hero_status.text = "Now: " + st
@@ -834,7 +907,7 @@ func _build_page_build() -> Control:
 	for kind in ["tower", "barracks", "farm", "camp", "lightstone", "training"]:
 		var spec: Dictionary = Config.BUILDINGS[kind]
 		var icon := Art.tex(spec["art"])
-		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_text(spec["cost"]), game.begin_build.bind(kind))
+		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_icons(spec["cost"]), game.begin_build.bind(kind))
 		grid.add_child(e["panel"])
 		_build_buttons[kind] = e["button"]
 	var hint := _label("Village huts can only be rebuilt: tap a ruined hut inside the walls.", 14, UiTheme.MUTED)
@@ -849,7 +922,7 @@ func _build_page_village() -> Control:
 	var grid := _entry_grid(v)
 	for role in Config.CIVILIAN_ORDER:
 		var spec: Dictionary = Config.CIVILIANS[role]
-		var action := "Recruit  (%s)" % Config.cost_text(spec["cost"]) if spec.get("recruit", true) else "From a level %d spatial mage (Army)" % Config.ARCHMAGE_LEVEL
+		var action := "Recruit  (%s)" % Config.cost_icons(spec["cost"]) if spec.get("recruit", true) else "From a level %d spatial mage (Army)" % Config.ARCHMAGE_LEVEL
 		var e := _entry(Art.tex("unit_" + role), spec["name"], spec["desc"], action, _recruit.bind(role))
 		grid.add_child(e["panel"])
 		_recruit_rows[role] = e
@@ -878,7 +951,7 @@ func _build_page_army() -> Control:
 	var grid := _entry_grid(v)
 	for kind in Config.MILITARY_ORDER:
 		var spec: Dictionary = Config.MILITARY[kind]
-		var e := _entry(Art.tex("unit_" + kind), spec["name"], spec["desc"], "Recruit  (%s)" % Config.cost_text(spec["cost"]), func() -> void:
+		var e := _entry(Art.tex("unit_" + kind), spec["name"], spec["desc"], "Recruit  (%s)" % Config.cost_icons(spec["cost"]), func() -> void:
 			_do("recruit_unit", {"kind": kind}))
 		grid.add_child(e["panel"])
 		_military_buttons[kind] = e["button"]
@@ -908,6 +981,9 @@ func _build_page_army() -> Control:
 	_send_reserve_button.tooltip_text = "Send the selected unit to another village"
 	_send_reserve_button.pressed.connect(open_send_unit_dialog)
 	rrow.add_child(_send_reserve_button)
+	# The units in stock first, then what can be recruited.
+	v.add_child(_label("Recruit", 18, UiTheme.GOLD))
+	v.move_child(grid, v.get_child_count() - 1)
 	return v
 
 
@@ -964,7 +1040,7 @@ func _refresh_reserve_texts(reserve: Array[MilitaryUnit]) -> void:
 	if _selected_unit:
 		var opts := _selected_unit.upgrade_options()
 		_upgrade_reserve_button.disabled = opts.is_empty()
-		_upgrade_reserve_button.text = "Selected %s is max level" % _selected_unit.display_name().to_lower() if opts.is_empty() else ("Upgrade selected..." if opts.size() > 1 else "Upgrade selected  (%s)" % Config.cost_text(opts[0]["cost"]))
+		set_rich_text(_upgrade_reserve_button, "Selected %s is max level" % _selected_unit.display_name().to_lower() if opts.is_empty() else ("Upgrade selected..." if opts.size() > 1 else "Upgrade selected  (%s)" % Config.cost_icons(opts[0]["cost"])))
 		var info: Array[String] = ["%s, level %d: %d / %d HP" % [_selected_unit.display_name(), _selected_unit.level + 1, ceili(_selected_unit.hp), ceili(_selected_unit.max_hp())]]
 		info.append_array(_selected_unit.behavior.info_lines(_selected_unit))
 		_selected_info.text = "\n".join(info)
@@ -1061,9 +1137,7 @@ func show_info(data: Dictionary) -> void:
 		_info_lines.remove_child(c)
 		c.queue_free()
 	for line in data["lines"]:
-		var l := _label(line, 16)
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_info_lines.add_child(l)
+		_info_lines.add_child(_rich_line(line, 16))
 	for c in _info_actions.get_children():
 		_info_actions.remove_child(c)
 		c.queue_free()
@@ -1182,7 +1256,7 @@ func _build_trade_dialog() -> void:
 	h.add_theme_constant_override("separation", 6)
 	v.add_child(h)
 	for bundles in [1, 5]:
-		var b := _button("+%d  (%d gold)" % [Config.MATERIALS_TRADE["materials"] * bundles, Config.MATERIALS_TRADE["gold"] * bundles], Vector2(0, 50))
+		var b := _button("+%d {materials}  (%d {gold})" % [Config.MATERIALS_TRADE["materials"] * bundles, Config.MATERIALS_TRADE["gold"] * bundles], Vector2(0, 50))
 		b.pressed.connect(func() -> void:
 			_do("buy_materials", {"bundles": bundles}))
 		h.add_child(b)
@@ -1374,7 +1448,7 @@ func open_upgrade(unit: MilitaryUnit) -> void:
 		c.queue_free()
 	for opt in unit.upgrade_options():
 		# (a wrapping button needs a width to wrap in, or it measures one word per line)
-		var b := _button("%s   (%s)" % [MilitaryUnit.option_text(opt), Config.cost_text(opt["cost"])], Vector2(_upgrade_width(), 52))
+		var b := _button("%s   (%s)" % [MilitaryUnit.option_text(opt), Config.cost_icons(opt["cost"])], Vector2(_upgrade_width(), 52))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", 15)
 		b.disabled = not game.economy.can_afford(opt["cost"]) or not unit.is_available()
@@ -1419,7 +1493,7 @@ func _pick_upgrade(unit: MilitaryUnit, to: String) -> void:
 func _ask_archmage(unit: MilitaryUnit) -> void:
 	_confirm_text.custom_minimum_size.x = _upgrade_width()
 	_confirm_text.text = "This %s will leave your army for good and move into a hut as the Spatial Archmage, a civilian. Continue?" % unit.display_name().to_lower()
-	_confirm_yes.text = "Become the Spatial Archmage  (%s)" % Config.cost_text(Config.ARCHMAGE_COST)
+	set_rich_text(_confirm_yes, "Become the Spatial Archmage  (%s)" % Config.cost_icons(Config.ARCHMAGE_COST))
 	for c in _confirm_yes.pressed.get_connections():
 		_confirm_yes.pressed.disconnect(c["callable"])
 	_confirm_yes.pressed.connect(func() -> void:

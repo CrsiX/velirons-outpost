@@ -79,11 +79,28 @@ func _process(delta: float) -> void:
 	if _scan > 0.0:
 		return
 	_scan = 0.3
+	var farm: Farm = null
 	if not _enemy_near():
-		return
+		farm = _farm_with_rats()
+		if farm == null:
+			return
 	for u in units():
 		if u.state == MilitaryUnit.State.STATIONED and not u.out:
-			village.army.sortie(u)
+			village.army.sortie(u, farm)
+
+
+## One of our farms with rats on it, within BARRACKS_FARM_RANGE_FACTOR x range.
+func _farm_with_rats() -> Farm:
+	var c := act_center()
+	var r := activation_range() * Config.BARRACKS_FARM_RANGE_FACTOR
+	for b in game.world.buildings:
+		if b is Farm and b.village == village and b.has_rats() and Vector2(b.tile).distance_to(c) <= r:
+			return b
+	return null
+
+
+func enemy_near() -> bool:
+	return _enemy_near()
 
 
 func _enemy_near() -> bool:
@@ -173,7 +190,7 @@ func info() -> Dictionary:
 		var nxt: Dictionary = Config.BARRACKS_LEVELS[level]
 		lines.append("Next level: %d benches, range %.1f." % [nxt["slots"], nxt["range"]])
 		actions.append({
-			"label": "Upgrade barracks (%s)" % Config.cost_text(upgrade_cost()),
+			"label": "Upgrade barracks (%s)" % Config.cost_icons(upgrade_cost()),
 			"disabled": not village.economy.can_afford(upgrade_cost()),
 			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
 		})

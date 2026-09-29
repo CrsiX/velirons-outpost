@@ -1377,6 +1377,31 @@ def goblin():
     a.save("unit_goblin")
 
 
+def rat():
+    """A small grey-brown rat, side view, facing right (the game flips it)."""
+    a = Art()
+    a.shadow(9, 3, opacity=0.35)
+    fur, fur_d, pink = "#6e6258", "#4e443c", "#c98a8a"
+    # tail
+    a.raw('<path d="M-7,-4 Q-15,-3 -17,-9 Q-18,-13 -14,-14" fill="none" stroke="%s" stroke-width="2.6" stroke-linecap="round"/>' % INK, [(-18, -15), (-6, -2)])
+    a.raw('<path d="M-7,-4 Q-15,-3 -17,-9 Q-18,-13 -14,-14" fill="none" stroke="%s" stroke-width="1.3" stroke-linecap="round"/>' % pink, [(-18, -15), (-6, -2)])
+    # feet
+    for x in (-4, 4):
+        a.line([(x, -3), (x + 1, 0)], INK, 2.6)
+        a.line([(x, -3), (x + 1, 0)], pink, 1.2)
+    # body and head
+    a.ellipse(-1, -7, 8.5, 5.2, fur, INK, 1.3)
+    a.ellipse(-2, -9, 5, 2.2, "#857a70", opacity=0.6)
+    a.poly([(5, -11), (13, -7), (11, -4), (4, -4)], fur, INK, 1.2)
+    a.ellipse(4.5, -11, 2.6, 2.4, fur_d, INK, 1.1)  # ear
+    a.ellipse(4.6, -11, 1.3, 1.2, pink)
+    a.ellipse(9, -8.2, 1.1, 1.0, "#ff3b2a")  # eye
+    a.ellipse(13, -6.4, 1.2, 1.0, "#e0a0a0", INK, 0.7)  # nose
+    a.line([(12, -6), (16, -7.5)], "#d8d0c8", 0.6)
+    a.line([(12, -5.5), (16, -4.5)], "#d8d0c8", 0.6)
+    a.save("unit_rat")
+
+
 # ---------------------------------------------------------------- small bits
 
 def arrow():
@@ -1401,6 +1426,16 @@ def icon_svg(name, body):
 
 
 def icons():
+    # XP: three sparkling green orbs.
+    icon_svg("icon_xp", f"""
+  <circle cx="21" cy="40" r="13" fill="#3fbf3a" stroke="{INK}" stroke-width="3.5"/>
+  <circle cx="44" cy="44" r="11" fill="#57d24a" stroke="{INK}" stroke-width="3.5"/>
+  <circle cx="34" cy="19" r="12" fill="#6fe35a" stroke="{INK}" stroke-width="3.5"/>
+  <circle cx="17" cy="36" r="4" fill="#d6ffb8"/>
+  <circle cx="41" cy="40" r="3.5" fill="#d6ffb8"/>
+  <circle cx="30" cy="15" r="4" fill="#e8ffd4"/>
+  <path d="M52 10 L54 16 L60 18 L54 20 L52 26 L50 20 L44 18 L50 16Z" fill="#f2ffe0" stroke="{INK}" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M8 16 L9 19 L12 20 L9 21 L8 24 L7 21 L4 20 L7 19Z" fill="#f2ffe0"/>""")
     icon_svg("icon_gold", f'''
   <circle cx="32" cy="35" r="24" fill="{GOLD_D}" stroke="{INK}" stroke-width="3.5"/>
   <circle cx="32" cy="31" r="24" fill="{GOLD}" stroke="{INK}" stroke-width="3.5"/>
@@ -3226,6 +3261,7 @@ def main():
     archmage()
     archer()
     goblin()
+    rat()
     gatherer()
     forester()
     worker_camp()

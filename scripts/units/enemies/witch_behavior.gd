@@ -71,6 +71,7 @@ func _choose_target(enemy: Enemy) -> Node:
 	var candidates: Array = []
 	candidates.append_array(enemy.game.world.towers())
 	candidates.append_array(enemy.get_tree().get_nodes_in_group("field_units"))
+	candidates.append_array(enemy.get_tree().get_nodes_in_group("villagers"))
 	for t in candidates:
 		if not _valid(t) or is_ignoring(t, enemy):
 			continue
@@ -92,6 +93,8 @@ static func _valid(n) -> bool:
 		return n.complete and n.garrison != null
 	if n.is_in_group("melee_defenders"):
 		return not n.dead
+	if n.is_in_group("villagers"):
+		return n.is_exposed()
 	return false
 
 

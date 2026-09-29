@@ -129,6 +129,7 @@ const SPRITES := {
 	"unit_ice_mage": {"ax": 20, "ay": 57, "w": 38, "h": 64.5},
 	"unit_miner": {"ax": 21, "ay": 50, "w": 37.5, "h": 57.5},
 	"unit_ork": {"ax": 19, "ay": 49, "w": 47, "h": 57.5},
+	"unit_rat": {"ax": 21, "ay": 18, "w": 40, "h": 24},
 	"unit_shield_bearer": {"ax": 15, "ay": 45, "w": 33, "h": 52.5},
 	"unit_skeleton": {"ax": 14, "ay": 41, "w": 31, "h": 48.5},
 	"unit_spatial_archmage": {"ax": 17.5, "ay": 62, "w": 40.5, "h": 69.5},
