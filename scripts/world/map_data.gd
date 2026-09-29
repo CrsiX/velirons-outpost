@@ -1,8 +1,10 @@
 class_name MapData
 extends RefCounted
-## Pure tile data: terrain, fog, and which building occupies which tile.
+## Pure tile data: terrain, zones, fog, and which building occupies which tile.
+## Terrain says what a tile does (walkable, buildable, road, water...); the
+## zone (Config.ZONE_ORDER index) how it looks and what grows there.
 
-enum Terrain { GRASS, ROAD, FOREST, DESERT, MOUNTAIN }
+enum Terrain { GRASS, ROAD, FOREST, DESERT, MOUNTAIN, WATER, SHALLOW, LAVA }
 
 var size: int
 var terrain: PackedByteArray
@@ -28,6 +30,26 @@ var village_layout: Array[Dictionary] = []  # (+ "owner": village id)
 var props: Dictionary = {}
 ## Centre of the guaranteed free 3x3 farm plot near the village.
 var farm_plot := Vector2i(-1, -1)
+## Zone per tile (index into Config.ZONE_ORDER).
+var zones: PackedByteArray
+## Small walkable props (reeds, boulders, cacti): tile -> art. Cleared by buildings.
+var decor: Dictionary = {}
+## Road tiles over water or lava: tile -> [art ("bridge_<style>_x" / "_y" or
+## "tile_ford"), the terrain under it (WATER, SHALLOW or LAVA)].
+var crossings: Dictionary = {}
+## Land tiles by the sea, drawn as sand.
+var beaches: Dictionary = {}
+## Centre tiles of volcanoes (each covers 3x3 mountain tiles).
+var volcanoes: Array[Vector2i] = []
+## Which player's slice each tile is in (docs/world-design.md §3.1).
+var slice_of: PackedByteArray
+## Per slice: {"center": Vector2 (its tiles' centre of mass)}.
+var slices: Array[Dictionary] = []
+## Special objects (treasures, camps, unlock sites, ruins, lairs, mines):
+## [{kind, tile, size, slice, ...}], spawned by World.
+var objects: Array[Dictionary] = []
+var map_type := "temperate"
+var seed_value := 0
 
 
 func _init(p_size: int) -> void:
@@ -38,6 +60,10 @@ func _init(p_size: int) -> void:
 	explored.fill(0)
 	watched.resize(size * size)
 	watched.fill(0)
+	zones.resize(size * size)
+	zones.fill(0)
+	slice_of.resize(size * size)
+	slice_of.fill(0)
 
 
 func in_bounds(t: Vector2i) -> bool:
@@ -72,12 +98,49 @@ func is_mountain(t: Vector2i) -> bool:
 	return in_bounds(t) and terrain[index(t)] == Terrain.MOUNTAIN
 
 
-## Ground units (civilians, soldiers) can't enter forest or mountains.
+func is_water(t: Vector2i) -> bool:
+	return in_bounds(t) and (terrain[index(t)] == Terrain.WATER or terrain[index(t)] == Terrain.SHALLOW)
+
+
+func is_deep(t: Vector2i) -> bool:
+	return in_bounds(t) and terrain[index(t)] == Terrain.WATER
+
+
+## Ground units (civilians, soldiers) can't enter forest, mountains, deep water or lava.
 func is_passable(t: Vector2i) -> bool:
 	if not in_bounds(t):
 		return false
 	var v := terrain[index(t)]
-	return v != Terrain.FOREST and v != Terrain.MOUNTAIN
+	return v != Terrain.FOREST and v != Terrain.MOUNTAIN and v != Terrain.WATER and v != Terrain.LAVA
+
+
+func zone(t: Vector2i) -> String:
+	return Config.ZONE_ORDER[zones[index(t)]] if in_bounds(t) else "meadow"
+
+
+func set_zone(t: Vector2i, z: String) -> void:
+	zones[index(t)] = Config.ZONE_ORDER.find(z)
+
+
+## Walking speed factor on `t`: shallow water and fords x SHALLOW_WALK, swamp
+## off the road x its "walk".
+func walk_factor(t: Vector2i) -> float:
+	if not in_bounds(t):
+		return 1.0
+	var v := terrain[index(t)]
+	if v == Terrain.SHALLOW or (crossings.has(t) and int(crossings[t][1]) == Terrain.SHALLOW):
+		return Config.SHALLOW_WALK
+	if v != Terrain.ROAD:
+		return float(Config.ZONES[zone(t)].get("walk", 1.0))
+	return 1.0
+
+
+## Within VOLCANO_NO_BUILD of a volcano's centre tile.
+func near_crater(t: Vector2i) -> bool:
+	for c in volcanoes:
+		if Vector2(t).distance_to(Vector2(c)) <= Config.VOLCANO_NO_BUILD + 1.0:
+			return true
+	return false
 
 
 func count_terrain(v: int) -> int:
@@ -134,6 +197,8 @@ func to_bytes() -> PackedByteArray:
 		"size": size, "terrain": terrain, "props": props, "village_rect": village_rect,
 		"gates": gates, "edge_spawns": edge_spawns, "villages": villages,
 		"village_links": village_links, "village_layout": village_layout, "farm_plot": farm_plot,
+		"zones": zones, "decor": decor, "crossings": crossings, "volcanoes": volcanoes, "beaches": beaches,
+		"slice_of": slice_of, "slices": slices, "objects": objects, "map_type": map_type, "seed": seed_value,
 	}
 	var raw := var_to_bytes(d)
 	var packed := raw.compress(FileAccess.COMPRESSION_ZSTD)
@@ -157,6 +222,16 @@ static func from_bytes(bytes: PackedByteArray) -> MapData:
 	m.village_links.assign(d["village_links"])
 	m.village_layout.assign(d["village_layout"])
 	m.farm_plot = d["farm_plot"]
+	m.zones = d["zones"]
+	m.decor = d["decor"]
+	m.crossings = d["crossings"]
+	m.beaches = d["beaches"]
+	m.volcanoes.assign(d["volcanoes"])
+	m.slice_of = d["slice_of"]
+	m.slices.assign(d["slices"])
+	m.objects.assign(d["objects"])
+	m.map_type = d["map_type"]
+	m.seed_value = d["seed"]
 	return m
 
 

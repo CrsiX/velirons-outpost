@@ -111,6 +111,8 @@ func _run() -> void:
 	game.map_seed = SEED
 	game.reveal_map = true
 	add_child(game)
+	for k in Config.LOCKED:
+		game.unlocks[k] = true  # (this test predates unit unlocks: tests/world_bot.gd)
 	await frames(3)
 	game.waves.countdown = 99999.0
 	game.waves.hold = true
@@ -180,8 +182,8 @@ var barracks: Barracks
 
 
 func _test_barracks() -> void:
-	var gate: Vector2i = game.map.gates[0]
-	var out_dir := (gate - Config.VILLAGE_CENTER).sign()
+	var gate: Vector2i = game.player_village.gates.filter(func(g: Vector2i) -> bool: return game.map.is_road(g + (g - game.player_village.center).sign() * 2))[0]
+	var out_dir := (gate - game.player_village.center).sign()
 	barracks = await build("barracks", gate + out_dir * 3)
 	check(barracks is Barracks and barracks.tiles().size() == 4, "barracks: a 2x2 building")
 	check(barracks.capacity() == 1 and barracks.slots.size() == 1, "level 1 has one bench")
@@ -286,7 +288,7 @@ func _manned(kind: String) -> Array:
 			tower = b
 			break
 	if tower == null:
-		tower = await build("tower", Config.VILLAGE_CENTER + Vector2i(0, -6))
+		tower = await build("tower", game.player_village.center + Vector2i(0, -6))
 	var base: String = Config.MILITARY[kind].get("branch_of", kind)
 	game.economy.add("gold", 2000)
 	var u := game.army.recruit(base)
@@ -300,7 +302,7 @@ func _manned(kind: String) -> Array:
 
 func _near_tower(tower: Tower, d: float) -> Vector2:
 	var c: Vector2 = tower.act_center()
-	var dir := (Vector2(tower.tile) - Vector2(Config.VILLAGE_CENTER)).normalized()
+	var dir := (Vector2(tower.tile) - Vector2(game.player_village.center)).normalized()
 	return c + dir * d
 
 

@@ -10,12 +10,34 @@ const PIECE_SCRIPTS := {
 	"wall_tower": preload("res://scripts/buildings/tower.gd"),
 }
 
+const OBJECT_SCRIPTS := {
+	"treasure": preload("res://scripts/world/objects/treasure.gd"),
+	"camp": preload("res://scripts/world/objects/monster_camp.gd"),
+	"unlock": preload("res://scripts/world/objects/unlock_site.gd"),
+	"ruin": preload("res://scripts/world/objects/ruined_tower.gd"),
+	"lair": preload("res://scripts/world/objects/monster_lair.gd"),
+	"mine": preload("res://scripts/world/objects/mine.gd"),
+}
+## Map objects' ids: this + their index in MapData.objects (the same on every side).
+const OBJECT_NID_BASE := 1 << 24
+
 var game: Game
 var map: MapData
+## Special objects (docs/world-design.md §9), by index.
+var map_objects: Array[MapObject] = []
+var _objects_by_index: Dictionary = {}
+## While the level is being set up, finding objects isn't announced.
+var _quiet := true
+var _mine_timer := 0.0
 var pathing: Pathing
 var buildings: Array[Building] = []
 
-var _props: Dictionary = {}  # tile -> Sprite2D (trees, mountain peaks)
+var _props: Dictionary = {}  # tile -> Sprite2D (trees, mountain peaks, volcanoes)
+var _decor: Dictionary = {}  # tile -> Sprite2D (reeds, boulders, cacti...)
+## Water, lava and the layer over them (fords, bridges, foam); after Ground.
+var water: WaterLayer
+var lava: WaterLayer
+var ground_top: GroundLayer
 ## Walking distance from each village centre (id -> field), rebuilt when dirty.
 var _village_dist: Dictionary = {}
 var _village_dist_dirty := true
@@ -34,15 +56,30 @@ var _village_labels: Dictionary = {}
 func setup(p_game: Game, seed_value: int) -> void:
 	game = p_game
 	# Co-op clients use the map the host generated and sent (Net.map).
-	map = Net.map if game.is_client and Net.map else MapGenerator.generate(seed_value, game.villages.size())
+	map = Net.map if game.is_client and Net.map else MapGenerator.generate(seed_value, game.villages.size(), game.map_type)
 	pathing = Pathing.new(map)
 	ground.setup(map)
+	water = WaterLayer.new()
+	water.name = "Water"
+	lava = WaterLayer.new()
+	lava.name = "Lava"
+	ground_top = GroundLayer.new()
+	ground_top.name = "GroundTop"
+	for layer in [ground_top, lava, water]:
+		add_child(layer)
+		move_child(layer, ground.get_index() + 1)
+	water.setup(map, false)
+	lava.setup(map, true)
+	ground_top.setup(map, true)
 	fog.setup(map, game.villages.size())
 	fog.revealed.connect(_on_revealed)
+	fog.explored_changed.connect(_on_explored)
 	warnings.setup(game)
 	_spawn_props()
 	if not game.is_client:  # (clients get every building from the host)
 		_spawn_village()
+	_spawn_map_objects()
+	game.waves.wave_started.connect(_on_wave_started)
 	# Each village knows its own surroundings, and every village's 5x5 walls
 	# (docs/multiplayer-design.md §6).
 	for i in map.villages.size():
@@ -64,7 +101,10 @@ func _spawn_props() -> void:
 	for t: Vector2i in map.props:
 		var s := Art.sprite(map.props[t])
 		var h := absi(hash(t))
-		if map.is_mountain(t):
+		if map.props[t] == "volcano":
+			s.position = Iso.tile_to_world(t)
+			_add_smoke(s)
+		elif map.is_mountain(t):
 			s.position = Iso.tile_to_world(t) + Vector2((h % 9) - 4, 0)
 			s.scale *= 0.95 + ((h / 9) % 4) * 0.08
 		else:
@@ -74,6 +114,143 @@ func _spawn_props() -> void:
 		s.visible = false
 		objects.add_child(s)
 		_props[t] = s
+	for t: Vector2i in map.decor:
+		var s := Art.sprite(map.decor[t])
+		var h := absi(hash(t))
+		s.position = Iso.tile_to_world(t) + Vector2((h % 13) - 6, ((h / 13) % 9) - 4)
+		s.scale *= 0.85 + ((h / 117) % 4) * 0.08
+		s.flip_h = h % 2 == 0
+		s.visible = false
+		objects.add_child(s)
+		_decor[t] = s
+
+
+# --- special objects (docs/world-design.md §9) -------------------------------------------
+
+func _spawn_map_objects() -> void:
+	for i in map.objects.size():
+		_add_map_object(i, map.objects[i])
+	if not game.is_client:
+		for o in map_objects:
+			if o is MonsterCamp:
+				(o as MonsterCamp).spawn_monsters()
+	(func() -> void: _quiet = false).call_deferred()
+
+
+func _add_map_object(i: int, d: Dictionary) -> MapObject:
+	var o: MapObject = OBJECT_SCRIPTS[d["kind"]].new()
+	o.setup_object(game, i, d)
+	o.nid = OBJECT_NID_BASE + i
+	game.register_fixed(o, o.nid)
+	objects.add_child(o)
+	map_objects.append(o)
+	_objects_by_index[i] = o
+	for t in o.tiles():
+		map.buildings[t] = o
+		if o.is_solid():
+			pathing.set_solid(t, true)
+	return o
+
+
+func map_object(i: int) -> MapObject:
+	return _objects_by_index.get(i)
+
+
+func remove_map_object(o: MapObject) -> void:
+	map_objects.erase(o)
+	_objects_by_index.erase(o.index)
+	for t in o.tiles():
+		if map.buildings.get(t) == o:
+			map.buildings.erase(t)
+			pathing.set_solid(t, false)
+	game.unregister(o.nid)
+	o.queue_free()
+
+
+## A downed looter's loot, where he fell: anyone can pick it up (host only).
+func add_dropped_loot(t: Vector2i, reward: Dictionary) -> Treasure:
+	var d := {"kind": "treasure", "treasure": "chest", "sack": true, "art": "sack", "tile": t, "size": 1, "slice": map.slice_of[map.index(t)], "tier": 1, "guard": -1, "reward": reward}
+	map.objects.append(d)
+	var o := _add_map_object(map.objects.size() - 1, d) as Treasure
+	for v in game.villages:
+		if fog.is_explored_by(v.id, t):
+			o.on_found(v.id, true)
+	o.update_visibility()
+	return o
+
+
+func _on_explored(vid: int, tiles: Array[Vector2i]) -> void:
+	for t in tiles:
+		var b = map.buildings.get(t)
+		if b is MapObject:
+			(b as MapObject).on_found(vid, _quiet)
+
+
+## Unit-unlock sites awaken at their wave (every copy at once); each player
+## hears about it: where it is if they found a copy, a rumour otherwise.
+func _on_wave_started(n: int) -> void:
+	for kind in Config.UNLOCK_SITES:
+		var spec: Dictionary = Config.UNLOCK_SITES[kind]
+		if n < int(spec["wave"]):
+			continue
+		var sites: Array = map_objects.filter(func(o: MapObject) -> bool: return o is UnlockSite and o.data["site"] == kind and not o.awake)
+		if sites.is_empty():
+			continue
+		for s in sites:
+			(s as UnlockSite).awaken()
+		if game.is_client or game.is_unlocked(spec["unlocks"]):
+			continue
+		for v in game.villages:
+			var known := map_objects.any(func(o: MapObject) -> bool: return o is UnlockSite and o.data["site"] == kind and o.is_found_by(v))
+			v.events.info(spec["awake"] if known else spec["rumour"])
+
+
+## Everything unlocked: the unlock sites for that unit have nothing left to give.
+func on_unlocked(key: String) -> void:
+	for o in map_objects:
+		if o is UnlockSite and o.unlocks() == key:
+			(o as UnlockSite).mark_used()
+
+
+func _process(delta: float) -> void:
+	if game == null or game.is_client or game.is_unlocked("miner"):
+		return
+	_mine_timer -= delta
+	if _mine_timer > 0.0:
+		return
+	_mine_timer = 0.5
+	# The first to walk up to a mine unlocks the miner for everyone.
+	var mines: Array = map_objects.filter(func(o: MapObject) -> bool: return o is Mine)
+	for node in get_tree().get_nodes_in_group("observers"):
+		if not (node is Unit) or node.get("dead") == true or (node is Civilian and node.at_home):
+			continue
+		for m in mines:
+			if node.grid_pos.distance_to(Vector2((m as Mine).visit_tile())) <= Config.MINE_REACH:
+				game.unlock("miner", game.village_of(node), node)
+				return
+
+
+## Smoke puffs rising from a volcano's crater, looping.
+func _add_smoke(volcano: Sprite2D) -> void:
+	var crater: float = Art.info("volcano").get("crater", 200.0)
+	for k in 2:
+		var puff := Art.sprite("volcano_smoke")
+		puff.position = Vector2(0, -crater * 2.0)  # (in the volcano's unscaled space)
+		puff.scale = Vector2.ONE
+		volcano.add_child(puff)
+		var tw := puff.create_tween().set_loops()
+		tw.tween_interval(k * 2.2)
+		tw.tween_property(puff, "position:y", -crater * 2.0 - 90.0, 4.4).from(-crater * 2.0)
+		tw.parallel().tween_property(puff, "modulate:a", 0.0, 4.4).from(0.9)
+
+
+## Removes the decoration on `t` (a building goes there).
+func clear_decor(t: Vector2i) -> void:
+	var s: Sprite2D = _decor.get(t)
+	if s:
+		s.queue_free()
+	_decor.erase(t)
+	map.decor.erase(t)
 
 
 func _spawn_village() -> void:
@@ -97,14 +274,23 @@ static func _rect_tiles(r: Rect2i) -> Array[Vector2i]:
 
 ## Trees and peaks show on explored tiles of the local village's fog.
 func refresh_props() -> void:
+	for o in map_objects:
+		o.update_visibility()
 	for t: Vector2i in _props:
 		_props[t].visible = map.is_explored(t)
+	for t: Vector2i in _decor:
+		_decor[t].visible = map.is_explored(t)
 
 
 func _on_revealed(tiles: Array[Vector2i]) -> void:
 	for t in tiles:
+		var b = map.buildings.get(t)
+		if b is MapObject:
+			(b as MapObject).update_visibility()
 		if _props.has(t):
 			_props[t].visible = true
+		if _decor.has(t):
+			_decor[t].visible = true
 
 
 # --- building registry -------------------------------------------------------------
@@ -119,6 +305,8 @@ func add_building(b: Building) -> void:
 	buildings.append(b)
 	for t in b.tiles():
 		map.buildings[t] = b
+		if _decor.has(t):
+			clear_decor(t)
 	refresh_building(b)
 
 
@@ -217,7 +405,11 @@ func pick_unit(world_pos: Vector2) -> MilitaryUnit:
 
 func pick_building(world_pos: Vector2) -> Building:
 	var best: Building = null
-	for b in buildings:
+	var cands: Array[Building] = buildings.duplicate()
+	for o in map_objects:
+		if o.visible:
+			cands.append(o)
+	for b in cands:
 		if b.pick_rect().has_point(world_pos - b.position) and (best == null or b.position.y > best.position.y):
 			if b is Farm and map.building_at(Iso.to_tile(world_pos)) != b:
 				continue  # farm rect is a loose box; require the actual footprint

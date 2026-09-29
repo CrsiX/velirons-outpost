@@ -203,7 +203,15 @@ func _village_data(v: Village) -> Dictionary:
 	for u in v.army.units:
 		army.append([u.nid, u.kind, u.level, u.state, game.id_of(u.post), u.train_xp, u.uid, u.travel_to.id if u.travel_to else -1, snappedf(u.hp, 0.5), ceilf(u.revive_left), u.slot, u.out, u.revive_at_post])
 	var w := game.waves
+	# Map objects' states (docs/world-design.md §9), global unlocks, relics.
+	var objs := []
+	for o in game.world.map_objects:
+		if o.index < game.map.objects.size() and not o.data.get("sack", false):
+			objs.append([o.index] + o.net_state())
 	return {
+		"objs": objs,
+		"unl": game.unlocks.keys(),
+		"rel": v.relics.duplicate(),
 		"eco": [v.economy.amount("gold"), v.economy.amount("food"), v.economy.amount("materials")],
 		"starve": v.population.starving,
 		"army": army,
@@ -350,6 +358,16 @@ func apply(d: Dictionary) -> void:
 
 func _apply_village(vd: Dictionary) -> void:
 	var v := game.player_village
+	for e in vd.get("objs", []):
+		var o := game.world.map_object(int(e[0]))
+		if o:
+			o.apply_net_state((e as Array).slice(1))
+	for key in vd.get("unl", []):
+		if not game.unlocks.has(key):
+			game.unlocks[key] = true
+			game.world.on_unlocked(key)
+			game.hud._queue_refresh()
+	v.relics.assign(vd.get("rel", []))
 	var eco: Array = vd["eco"]
 	v.economy.set_amounts({"gold": eco[0], "food": eco[1], "materials": eco[2]})
 	v.population.starving = vd["starve"]

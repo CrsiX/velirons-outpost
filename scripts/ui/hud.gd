@@ -64,6 +64,7 @@ var _hero_support_button: Button
 ## The village whose systems the HUD shows (the local player's).
 var _bound: Village
 var _settings: Control  # grayscale backdrop + dialog, shown while paused
+var _settings_map_label: Label
 var _settings_continue: Button
 var _settings_log_button: Button
 var _settings_lang_button: Button
@@ -120,6 +121,7 @@ var _tab_pages: Dictionary = {}
 var _build_buttons: Dictionary = {}
 var _recruit_rows: Dictionary = {}  # role -> {button, title}
 var _military_buttons: Dictionary = {}  # kind -> recruit Button
+var _military_panels: Dictionary = {}  # kind -> its entry (hidden while locked)
 var _selected_info: Label
 var _reserve_grid: GridContainer
 var _reserve_label: Label
@@ -868,6 +870,7 @@ func _build_page_army() -> Control:
 			_do("recruit_unit", {"kind": kind}))
 		grid.add_child(e["panel"])
 		_military_buttons[kind] = e["button"]
+		_military_panels[kind] = e["panel"]
 	_reserve_label = _label("", 16)
 	_reserve_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_reserve_label)
@@ -1611,6 +1614,11 @@ func _build_settings() -> void:
 		game.events.debug("language: %s" % Settings.language_name())
 		_refresh_settings())
 	v.add_child(_settings_lang_button)
+	_settings_map_label = _label("", 15, UiTheme.MUTED)
+	_settings_map_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_settings_map_label.tooltip_text = "Type this seed in the menu to play the same map again"
+	_settings_map_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	v.add_child(_settings_map_label)
 	_settings_note = _label("The game keeps running.", 15, UiTheme.MUTED)
 	_settings_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_settings_note.visible = false
@@ -1652,6 +1660,7 @@ func close_settings() -> void:
 
 func _refresh_settings() -> void:
 	_settings_log_button.text = "Log level: %s" % game.events.level_name()
+	_settings_map_label.text = "Map: %s  ·  seed %d" % [Settings.map_type_name(game.map.map_type), game.map.seed_value]
 	_settings_lang_button.icon = Art.tex(Settings.language_flag())
 	_settings_lang_button.tooltip_text = "Language: %s" % Settings.language_name()
 
@@ -1824,14 +1833,18 @@ func _refresh() -> void:
 		var e: Dictionary = _recruit_rows[role]
 		(e["title"] as Label).text = "%s  ×%d" % [Config.CIVILIANS[role]["name"], game.population.count(role)]
 		(e["button"] as Button).disabled = game.population.recruit_error(role) != ""
+		(e["panel"] as Control).visible = game.is_unlocked(role)
 		if role == "farmer":
 			(e["desc"] as Label).text = "%s\nWithout a farm: %d" % [Config.CIVILIANS[role]["desc"], game.population.free_farmers().size()]
 		elif role == "forester":
 			(e["desc"] as Label).text = "%s\nWithout a camp: %d" % [Config.CIVILIANS[role]["desc"], game.population.free_foresters().size()]
+		elif role == "miner":
+			(e["desc"] as Label).text = "%s\nIdle: %d, working: %d" % [Config.CIVILIANS[role]["desc"], game.population.free_workers("miner").size(), game.population.count("miner") - game.population.free_workers("miner").size()]
 		elif role == "gatherer":
 			(e["desc"] as Label).text = "%s\nCorpses lying around: %d" % [Config.CIVILIANS[role]["desc"], game.corpses.count()]
 	for kind in _military_buttons:
 		(_military_buttons[kind] as Button).disabled = not game.economy.can_afford(Config.MILITARY[kind]["cost"])
+		(_military_panels[kind] as Control).visible = game.is_unlocked(kind)
 	for b in _trade_buttons:
 		b.disabled = false
 	_rebuild_reserve()

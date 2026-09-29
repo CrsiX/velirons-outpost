@@ -49,9 +49,35 @@ func placement_error(kind: String, tile: Vector2i, free: bool = false) -> String
 			MapData.Terrain.DESERT:
 				if kind == "farm":
 					return "Nothing grows in the desert"
+			MapData.Terrain.WATER, MapData.Terrain.SHALLOW:
+				return "Water is in the way"
+			MapData.Terrain.LAVA:
+				return "Lava is in the way"
+		if kind == "farm" and Config.ZONES[map.zone(t)].get("no_farms", false):
+			return "Nothing grows in the %s" % Config.ZONES[map.zone(t)]["name"].to_lower()
+		if map.near_crater(t):
+			return "Too close to the volcano"
 	if not free and not village.economy.can_afford(spec["cost"]):
 		return "Not enough building material" if spec["cost"].keys() == ["materials"] else "Not enough resources"
 	return ""
+
+
+## A claimed ruined watchtower becomes a watchtower site at `cost` (half
+## price); a builder builds it like any site.
+func restore_ruin(ruin: RuinedTower, cost: Dictionary) -> Building:
+	if not village.economy.spend(cost):
+		return null
+	var tile := ruin.tile
+	game.world.remove_map_object(ruin)
+	var b: Building = KIND_SCRIPTS["tower"].new()
+	b.village = village
+	b.setup(game, "tower", tile, false)
+	game.world.add_building(b)
+	queue.append(b)
+	village.events.info("A builder will restore the ruined watchtower (%s)" % Config.cost_text(cost))
+	Sfx.play("place")
+	changed.emit()
+	return b
 
 
 func place(kind: String, tile: Vector2i) -> Building:

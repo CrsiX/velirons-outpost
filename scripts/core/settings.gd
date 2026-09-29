@@ -45,6 +45,39 @@ static func name_error(n: String) -> String:
 	return ""
 
 
+## Map type for the next game (Config.MAP_TYPES, or "random") and seed (0: random).
+var map_type := "temperate"
+var map_seed := 0
+
+
+func cycle_map_type() -> void:
+	var order: Array[String] = Config.MAP_TYPE_ORDER.duplicate()
+	order.append("random")
+	map_type = order[(order.find(map_type) + 1) % order.size()]
+
+
+func map_type_name(key: String = "") -> String:
+	var k := map_type if key == "" else key
+	return "Random" if k == "random" else Config.MAP_TYPES.get(k, {"name": k})["name"]
+
+
+## The actual type for a game: "random" becomes one of the types, by the seed.
+static func resolve_map_type(key: String, seed_value: int) -> String:
+	if Config.MAP_TYPES.has(key):
+		return key
+	return Config.MAP_TYPE_ORDER[posmod(seed_value, Config.MAP_TYPE_ORDER.size())]
+
+
+## A typed-in seed: digits as they are, any other text hashed; "" = random (0).
+static func parse_seed(text: String) -> int:
+	var t := text.strip_edges()
+	if t == "":
+		return 0
+	if t.is_valid_int():
+		return absi(t.to_int())
+	return absi(hash(t))
+
+
 func cycle_difficulty() -> void:
 	difficulty = CYCLE[difficulty]
 

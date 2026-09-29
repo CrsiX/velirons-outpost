@@ -43,6 +43,8 @@ var _returning := false
 var support_target: Village = null
 ## Seconds he has been idling in the village centre (see _regen).
 var _idle_time := 0.0
+## The monster camp he was ordered to clear (docs/world-design.md §9.3).
+var camp_target: MonsterCamp = null
 
 
 func setup_hero(p_game: Game, p_village: Village) -> void:
@@ -60,7 +62,7 @@ func setup_hero(p_game: Game, p_village: Village) -> void:
 	add_to_group("melee_defenders")
 	add_to_group("heroes")  # (healing mages heal every village's hero)
 	jobs[Mode.BUILD] = BuildJob.new(spec["build_efficiency"])
-	jobs[Mode.EXPLORE] = ExploreJob.new(spec["explore_reveal"])
+	jobs[Mode.EXPLORE] = HeroExploreJob.new(spec["explore_reveal"])
 	jobs[Mode.GATHER] = GatherJob.new(spec["gather_capacity"])
 	for j in jobs.values():
 		j.bind(self)
@@ -170,7 +172,7 @@ func _set_home(v: bool) -> void:
 
 ## Only runs from enemies while doing villager jobs; a defender stands and fights.
 func wants_to_evade() -> bool:
-	return effective_mode() in [Mode.BUILD, Mode.EXPLORE, Mode.GATHER]
+	return camp_target == null and effective_mode() in [Mode.BUILD, Mode.EXPLORE, Mode.GATHER]
 
 
 func on_action(kind: String) -> void:
@@ -197,6 +199,12 @@ func sight_radius() -> float:
 
 
 func _tick(delta: float) -> void:
+	if camp_target != null:
+		if is_instance_valid(camp_target) and not camp_target.cleared and not camp_target.alive().is_empty():
+			_attack_camp(delta)
+			_regen(delta)
+			return
+		_end_camp()
 	match mode:
 		Mode.DEFEND:
 			_defend(delta)
@@ -225,6 +233,7 @@ func _regen(delta: float) -> void:
 		return
 	hp = minf(max_hp, hp + Config.HERO["rest_regen"] * delta)
 	queue_redraw()
+	hp = minf(max_hp, hp + village.relic_bonus("hero_rest") * delta)  # (a hearth stone)
 	if hp >= max_hp:
 		village.events.debug("the hero is fully rested (%d HP)" % int(max_hp))
 	changed.emit()
@@ -242,23 +251,29 @@ func _defend(delta: float) -> void:
 			village.events.debug("the hero attacks %s" % t.label())
 		target = t
 	if is_instance_valid(target) and not target.dead:
-		_returning = false
-		if at_home:
-			_set_home(false)
-		var dist := target.grid_pos.distance_to(grid_pos)
-		if dist <= Config.HERO["attack_range"]:
-			_set_moving(false)
-			sprite.flip_h = Iso.to_world(target.grid_pos - grid_pos).x < 0.0
-			if _attack_timer <= 0.0:
-				_attack_timer = Config.HERO["attack_cooldown"]
-				_strike()
-		else:
-			if path_index >= path.size() or target.current_tile() != _chase_tile:
-				_chase()
-			step_path(delta)
+		_fight(delta)
 		return
 	target = null
 	_return_home(delta)
+
+
+## Goes for `target` and strikes it when in reach.
+func _fight(delta: float) -> void:
+	_returning = false
+	if at_home:
+		_set_home(false)
+	var dist := target.grid_pos.distance_to(grid_pos)
+	if dist <= Config.HERO["attack_range"]:
+		_set_moving(false)
+		sprite.flip_h = Iso.to_world(target.grid_pos - grid_pos).x < 0.0
+		if _attack_timer <= 0.0:
+			_attack_timer = Config.HERO["attack_cooldown"]
+			_strike()
+	else:
+		if path_index >= path.size() or target.current_tile() != _chase_tile:
+			_chase()
+		if target != null:
+			step_path(delta)
 
 
 ## Walks back to the village centre (Defend re-targets on the way, see
@@ -340,6 +355,52 @@ func _strike() -> void:
 	Sfx.play("hit", 0.25)
 
 
+# --- monster camps -------------------------------------------------------------------------------
+
+## Ordered from the camp's panel: go and clear it, whatever the mode.
+func attack_camp(camp: MonsterCamp) -> void:
+	if dead:
+		return
+	var job = jobs.get(mode)
+	if job is HeroExploreJob:
+		(job as HeroExploreJob)._drop_task()  # (keeps any loot he's carrying)
+	camp_target = camp
+	target = null
+	_returning = false
+	village.events.info("The hero sets off to clear a monster camp")
+	changed.emit()
+
+
+func _attack_camp(delta: float) -> void:
+	_attack_timer -= delta
+	_think_timer -= delta
+	if _think_timer <= 0.0 or not is_instance_valid(target) or target.dead:
+		_think_timer = 0.3
+		var best: Enemy = null
+		var best_d := INF
+		for e in camp_target.alive():
+			var d := e.grid_pos.distance_to(grid_pos)
+			if d < best_d:
+				best_d = d
+				best = e
+		target = best
+	if is_instance_valid(target) and not target.dead:
+		_fight(delta)
+
+
+func _end_camp() -> void:
+	camp_target = null
+	target = null
+	_returning = false
+	sprite.rotation = 0.0
+	var job = jobs.get(mode)
+	if job is HeroExploreJob and (job as HeroExploreJob).task == HeroExploreJob.Task.CARRYING:
+		head_home()
+	elif job != null:
+		job.state = 0  # (the job picks up from where he stands)
+	changed.emit()
+
+
 # --- Train --------------------------------------------------------------------------------------
 
 func _train(g: TrainingGrounds, delta: float) -> void:
@@ -388,6 +449,7 @@ func take_damage(amount: float, source = null) -> void:
 func _downed(source = null) -> void:
 	village.events.important("The hero was struck down by %s (%d XP lost); back after the wave" % [game.who(source), xp])
 	float_text("Hero down!", Color("ff7a6a"))
+	camp_target = null
 	if jobs.has(mode):
 		jobs[mode].release()
 		jobs[mode].state = 0

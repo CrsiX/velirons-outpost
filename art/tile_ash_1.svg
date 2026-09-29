@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="264" height="136" viewBox="-66 -34 132 68">
+  <polygon points="0,-32.96 65.92,0 0,32.96 -65.92,0" fill="#524f4a"/>
+  <ellipse cx="-3.12" cy="10.59" rx="9.83" ry="5.1" fill="#63605a" opacity="0.5"/>
+  <ellipse cx="-19.84" cy="-2.74" rx="11.36" ry="3.49" fill="#48453f" opacity="0.5"/>
+  <ellipse cx="-4.07" cy="-9.13" rx="8.11" ry="5.6" fill="#48453f" opacity="0.5"/>
+  <ellipse cx="16.22" cy="13.75" rx="11.09" ry="4.5" fill="#48453f" opacity="0.5"/>
+  <ellipse cx="17.98" cy="-7.27" rx="7.44" ry="5.89" fill="#63605a" opacity="0.5"/>
+  <ellipse cx="3.93" cy="13.85" rx="8.21" ry="3.52" fill="#63605a" opacity="0.5"/>
+  <ellipse cx="-13.02" cy="-1.08" rx="7.39" ry="3.15" fill="#48453f" opacity="0.5"/>
+  <ellipse cx="-13.67" cy="-3.77" rx="2.69" ry="1.08" fill="#2c2a27" opacity="0.85"/>
+  <ellipse cx="-0.66" cy="14.59" rx="1.49" ry="0.98" fill="#2c2a27" opacity="0.85"/>
+  <ellipse cx="25.13" cy="-13.58" rx="1.5" ry="1.08" fill="#2c2a27" opacity="0.85"/>
+  <ellipse cx="-9.76" cy="-6.82" rx="1.29" ry="1.35" fill="#2c2a27" opacity="0.85"/>
+  <ellipse cx="1.56" cy="-6.76" rx="2.56" ry="1.46" fill="#2c2a27" opacity="0.85"/>
+  <ellipse cx="2.71" cy="9.06" rx="2.61" ry="0.9" fill="#2c2a27" opacity="0.85"/>
+  <ellipse cx="-45.29" cy="2.51" rx="1.7" ry="1.4" fill="#2c2a27" opacity="0.85"/>
+  <ellipse cx="15.66" cy="15.08" rx="2.02" ry="1.44" fill="#2c2a27" opacity="0.85"/>
+  <ellipse cx="2.88" cy="9.62" rx="2.06" ry="1.56" fill="#2c2a27" opacity="0.85"/>
+  <ellipse cx="-16.09" cy="-8.64" rx="5" ry="3" fill="#e0602a" opacity="0.22"/>
+  <ellipse cx="-16.09" cy="-8.64" rx="1.1" ry="0.8" fill="#f0902a"/>
+  <ellipse cx="-5.34" cy="-11.54" rx="4" ry="2.4" fill="#e0602a" opacity="0.15"/>
+  <ellipse cx="-5.34" cy="-11.54" rx="0.8" ry="0.6" fill="#d8782a" opacity="0.8"/>
+</svg>

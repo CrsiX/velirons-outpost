@@ -35,6 +35,10 @@ const HANDLERS := {
 	"send_unit": "_send_unit",
 	"hero_support": "_hero_support",
 	"promote_archmage": "_promote_archmage",
+	"attack_camp": "_attack_camp",
+	"restore_ruin": "_restore_ruin",
+	"assign_miner": "_assign_miner",
+	"unassign_miner": "_unassign_miner",
 }
 
 const CARAVAN_SCRIPT := preload("res://scripts/units/caravan.gd")
@@ -79,6 +83,54 @@ func _building(village: Village, args: Dictionary, key: String = "building") -> 
 func _unit(village: Village, args: Dictionary, key: String = "unit") -> MilitaryUnit:
 	var u = game.entity(int(args.get(key, 0)))
 	return u if u is MilitaryUnit and u.village == village else null
+
+
+# --- map objects (docs/world-design.md §9) ---------------------------------------------
+
+func _attack_camp(v: Village, a: Dictionary) -> Dictionary:
+	var camp = game.entity(int(a.get("camp", 0)))
+	if not (camp is MonsterCamp) or camp.cleared:
+		return fail("There's no camp to attack")
+	if not camp.is_found_by(v):
+		return fail("You haven't found that camp")
+	if v.hero.dead:
+		return fail("The hero is down")
+	v.hero.attack_camp(camp)
+	return ok()
+
+
+func _restore_ruin(v: Village, a: Dictionary) -> Dictionary:
+	var ruin = game.entity(int(a.get("ruin", 0)))
+	if not (ruin is RuinedTower) or ruin.village != v:
+		return fail("That isn't your ruin")
+	var cost := RuinedTower.restore_cost()
+	if not v.economy.can_afford(cost):
+		return fail("Not enough building material")
+	var site := v.construction.restore_ruin(ruin, cost)
+	return ok({"site": site.nid}) if site else fail("Can't restore it now")
+
+
+func _assign_miner(v: Village, a: Dictionary) -> Dictionary:
+	var mine = game.entity(int(a.get("mine", 0)))
+	if not (mine is Mine):
+		return fail("That isn't a mine")
+	if not game.is_unlocked("miner"):
+		return fail("Nobody knows how to work a mine yet")
+	if not mine.is_free():
+		return fail("That mine is taken")
+	var idle := v.population.free_workers("miner")
+	if idle.is_empty():
+		return fail("No idle miner")
+	idle[0].assign(mine)
+	return ok()
+
+
+func _unassign_miner(v: Village, a: Dictionary) -> Dictionary:
+	var mine = game.entity(int(a.get("mine", 0)))
+	if not (mine is Mine) or mine.is_free() or mine.worker.village != v:
+		return fail("None of your miners works there")
+	mine.worker.unassign()
+	return ok()
 
 
 # --- buildings -----------------------------------------------------------------------
@@ -151,6 +203,8 @@ func _recruit_unit(v: Village, a: Dictionary) -> Dictionary:
 	var kind := str(a.get("kind", ""))
 	if not Config.MILITARY.has(kind):
 		return fail("Unknown unit")
+	if not game.is_unlocked(kind):
+		return fail("Not unlocked yet")
 	var u := v.army.recruit(kind)
 	return ok({"id": u.nid}) if u else fail("Not enough gold")
 

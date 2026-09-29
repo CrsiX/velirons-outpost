@@ -23,7 +23,7 @@ signal command_refused(type: String, error: String)
 enum Role { NONE, HOST, CLIENT }
 
 const GAME_ID := "velirons-outpost"
-const PROTOCOL := 1
+const PROTOCOL := 2
 const GAME_PORT := 47111
 const DISCOVERY_PORT := 47110
 ## The ports in use (tests pick their own: --port=N, discovery on N - 1).
@@ -40,9 +40,12 @@ var role := Role.NONE
 ## peer id -> {"name", "color", "ready", "village", "online", "loaded"}
 var players: Dictionary = {}
 var difficulty := 1  # Settings.Difficulty
+## The host's choice of map type (or "random") and seed (0: random).
+var map_type := "temperate"
+var map_seed := 0
 ## Host: fog options for the game (Config.REVEAL_MAP / DISABLE_FOG by default).
-var reveal_map := Config.REVEAL_MAP
-var disable_fog := Config.DISABLE_FOG
+var reveal_map: bool = Config.debug_switches()["reveal_map"]
+var disable_fog: bool = Config.debug_switches()["disable_fog"]
 var in_game := false
 ## Set for the level scene: {"seed", "villages": [{"name", "color", "peer"}], "difficulty", "local"}.
 var setup: Dictionary = {}
@@ -103,6 +106,8 @@ func host(p_name: String, color: int) -> String:
 	role = Role.HOST
 	in_game = false
 	difficulty = Settings.difficulty
+	map_type = Settings.map_type
+	map_seed = Settings.map_seed
 	players = {1: {"name": p_name.strip_edges(), "color": color, "ready": true, "village": 0, "online": true, "loaded": true}}
 	discovery.start_announcing(_announcement)
 	lobby_changed.emit()
@@ -321,6 +326,15 @@ func set_difficulty(d: int) -> void:
 		_broadcast_lobby()
 
 
+func set_map(p_type: String, p_seed: int) -> void:
+	if is_host() and not in_game:
+		map_type = p_type
+		map_seed = p_seed
+		Settings.map_type = p_type
+		Settings.map_seed = p_seed
+		_broadcast_lobby()
+
+
 func can_start() -> bool:
 	return is_host() and not in_game and players.values().all(func(p: Dictionary) -> bool: return p["ready"])
 
@@ -335,14 +349,16 @@ func _tell(id: int, text: String) -> void:
 func _broadcast_lobby() -> void:
 	lobby_changed.emit()
 	if is_host():
-		_lobby_state.rpc(players, difficulty)
+		_lobby_state.rpc(players, difficulty, map_type, map_seed)
 
 
 @rpc("authority", "reliable")
-func _lobby_state(p_players: Dictionary, p_difficulty: int) -> void:
+func _lobby_state(p_players: Dictionary, p_difficulty: int, p_map_type: String = "temperate", p_seed: int = 0) -> void:
 	players = p_players
 	difficulty = p_difficulty
 	Settings.difficulty = p_difficulty
+	map_type = p_map_type
+	map_seed = p_seed
 	lobby_changed.emit()
 
 
@@ -373,7 +389,8 @@ func start_game() -> bool:
 		villages.append({"name": players[ids[i]]["name"], "color": players[ids[i]]["color"], "peer": ids[i]})
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	setup = {"seed": rng.randi(), "villages": villages, "difficulty": difficulty, "local": 0, "reveal_map": reveal_map, "disable_fog": disable_fog}
+	var s := map_seed if map_seed != 0 else rng.randi()
+	setup = {"seed": s, "map_type": Settings.resolve_map_type(map_type, s), "villages": villages, "difficulty": difficulty, "local": 0, "reveal_map": reveal_map, "disable_fog": disable_fog}
 	Settings.difficulty = difficulty
 	get_tree().change_scene_to_file(LEVEL_SCENE)
 	return true

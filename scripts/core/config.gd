@@ -43,22 +43,145 @@ const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explor
 const START_BUILDINGS: Array[String] = ["farm", "camp"]
 const START_REVEAL_RADIUS := 7.5
 
-## Debug / sandbox switches.
+## Debug / sandbox switches. They only apply when running from the editor /
+## engine binary; exported builds always play with the fog (debug_switches()).
 const REVEAL_MAP := false  # true: the whole map starts explored (terrain known)
-const DISABLE_FOG := true  # true: no fog of war at all; everything is visible
+const DISABLE_FOG := false  # true: no fog of war at all; everything is visible
 
-## Terrain generation.
-const DESERT_MAX_SHARE := 0.2  # at most this share of all tiles is desert
-const DESERT_MIN_VILLAGE_DIST := 12.0  # no desert right next to the village
-const MOUNTAIN_RANGES := Vector2i(7, 10)  # min/max number of ranges
-const MOUNTAIN_BORDER_BAND := 12  # ranges start within this many tiles of the edge
-const MOUNTAIN_ROAD_MARGIN := 2  # keep this many tiles free around roads
-const MOUNTAIN_MIN_VILLAGE_DIST := 16.0
+
+## The debug switches in effect: {"reveal_map", "disable_fog"} (all off in exports).
+static func debug_switches() -> Dictionary:
+	var dev := OS.has_feature("editor")
+	return {"reveal_map": REVEAL_MAP and dev, "disable_fog": DISABLE_FOG and dev}
+
+## World generation (docs/world-design.md). The map is cut into one equal-area
+## slice per player around its centre; each village sits near its slice's
+## centre. Zones come from height x moisture; ash land only around volcanoes.
+const MAP_TYPE_ORDER: Array[String] = ["temperate", "highlands", "coast", "desert", "volcanic"]
+## Per type: shifts of the height / moisture fields, sea edges, multipliers for
+## lakes, rivers, mountains and mines, the volcano count range, lava rivers.
+const MAP_TYPES := {
+	"temperate": {"name": "Temperate", "height": 0.0, "moisture": 0.0, "coast_edges": [0, 0], "lakes": 1.0, "rivers": 1.0, "mountains": 1.0, "volcanoes": [0, 1], "mines": 1.0},
+	"highlands": {"name": "Highlands", "height": 0.15, "moisture": -0.05, "coast_edges": [0, 0], "lakes": 0.5, "rivers": 1.5, "mountains": 1.6, "volcanoes": [0, 1], "mines": 1.5},
+	"coast": {"name": "Coast", "height": -0.05, "moisture": 0.08, "coast_edges": [1, 2], "lakes": 0.7, "rivers": 1.0, "mountains": 0.8, "volcanoes": [0, 0], "mines": 1.0},
+	"desert": {"name": "Desert", "height": 0.0, "moisture": -0.22, "coast_edges": [0, 0], "lakes": 0.3, "rivers": 0.3, "mountains": 1.0, "volcanoes": [0, 1], "mines": 1.0, "steppe_max": 0.4},
+	"volcanic": {"name": "Volcanic", "height": 0.1, "moisture": -0.1, "coast_edges": [0, 0], "lakes": 0.5, "rivers": 0.0, "mountains": 1.2, "volcanoes": [1, 3], "mines": 1.0, "lava_rivers": true},
+}
+## Zones: ground art (variants), tree share and tree mix (weights), decoration
+## props (not trees; walkable; cleared by buildings) and rules.
+const ZONE_ORDER: Array[String] = ["meadow", "oak", "pine", "heath", "steppe", "swamp", "ash"]
+const ZONES := {
+	"meadow": {"name": "Meadow", "ground": ["tile_meadow_0", "tile_meadow_1", "tile_meadow_2"], "trees": 0.06, "mix": {"tree_oak": 1}, "decor": 0.0, "decor_mix": {}, "farm_bonus": 0.2},
+	"oak": {"name": "Oak woods", "ground": ["tile_grass_0", "tile_grass_1", "tile_grass_2"], "forest_floor": "tile_forest_oak", "trees": 0.45, "mix": {"tree_oak": 6, "tree_pine_0": 1}, "decor": 0.01, "decor_mix": {"boulder": 1}},
+	"pine": {"name": "Pine forest", "ground": ["tile_grass_dark_0", "tile_grass_dark_1"], "forest_floor": "tile_forest", "trees": 0.85, "mix": {"tree_pine_0": 4, "tree_pine_1": 4, "tree_dead": 1}, "decor": 0.0, "decor_mix": {}},
+	"heath": {"name": "Heath", "ground": ["tile_heath_0", "tile_heath_1"], "trees": 0.15, "mix": {"tree_dead": 1}, "decor": 0.06, "decor_mix": {"boulder": 1}},
+	"steppe": {"name": "Steppe", "ground": ["tile_desert_0", "tile_desert_1"], "trees": 0.03, "mix": {"tree_dead": 1}, "decor": 0.03, "decor_mix": {"cactus": 1}, "no_farms": true},
+	"swamp": {"name": "Swamp", "ground": ["tile_swamp_0", "tile_swamp_1"], "trees": 0.2, "mix": {"tree_dead": 1}, "decor": 0.18, "decor_mix": {"reeds": 1}, "no_farms": true, "walk": 0.7},
+	"ash": {"name": "Ash land", "ground": ["tile_ash_0", "tile_ash_1"], "trees": 0.05, "mix": {"stump_charred": 1}, "decor": 0.05, "decor_mix": {"lava_rock": 1}, "no_farms": true},
+}
+## Land shares of the zones from height x moisture (before map-type shifts);
+## ash comes on top, around volcanoes.
+const ZONE_SIZE := 22.0  # typical zone diameter, tiles
+const ZONE_BLEND := 0.06  # field noise at zone borders (share of the 0..1 range)
+const DESERT_MAX_SHARE := 0.2  # steppe at most this share of the map (Desert type: its "steppe_max")
 const FOREST_CLEARING_RING := 4  # tiles around the village centre kept free (Chebyshev)
-## Meadow buffer between desert and forest: forest is skipped this many tiles
-## from desert with the given chance (so it's typical, not strict).
-const DESERT_FOREST_GAP := 1
-const DESERT_FOREST_GAP_CHANCE := 0.85
+const ZONE_FAIR_RADIUS := 12.0  # around every village: enough meadow and trees
+const ZONE_FAIR_MIN := {"meadow": 0.25, "trees": 0.25}
+const ZONE_FAIR_CLEAR := 8.0  # no steppe, swamp or ash this close to a village
+const ZONE_FAIR_SPREAD := 0.15  # max difference in zone shares between slices
+## Villages: within this of their slice's centre, on dry flat land.
+const VILLAGE_CENTER_RADIUS := 12.0
+const VILLAGE_CLEAR_RADIUS := 5.0  # no water, mountains or volcanoes this close to the walls
+const VILLAGE_BORDER_GAP := 8.0  # tiles from the slice's border
+const VILLAGE_MAP_MARGIN := 9  # village centres stay this far from the map edge
+const VILLAGE_VOLCANO_DIST := 20.0
+const VILLAGE_SEA_DIST := 10.0
+## Roads (A*, 4 directions, on a cost map by zone; see docs/world-design.md §5).
+const VILLAGE_MIN_LINKS := 2  # road links per village with 3+ players (1 with 2)
+const ROAD_DETOUR_MAX := 2.5  # a link longer than this x the straight distance is dropped
+const ROAD_COSTS := {"road": 0.3, "meadow": 1.0, "steppe": 1.0, "heath": 1.6, "oak": 1.6, "pine": 2.5, "swamp": 2.5, "ash": 2.0, "crossing": 4.0, "pass": 15.0}
+const ROAD_COST_NOISE := 0.3
+const ROAD_BESIDE_COST := 2.0  # extra cost next to an existing road: merge or keep away
+const ROAD_VERGE := 0  # tree-free tiles beside roads (optional)
+const SP_SPAWNS := Vector2i(3, 5)  # single player: edge spawns
+const COOP_SPAWNS := Vector2i(2, 3)  # co-op: edge spawns per village, on its slice's edge
+## Water.
+const SHALLOW_WALK := 0.5  # walking speed factor in shallow water and fords
+const LAKE_COUNT := Vector2i(1, 3)  # per 75x75 of map area
+const LAKE_SIZE := Vector2i(12, 60)
+const LAKE_VILLAGE_DIST := 6.0
+const RIVER_COUNT := Vector2i(0, 2)
+const COAST_SHARE := Vector2(0.15, 0.3)
+## Bridge look by the zone around it (the look only).
+const BRIDGE_STYLES := {"meadow": "stone", "oak": "stone", "pine": "timber", "heath": "timber", "steppe": "rope", "swamp": "stilts", "ash": "charred"}
+## Mountains and volcanoes.
+const MOUNTAIN_SHARE := Vector2(0.05, 0.08)  # of the map, x the type's "mountains"
+const VOLCANO_ASH_RADIUS := 6.0
+const VOLCANO_NO_BUILD := 3.0  # tiles from the crater's centre tile
+const VOLCANO_SLICE_DIST := 26.0  # from every slice centre (villages keep VILLAGE_VOLCANO_DIST)
+## Tries with the next seed when a generated map fails its checks.
+const MAP_TRIES := 5
+
+## Special objects (docs/world-design.md §9). Treasures: per slice (the same
+## number and tiers for every slice), looted by the hero in Explore mode.
+const TREASURE_COUNT := Vector2i(3, 5)
+const TREASURE_DISTANCE := Vector2(10.0, 35.0)  # from the slice's village
+const TREASURE_TIER_DIST: Array[float] = [18.0, 26.0]  # tier 1 closer than 18, tier 2 than 26, else 3
+const TREASURE_TIER_SCALE: Array[float] = [1.0, 1.5, 2.0]  # rewards x this per tier
+const OBJECT_SPACING := 6.0  # objects at least this far apart
+## Per kind: zones it appears in ([] = any; "beach" / "hills" are special),
+## pick weight, loot time and reward (ranges, x the tier scale). "relic": may
+## hold a relic instead; "heal_units" / "hero_xp": the shrine's blessings.
+const TREASURES := {
+	"chest": {"name": "Buried chest", "zones": [], "weight": 3.0, "loot_time": 4.0, "reward": {"gold": [40, 80]}},
+	"ruins": {"name": "Overgrown ruins", "zones": ["oak", "pine", "heath"], "weight": 2.0, "loot_time": 8.0, "reward": {"materials": [30, 60], "gold": [20, 40]}},
+	"shrine": {"name": "Shrine", "zones": ["meadow", "heath"], "weight": 2.0, "loot_time": 6.0, "reward": {"hero_xp": [80, 120]}, "alt_reward": {"heal_units": [1, 1]}},
+	"standing_stones": {"name": "Standing stones", "zones": ["heath", "hills"], "weight": 1.5, "loot_time": 6.0, "reward": {"gold": [50, 90]}, "relic": true},
+	"shipwreck": {"name": "Shipwreck", "zones": ["beach"], "weight": 5.0, "loot_time": 8.0, "reward": {"gold": [60, 120], "food": [20, 40]}},
+	"dragon_bones": {"name": "Dragon bones", "zones": ["ash"], "weight": 5.0, "loot_time": 10.0, "reward": {"gold": [100, 150]}, "relic": true},
+}
+const RELIC_MAX := 2  # per map
+## Relics: a small permanent bonus for the village that finds one.
+const RELICS := {
+	"hawkeye": {"name": "Hawk-eye relic", "desc": "+10 % tower range", "tower_range": 0.1},
+	"phoenix": {"name": "Phoenix feather", "desc": "units revive 20 % faster", "revive": -0.2},
+	"hearth": {"name": "Hearth stone", "desc": "+1 hero HP per second while resting", "hero_rest": 1.0},
+	"harvest": {"name": "Harvest idol", "desc": "+10 % food from farms", "food": 0.1},
+}
+## Monster camps guard some far treasures: neutral monsters that stay by the
+## camp and fight whoever comes close. Cleared only on the player's order.
+const CAMP_CHANCE := 0.33  # of tier-3 treasures (half that for tier 2)
+const CAMP_MONSTERS: Array = [["goblin", "goblin"], ["goblin", "goblin", "ork"], ["goblin", "ork", "ork", "witch"]]
+const CAMP_AGGRO := 3.5  # monsters attack what comes this close to the camp
+const CAMP_LEASH := 5.0  # and never follow it farther from the camp
+const CAMP_HP_SCALE := 1.5  # camp monsters are a bit tougher than wave enemies
+## Unit-unlock sites: dormant until their wave, then the hero unlocks the unit
+## there for every player. Copies: max(1, floor(players x UNLOCK_SITE_SHARE)).
+## When new units are added later: ask how each one is unlocked.
+const UNLOCK_SITES := {
+	"stone_circle": {"name": "Stone circle", "unlocks": "summoner", "wave": 3, "distance": [12.0, 18.0], "visit_time": 5.0,
+		"rumour": "Travellers speak of an old stone circle somewhere in the wilderness. Whoever finds it can call forth summoners.",
+		"awake": "The stone circle has awakened. The hero can unlock the summoner there (Explore mode)."},
+	"mage_tower": {"name": "Mage's tower", "unlocks": "apprentice", "wave": 5, "distance": [15.0, 22.0], "visit_time": 5.0,
+		"rumour": "Travellers speak of a mage's tower lost in the wilderness. Whoever finds it can train apprentices.",
+		"awake": "A light shines in the mage's tower. The hero can unlock the apprentice there (Explore mode)."},
+}
+const UNLOCK_SITE_SHARE := 0.5
+## Ruined watchtowers: claimed by the hero (Explore mode), restored by a builder.
+const RUINED_TOWERS := Vector2i(0, 2)  # per slice
+const RUIN_DISTANCE := Vector2(12.0, 40.0)
+const RUIN_CLAIM_TIME := 5.0
+const RUIN_RESTORE_SHARE := 0.5  # of a watchtower's cost
+## Monster lairs: scenery for now, their look by zone (1x1 or 2x2).
+const LAIRS := {"mountain": "lair_cave", "pine": "lair_tree", "swamp": "lair_ruin", "ash": "lair_pit", "steppe": "lair_crypt"}
+const LAIRS_PER_SLICE := Vector2i(0, 2)
+const LAIR_DISTANCE := 25.0
+## Mines on the outer edge of mountain ranges, linked to the roads, worked
+## by one miner (first to arrive). Walking up to one unlocks the miner for all.
+const MINES_PER_SLICE := 1.0  # x the map type's "mines"
+const MINE_DISTANCE := 10.0  # from any village
+const MINE_GOLD_RATE := 0.1  # gold per second; keep below a forester's material rate
+const MINE_REACH := 2.0
 
 ## Sight: explored tiles are only "under surveillance" (enemies visible) near
 ## observers. Building sight is measured from the edge of the footprint.
@@ -135,6 +258,10 @@ const CIVILIANS := {
 		"desc": "Works from a worker camp, chopping nearby trees for building material.",
 		"works_at": "camp",
 	},
+	"miner": {
+		"name": "Miner", "cost": {"food": 30}, "speed": 1.5,
+		"desc": "Works a mine in the mountains for gold. Stays at the mine, safe inside; one miner per mine.",
+	},
 	# Can't be recruited: a spatial mage of level ARCHMAGE_LEVEL becomes one
 	# (docs/military-design.md §7). A key to ending the siege, later.
 	"spatial_archmage": {
@@ -150,7 +277,10 @@ static func worker_role(kind: String) -> String:
 	return ""
 
 
-const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "spatial_archmage"]
+const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "spatial_archmage"]
+## Unit kinds and villager roles that have to be unlocked first, and how
+## (docs/world-design.md §9.4, §9.6). Unlocks are global: for every village.
+const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "miner": "mine"}
 
 const FOOD_UPKEEP := 0.05  # food per civilian per second
 const STARVATION_INTERVAL := 15.0  # a civilian dies this often while food is 0
@@ -159,6 +289,7 @@ const BUILDER_REST := 3.0
 const FARMER_REST := 4.0
 const HARVEST_TIME := 2.5
 const FARM_RATE := 0.4  # food per second while a farmer is assigned
+const FARM_WATER_BONUS := 0.1  # a farm next to water (meadow: ZONES.meadow.farm_bonus)
 const FARM_CAPACITY := 40.0
 const EXPLORER_REVEAL := 2.6
 const EVADE_RADIUS := 4.5  # civilians run home when an enemy gets this close
@@ -169,7 +300,7 @@ const FORESTER_MATERIAL_PER_TRIP := 3  # paid every time the forester is back at
 const FORESTER_SEARCH_RADIUS := 10.0  # trees farther than this from the camp are ignored
 ## Total chopping time (seconds) before a tree falls and its tile turns to
 ## meadow, per tree art/flavour.
-const TREE_CHOP_TIME := {"tree_pine_0": 20.0, "tree_pine_1": 28.0, "tree_oak": 36.0, "tree_dead": 10.0}
+const TREE_CHOP_TIME := {"tree_pine_0": 20.0, "tree_pine_1": 28.0, "tree_oak": 36.0, "tree_dead": 10.0, "stump_charred": 8.0}
 const GATHERER_CAPACITY := 6  # corpses carried per trip
 const GATHERER_LOOT_TIME := 1.0  # seconds per corpse
 const GATHERER_REST := 3.0

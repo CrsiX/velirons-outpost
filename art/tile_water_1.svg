@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="296" height="148" viewBox="-74 -37 148 74">
+  <polygon points="0,-36.16 72.32,0 0,36.16 -72.32,0" fill="#1f3a4a"/>
+  <ellipse cx="5.74" cy="-3.6" rx="15.42" ry="5.12" fill="#1a3140" opacity="0.5"/>
+  <ellipse cx="-7.41" cy="11.26" rx="10.62" ry="6.43" fill="#1a3140" opacity="0.5"/>
+  <ellipse cx="-14.53" cy="3.71" rx="10.89" ry="6.6" fill="#1a3140" opacity="0.5"/>
+  <ellipse cx="5.09" cy="-5.54" rx="11.14" ry="6.17" fill="#1a3140" opacity="0.5"/>
+  <ellipse cx="16" cy="6.96" rx="17.29" ry="6.39" fill="#27465a" opacity="0.5"/>
+  <path d="M6.78,-11.52 q6.77,-2.5 13.54,0" fill="none" stroke="#3f6a7c" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/>
+  <path d="M-36.62,-0.65 q6.71,-2.5 13.43,0" fill="none" stroke="#3f6a7c" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/>
+  <path d="M-21.67,-5.42 q6.94,-2.5 13.88,0" fill="none" stroke="#3f6a7c" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/>
+  <path d="M-1.23,9.23 q6.74,-2.5 13.49,0" fill="none" stroke="#3f6a7c" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/>
+</svg>

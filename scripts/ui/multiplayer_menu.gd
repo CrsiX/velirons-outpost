@@ -23,6 +23,8 @@ var players_box: VBoxContainer
 var ready_button: Button
 var start_button: Button
 var difficulty_button: Button
+var map_button: Button
+var seed_edit: LineEdit
 var leave_button: Button
 var apply_button: Button
 var lobby_status: Label
@@ -148,6 +150,18 @@ func _build_lobby() -> void:
 	difficulty_button.pressed.connect(func() -> void:
 		Net.set_difficulty(Settings.CYCLE[Net.difficulty]))
 	lobby.add_child(difficulty_button)
+	map_button = _btn("", 48)
+	map_button.pressed.connect(func() -> void:
+		Settings.cycle_map_type()
+		Net.set_map(Settings.map_type, Net.map_seed))
+	lobby.add_child(map_button)
+	seed_edit = LineEdit.new()
+	seed_edit.placeholder_text = "Map seed (empty: random)"
+	seed_edit.custom_minimum_size = Vector2(0, 44)
+	seed_edit.add_theme_font_size_override("font_size", 18)
+	seed_edit.text_submitted.connect(func(t: String) -> void: Net.set_map(Net.map_type, Settings.parse_seed(t)))
+	seed_edit.focus_exited.connect(func() -> void: Net.set_map(Net.map_type, Settings.parse_seed(seed_edit.text)))
+	lobby.add_child(seed_edit)
 	start_button = _btn("Start", 60)
 	UiTheme.style_good(start_button)
 	start_button.pressed.connect(func() -> void: Net.start_game())
@@ -245,6 +259,13 @@ func refresh() -> void:
 	ready_button.text = "Ready ✓" if ready_now else "Ready"
 	difficulty_button.visible = Net.is_host()
 	difficulty_button.text = "Difficulty: %s" % Settings.NAMES[Net.difficulty]
+	# Everyone sees the map settings; only the host changes them.
+	map_button.disabled = not Net.is_host()
+	map_button.text = "Map: %s" % Settings.map_type_name(Net.map_type) + ("" if Net.is_host() else "  (host)")
+	map_button.visible = in_lobby
+	seed_edit.visible = in_lobby and Net.is_host()
+	if Net.is_host() and not seed_edit.has_focus():
+		seed_edit.text = str(Net.map_seed) if Net.map_seed != 0 else ""
 	start_button.visible = Net.is_host()
 	start_button.disabled = not Net.can_start()
 	start_button.text = "Start" if Net.can_start() else "Start (waiting for everyone to be ready)"

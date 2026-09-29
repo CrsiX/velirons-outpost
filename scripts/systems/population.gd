@@ -17,6 +17,7 @@ const ROLE_SCRIPTS := {
 	"gatherer": preload("res://scripts/units/gatherer.gd"),
 	"forester": preload("res://scripts/units/forester.gd"),
 	"spatial_archmage": preload("res://scripts/units/archmage.gd"),
+	"miner": preload("res://scripts/units/miner.gd"),
 }
 
 var game: Game
@@ -48,8 +49,11 @@ func cap() -> int:
 
 ## Net food flow: upkeep plus the average output of worked farms.
 func food_per_second() -> float:
-	var farms := game.world.buildings.filter(func(b: Building) -> bool: return b is Farm and b.complete and b.farmer != null)
-	return Config.FARM_RATE * farms.size() - Config.FOOD_UPKEEP * civilians.size()
+	var food := 0.0
+	for b in game.world.buildings:
+		if b is Farm and b.village == village and b.complete and b.farmer != null:
+			food += (b as Farm).rate()
+	return food - Config.FOOD_UPKEEP * civilians.size()
 
 
 ## Intact huts nobody lives in yet.
@@ -61,6 +65,8 @@ func free_huts() -> Array[Building]:
 func recruit_error(role: String) -> String:
 	if not Config.CIVILIANS[role].get("recruit", true):
 		return "Only a level %d spatial mage can become one" % Config.ARCHMAGE_LEVEL
+	if not game.is_unlocked(role):
+		return "Walk up to a mine first"
 	if free_huts().is_empty():
 		return "No free hut (%d/%d)" % [count(), cap()]
 	if not village.economy.can_afford(Config.CIVILIANS[role]["cost"]):
@@ -77,7 +83,7 @@ func recruit(role: String) -> Civilian:
 	if civ:
 		village.events.debug("recruit %s for %s" % [civ.label(), Config.cost_text(Config.CIVILIANS[role]["cost"])])
 	if civ and civ.workplace():
-		village.toast("The new %s goes to work at the %s" % [civ.display_name().to_lower(), Config.BUILDINGS[civ.workplace().kind]["name"].to_lower()], UiTheme.GOLD)
+		village.toast("The new %s goes to work at the %s" % [civ.display_name().to_lower(), civ.workplace().display_name().to_lower()], UiTheme.GOLD)
 	return civ
 
 
@@ -100,6 +106,10 @@ func spawn(role: String) -> Civilian:
 	var vacant := vacant_workplaces(role)
 	if not vacant.is_empty():
 		_assign(civ, vacant[0], true)
+	elif role == "miner":
+		var m := free_mine(civ)
+		if m:
+			civ.assign(m)
 	changed.emit()
 	return civ
 
@@ -138,6 +148,24 @@ func _process(delta: float) -> void:
 			village.toast("A villager starved to death.", Color("ff7a6a"))
 	else:
 		_starve_timer = 0.0
+
+
+## The nearest mine this village has found that nobody works or heads for.
+func free_mine(for_civ: Civilian = null) -> Mine:
+	var best: Mine = null
+	var best_d := INF
+	for o in game.world.map_objects:
+		var m := o as Mine
+		if m == null or not m.is_free() or not m.is_found_by(village):
+			continue
+		var heading := civilians.any(func(c: Civilian) -> bool: return c != for_civ and c is Miner and (c as Miner).mine == m)
+		if heading:
+			continue
+		var d := Vector2(m.tile).distance_to(Vector2(village.center))
+		if d < best_d:
+			best_d = d
+			best = m
+	return best
 
 
 # --- workplaces (farms, worker camps, ...) ------------------------------------------

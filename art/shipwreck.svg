@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="263" height="138" viewBox="-65.72 -34.36 131.5 69">
+  <polygon points="0,-31.36 62.72,0 0,31.36 -62.72,0" fill="#bba671" opacity="0.4"/>
+  <polygon points="0,-26.88 53.76,0 0,26.88 -53.76,0" fill="#bba671" opacity="0.85"/>
+  <path d="M23.2,2.86 q9.02,-5 18.05,0" fill="none" stroke="#a38f5e" stroke-width="1.4" stroke-linecap="round" opacity="0.7"/>
+  <path d="M-19.01,-10.65 q8.03,-5 16.05,0" fill="none" stroke="#a38f5e" stroke-width="1.4" stroke-linecap="round" opacity="0.7"/>
+  <path d="M-37.74,1.31 q9.41,-5 18.82,0" fill="none" stroke="#a38f5e" stroke-width="1.4" stroke-linecap="round" opacity="0.7"/>
+  <polygon points="26.88,4.6 21.76,-13.08 3.84,-25.32 -15.36,-28.08 -28.16,-15.68 -15.36,-7.72 5.12,2.24 26.88,4.6" fill="#4a3624" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polyline points="-4.48,-27.84 -14.08,-9.04 -22.4,-11.88" fill="none" stroke="#6a543a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="6.4,-22.4 -3.2,-3.6 -11.52,-6.44" fill="none" stroke="#6a543a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="17.28,-16.96 7.68,1.84 -0.64,-1" fill="none" stroke="#6a543a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="1.92,-20.64 -16,-6.68" fill="none" stroke="#5e4129" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="-15.36,-28.08 -28.16,-15.68 -28.16,-8.96 -19.2,-15.44" fill="#4a3824" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="-28.16,-15.68 -15.36,-7.72 5.12,2.24 26.88,4.6 20.48,8.96 1.28,6.76 -17.92,-2.84 -28.16,-8.96" fill="#6e5438" stroke="#15110d" stroke-width="1.3" stroke-linejoin="round"/>
+  <polyline points="-28.16,-10.68 -14.72,-3.04 6.4,6.6 23.04,7.5" fill="none" stroke="#3e2e1e" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-28.16,-13.68 -14.72,-6.04 6.4,3.6 23.04,5.4" fill="none" stroke="#3e2e1e" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="-14.4,-3.52 -8.4,-7.52 -0.4,-4.52 -2.4,1.48 -11.4,2.48" fill="#140e09" stroke="#15110d" stroke-width="1.0" stroke-linejoin="round"/>
+  <polyline points="-1.4,-4.52 6.6,-11.52" fill="none" stroke="#15110d" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-1.4,-4.52 6.6,-11.52" fill="none" stroke="#6e5438" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-52.56,6.48 -24.56,0.48" fill="none" stroke="#15110d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-52.56,6.48 -24.56,0.48" fill="none" stroke="#8a7250" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="-26.56,-1.02 -16.56,-2.52 -16.56,1.48 -25.56,1.98" fill="#8a7250" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-7.68,17.92 1.28,22.4 1.28,10.4 -7.68,5.92" fill="#7a5e3a" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="1.28,22.4 10.24,17.92 10.24,5.92 1.28,10.4" fill="#5e472c" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="1.28,1.44 10.24,5.92 1.28,10.4 -7.68,5.92" fill="#9a7a4e" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polyline points="-7.68,17.92 1.28,10.4" fill="none" stroke="#4a3824" stroke-width="1.0" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="1.28,22.4 -7.68,5.92" fill="none" stroke="#4a3824" stroke-width="1.0" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="1.28,22.4 10.24,5.92" fill="none" stroke="#4a3824" stroke-width="1.0" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="10.24,17.92 1.28,10.4" fill="none" stroke="#4a3824" stroke-width="1.0" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="1.28" cy="5.92" rx="2.6" ry="1.3" fill="#c9a24a" stroke="#15110d" stroke-width="0.6"/>
+</svg>

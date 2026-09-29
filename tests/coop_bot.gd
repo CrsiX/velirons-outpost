@@ -72,29 +72,30 @@ func _check_map(p: int, sd: int) -> void:
 		errs.append("size %d" % m.size)
 	if m.villages.size() != p:
 		errs.append("%d villages" % m.villages.size())
-	if p == 1 and m.villages[0]["center"] != Config.VILLAGE_CENTER:
-		errs.append("single player village not in the middle")
+	var mid := Vector2(m.size - 1, m.size - 1) / 2.0
+	if p == 1 and Vector2(m.villages[0]["center"]).distance_to(mid) > Config.VILLAGE_CENTER_RADIUS + 0.01:
+		errs.append("single player village not near the middle")
 	var pathing := Pathing.new(m)
-	var min_d := 0.7 * 0.8 * m.size / ceilf(sqrt(p))
+	var min_d := 14.0
 	for i in m.villages.size():
 		var v: Dictionary = m.villages[i]
 		var c: Vector2i = v["center"]
-		if p > 1 and (mini(c.x, c.y) < Config.VILLAGE_EDGE_MARGIN or maxi(c.x, c.y) > m.size - 1 - Config.VILLAGE_EDGE_MARGIN):
+		if mini(c.x, c.y) < Config.VILLAGE_MAP_MARGIN or maxi(c.x, c.y) > m.size - 1 - Config.VILLAGE_MAP_MARGIN:
 			errs.append("village %d too close to the edge" % i)
 		for j in range(i + 1, m.villages.size()):
 			if Vector2(c).distance_to(Vector2(m.villages[j]["center"])) < min_d:
 				errs.append("villages %d and %d too close" % [i, j])
-		# Every gate leads somewhere.
-		for g: Vector2i in v["gates"]:
-			if not m.is_road(g + (g - c).sign()):
-				errs.append("village %d gate %s has no road" % [i, g])
+		# At least two gates lead somewhere (co-op: the ring road joins them all).
+		var open_gates := (v["gates"] as Array).filter(func(g: Vector2i) -> bool: return m.is_road(g + (g - c).sign()))
+		if open_gates.size() < (4 if p > 1 else 2):
+			errs.append("village %d: only %d gates with a road" % [i, open_gates.size()])
 		# Home spawns: its own, and its wave's route ends at its own gate.
 		var homes: Array = v["home_spawns"]
 		if homes.is_empty():
 			errs.append("village %d has no home spawn" % i)
 		for sp: Vector2i in homes:
-			if p > 1 and m.nearest_village(sp) != i:
-				errs.append("village %d home spawn %s is nearer to another village" % [i, sp])
+			if p > 1 and m.slice_of[m.index(sp)] != int(v["slice"]):
+				errs.append("village %d home spawn %s is outside its slice" % [i, sp])
 			var route := pathing.enemy_route(sp, RandomNumberGenerator.new(), i if p > 1 else -1)
 			if not (v["gates"] as Array).has(route[-1]):
 				errs.append("village %d: route from %s doesn't reach its gate" % [i, sp])
@@ -122,10 +123,8 @@ func _check_map(p: int, sd: int) -> void:
 			degree[l.x] += 1
 			degree[l.y] += 1
 		for i in p:
-			if degree[i] < mini(2, p - 1):
+			if degree[i] < mini(Config.VILLAGE_MIN_LINKS, p - 1):
 				errs.append("village %d has only %d link(s)" % [i, degree[i]])
-		if p == 2 and m.village_links.size() < 2:
-			errs.append("two villages need two roads between them")
 	for t in m.props:
 		if m.is_road(t):
 			errs.append("prop on a road at %s" % t)
@@ -145,6 +144,8 @@ func _test_hotseat() -> void:
 	game.reveal_map = false
 	game.disable_fog = false
 	add_child(game)
+	for k in Config.LOCKED:
+		game.unlocks[k] = true  # (this test predates unit unlocks: tests/world_bot.gd)
 	await frames(3)
 	var hud := game.hud
 	var vs := game.villages
@@ -304,6 +305,8 @@ func _test_help() -> void:
 	game.map_seed = SEEDS[1]
 	game.hotseat_villages = 2
 	add_child(game)
+	for k in Config.LOCKED:
+		game.unlocks[k] = true  # (this test predates unit unlocks: tests/world_bot.gd)
 	await frames(3)
 	var hud := game.hud
 	var v0 := game.villages[0]
@@ -389,7 +392,7 @@ func _test_help() -> void:
 	check(game.commands.submit(v1, "hero_mode", {"mode": Hero.Mode.REST})["ok"] and hero.mode == Hero.Mode.SUPPORT and v1.hero.mode == Hero.Mode.REST, "the supported village's orders go to its own hero, never to him")
 	game.commands.submit(v1, "hero_mode", {"mode": own_mode})
 	var g: Vector2i = v1.gates[0]
-	var foe_at := Vector2(g + (g - v1.center).sign() * 3)
+	var foe_at := Vector2(game.world.pathing.nearest_road(g + (g - v1.center).sign() * 3))
 	game.waves._spawn({"kind": "goblin", "spawn": game.map.edge_spawns[0], "hp_scale": 1000.0, "village": v1})
 	var foe: Enemy = _enemies().back()
 	foe.speed = 0.0

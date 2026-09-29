@@ -1,8 +1,8 @@
 class_name Pathing
 extends RefCounted
 ## Navigation for both sides.
-## Ground units (civilians, soldiers): AStarGrid2D; forest, mountains and solid
-## buildings block. Enemies: flow fields over road tiles: one to the nearest
+## Ground units (civilians, soldiers): AStarGrid2D; forest, mountains, deep
+## water, lava and solid buildings block; shallow water and swamp cost more. Enemies: flow fields over road tiles: one to the nearest
 ## gate of any village, and one per village to that village's own gates (each
 ## village's wave goes for that village; see Waves).
 
@@ -29,6 +29,10 @@ func _init(p_map: MapData) -> void:
 			var t := Vector2i(x, y)
 			if not map.is_passable(t):
 				astar.set_point_solid(t, true)
+			else:
+				var f := map.walk_factor(t)
+				if f < 1.0:
+					astar.set_point_weight_scale(t, 1.0 / f)  # (slow ground: go round if it's not far)
 	build_enemy_field()
 
 

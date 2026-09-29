@@ -7,6 +7,7 @@ var farmer: Node:
 	get: return worker
 	set(v): worker = v
 var stored := 0.0
+var _ground_bonus := -1.0  # (computed once: the ground doesn't change)
 var _field: Sprite2D
 var _shed: Sprite2D
 var _site_sprite: Sprite2D
@@ -48,7 +49,22 @@ func _process(delta: float) -> void:
 	if game.is_client:
 		return
 	if complete and farmer != null:
-		stored = minf(stored + Config.FARM_RATE * delta, Config.FARM_CAPACITY)
+		stored = minf(stored + rate() * delta, Config.FARM_CAPACITY)
+
+
+## Food per second while worked: FARM_RATE, +20 % on meadow (most of its
+## tiles), +10 % next to water, + a relic's bonus.
+func rate() -> float:
+	if _ground_bonus < 0.0:
+		var meadow := 0
+		var wet := false
+		for t in tiles():
+			if game.map.zone(t) == "meadow":
+				meadow += 1
+			for nb in MapData.neighbors4(t):
+				wet = wet or game.map.is_water(nb)
+		_ground_bonus = (float(Config.ZONES["meadow"].get("farm_bonus", 0.0)) if meadow * 2 > tiles().size() else 0.0) + (Config.FARM_WATER_BONUS if wet else 0.0)
+	return Config.FARM_RATE * (1.0 + _ground_bonus + (village.relic_bonus("food") if village else 0.0))
 
 
 func take_food() -> int:
@@ -65,7 +81,9 @@ func info() -> Dictionary:
 	var actions: Array[Dictionary] = d["actions"]
 	lines.append("Stored food: %d / %d" % [int(stored), int(Config.FARM_CAPACITY)])
 	if farmer:
-		lines.append("Worked by a farmer (+%.1f food/s)" % Config.FARM_RATE)
+		lines.append("Worked by a farmer (+%.2f food/s)" % rate())
+		if rate() > Config.FARM_RATE + 0.001:
+			lines.append("Good ground: +%d %% food" % roundi((rate() / Config.FARM_RATE - 1.0) * 100.0))
 		actions.append({"label": "Unassign farmer", "action": func() -> void: game.command("unassign_worker", {"building": nid})})
 	else:
 		lines.append("Idle: assign a farmer to grow food.")

@@ -141,18 +141,21 @@ func check_silent_guard(g: Gatherer, guarded: Corpse) -> void:
 		_guard_touched = true
 
 
+## The buildable tile nearest to `near` that a builder can walk to.
 func find_spot(kind: String, near: Vector2i) -> Vector2i:
-	var best := Vector2i(-1, -1)
-	var best_d := INF
+	var cands: Array = []
 	for y in game.map.size:
 		for x in game.map.size:
 			var t := Vector2i(x, y)
 			if game.construction.placement_error(kind, t) == "":
-				var d := Vector2(t).distance_to(Vector2(near))
-				if d < best_d:
-					best_d = d
-					best = t
-	return best
+				cands.append([Vector2(t).distance_to(Vector2(near)), t])
+	cands.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	for c in cands:
+		var t: Vector2i = c[1]
+		for nb in [t, t + Vector2i(1, 0), t + Vector2i(-1, 0), t + Vector2i(0, 1), t + Vector2i(0, -1)]:
+			if game.world.pathing.is_walkable(nb) and not game.world.pathing.find_path(game.player_village.center, nb).is_empty():
+				return t
+	return Vector2i(-1, -1)
 
 
 ## Every villager lives in exactly one intact hut, and each hut holds at most one.
@@ -181,7 +184,15 @@ func bench_hero(benched: bool) -> void:
 
 ## A tile on the road just outside a gate, `dist` tiles out.
 func outside_gate(gate: Vector2i, dist: int) -> Vector2i:
-	return gate + (gate - Config.VILLAGE_CENTER).sign() * dist
+	return game.world.pathing.nearest_road(gate + (gate - game.player_village.center).sign() * dist)
+
+
+## A gate with a road leading away from it (not every gate has one).
+func open_gate() -> Vector2i:
+	for g in game.player_village.gates:
+		if game.map.is_road(g + (g - game.player_village.center).sign() * 2):
+			return g
+	return game.player_village.gates[0]
 
 
 func spawn_dummy(kind: String, at: Vector2, hp_scale: float, far: Vector2i) -> Enemy:
@@ -251,6 +262,8 @@ func _run() -> void:
 	game.reveal_map = false  # the test needs real fog, whatever config.gd says
 	game.disable_fog = false
 	add_child(game)
+	for k in Config.LOCKED:
+		game.unlocks[k] = true  # (this test predates unit unlocks: tests/world_bot.gd)
 	for e in game.events.entries:  # logged while the level was set up
 		history.append([e["level"], e["text"]])
 	game.events.logged.connect(func(level: int, text: String) -> void: history.append([level, text]))
@@ -290,7 +303,7 @@ func _run() -> void:
 	cam.focus(cam.position)
 	check(cam.bounds.has_point(cam.position) or cam.position.is_equal_approx(cam.bounds.end), "the camera can't leave the map")
 	cam.zoom = Vector2(0.75, 0.75)
-	cam.focus(Iso.tile_to_world(Config.VILLAGE_CENTER))
+	cam.focus(Iso.tile_to_world(game.player_village.center))
 	await frames(2)
 	await tap(center(hud._sidebar_toggle))
 	check(not hud._sidebar.visible, "sidebar collapses")
@@ -447,50 +460,29 @@ func _run() -> void:
 	Settings.difficulty = Settings.Difficulty.HARD
 	check(is_equal_approx(Config.enemy_stat("goblin", "attack_cooldown"), gob["attack_cooldown"]) and is_equal_approx(Config.enemy_stat("witch", "spell_cooldown"), wit["spell_cooldown"]), "difficulty never stretches cooldowns")
 	Settings.difficulty = Settings.Difficulty.NORMAL
-	check(forest > total * 0.45, "mostly forest (%d%%)" % (100 * forest / total))
-	check(desert > 0 and desert <= total * Config.DESERT_MAX_SHARE, "some desert, at most 20%")
+	# (the zones in detail: tests/world_bot.gd)
+	check(forest > total * 0.12 and forest < total * 0.7, "a good share of forest (%d%%)" % (100 * forest / total))
+	check(desert <= total * Config.DESERT_MAX_SHARE + 1, "at most 20% steppe")
 	var desert_near := false
-	var mountain_bad := false
-	var mountain_border := 0
 	for y in map.size:
 		for x in map.size:
 			var t := Vector2i(x, y)
-			if map.is_desert(t) and Vector2(t).distance_to(Vector2(Config.VILLAGE_CENTER)) < Config.DESERT_MIN_VILLAGE_DIST:
+			if map.is_desert(t) and Vector2(t).distance_to(Vector2(game.player_village.center)) < Config.ZONE_FAIR_CLEAR:
 				desert_near = true
-			if map.is_mountain(t):
-				if mini(mini(x, y), mini(map.size - 1 - x, map.size - 1 - y)) < Config.MOUNTAIN_BORDER_BAND + 4:
-					mountain_border += 1
-				for dy in range(-Config.MOUNTAIN_ROAD_MARGIN, Config.MOUNTAIN_ROAD_MARGIN + 1):
-					for dx in range(-Config.MOUNTAIN_ROAD_MARGIN, Config.MOUNTAIN_ROAD_MARGIN + 1):
-						mountain_bad = mountain_bad or map.is_road(t + Vector2i(dx, dy))
-	check(not desert_near, "no desert next to the village")
-	check(mountain > 20 and not mountain_bad, "mountain ranges, clear of roads")
-	check(mountain_border >= mountain * 0.9, "mountains lie near the map border")
-	# Meadow buffer: few forest tiles touch desert directly.
-	var desert_edge := 0
-	var forest_touching := 0
-	for i in total:
-		if map.terrain[i] != MapData.Terrain.DESERT:
-			continue
-		var dt := Vector2i(i % map.size, i / map.size)
-		for nb in MapData.neighbors4(dt):
-			if map.in_bounds(nb) and not map.is_desert(nb):
-				desert_edge += 1
-				if map.is_forest(nb):
-					forest_touching += 1
-	check(forest_touching < desert_edge * 0.3, "meadow mostly separates desert from forest (%d of %d desert edges touch forest)" % [forest_touching, desert_edge])
+	check(not desert_near, "no steppe next to the village")
+	check(mountain > 20, "mountain ranges")
 	check(map.gates.all(func(g: Vector2i) -> bool: return map.is_road(g)), "gate tiles are dirt road")
 	var layout_ok := true
 	for row in 5:
 		for col in 5:
-			var t := Config.VILLAGE_ORIGIN + Vector2i(col, row)
+			var t := game.player_village.rect.position + Vector2i(col, row)
 			var b: Building = map.building_at(t)
 			var want: String = {"T": "wall_tower", "W": "wall", "G": "gate", "V": "hut"}[Config.VILLAGE_LAYOUT[row][col]]
 			if b == null or b.kind != want:
 				layout_ok = false
 	check(layout_ok, "village matches the TWGWT layout")
 	check(map.gates.size() == 4, "4 gates")
-	check(map.edge_spawns.size() >= 4, "at least 4 edge spawns")
+	check(map.edge_spawns.size() >= Config.SP_SPAWNS.x - 1, "edge spawns around the map (%d)" % map.edge_spawns.size())
 	var all_reach := true
 	for s in map.edge_spawns:
 		if game.world.pathing.enemy_distance(s) >= Pathing.UNREACHABLE:
@@ -511,7 +503,7 @@ func _run() -> void:
 	var start_camps := game.world.buildings.filter(func(b: Building) -> bool: return b is WorkerCamp)
 	check(start_farm != null and start_farm.complete and start_camps.size() == 1 and start_camps[0].complete, "a farm and a worker camp stand near the village from the start")
 	var start_camp: WorkerCamp = start_camps[0] if not start_camps.is_empty() else null
-	check(start_camp != null and Vector2(start_camp.tile).distance_to(Vector2(Config.VILLAGE_CENTER)) < 10.0 and game.construction._trees_near(start_camp.tile, 5) >= 6, "the starting camp is close to the village, by the trees")
+	check(start_camp != null and Vector2(start_camp.tile).distance_to(Vector2(game.player_village.center)) < 10.0 and game.construction._trees_near(start_camp.tile, 5) >= 6, "the starting camp is close to the village, by the trees")
 	check(game.economy.amount("materials") == Config.START_RESOURCES["materials"] and game.economy.amount("gold") == Config.START_RESOURCES["gold"], "the starting buildings were free")
 	check(start_farm != null and start_farm.farmer == civs("farmer")[0] and start_camp != null and start_camp.forester == civs("forester")[0], "the starting farmer and forester work there")
 	# Keep material income out of the exact economy checks below; the camp
@@ -529,7 +521,7 @@ func _run() -> void:
 	check(logged("assign farmer 1 to farm 1 (automatic)", EventLog.Level.DEBUG) and logged("farmer 1 moves into hut", EventLog.Level.DEBUG), "debug log: villagers moving in and being assigned")
 	# --- hero at the start ---------------------------------------------------------
 	var hero := game.hero
-	check(hero != null and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.1 and hero.visible, "the hero starts in the village centre")
+	check(hero != null and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1 and hero.visible, "the hero starts in the village centre")
 	check(hero.mode == Hero.Mode.DEFEND and hero.xp == 0 and is_equal_approx(hero.hp, Config.HERO["hp"]), "the hero starts in Defend mode with 0 XP and full HP")
 	check(not game.population.civilians.has(hero) and game.population.count() == 4, "the hero doesn't count as a villager")
 	check(hud._hero_button.is_visible_in_tree() and hud._hero_button.text == "XP 0" and hud._hero_button.icon == Art.tex("icon_hero"), "top bar shows the hero button with his XP")
@@ -552,7 +544,7 @@ func _run() -> void:
 	bench_hero(true)
 	var wall_towers := game.world.towers().filter(func(t: Tower) -> bool: return t.kind == "wall_tower")
 	check(wall_towers.size() == 4 and wall_towers.all(func(t: Tower) -> bool: return t.garrison == null), "4 unmanned wall towers")
-	var o := Config.VILLAGE_ORIGIN
+	var o := game.player_village.rect.position
 	check(game.world.pathing.astar.is_point_solid(o + Vector2i(0, 1)) and not game.world.pathing.astar.is_point_solid(o + Vector2i(2, 0)), "walls block, gates don't")
 	var some_forest: Vector2i = map.props.keys().filter(func(t: Vector2i) -> bool: return map.is_forest(t))[0]
 	var some_mountain: Vector2i = map.props.keys().filter(func(t: Vector2i) -> bool: return map.is_mountain(t))[0]
@@ -585,7 +577,7 @@ func _run() -> void:
 	# Surveillance: explored land near the (unmanned) village isn't watched;
 	# land around a villager outside is.
 	var ex0: Explorer = civs("explorer")[0]
-	check(not game.fog.is_watched(Config.VILLAGE_CENTER + Vector2i(0, -6)) or not ex0.at_home, "explored land without observers is only darkened")
+	check(not game.fog.is_watched(game.player_village.center + Vector2i(0, -6)) or not ex0.at_home, "explored land without observers is only darkened")
 	# Buildings watch their surroundings: huts 4 tiles, gates and others 3.
 	var hut_ok := true
 	var gate_ok := true
@@ -607,10 +599,10 @@ func _run() -> void:
 
 	# --- construction: watchtower ------------------------------------------------
 	var mats := game.economy.amount("materials")
-	var spot := find_spot("tower", Config.VILLAGE_CENTER + Vector2i(0, -5))
+	var spot := find_spot("tower", game.player_village.center + Vector2i(0, -5))
 	check(spot != Vector2i(-1, -1), "found a spot for a watchtower")
 	check(game.construction.placement_error("tower", Vector2i(25, 25)) != "", "can't build inside the village")
-	var road_tile: Vector2i = map.gates[0] + (map.gates[0] - Config.VILLAGE_CENTER).sign()
+	var road_tile: Vector2i = open_gate() + (open_gate() - game.player_village.center).sign()
 	check(game.construction.placement_error("tower", road_tile) != "", "can't build on a road")
 	# Place it through the real UI: Build tab button, then tap the tile.
 	await tap(center(hud._build_buttons["tower"]))
@@ -638,23 +630,23 @@ func _run() -> void:
 	hud._trade_panel.visible = false
 	# The starting farm took the plot next to the walls: clear the trees off the
 	# nearest other 3x3 patch of grass / forest (as foresters would).
-	game.fog.reveal(Vector2(Config.VILLAGE_CENTER), 12.0)
+	game.fog.reveal(Vector2(game.player_village.center), 12.0)
 	var patch := Vector2i(-1, -1)
 	var patch_d := INF
 	for y in range(-10, 11):
 		for x in range(-10, 11):
-			var pc := Config.VILLAGE_CENTER + Vector2i(x, y)
+			var pc := game.player_village.center + Vector2i(x, y)
 			var fits := true
 			for t in Building.footprint(pc, 3):
 				fits = fits and map.is_explored(t) and not map.in_village(t) and map.building_at(t) == null and map.get_terrain(t) in [MapData.Terrain.GRASS, MapData.Terrain.FOREST]
-			if fits and Vector2(pc - Config.VILLAGE_CENTER).length() < patch_d:
-				patch_d = Vector2(pc - Config.VILLAGE_CENTER).length()
+			if fits and Vector2(pc - game.player_village.center).length() < patch_d:
+				patch_d = Vector2(pc - game.player_village.center).length()
 				patch = pc
 	if patch != Vector2i(-1, -1):
 		for t in Building.footprint(patch, 3):
 			if game.world.is_tree(t):
 				game.world.remove_tree(t)
-	var farm_spot := find_spot("farm", Config.VILLAGE_CENTER + Vector2i(5, 0))
+	var farm_spot := find_spot("farm", game.player_village.center + Vector2i(5, 0))
 	check(farm_spot != Vector2i(-1, -1), "found a 3x3 farm spot")
 	var farm: Farm = game.construction.place("farm", farm_spot)
 	check(farm != null and game.economy.amount("materials") == 0, "farm placed for 50 materials")
@@ -680,7 +672,7 @@ func _run() -> void:
 
 	# --- light stone --------------------------------------------------------------------
 	game.economy.add("materials", 500)
-	var ls_spot := find_spot("lightstone", Config.VILLAGE_CENTER + Vector2i(0, 7))
+	var ls_spot := find_spot("lightstone", game.player_village.center + Vector2i(0, 7))
 	var ls: LightStone = game.construction.place("lightstone", ls_spot)
 	check(ls != null, "light stone placed")
 	await wait_until(func() -> bool: return ls.complete, 90.0)
@@ -709,7 +701,7 @@ func _run() -> void:
 				for dx in range(-4, 5):
 					if game.world.is_tree(t + Vector2i(dx, dy)) and map.is_explored(t + Vector2i(dx, dy)):
 						n += 1
-			if n > best_trees:
+			if n > best_trees and not game.world.pathing.find_path(game.player_village.center, t).is_empty():
 				best_trees = n
 				camp_spot = t
 	var camp: WorkerCamp = game.construction.place("camp", camp_spot)
@@ -982,7 +974,7 @@ func _run() -> void:
 	var cs := game.corpses
 	check(cs.count() > 0 and cs.corpses.all(func(c: Corpse) -> bool: return c.wave == 3), "only wave-3 corpses remain (older waves cleared) : %d" % cs.count())
 	# Kill payout is instant; the corpse stays where the enemy died.
-	var road_spot: Vector2i = map.gates[1] + (map.gates[1] - Config.VILLAGE_CENTER).sign() * 2
+	var road_spot: Vector2i = map.gates[1] + (map.gates[1] - game.player_village.center).sign() * 2
 	game.waves._spawn({"kind": "goblin", "spawn": road_spot, "hp_scale": 1.0})
 	var victim: Enemy = get_tree().get_nodes_in_group("enemies").back()
 	victim.speed = 0.0
@@ -1031,11 +1023,11 @@ func _run() -> void:
 		if t.garrison: game.army.unstation(t.garrison)  # keep the guard alive
 	check(not cs.is_safe(guarded) and not cs.available().has(guarded), "corpses next to living enemies are unsafe")
 	# Pile of corpses to test capacity and payout.
-	var pile_gate: Vector2i = map.gates[0]
+	var pile_gate: Vector2i = open_gate()
 	for gt in map.gates:
 		if Vector2(gt).distance_to(Vector2(far_spot)) > Vector2(pile_gate).distance_to(Vector2(far_spot)):
 			pile_gate = gt
-	var pile: Vector2i = pile_gate + (pile_gate - Config.VILLAGE_CENTER).sign() * 2
+	var pile: Vector2i = pile_gate + (pile_gate - game.player_village.center).sign() * 2
 	check(cs.is_safe(cs.spawn("goblin", 3, Vector2(pile))), "corpses away from enemies are safe")
 	for i in Config.GATHERER_CAPACITY + 2:
 		cs.spawn("goblin", 3, Vector2(pile))
@@ -1278,14 +1270,14 @@ func _run() -> void:
 			lone = t
 	if lone == null:
 		game.economy.add("materials", 100)
-		lone = game.construction.place("tower", find_spot("tower", Config.VILLAGE_CENTER + Vector2i(-7, 0)))
+		lone = game.construction.place("tower", find_spot("tower", game.player_village.center + Vector2i(-7, 0)))
 		await wait_until(func() -> bool: return lone.complete, 90.0)
 	var reserve_archers := game.army.reserve().filter(func(u: MilitaryUnit) -> bool: return u.kind == "archer")
 	game.army.station(reserve_archers[0] if not reserve_archers.is_empty() else game.army.recruit("archer"), lone)
 	await wait_until(func() -> bool: return lone.garrison != null, 60.0)
 	var limit := int(Config.ENEMIES["witch"]["spell_ignore_after"])
 	var cast_cd: float = Config.ENEMIES["witch"]["spell_cooldown"]
-	var outward := (Vector2(lone.tile) - Vector2(Config.VILLAGE_CENTER)).normalized()
+	var outward := (Vector2(lone.tile) - Vector2(game.player_village.center)).normalized()
 	var stall_pos := Vector2(lone.tile) + outward * ((lone.range_tiles() + reach) / 2.0)
 	game.waves._spawn({"kind": "witch", "spawn": far_spot, "hp_scale": 1.0})
 	var w3: Enemy = get_tree().get_nodes_in_group("enemies").back()
@@ -1311,7 +1303,7 @@ func _run() -> void:
 	await wait_until(func() -> bool: return summoner.state == MilitaryUnit.State.RESERVE, 60.0)
 	game.army.station(summoner, lone)
 	await wait_until(func() -> bool: return lone.garrison == summoner, 60.0)
-	var near_gate: Vector2i = map.gates[0]
+	var near_gate: Vector2i = open_gate()
 	for gt in map.gates:
 		if Vector2(gt).distance_to(Vector2(lone.tile)) < Vector2(near_gate).distance_to(Vector2(lone.tile)):
 			near_gate = gt
@@ -1349,8 +1341,8 @@ func _run() -> void:
 	var homes := {}
 	for h in game.world.intact_huts():
 		homes[h] = h.resident != null  # a bool: a dead resident's object would read as null later
-	var gate: Vector2i = map.gates[0]
-	var outside := gate + (gate - Config.VILLAGE_CENTER).sign()
+	var gate: Vector2i = open_gate()
+	var outside := gate + (gate - game.player_village.center).sign()
 	game.waves._spawn({"kind": "goblin", "spawn": outside, "hp_scale": 1.0})
 	await wait_until(func() -> bool: return game.population.cap() < huts0, 20.0)
 	var burned: Array = homes.keys().filter(func(h: Hut) -> bool: return not h.is_intact())
@@ -1394,7 +1386,7 @@ func _run() -> void:
 		game.population.assign_farmer(the_farm)
 	var fm: Farmer = the_farm.farmer
 	# Wait until the farmer is well outside the walls, so the evasion is observable.
-	await wait_until(func() -> bool: return not fm.at_home and fm.state == Farmer.State.TO_FARM and fm.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) > 3.0, 90.0)
+	await wait_until(func() -> bool: return not fm.at_home and fm.state == Farmer.State.TO_FARM and fm.grid_pos.distance_to(Vector2(game.player_village.center)) > 3.0, 90.0)
 	game.waves._spawn({"kind": "goblin", "spawn": map.edge_spawns[0], "hp_scale": 100.0})
 	var threat: Enemy = get_tree().get_nodes_in_group("enemies").back()
 	threat.speed = 0.0
@@ -1464,7 +1456,7 @@ func _run() -> void:
 	# --- cancelling construction refunds ---------------------------------------------------------
 	game.economy.add("materials", 100)
 	var mat_c := game.economy.amount("materials")
-	var cspot := find_spot("tower", Config.VILLAGE_CENTER + Vector2i(6, 0))
+	var cspot := find_spot("tower", game.player_village.center + Vector2i(6, 0))
 	var csite := game.construction.place("tower", cspot)
 	if csite:
 		game.construction.cancel(csite)
@@ -1542,6 +1534,7 @@ func _run() -> void:
 func _test_hero(far: Vector2i) -> void:
 	var map := game.map
 	var hero := game.hero
+	game.economy.add("food", 500)  # (this part is about the hero, not about food)
 	var hud := game.hud
 	var cs := game.corpses
 	for t in game.world.towers():
@@ -1555,7 +1548,7 @@ func _test_hero(far: Vector2i) -> void:
 		military_xp0[u] = [u.level, u.train_xp]
 
 	# Defend: goes out to an enemy near a gate, fights it, gains XP; it fights back.
-	var gate: Vector2i = map.gates[0]
+	var gate: Vector2i = open_gate()
 	var brute := spawn_dummy("goblin", Vector2(outside_gate(gate, 3)), 1000.0, far)
 	var went_out := await wait_until(func() -> bool: return hero.target == brute and not hero.at_home, 5.0)
 	check(went_out, "Defend: the hero goes out to an enemy approaching a gate")
@@ -1577,10 +1570,10 @@ func _test_hero(far: Vector2i) -> void:
 	# He walks back (no teleport), and picks up a new threat on the way.
 	var after_fight := hero.grid_pos
 	await frames(3)
-	check(not hero.at_home and hero.grid_pos.distance_to(after_fight) < 0.5 and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) > 1.0, "after the last kill the hero walks back instead of teleporting")
+	check(not hero.at_home and hero.grid_pos.distance_to(after_fight) < 0.5 and hero.grid_pos.distance_to(Vector2(game.player_village.center)) > 1.0, "after the last kill the hero walks back instead of teleporting")
 	await wait(0.6)
 	var on_way := hero.grid_pos
-	check(not hero.at_home and on_way.distance_to(Vector2(Config.VILLAGE_CENTER)) < after_fight.distance_to(Vector2(Config.VILLAGE_CENTER)), "...heading for the village centre")
+	check(not hero.at_home and on_way.distance_to(Vector2(game.player_village.center)) < after_fight.distance_to(Vector2(game.player_village.center)), "...heading for the village centre")
 	var late := spawn_dummy("goblin", hero.grid_pos + Vector2(1.5, 0.5), 50.0, far)
 	var retargeted := await wait_until(func() -> bool: return hero.target == late, 3.0)
 	check(retargeted, "on the way home he turns on a new threat nearby")
@@ -1605,7 +1598,7 @@ func _test_hero(far: Vector2i) -> void:
 	check(is_equal_approx(hero.hp, hero.max_hp) and logged("the hero is fully rested", EventLog.Level.DEBUG), "healing stops at his max HP")
 	# Rest mode: back to the centre, no fighting, heals there.
 	hero.set_mode(Hero.Mode.EXPLORE)
-	await wait_until(func() -> bool: return not hero.at_home and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) > 4.0, 60.0)
+	await wait_until(func() -> bool: return not hero.at_home and hero.grid_pos.distance_to(Vector2(game.player_village.center)) > 4.0, 60.0)
 	hero.hp = hero.max_hp * 0.6
 	hero.set_mode(Hero.Mode.REST)
 	var rest_walk := {"ok": true, "last": hero.grid_pos}
@@ -1623,7 +1616,7 @@ func _test_hero(far: Vector2i) -> void:
 	await wait(Config.HERO["rest_delay"] + 2.0)
 	check(hero.hp > hp_r and "resting" in hero.status(), "Rest: he heals in the centre (%s)" % hero.status())
 	hero.set_mode(Hero.Mode.DEFEND)
-	check(home and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.2, "with no enemy about he returns to the centre")
+	check(home and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.2, "with no enemy about he returns to the centre")
 
 	# Downed: XP lost, no corpse, back at the end of the wave, same mode.
 	hero.set_mode(Hero.Mode.GATHER)
@@ -1635,7 +1628,7 @@ func _test_hero(far: Vector2i) -> void:
 	check(hud._hero_button.modulate != Color.WHITE and "downed" in hero.status(), "the HUD shows the hero is down")
 	game.waves.wave_finished.emit(game.waves.wave)
 	await frames(2)
-	check(not hero.dead and hero.visible and is_equal_approx(hero.hp, hero.max_hp) and hero.grid_pos.distance_to(Vector2(Config.VILLAGE_CENTER)) < 0.1, "he revives in the village centre when the wave is over")
+	check(not hero.dead and hero.visible and is_equal_approx(hero.hp, hero.max_hp) and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1, "he revives in the village centre when the wave is over")
 	check(hero.mode == Hero.Mode.GATHER, "his mode survives being downed")
 	game.waves.countdown = 99999.0
 
@@ -1657,7 +1650,15 @@ func _test_hero(far: Vector2i) -> void:
 	check(hero.xp >= max_carried, "each corpse earns him XP (XP %d)" % hero.xp)
 	cs.clear_wave(99)
 
-	# Explore: reveals fog, each step that uncovers land earns XP.
+	# Explore: reveals fog, each step that uncovers land earns XP. (Here without
+	# treasures or claims to go for first; the priorities: tests/world_bot.gd.)
+	for o in game.world.map_objects:
+		if o is Treasure:
+			(o as Treasure).looted = true
+		elif o is RuinedTower:
+			o.village = game.villages[0]
+		elif o is UnlockSite:
+			(o as UnlockSite).used = true
 	hero.set_mode(Hero.Mode.EXPLORE)
 	var xp_e := hero.xp
 	var ex0 := game.fog.explored_count()
@@ -1671,7 +1672,7 @@ func _test_hero(far: Vector2i) -> void:
 	hero.set_mode(Hero.Mode.BUILD)
 	game.economy.add("materials", 500)
 	game.economy.add("gold", 500)
-	var spot := find_spot("training", Config.VILLAGE_CENTER + Vector2i(0, 7))
+	var spot := find_spot("training", game.player_village.center + Vector2i(0, 7))
 	var m0 := game.economy.amount("materials")
 	var g0 := game.economy.amount("gold")
 	var grounds: TrainingGrounds = game.construction.place("training", spot)

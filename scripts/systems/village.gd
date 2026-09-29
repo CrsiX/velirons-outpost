@@ -33,6 +33,8 @@ var events: EventLog
 var hero: Hero
 ## No villagers or no intact huts left (see update_fallen).
 var fallen := false
+## Relics found (Config.RELICS keys): small permanent bonuses.
+var relics: Array[String] = []
 
 
 ## Creates the (not yet set up) systems as child nodes. Call before the world
@@ -58,6 +60,14 @@ func create(p_game: Game, p_id: int, p_name: String, p_color: Color) -> void:
 	army = Army.new()
 	army.name = "Army"
 	add_child(army)
+
+
+## Sum of a bonus over the relics this village has found ("food", "revive"...).
+func relic_bonus(key: String) -> float:
+	var sum := 0.0
+	for r in relics:
+		sum += float(Config.RELICS[r].get(key, 0.0))
+	return sum
 
 
 ## Takes this village's place on the generated map (MapData.villages[id]).

@@ -48,7 +48,7 @@ func _in_state(s: int) -> Array[MilitaryUnit]:
 
 
 func recruit(kind: String) -> MilitaryUnit:
-	if not Config.MILITARY[kind].get("recruit", false) or not village.economy.spend(Config.MILITARY[kind]["cost"]):
+	if not game.is_unlocked(kind) or not Config.MILITARY[kind].get("recruit", false) or not village.economy.spend(Config.MILITARY[kind]["cost"]):
 		return null
 	var u := MilitaryUnit.new(kind)
 	u.village = village
@@ -289,7 +289,7 @@ func down(unit: MilitaryUnit, source = null) -> void:
 	unit.travel_to = null  # (downed on the way: it never got there)
 	unit.revive_at_post = at_bench
 	unit.hp = 0.0
-	unit.revive_left = Config.unit_revive_time(unit.level)
+	unit.revive_left = Config.unit_revive_time(unit.level) * maxf(0.2, 1.0 + village.relic_bonus("revive"))
 	unit.state = MilitaryUnit.State.DOWNED
 	if at_bench:
 		unit.post.refresh()

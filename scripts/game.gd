@@ -12,6 +12,8 @@ extends Node2D
 enum Mode { NONE, BUILD, STATION }
 
 signal speed_changed(index: int)
+## A unit kind or villager role was unlocked (for every village).
+signal unlocked(key: String)
 
 ## Game speeds the speed button cycles through; 0 = paused.
 const SPEEDS: Array[float] = [1.0, 2.0, 4.0, 0.0]
@@ -20,8 +22,10 @@ const VILLAGE_SCRIPT := preload("res://scripts/systems/village.gd")
 
 @export var map_seed := 0  # 0 = random every game
 ## Debug switches, defaulting to config.gd (tests may override before _ready).
-var reveal_map := Config.REVEAL_MAP
-var disable_fog := Config.DISABLE_FOG
+## Map type (Config.MAP_TYPES) and seed; 0 = random seed.
+var map_type := "temperate"
+var reveal_map: bool = Config.debug_switches()["reveal_map"]
+var disable_fog: bool = Config.debug_switches()["disable_fog"]
 ## Villages on this device (1 = single player; more = hot-seat co-op test mode).
 var hotseat_villages := Config.HOTSEAT_VILLAGES
 ## Co-op client: the host simulates; this game only shows what it sends.
@@ -83,7 +87,9 @@ var _ids: Dictionary = {}
 
 
 func _ready() -> void:
-	var s := map_seed if map_seed != 0 else randi()
+	var s := map_seed if map_seed != 0 else (Settings.map_seed if Settings.map_seed != 0 else randi())
+	if map_seed == 0:
+		map_type = Settings.resolve_map_type(Settings.map_type, s)
 	commands = Commands.new()
 	commands.name = "Commands"
 	commands.setup(self)
@@ -98,6 +104,7 @@ func _ready() -> void:
 			names.append(pv["name"])
 			colors.append(Config.VILLAGE_COLORS[int(pv["color"])])
 		s = int(Net.setup.get("seed", s))
+		map_type = str(Net.setup.get("map_type", map_type))
 		reveal_map = bool(Net.setup.get("reveal_map", reveal_map))
 		disable_fog = bool(Net.setup.get("disable_fog", disable_fog))
 	else:
@@ -500,6 +507,12 @@ func register(o) -> int:
 	return id
 
 
+## An id both sides know without being told (map objects: OBJECT_NID_BASE +
+## their index in MapData.objects). Not replicated as an entity.
+func register_fixed(o, id: int) -> void:
+	_entities[id] = o
+
+
 ## Co-op client: `o` takes the id the host gave it.
 func register_as(o, id: int) -> void:
 	_entities[id] = o
@@ -565,6 +578,36 @@ func building_info(b: Building) -> Dictionary:
 		d["actions"] = [] as Array[Dictionary]
 		(d["lines"] as Array).push_front("Belongs to %s." % b.village.village_name)
 	return d
+
+
+# --- unlocks (docs/world-design.md §9.4): global, for every village --------------------
+
+## Unlocked unit kinds / villager roles (Config.LOCKED keys).
+var unlocks: Dictionary = {}
+
+
+func is_unlocked(key: String) -> bool:
+	return not Config.LOCKED.has(key) or unlocks.has(key)
+
+
+## Unlocks `key` for everyone; `v` / `who` did it (for the log).
+func unlock(key: String, v: Village = null, who: Node = null) -> void:
+	if is_unlocked(key):
+		return
+	unlocks[key] = true
+	var what: String = Config.MILITARY[key]["name"] if Config.MILITARY.has(key) else Config.CIVILIANS[key]["name"]
+	var by := ""
+	if v:
+		by = "%s's %s" % [v.village_name, (who.label() if who else "people")] if villages.size() > 1 else (who.label().capitalize() if who else "Your people")
+	if key == "miner":
+		log_all(EventLog.Level.INFO, "%s reached a mine: every village can recruit miners now." % (by if by != "" else "Someone"))
+	else:
+		log_all(EventLog.Level.INFO, "%s unlocked the %s: every village can recruit it now." % [by if by != "" else "Someone", what.to_lower()])
+	for vil in villages:
+		vil.toast("%s unlocked!" % what, UiTheme.GOLD)
+	world.on_unlocked(key)
+	unlocked.emit(key)
+	hud._queue_refresh()
 
 
 ## Next number for `key` (a kind or role), counting from 1 per game.

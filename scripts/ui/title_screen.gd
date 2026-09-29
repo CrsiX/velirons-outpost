@@ -19,6 +19,8 @@ var exit_button: Button
 var mp_menu: MultiplayerMenu
 var play_button: Button
 var difficulty_button: Button
+var map_button: Button
+var seed_edit: LineEdit
 var levels_button: Button
 var back_button: Button
 var levels_panel: PanelContainer
@@ -71,6 +73,18 @@ func _ready() -> void:
 	play_button = _menu_button(_sp_page, "Play", _play)
 	UiTheme.style_primary(play_button)
 	difficulty_button = _menu_button(_sp_page, "", _cycle_difficulty)
+	map_button = _menu_button(_sp_page, "", func() -> void:
+		Settings.cycle_map_type()
+		_update_difficulty())
+	map_button.tooltip_text = "The kind of land: Temperate, Highlands, Coast, Desert, Volcanic or Random"
+	seed_edit = LineEdit.new()
+	seed_edit.placeholder_text = "Map seed (empty: random)"
+	seed_edit.custom_minimum_size = Vector2(0, 48)
+	seed_edit.add_theme_font_size_override("font_size", 18)
+	seed_edit.text = str(Settings.map_seed) if Settings.map_seed != 0 else ""
+	seed_edit.text_changed.connect(func(t: String) -> void: Settings.map_seed = Settings.parse_seed(t))
+	_sp_page.add_child(seed_edit)
+	_sp_page.move_child(seed_edit, map_button.get_index() + 1)
 	levels_button = _menu_button(_sp_page, "Levels", func() -> void: levels_panel.visible = true)
 	back_button = _menu_button(_sp_page, "Back", func() -> void: show_page(_main_page))
 	mp_menu = MultiplayerMenu.new()
@@ -182,6 +196,7 @@ func _cycle_difficulty() -> void:
 
 func _update_difficulty() -> void:
 	difficulty_button.text = "Difficulty: %s" % Settings.difficulty_name()
+	map_button.text = "Map: %s" % Settings.map_type_name()
 
 
 func _play() -> void:

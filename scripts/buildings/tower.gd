@@ -35,7 +35,8 @@ func max_level() -> int:
 
 ## Range of the stationed unit: tower base range plus the level bonus.
 func range_tiles() -> float:
-	return Config.TOWER_RANGE[kind] + Config.TOWER_LEVELS[level - 1]["range_bonus"]
+	var r: float = Config.TOWER_RANGE[kind] + Config.TOWER_LEVELS[level - 1]["range_bonus"]
+	return r * (1.0 + village.relic_bonus("tower_range")) if village else r
 
 
 func can_upgrade() -> bool:

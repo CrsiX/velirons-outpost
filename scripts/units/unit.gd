@@ -46,7 +46,7 @@ func step_path(delta: float) -> bool:
 	if path_index >= path.size():
 		_set_moving(false)
 		return true
-	var budget := speed * delta
+	var budget := speed * delta * _walk_factor()
 	while budget > 0.0 and path_index < path.size():
 		var target := path[path_index]
 		var d := target - grid_pos
@@ -66,6 +66,13 @@ func step_path(delta: float) -> bool:
 	_set_moving(true)
 	_animate(delta)
 	return path_index >= path.size()
+
+
+## Shallow water and fords x0.5, swamp off the road x0.7 (MapData.walk_factor).
+func _walk_factor() -> float:
+	if game == null or game.world == null or game.world.map == null:
+		return 1.0
+	return game.world.map.walk_factor(current_tile())
 
 
 func _set_moving(v: bool) -> void:
