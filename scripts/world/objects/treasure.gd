@@ -55,7 +55,14 @@ func found_message(_v: Village) -> String:
 
 
 func _a_name() -> String:
-	return "some dropped loot" if data.get("sack", false) else "a " + display_name().to_lower()
+	return "some dropped loot" if data.get("sack", false) else with_article(display_name().to_lower())
+
+
+## "a buried chest", "an old ...", but "overgrown ruins", "dragon bones" (plurals).
+static func with_article(name: String) -> String:
+	if name.ends_with("s"):
+		return name
+	return ("an " if name.substr(0, 1) in ["a", "e", "i", "o", "u"] else "a ") + name
 
 
 func mark_looted() -> void:

@@ -409,6 +409,15 @@ func _test_effects() -> void:
 	var summoned_out := await wait_until(func() -> bool: return su.out and not sbeh.summons.is_empty(), 30.0)
 	check(summoned_out, "an enemy near: it goes out and summons")
 	check(is_instance_valid(su.walker) and su.walker.is_in_group("melee_defenders") and not su.has_stat("damage"), "out there enemies can attack it; it has no attack of its own")
+	# A witch goes for it too, though it never attacks her (no manned tower near).
+	for t in game.world.towers():
+		if t.garrison:
+			game.army.unstation(t.garrison)
+	var witch := spawn_dummy("witch", su.walker.grid_pos + Vector2(2.0, 0.5), 50.0)
+	var wb: WitchBehavior = witch.behavior
+	var aimed := await wait_until(func() -> bool: return is_instance_valid(su.walker) and wb.target == su.walker, 10.0)
+	check(aimed, "a witch casts at a summoner out of its barracks, though it never attacks her")
+	witch.take_damage(1e9)
 	sfoe.take_damage(1e9)
 	var home := await wait_until(func() -> bool: return not su.out, 60.0)
 	check(home and sbeh.summons.is_empty(), "back on its bench, its summons are dismissed")

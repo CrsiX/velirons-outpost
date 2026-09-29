@@ -3,9 +3,11 @@ extends VBoxContainer
 ## The title screen's Multiplayer pages (docs/multiplayer-design.md §3):
 ##   join page - your village name and colour, Host game, games found on the
 ##               local network, join by address, Back;
-##   lobby     - everyone's village (name in its colour, ready or not); until
-##               you're ready you can still change your name and colour; the
-##               host picks the difficulty and starts once all are ready.
+##   lobby     - two panes: on the left everyone's village (name in its colour,
+##               ready or not); on the right your name and colour (changeable
+##               until you're ready), the game's settings (the host picks the
+##               difficulty, map type and seed) and Ready / Start / Leave.
+##               In portrait the panes are stacked.
 
 signal back_pressed
 
@@ -19,6 +21,9 @@ var back_button: Button
 var swatches: Array[Button] = []
 # lobby
 var lobby: VBoxContainer
+var panes: BoxContainer
+var players_pane: VBoxContainer
+var settings_pane: VBoxContainer
 var players_box: VBoxContainer
 var ready_button: Button
 var start_button: Button
@@ -134,46 +139,70 @@ func _build_join_page() -> void:
 
 func _build_lobby() -> void:
 	lobby.add_child(_panel_label("Lobby", 30, UiTheme.GOLD))
+	panes = BoxContainer.new()
+	panes.add_theme_constant_override("separation", 24)
+	lobby.add_child(panes)
+	# Left: the players.
+	players_pane = VBoxContainer.new()
+	players_pane.add_theme_constant_override("separation", 8)
+	players_pane.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	players_pane.custom_minimum_size = Vector2(300, 0)
+	panes.add_child(players_pane)
+	players_pane.add_child(_panel_label("Players", 20, UiTheme.GOLD))
 	players_box = VBoxContainer.new()
 	players_box.add_theme_constant_override("separation", 4)
-	lobby.add_child(players_box)
+	players_pane.add_child(players_box)
+	# Right: your village, the game's settings, and the buttons.
+	settings_pane = VBoxContainer.new()
+	settings_pane.add_theme_constant_override("separation", 10)
+	settings_pane.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	settings_pane.custom_minimum_size = Vector2(340, 0)
+	panes.add_child(settings_pane)
 	apply_button = _btn("Use this name and colour", 44)
 	apply_button.pressed.connect(func() -> void: Net.set_identity(name_edit.text, _color))
-	lobby.add_child(apply_button)
-	ready_button = _btn("Ready", 56)
-	ready_button.toggle_mode = true
-	ready_button.toggled.connect(func(on: bool) -> void:
-		Net.set_ready(on)
-		ready_button.text = "Ready ✓" if on else "Ready")
-	lobby.add_child(ready_button)
+	settings_pane.add_child(apply_button)
+	settings_pane.add_child(_panel_label("Game", 20, UiTheme.GOLD))
 	difficulty_button = _btn("", 48)
 	difficulty_button.pressed.connect(func() -> void:
 		Net.set_difficulty(Settings.CYCLE[Net.difficulty]))
-	lobby.add_child(difficulty_button)
+	settings_pane.add_child(difficulty_button)
 	map_button = _btn("", 48)
 	map_button.pressed.connect(func() -> void:
 		Settings.cycle_map_type()
 		Net.set_map(Settings.map_type, Net.map_seed))
-	lobby.add_child(map_button)
+	settings_pane.add_child(map_button)
 	seed_edit = LineEdit.new()
 	seed_edit.placeholder_text = "Map seed (empty: random)"
 	seed_edit.custom_minimum_size = Vector2(0, 44)
 	seed_edit.add_theme_font_size_override("font_size", 18)
 	seed_edit.text_submitted.connect(func(t: String) -> void: Net.set_map(Net.map_type, Settings.parse_seed(t)))
 	seed_edit.focus_exited.connect(func() -> void: Net.set_map(Net.map_type, Settings.parse_seed(seed_edit.text)))
-	lobby.add_child(seed_edit)
+	settings_pane.add_child(seed_edit)
+	ready_button = _btn("Ready", 56)
+	ready_button.toggle_mode = true
+	ready_button.toggled.connect(func(on: bool) -> void:
+		Net.set_ready(on)
+		ready_button.text = "Ready ✓" if on else "Ready")
+	settings_pane.add_child(ready_button)
 	start_button = _btn("Start", 60)
 	UiTheme.style_good(start_button)
 	start_button.pressed.connect(func() -> void: Net.start_game())
-	lobby.add_child(start_button)
+	settings_pane.add_child(start_button)
 	lobby_status = _panel_label("", 16, UiTheme.BAD)
-	lobby.add_child(lobby_status)
+	settings_pane.add_child(lobby_status)
 	leave_button = _btn("Leave")
 	UiTheme.style_danger(leave_button)
 	leave_button.pressed.connect(func() -> void:
 		Net.leave()
 		refresh())
-	lobby.add_child(leave_button)
+	settings_pane.add_child(leave_button)
+	Layout.changed.connect(func(_p: bool) -> void: _fit_panes())
+	_fit_panes()
+
+
+## Side by side in landscape, stacked in portrait.
+func _fit_panes() -> void:
+	panes.vertical = Layout.portrait
 
 
 func pick_color(i: int) -> void:
@@ -210,17 +239,18 @@ func refresh() -> void:
 	var in_lobby := Net.is_online() and (Net.is_host() or not Net.players.is_empty())
 	_join_page.visible = not in_lobby
 	lobby.visible = in_lobby
-	if in_lobby and name_edit.get_parent() != lobby:
+	# Your name and colour sit at the top of the lobby's right pane.
+	if in_lobby and name_edit.get_parent() != settings_pane:
 		name_edit.get_parent().remove_child(name_edit)
-		lobby.add_child(name_edit)
-		lobby.move_child(name_edit, 2)
+		settings_pane.add_child(name_edit)
+		settings_pane.move_child(name_edit, 0)
 		var row := swatches[0].get_parent()
 		row.get_parent().remove_child(row)
-		lobby.add_child(row)
-		lobby.move_child(row, 3)
-	elif not in_lobby and name_edit.get_parent() == lobby:
+		settings_pane.add_child(row)
+		settings_pane.move_child(row, 1)
+	elif not in_lobby and name_edit.get_parent() == settings_pane:
 		for n in [name_edit, swatches[0].get_parent()]:
-			lobby.remove_child(n)
+			settings_pane.remove_child(n)
 			_join_page.add_child(n)
 			_join_page.move_child(n, 1 if n == name_edit else 2)
 	for c in players_box.get_children():

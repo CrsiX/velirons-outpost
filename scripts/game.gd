@@ -24,8 +24,8 @@ const VILLAGE_SCRIPT := preload("res://scripts/systems/village.gd")
 ## Debug switches, defaulting to config.gd (tests may override before _ready).
 ## Map type (Config.MAP_TYPES) and seed; 0 = random seed.
 var map_type := "temperate"
-var reveal_map: bool = Config.debug_switches()["reveal_map"]
-var disable_fog: bool = Config.debug_switches()["disable_fog"]
+var reveal_map := Config.REVEAL_MAP
+var disable_fog := Config.DISABLE_FOG
 ## Villages on this device (1 = single player; more = hot-seat co-op test mode).
 var hotseat_villages := Config.HOTSEAT_VILLAGES
 ## Co-op client: the host simulates; this game only shows what it sends.

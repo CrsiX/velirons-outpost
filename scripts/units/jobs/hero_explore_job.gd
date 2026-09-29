@@ -54,8 +54,7 @@ func tick(delta: float) -> void:
 ## The best thing to do, by priority, then distance. Starts walking there.
 func _pick_task() -> bool:
 	var v := w.village
-	var best: MapObject = null
-	var best_key := Vector2(INF, INF)
+	var cands: Array = []  # [priority, distance, object]
 	for o in w.game.world.map_objects:
 		var prio := -1
 		if o is UnlockSite and (o as UnlockSite).claimable():
@@ -64,16 +63,19 @@ func _pick_task() -> bool:
 			prio = 0
 		elif o is Treasure and (o as Treasure).lootable():
 			prio = 1
-		if prio < 0 or not o.is_found_by(v):
-			continue
-		var key := Vector2(prio, Vector2(o.tile).distance_to(w.grid_pos))
-		if key.x < best_key.x or (key.x == best_key.x and key.y < best_key.y):
-			var p := w.game.world.pathing.find_path(w.current_tile(), o.visit_tile())
-			if p.is_empty():
-				continue
-			best_key = key
-			best = o
+		if prio >= 0 and o.is_found_by(v):
+			cands.append([prio, Vector2(o.tile).distance_to(w.grid_pos), o])
+	if cands.is_empty():
+		return false
+	cands.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
+	# The first one he can walk to (paths only for as many as needed).
+	var best: MapObject = null
+	for c in cands:
+		if not w.game.world.pathing.find_path(w.current_tile(), (c[2] as MapObject).visit_tile()).is_empty():
+			best = c[2]
+			break
 	if best == null:
+		_look = 3.0  # (nothing reachable: look again a bit later)
 		return false
 	if not w.head_out(best.visit_tile()):
 		return false
@@ -138,7 +140,7 @@ func _finish() -> void:
 
 
 static func _a(name: String) -> String:
-	return ("an " if name.substr(0, 1) in ["a", "e", "i", "o", "u"] else "a ") + name if not name.begins_with("dropped") else "some " + name
+	return "some " + name if name.begins_with("dropped") else Treasure.with_article(name)
 
 
 ## Home with the loot: the village gets it.

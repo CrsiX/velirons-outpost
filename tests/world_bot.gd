@@ -327,7 +327,7 @@ func _test_game() -> void:
 	logs.clear()
 	game.fog.reveal(Vector2(free_t.tile), 1.5, v.id)
 	await frames(2)
-	check(free_t.is_found_by(v) and logs.any(func(l: String) -> bool: return l.begins_with("Found a") and "hero loots it in Explore mode" in l), "exploring a treasure logs it at Info level: the hero loots it in Explore mode")
+	check(free_t.is_found_by(v) and logs.any(func(l: String) -> bool: return l.begins_with("Found ") and "hero loots it in Explore mode" in l), "exploring a treasure logs it at Info level: the hero loots it in Explore mode")
 	check(free_t.visible, "found objects show up on the map")
 
 	# The hero loots in Explore mode and carries the loot home.
@@ -475,6 +475,14 @@ func _test_game() -> void:
 	if road_t.x >= 0:
 		check(map.is_road(road_t) and w.pathing.enemy_distance(road_t) < Pathing.UNREACHABLE or true, "bridges and fords are road")
 
+	# Enemies swing at what they fight (a lunge and back).
+	game.waves._spawn({"kind": "goblin", "spawn": game.map.edge_spawns[0], "hp_scale": 50.0})
+	var gb: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	gb.swing(gb.grid_pos + Vector2(1, 0))
+	await frames(4)
+	check(gb.sprite.position.length() > 0.5 or absf(gb.sprite.rotation) > 0.01, "an enemy's melee blow is animated")
+	gb.take_damage(1e9)
+
 	# Relics.
 	var tower: Tower = w.buildings.filter(func(b: Building) -> bool: return b is Tower)[0]
 	var range0 := tower.range_tiles()
@@ -499,7 +507,61 @@ func _test_game() -> void:
 
 # --- map type and seed from the menu -----------------------------------------------------------
 
+## Buttons and text fields under `root` that aren't fully on screen.
+func _off_screen(root: Control) -> Array:
+	var vp := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size).grow(0.5)
+	var out := []
+	for c in root.find_children("*", "Control", true, false):
+		var ctl := c as Control
+		if ctl.is_visible_in_tree() and (ctl is Button or ctl is LineEdit) and not vp.encloses(ctl.get_global_rect()):
+			out.append(str(ctl.get("text")))
+	return out
+
+
+func _test_title_ui() -> void:
+	var t = load("res://scenes/title.tscn").instantiate()
+	add_child(t)
+	await frames(3)
+	t.show_page(t._sp_page)
+	await frames(4)
+	var seen: Array[String] = []
+	for i in Config.MAP_TYPE_ORDER.size() + 1:
+		t.map_button.pressed.emit()  # (this crashed once: a typed array)
+		await frames(1)
+		seen.append(Settings.map_type)
+	check(seen.has("random") and seen.has("coast") and seen[-1] == "temperate" and t.map_button.text == "Map: Temperate", "the Map button cycles every map type and Random")
+	t.seed_edit.text_changed.emit("5150")
+	check(Settings.map_seed == 5150, "typing a seed sets it")
+	var sizes := [Vector2i(1280, 720), Vector2i(720, 1280)]
+	for sz in sizes:
+		get_window().size = sz
+		get_viewport().size = sz
+		await frames(4)
+		t.show_page(t._sp_page)
+		await frames(4)
+		var off := _off_screen(t)
+		check(off.is_empty(), "%dx%d: the Singleplayer page fits on screen %s" % [sz.x, sz.y, str(off)])
+		t.show_page(t.mp_menu)
+		Net.host("Tester", 0)
+		t.mp_menu.refresh()
+		await frames(6)
+		var m: MultiplayerMenu = t.mp_menu
+		off = _off_screen(t)
+		var side := m.players_pane.get_global_rect().end.x <= m.settings_pane.get_global_rect().position.x + 0.5
+		var stacked := m.players_pane.get_global_rect().end.y <= m.settings_pane.get_global_rect().position.y + 0.5
+		check(off.is_empty() and (stacked if sz.y > sz.x else side) and m.settings_pane.is_ancestor_of(m.start_button) and m.settings_pane.is_ancestor_of(m.map_button) and m.players_pane.is_ancestor_of(m.players_box), "%dx%d: lobby with the players on the %s, settings and Start / Leave on the %s, all on screen %s" % [sz.x, sz.y, "top" if sz.y > sz.x else "left", "bottom" if sz.y > sz.x else "right", str(off)])
+		Net.leave()
+		m.refresh()
+		t.show_page(t._main_page)
+		await frames(2)
+	Settings.map_seed = 0
+	Settings.map_type = "temperate"
+	t.queue_free()
+	await frames(2)
+
+
 func _test_map_choice() -> void:
+	await _test_title_ui()
 	Settings.map_type = "coast"
 	Settings.map_seed = 5150
 	game = load("res://scenes/main.tscn").instantiate()

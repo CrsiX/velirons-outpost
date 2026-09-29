@@ -43,16 +43,9 @@ const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explor
 const START_BUILDINGS: Array[String] = ["farm", "camp"]
 const START_REVEAL_RADIUS := 7.5
 
-## Debug / sandbox switches. They only apply when running from the editor /
-## engine binary; exported builds always play with the fog (debug_switches()).
+## Debug / sandbox switches.
 const REVEAL_MAP := false  # true: the whole map starts explored (terrain known)
 const DISABLE_FOG := false  # true: no fog of war at all; everything is visible
-
-
-## The debug switches in effect: {"reveal_map", "disable_fog"} (all off in exports).
-static func debug_switches() -> Dictionary:
-	var dev := OS.has_feature("editor")
-	return {"reveal_map": REVEAL_MAP and dev, "disable_fog": DISABLE_FOG and dev}
 
 ## World generation (docs/world-design.md). The map is cut into one equal-area
 ## slice per player around its centre; each village sits near its slice's

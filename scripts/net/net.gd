@@ -44,8 +44,8 @@ var difficulty := 1  # Settings.Difficulty
 var map_type := "temperate"
 var map_seed := 0
 ## Host: fog options for the game (Config.REVEAL_MAP / DISABLE_FOG by default).
-var reveal_map: bool = Config.debug_switches()["reveal_map"]
-var disable_fog: bool = Config.debug_switches()["disable_fog"]
+var reveal_map := Config.REVEAL_MAP
+var disable_fog := Config.DISABLE_FOG
 var in_game := false
 ## Set for the level scene: {"seed", "villages": [{"name", "color", "peer"}], "difficulty", "local"}.
 var setup: Dictionary = {}

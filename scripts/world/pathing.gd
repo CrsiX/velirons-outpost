@@ -10,6 +10,8 @@ const UNREACHABLE := 1 << 30
 
 var map: MapData
 var astar := AStarGrid2D.new()
+## 1 per walkable tile (a copy of the A* solidity, for fast searches).
+var _walk := PackedByteArray()
 var enemy_dist := PackedInt32Array()
 ## Per village id: road steps to that village's nearest gate.
 var village_fields: Array[PackedInt32Array] = []
@@ -24,11 +26,14 @@ func _init(p_map: MapData) -> void:
 	astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
 	astar.default_estimate_heuristic = AStarGrid2D.HEURISTIC_OCTILE
 	astar.update()
+	_walk.resize(map.size * map.size)
+	_walk.fill(1)
 	for y in map.size:
 		for x in map.size:
 			var t := Vector2i(x, y)
 			if not map.is_passable(t):
 				astar.set_point_solid(t, true)
+				_walk[y * map.size + x] = 0
 			else:
 				var f := map.walk_factor(t)
 				if f < 1.0:
@@ -38,7 +43,10 @@ func _init(p_map: MapData) -> void:
 
 ## Buildings toggle solidity; impassable terrain always stays solid.
 func set_solid(t: Vector2i, solid: bool) -> void:
-	astar.set_point_solid(t, solid or not map.is_passable(t))
+	var blocked := solid or not map.is_passable(t)
+	astar.set_point_solid(t, blocked)
+	if map.in_bounds(t):
+		_walk[map.index(t)] = 0 if blocked else 1
 
 
 func is_walkable(t: Vector2i) -> bool:
@@ -65,31 +73,127 @@ func find_path(from: Vector2i, to: Vector2i) -> PackedVector2Array:
 	return astar.get_point_path(from, to)
 
 
-## Breadth-first step counts from `from` over walkable tiles (8-neighbourhood).
+## Breadth-first step counts from `from` over walkable tiles (8-neighbourhood;
+## diagonal steps only when both side tiles are walkable). Works on tile
+## indices and the cached walkability: it runs often (explorers, villagers).
 func distance_field(from: Vector2i) -> PackedInt32Array:
+	var n := map.size
 	var dist := PackedInt32Array()
-	dist.resize(map.size * map.size)
+	dist.resize(n * n)
 	dist.fill(UNREACHABLE)
 	from = nearest_walkable(from)
-	dist[map.index(from)] = 0
-	var queue: Array[Vector2i] = [from]
+	if not map.in_bounds(from):
+		return dist
+	var queue := PackedInt32Array()
+	queue.resize(n * n)
+	var start := from.y * n + from.x
+	dist[start] = 0
+	queue[0] = start
 	var head := 0
-	while head < queue.size():
-		var t := queue[head]
+	var tail := 1
+	var walk := _walk
+	while head < tail:
+		var i := queue[head]
 		head += 1
-		var d := dist[map.index(t)] + 1
-		for dy in range(-1, 2):
-			for dx in range(-1, 2):
-				if dx == 0 and dy == 0:
-					continue
-				var n := t + Vector2i(dx, dy)
-				if not is_walkable(n) or dist[map.index(n)] != UNREACHABLE:
-					continue
-				if dx != 0 and dy != 0 and (not is_walkable(t + Vector2i(dx, 0)) or not is_walkable(t + Vector2i(0, dy))):
-					continue
-				dist[map.index(n)] = d
-				queue.append(n)
+		var x := i % n
+		var y := i / n
+		var d := dist[i] + 1
+		var left := x > 0
+		var right := x < n - 1
+		var up := y > 0
+		var down := y < n - 1
+		# Straight steps.
+		if left and walk[i - 1] == 1 and dist[i - 1] == UNREACHABLE:
+			dist[i - 1] = d
+			queue[tail] = i - 1
+			tail += 1
+		if right and walk[i + 1] == 1 and dist[i + 1] == UNREACHABLE:
+			dist[i + 1] = d
+			queue[tail] = i + 1
+			tail += 1
+		if up and walk[i - n] == 1 and dist[i - n] == UNREACHABLE:
+			dist[i - n] = d
+			queue[tail] = i - n
+			tail += 1
+		if down and walk[i + n] == 1 and dist[i + n] == UNREACHABLE:
+			dist[i + n] = d
+			queue[tail] = i + n
+			tail += 1
+		# Diagonal steps, never cutting a corner.
+		if up and left and walk[i - n - 1] == 1 and dist[i - n - 1] == UNREACHABLE and walk[i - 1] == 1 and walk[i - n] == 1:
+			dist[i - n - 1] = d
+			queue[tail] = i - n - 1
+			tail += 1
+		if up and right and walk[i - n + 1] == 1 and dist[i - n + 1] == UNREACHABLE and walk[i + 1] == 1 and walk[i - n] == 1:
+			dist[i - n + 1] = d
+			queue[tail] = i - n + 1
+			tail += 1
+		if down and left and walk[i + n - 1] == 1 and dist[i + n - 1] == UNREACHABLE and walk[i - 1] == 1 and walk[i + n] == 1:
+			dist[i + n - 1] = d
+			queue[tail] = i + n - 1
+			tail += 1
+		if down and right and walk[i + n + 1] == 1 and dist[i + n + 1] == UNREACHABLE and walk[i + 1] == 1 and walk[i + n] == 1:
+			dist[i + n + 1] = d
+			queue[tail] = i + n + 1
+			tail += 1
 	return dist
+
+
+## The unexplored tile (explored[i] == 0) nearest to `from` by walking, where
+## tiles within `claim_radius` of a `claims` tile count `penalty` steps more.
+## Stops as soon as nothing closer can turn up. (-1, -1) if none is reachable.
+func nearest_unexplored(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], claim_radius: float, penalty: int) -> Vector2i:
+	var n := map.size
+	from = nearest_walkable(from)
+	if not map.in_bounds(from):
+		return Vector2i(-1, -1)
+	var dist := PackedInt32Array()
+	dist.resize(n * n)
+	dist.fill(UNREACHABLE)
+	var queue := PackedInt32Array()
+	queue.resize(n * n)
+	var start := from.y * n + from.x
+	dist[start] = 0
+	queue[0] = start
+	var head := 0
+	var tail := 1
+	var walk := _walk
+	var best := -1
+	var best_score := UNREACHABLE
+	var steps := PackedInt32Array([-1, 1, -n, n, -n - 1, -n + 1, n - 1, n + 1])
+	while head < tail:
+		var i := queue[head]
+		head += 1
+		var d := dist[i]
+		if d >= best_score:
+			break  # (breadth first: nothing nearer is left)
+		if explored[i] == 0:
+			var score := d
+			if not claims.is_empty():
+				var t := Vector2(i % n, i / n)
+				for c in claims:
+					if Vector2(c).distance_to(t) < claim_radius:
+						score += penalty
+						break
+			if score < best_score:
+				best_score = score
+				best = i
+		var x := i % n
+		var y := i / n
+		for k in 8:
+			var dx := -1 if k in [0, 4, 6] else (1 if k in [1, 5, 7] else 0)
+			var dy := -1 if k in [2, 4, 5] else (1 if k in [3, 6, 7] else 0)
+			if x + dx < 0 or x + dx >= n or y + dy < 0 or y + dy >= n:
+				continue
+			var j := i + steps[k]
+			if walk[j] == 0 or dist[j] != UNREACHABLE:
+				continue
+			if dx != 0 and dy != 0 and (walk[i + dx] == 0 or walk[i + dy * n] == 0):
+				continue
+			dist[j] = d + 1
+			queue[tail] = j
+			tail += 1
+	return Vector2i(best % n, best / n) if best >= 0 else Vector2i(-1, -1)
 
 
 # --- enemies ---------------------------------------------------------------------

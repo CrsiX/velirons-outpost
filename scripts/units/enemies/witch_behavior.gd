@@ -2,10 +2,12 @@ class_name WitchBehavior
 extends EnemyBehavior
 ## Walks to the village until something worth enchanting is within spell range:
 ##   1. whoever last attacked her (a tower's unit, or an earth elemental),
-##   2. otherwise the nearest manned tower.
+##   2. otherwise the nearest manned tower or military unit outside (walking,
+##      or out of a barracks: even a summoner, who never attacks her).
 ## She then stands and casts a pink bolt every `spell_cooldown` seconds. A bolt
 ## enchants a tower's unit for `spell_cooldown * enchant_ratio` seconds (it stops
-## shooting/summoning; no damage), or deals `spell_damage` to an elemental.
+## shooting/summoning; no damage), or deals `spell_damage` to an elemental or
+## a unit outside.
 ## Witches never fight in melee.
 ##
 ## Anti-stall tracker: she counts her casts per target. A target that has taken
@@ -64,12 +66,15 @@ func _choose_target(enemy: Enemy) -> Node:
 	var reach := enemy.stat("spell_range")
 	if _valid(attacker) and not is_ignoring(attacker, enemy) and _target_grid(attacker).distance_to(enemy.grid_pos) <= reach:
 		return attacker
-	var best: Tower = null
+	var best: Node = null
 	var best_d := INF
-	for t in enemy.game.world.towers():
+	var candidates: Array = []
+	candidates.append_array(enemy.game.world.towers())
+	candidates.append_array(enemy.get_tree().get_nodes_in_group("field_units"))
+	for t in candidates:
 		if not _valid(t) or is_ignoring(t, enemy):
 			continue
-		var d := Vector2(t.tile).distance_to(enemy.grid_pos)
+		var d := _target_grid(t).distance_to(enemy.grid_pos)
 		if d <= reach and d < best_d:
 			best_d = d
 			best = t

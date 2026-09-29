@@ -10,6 +10,9 @@ extends Node
 const HOST_NAME := "Hostwatch"
 const CLIENT_NAME := "Clientvale"
 const TIMEOUT := 60.0
+## The lobby's map settings for this test (a coast map with a camp, a ruin, treasures).
+const MAP_TYPE := "coast"
+const MAP_SEED := 4240
 
 var role := ""
 var failures: Array[String] = []
@@ -84,6 +87,7 @@ func _host() -> void:
 		return
 	var cid := _client_id()
 	check(Net.players[cid]["name"] == CLIENT_NAME and int(Net.players[cid]["color"]) != 0, "it has its name, and another colour than the host's")
+	Net.set_map(MAP_TYPE, MAP_SEED)
 	var ready := await wait_until(func() -> bool: return Net.players.has(cid) and Net.players[cid]["ready"])
 	check(ready and Net.can_start(), "it gets ready: the host can start")
 	check(Net.start_game(), "the host starts the game")
@@ -103,6 +107,27 @@ func _host() -> void:
 		behind = v1.center + Vector2i((dir * (Vector2(behind - v1.center).length() + 1.0)).round())
 	behind = v1.center + Vector2i((dir * (Vector2(behind - v1.center).length() + 3.0)).round())
 	check(game.fog.is_explored_by(0, v1.center) and not game.fog.is_explored_by(0, behind) and game.fog.is_explored_by(1, behind), "each village has its own fog (the other's walls are known, nothing around them) [%s %s %s, behind %s, centers %s %s]" % [game.fog.is_explored_by(0, v1.center), game.fog.is_explored_by(0, behind), game.fog.is_explored_by(1, behind), behind, v0.center, v1.center])
+	# The world (docs/world-design.md): the lobby's map, objects, unlocks.
+	check(game.map.map_type == MAP_TYPE and game.map.seed_value == MAP_SEED and not game.world.map_objects.is_empty(), "the lobby's map type and seed are used (%s, %d, %d objects)" % [game.map.map_type, game.map.seed_value, game.world.map_objects.size()])
+	var camp: MonsterCamp = null
+	var ruin: RuinedTower = null
+	var loot: Treasure = null
+	for o in game.world.map_objects:
+		if o is MonsterCamp and camp == null:
+			camp = o
+		elif o is RuinedTower and ruin == null:
+			ruin = o
+		elif o is Treasure and loot == null and o.guard() == null:
+			loot = o
+	check(camp != null and camp.alive().size() > 0 and ruin != null and loot != null, "the host runs the objects: a camp with its monsters, a ruin, a treasure")
+	game.fog.reveal(Vector2(camp.tile), 2.5, v1.id)  # (the client's village finds the camp)
+	game.unlock("summoner", v0, v0.hero)
+	ruin.claim(v0)
+	loot.mark_looted()
+	v1.hero.max_hp = 5000.0
+	v1.hero.hp = 5000.0
+	var ordered := await wait_until(func() -> bool: return v1.hero.camp_target == camp, 60.0)
+	check(ordered, "the client's order: its hero sets off to attack the camp")
 	var recruited := await wait_until(func() -> bool: return v1.army.units.size() >= 1)
 	check(recruited and v1.army.units[0].original_owner == v1 and v0.army.units.is_empty(), "the client's command recruits an archer in its own village")
 	var caravan := await wait_until(func() -> bool: return v0.events.entries.any(func(e: Dictionary) -> bool: return str(e["text"]).begins_with("Caravan from %s arrived" % CLIENT_NAME)), 120.0)
@@ -141,6 +166,8 @@ func _client() -> void:
 	Net.set_identity(HOST_NAME, 3)
 	var told := await wait_until(func() -> bool: return messages.any(func(t: String) -> bool: return "taken" in t and "name" in t), 10.0)
 	check(told and Net.players[me]["name"] == CLIENT_NAME, "the host's village name can't be taken")
+	var lobby_map := await wait_until(func() -> bool: return Net.map_type == MAP_TYPE and Net.map_seed == MAP_SEED, 20.0)
+	check(lobby_map, "the host's map settings show in our lobby (%s, %d)" % [Net.map_type, Net.map_seed])
 	Net.set_ready(true)
 	var started := await wait_until(func() -> bool: return Net.game != null and Net.game.is_client)
 	check(started, "the host starts: we get the map and the level")
@@ -151,6 +178,22 @@ func _client() -> void:
 	var synced := await wait_until(func() -> bool: return mine.buildings().size() >= 27 and mine.population.count() == Config.START_CIVILIANS.size() and mine.hero.nid > 0)
 	check(synced, "our village arrives from the host: %d buildings, %d villagers, the hero" % [mine.buildings().size(), mine.population.count()])
 	check(mine.id == 1 and mine.village_name == CLIENT_NAME and game.villages[0].village_name == HOST_NAME, "we play the second village")
+	# The world: the host's map exactly, its objects' states, the unlocks.
+	var same := MapGenerator.generate(MAP_SEED, 2, MAP_TYPE)
+	check(game.map.map_type == MAP_TYPE and game.map.terrain == same.terrain and game.map.zones == same.zones and game.map.objects.size() == same.objects.size() and game.world.map_objects.size() == same.objects.size(), "we get the host's map: %s, seed %d, the same terrain, zones and %d objects" % [game.map.map_type, game.map.seed_value, game.world.map_objects.size()])
+	var unl := await wait_until(func() -> bool: return game.is_unlocked("summoner"), 30.0)
+	check(unl, "an unlock on the host reaches us (the summoner)")
+	var states := await wait_until(func() -> bool:
+		return game.world.map_objects.any(func(o: MapObject) -> bool: return o is RuinedTower and o.village == game.villages[0]) and game.world.map_objects.any(func(o: MapObject) -> bool: return o is Treasure and o.looted), 30.0)
+	check(states, "object states reach us: the host's claimed ruin, a looted treasure")
+	var camp: MonsterCamp = null
+	for o in game.world.map_objects:
+		if o is MonsterCamp:
+			camp = o
+			break
+	var found_camp := await wait_until(func() -> bool: return camp != null and game.fog.is_explored_by(mine.id, camp.tile), 30.0)
+	check(found_camp and camp.info()["actions"].any(func(a: Dictionary) -> bool: return a["label"] == "Attack with the hero"), "a camp we found offers Attack with the hero")
+	game.command("attack_camp", {"camp": camp.nid})
 	check(is_equal_approx(mine.economy.amount("gold"), Config.START_RESOURCES["gold"]), "with our own starting gold")
 	var host_huts := game.villages[0].huts()
 	var host_civs := get_tree().get_nodes_in_group("replicated").filter(func(n) -> bool: return n is Civilian and not (n is Hero) and n.village == game.villages[0])

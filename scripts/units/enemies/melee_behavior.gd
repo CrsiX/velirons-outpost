@@ -29,5 +29,6 @@ func tick(enemy: Enemy, delta: float) -> bool:
 	enemy.face(_foe.grid_pos)
 	if _attack_timer <= 0.0:
 		_attack_timer = enemy.stat("attack_cooldown")
+		enemy.swing(_foe.grid_pos)
 		_foe.take_damage(enemy.stat("damage"), enemy)
 	return true

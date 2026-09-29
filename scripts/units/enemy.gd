@@ -136,6 +136,19 @@ func face(grid_target: Vector2) -> void:
 	sprite.flip_h = Iso.to_world(grid_target - grid_pos).x < 0.0
 
 
+## A melee blow: a quick lunge towards the foe and back, swaying left and
+## right (like a forester's axe).
+func swing(grid_target: Vector2) -> void:
+	face(grid_target)
+	var lunge := (Iso.to_world(grid_target) - position).normalized() * 7.0
+	var tw := create_tween()
+	tw.tween_property(sprite, "position", lunge, 0.08)
+	tw.parallel().tween_property(sprite, "rotation", 0.18 if lunge.x >= 0.0 else -0.18, 0.08)
+	tw.tween_property(sprite, "rotation", -0.1 if lunge.x >= 0.0 else 0.1, 0.1)
+	tw.tween_property(sprite, "position", Vector2.ZERO, 0.14)
+	tw.parallel().tween_property(sprite, "rotation", 0.0, 0.14)
+
+
 func _process(delta: float) -> void:
 	if dead:
 		return

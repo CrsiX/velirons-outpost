@@ -95,6 +95,8 @@ func _ready() -> void:
 	_update_difficulty()
 	_build_levels_panel()
 	get_viewport().size_changed.connect(_layout)
+	# Pages change height (Singleplayer, the multiplayer join page and lobby): fit again.
+	_menu.minimum_size_changed.connect(func() -> void: _layout.call_deferred())
 	_layout()
 
 
@@ -108,15 +110,24 @@ func _layout() -> void:
 	_title.offset_left = 16.0
 	_title.offset_right = -16.0
 	var mp := mp_menu != null and mp_menu.visible
-	var half := 200.0 if mp else 160.0
-	var x := 0.5 if portrait else 0.07
+	var wide := mp and mp_menu.lobby.visible and not portrait  # (the lobby's two panes)
+	var vp := get_viewport_rect().size
+	var half := minf(vp.x / 2.0 - 16.0, 420.0 if wide else (200.0 if mp else 160.0))
+	var x := 0.5 if portrait or wide else 0.07
 	_menu.anchor_left = x
 	_menu.anchor_right = x
-	_menu.offset_left = -half if portrait else 0.0
-	_menu.offset_right = half if portrait else 0.0
-	# The multiplayer pages are taller: they start higher up.
-	_menu.anchor_top = (0.28 if mp else 0.5) if portrait else (0.22 if mp else 0.42)
-	_menu.anchor_bottom = _menu.anchor_top
+	_menu.offset_left = -half if portrait or wide else 0.0
+	_menu.offset_right = half if portrait or wide else 0.0
+	# Where the menu would like to start; then moved up so its bottom stays on
+	# screen (never over the title). The multiplayer pages are taller.
+	var want := ((0.28 if mp else 0.5) if portrait else (0.22 if mp else 0.42)) * vp.y
+	var title_bottom := _title.anchor_top * vp.y + (64.0 if portrait else 84.0) * 1.35
+	var h := _menu.get_combined_minimum_size().y
+	var top := clampf(want, title_bottom, maxf(title_bottom, vp.y - h - 20.0))
+	_menu.anchor_top = 0.0
+	_menu.anchor_bottom = 0.0
+	_menu.offset_top = top
+	_menu.offset_bottom = top
 
 
 func _page() -> VBoxContainer:
@@ -132,7 +143,7 @@ func show_page(page: VBoxContainer) -> void:
 	_sp_page.visible = page == _sp_page
 	if mp_menu:
 		mp_menu.visible = page == mp_menu
-		_layout()
+	_layout.call_deferred()
 	if levels_panel:
 		levels_panel.visible = false
 

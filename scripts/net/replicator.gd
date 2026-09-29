@@ -138,7 +138,10 @@ func _process(delta: float) -> void:
 	for id in peers:
 		if not _peers.has(id):
 			reset_peer(id)
-		Net.send_snapshot(id, _snapshot_for(id, all))
+		var snap := _snapshot_for(id, all)
+		if OS.has_environment("NET_DEBUG"):
+			print("snapshot to %d: %d bytes, %d spawns" % [id, var_to_bytes(snap).size(), (snap["sp"] as Array).size()])
+		Net.send_snapshot(id, snap)
 
 
 func _snapshot_for(id: int, all: Array) -> Dictionary:
@@ -302,6 +305,13 @@ func _unit_state(u: Unit) -> Dictionary:
 # --- client -------------------------------------------------------------------------------
 
 func apply(d: Dictionary) -> void:
+	var t0 := Time.get_ticks_msec()
+	_apply(d)
+	if OS.has_environment("NET_DEBUG"):
+		print("applied snapshot in %d ms (%d spawns)" % [Time.get_ticks_msec() - t0, (d.get("sp", []) as Array).size()])
+
+
+func _apply(d: Dictionary) -> void:
 	if d.has("vd"):
 		_apply_village(d["vd"])
 	if d.has("exa"):

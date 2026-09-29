@@ -509,7 +509,7 @@ func remove_tree(t: Vector2i) -> void:
 	map.set_terrain(t, MapData.Terrain.GRASS)
 	pathing.set_solid(t, false)
 	_village_dist_dirty = true
-	ground.queue_redraw()
+	ground.redraw_tile(t)
 
 
 func float_text(text: String, at: Vector2, color: Color) -> void:

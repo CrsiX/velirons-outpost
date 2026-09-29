@@ -86,38 +86,36 @@ func choose_target(from: Vector2i) -> Vector2i:
 	var pathing := w.game.world.pathing
 	var map := w.game.map
 	var explored := w.game.fog.explored_of[w.village.id]
-	var from_me := pathing.distance_field(from)
 	var from_village := w.game.world.village_distance(w.village)
 	var claims: Array[Vector2i] = []
 	for other in w.village.workers():
 		if other != w and other.exploring_target() != Vector2i(-1, -1):
 			claims.append(other.exploring_target())
-	var best_local := Vector2i(-1, -1)
-	var best_local_score := Pathing.UNREACHABLE
-	var best_home := Vector2i(-1, -1)
-	var best_home_score := Pathing.UNREACHABLE
-	for y in map.size:
-		for x in map.size:
-			var t := Vector2i(x, y)
-			var i := map.index(t)
-			if explored[i] == 1 or from_me[i] == Pathing.UNREACHABLE:
-				continue
-			var penalty := 0
-			for c in claims:
-				if Vector2(c).distance_to(Vector2(t)) < Config.EXPLORER_CLAIM_RADIUS:
-					penalty = Config.EXPLORER_CLAIM_PENALTY
-					break
-			if from_me[i] + penalty < best_local_score:
-				best_local_score = from_me[i] + penalty
-				best_local = t
-			if from_village[i] + penalty < best_home_score:
-				best_home_score = from_village[i] + penalty
-				best_home = t
+	# The nearest fog from here (a breadth-first search that stops early).
+	var best_local := pathing.nearest_unexplored(from, explored, claims, Config.EXPLORER_CLAIM_RADIUS, Config.EXPLORER_CLAIM_PENALTY)
 	if best_local == Vector2i(-1, -1):
 		return best_local
+	# The nearest fog from the village (its walking distances are cached).
+	var best_home := Vector2i(-1, -1)
+	var best_home_score := Pathing.UNREACHABLE
+	for i in explored.size():
+		if explored[i] == 1:
+			continue
+		var d := from_village[i]
+		if d >= best_home_score:
+			continue
+		var t := Vector2i(i % map.size, i / map.size)
+		var penalty := 0
+		for c in claims:
+			if Vector2(c).distance_to(Vector2(t)) < Config.EXPLORER_CLAIM_RADIUS:
+				penalty = Config.EXPLORER_CLAIM_PENALTY
+				break
+		if d + penalty < best_home_score:
+			best_home_score = d + penalty
+			best_home = t
 	# Don't wander off while much closer unexplored ground is still waiting.
 	var local_from_village := from_village[map.index(best_local)]
-	if local_from_village > best_home_score * Config.EXPLORER_WANDER_FACTOR + Config.EXPLORER_WANDER_SLACK:
+	if best_home != Vector2i(-1, -1) and local_from_village > best_home_score * Config.EXPLORER_WANDER_FACTOR + Config.EXPLORER_WANDER_SLACK:
 		return best_home
 	return best_local
 
