@@ -124,6 +124,30 @@ func order_rebuild(hut: Hut) -> bool:
 	return true
 
 
+## Destroyed huts of this village not ordered for rebuilding yet, nearest to
+## the centre first.
+func ruined_huts() -> Array[Hut]:
+	var out: Array[Hut] = []
+	for b in village.huts():
+		var h := b as Hut
+		if h and h.ruined and h.complete:
+			out.append(h)
+	var c := Vector2(village.center)
+	out.sort_custom(func(a: Hut, b: Hut) -> bool: return Vector2(a.tile).distance_to(c) < Vector2(b.tile).distance_to(c))
+	return out
+
+
+## Orders every destroyed hut rebuilt, as many as the building material pays
+## for. Returns how many were queued.
+func rebuild_all_huts() -> int:
+	var n := 0
+	for h in ruined_huts():
+		if not order_rebuild(h):
+			break
+		n += 1
+	return n
+
+
 ## Next unclaimed site in order, or null.
 func claim(builder: Node) -> Building:
 	for site in queue:

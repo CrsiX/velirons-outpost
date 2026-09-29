@@ -20,6 +20,7 @@ const HANDLERS := {
 	"tear_down": "_tear_down",
 	"stop_tear_down": "_stop_tear_down",
 	"rebuild_hut": "_rebuild_hut",
+	"rebuild_all_huts": "_rebuild_all_huts",
 	"upgrade_tower": "_upgrade_tower",
 	"recruit_villager": "_recruit_villager",
 	"assign_worker": "_assign_worker",
@@ -178,6 +179,15 @@ func _rebuild_hut(v: Village, a: Dictionary) -> Dictionary:
 	if h == null:
 		return fail("That isn't your hut")
 	return ok() if v.construction.order_rebuild(h) else fail("Can't rebuild that now")
+
+
+func _rebuild_all_huts(v: Village, _a: Dictionary) -> Dictionary:
+	if v.construction.ruined_huts().is_empty():
+		return fail("No destroyed huts")
+	var n := v.construction.rebuild_all_huts()
+	if n == 0:
+		return fail("Not enough building material")
+	return ok({"queued": n, "left": v.construction.ruined_huts().size()})
 
 
 func _upgrade_tower(v: Village, a: Dictionary) -> Dictionary:

@@ -73,6 +73,7 @@ func _run() -> void:
 	await _test_teardown()
 	await _test_boxed_in_tower()
 	_test_hero_bar()
+	_test_people()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -621,3 +622,69 @@ func _test_boxed_in_tower() -> void:
 		game.map.set_terrain(tt, old[tt])
 		game.world.pathing.set_solid(tt, false)
 	game.army.units.erase(u)
+
+
+# --- the villager list -----------------------------------------------------------------------------
+
+func _test_people() -> void:
+	var hud := game.hud
+	check(hud._pop_button.icon == Art.tex("icon_population") and hud._pop_button.text == "%d / %d" % [game.population.count(), game.population.cap()], "the people button shows civilians / huts (%s)" % hud._pop_button.text)
+	hud._hero_panel.visible = true
+	hud._pop_button.pressed.emit()
+	var list := hud.people()
+	check(hud._people_panel.visible and not hud._hero_panel.visible, "tapping it opens the villager list (and closes the hero panel)")
+	check(hud._people_list.get_child_count() == list.size() and list.size() == game.population.count(), "one row per villager (%d)" % list.size())
+	var c: Civilian = list[0]
+	var status: RichTextLabel = hud._people_rows[c]
+	check(status.get_meta("plain", "") == c.status_text(), "each row says what the villager does (%s: %s)" % [c.label(), c.status_text()])
+	var orders := list.map(func(x: Civilian) -> int: return Config.CIVILIAN_ORDER.find(x.role))
+	var sorted := orders.duplicate()
+	sorted.sort()
+	check(orders == sorted, "sorted by role")
+	# Go to: the camera moves to the villager (outside) or the village centre (at home).
+	var out: Civilian = null
+	for x in list:
+		if not x.at_home:
+			out = x
+	if out == null:
+		out = list[-1]
+		out.at_home = false
+		out.visible = true
+		out.set_grid_pos(Vector2(game.player_village.center + Vector2i(5, 5)))
+	var row: Control = (hud._people_rows[out] as Control).get_parent().get_parent()
+	var go: Button = row.get_child(row.get_child_count() - 1)
+	go.pressed.emit()
+	check(Hud.button_text(go) == "Go to" and game.camera.position.distance_to(out.position) < 2.0, "Go to moves the view to %s" % out.label())
+	var home: Civilian = null
+	for x in list:
+		if x.at_home:
+			home = x
+	if home:
+		hud.go_to_person(home)
+		check(game.camera.position.distance_to(Iso.tile_to_world(game.player_village.center)) < 2.0, "for one at home: the village centre")
+	# A new villager shows up in the list.
+	var n := list.size()
+	game.economy.add("food", 100)
+	if game.population.free_huts().is_empty():
+		game.population.kill(list[-1])
+	game.population.recruit("builder")
+	hud._refresh_people()
+	check(hud._people_list.get_child_count() == hud.people().size(), "the list follows new villagers (%d -> %d)" % [n, hud.people().size()])
+	# Destroyed huts: "Rebuild all huts" at the top queues them all.
+	check(not hud._rebuild_huts_button.visible, "no destroyed hut: no rebuild button")
+	var empty := game.player_village.intact_huts().filter(func(h: Building) -> bool: return not is_instance_valid((h as Hut).resident))
+	for h in empty.slice(0, 3):
+		(h as Hut).destroy("test")
+	hud._refresh_people()
+	var ruined := game.construction.ruined_huts().size()
+	check(ruined == 3 and hud._rebuild_huts_button.visible and Hud.button_text(hud._rebuild_huts_button).begins_with("Rebuild all huts (3)") and hud._rebuild_huts_button.get_index() < hud._people_scroll.get_index(), "3 destroyed huts: \"%s\" at the top of the list" % Hud.button_text(hud._rebuild_huts_button))
+	var per := int(Config.BUILDINGS["hut"]["cost"]["materials"])
+	game.economy.add("materials", per * 2 - game.economy.amount("materials"))
+	hud._rebuild_huts_button.pressed.emit()
+	check(game.construction.ruined_huts().size() == 1 and game.construction.queue.filter(func(x: Building) -> bool: return x is Hut).size() == 2, "it queues as many as the material pays for (2 of 3)")
+	game.economy.add("materials", per)
+	hud._rebuild_huts_button.pressed.emit()
+	hud._refresh_people()
+	check(game.construction.ruined_huts().is_empty() and not hud._rebuild_huts_button.visible, "then the rest; the button goes away")
+	hud.toggle_people(false)
+	check(not hud._people_panel.visible, "and closes again")

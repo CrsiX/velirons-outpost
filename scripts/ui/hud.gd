@@ -25,7 +25,15 @@ var _topbar: PanelContainer
 var _gold_label: Label
 var _food_label: Label
 var _materials_button: Button
-var _pop_label: Label
+var _pop_button: Button
+## The villager list (the people button in the top bar).
+var _people_panel: PanelContainer
+var _people_title: Label
+var _people_list: VBoxContainer
+var _people_scroll: ScrollContainer
+var _people_signature := ""
+var _rebuild_huts_button: Button
+var _people_rows: Dictionary = {}  # civilian -> status label
 var _wave_label: Label
 var _enemies_label: Label
 var _call_button: Button
@@ -167,6 +175,7 @@ func setup(p_game: Game) -> void:
 	add_child(_root)
 	_build_topbar()
 	_build_hero_panel()
+	_build_people_panel()
 	_build_sidebar()
 	_build_info_panel()
 	_build_mode_panel()
@@ -397,12 +406,18 @@ func _build_topbar() -> void:
 	_materials_button.tooltip_text = "Building material: tap to buy more with gold"
 	_materials_button.pressed.connect(func() -> void:
 		_trade_panel.visible = not _trade_panel.visible
-		_hero_panel.visible = _hero_panel.visible and not _trade_panel.visible)
+		_hero_panel.visible = _hero_panel.visible and not _trade_panel.visible
+		_people_panel.visible = _people_panel.visible and not _trade_panel.visible)
 	row.add_child(_materials_button)
 
-	var pop := _chip("icon_population", "Civilians / huts")
-	_pop_label = pop[1]
-	row.add_child(pop[0])
+	_pop_button = _button("0 / 0", Vector2(0, 44))
+	_pop_button.icon = Art.tex("icon_population")
+	_pop_button.expand_icon = false
+	_pop_button.add_theme_constant_override("icon_max_width", 32)
+	_pop_button.add_theme_font_size_override("font_size", 20)
+	_pop_button.tooltip_text = "Civilians / huts: tap for the list of villagers"
+	_pop_button.pressed.connect(func() -> void: toggle_people(not _people_panel.visible))
+	row.add_child(_pop_button)
 
 	_hero_button = _button("XP 0", Vector2(0, 44))
 	_hero_button.icon = Art.tex("icon_hero")
@@ -424,6 +439,7 @@ func _build_topbar() -> void:
 	_hero_button.pressed.connect(func() -> void:
 		_hero_panel.visible = not _hero_panel.visible
 		_trade_panel.visible = _trade_panel.visible and not _hero_panel.visible
+		_people_panel.visible = _people_panel.visible and not _hero_panel.visible
 		_refresh_hero())
 	row.add_child(_hero_button)
 
@@ -650,6 +666,131 @@ func _build_hero_panel() -> void:
 	v.add_child(_hero_goto_button)
 	_hero_panel.visible = false
 
+
+
+# --- villager list ----------------------------------------------------------------------
+
+func _build_people_panel() -> void:
+	_people_panel = PanelContainer.new()
+	_root.add_child(_people_panel)
+	_people_panel.offset_left = 10
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	v.custom_minimum_size = Vector2(380, 0)
+	_people_panel.add_child(v)
+	var head := HBoxContainer.new()
+	v.add_child(head)
+	head.add_child(_icon(Art.tex("icon_population"), 34))
+	_people_title = _label("Villagers", 22, UiTheme.GOLD)
+	_people_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(_people_title)
+	var close := _button("X", Vector2(44, 40))
+	close.pressed.connect(func() -> void: toggle_people(false))
+	head.add_child(close)
+	_rebuild_huts_button = _button("", Vector2(0, 48))
+	_rebuild_huts_button.tooltip_text = "Queue every destroyed hut for the builders"
+	_rebuild_huts_button.pressed.connect(func() -> void:
+		var r := _do("rebuild_all_huts")
+		if r["ok"] and int(r.get("left", 0)) > 0:
+			toast("Not enough building material for %d more" % int(r["left"]), UiTheme.BAD)
+		_refresh_people())
+	v.add_child(_rebuild_huts_button)
+	_people_scroll = ScrollContainer.new()
+	_people_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_people_scroll.custom_minimum_size = Vector2(0, 300)
+	v.add_child(_people_scroll)
+	_people_list = VBoxContainer.new()
+	_people_list.add_theme_constant_override("separation", 4)
+	_people_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_people_scroll.add_child(_people_list)
+	_people_panel.visible = false
+
+
+## Opens (or closes) the villager list; it shares the corner with the hero
+## panel and the material dialog, so those close.
+func toggle_people(on: bool) -> void:
+	_people_panel.visible = on
+	if on:
+		_hero_panel.visible = false
+		_trade_panel.visible = false
+		_people_signature = ""
+		_refresh_people()
+	_place_log()
+
+
+## Villagers of the current village, by role (Config.CIVILIAN_ORDER) and number.
+func people() -> Array[Civilian]:
+	var out: Array[Civilian] = game.population.civilians.filter(func(c: Civilian) -> bool: return is_instance_valid(c) and not c.dead)
+	out.sort_custom(func(a: Civilian, b: Civilian) -> bool:
+		var ra := Config.CIVILIAN_ORDER.find(a.role)
+		var rb := Config.CIVILIAN_ORDER.find(b.role)
+		return ra < rb if ra != rb else a.uid < b.uid)
+	return out
+
+
+func _refresh_people() -> void:
+	if not _people_panel.visible:
+		return
+	var list := people()
+	_people_title.text = "Villagers  %d / %d" % [list.size(), game.population.cap()]
+	var ruined := game.construction.ruined_huts()
+	_rebuild_huts_button.visible = not ruined.is_empty()
+	if not ruined.is_empty():
+		var each: Dictionary = Config.BUILDINGS["hut"]["cost"]
+		var all := {}
+		for k in each:
+			all[k] = int(each[k]) * ruined.size()
+		set_rich_text(_rebuild_huts_button, "Rebuild all huts (%d)  (%s)" % [ruined.size(), Config.cost_icons(all)])
+		_rebuild_huts_button.disabled = not game.economy.can_afford(each)
+	var sig := ",".join(list.map(func(c: Civilian) -> String: return str(c.get_instance_id())))
+	if sig != _people_signature:
+		_people_signature = sig
+		_people_rows.clear()
+		for c in _people_list.get_children():
+			_people_list.remove_child(c)
+			c.queue_free()
+		for c in list:
+			_people_list.add_child(_people_row(c))
+		if list.is_empty():
+			_people_list.add_child(_label("Nobody lives in the village.", 16, UiTheme.MUTED))
+	for c in _people_rows:
+		if is_instance_valid(c):
+			_set_rich_label(_people_rows[c], _person_status(c), 15)
+
+
+func _person_status(c: Civilian) -> String:
+	var s := c.status_text()
+	if c.hp < c.max_hp - 0.5:
+		s += "   {hp} %d / %d" % [ceili(c.hp), ceili(c.max_hp)]
+	return s
+
+
+func _people_row(c: Civilian) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.add_child(_icon(Art.tex("unit_" + c.role), 36))
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.add_theme_constant_override("separation", 0)
+	row.add_child(text)
+	text.add_child(_label(c.label().capitalize(), 17))
+	var status := _rich_line("{hp}", 15) as RichTextLabel
+	status.add_theme_color_override("default_color", UiTheme.MUTED)
+	text.add_child(status)
+	_people_rows[c] = status
+	var go := _button("Go to", Vector2(84, 42))
+	go.tooltip_text = "Move the view to %s" % c.label()
+	go.pressed.connect(func() -> void: go_to_person(c))
+	row.add_child(go)
+	return row
+
+
+## Moves the camera to a villager (at home: the village centre).
+func go_to_person(c: Civilian) -> void:
+	if not is_instance_valid(c):
+		return
+	game.events.debug("camera: go to %s" % c.label())
+	game.camera.focus(Iso.tile_to_world(c.village.center) if c.at_home else c.position)
 
 
 ## Green from half health up, yellow down to a fifth, then red.
@@ -935,6 +1076,8 @@ func _relayout() -> void:
 		_place_sidebar_toggle()
 
 	_hero_panel.offset_top = _top_h + 6.0
+	_people_panel.offset_top = _top_h + 6.0
+	_people_scroll.custom_minimum_size.y = clampf(_root.get_viewport_rect().size.y - _top_h - (_sheet_h if _portrait else 0.0) - 110.0, 120.0, 460.0)
 	_trade_panel.offset_top = _top_h + 6.0
 	_trade_panel.offset_left = 10.0 if _portrait else 330.0
 	for p in [_send_panel, _send_unit_panel]:
@@ -1499,6 +1642,7 @@ func open_send_dialog() -> void:
 		_send_target = _next_other(-1)
 	_trade_panel.visible = false
 	_hero_panel.visible = false
+	_people_panel.visible = false
 	_send_unit_panel.visible = false
 	_send_panel.visible = true
 	_refresh_send()
@@ -1691,8 +1835,9 @@ func _place_log() -> void:
 	_log_box.offset_right = right
 	_log_box.offset_bottom = bottom
 	var top := bottom - LOG_LINE_H * EventLog.MAX_SHOWN
-	if _hero_panel.visible:  # stay below the hero panel (it opens top left)
-		top = maxf(top, _hero_panel.get_global_rect().end.y + 6.0 - vp.y)
+	for p in [_hero_panel, _people_panel]:
+		if p.visible:  # stay below the hero panel or the villager list (they open top left)
+			top = maxf(top, p.get_global_rect().end.y + 6.0 - vp.y)
 	_log_box.offset_top = minf(top, bottom)
 
 
@@ -2011,6 +2156,7 @@ func _process(delta: float) -> void:
 		_refresh_wave()
 		_refresh_resources()
 		_refresh_hero()
+		_refresh_people()
 		if not game.army.downed().is_empty():
 			_rebuild_reserve()  # (downed countdowns)
 
@@ -2051,7 +2197,7 @@ func _refresh_resources() -> void:
 	_food_label.text = "%d  (%+d/min)" % [int(e.amount("food")), roundi(rate)]
 	_food_label.add_theme_color_override("font_color", UiTheme.BAD if p.starving else UiTheme.TEXT)
 	_materials_button.text = str(int(e.amount("materials")))
-	_pop_label.text = "%d / %d" % [p.count(), p.cap()]
+	_pop_button.text = "%d / %d" % [p.count(), p.cap()]
 
 
 func _refresh_wave() -> void:
