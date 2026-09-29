@@ -29,6 +29,7 @@ const HANDLERS := {
 	"move_unit": "_move_unit",
 	"buy_materials": "_buy_materials",
 	"hero_mode": "_hero_mode",
+	"hero_level_up": "_hero_level_up",
 	"call_wave": "_call_wave",
 	"set_speed": "_set_speed",
 	"send_caravan": "_send_caravan",
@@ -281,6 +282,16 @@ func _buy_materials(v: Village, a: Dictionary) -> Dictionary:
 		return fail("Not enough gold")
 	v.events.debug("buy %d building material for %d gold" % [Config.MATERIALS_TRADE["materials"] * n, Config.MATERIALS_TRADE["gold"] * n])
 	return ok()
+
+
+func _hero_level_up(v: Village, _a: Dictionary) -> Dictionary:
+	var h := v.hero
+	if h.level >= Config.HERO_MAX_LEVEL - 1:
+		return fail("The hero is at his highest level")
+	if not h.can_level_up():
+		return fail("Not enough XP (%d / %d)" % [h.xp, h.level_up_cost()])
+	h.level_up()
+	return ok({"level": h.level})
 
 
 func _hero_mode(v: Village, a: Dictionary) -> Dictionary:

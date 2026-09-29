@@ -483,6 +483,20 @@ func _test_game() -> void:
 	check(gb.sprite.position.length() > 0.5 or absf(gb.sprite.rotation) > 0.01, "an enemy's melee blow is animated")
 	gb.take_damage(1e9)
 
+	# The hero levels up with his own XP.
+	hero.xp = 0
+	var refused := game.command("hero_level_up")
+	check(not refused["ok"] and "Not enough XP" in refused["error"], "without enough XP he can't level up (%s)" % refused.get("error", ""))
+	var cost := hero.level_up_cost()
+	hero.xp = cost + 7
+	var up := game.command("hero_level_up")
+	check(up["ok"] and hero.level == 1 and hero.xp == 7 and is_equal_approx(hero.max_hp, Config.hero_stat("hp", 1)) and Config.hero_stat("damage", 1) > Config.HERO["damage"], "spending %d XP he reaches level 2: %d HP, %.0f damage" % [cost, int(hero.max_hp), Config.hero_stat("damage", 1)])
+	game.hud._hero_panel.visible = true
+	game.hud._refresh_hero()
+	check("Level 2" in game.hud._hero_stats.text and ("Level up to 3  (%d XP)" % hero.level_up_cost()) == game.hud._hero_level_button.text and game.hud._hero_level_button.disabled, "his panel shows the level and the next level's cost")
+	game.hud._hero_panel.visible = false
+	check(Config.hero_level_cost(Config.HERO_MAX_LEVEL - 1) == 0 and Config.hero_level_cost(0) < Config.hero_level_cost(Config.HERO_MAX_LEVEL - 2), "each level costs more; none past the last")
+
 	# Relics.
 	var tower: Tower = w.buildings.filter(func(b: Building) -> bool: return b is Tower)[0]
 	var range0 := tower.range_tiles()
@@ -501,6 +515,7 @@ func _test_game() -> void:
 	await frames(2)
 	var sack: MapObject = w.map_objects.back() if w.map_objects.size() > n0 else null
 	check(sack is Treasure and sack.data.get("sack", false) and (sack as Treasure).reward().get("gold", 0) == 50, "downed while carrying, the hero drops the loot where he fell")
+	check(hero.level == 1 and hero.xp == 0, "downed, he loses his XP but keeps his level")
 	game.queue_free()
 	await frames(3)
 

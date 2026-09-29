@@ -521,6 +521,9 @@ const TRAIN_XP_DIFFICULTY := {"easy": 0.8, "normal": 1.0, "hard": 1.5}
 ## He has no hut, eats nothing and doesn't count as a villager.
 const HERO := {
 	"name": "Hero", "hp": 60.0, "speed": 1.8,
+	# Train: after a unit levels up he waits this many real seconds (whatever the
+	# game speed) before training on, so his mode can be changed to keep his XP.
+	"train_pause": 4.0,
 	"damage": 8.0, "attack_cooldown": 0.9, "attack_range": 0.8,
 	"sight": 4.0,  # surveillance while outside
 	"alert_radius": 6.0,  # Defend: enemies this close to a gate draw him out
@@ -533,11 +536,33 @@ const HERO := {
 	"rest_delay": 3.0,  # seconds of idling there before the HP starts coming back
 }
 ## XP the hero earns per action (training earns none).
+## The hero spends his own XP on levels (the level-up button in his panel).
+## HP and sword damage run from level 1 (HERO "hp" / "damage") to
+## HERO_MAX_LEVEL; "xp_cost" is the XP from level 1 to 2 ... up to the last
+## level. Being downed loses his unspent XP, never his levels.
+const HERO_MAX_LEVEL := 20
+const HERO_LEVELS := {"hp": [60.0, 320.0], "damage": [8.0, 64.0], "xp_cost": [50.0, 400.0]}
+
+
+## A hero stat ("hp", "damage") at `level` (0-based).
+static func hero_stat(key: String, level: int) -> float:
+	var r: Array = HERO_LEVELS[key]
+	return lerpf(r[0], r[1], float(clampi(level, 0, HERO_MAX_LEVEL - 1)) / (HERO_MAX_LEVEL - 1))
+
+
+## XP to go from `level` (0-based) to the next one, or 0 at the top.
+static func hero_level_cost(level: int) -> int:
+	if level >= HERO_MAX_LEVEL - 1:
+		return 0
+	var r: Array = HERO_LEVELS["xp_cost"]
+	return roundi(lerpf(r[0], r[1], float(level) / maxf(HERO_MAX_LEVEL - 2, 1)))
+
+
 const HERO_XP_PER_ACTION := {
-	"hit": 1,  # a melee hit in combat
+	"hit": 2,  # a melee hit in combat
 	"build_second": 1,  # each second of construction work
 	"explore": 1,  # each exploring step that uncovers new tiles
-	"corpse": 1,  # each corpse picked up
+	"corpse": 3,  # each corpse picked up
 }
 
 ## Earth elementals summoned by summoners. hp/damage come from the summoner's

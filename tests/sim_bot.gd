@@ -1720,6 +1720,18 @@ func _test_hero(far: Vector2i) -> void:
 	var leveled := await wait_until(func() -> bool: return archer.level == 1, 60.0)
 	check(leveled and game.economy.amount("gold") == gold_t, "the archer reaches level 2 by training, without gold")
 	check(hero.xp == 25 and archer.train_xp == 0.0, "exactly the XP needed was passed on (hero has %d left)" % hero.xp)
+	# After a level-up he pauses (real seconds), so his mode can be changed and his XP kept.
+	check(hero.train_pause > 0.0 and "pausing after a level-up" in hero.status() and logged("reached level 2. The hero pauses", EventLog.Level.INFO), "after the level-up the hero pauses, and says so (%s)" % hero.status())
+	hud._refresh_hero()
+	check("change his mode now to keep his XP" in hud._hero_train_label.text, "the hero panel shows the pause")
+	var t_pause := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t_pause < 1500:
+		await get_tree().process_frame
+	check(hero.xp == 25 and archer.train_xp == 0.0, "during the pause (%.0f s, even at %.0fx speed) no XP goes on" % [Config.HERO["train_pause"], Engine.time_scale])
+	hero.set_mode(Hero.Mode.DEFEND)
+	await frames(2)
+	check(hero.xp == 25 and hero.train_pause == 0.0, "changing his mode then keeps his XP")
+	hero.set_mode(Hero.Mode.TRAIN)
 	check(archer.train_xp_needed() > need0, "the next level needs more XP (%d > %d)" % [int(archer.train_xp_needed()), int(need0)])
 	Settings.difficulty = Settings.Difficulty.HARD
 	var need_hard := archer.train_xp_needed()

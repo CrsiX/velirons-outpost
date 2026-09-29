@@ -27,6 +27,8 @@ const MODE_NAMES: Array[String] = ["Defend", "Build", "Explore", "Gather", "Trai
 
 var mode := Mode.DEFEND
 var xp := 0
+## 0-based: level 1 ... Config.HERO_MAX_LEVEL. Bought with his own XP; kept when downed.
+var level := 0
 var max_hp := 60.0
 var hp := 60.0
 var target: Enemy = null
@@ -43,6 +45,8 @@ var _returning := false
 var support_target: Village = null
 ## Seconds he has been idling in the village centre (see _regen).
 var _idle_time := 0.0
+## Real seconds left of his pause after a unit levelled up (Train).
+var train_pause := 0.0
 ## The monster camp he was ordered to clear (docs/world-design.md §9.3).
 var camp_target: MonsterCamp = null
 
@@ -150,6 +154,7 @@ func _leave_mode() -> void:
 
 
 func _stop_training() -> void:
+	train_pause = 0.0
 	if is_instance_valid(training_at) and training_at.trainee_hero == self:
 		training_at.trainee_hero = null
 	training_at = null
@@ -346,13 +351,42 @@ func _chase() -> void:
 
 
 func _strike() -> void:
-	target.take_damage(Config.HERO["damage"], self)
+	target.take_damage(Config.hero_stat("damage", level), self)
 	on_action("hit")
 	var tw := create_tween()
 	var lunge := (Iso.to_world(target.grid_pos) - position).normalized() * 6.0
 	tw.tween_property(sprite, "position", lunge, 0.08)
 	tw.tween_property(sprite, "position", Vector2.ZERO, 0.12)
 	Sfx.play("hit", 0.25)
+
+
+# --- levels -------------------------------------------------------------------------------------
+
+func level_up_cost() -> int:
+	return Config.hero_level_cost(level)
+
+
+func can_level_up() -> bool:
+	return level < Config.HERO_MAX_LEVEL - 1 and xp >= level_up_cost()
+
+
+## Spends his XP on the next level: more HP (he gains the difference now) and
+## a harder sword.
+func level_up() -> bool:
+	if not can_level_up():
+		return false
+	xp -= level_up_cost()
+	var old_max := max_hp
+	level += 1
+	max_hp = Config.hero_stat("hp", level)
+	if not dead:
+		hp = minf(max_hp, hp + max_hp - old_max)
+	village.events.info("The hero reached level %d: %d HP, %d damage" % [level + 1, int(max_hp), int(Config.hero_stat("damage", level))])
+	float_text("Level %d!" % (level + 1), UiTheme.GOLD)
+	Sfx.play("build")
+	queue_redraw()
+	changed.emit()
+	return true
 
 
 # --- monster camps -------------------------------------------------------------------------------
@@ -418,6 +452,13 @@ func _train(g: TrainingGrounds, delta: float) -> void:
 		step_path(delta)
 		return
 	_set_moving(false)
+	if train_pause > 0.0:
+		# A unit just levelled up: a moment to change his mode and keep the XP.
+		train_pause -= delta / maxf(Engine.time_scale, 0.001)
+		sprite.rotation = 0.0
+		if train_pause <= 0.0:
+			changed.emit()
+		return
 	if xp <= 0:
 		return  # nothing left to pass on
 	_bob += delta * 9.0
@@ -426,8 +467,15 @@ func _train(g: TrainingGrounds, delta: float) -> void:
 	var n := mini(int(_train_acc), xp)
 	if n > 0:
 		_train_acc -= n
-		var used := village.army.train(g.trainable_unit(), n)
+		var unit := g.trainable_unit()
+		var level_before := unit.level
+		var used := village.army.train(unit, n)
 		xp -= used
+		if unit.level > level_before and xp > 0:
+			train_pause = Config.HERO["train_pause"]
+			_train_acc = 0.0
+			sprite.rotation = 0.0
+			village.events.info("%s reached level %d. The hero pauses %d s: change his mode now to keep his %d XP." % [unit.label().capitalize(), unit.level + 1, int(Config.HERO["train_pause"]), xp])
 		changed.emit()
 
 
@@ -504,6 +552,8 @@ func status() -> String:
 		Mode.TRAIN:
 			if xp <= 0:
 				return "at the training grounds: no XP left to pass on"
+			if train_pause > 0.0:
+				return "pausing after a level-up (%d s): change his mode to keep his XP" % ceili(train_pause)
 			return "training a %s" % training_at.garrison.display_name().to_lower() if is_instance_valid(training_at) and training_at.garrison else "walking to the training grounds"
 	return jobs[mode].status()
 

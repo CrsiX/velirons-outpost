@@ -269,7 +269,7 @@ func _describe(n: Node) -> Array:
 		vid = v.id
 	if n is Hero:
 		var h := n as Hero
-		return [h.nid, "h", {"v": vid}, _unit_state(h).merged({"m": h.mode, "xp": h.xp, "hp": snappedf(h.hp, 0.5), "mhp": h.max_hp, "d": h.dead, "st": h.support_target.id if h.support_target else -1, "s": h.status_text()}), h.current_tile(), vid, false]
+		return [h.nid, "h", {"v": vid}, _unit_state(h).merged({"m": h.mode, "xp": h.xp, "lv": h.level, "hp": snappedf(h.hp, 0.5), "mhp": h.max_hp, "d": h.dead, "st": h.support_target.id if h.support_target else -1, "s": h.status_text()}), h.current_tile(), vid, false]
 	if n is Civilian:
 		var c := n as Civilian
 		if c.dead:
@@ -542,6 +542,7 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		var h := o as Hero
 		h.mode = st["m"]
 		h.xp = st["xp"]
+		h.level = st.get("lv", 0)
 		h.hp = st["hp"]
 		h.max_hp = st["mhp"]
 		h.dead = st["d"]

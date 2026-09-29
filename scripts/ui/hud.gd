@@ -82,6 +82,7 @@ var _hero_mode_hint: Label
 var _hero_train_label: Label
 var _hero_train_bar: ProgressBar
 var _hero_goto_button: Button
+var _hero_level_button: Button
 
 const HERO_MODE_HINTS: Array[String] = [
 	"Waits in the village centre and fights enemies that come near a gate.",
@@ -461,6 +462,12 @@ func _build_hero_panel() -> void:
 	head.add_child(close)
 	_hero_stats = _label("", 17)
 	v.add_child(_hero_stats)
+	_hero_level_button = _button("", Vector2(0, 46))
+	_hero_level_button.tooltip_text = "Spend the hero's XP on his next level: more HP, a harder sword"
+	_hero_level_button.pressed.connect(func() -> void:
+		_do("hero_level_up")
+		_refresh_hero())
+	v.add_child(_hero_level_button)
 	_hero_status = _label("", 15, UiTheme.MUTED)
 	_hero_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_hero_status)
@@ -509,7 +516,10 @@ func _refresh_hero() -> void:
 	_place_log()
 	if not _hero_panel.visible:
 		return
-	_hero_stats.text = "HP %d / %d     XP %d" % [int(h.hp), int(h.max_hp), h.xp]
+	_hero_stats.text = "Level %d     HP %d / %d     XP %d" % [h.level + 1, int(h.hp), int(h.max_hp), h.xp]
+	var top := h.level >= Config.HERO_MAX_LEVEL - 1
+	_hero_level_button.text = "Highest level" if top else "Level up to %d  (%d XP)" % [h.level + 2, h.level_up_cost()]
+	_hero_level_button.disabled = top or not h.can_level_up() or h.village != game.player_village
 	var st := h.status_text()
 	_hero_status.text = "Now: " + st
 	_hero_mode_button.text = "Mode: %s   (tap to change)" % h.mode_name()
@@ -526,6 +536,8 @@ func _refresh_hero() -> void:
 			_hero_train_label.text = "No unit ready at any Training Grounds: defending instead."
 		else:
 			_hero_train_label.text = "%s level %d -> %d: %d / %d XP needed. Hero has %d XP to give." % [u.display_name(), u.level + 1, u.level + 2, int(u.train_xp), int(u.train_xp_needed()), h.xp]
+			if h.train_pause > 0.0:
+				_hero_train_label.text += "\nLevel up! Training goes on in %d s: change his mode now to keep his XP." % ceili(h.train_pause)
 			_hero_train_bar.max_value = u.train_xp_needed()
 			_hero_train_bar.value = u.train_xp
 
