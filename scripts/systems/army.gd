@@ -1,8 +1,16 @@
 class_name Army
 extends Node
-## Military units: bought with gold, kept in reserve, and sent to towers.
-## Equipping and unequipping take time: soldiers walk from the village to the
-## tower and back before they are available again. No cap on military units.
+## Military units: bought with gold, kept in reserve, and sent to posts
+## (towers, training grounds, barracks benches). Equipping and unequipping take
+## time: soldiers walk from the village to the post and back before they are
+## available again. No cap on military units.
+##
+## Units have HP (docs/military-design.md §4): they can be hurt outside
+## (walking, on barracks sorties), never on towers. At 0 HP a unit is downed;
+## after Config.unit_revive_time it's back, on its barracks bench if it
+## belonged to one, else in the reserve. Units heal Config.UNIT_REGEN HP/s on
+## benches and unused in the reserve. Barracks turn their benches out when
+## enemies come near (sortie); units walk back when none are left.
 
 signal changed
 
@@ -27,6 +35,10 @@ func stationed() -> Array[MilitaryUnit]:
 	return _in_state(MilitaryUnit.State.STATIONED)
 
 
+func downed() -> Array[MilitaryUnit]:
+	return _in_state(MilitaryUnit.State.DOWNED)
+
+
 func walking() -> Array[MilitaryUnit]:
 	return units.filter(func(u: MilitaryUnit) -> bool: return u.state in [MilitaryUnit.State.MARCHING, MilitaryUnit.State.RETURNING, MilitaryUnit.State.TRAVELLING])
 
@@ -36,7 +48,7 @@ func _in_state(s: int) -> Array[MilitaryUnit]:
 
 
 func recruit(kind: String) -> MilitaryUnit:
-	if not village.economy.spend(Config.MILITARY[kind]["cost"]):
+	if not Config.MILITARY[kind].get("recruit", false) or not village.economy.spend(Config.MILITARY[kind]["cost"]):
 		return null
 	var u := MilitaryUnit.new(kind)
 	u.village = village
@@ -50,52 +62,77 @@ func recruit(kind: String) -> MilitaryUnit:
 	return u
 
 
-## "" if `unit` can be sent to `tower`, else the reason.
-func station_error(unit: MilitaryUnit, tower: MilitaryPost) -> String:
+# --- time: reviving and healing -------------------------------------------------------
+
+func _process(delta: float) -> void:
+	if game == null or game.is_client:
+		return
+	for u in units:
+		match u.state:
+			MilitaryUnit.State.DOWNED:
+				u.revive_left -= delta
+				if u.revive_left <= 0.0:
+					revive(u)
+			MilitaryUnit.State.RESERVE:
+				u.heal(Config.UNIT_REGEN * delta)
+			MilitaryUnit.State.STATIONED:
+				if u.post is Barracks and not u.out:
+					u.heal(Config.UNIT_REGEN * delta)  # resting on the bench
+
+
+# --- stationing --------------------------------------------------------------------------
+
+## "" if `unit` can be sent to `post`, else the reason.
+func station_error(unit: MilitaryUnit, post: MilitaryPost) -> String:
 	if unit == null or unit.state != MilitaryUnit.State.RESERVE:
-		return "That unit isn't in the reserve"
-	if tower == null or not tower.can_garrison():
-		return "Pick a finished tower or training grounds"
-	if tower.village != unit.village:
+		return "That unit isn't in the reserve" if unit == null or not unit.is_downed() else "It's downed: wait until it's back"
+	return _post_error(unit, post, village.center)
+
+
+func _post_error(unit: MilitaryUnit, post: MilitaryPost, from: Vector2i) -> String:
+	if post == null or not post.can_garrison():
+		return "Pick a finished tower, barracks or training grounds"
+	if post.village != unit.village:
 		return "That isn't your tower"
-	if tower.incoming != null:
-		return "A unit is already marching there"
-	if tower.garrison != null:
-		return "Already manned: withdraw its unit first"
-	if game.world.pathing.find_path(village.center, tower.work_tile()).is_empty():
+	if not unit.fits(post.post_kind()):
+		return "A %s can't serve %s" % [unit.display_name().to_lower(), "on towers" if post.post_kind() == "tower" else "in barracks"]
+	if post.free_slot() < 0:
+		if post.capacity() == 1:
+			return "A unit is already marching there" if post.incoming != null else "Already manned: withdraw its unit first"
+		return "Every bench is taken"
+	if game.world.pathing.find_path(from, post.work_tile()).is_empty():
 		return "No path there"
 	return ""
 
 
-## Sends a reserve unit out of the village to man `tower` (any military post).
-func station(unit: MilitaryUnit, tower: MilitaryPost) -> bool:
-	if station_error(unit, tower) != "":
+## Sends a reserve unit out of the village to a free slot of `post`.
+func station(unit: MilitaryUnit, post: MilitaryPost) -> bool:
+	if station_error(unit, post) != "":
 		return false
-	village.events.debug("send %s from the reserve to %s" % [unit.label(), tower.label()])
+	village.events.debug("send %s from the reserve to %s" % [unit.label(), post.label()])
 	var s := _spawn_walker(unit, village.center)
-	s.walk_to(tower.work_tile())
-	unit.state = MilitaryUnit.State.MARCHING
-	unit.post = tower
-	tower.incoming = unit
-	tower.refresh()
+	s.walk_to(post.work_tile())
+	_reserve_slot(unit, post)
 	Sfx.play("place")
 	changed.emit()
 	return true
+
+
+func _reserve_slot(unit: MilitaryUnit, post: MilitaryPost) -> void:
+	unit.state = MilitaryUnit.State.MARCHING
+	unit.post = post
+	unit.slot = post.free_slot()
+	post.incoming_slots[unit.slot] = unit
+	post.refresh()
 
 
 ## "" if the stationed `unit` can move straight over to `post`, else why not.
 func transfer_error(unit: MilitaryUnit, post: MilitaryPost) -> String:
 	if unit == null or unit.state != MilitaryUnit.State.STATIONED:
 		return "That unit isn't on duty"
-	if post == null or post == unit.post or not post.can_garrison():
-		return "Pick another finished tower or training grounds"
-	if post.village != unit.village:
-		return "That isn't your tower"
-	if post.incoming != null or post.garrison != null:
-		return "That post is taken"
-	if game.world.pathing.find_path(unit.post.work_tile(), post.work_tile()).is_empty():
-		return "No path there"
-	return ""
+	if post == unit.post:
+		return "Pick another finished tower, barracks or training grounds"
+	return _post_error(unit, post, unit.post.work_tile())
 
 
 ## Moves a stationed unit from its post straight to another (drag & drop);
@@ -105,16 +142,35 @@ func transfer(unit: MilitaryUnit, post: MilitaryPost) -> bool:
 		return false
 	var from := unit.post
 	village.events.debug("move %s from %s to %s" % [unit.label(), from.label(), post.label()])
-	from.set_garrison(null)
-	var s := _spawn_walker(unit, from.work_tile())
+	var start := _leave_post(unit)
+	var s := _body(unit, start)
 	s.walk_to(post.work_tile())
-	unit.state = MilitaryUnit.State.MARCHING
-	unit.post = post
-	post.incoming = unit
-	post.refresh()
+	_reserve_slot(unit, post)
 	Sfx.play("place")
 	changed.emit()
 	return true
+
+
+## Takes `unit` off its post's slot; returns where its body starts walking.
+func _leave_post(unit: MilitaryUnit) -> Vector2i:
+	var post := unit.post
+	var start := post.work_tile() if is_instance_valid(post) else village.center
+	if unit.out and is_instance_valid(unit.walker):
+		start = (unit.walker as Soldier).current_tile()
+		unit.behavior.on_leave(unit.walker, unit)
+	unit.out = false
+	if is_instance_valid(post) and unit.slot < post.slots.size() and post.slots[unit.slot] == unit:
+		post.set_slot(unit.slot, null)
+	return start
+
+
+## The unit's body outside: its sortie body if it has one, else a new one at `from`.
+func _body(unit: MilitaryUnit, from: Vector2i) -> Soldier:
+	if is_instance_valid(unit.walker):
+		var s := unit.walker as Soldier
+		s.mode = Soldier.Mode.WALK
+		return s
+	return _spawn_walker(unit, from)
 
 
 ## "" if the reserve `unit` can be sent to `target` (another village), else why not.
@@ -161,56 +217,207 @@ func adopt(unit: MilitaryUnit) -> void:
 	changed.emit()
 
 
-## Pulls a unit off its tower (or turns it around mid-march) and walks it home.
+## Pulls a unit off its post (or turns it around mid-march) and walks it home.
 func unstation(unit: MilitaryUnit) -> void:
 	match unit.state:
 		MilitaryUnit.State.STATIONED:
-			var tower := unit.post
-			village.events.debug("withdraw %s from %s" % [unit.label(), tower.label()])
-			tower.set_garrison(null)
-			_send_home(unit, _spawn_walker(unit, tower.work_tile()))
+			village.events.debug("withdraw %s from %s" % [unit.label(), unit.post.label()])
+			var start := _leave_post(unit)
+			_send_home(unit, _body(unit, start))
 		MilitaryUnit.State.MARCHING:
 			village.events.debug("call %s back on its way to %s" % [unit.label(), unit.post.label() if is_instance_valid(unit.post) else "its post"])
-			if is_instance_valid(unit.post):
-				unit.post.incoming = null
-				unit.post.refresh()
+			_free_reservation(unit)
 			_send_home(unit, unit.walker)
 		_:
 			return
 	changed.emit()
 
 
+func _free_reservation(unit: MilitaryUnit) -> void:
+	var p := unit.post
+	if is_instance_valid(p) and unit.slot < p.incoming_slots.size() and p.incoming_slots[unit.slot] == unit:
+		p.incoming_slots[unit.slot] = null
+		p.refresh()
+
+
+# --- barracks sorties -----------------------------------------------------------------------
+
+## A unit on a barracks bench goes out to fight.
+func sortie(unit: MilitaryUnit) -> void:
+	if unit.state != MilitaryUnit.State.STATIONED or unit.out or not (unit.post is Barracks):
+		return
+	var b := unit.post as Barracks
+	unit.out = true
+	var s := _spawn_walker(unit, b.work_tile())
+	s.start_sortie(b)
+	b.refresh()
+	changed.emit()
+
+
+## Back on the bench after a sortie.
+func back_to_bench(unit: MilitaryUnit) -> void:
+	if is_instance_valid(unit.walker):
+		unit.behavior.on_leave(unit.walker, unit)
+		unit.walker.queue_free()
+	unit.walker = null
+	unit.out = false
+	if is_instance_valid(unit.post):
+		unit.post.refresh()
+	changed.emit()
+
+
+# --- downed and back ------------------------------------------------------------------------
+
+## HP ran out (only possible outside). It vanishes and comes back later: on its
+## barracks bench if it belongs to barracks, else in the reserve.
+func down(unit: MilitaryUnit, source = null) -> void:
+	if unit.is_downed():
+		return
+	var at_bench := unit.state == MilitaryUnit.State.STATIONED and unit.post is Barracks
+	village.events.info("%s was downed by %s" % [unit.label().capitalize(), game.who(source)])
+	if is_instance_valid(unit.walker):
+		unit.behavior.on_leave(unit.walker, unit)
+		(unit.walker as Soldier).vanish()
+	unit.walker = null
+	unit.out = false
+	if unit.state == MilitaryUnit.State.MARCHING:
+		_free_reservation(unit)
+	if not at_bench:
+		if is_instance_valid(unit.post) and unit.state == MilitaryUnit.State.STATIONED:
+			unit.post.set_slot(unit.slot, null)
+		unit.post = null
+	unit.travel_to = null  # (downed on the way: it never got there)
+	unit.revive_at_post = at_bench
+	unit.hp = 0.0
+	unit.revive_left = Config.unit_revive_time(unit.level)
+	unit.state = MilitaryUnit.State.DOWNED
+	if at_bench:
+		unit.post.refresh()
+	Sfx.play("death", 0.2)
+	changed.emit()
+
+
+func revive(unit: MilitaryUnit) -> void:
+	unit.hp = unit.max_hp()
+	unit.revive_left = 0.0
+	if unit.revive_at_post and is_instance_valid(unit.post) and unit.post.slots[unit.slot] == unit:
+		unit.state = MilitaryUnit.State.STATIONED
+		unit.post.refresh()
+	else:
+		unit.state = MilitaryUnit.State.RESERVE
+		unit.post = null
+	unit.revive_at_post = false
+	village.events.info("%s is back on its feet" % unit.label().capitalize())
+	changed.emit()
+
+
+# --- training and upgrading --------------------------------------------------------------------
+
 ## Passes up to `amount` of the hero's XP on to `unit` (training grounds).
-## When the unit has collected enough it levels up for free. Returns the XP used.
+## When the unit has collected enough it levels up for free (never into a
+## specialisation). Returns the XP used.
 func train(unit: MilitaryUnit, amount: int) -> int:
 	if amount <= 0 or not unit.can_train():
 		return 0
 	var used := clampi(ceili(unit.train_xp_needed() - unit.train_xp), 0, amount)
 	unit.train_xp += used
 	if unit.train_xp >= unit.train_xp_needed() - 0.001:
-		unit.level += 1
-		unit.train_xp = 0.0
+		_set_level(unit, unit.kind, unit.level + 1)
 		village.events.info("%s fully trained to level %d%s" % [unit.label(), unit.level + 1, " at %s" % unit.post.label() if unit.post else ""])
 		if unit.post:
-			unit.post.refresh()
 			game.world.float_text("%s level %d!" % [unit.display_name(), unit.level + 1], unit.post.position + Vector2(0, -90), UiTheme.GOLD)
 		Sfx.play("build")
 		changed.emit()
 	return used
 
 
-func upgrade(unit: MilitaryUnit) -> bool:
-	if not unit.can_upgrade() or not village.economy.spend(unit.upgrade_cost()):
+## "" if `unit` can take upgrade `to` (its own kind: the next level; a
+## specialisation: its level 1) now, else why not.
+func upgrade_error(unit: MilitaryUnit, to: String = "") -> String:
+	if unit == null or not unit.is_available():
+		return "Not now: it's downed or away"
+	var kind := unit.kind if to == "" else to
+	for opt in unit.upgrade_options():
+		if opt["to"] == kind and not opt["archmage"]:
+			if not village.economy.can_afford(opt["cost"]):
+				return "Not enough gold"
+			if unit.post and unit.state != MilitaryUnit.State.RESERVE and not MilitaryUnit.new(kind).fits(unit.post.post_kind()):
+				return "It can't stay on this post as a %s" % Config.MILITARY[kind]["name"].to_lower()
+			return ""
+	return "Already at max level" if kind == unit.kind else "It can't become that"
+
+
+## Next level of its own kind (`to` empty or its kind), or level 1 of a
+## specialisation `to` (from BRANCH_MIN_LEVEL on). Paid in gold.
+func upgrade(unit: MilitaryUnit, to: String = "") -> bool:
+	if upgrade_error(unit, to) != "":
 		return false
-	unit.level += 1
-	unit.train_xp = 0.0  # training was towards the level just bought
-	village.events.debug("level-up %s to level %d for %s" % [unit.label(), unit.level + 1, Config.cost_text(unit.spec()["levels"][unit.level]["cost"])])
-	if unit.post and unit.state == MilitaryUnit.State.STATIONED:
-		unit.post.refresh()
+	var kind := unit.kind if to == "" else to
+	var opt: Dictionary = unit.upgrade_options().filter(func(o: Dictionary) -> bool: return o["to"] == kind)[0]
+	village.economy.spend(opt["cost"])
+	var was := unit.display_name()
+	var was_kind := unit.kind
+	_set_level(unit, kind, opt["level"])
+	if kind == was_kind:
+		village.events.debug("level-up %s to level %d for %s" % [unit.label(), unit.level + 1, Config.cost_text(opt["cost"])])
+	else:
+		village.events.info("%s trained as a %s" % [was, unit.display_name()])
 	Sfx.play("build")
 	changed.emit()
 	return true
 
+
+func _set_level(unit: MilitaryUnit, kind: String, level: int) -> void:
+	var ratio := unit.hp / maxf(unit.max_hp(), 1.0)
+	if kind != unit.kind:
+		unit.behavior.on_leave(unit.walker if unit.out else unit.post, unit)
+		unit.set_kind(kind)
+	unit.level = level
+	unit.train_xp = 0.0  # training was towards the level just reached
+	unit.hp = unit.max_hp() * maxf(ratio, 0.0) if unit.is_downed() else unit.max_hp()
+	if is_instance_valid(unit.post):
+		unit.post.refresh()
+
+
+## "" if `unit` (a spatial mage of ARCHMAGE_LEVEL) can become the Spatial
+## Archmage now, else why not.
+func archmage_error(unit: MilitaryUnit) -> String:
+	if unit == null or not unit.upgrade_options().any(func(o: Dictionary) -> bool: return o["archmage"]):
+		return "Only a level %d spatial mage can become the Spatial Archmage" % Config.ARCHMAGE_LEVEL
+	if not unit.is_available():
+		return "Not now: it's downed or away"
+	if village.population.free_huts().is_empty():
+		return "The Spatial Archmage needs a free hut"
+	if not village.economy.can_afford(Config.ARCHMAGE_COST):
+		return "Not enough gold"
+	return ""
+
+
+## The spatial mage leaves the army for good and moves into a hut as the
+## Spatial Archmage, a civilian.
+func promote_archmage(unit: MilitaryUnit) -> Civilian:
+	if archmage_error(unit) != "":
+		return null
+	village.economy.spend(Config.ARCHMAGE_COST)
+	match unit.state:
+		MilitaryUnit.State.STATIONED:
+			_leave_post(unit)
+		MilitaryUnit.State.MARCHING:
+			_free_reservation(unit)
+	if is_instance_valid(unit.walker):
+		unit.walker.queue_free()
+	unit.walker = null
+	units.erase(unit)
+	game.unregister(unit.nid)
+	var civ := village.population.spawn("spatial_archmage")
+	village.events.info("%s has become the Spatial Archmage" % unit.label().capitalize())
+	game.world.float_text("The Spatial Archmage!", Iso.tile_to_world(village.center) + Vector2(0, -60), Color("c9a8ff"))
+	Sfx.play("build")
+	changed.emit()
+	return civ
+
+
+# --- bodies --------------------------------------------------------------------------------
 
 func _spawn_walker(unit: MilitaryUnit, from: Vector2i) -> Soldier:
 	var s: Soldier = SOLDIER_SCRIPT.new()
@@ -233,19 +440,23 @@ func _on_arrived(s: Soldier) -> void:
 	var unit := s.unit
 	match unit.state:
 		MilitaryUnit.State.MARCHING:
-			var tower := unit.post
-			if not is_instance_valid(tower) or not tower.can_garrison():
+			var post := unit.post
+			if not is_instance_valid(post) or not post.can_garrison():
 				_send_home(unit, s)
 				return
-			tower.incoming = null
-			tower.set_garrison(unit)
+			post.incoming_slots[unit.slot] = null
+			post.set_slot(unit.slot, unit)
 			unit.state = MilitaryUnit.State.STATIONED
-			village.events.debug("%s takes up its post on %s" % [unit.label(), tower.label()])
+			village.events.debug("%s takes up its post on %s" % [unit.label(), post.label()])
 		MilitaryUnit.State.RETURNING:
 			unit.state = MilitaryUnit.State.RESERVE
 			village.events.debug("%s is back in the reserve" % unit.label())
 		MilitaryUnit.State.TRAVELLING:
 			unit.travel_to.army.adopt(unit)
+		MilitaryUnit.State.STATIONED:
+			if unit.out:  # back from a sortie
+				back_to_bench(unit)
+				return
 	unit.walker = null
 	s.set_process(false)
 	s.queue_free()

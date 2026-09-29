@@ -87,6 +87,24 @@ func float_text(text: String, pos: Vector2, col: Color) -> void:
 			_peers[id]["ft"].append([text, pos, col])
 
 
+## A unit's shot (Config.ATTACKS key) from `from` to `to`, for those who watch it.
+func shot(attack: String, from: Vector2, to: Vector2) -> void:
+	_fx_for(to, ["shot", attack, from, to])
+
+
+## An effect (explosion, heal ring, warp) at `at`, for those who watch it.
+func burst(kind: String, at: Vector2, radius: float) -> void:
+	_fx_for(at, ["burst", kind, at, radius])
+
+
+func _fx_for(at: Vector2, fx: Array) -> void:
+	var t := Iso.to_tile(at)
+	for id in _peers:
+		var v := Net.village_of_peer(id)
+		if v and game.fog.is_watched_by(v.id, t):
+			_peers[id]["fx"].append(fx)
+
+
 ## An arrow flying from `from` to `to` (world positions), for those who watch it.
 func arrow(from: Vector2, to: Vector2) -> void:
 	var t := Iso.to_tile(to)
@@ -183,7 +201,7 @@ func _snapshot_for(id: int, all: Array) -> Dictionary:
 func _village_data(v: Village) -> Dictionary:
 	var army := []
 	for u in v.army.units:
-		army.append([u.nid, u.kind, u.level, u.state, game.id_of(u.post), u.train_xp, u.uid, u.travel_to.id if u.travel_to else -1])
+		army.append([u.nid, u.kind, u.level, u.state, game.id_of(u.post), u.train_xp, u.uid, u.travel_to.id if u.travel_to else -1, snappedf(u.hp, 0.5), ceilf(u.revive_left), u.slot, u.out, u.revive_at_post])
 	var w := game.waves
 	return {
 		"eco": [v.economy.amount("gold"), v.economy.amount("food"), v.economy.amount("materials")],
@@ -208,13 +226,18 @@ func _building_state(b: Building) -> Dictionary:
 	if b is Tower:
 		st["l"] = b.level
 		st["en"] = b.enchanted > 0.0
+	if b is Barracks:
+		st["l"] = b.level
 	if b is MilitaryPost:
-		var g: MilitaryUnit = b.garrison
-		st["g"] = g.nid if g else 0
-		st["gk"] = g.kind if g else ""
-		st["gl"] = g.level if g else 0
-		st["gx"] = snappedf(g.train_xp, 1.0) if g else 0.0
-		st["i"] = b.incoming.nid if b.incoming else 0
+		# Every slot: [unit id, kind, level, train xp, out, downed]; and who's marching in.
+		var sl := []
+		var inc := []
+		for i in b.slots.size():
+			var g: MilitaryUnit = b.slots[i]
+			sl.append([g.nid, g.kind, g.level, snappedf(g.train_xp, 1.0), g.out, g.is_downed()] if g else [])
+			inc.append(b.incoming_slots[i].nid if b.incoming_slots[i] else 0)
+		st["sl"] = sl
+		st["in"] = inc
 	if b is Hut:
 		st["r"] = b.ruined
 		st["res"] = game.id_of(b.resident)
@@ -249,12 +272,12 @@ func _describe(n: Node) -> Array:
 	if n is Soldier:
 		var s := n as Soldier
 		vid = s.unit.village.id if s.unit.village else -1
-		return [s.nid, "s", {"k": s.unit.kind, "n": s.unit.nid, "v": vid}, _unit_state(s), s.current_tile(), vid, false]
+		return [s.nid, "s", {"k": s.unit.kind, "n": s.unit.nid, "v": vid}, _unit_state(s).merged({"hp": snappedf(s.unit.hp, 0.5), "l": s.unit.level, "k": s.unit.kind}), s.current_tile(), vid, false]
 	if n is EarthElemental:
 		var el := n as EarthElemental
 		if el.dead:
 			return []
-		return [el.nid, "el", {"v": vid, "u": el.uid}, _unit_state(el).merged({"hp": snappedf(el.hp, 0.5), "mhp": el.max_hp}), el.current_tile(), vid, false]
+		return [el.nid, "el", {"v": vid, "u": el.uid, "sm": el.summon}, _unit_state(el).merged({"hp": snappedf(el.hp, 0.5), "mhp": el.max_hp}), el.current_tile(), vid, false]
 	if n is Caravan:
 		var ca := n as Caravan
 		return [ca.nid, "ca", {"from": ca.from.id, "to": ca.to.id, "u": ca.uid}, _unit_state(ca), ca.current_tile(), vid, false]
@@ -307,11 +330,21 @@ func apply(d: Dictionary) -> void:
 	for f in d.get("ft", []):
 		game.world.float_text(f[0], f[1], f[2])
 	for f in d.get("fx", []):
-		if f[0] == "arrow":
-			var a := Arrow.new()
-			a.visual_only = true
-			game.world.effects.add_child(a)
-			a.fly(f[1], f[2])
+		match f[0]:
+			"arrow":
+				var a := Arrow.new()
+				a.visual_only = true
+				game.world.effects.add_child(a)
+				a.fly(f[1], f[2])
+			"shot":
+				var sh := Shot.new()
+				game.world.effects.add_child(sh)
+				sh.fly(Config.ATTACKS[f[1]], f[2], f[3])
+			"burst":
+				var b: Node2D = Combat.BURST_SCRIPT.new()
+				b.setup(f[1], f[3])
+				b.position = f[2]
+				game.world.effects.add_child(b)
 	game.world.warnings.show_net(d.get("wl", []))
 
 
@@ -329,12 +362,19 @@ func _apply_village(vd: Dictionary) -> void:
 			u.nid = a[0]
 			u.village = v
 			game.register_as(u, a[0])
+		if u.kind != a[1]:
+			u.set_kind(a[1])  # specialised
 		u.level = a[2]
 		u.state = a[3]
 		u.post = game.entity(a[4]) as MilitaryPost
 		u.train_xp = a[5]
 		u.uid = a[6]
 		u.travel_to = game.villages[a[7]] if a[7] >= 0 else null
+		u.hp = a[8]
+		u.revive_left = a[9]
+		u.slot = a[10]
+		u.out = a[11]
+		u.revive_at_post = a[12]
 		keep[u] = true
 	var units: Array[MilitaryUnit] = []
 	for u in keep:
@@ -422,7 +462,7 @@ func _spawn(nid: int, type: String, s: Dictionary, st: Dictionary) -> void:
 			var el: EarthElemental = ELEMENTAL_SCRIPT.new()
 			el.village = game.villages[s["v"]] if s["v"] >= 0 else null
 			var t := Vector2i(Vector2(st["p"]).round())
-			el.setup(game, t, t, st["mhp"], 0.0)
+			el.setup(game, t, t, st["mhp"], 0.0, s.get("sm", "earth"))
 			el.uid = s["u"]
 			el.nid = nid
 			game.register_as(el, nid)
@@ -480,6 +520,14 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		h.support_target = game.villages[st["st"]] if st["st"] >= 0 else null
 		h.queue_redraw()
 		h.changed.emit()
+	if o is Soldier:
+		var so := o as Soldier
+		if so.unit.nid == 0 or game.entity(so.unit.nid) != so.unit:  # someone else's unit: keep its stand-in up to date
+			if so.unit.kind != st.get("k", so.unit.kind):
+				so.unit.set_kind(st["k"])
+			so.unit.level = st.get("l", 0)
+		so.unit.hp = st.get("hp", so.unit.hp)
+		so.queue_redraw()
 	if o is Enemy or o is EarthElemental:
 		o.hp = st["hp"]
 		o.max_hp = st["mhp"]
@@ -492,13 +540,17 @@ func _apply_building(b: Building, st: Dictionary) -> void:
 	b.progress = st.get("p", b.progress)
 	b.upgrading = st.has("u")
 	b.upgrade_progress = st.get("u", 0.0)
-	if b is Tower and st.has("l") and b.level != st["l"]:
+	if (b is Tower or b is Barracks) and st.has("l") and b.level != st["l"]:
 		b.level = st["l"]
 	if b is Tower:
 		b.enchanted = 1.0 if st.get("en", false) else 0.0
 	if b is MilitaryPost:
-		b.garrison = _garrison_for(b, st)
-		b.incoming = game.entity(st.get("i", 0)) as MilitaryUnit
+		b.fit_slots()
+		var sl: Array = st.get("sl", [])
+		var inc: Array = st.get("in", [])
+		for i in b.slots.size():
+			b.slots[i] = _garrison_for(b, i, sl[i] if i < sl.size() else [])
+			b.incoming_slots[i] = game.entity(inc[i]) as MilitaryUnit if i < inc.size() else null
 	if b is Hut:
 		b.ruined = st.get("r", false)
 		b.resident = game.entity(st.get("res", 0)) as Civilian
@@ -514,24 +566,27 @@ func _apply_building(b: Building, st: Dictionary) -> void:
 		game.world.refresh_building(b)
 
 
-## The unit on a post: ours from our army, or a stand-in for someone else's.
-func _garrison_for(b: MilitaryPost, st: Dictionary) -> MilitaryUnit:
-	var nid: int = st.get("g", 0)
-	if nid == 0:
-		_foreign_units.erase(b.nid)
+## The unit in slot `i` of a post: ours from our army, or a stand-in for
+## someone else's. `s` = [unit id, kind, level, train xp, out, downed] or [].
+func _garrison_for(b: MilitaryPost, i: int, s: Array) -> MilitaryUnit:
+	var key := "%d:%d" % [b.nid, i]
+	if s.is_empty():
+		_foreign_units.erase(key)
 		return null
-	var u = game.entity(nid)
+	var u = game.entity(s[0])
 	if u is MilitaryUnit:
 		return u
-	var f: MilitaryUnit = _foreign_units.get(b.nid)
-	if f == null or f.kind != st["gk"]:
-		f = MilitaryUnit.new(st["gk"])
+	var f: MilitaryUnit = _foreign_units.get(key)
+	if f == null or f.kind != s[1]:
+		f = MilitaryUnit.new(s[1])
 		f.village = b.village
-		_foreign_units[b.nid] = f
-	f.level = st.get("gl", 0)
-	f.train_xp = st.get("gx", 0.0)
-	f.state = MilitaryUnit.State.STATIONED
+		_foreign_units[key] = f
+	f.level = s[2]
+	f.train_xp = s[3]
+	f.out = s[4]
+	f.state = MilitaryUnit.State.DOWNED if s[5] else MilitaryUnit.State.STATIONED
 	f.post = b
+	f.slot = i
 	return f
 
 

@@ -114,12 +114,25 @@ func sight_radius() -> float:
 	return r
 
 
-func set_garrison(unit: MilitaryUnit) -> void:
+func set_slot(i: int, unit: MilitaryUnit) -> void:
 	if garrison != null and unit != garrison:
 		garrison.behavior.on_leave(self, garrison)
 	enchanted = 0.0
 	_spell_glow.visible = false
-	super.set_garrison(unit)
+	super.set_slot(i, unit)
+
+
+func post_kind() -> String:
+	return "tower"
+
+
+## Behaviors act from here (see MilitaryBehavior): the tower's tile and range.
+func act_center() -> Vector2:
+	return Vector2(tile)
+
+
+func act_range() -> float:
+	return range_tiles()
 
 
 func _exit_tree() -> void:
@@ -215,7 +228,10 @@ func info() -> Dictionary:
 	if garrison:
 		lines.append("%s, level %d%s" % [garrison.display_name(), garrison.level + 1, "  (bewitched!)" if is_enchanted() else ""])
 		lines.append_array(garrison.behavior.info_lines(garrison))
-		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": garrison.nid})})
+		var g := garrison
+		if not g.upgrade_options().is_empty():
+			actions.append({"label": "Upgrade %s..." % g.display_name().to_lower(), "action": func() -> void: game.hud.open_upgrade(g)})
+		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": g.nid})})
 	elif incoming:
 		lines.append("%s marching here." % incoming.display_name())
 		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": incoming.nid})})

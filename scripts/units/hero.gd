@@ -58,6 +58,7 @@ func setup_hero(p_game: Game, p_village: Village) -> void:
 	at_home = true
 	add_to_group("observers")
 	add_to_group("melee_defenders")
+	add_to_group("heroes")  # (healing mages heal every village's hero)
 	jobs[Mode.BUILD] = BuildJob.new(spec["build_efficiency"])
 	jobs[Mode.EXPLORE] = ExploreJob.new(spec["explore_reveal"])
 	jobs[Mode.GATHER] = GatherJob.new(spec["gather_capacity"])

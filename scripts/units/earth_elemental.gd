@@ -1,8 +1,10 @@
 class_name EarthElemental
 extends Unit
-## A small earth elemental summoned next to its summoner's tower. It wanders
-## around the tower until it spots an enemy, then walks up to it and fights in
-## close combat. Enemies fight back; at 0 hp it crumbles (no corpse).
+## A small elemental summoned next to its summoner (on a tower, or outside its
+## barracks). It wanders around there until it spots an enemy, then walks up
+## to it and fights in close combat. Enemies fight back; at 0 hp it crumbles
+## (no corpse). Kinds (Config.SUMMONS): earth, and fire, which hovers and
+## flickers, is quick and hits hard, but burns itself with every hit.
 
 signal died(elemental: EarthElemental)
 
@@ -17,10 +19,13 @@ var home := Vector2i.ZERO
 var uid := 0
 ## Its summoner's village.
 var village: Village
+## "earth" / "fire" (Config.SUMMONS).
+var summon := "earth"
+var _flicker := 0.0
 
 
 func label() -> String:
-	return "elemental %d" % uid
+	return "%s %d" % ["fire elemental" if summon == "fire" else "elemental", uid]
 
 var _attack_timer := 0.0
 var _think_timer := 0.0
@@ -28,14 +33,16 @@ var _idle_timer := 0.0
 var _chase_tile := Vector2i(-9999, -9999)
 
 
-func setup(p_game: Game, p_home: Vector2i, spawn_tile: Vector2i, p_hp: float, p_damage: float) -> void:
+func setup(p_game: Game, p_home: Vector2i, spawn_tile: Vector2i, p_hp: float, p_damage: float, p_summon: String = "earth") -> void:
 	game = p_game
 	home = p_home
 	max_hp = p_hp
 	hp = p_hp
 	damage = p_damage
-	speed = Config.SUMMON["speed"]
-	_init_sprite("unit_earth_elemental")
+	summon = p_summon
+	var sm: Dictionary = Config.SUMMONS[summon]
+	speed = sm["speed"]
+	_init_sprite(sm["art"])
 	set_grid_pos(Vector2(spawn_tile))
 	add_to_group("summons")
 	add_to_group("melee_defenders")
@@ -46,6 +53,10 @@ func setup(p_game: Game, p_home: Vector2i, spawn_tile: Vector2i, p_hp: float, p_
 
 
 func _process(delta: float) -> void:
+	if Config.SUMMONS[summon]["hover"]:  # a flame: bobs above the ground and flickers
+		_flicker += delta
+		sprite.offset.y = -6.0 - 3.0 * sin(_flicker * 5.0)
+		sprite.self_modulate = Color(1.0, 0.85 + 0.15 * sin(_flicker * 23.0), 0.8 + 0.2 * sin(_flicker * 17.0))
 	if game.is_client:
 		net_follow(delta)
 		return
@@ -122,6 +133,11 @@ func _wander(delta: float) -> void:
 
 func _strike() -> void:
 	target.take_damage(damage, self)
+	var burn: float = Config.SUMMONS[summon]["self_damage"]
+	if burn > 0.0:
+		take_damage(damage * burn, self)  # fire burns itself up
+		if dead:
+			return
 	var tw := create_tween()
 	var lunge := (Iso.to_world(target.grid_pos) - position).normalized() * 5.0
 	tw.tween_property(sprite, "position", lunge, 0.08)

@@ -16,7 +16,7 @@ const ROLE_SCRIPTS := {
 	"explorer": preload("res://scripts/units/explorer.gd"),
 	"gatherer": preload("res://scripts/units/gatherer.gd"),
 	"forester": preload("res://scripts/units/forester.gd"),
-	"archmage": preload("res://scripts/units/archmage.gd"),
+	"spatial_archmage": preload("res://scripts/units/archmage.gd"),
 }
 
 var game: Game
@@ -59,6 +59,8 @@ func free_huts() -> Array[Building]:
 
 ## Returns "" when recruiting is possible, else the reason why not.
 func recruit_error(role: String) -> String:
+	if not Config.CIVILIANS[role].get("recruit", true):
+		return "Only a level %d spatial mage can become one" % Config.ARCHMAGE_LEVEL
 	if free_huts().is_empty():
 		return "No free hut (%d/%d)" % [count(), cap()]
 	if not village.economy.can_afford(Config.CIVILIANS[role]["cost"]):

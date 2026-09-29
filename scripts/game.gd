@@ -299,15 +299,13 @@ func select_unit(unit: MilitaryUnit) -> void:
 
 func unit_info(unit: MilitaryUnit) -> Dictionary:
 	var lines: Array[String] = ["Level %d, on %s" % [unit.level + 1, unit.post.display_name()]]
+	if not (unit.post is Tower):
+		lines.append("%d / %d HP" % [ceili(unit.hp), ceili(unit.max_hp())])
 	lines.append_array(unit.behavior.info_lines(unit))
-	lines.append("Drag it onto another tower to move it there, or onto the %s to withdraw it." % ("panel below" if Layout.portrait else "sidebar"))
+	lines.append("Drag it onto another tower or barracks to move it there, or onto the %s to withdraw it." % ("panel below" if Layout.portrait else "sidebar"))
 	var actions: Array[Dictionary] = []
-	if unit.can_upgrade():
-		actions.append({
-			"label": "Upgrade  (%s)" % Config.cost_text(unit.upgrade_cost()),
-			"disabled": not economy.can_afford(unit.upgrade_cost()),
-			"action": func() -> void: command("upgrade_unit", {"unit": unit.nid}),
-		})
+	if not unit.upgrade_options().is_empty():
+		actions.append({"label": "Upgrade...", "action": func() -> void: hud.open_upgrade(unit)})
 	actions.append({"label": "Withdraw", "action": func() -> void:
 		command("withdraw_unit", {"unit": unit.nid})
 		deselect()})
@@ -318,10 +316,10 @@ func unit_info(unit: MilitaryUnit) -> Dictionary:
 func _claim_press(screen_pos: Vector2) -> bool:
 	if mode != Mode.NONE or game_over:
 		return false
-	var post := world.pick_unit(camera.screen_to_world(screen_pos))
-	if post == null:
+	var u := world.pick_unit(camera.screen_to_world(screen_pos))
+	if u == null:
 		return false
-	_udrag = {"unit": post.garrison, "from": post, "start": screen_pos, "active": false}
+	_udrag = {"unit": u, "from": u.post, "start": screen_pos, "active": false}
 	return true
 
 
@@ -336,7 +334,7 @@ func _input(event: InputEvent) -> void:
 		var pos: Vector2 = event.position
 		if not _udrag["active"] and pos.distance_to(_udrag["start"]) > DRAG_THRESHOLD:
 			_udrag["active"] = true
-			(_udrag["from"] as MilitaryPost).set_unit_ghosted(true)
+			(_udrag["from"] as MilitaryPost).set_unit_ghosted(true, unit)
 		if _udrag["active"]:
 			preview_drag(unit, pos)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
@@ -582,6 +580,8 @@ func who(n) -> String:
 		return "something"
 	if n is Tower:
 		return "%s on %s" % [n.garrison.label(), n.label()] if n.garrison else n.label()
+	if n is Soldier:
+		return n.unit.label()
 	if n.has_method("label"):
 		return n.label()
 	return str(n.name)

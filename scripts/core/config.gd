@@ -87,6 +87,10 @@ const BUILDINGS := {
 		"name": "Worker Camp", "cost": {"materials": 25}, "build_time": 6.0, "size": 1, "art": "worker_camp",
 		"desc": "Base for one forester, who cuts nearby trees for building material.",
 	},
+	"barracks": {
+		"name": "Barracks", "cost": {"materials": 70, "gold": 60}, "build_time": 16.0, "size": 2, "art": "barracks",
+		"desc": "2x2. Units wait on its benches (1 per level, up to 3) and turn out when enemies come near. Upgrade for more benches and range.",
+	},
 	"training": {
 		"name": "Training Grounds", "cost": {"materials": 60, "gold": 80}, "build_time": 14.0, "size": 2, "art": "training_grounds",
 		"desc": "2x2. Station a military unit here; the hero (in Train mode) passes on his XP to level it up for free.",
@@ -131,9 +135,11 @@ const CIVILIANS := {
 		"desc": "Works from a worker camp, chopping nearby trees for building material.",
 		"works_at": "camp",
 	},
-	"archmage": {
-		"name": "Archmage", "cost": {"food": 150, "gold": 600}, "speed": 0.6,
-		"desc": "Coming soon: may one day break the siege of Veliron.",
+	# Can't be recruited: a spatial mage of level ARCHMAGE_LEVEL becomes one
+	# (docs/military-design.md §7). A key to ending the siege, later.
+	"spatial_archmage": {
+		"name": "Spatial Archmage", "cost": {}, "speed": 0.6, "recruit": false,
+		"desc": "Only a level %d spatial mage can become one. May one day break the siege of Veliron." % ARCHMAGE_LEVEL,
 	},
 }
 ## The role that works at buildings of `kind` ("" if none), from "works_at".
@@ -144,7 +150,7 @@ static func worker_role(kind: String) -> String:
 	return ""
 
 
-const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "archmage"]
+const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "spatial_archmage"]
 
 const FOOD_UPKEEP := 0.05  # food per civilian per second
 const STARVATION_INTERVAL := 15.0  # a civilian dies this often while food is 0
@@ -179,34 +185,211 @@ const EXPLORER_CLAIM_PENALTY := 30
 
 ## Military units. Every kind is stationed on a tower; its "behavior" script
 ## decides what it does there. Upgrades never change range: towers own range.
+## --- Military (docs/military-design.md) ------------------------------------------------
+## Every unit goes up to MAX_UNIT_LEVEL. Stats are given for level 1 and level 10
+## ("stats": key -> [level 1, level 10]); levels in between follow the curve
+## (t = 0 at level 1 .. 1 at level 10, value = a + (b - a) * t^curve). "pinned"
+## fixes the first levels exactly (today's archer and summoner levels 1-4); the
+## curve then continues from the last pinned value.
+## "upgrade_cost" / "train_xp": gold / hero XP to reach level 2 and level 10
+## (pinned the same way), "branch_cost": gold to turn into this specialisation.
+## Roles: "ranged" (towers or barracks; own "range" in the field, never upgraded,
+## always below the smallest tower range), "melee" (barracks only), "summoner"
+## (summons elementals; no attack of its own), "healer" (heals allies around it).
+const MAX_UNIT_LEVEL := 10
+## From this level a base unit can also turn into level 1 of a specialisation.
+const BRANCH_MIN_LEVEL := 3
+## A spatial mage of this level can become the Spatial Archmage (a civilian).
+const ARCHMAGE_LEVEL := 10
+const ARCHMAGE_COST := {"gold": 600}
+## Seconds a downed unit needs to come back: level 1 / level 10 (linear between).
+const UNIT_REVIVE_TIME := [30.0, 45.0]
+## HP per second a unit heals on a barracks bench, or unused in the reserve.
+const UNIT_REGEN := 1.0
+## Field combat (barracks sorties): melee reach, and how far beyond the
+## barracks' range units chase before turning back.
+const UNIT_MELEE_RANGE := 0.8
+const SORTIE_LEASH := 2.0
+
 const MILITARY := {
 	"archer": {
-		"name": "Archer", "cost": {"gold": 40}, "speed": 1.8, "behavior": "archer",
-		"desc": "Shoots enemies from a tower.",
-		# Upgrades improve damage and attack speed; range comes from the tower.
-		"levels": [
-			{"damage": 7.0, "cooldown": 1.0},
-			{"damage": 11.0, "cooldown": 0.85, "cost": {"gold": 45}},
-			{"damage": 16.0, "cooldown": 0.72, "cost": {"gold": 80}},
-			{"damage": 24.0, "cooldown": 0.6, "cost": {"gold": 130}},
-		],
-		# XP the hero must pass on (training grounds) to reach level 2, 3, 4.
-		"train_xp": [30, 60, 100],
+		"name": "Archer", "role": "ranged", "posts": ["tower", "barracks"], "recruit": true,
+		"cost": {"gold": 40}, "speed": 1.8, "attack": "arrow", "range": 2.6,
+		"desc": "Shoots arrows, from a tower or out of the barracks.",
+		"stats": {"hp": [30.0, 90.0], "damage": [7.0, 40.0], "cooldown": [1.0, 0.45]},
+		"pinned": {"damage": [7.0, 11.0, 16.0, 24.0], "cooldown": [1.0, 0.85, 0.72, 0.6]},
+		"upgrade_cost": [45, 300], "upgrade_cost_pinned": [45, 80, 130],
+		"train_xp": [30, 400], "train_xp_pinned": [30, 60, 100],
+		"branches": ["crossbowman", "swiftbowman"],
+	},
+	"crossbowman": {
+		"name": "Crossbowman", "role": "ranged", "posts": ["tower", "barracks"], "recruit": false,
+		"branch_of": "archer", "branch_cost": {"gold": 150},
+		"speed": 1.6, "attack": "bolt", "range": 3.2, "pierce": true,  # (piercing: for shielded enemies, later)
+		"desc": "Slow, heavy crossbow bolts; reaches further than an archer in the field.",
+		"stats": {"hp": [34.0, 100.0], "damage": [50.0, 170.0], "cooldown": [2.25, 1.7]},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
+	},
+	"swiftbowman": {
+		"name": "Swiftbowman", "role": "ranged", "posts": ["tower", "barracks"], "recruit": false,
+		"branch_of": "archer", "branch_cost": {"gold": 150},
+		"speed": 2.0, "attack": "swift_arrow", "range": 2.6,
+		"desc": "A hail of light arrows: tiny hits, very fast.",
+		"stats": {"hp": [28.0, 85.0], "damage": [5.5, 14.0], "cooldown": [0.3, 0.18]},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
+	},
+	"shield_bearer": {
+		"name": "Shield Bearer", "role": "melee", "posts": ["barracks"], "recruit": true,
+		"cost": {"gold": 50}, "speed": 1.3, "attack": "strike",
+		"desc": "Barracks only. Huge shield, lots of HP, little damage: holds enemies up.",
+		"stats": {"hp": [55.0, 180.0], "damage": [3.0, 12.0], "cooldown": [1.2, 0.9]},
+		"upgrade_cost": [40, 250], "train_xp": [30, 350],
 	},
 	"summoner": {
-		"name": "Summoner", "cost": {"gold": 60}, "speed": 1.4, "behavior": "summoner",
-		"desc": "Summons earth elementals while enemies are in sight.",
-		# Upgrades speed up summoning, raise the cap, and strengthen *new* summons.
-		"levels": [
-			{"interval": 6.0, "max_summons": 2, "summon_hp": 20.0, "summon_damage": 4.0},
-			{"interval": 5.0, "max_summons": 3, "summon_hp": 26.0, "summon_damage": 5.0, "cost": {"gold": 60}},
-			{"interval": 4.2, "max_summons": 4, "summon_hp": 34.0, "summon_damage": 6.5, "cost": {"gold": 100}},
-			{"interval": 3.5, "max_summons": 5, "summon_hp": 44.0, "summon_damage": 8.5, "cost": {"gold": 150}},
-		],
-		"train_xp": [40, 80, 130],
+		"name": "Summoner", "role": "summoner", "posts": ["tower", "barracks"], "recruit": true,
+		"cost": {"gold": 60}, "speed": 1.4, "summon": "earth",
+		"desc": "Summons earth elementals while enemies are near. Fragile, no attack of its own.",
+		"stats": {"hp": [18.0, 50.0], "interval": [6.0, 2.5], "max_summons": [2.0, 8.0], "summon_hp": [20.0, 90.0], "summon_damage": [4.0, 18.0]},
+		"pinned": {"interval": [6.0, 5.0, 4.2, 3.5], "max_summons": [2.0, 3.0, 4.0, 5.0], "summon_hp": [20.0, 26.0, 34.0, 44.0], "summon_damage": [4.0, 5.0, 6.5, 8.5]},
+		"upgrade_cost": [60, 300], "upgrade_cost_pinned": [60, 100, 150],
+		"train_xp": [40, 400], "train_xp_pinned": [40, 80, 130],
+		"branches": ["fire_summoner"],
+	},
+	"fire_summoner": {
+		"name": "Fire Summoner", "role": "summoner", "posts": ["tower", "barracks"], "recruit": false,
+		"branch_of": "summoner", "branch_cost": {"gold": 150},
+		"speed": 1.4, "summon": "fire",
+		"desc": "Summons fire elementals: quick and deadly, but they burn themselves up.",
+		"stats": {"hp": [18.0, 50.0], "interval": [4.2, 2.5], "max_summons": [3.0, 7.0], "summon_hp": [34.0, 90.0], "summon_damage": [6.5, 18.0]},
+		"upgrade_cost": [70, 300], "train_xp": [45, 400],
+	},
+	"apprentice": {
+		"name": "Apprentice", "role": "ranged", "posts": ["tower", "barracks"], "recruit": true,
+		"cost": {"gold": 55}, "speed": 1.6, "attack": "orb", "range": 2.8,
+		"desc": "A young mage: whirling dark-blue orbs. Grows into a specialised mage.",
+		"stats": {"hp": [20.0, 60.0], "damage": [7.0, 38.0], "cooldown": [1.0, 0.55]},
+		"upgrade_cost": [50, 300], "train_xp": [35, 400],
+		"branches": ["fire_mage", "ice_mage", "healing_mage", "spatial_mage"],
+	},
+	"fire_mage": {
+		"name": "Fire Mage", "role": "ranged", "posts": ["tower", "barracks"], "recruit": false,
+		"branch_of": "apprentice", "branch_cost": {"gold": 120},
+		"speed": 1.6, "attack": "fireball", "range": 2.8,
+		"desc": "Fireballs that explode: less damage per hit, but it splashes whole groups.",
+		"stats": {"hp": [20.0, 60.0], "damage": [10.0, 27.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
+	},
+	"ice_mage": {
+		"name": "Ice Mage", "role": "ranged", "posts": ["tower", "barracks"], "recruit": false,
+		"branch_of": "apprentice", "branch_cost": {"gold": 120},
+		"speed": 1.6, "attack": "frost", "range": 2.8,
+		"desc": "Frost orbs: a bit more damage, and the enemy hit is slowed for a while.",
+		"stats": {"hp": [20.0, 60.0], "damage": [16.0, 44.0], "cooldown": [0.95, 0.55], "slow": [0.7, 0.4], "slow_time": [2.0, 3.5]},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
+	},
+	"healing_mage": {
+		"name": "Healing Mage", "role": "healer", "posts": ["tower", "barracks"], "recruit": false,
+		"branch_of": "apprentice", "branch_cost": {"gold": 120},
+		"speed": 1.6, "attack": "heal",
+		"desc": "No damage. Heals every allied unit and hero around it (not summons).",
+		"stats": {"hp": [15.0, 45.0], "heal": [6.0, 30.0], "cooldown": [3.0, 1.4], "radius": [2.5, 3.5]},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
+	},
+	"spatial_mage": {
+		"name": "Spatial Mage", "role": "ranged", "posts": ["tower", "barracks"], "recruit": false,
+		"branch_of": "apprentice", "branch_cost": {"gold": 120},
+		"speed": 1.6, "attack": "warp", "range": 2.8,
+		"desc": "Little damage, but the enemy hit is thrown back along its road. At level %d it can become the Spatial Archmage." % ARCHMAGE_LEVEL,
+		"stats": {"hp": [20.0, 60.0], "damage": [9.0, 26.0], "cooldown": [0.95, 0.55], "push": [1.5, 4.0]},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
+		"archmage": true,
 	},
 }
-const MILITARY_ORDER: Array[String] = ["archer", "summoner"]
+## Recruitable units in the Army tab (specialisations come from upgrades).
+const MILITARY_ORDER: Array[String] = ["archer", "shield_bearer", "summoner", "apprentice"]
+## Kinds in tech-tree order (base unit, then its specialisations).
+const MILITARY_TREE: Array[String] = ["archer", "crossbowman", "swiftbowman", "shield_bearer", "summoner", "fire_summoner", "apprentice", "fire_mage", "ice_mage", "healing_mage", "spatial_mage"]
+
+## What a unit's attack looks like and does. "projectile": art of the shot
+## ("" = no shot); "whirl": the shot spins; "arc": arrows fly on an arc.
+## Effects: "splash" (damage to others within the unit's "splash" radius,
+## times splash_share), "slow" (the unit's "slow" speed factor for "slow_time"
+## s), "push" (thrown back "push" tiles along its road, once per push_immunity s),
+## "heal" (heals allies within the unit's "radius").
+const ATTACKS := {
+	"arrow": {"projectile": "arrow", "arc": true, "sound": "shoot"},
+	"swift_arrow": {"projectile": "swift_arrow", "arc": true, "sound": "shoot"},
+	"bolt": {"projectile": "crossbow_bolt", "arc": false, "speed": 900.0, "sound": "shoot"},
+	"orb": {"projectile": "arcane_orb", "whirl": true, "speed": 420.0, "sound": "hit"},
+	"fireball": {"projectile": "fireball", "whirl": true, "speed": 380.0, "splash_share": 0.6, "explode": true, "sound": "hit"},
+	"frost": {"projectile": "frost_orb", "whirl": true, "speed": 420.0, "sound": "hit"},
+	"warp": {"projectile": "warp_orb", "whirl": true, "speed": 460.0, "push_immunity": 4.0, "sound": "hit"},
+	"heal": {"projectile": "", "sound": "recruit"},
+	"strike": {"projectile": "", "sound": "hit"},
+}
+
+## Summoned elementals, relative to Config.SUMMON (earth elementals).
+const SUMMONS := {
+	"earth": {"name": "Earth Elemental", "art": "unit_earth_elemental", "hp": 1.0, "damage": 1.0, "speed": 1.1, "self_damage": 0.0, "hover": false},
+	# Fire elementals hover and flicker; they lose self_damage x the damage they deal, as HP.
+	"fire": {"name": "Fire Elemental", "art": "unit_fire_elemental", "hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "hover": true},
+}
+
+## Barracks levels: benches (unit slots) and how near enemies must come before
+## everyone on the benches turns out. Upgrades cost material and a builder's time.
+const BARRACKS_LEVELS: Array[Dictionary] = [
+	{"slots": 1, "range": 4.0},
+	{"slots": 2, "range": 5.0, "cost": {"materials": 60}, "work_time": 10.0},
+	{"slots": 3, "range": 6.0, "cost": {"materials": 90}, "work_time": 14.0},
+]
+
+
+## A unit's stat at `level` (0-based: 0 = level 1), from the curve (see MILITARY).
+static func unit_stat(kind: String, key: String, level: int) -> float:
+	var spec: Dictionary = MILITARY[kind]
+	var ends: Array = spec["stats"][key]
+	var pinned: Array = spec.get("pinned", {}).get(key, [])
+	return _curve(ends[0], ends[1], pinned, clampi(level, 0, MAX_UNIT_LEVEL - 1), MAX_UNIT_LEVEL, spec.get("curve", 1.0))
+
+
+## Gold to go from `level` to the next one (0-based), or {} at the top.
+static func unit_upgrade_cost(kind: String, level: int) -> Dictionary:
+	if level >= MAX_UNIT_LEVEL - 1:
+		return {}
+	var spec: Dictionary = MILITARY[kind]
+	var ends: Array = spec["upgrade_cost"]
+	var v := _curve(ends[0], ends[1], spec.get("upgrade_cost_pinned", []), level, MAX_UNIT_LEVEL - 1, spec.get("curve", 1.0))
+	return {"gold": roundi(v / 5.0) * 5}
+
+
+## Hero XP for the next level at the training grounds (before the difficulty factor).
+static func unit_train_xp(kind: String, level: int) -> float:
+	if level >= MAX_UNIT_LEVEL - 1:
+		return 0.0
+	var spec: Dictionary = MILITARY[kind]
+	var ends: Array = spec["train_xp"]
+	return roundf(_curve(ends[0], ends[1], spec.get("train_xp_pinned", []), level, MAX_UNIT_LEVEL - 1, spec.get("curve", 1.0)))
+
+
+## Seconds a downed unit of `level` needs to revive.
+static func unit_revive_time(level: int) -> float:
+	return lerpf(UNIT_REVIVE_TIME[0], UNIT_REVIVE_TIME[1], float(clampi(level, 0, MAX_UNIT_LEVEL - 1)) / (MAX_UNIT_LEVEL - 1))
+
+
+## Value `i` of `n` steps from `first` to `last`; `pinned` fixes the first ones,
+## the rest continues from the last pinned value.
+static func _curve(first: float, last: float, pinned: Array, i: int, n: int, curve: float) -> float:
+	if i < pinned.size():
+		return pinned[i]
+	var from := 0
+	var a := first
+	if not pinned.is_empty():
+		from = pinned.size() - 1
+		a = pinned[-1]
+	if n - 1 <= from:
+		return last
+	var t := float(i - from) / float(n - 1 - from)
+	return lerpf(a, last, pow(t, curve))
 ## Training XP needed is multiplied by this per difficulty (see Settings).
 const TRAIN_XP_DIFFICULTY := {"easy": 0.8, "normal": 1.0, "hard": 1.5}
 

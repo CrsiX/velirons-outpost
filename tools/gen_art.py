@@ -981,6 +981,255 @@ def caravan():
     a.save("unit_caravan")
 
 
+def shield_bearer():
+    """Smaller soldier almost hidden behind a big tower shield (planks, iron rim, crest)."""
+    def extra(a, layer):
+        if layer == "back":
+            a.line([(-8, -24), (-12, -32)], INK, 3)  # spear shaft behind
+            a.line([(-8, -24), (-12, -32)], WOOD_L, 1.6)
+        else:
+            a.poly([(1, -2), (15, -4), (15, -36), (1, -38)], "#6a4a2c", INK, 1.6)  # the shield
+            for x in (5.5, 10.5):
+                a.line([(x, -2.6), (x, -37.2)], "#4a3220", 1)
+            a.poly([(1, -2), (15, -4), (15, -36), (1, -38)], "none", "#9aa0a8", 1.8)  # iron rim
+            a.ellipse(8, -20, 3.4, 4.2, "#9aa0a8", INK, 1)  # boss
+            a.poly([(5, -30), (8, -34), (11, -30), (8, -26)], CRIMSON, INK, 0.8)  # crest
+
+    def hat(a):
+        a.raw('<path d="M-6.5,-33 Q-6,-41 0,-41 Q6,-41 6.5,-33 Z" fill="#8a9098" stroke="%s" stroke-width="1.2"/>' % INK, [(-7, -42), (7, -32)])
+    person("unit_shield_bearer", ("#5a4a3a", "#463a2c"), hat=hat, extra=extra)
+
+
+def crossbowman():
+    def extra(a, layer):
+        if layer == "front":
+            a.poly([(-6, -26), (6, -26), (6, -16), (-6, -16)], "#6a5236", INK, 0.8)  # leather jerkin
+            a.line([(0, -20), (16, -22)], INK, 4)  # stock
+            a.line([(0, -20), (16, -22)], WOOD, 2.2)
+            a.raw('<path d="M13,-31 Q18,-22 13,-13" fill="none" stroke="%s" stroke-width="3" stroke-linecap="round"/>' % INK, [(12, -32), (18, -12)])
+            a.raw('<path d="M13,-31 Q18,-22 13,-13" fill="none" stroke="#7a7a80" stroke-width="1.6" stroke-linecap="round"/>', [(12, -32), (18, -12)])
+            a.line([(13, -31), (9, -22), (13, -13)], "#d8d0b8", 0.7)
+            a.line([(9, -21), (19, -22.5)], "#b08a58", 1.2)  # bolt
+
+    def hat(a):
+        a.raw('<path d="M-8,-35 Q0,-44 8,-35 Z" fill="#5a4630" stroke="%s" stroke-width="1.2"/>' % INK, [(-9, -45), (9, -34)])
+        a.line([(-9, -35), (9, -35)], INK, 1.6)
+    person("unit_crossbowman", ("#4a3e2e", "#3a3022"), hat=hat, extra=extra)
+
+
+def swiftbowman():
+    """Fancier archer: green and gold, feathered cap, a bow with several strings."""
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-9, -16), (-5, -16), (-3, -31), (-7, -31)], "#6a4a2a", INK, 1)
+            for x in (-7.5, -6, -4.5):
+                a.line([(x, -31), (x - 1, -36)], "#e8d890", 1)
+        else:
+            a.poly([(-7, -24), (7, -18), (7, -15), (-7, -21)], GOLD, INK, 0.8)  # golden sash
+            a.line([(4, -21), (11, -22)], INK, 4)
+            a.raw('<path d="M9,-40 Q21,-22 9,-4" fill="none" stroke="%s" stroke-width="3.4" stroke-linecap="round"/>' % INK, [(8, -41), (20, -3)])
+            a.raw('<path d="M9,-40 Q21,-22 9,-4" fill="none" stroke="#c8a050" stroke-width="1.8" stroke-linecap="round"/>', [(8, -41), (20, -3)])
+            for dx in (0.0, 1.6, 3.2):  # three strings
+                a.line([(9 + dx * 0.3, -40), (9 - dx, -22), (9 + dx * 0.3, -4)], "#f0ecd8", 0.6)
+
+    def hat(a):
+        a.raw('<path d="M-7,-35 Q0,-43 7,-35 L6,-33 L-6,-33 Z" fill="#2f6a3a" stroke="%s" stroke-width="1.2"/>' % INK, [(-8, -44), (8, -32)])
+        a.raw('<path d="M3,-40 Q10,-50 14,-47 Q9,-43 5,-38 Z" fill="%s" stroke="%s" stroke-width="0.8"/>' % (GOLD, INK), [(2, -51), (15, -37)])
+    person("unit_swiftbowman", ("#2f5a36", "#244a2a"), extra=extra, hat=hat)
+
+
+def fire_summoner():
+    def extra(a, layer):
+        if layer == "front":
+            a.poly([(-6, -26), (6, -26), (4, -22), (-4, -22)], "#c8501e", INK, 0.8)
+            a.line([(4, -22), (11, -24)], INK, 4.2)
+            a.line([(4, -22), (11, -24)], "#5a2418", 2.6)
+            a.ellipse(13, -27, 9, 9, "#ff8a30", opacity=0.35)
+            a.raw('<path d="M13,-35 Q18,-28 15,-24 Q13,-21 11,-24 Q8,-28 13,-35 Z" fill="#ffb040" stroke="%s" stroke-width="1"/>' % INK, [(8, -36), (18, -21)])
+            a.ellipse(13, -26, 1.6, 1.6, "#fff0b0")
+
+    def hat(a):
+        a.raw('<path d="M-9,-36 L9,-36 L3,-40 L-1,-57 L-4,-40 Z" fill="#6a2418" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-10, -58), (10, -35)])
+        a.line([(-6, -38.5), (6, -38.5)], "#ff8a30", 1.6)
+    person("unit_fire_summoner", ("#5a2418", "#461a12"), hat=hat, robe=True, extra=extra)
+
+
+def fire_elemental():
+    """A small living flame, hovering (no feet): the game bobs and flickers it."""
+    a = Art()
+    a.shadow(8, 3.5, opacity=0.3)
+    a.raw('<path d="M0,-40 Q9,-30 10,-20 Q11,-8 0,-6 Q-11,-8 -10,-20 Q-9,-28 -4,-33 Q-3,-26 0,-26 Q1,-33 0,-40 Z" fill="#ff7a20" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-11, -41), (11, -5)])
+    a.raw('<path d="M0,-31 Q6,-24 6,-17 Q6,-10 0,-10 Q-6,-10 -6,-17 Q-5,-22 -2,-25 Q-1,-20 1,-21 Q2,-26 0,-31 Z" fill="#ffc040"/>', [(-7, -32), (7, -9)])
+    a.ellipse(0, -14, 3.2, 3.6, "#fff4c0")
+    a.ellipse(-2.5, -19, 1.2, 1.4, INK)
+    a.ellipse(2.5, -19, 1.2, 1.4, INK)
+    a.save("unit_fire_elemental")
+
+
+def mage(name, robe, trim, staff_top, glow, tome, hood=None):
+    """Apprentice-style mage: staff in one hand, a thick tome in the other; no hat, no beard."""
+    def extra(a, layer):
+        if layer == "back":
+            a.line([(-9, -2), (-9, -44)], INK, 3.4)  # staff
+            a.line([(-9, -2), (-9, -44)], "#4a3a2c", 1.8)
+            a.ellipse(-9, -46, 8, 8, glow, opacity=0.3)
+            staff_top(a)
+        else:
+            a.poly([(-6, -27), (6, -27), (4, -22), (-4, -22)], trim, INK, 0.8)  # collar
+            a.line([(4, -21), (9, -19)], INK, 4)  # arm with the tome
+            a.poly([(7, -24), (15, -22), (15, -13), (7, -15)], tome, INK, 1.2)
+            a.line([(8, -22), (14, -20.5)], "#e8e0c8", 1)
+            a.line([(8, -18), (14, -16.5)], "#e8e0c8", 1)
+
+    def hair(a):
+        a.raw('<path d="M-6,-34 Q-6,-40 0,-40 Q6,-40 6,-34 Q3,-37 0,-37 Q-3,-37 -6,-34 Z" fill="#3a2a1e" stroke="%s" stroke-width="1"/>' % INK, [(-7, -41), (7, -33)])
+    person(name, robe, hood=hood, hat=None if hood else hair, robe=True, extra=extra)
+
+
+def mages():
+    def orb(col, core):
+        def f(a):
+            a.ellipse(-9, -46, 3.8, 3.8, col, INK, 1.2)
+            a.ellipse(-10, -47, 1.3, 1.3, core)
+        return f
+
+    def flame(a):
+        a.raw('<path d="M-9,-54 Q-5,-48 -6,-45 Q-8,-42 -9,-44 Q-12,-47 -9,-54 Z" fill="#ffb040" stroke="%s" stroke-width="1"/>' % INK, [(-13, -55), (-5, -41)])
+
+    def crystal(a):
+        a.poly([(-9, -54), (-6, -47), (-9, -42), (-12, -47)], "#bfe8ff", INK, 1)
+        a.line([(-9, -54), (-9, -42)], "#ffffff", 0.6)
+
+    def leaf(a):
+        a.raw('<path d="M-9,-53 Q-3,-48 -9,-42 Q-15,-48 -9,-53 Z" fill="#7ad06a" stroke="%s" stroke-width="1"/>' % INK, [(-15, -54), (-3, -41)])
+        a.line([(-9, -52), (-9, -43)], "#3a7a30", 0.7)
+
+    def ring(a):
+        a.ellipse(-9, -47, 4.6, 4.6, "none", "#c89cff", 1.6)
+        a.ellipse(-9, -47, 1.8, 1.8, "#e8d8ff", INK, 0.8)
+
+    mage("unit_apprentice", ("#4a4a50", "#38383e"), "#6a6a74", orb("#3a5ab0", "#b8c8ff"), "#3a5ab0", "#5a3a2a")
+    mage("unit_fire_mage", ("#7a2a20", "#5e1e18"), "#d8602a", flame, "#ff8a30", "#4a1a12")
+    mage("unit_ice_mage", ("#5a8ab0", "#467090"), "#cfeaff", crystal, "#a8dcff", "#2a4a6a")
+    mage("unit_healing_mage", ("#3a7a44", "#2c6034"), "#bfe8a0", leaf, "#8ae08a", "#e8e0c8")
+    mage("unit_spatial_mage", ("#4a3070", "#3a2458"), "#b08ae0", ring, "#b08ae0", "#2a1a40")
+
+
+def spatial_archmage():
+    """Civilian: robed in violet and gold, a rune halo floating above the head."""
+    def extra(a, layer):
+        if layer == "back":
+            a.ellipse(0, -48, 13, 4.5, "none", "#c89cff", 1.6)
+            for k in range(6):
+                ang = k * math.pi / 3
+                a.ellipse(math.cos(ang) * 13, -48 + math.sin(ang) * 4.5, 1.5, 1.5, GOLD)
+        else:
+            a.poly([(-7, -26), (7, -26), (5, -12), (-5, -12)], "none", GOLD, 1.2)
+            a.line([(10, 0), (10, -46)], INK, 3.4)
+            a.line([(10, 0), (10, -46)], "#2a1a40", 1.8)
+            a.ellipse(10, -49, 5, 5, "#b08ae0", INK, 1.2)
+            a.ellipse(10, -49, 10, 10, "#b08ae0", opacity=0.3)
+
+    def hood(a):
+        a.raw('<path d="M-7,-30 Q-8,-43 0,-43 Q8,-43 7,-34 L4,-36 Q0,-40 -4,-36 Q-5,-33 -5,-28 Z" fill="#3a2458" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-8, -44), (8, -28)])
+        a.line([(-6, -37), (6, -39)], GOLD, 1.2)
+    person("unit_spatial_archmage", ("#4a3070", "#3a2458"), hat=hood, robe=True, extra=extra)
+
+
+def projectiles():
+    a = Art()  # light arrow with pale fletching
+    a.line([(-12, 0), (10, 0)], INK, 2)
+    a.line([(-12, 0), (10, 0)], "#d8c090", 1)
+    a.poly([(9, -2), (14, 0), (9, 2)], "#c8c8c8", INK, 0.8)
+    a.poly([(-15, -2.5), (-10, 0), (-15, 2.5), (-12, 0)], "#e8e0a0", INK, 0.6)
+    a.save("swift_arrow")
+    a = Art()  # short heavy crossbow bolt
+    a.line([(-8, 0), (8, 0)], INK, 3.4)
+    a.line([(-8, 0), (8, 0)], "#8a6a40", 2)
+    a.poly([(7, -3), (13, 0), (7, 3)], "#7a7a80", INK, 1)
+    a.poly([(-10, -2.5), (-6, 0), (-10, 2.5)], "#5a5a5a", INK, 0.6)
+    a.save("crossbow_bolt")
+
+    def orb(name, outer, mid, core, swirl):
+        o = Art()
+        gid = name.replace("_", "")
+        o.raw('<defs><radialGradient id="%s"><stop offset="0" stop-color="%s"/><stop offset="0.45" stop-color="%s"/><stop offset="1" stop-color="%s" stop-opacity="0"/></radialGradient></defs>' % (gid, core, mid, outer), [(0, 0)])
+        o.ellipse(0, 0, 14, 14, "url(#%s)" % gid)
+        for k in range(3):
+            ang = k * 2.094
+            x0, y0 = math.cos(ang) * 3, math.sin(ang) * 3
+            x1, y1 = math.cos(ang + 1.6) * 10, math.sin(ang + 1.6) * 10
+            o.raw('<path d="M%s,%s Q%s,%s %s,%s" fill="none" stroke="%s" stroke-width="1.6" stroke-linecap="round"/>' % (fmt(x0), fmt(y0), fmt(math.cos(ang + 0.8) * 9), fmt(math.sin(ang + 0.8) * 9), fmt(x1), fmt(y1), swirl), [(-11, -11), (11, 11)])
+        return o
+
+    orb("arcane_orb", "#1a2a80", "#3a5ad0", "#d0dcff", "#8aa8ff").save("arcane_orb")
+    fb = orb("fireball", "#c83010", "#ff8020", "#fff0a0", "#ffe070")
+    for (x, y) in [(-9, -7), (8, -9), (10, 5), (-7, 9), (1, -12)]:  # sparkles
+        fb.ellipse(x, y, 1.4, 1.4, "#fff4c0")
+    fb.save("fireball")
+    fr = orb("frost_orb", "#5aa8e0", "#a8dcff", "#ffffff", "#e0f4ff")
+    fr.poly([(0, -8), (2, 0), (0, 8), (-2, 0)], "#ffffff", None)
+    fr.save("frost_orb")
+    orb("warp_orb", "#5a2a90", "#a878e8", "#f0e0ff", "#d8c0ff").save("warp_orb")
+
+
+def barracks(level):
+    """2x2 yard like the training grounds, no weapons lying about: benches (one
+    per level), a table with bread, cheese and mugs, a barrel, and a straw
+    puppet full of arrows."""
+    a = Art()
+    s = 0.98
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], "#7a6446", None)
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], DIRT, INK, 1.2, opacity=0.9)
+    for t in [i / 6 for i in range(7)]:  # fence on the front edges
+        for p in (P(-s + 2 * s * t, s), P(s, s - 2 * s * t)):
+            a.line([p, (p[0], p[1] - 9)], WOOD_D, 2.2)
+    a.line([(P(-s, s)[0], P(-s, s)[1] - 6), (P(s, s)[0], P(s, s)[1] - 6), (P(s, -s)[0], P(s, -s)[1] - 6)], WOOD, 1.6)
+    # the hut at the back, a little bigger with each level
+    hx, hy = -0.6, -0.6
+    w = 0.25 + 0.04 * level
+    a.box(hx - w, hx + w, hy - 0.22, hy + 0.22, 0, 18, "#8c7b62", "#8c7b62", "#6c5e4a")
+    a.poly([P(hx - w, hy + 0.22, 0), P(hx - w + 0.15, hy + 0.22, 0), P(hx - w + 0.15, hy + 0.22, 12), P(hx - w, hy + 0.22, 12)], "#2b1e14")
+    e = 0.05
+    roof = "#6a2a24" if level >= 2 else "#4a3b24"
+    a.poly([P(hx - w - e, hy - 0.22 - e, 18), P(hx + w + e, hy - 0.22 - e, 18), P(hx + w + e, hy, 34), P(hx - w - e, hy, 34)], roof)
+    a.poly([P(hx - w - e, hy, 34), P(hx + w + e, hy, 34), P(hx + w + e, hy + 0.22 + e, 18), P(hx - w - e, hy + 0.22 + e, 18)], "#7a3a30" if level >= 2 else "#5b4a2e")
+    if level >= 3:  # a banner on the hut
+        bx, by = P(hx + w, hy - 0.22, 34)
+        a.line([(bx, by), (bx, by - 18)], WOOD_D, 1.6)
+        a.poly([(bx, by - 18), (bx + 11, by - 15), (bx, by - 12)], CRIMSON, INK, 0.8)
+    # benches (the game seats the units on them)
+    for (gx, gy) in [(-0.35, 0.45), (0.45, 0.35), (0.1, -0.25)][:level]:
+        a.box(gx - 0.2, gx + 0.2, gy - 0.07, gy + 0.07, 0, 5, WOOD_L, WOOD, WOOD_D)
+    # table with bread, cheese and mugs, and a barrel
+    tx, ty = 0.55, -0.5
+    a.box(tx - 0.16, tx + 0.16, ty - 0.12, ty + 0.12, 0, 8, WOOD_L, WOOD, WOOD_D)
+    x, y = P(tx, ty, 8)
+    a.ellipse(x - 5, y - 2, 4, 2.2, "#c8904a", INK, 0.8)  # bread
+    a.poly([(x + 1, y - 1), (x + 6, y - 3), (x + 6, y), (x + 1, y + 1)], "#e8c850", INK, 0.6)  # cheese
+    for dx in (-1.0, 4.0):  # mugs
+        a.poly([(x + dx, y - 7), (x + dx + 3, y - 7), (x + dx + 3, y - 2), (x + dx, y - 2)], "#8a6a40", INK, 0.7)
+        a.ellipse(x + dx + 1.5, y - 7, 1.5, 0.7, "#f0e8d0")
+    bx, by = P(0.85, -0.1, 0)
+    a.poly([(bx - 6, by), (bx + 6, by), (bx + 7, by - 14), (bx - 7, by - 14)], WOOD, INK, 1)
+    for yy in (-3, -11):
+        a.line([(bx - 6.5, by + yy), (bx + 6.5, by + yy)], "#6a6a6a", 1.2)
+    a.ellipse(bx, by - 14, 7, 2.5, WOOD_D, INK, 0.8)
+    # straw puppet with arrows stuck in it
+    px, py = P(-0.7, 0.05, 0)
+    a.line([(px, py), (px, py - 30)], WOOD_D, 2.4)
+    a.line([(px - 9, py - 22), (px + 9, py - 22)], WOOD_D, 2)
+    a.ellipse(px, py - 20, 6, 8, "#d8c070", INK, 1.2)
+    a.ellipse(px, py - 31, 4.2, 4.2, "#d8c070", INK, 1.1)
+    for (dx, dy, ang) in [(-2, -22, -0.3), (3, -18, 0.4), (1, -31, -0.2)]:
+        ex, ey = px + dx, py + dy
+        ox, oy = ex - 8 * math.cos(ang), ey - 8 * math.sin(ang) + 1
+        a.line([(ex, ey), (ox, oy)], INK, 1.6)
+        a.line([(ex, ey), (ox, oy)], "#b08a58", 0.8)
+        a.poly([(ox, oy - 1.3), (ox - 2.6, oy), (ox, oy + 1.3)], CRIMSON)
+    a.save("barracks" if level == 1 else "barracks_%d" % level)
+
+
 def corpse_skeleton():
     a = Art()
     a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
@@ -1442,6 +1691,16 @@ def main():
     corpse_goblin()
     hero()
     caravan()
+    shield_bearer()
+    crossbowman()
+    swiftbowman()
+    fire_summoner()
+    fire_elemental()
+    mages()
+    spatial_archmage()
+    projectiles()
+    for lv in (1, 2, 3):
+        barracks(lv)
     training_grounds()
     skeleton()
     corpse_skeleton()

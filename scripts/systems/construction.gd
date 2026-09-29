@@ -11,6 +11,7 @@ const KIND_SCRIPTS := {
 	"camp": preload("res://scripts/buildings/worker_camp.gd"),
 	"lightstone": preload("res://scripts/buildings/light_stone.gd"),
 	"training": preload("res://scripts/buildings/training_grounds.gd"),
+	"barracks": preload("res://scripts/buildings/barracks.gd"),
 }
 
 var game: Game
@@ -98,7 +99,8 @@ func release(site: Building, unreachable: bool) -> void:
 
 
 ## Queues a paid tower upgrade as a builder job; the tower keeps fighting.
-func order_upgrade(tower: Tower) -> bool:
+## A tower or barracks: its next level, for building material and a builder's time.
+func order_upgrade(tower: Building) -> bool:
 	if not tower.can_upgrade() or not village.economy.spend(tower.upgrade_cost()):
 		return false
 	village.events.debug("order upgrade of %s to level %d for %s" % [tower.label(), tower.level + 1, Config.cost_text(tower.upgrade_cost())])

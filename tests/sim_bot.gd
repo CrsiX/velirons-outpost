@@ -443,7 +443,7 @@ func _run() -> void:
 	check(orc["speed"] < gob["speed"] and orc["hp"] > gob["hp"] and orc["damage"] > gob["damage"] * 2.0, "orks: slower, tougher, much harder hitting")
 	check(orc["gold_on_kill"] > 0 and orc["gold_on_collect"] == 0 and orc["food_on_collect"] > gob["food_on_collect"], "orks: gold on kill only, more food when gathered")
 	check(wit["hp"] < gob["hp"] and wit["damage"] == 0 and wit["gold_on_kill"] > gob["gold_on_kill"] and wit["gold_on_collect"] == 0 and wit["food_on_collect"] <= gob["food_on_collect"], "witches: frail, no melee, rich kill, no gold and little food as corpses")
-	check(is_equal_approx(wit["spell_cooldown"], 2.0 * Config.MILITARY["archer"]["levels"][0]["cooldown"]), "witch spell cycle is twice an archer's shot interval")
+	check(is_equal_approx(wit["spell_cooldown"], 2.0 * Config.unit_stat("archer", "cooldown", 0)), "witch spell cycle is twice an archer's shot interval")
 	Settings.difficulty = Settings.Difficulty.HARD
 	check(is_equal_approx(Config.enemy_stat("goblin", "attack_cooldown"), gob["attack_cooldown"]) and is_equal_approx(Config.enemy_stat("witch", "spell_cooldown"), wit["spell_cooldown"]), "difficulty never stretches cooldowns")
 	Settings.difficulty = Settings.Difficulty.NORMAL
@@ -863,10 +863,10 @@ func _run() -> void:
 	await wait_until(func() -> bool: return wall_towers.all(func(t: Tower) -> bool: return t.garrison != null), 60.0)
 	check(wall_towers.all(func(t: Tower) -> bool: return t.garrison != null), "all wall towers manned")
 	# Balance comes later: make the defence sturdy so the rest of the run is deterministic.
-	game.economy.add("gold", 5000)
+	game.economy.add("gold", 20000)
 	for u in game.army.units:
-		while u.can_upgrade():
-			game.army.upgrade(u)
+		while u.can_upgrade() and game.army.upgrade(u):
+			pass
 
 	# --- waves ----------------------------------------------------------------------
 	var gold3 := game.economy.amount("gold")
@@ -1078,7 +1078,8 @@ func _run() -> void:
 	# --- tower panel, tower levels -------------------------------------------------------
 	game.waves.countdown = 99999.0
 	var labels: Array = watchtower.info()["actions"].map(func(x: Dictionary) -> String: return x["label"])
-	check(labels.size() == 2 and labels[0].begins_with("Upgrade tower") and labels[1] == "Withdraw", "tower panel offers only Upgrade tower and Withdraw (%s)" % str(labels))
+	var can_up := watchtower.garrison != null and not watchtower.garrison.upgrade_options().is_empty()
+	check(labels.size() == (3 if can_up else 2) and labels[0].begins_with("Upgrade tower") and (not can_up or labels[1].begins_with("Upgrade ")) and labels[-1] == "Withdraw", "tower panel offers Upgrade tower, Upgrade <unit>... and Withdraw (%s)" % str(labels))
 	var empty_tower: Tower = null
 	for t in game.world.towers():
 		if t.complete and t.garrison == null and t.incoming == null:
@@ -1140,7 +1141,7 @@ func _run() -> void:
 	var first: EarthElemental = sb.summons[0] if got else null
 	if first:
 		check(is_equal_approx(first.max_hp, Config.ENEMIES["goblin"]["hp"]) and is_equal_approx(first.damage, Config.ENEMIES["goblin"]["damage"]), "a level-1 elemental is as strong as a goblin")
-	await wait(Config.MILITARY["summoner"]["levels"][0]["interval"] * 4.0)
+	await wait(Config.unit_stat("summoner", "interval", 0) * 4.0)
 	check(sb.summons.size() <= int(summoner.stat("max_summons")), "summons never exceed the cap (%d/%d)" % [sb.summons.size(), int(summoner.stat("max_summons"))])
 	var hp_b := brute.hp
 	var fought := await wait_until(func() -> bool: return brute.hp < hp_b and sb.summons.any(func(e) -> bool: return is_instance_valid(e) and e.hp < e.max_hp), 30.0)
@@ -1210,7 +1211,7 @@ func _run() -> void:
 	# While bewitched the unit fires nothing new.
 	var seen_arrows := {}
 	for n in game.world.effects.get_children():
-		if n is Arrow:
+		if n is Shot:
 			seen_arrows[n] = true
 	var fired_while_bewitched := false
 	var t_w := 0.0
@@ -1218,7 +1219,7 @@ func _run() -> void:
 		await get_tree().process_frame
 		t_w += get_process_delta_time()
 		for n in game.world.effects.get_children():
-			if n is Arrow and not seen_arrows.has(n) and (n as Arrow).source == wt_tower:
+			if n is Shot and not seen_arrows.has(n) and (n as Shot).source == wt_tower:
 				fired_while_bewitched = true
 	check(not fired_while_bewitched, "a bewitched unit does not shoot")
 	var gap := await wait_until(func() -> bool: return not wt_tower.is_enchanted(), 3.0)
@@ -1436,7 +1437,8 @@ func _run() -> void:
 	check(game.population.recruit_error("builder") != "", "recruiting is blocked at the cap")
 	game.economy.add("gold", 1000)
 	game.population.kill_random(1)
-	check(game.population.recruit("archmage") != null, "archmage recruited for food and gold")
+	check(game.population.recruit_error("spatial_archmage") != "", "the Spatial Archmage cannot be recruited (only promoted)")
+	check(game.population.recruit("farmer") != null, "a freed hut place can be filled again")
 
 	# --- starvation ----------------------------------------------------------------------------
 	for f in game.world.buildings.filter(func(b: Building) -> bool: return b is Farm):
@@ -1494,7 +1496,7 @@ func _run() -> void:
 	game.waves._spawn({"kind": "goblin", "spawn": map.edge_spawns[0], "hp_scale": 1.0})
 	var gone: Enemy = get_tree().get_nodes_in_group("enemies").back()
 	var gone_id := gone.nid
-	var had := game.entity(gone_id) == gone
+	var had: bool = game.entity(gone_id) == gone
 	gone.take_damage(1e9)
 	await wait(1.0)
 	game.waves.countdown = 99999.0

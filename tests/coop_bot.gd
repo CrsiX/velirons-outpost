@@ -281,6 +281,9 @@ func logged_all(part: String) -> bool:
 
 
 func _tap(c: Control) -> void:
+	if game and game.hud._sheet_scroll.is_ancestor_of(c):
+		game.hud._sheet_scroll.ensure_control_visible(c)  # (scroll to it, as a player would)
+		await frames(2)
 	var pos := c.get_global_rect().get_center()
 	for pressed in [true, false]:
 		var e := InputEventMouseButton.new()

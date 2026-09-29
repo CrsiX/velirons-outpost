@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="68" height="68" viewBox="-17 -17 34 34">
+  <defs><radialGradient id="warporb"><stop offset="0" stop-color="#f0e0ff"/><stop offset="0.45" stop-color="#a878e8"/><stop offset="1" stop-color="#5a2a90" stop-opacity="0"/></radialGradient></defs>
+  <ellipse cx="0" cy="0" rx="14" ry="14" fill="url(#warporb)"/>
+  <path d="M3,0 Q6.27,6.46 -0.29,10" fill="none" stroke="#d8c0ff" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M-1.5,2.6 Q-8.73,2.21 -8.51,-5.25" fill="none" stroke="#d8c0ff" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M-1.5,-2.6 Q2.45,-8.66 8.8,-4.75" fill="none" stroke="#d8c0ff" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

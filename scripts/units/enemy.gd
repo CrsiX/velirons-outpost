@@ -26,6 +26,12 @@ var killer: Node = null
 ## The village this enemy is sent against (its raid hits that village's huts).
 var target_village: Village = null
 var _jitter := Vector2.ZERO
+## Walking speed without slows; ice mages slow it for a while.
+var base_speed := 1.0
+var _slow := 1.0
+var _slow_left := 0.0
+## Seconds before a spatial mage can throw it back again.
+var _push_immune := 0.0
 
 
 func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String) -> void:
@@ -34,6 +40,7 @@ func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String
 	max_hp = stat("hp") * hp_scale
 	hp = max_hp
 	speed = stat("speed") * randf_range(0.92, 1.08)
+	base_speed = speed
 	_init_sprite("unit_" + spec()["art"])
 	var pts := PackedVector2Array()
 	# A small sideways offset per enemy so groups don't walk in single file.
@@ -59,6 +66,47 @@ func retarget(v: Village, rng: RandomNumberGenerator) -> void:
 		pts.append(Vector2(t) + _jitter)
 	follow(pts)
 	game.log_all(EventLog.Level.DEBUG, "%s turns from %s to %s" % [label(), old.village_name if old else "?", v.village_name])
+
+
+## Ice: walks at `factor` of its speed for `seconds` (the strongest slow counts).
+func slow(factor: float, seconds: float) -> void:
+	if _slow_left <= 0.0:
+		base_speed = speed  # (whatever it walks at now)
+		_slow = factor
+	else:
+		_slow = minf(_slow, factor)
+	_slow_left = maxf(_slow_left, seconds)
+	speed = base_speed * _slow
+	sprite.self_modulate = Color(0.65, 0.85, 1.0)
+
+
+func is_slowed() -> bool:
+	return _slow_left > 0.0
+
+
+## Spatial magic: thrown `tiles` back along its road (away from the village),
+## at most once every `immunity` seconds. Returns whether it moved.
+func push_back(tiles: float, immunity: float) -> bool:
+	if _push_immune > 0.0 or path.size() < 2:
+		return false
+	_push_immune = immunity
+	var left := tiles
+	var pos := grid_pos
+	var i := mini(path_index, path.size() - 1)
+	while left > 0.0 and i > 0:
+		var prev := path[i - 1]
+		var d := pos.distance_to(prev)
+		if d >= left:
+			pos = pos.move_toward(prev, left)
+			left = 0.0
+		else:
+			pos = prev
+			left -= d
+			i -= 1
+	path_index = i
+	set_grid_pos(pos)
+	Combat.burst(game, "warp", position + Vector2(0, -16), 0.8)
+	return true
 
 
 func spec() -> Dictionary:
@@ -94,6 +142,13 @@ func _process(delta: float) -> void:
 	if game.is_client:
 		net_follow(delta)  # the host simulates; we just follow
 		return
+	_push_immune -= delta
+	if _slow_left > 0.0:
+		_slow_left -= delta
+		if _slow_left <= 0.0:  # the frost wears off
+			_slow = 1.0
+			speed = base_speed
+			sprite.self_modulate = Color.WHITE
 	# The behavior may hold the enemy in place (fighting, casting).
 	if behavior.tick(self, delta):
 		_set_moving(false)

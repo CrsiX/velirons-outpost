@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="68" height="68" viewBox="-17 -17 34 34">
+  <defs><radialGradient id="fireball"><stop offset="0" stop-color="#fff0a0"/><stop offset="0.45" stop-color="#ff8020"/><stop offset="1" stop-color="#c83010" stop-opacity="0"/></radialGradient></defs>
+  <ellipse cx="0" cy="0" rx="14" ry="14" fill="url(#fireball)"/>
+  <path d="M3,0 Q6.27,6.46 -0.29,10" fill="none" stroke="#ffe070" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M-1.5,2.6 Q-8.73,2.21 -8.51,-5.25" fill="none" stroke="#ffe070" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M-1.5,-2.6 Q2.45,-8.66 8.8,-4.75" fill="none" stroke="#ffe070" stroke-width="1.6" stroke-linecap="round"/>
+  <ellipse cx="-9" cy="-7" rx="1.4" ry="1.4" fill="#fff4c0"/>
+  <ellipse cx="8" cy="-9" rx="1.4" ry="1.4" fill="#fff4c0"/>
+  <ellipse cx="10" cy="5" rx="1.4" ry="1.4" fill="#fff4c0"/>
+  <ellipse cx="-7" cy="9" rx="1.4" ry="1.4" fill="#fff4c0"/>
+  <ellipse cx="1" cy="-12" rx="1.4" ry="1.4" fill="#fff4c0"/>
+</svg>

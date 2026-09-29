@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="76" height="131" viewBox="-20 -58 38 65.5">
+  <ellipse cx="0" cy="0" rx="11" ry="4.5" fill="#000" opacity="0.4"/>
+  <polygon points="-9,-2 9,-2 7,-26 -7,-26" fill="#7a2a20" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
+  <polygon points="0,-2 9,-2 7,-26 0,-26" fill="#5e1e18"/>
+  <polyline points="-9,-2 9,-2 7,-26" fill="none" stroke="#15110d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-9,-2 -9,-44" fill="none" stroke="#15110d" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-9,-2 -9,-44" fill="none" stroke="#4a3a2c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="-9" cy="-46" rx="8" ry="8" fill="#ff8a30" opacity="0.3"/>
+  <path d="M-9,-54 Q-5,-48 -6,-45 Q-8,-42 -9,-44 Q-12,-47 -9,-54 Z" fill="#ffb040" stroke="#15110d" stroke-width="1"/>
+  <ellipse cx="0" cy="-33" rx="6" ry="6" fill="#d8b08c" stroke="#15110d" stroke-width="1.3"/>
+  <ellipse cx="3" cy="-33.5" rx="0.9" ry="0.9" fill="#15110d"/>
+  <path d="M-6,-34 Q-6,-40 0,-40 Q6,-40 6,-34 Q3,-37 0,-37 Q-3,-37 -6,-34 Z" fill="#3a2a1e" stroke="#15110d" stroke-width="1"/>
+  <polygon points="-6,-27 6,-27 4,-22 -4,-22" fill="#d8602a" stroke="#15110d" stroke-width="0.8" stroke-linejoin="round"/>
+  <polyline points="4,-21 9,-19" fill="none" stroke="#15110d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="7,-24 15,-22 15,-13 7,-15" fill="#4a1a12" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polyline points="8,-22 14,-20.5" fill="none" stroke="#e8e0c8" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="8,-18 14,-16.5" fill="none" stroke="#e8e0c8" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

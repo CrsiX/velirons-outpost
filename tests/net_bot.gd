@@ -96,7 +96,9 @@ func _host() -> void:
 	var v0 := game.villages[0]
 	var v1 := game.villages[1]
 	check(game.villages.size() == 2 and v0.village_name == HOST_NAME and v1.village_name == CLIENT_NAME and not game.is_client, "two villages, named after the players")
-	check(game.fog.is_explored_by(0, v1.center) and not game.fog.is_explored_by(0, v1.center + Vector2i(5, 0)) and game.fog.is_explored_by(1, v1.center + Vector2i(5, 0)), "each village has its own fog (the other's walls are known, nothing around them)")
+	# (a tile just behind the client's village, seen from the host's: the random map may put them close)
+	var behind := v1.center + Vector2i((Vector2(v1.center - v0.center).normalized() * 5.0).round())
+	check(game.fog.is_explored_by(0, v1.center) and not game.fog.is_explored_by(0, behind) and game.fog.is_explored_by(1, behind), "each village has its own fog (the other's walls are known, nothing around them)")
 	var recruited := await wait_until(func() -> bool: return v1.army.units.size() >= 1)
 	check(recruited and v1.army.units[0].original_owner == v1 and v0.army.units.is_empty(), "the client's command recruits an archer in its own village")
 	var caravan := await wait_until(func() -> bool: return v0.events.entries.any(func(e: Dictionary) -> bool: return str(e["text"]).begins_with("Caravan from %s arrived" % CLIENT_NAME)), 120.0)

@@ -202,11 +202,16 @@ func refresh_village_labels() -> void:
 
 ## Front-most building whose sprite covers `world_pos`, falling back to the tile.
 ## The post whose stationed unit figure is under `world_pos`, or null.
-func pick_unit(world_pos: Vector2) -> MilitaryPost:
-	var best: MilitaryPost = null
+## The stationed unit whose figure (on a tower, a barracks bench...) is under
+## `world_pos`, or null. Its post is `unit.post`.
+func pick_unit(world_pos: Vector2) -> MilitaryUnit:
+	var best: MilitaryUnit = null
+	var best_y := -INF
 	for p in military_posts():
-		if p.unit_pick_rect().has_point(world_pos - p.position) and (best == null or p.position.y > best.position.y):
-			best = p
+		var u: MilitaryUnit = p.unit_at(world_pos - p.position)
+		if u != null and p.position.y > best_y:
+			best = u
+			best_y = p.position.y
 	return best
 
 

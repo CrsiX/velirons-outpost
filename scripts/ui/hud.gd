@@ -31,6 +31,14 @@ var _enemies_label: Label
 var _call_button: Button
 var _settings_button: Button
 var _village_button: Button
+var _upgrade_panel: PanelContainer
+var _upgrade_title: Label
+var _upgrade_options: VBoxContainer
+var _upgrade_hint: Label
+var _upgrade_unit: MilitaryUnit
+var _confirm_panel: PanelContainer
+var _confirm_text: Label
+var _confirm_yes: Button
 var _gray: ColorRect
 var _settings_note: Label
 var _paused_banner: Label
@@ -157,6 +165,7 @@ func setup(p_game: Game) -> void:
 	_build_toasts()
 	_build_trade_dialog()
 	_build_send_dialog()
+	_build_upgrade_dialogs()
 	_build_log()
 	_build_overlay()
 	_dock_hint = _label("Release to withdraw", 22, UiTheme.GOOD)
@@ -805,7 +814,7 @@ func _build_page_build() -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	var grid := _entry_grid(v)
-	for kind in ["tower", "farm", "camp", "lightstone", "training"]:
+	for kind in ["tower", "barracks", "farm", "camp", "lightstone", "training"]:
 		var spec: Dictionary = Config.BUILDINGS[kind]
 		var icon := Art.tex(spec["art"])
 		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_text(spec["cost"]), game.begin_build.bind(kind))
@@ -823,7 +832,8 @@ func _build_page_village() -> Control:
 	var grid := _entry_grid(v)
 	for role in Config.CIVILIAN_ORDER:
 		var spec: Dictionary = Config.CIVILIANS[role]
-		var e := _entry(Art.tex("unit_" + role), spec["name"], spec["desc"], "Recruit  (%s)" % Config.cost_text(spec["cost"]), _recruit.bind(role))
+		var action := "Recruit  (%s)" % Config.cost_text(spec["cost"]) if spec.get("recruit", true) else "From a level %d spatial mage (Army)" % Config.ARCHMAGE_LEVEL
+		var e := _entry(Art.tex("unit_" + role), spec["name"], spec["desc"], action, _recruit.bind(role))
 		grid.add_child(e["panel"])
 		_recruit_rows[role] = e
 	# Co-op: help another village.
@@ -874,7 +884,7 @@ func _build_page_army() -> Control:
 	_upgrade_reserve_button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_upgrade_reserve_button.pressed.connect(func() -> void:
 		if _selected_unit:
-			_do("upgrade_unit", {"unit": _selected_unit.nid}))
+			open_upgrade(_selected_unit))
 	rrow.add_child(_upgrade_reserve_button)
 	_send_reserve_button = _button("Send...", Vector2(96, 48))
 	_send_reserve_button.tooltip_text = "Send the selected unit to another village"
@@ -888,25 +898,39 @@ func _rebuild_reserve() -> void:
 	if _selected_unit and not reserve.has(_selected_unit):
 		_selected_unit = null
 	_refresh_reserve_texts(reserve)
+	# Units downed away from barracks come back here: shown greyed, with a countdown.
+	var cards: Array[MilitaryUnit] = reserve.duplicate()
+	for u in game.army.downed():
+		if not u.revive_at_post:
+			cards.append(u)
 	# Only rebuild the cards when the reserve really changed, and never while a
 	# card is being pressed or dragged (that would free the card under the finger).
-	var sig := ",".join(reserve.map(func(u: MilitaryUnit) -> String: return "%d:%d" % [u.id, u.level])) + "|%s" % (_selected_unit.id if _selected_unit else -1)
+	var sig := ",".join(cards.map(func(u: MilitaryUnit) -> String: return "%d:%s:%d:%d:%d" % [u.id, u.kind, u.level, ceili(u.hp), ceili(u.revive_left)])) + "|%s" % (_selected_unit.id if _selected_unit else -1)
 	if sig == _reserve_signature or _press_unit != null:
 		return
 	_reserve_signature = sig
 	for c in _reserve_grid.get_children():
 		_reserve_grid.remove_child(c)
 		c.queue_free()
-	for u in reserve:
+	for u in cards:
 		var card := _button("Lv %d" % (u.level + 1), Vector2(62, 76))
+		if u.is_downed():
+			card.text = "%d s" % ceili(u.revive_left)
+			card.disabled = true
+			card.modulate = Color(1, 1, 1, 0.5)
+			card.tooltip_text = "Downed: back in %d s" % ceili(u.revive_left)
+		elif u.hp < u.max_hp() - 0.5:
+			card.text = "Lv %d\n%d HP" % [u.level + 1, ceili(u.hp)]
 		card.icon = Art.tex("unit_" + u.kind)
 		card.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		card.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		card.expand_icon = true
 		card.add_theme_font_size_override("font_size", 14)
-		card.tooltip_text = "Drag onto a tower, or tap and then tap a tower"
+		if not u.is_downed():
+			card.tooltip_text = "%s: drag onto a tower or barracks, or tap and then tap one" % u.display_name()
 		UiTheme.style_selected(card, u == _selected_unit)
-		card.button_down.connect(_on_card_down.bind(u))
+		if not u.is_downed():
+			card.button_down.connect(_on_card_down.bind(u))
 		_reserve_grid.add_child(card)
 
 
@@ -920,8 +944,12 @@ func _refresh_reserve_texts(reserve: Array[MilitaryUnit]) -> void:
 		lines.append_array(_selected_unit.behavior.info_lines(_selected_unit))
 		_selected_info.text = "\n".join(lines)
 	if _selected_unit:
-		_upgrade_reserve_button.disabled = not _selected_unit.can_upgrade() or not game.economy.can_afford(_selected_unit.upgrade_cost())
-		_upgrade_reserve_button.text = ("Upgrade selected  (%s)" % Config.cost_text(_selected_unit.upgrade_cost())) if _selected_unit.can_upgrade() else "Selected %s is max level" % _selected_unit.display_name().to_lower()
+		var opts := _selected_unit.upgrade_options()
+		_upgrade_reserve_button.disabled = opts.is_empty()
+		_upgrade_reserve_button.text = "Selected %s is max level" % _selected_unit.display_name().to_lower() if opts.is_empty() else ("Upgrade selected..." if opts.size() > 1 else "Upgrade selected  (%s)" % Config.cost_text(opts[0]["cost"]))
+		var info: Array[String] = ["%s, level %d: %d / %d HP" % [_selected_unit.display_name(), _selected_unit.level + 1, ceili(_selected_unit.hp), ceili(_selected_unit.max_hp())]]
+		info.append_array(_selected_unit.behavior.info_lines(_selected_unit))
+		_selected_info.text = "\n".join(info)
 
 
 # --- reserve card press / drag ----------------------------------------------------------
@@ -962,7 +990,7 @@ func _input(event: InputEvent) -> void:
 
 
 func is_over_ui(screen_pos: Vector2) -> bool:
-	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel]:
+	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, _upgrade_panel, _confirm_panel]:
 		if c.is_visible_in_tree() and c.get_global_rect().has_point(screen_pos):
 			return true
 	return false
@@ -1316,6 +1344,105 @@ func _refresh_send() -> void:
 	_send_unit_go.disabled = _selected_unit == null or _send_unit_target < 0
 
 
+# --- unit upgrades: next level, specialisations, the Spatial Archmage ----------------------
+
+## The upgrade dialog for `unit`: one button per option (MilitaryUnit.upgrade_options).
+func open_upgrade(unit: MilitaryUnit) -> void:
+	_upgrade_unit = unit
+	_confirm_panel.visible = false
+	_upgrade_title.text = "Upgrade %s (level %d)" % [unit.display_name(), unit.level + 1]
+	for c in _upgrade_options.get_children():
+		_upgrade_options.remove_child(c)
+		c.queue_free()
+	for opt in unit.upgrade_options():
+		var b := _button("%s   (%s)" % [MilitaryUnit.option_text(opt), Config.cost_text(opt["cost"])], Vector2(0, 52))
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.add_theme_font_size_override("font_size", 15)
+		b.disabled = not game.economy.can_afford(opt["cost"]) or not unit.is_available()
+		if opt["archmage"]:
+			b.add_theme_color_override("font_color", Color("d8c0ff"))
+			b.pressed.connect(func() -> void: _ask_archmage(unit))
+		elif opt["to"] != unit.kind:
+			UiTheme.style_primary(b)
+			var to: String = opt["to"]
+			b.pressed.connect(func() -> void: _pick_upgrade(unit, to))
+		else:
+			b.pressed.connect(func() -> void: _pick_upgrade(unit, ""))
+		_upgrade_options.add_child(b)
+	_upgrade_hint.text = "From level %d on, a unit can also specialise (it starts again at level 1)." % Config.BRANCH_MIN_LEVEL if not unit.spec().get("branches", []).is_empty() else ""
+	_upgrade_hint.visible = _upgrade_hint.text != ""
+	_upgrade_panel.visible = true
+	_upgrade_panel.reset_size()
+
+
+func _pick_upgrade(unit: MilitaryUnit, to: String) -> void:
+	if _do("upgrade_unit", {"unit": unit.nid, "to": to})["ok"]:
+		_upgrade_panel.visible = false
+		_queue_refresh()
+
+
+## The Spatial Archmage leaves the army for good: ask first.
+func _ask_archmage(unit: MilitaryUnit) -> void:
+	_confirm_text.text = "This %s will leave your army for good and move into a hut as the Spatial Archmage, a civilian. Continue?" % unit.display_name().to_lower()
+	_confirm_yes.text = "Become the Spatial Archmage  (%s)" % Config.cost_text(Config.ARCHMAGE_COST)
+	for c in _confirm_yes.pressed.get_connections():
+		_confirm_yes.pressed.disconnect(c["callable"])
+	_confirm_yes.pressed.connect(func() -> void:
+		if _do("promote_archmage", {"unit": unit.nid})["ok"]:
+			toast("The Spatial Archmage moves into a hut", Color("d8c0ff"))
+			_confirm_panel.visible = false
+			_upgrade_panel.visible = false
+			_selected_unit = null
+			_queue_refresh())
+	_confirm_panel.visible = true
+	_confirm_panel.reset_size()
+
+
+func _build_upgrade_dialogs() -> void:
+	_upgrade_panel = PanelContainer.new()
+	_root.add_child(_upgrade_panel)
+	_upgrade_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_upgrade_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_upgrade_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	v.custom_minimum_size = Vector2(420, 0)
+	_upgrade_panel.add_child(v)
+	_upgrade_title = _label("", 21, UiTheme.GOLD)
+	v.add_child(_upgrade_title)
+	_upgrade_options = VBoxContainer.new()
+	_upgrade_options.add_theme_constant_override("separation", 6)
+	v.add_child(_upgrade_options)
+	_upgrade_hint = _label("", 14, UiTheme.MUTED)
+	_upgrade_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_upgrade_hint)
+	var close := _button("Close", Vector2(0, 44))
+	close.pressed.connect(func() -> void: _upgrade_panel.visible = false)
+	v.add_child(close)
+	_upgrade_panel.visible = false
+	_confirm_panel = PanelContainer.new()
+	_root.add_child(_confirm_panel)
+	_confirm_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_confirm_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_confirm_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_confirm_panel.add_theme_stylebox_override("panel", UiTheme.box(Color("241838"), Color("b08ae0"), 3, 12, 16))
+	var c := VBoxContainer.new()
+	c.add_theme_constant_override("separation", 10)
+	c.custom_minimum_size = Vector2(400, 0)
+	_confirm_panel.add_child(c)
+	c.add_child(_label("Spatial Archmage", 24, Color("d8c0ff")))
+	_confirm_text = _label("", 16)
+	_confirm_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	c.add_child(_confirm_text)
+	_confirm_yes = _button("", Vector2(0, 54))
+	UiTheme.style_good(_confirm_yes)
+	c.add_child(_confirm_yes)
+	var no := _button("Cancel", Vector2(0, 46))
+	no.pressed.connect(func() -> void: _confirm_panel.visible = false)
+	c.add_child(no)
+	_confirm_panel.visible = false
+
+
 # --- event log field -------------------------------------------------------------------
 
 const LOG_COLORS := [Color("b8ab90"), Color("efe3c8"), Color("ff9a86")]  # debug, info, important
@@ -1624,6 +1751,8 @@ func _process(delta: float) -> void:
 		_refresh_wave()
 		_refresh_resources()
 		_refresh_hero()
+		if not game.army.downed().is_empty():
+			_rebuild_reserve()  # (downed countdowns)
 
 
 func _refresh() -> void:

@@ -34,6 +34,7 @@ const HANDLERS := {
 	"send_caravan": "_send_caravan",
 	"send_unit": "_send_unit",
 	"hero_support": "_hero_support",
+	"promote_archmage": "_promote_archmage",
 }
 
 const CARAVAN_SCRIPT := preload("res://scripts/units/caravan.gd")
@@ -110,8 +111,8 @@ func _rebuild_hut(v: Village, a: Dictionary) -> Dictionary:
 
 
 func _upgrade_tower(v: Village, a: Dictionary) -> Dictionary:
-	var t := _building(v, a) as Tower
-	if t == null:
+	var t := _building(v, a)
+	if not (t is Tower or t is Barracks):
 		return fail("That isn't your tower")
 	return ok() if v.construction.order_upgrade(t) else fail("Can't upgrade that now")
 
@@ -160,9 +161,26 @@ func _upgrade_unit(v: Village, a: Dictionary) -> Dictionary:
 		return fail("That isn't your unit")
 	if u.state == MilitaryUnit.State.TRAVELLING:
 		return fail("It's on its way to another village")
-	if not u.can_upgrade():
-		return fail("Already at max level")
-	return ok() if v.army.upgrade(u) else fail("Not enough gold")
+	var to := str(a.get("to", ""))
+	if to != "" and not Config.MILITARY.has(to):
+		return fail("It can't become that")
+	var err := v.army.upgrade_error(u, to)
+	if err != "":
+		return fail(err)
+	v.army.upgrade(u, to)
+	return ok()
+
+
+## A spatial mage of ARCHMAGE_LEVEL leaves the army as the Spatial Archmage (a civilian).
+func _promote_archmage(v: Village, a: Dictionary) -> Dictionary:
+	var u := _unit(v, a)
+	if u == null:
+		return fail("That isn't your unit")
+	var err := v.army.archmage_error(u)
+	if err != "":
+		return fail(err)
+	var civ := v.army.promote_archmage(u)
+	return ok({"uid": civ.uid}) if civ else fail("It didn't work")
 
 
 func _station_unit(v: Village, a: Dictionary) -> Dictionary:
