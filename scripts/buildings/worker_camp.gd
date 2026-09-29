@@ -26,7 +26,7 @@ func refresh() -> void:
 
 func info() -> Dictionary:
 	var d := super.info()
-	if not complete:
+	if not working():
 		return d
 	var lines: Array[String] = d["lines"]
 	var actions: Array[Dictionary] = d["actions"]

@@ -39,7 +39,7 @@ func post_kind() -> String:
 
 
 func trainable_unit() -> MilitaryUnit:
-	if complete and garrison != null and garrison.state == MilitaryUnit.State.STATIONED and garrison.can_train():
+	if working() and garrison != null and garrison.state == MilitaryUnit.State.STATIONED and garrison.can_train():
 		return garrison
 	return null
 
@@ -56,7 +56,7 @@ func _process(_delta: float) -> void:
 
 func info() -> Dictionary:
 	var d := super.info()
-	if not complete:
+	if not working():
 		return d
 	var lines: Array[String] = d["lines"]
 	var actions: Array[Dictionary] = d["actions"]

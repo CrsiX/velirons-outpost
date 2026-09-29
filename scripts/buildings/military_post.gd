@@ -20,7 +20,7 @@ var _unit_sprite: Sprite2D
 
 
 func can_garrison() -> bool:
-	return complete
+	return working()
 
 
 ## "tower", "barracks" or "training" (which units fit: MilitaryUnit.fits).

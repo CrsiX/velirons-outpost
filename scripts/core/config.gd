@@ -283,6 +283,11 @@ const FOOD_UPKEEP := 0.05  # food per civilian per second
 const STARVATION_INTERVAL := 15.0  # a civilian dies this often while food is 0
 
 const BUILDER_REST := 3.0
+## Tearing down a placed building (not huts): a builder takes this share of
+## its build time, and this share of the building material spent on it
+## (price plus paid upgrades, rounded down) comes back.
+const TEARDOWN_TIME_SHARE := 0.5
+const TEARDOWN_REFUND := 0.33
 const FARMER_REST := 4.0
 const HARVEST_TIME := 2.5
 const FARM_RATE := 0.4  # food per second while a farmer is assigned
@@ -743,7 +748,7 @@ static func cost_icons(cost: Dictionary) -> String:
 
 ## Text with icon tokens ({gold} {food} {materials} {xp}) as plain words.
 static func plain_text(text: String) -> String:
-	return text.replace("{gold}", "gold").replace("{food}", "food").replace("{materials}", "materials").replace("{xp}", "XP")
+	return text.replace("{gold}", "gold").replace("{food}", "food").replace("{materials}", "materials").replace("{xp}", "XP").replace("{hp}", "HP")
 
 
 static func cost_text(cost: Dictionary) -> String:

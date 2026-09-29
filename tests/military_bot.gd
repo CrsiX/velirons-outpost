@@ -439,7 +439,7 @@ func _test_branching() -> void:
 	check(on_screen(hud._upgrade_panel), "the dialog fits on screen (%s)" % hud._upgrade_panel.get_global_rect())
 	var ice_btn: Button = null
 	for n in hud._upgrade_options.find_children("*", "Button", true, false):
-		if "Ice Mage" in (n as Button).text:
+		if "Ice Mage" in Hud.button_text(n as Button):
 			ice_btn = n
 	check(ice_btn != null, "with the ice mage among them")
 	if ice_btn:
@@ -465,13 +465,13 @@ func _test_branching() -> void:
 	await frames(2)
 	var arch_btn: Button = null
 	for n in hud._upgrade_options.find_children("*", "Button", true, false):
-		if "Archmage" in (n as Button).text:
+		if "Archmage" in Hud.button_text(n as Button):
 			arch_btn = n
 	check(arch_btn != null, "the dialog offers the Spatial Archmage")
 	if arch_btn:
 		await tap(arch_btn)
 		await frames(2)
-	check(hud._confirm_panel.visible and "600" in hud._confirm_yes.text, "it asks for confirmation first (600 gold)")
+	check(hud._confirm_panel.visible and "600" in Hud.button_text(hud._confirm_yes), "it asks for confirmation first (600 gold)")
 	var g0 := game.economy.amount("gold")
 	check(on_screen(hud._confirm_panel), "the confirmation fits on screen")
 	await tap(hud._confirm_yes)

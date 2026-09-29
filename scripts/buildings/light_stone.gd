@@ -33,14 +33,14 @@ func _exit_tree() -> void:
 
 func refresh() -> void:
 	sprite.visible = complete
-	_glow.visible = complete
-	_halo.visible = complete
+	_glow.visible = working()
+	_halo.visible = working()
 	_site_sprite.visible = not complete
 	queue_redraw()
 
 
 func _process(delta: float) -> void:
-	if not complete:
+	if not working():
 		return
 	_t += delta * 1.6
 	var pulse := 0.65 + 0.35 * sin(_t)
@@ -57,12 +57,14 @@ func is_solid_when_complete() -> bool:
 
 
 func sight_radius() -> float:
+	if tearing_down:
+		return super.sight_radius()
 	return Config.LIGHTSTONE_SIGHT if complete else 0.0
 
 
 func info() -> Dictionary:
 	var d := super.info()
-	if complete:
+	if working():
 		var lines: Array[String] = d["lines"]
 		lines.append("Lights up the land within %.1f tiles." % Config.LIGHTSTONE_SIGHT)
 		lines.append("Works on its own; no one can be stationed here.")

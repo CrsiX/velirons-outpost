@@ -219,7 +219,7 @@ func hud_buttons_on_screen(hud: Hud) -> String:
 		if hud._sheet_scroll.is_ancestor_of(b):
 			continue
 		if not vp.encloses(b.get_global_rect()):
-			return "%s '%s' at %s" % [b.get_path(), b.text, b.get_global_rect()]
+			return "%s '%s' at %s" % [b.get_path(), Hud.button_text(b), b.get_global_rect()]
 	return ""
 
 
@@ -377,7 +377,7 @@ func _run() -> void:
 			await frames(2)
 			var clip := hud._sheet_scroll.get_global_rect().grow(0.5)
 			if not clip.encloses(b.get_global_rect()) or not Rect2(Vector2.ZERO, pv).encloses(b.get_global_rect()):
-				unreachable.append("%s:%s" % [tab, b.text])
+				unreachable.append("%s:%s" % [tab, Hud.button_text(b)])
 	check(unreachable.is_empty() and hud._entry_grids[0].columns == 2, "portrait: all dock buttons are reachable (two columns of entries) %s" % str(unreachable))
 	# Placing a building folds the sheet out of the way; Done brings it back.
 	hud._on_tab_pressed("build")
@@ -524,7 +524,7 @@ func _run() -> void:
 	check(hero != null and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1 and hero.visible, "the hero starts in the village centre")
 	check(hero.mode == Hero.Mode.DEFEND and hero.xp == 0 and is_equal_approx(hero.hp, Config.HERO["hp"]), "the hero starts in Defend mode with 0 XP and full HP")
 	check(not game.population.civilians.has(hero) and game.population.count() == 4, "the hero doesn't count as a villager")
-	check(hud._hero_button.is_visible_in_tree() and hud._hero_button.text == "XP 0" and hud._hero_button.icon == Art.tex("icon_hero"), "top bar shows the hero button with his XP")
+	check(hud._hero_button.is_visible_in_tree() and Hud.button_text(hud._hero_button) == "XP 0" and hud._hero_button.icon == Art.tex("icon_hero"), "top bar shows the hero button with his XP")
 	await tap(center(hud._hero_button))
 	check(hud._hero_panel.visible and "Defend" in hud._hero_mode_button.text, "tapping the hero button opens his panel (mode: Defend)")
 	var seen_modes: Array[String] = []
@@ -787,7 +787,7 @@ func _run() -> void:
 	check(game.selected_unit == wa and hud._info_panel.visible and hud._info_title.text == "Archer", "tapping the archer on its tower selects the unit, not the tower")
 	var ulabels: Array = []
 	for b in buttons_in(hud._info_actions):
-		ulabels.append(b.text)
+		ulabels.append(Hud.button_text(b))
 	check(ulabels.any(func(l: String) -> bool: return l.begins_with("Upgrade")) and "Withdraw" in ulabels, "the unit panel offers Upgrade and Withdraw (%s)" % str(ulabels))
 	await tap(screen(wt.position + Vector2(0, -6)))
 	check(game.selected == wt and game.selected_unit == null, "tapping the tower itself still selects the tower")
@@ -1555,7 +1555,7 @@ func _test_hero(far: Vector2i) -> void:
 	var hp_b := brute.hp
 	var fought := await wait_until(func() -> bool: return brute.hp < hp_b and hero.hp < hero.max_hp, 40.0)
 	check(fought, "the hero fights it with his sword, and it fights back")
-	check(hero.xp > 0 and hud._hero_button.text == "XP %d" % hero.xp, "each hit earns the hero XP, shown in the top bar (XP %d)" % hero.xp)
+	check(hero.xp > 0 and Hud.button_text(hud._hero_button) == "XP %d" % hero.xp, "each hit earns the hero XP, shown in the top bar (XP %d)" % hero.xp)
 	var xp_fight := hero.xp
 	# Re-targeting: nearest first, then the strongest.
 	var weak := spawn_dummy("goblin", hero.grid_pos + Vector2(1.5, 0.0), 1.0, far)

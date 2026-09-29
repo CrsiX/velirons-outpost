@@ -26,6 +26,11 @@ var builder: Node = null
 var upgrading := false
 var upgrade_progress := 0.0
 var upgrade_time := 1.0
+## Marked for tear-down (a builder's job, see Construction.order_tear_down):
+## the building stops working at once; when the work is done it is removed
+## and a share of its building material comes back.
+var tearing_down := false
+var teardown_progress := 0.0
 var sprite: Sprite2D
 
 
@@ -78,22 +83,40 @@ func is_solid() -> bool:
 	return false
 
 
-## Tile a builder stands on while working.
+## Tile a builder stands on while working (and units step on and off a
+## tower from): the free tile next to it nearest the village that can be
+## reached from there. Trees can cut off the nearest one.
 func work_tile() -> Vector2i:
 	if not is_solid_when_complete():
 		return tile
+	var pathing := game.world.pathing
+	var home: Vector2i = village.center if village else Config.VILLAGE_CENTER
 	var best := tile
 	var best_d := INF
-	for dy in range(-1, 2):
-		for dx in range(-1, 2):
-			var t := tile + Vector2i(dx, dy)
-			if t == tile or not game.world.pathing.is_walkable(t):
-				continue
-			var d := Vector2(t).distance_to(Vector2(village.center if village else Config.VILLAGE_CENTER))
-			if d < best_d:
-				best_d = d
-				best = t
+	var reached := false
+	for t in neighbour_tiles():
+		if not pathing.is_walkable(t):
+			continue
+		var ok := pathing.can_reach(home, t)
+		var d := Vector2(t).distance_to(Vector2(home))
+		if (ok and not reached) or (ok == reached and d < best_d):
+			reached = ok
+			best_d = d
+			best = t
 	return best
+
+
+## Tiles around the footprint (8-connected), not in it.
+func neighbour_tiles() -> Array[Vector2i]:
+	var own := tiles()
+	var out: Array[Vector2i] = []
+	for t in own:
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var n := t + Vector2i(dx, dy)
+				if not own.has(n) and not out.has(n):
+					out.append(n)
+	return out
 
 
 func is_solid_when_complete() -> bool:
@@ -113,12 +136,19 @@ func sight_center() -> Vector2:
 
 ## Does a builder have anything to do here (construction or an upgrade)?
 func has_work() -> bool:
-	return not complete or upgrading
+	return not complete or upgrading or tearing_down
+
+
+## Finished and not being torn down: the building does its job.
+func working() -> bool:
+	return complete and not tearing_down
 
 
 func work_fraction() -> float:
 	if not complete:
 		return clampf(progress / build_time, 0.0, 1.0)
+	if tearing_down:
+		return clampf(teardown_progress / teardown_time(), 0.0, 1.0)
 	return clampf(upgrade_progress / upgrade_time, 0.0, 1.0)
 
 
@@ -128,8 +158,42 @@ func add_progress(dt: float) -> bool:
 	if not complete:
 		progress += dt
 		return progress >= build_time
+	if tearing_down:
+		teardown_progress += dt
+		return teardown_progress >= teardown_time()
 	upgrade_progress += dt
 	return upgrade_progress >= upgrade_time
+
+
+# --- tear-down ---------------------------------------------------------------------------
+
+## Buildings a player places can be torn down (not village huts).
+func can_tear_down() -> bool:
+	return complete and not tearing_down and Construction.KIND_SCRIPTS.has(kind)
+
+
+## A builder's time to tear it down: a share of its build time.
+func teardown_time() -> float:
+	return build_time * Config.TEARDOWN_TIME_SHARE
+
+
+## Building material spent on it: its price plus paid upgrades (override).
+func materials_spent() -> int:
+	return int(Config.BUILDINGS[kind]["cost"].get("materials", 0)) if Config.BUILDINGS.has(kind) else 0
+
+
+## What a finished tear-down gives back.
+func teardown_refund() -> int:
+	return floori(materials_spent() * Config.TEARDOWN_REFUND)
+
+
+## Marked for / spared from tear-down: subclasses stop their work here (the
+## units and workers are sent away by Construction).
+func set_tearing_down(on: bool) -> void:
+	tearing_down = on
+	teardown_progress = 0.0
+	modulate = Color(1, 1, 1, 0.6) if on else Color.WHITE
+	refresh()
 
 
 ## Override: apply a finished upgrade.
@@ -178,7 +242,23 @@ func info() -> Dictionary:
 		lines.append("Construction site: %d%%" % int(100.0 * progress / build_time))
 		lines.append("Builder at work" if builder != null else "Waiting for a builder")
 		actions.append({"label": "Cancel (refund)", "action": func() -> void: game.command("cancel_site", {"building": nid})})
+	elif tearing_down:
+		lines.append("Tearing down: %d%%" % int(100.0 * work_fraction()))
+		lines.append("Builder at work" if builder != null else "Waiting for a builder")
+		lines.append(Config.cost_icons({"materials": teardown_refund()}) + " back when it's done")
+		actions.append({"label": "Stop tear-down", "action": func() -> void: game.command("stop_tear_down", {"building": nid})})
 	return {"title": display_name(), "lines": lines, "actions": actions}
+
+
+## The panel's last action: tearing it down (after the building's own ones).
+func add_tear_down_action(d: Dictionary) -> void:
+	if not can_tear_down():
+		return
+	var actions: Array[Dictionary] = d["actions"]
+	actions.append({
+		"label": "Tear down (+%s)" % Config.cost_icons({"materials": teardown_refund()}),
+		"action": func() -> void: game.command("tear_down", {"building": nid}),
+	})
 
 
 func pick_rect() -> Rect2:
@@ -192,7 +272,23 @@ func _draw() -> void:
 	var r := Rect2(-w / 2.0, _bar_y(), w, 7.0)
 	draw_rect(r.grow(2.0), Color("15110d"))
 	draw_rect(r, Color("3a2e22"))
-	draw_rect(Rect2(r.position, Vector2(w * work_fraction(), r.size.y)), Color("c9a24a") if not complete else Color("8fb8e0"))
+	draw_rect(Rect2(r.position, Vector2(w * bar_fraction(), r.size.y)), work_color())
+
+
+## Progress bar fill: a tear-down empties it.
+func bar_fraction() -> float:
+	return 1.0 - work_fraction() if tearing_down else work_fraction()
+
+
+## Progress bar colour: construction, upgrade, or (counting down) tear-down.
+func work_color() -> Color:
+	if not complete:
+		return Color("c9a24a")
+	return TEARDOWN_COLOR if tearing_down else Color("8fb8e0")
+
+
+## Tear-down bars count down in this colour.
+const TEARDOWN_COLOR := Color("a8553a")
 
 
 ## Height of the work progress bar above the anchor.

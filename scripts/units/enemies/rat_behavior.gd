@@ -158,7 +158,7 @@ static func _nearest_farm(enemy: Enemy, r: float) -> Farm:
 	var best: Farm = null
 	var best_d := r
 	for b in enemy.game.world.buildings:
-		if b is Farm and b.complete:
+		if b is Farm and b.working():
 			var d := Vector2(b.tile).distance_to(enemy.grid_pos)
 			if d <= best_d:
 				best_d = d
@@ -167,7 +167,7 @@ static func _nearest_farm(enemy: Enemy, r: float) -> Farm:
 
 
 func _farm_ok() -> bool:
-	return is_instance_valid(farm) and farm.complete and farm.is_inside_tree()
+	return is_instance_valid(farm) and farm.working() and farm.is_inside_tree()
 
 
 func _go_farm(enemy: Enemy, f: Farm) -> void:

@@ -238,6 +238,8 @@ func _building_state(b: Building) -> Dictionary:
 	var st := {"c": b.complete, "p": snappedf(b.progress, 0.1), "g": 0}
 	if b.upgrading:
 		st["u"] = snappedf(b.upgrade_progress, 0.1)
+	if b.tearing_down:
+		st["td"] = snappedf(b.teardown_progress, 0.1)
 	if b is Tower:
 		st["l"] = b.level
 		st["en"] = b.enchanted > 0.0
@@ -577,6 +579,9 @@ func _apply_building(b: Building, st: Dictionary) -> void:
 	b.progress = st.get("p", b.progress)
 	b.upgrading = st.has("u")
 	b.upgrade_progress = st.get("u", 0.0)
+	if st.has("td") != b.tearing_down:
+		b.set_tearing_down(st.has("td"))
+	b.teardown_progress = st.get("td", 0.0)
 	if (b is Tower or b is Barracks) and st.has("l") and b.level != st["l"]:
 		b.level = st["l"]
 	if b is Tower:

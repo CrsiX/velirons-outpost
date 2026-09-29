@@ -74,6 +74,8 @@ var _log_box: VBoxContainer
 var _log_dirty := true
 var _dock_hint: Label
 var _hero_button: Button
+var _hero_hp_bar: Control
+const HERO_HP_BAR := 7.0  # px
 var _hero_panel: PanelContainer
 var _hero_stats: RichTextLabel
 var _hero_status: Label
@@ -123,7 +125,7 @@ var _build_buttons: Dictionary = {}
 var _recruit_rows: Dictionary = {}  # role -> {button, title}
 var _military_buttons: Dictionary = {}  # kind -> recruit Button
 var _military_panels: Dictionary = {}  # kind -> its entry (hidden while locked)
-var _selected_info: Label
+var _selected_info: RichTextLabel
 var _reserve_grid: GridContainer
 var _reserve_label: Label
 var _upgrade_reserve_button: Button
@@ -224,22 +226,28 @@ func _button(text: String, min_size: Vector2 = Vector2(0, 52)) -> Button:
 	return b
 
 
-const ICON_ART := {"{gold}": "icon_gold", "{food}": "icon_food", "{materials}": "icon_materials", "{xp}": "icon_xp"}
+const ICON_ART := {"{gold}": "icon_gold", "{food}": "icon_food", "{materials}": "icon_materials", "{xp}": "icon_xp", "{hp}": "icon_hp"}
 
 
 ## Button text with icons: {gold} {food} {materials} {xp} are drawn as their
-## icons. The button keeps the plain words as its text (hidden, for its size
-## and for reading it back); a RichTextLabel on top shows the icons.
+## icons by a RichTextLabel on the button, which then has no text of its own.
+## Its size is worked out from the text instead. The plain words stay
+## readable through button_text(b).
 func set_rich_text(b: Button, text: String) -> void:
-	b.text = Config.plain_text(text)
+	var plain := Config.plain_text(text)
+	b.set_meta("plain_text", plain)
+	if not b.has_meta("base_min_size"):
+		b.set_meta("base_min_size", b.custom_minimum_size)
+	var base: Vector2 = b.get_meta("base_min_size")
 	var rt: RichTextLabel = b.get_node_or_null("Rich")
 	if not "{" in text:
+		b.text = text
+		b.custom_minimum_size = base
 		if rt:
 			rt.queue_free()
 			b.remove_child(rt)
-			for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color", "font_disabled_color"]:
-				b.remove_theme_color_override(k)
 		return
+	b.text = ""
 	if rt == null:
 		rt = RichTextLabel.new()
 		rt.name = "Rich"
@@ -253,14 +261,34 @@ func set_rich_text(b: Button, text: String) -> void:
 		rt.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		rt.offset_left = 6
 		rt.offset_right = -6
-		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color", "font_disabled_color"]:
-			b.add_theme_color_override(k, Color(0, 0, 0, 0))
-		b.draw.connect(func() -> void: rt.modulate.a = 0.45 if b.disabled else 1.0)
+		if not b.has_meta("rich_dim"):
+			b.set_meta("rich_dim", true)
+			b.draw.connect(func() -> void:
+				var r := b.get_node_or_null("Rich") as RichTextLabel
+				if r:
+					r.modulate.a = 0.45 if b.disabled else 1.0)
 	var fs := b.get_theme_font_size("font_size")
 	rt.add_theme_font_size_override("normal_font_size", fs)
 	# (a button with its own icon: the text goes to the right of it)
-	rt.offset_left = 6 + (b.get_theme_constant("icon_max_width") + b.get_theme_constant("h_separation") if b.icon else 0)
+	var icon_w := b.get_theme_constant("icon_max_width") + b.get_theme_constant("h_separation") if b.icon else 0
+	rt.offset_left = 6 + icon_w
 	rt.text = "[center]%s[/center]" % icon_bbcode(text, fs)
+	# The size the button's own text would have given it, icons instead of words.
+	var words := text
+	var icons := 0
+	for tok in ICON_ART:
+		icons += words.count(tok)
+		words = words.replace(tok, "")
+	var font := b.get_theme_font("font")
+	var style := b.get_theme_stylebox("normal")
+	var w := font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + icons * (int(fs * 1.15) + 2) + icon_w + 12 + style.get_margin(SIDE_LEFT) + style.get_margin(SIDE_RIGHT)
+	var h := font.get_height(fs) + style.get_margin(SIDE_TOP) + style.get_margin(SIDE_BOTTOM)
+	b.custom_minimum_size = Vector2(maxf(base.x, ceilf(w)), maxf(base.y, ceilf(h)))
+
+
+## A button's words, also when icons show them (set_rich_text).
+static func button_text(b: Button) -> String:
+	return str(b.get_meta("plain_text", b.text))
 
 
 ## BBCode for text with icon tokens, icons at about the font's height.
@@ -270,6 +298,37 @@ static func icon_bbcode(text: String, font_size: int) -> String:
 	for tok in ICON_ART:
 		s = s.replace(tok, "[img=%dx%d]res://art/%s.svg[/img]" % [px, px, ICON_ART[tok]])
 	return s
+
+
+## New text (with icon tokens) for a RichTextLabel made by _rich_line.
+func _set_rich_label(rt: RichTextLabel, text: String, size: int) -> void:
+	rt.text = icon_bbcode(text, size)
+	rt.set_meta("plain", Config.plain_text(text))
+
+
+## A reserve card of a hurt unit: its level, and under it a heart and its HP.
+## The card keeps an empty second line; the heart line is drawn over it.
+func _card_hp(card: Button, first: String, hp: int) -> void:
+	card.text = first + "\n "
+	card.set_meta("plain_text", "%s\n%d HP" % [first, hp])
+	var fs := card.get_theme_font_size("font_size")
+	var rt := RichTextLabel.new()
+	rt.name = "Rich"
+	rt.bbcode_enabled = true
+	rt.scroll_active = false
+	rt.autowrap_mode = TextServer.AUTOWRAP_OFF
+	rt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rt.add_theme_font_size_override("normal_font_size", fs)
+	rt.add_theme_color_override("default_color", UiTheme.TEXT)
+	rt.text = "[center]%s[/center]" % icon_bbcode("{hp} %d" % hp, fs)
+	var line := card.get_theme_font("font").get_height(fs)
+	var bottom := card.get_theme_stylebox("normal").get_margin(SIDE_BOTTOM)
+	card.add_child(rt)
+	rt.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	rt.offset_left = 0
+	rt.offset_right = 0
+	rt.offset_bottom = -bottom + 2
+	rt.offset_top = rt.offset_bottom - line - 3
 
 
 ## A label for a line that may hold icon tokens (a RichTextLabel then).
@@ -348,9 +407,20 @@ func _build_topbar() -> void:
 	_hero_button = _button("XP 0", Vector2(0, 44))
 	_hero_button.icon = Art.tex("icon_hero")
 	_hero_button.expand_icon = false
-	_hero_button.add_theme_constant_override("icon_max_width", 30)
+	_hero_button.add_theme_constant_override("icon_max_width", 26)  # (room for the health bar)
 	_hero_button.add_theme_font_size_override("font_size", 18)
 	_hero_button.tooltip_text = "The hero: tap for orders"
+	# His health along the bottom of the button.
+	_hero_hp_bar = Control.new()
+	_hero_hp_bar.name = "HealthBar"
+	_hero_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hero_hp_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_hero_hp_bar.offset_left = 5
+	_hero_hp_bar.offset_right = -5
+	_hero_hp_bar.offset_top = -HERO_HP_BAR - 3
+	_hero_hp_bar.offset_bottom = -3
+	_hero_hp_bar.draw.connect(_draw_hero_hp)
+	_hero_button.add_child(_hero_hp_bar)
 	_hero_button.pressed.connect(func() -> void:
 		_hero_panel.visible = not _hero_panel.visible
 		_trade_panel.visible = _trade_panel.visible and not _hero_panel.visible
@@ -582,14 +652,48 @@ func _build_hero_panel() -> void:
 
 
 
+## Green from half health up, yellow down to a fifth, then red.
+static func hero_hp_color(share: float) -> Color:
+	if share >= 0.5:
+		return Color("6fc24a")
+	return Color("e8c23a") if share >= 0.2 else Color("e0503a")
+
+
+func hero_hp_share() -> float:
+	var h: Hero = game.hero
+	return 0.0 if h.dead else clampf(h.hp / maxf(h.max_hp, 1.0), 0.0, 1.0)
+
+
+func _draw_hero_hp() -> void:
+	var r := Rect2(Vector2.ZERO, _hero_hp_bar.size)
+	var share := hero_hp_share()
+	var radius := int(r.size.y / 2.0) + 1
+	_hero_hp_bar.draw_style_box(_bar_box(Color("3a2a10"), radius, Color("15110d")), r.grow(1.5))
+	if share > 0.0:
+		var fill := Rect2(r.position, Vector2(r.size.x * share, r.size.y))
+		_hero_hp_bar.draw_style_box(_bar_box(hero_hp_color(share), mini(radius - 1, int(fill.size.x / 2.0))), fill)
+
+
+static func _bar_box(color: Color, radius: int, border := Color(0, 0, 0, 0)) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color
+	sb.set_corner_radius_all(radius)
+	sb.anti_aliasing = true
+	if border.a > 0.0:
+		sb.border_color = border
+		sb.set_border_width_all(2)
+	return sb
+
+
 func _refresh_hero() -> void:
 	var h: Hero = game.hero
 	set_rich_text(_hero_button, "{xp} %d" % h.xp)
 	_hero_button.modulate = Color(1, 0.55, 0.5) if h.dead else Color.WHITE
+	_hero_hp_bar.queue_redraw()
 	_place_log()
 	if not _hero_panel.visible:
 		return
-	_hero_stats.text = "Level %d     HP %d / %d     %s %d" % [h.level + 1, int(h.hp), int(h.max_hp), icon_bbcode("{xp}", 17), h.xp]
+	_hero_stats.text = icon_bbcode("Level %d     {hp} %d / %d     {xp} %d" % [h.level + 1, int(h.hp), int(h.max_hp), h.xp], 17)
 	var top := h.level >= Config.HERO_MAX_LEVEL - 1
 	set_rich_text(_hero_level_button, "Highest level" if top else "Level up to %d  (%d {xp})" % [h.level + 2, h.level_up_cost()])
 	_hero_level_button.disabled = top or not h.can_level_up() or h.village != game.player_village
@@ -922,7 +1026,9 @@ func _build_page_village() -> Control:
 	var grid := _entry_grid(v)
 	for role in Config.CIVILIAN_ORDER:
 		var spec: Dictionary = Config.CIVILIANS[role]
-		var action := "Recruit  (%s)" % Config.cost_icons(spec["cost"]) if spec.get("recruit", true) else "From a level %d spatial mage (Army)" % Config.ARCHMAGE_LEVEL
+		if not spec.get("recruit", true):
+			continue  # (the Spatial Archmage: promoted from the Army tab)
+		var action := "Recruit  (%s)" % Config.cost_icons(spec["cost"])
 		var e := _entry(Art.tex("unit_" + role), spec["name"], spec["desc"], action, _recruit.bind(role))
 		grid.add_child(e["panel"])
 		_recruit_rows[role] = e
@@ -964,8 +1070,8 @@ func _build_page_army() -> Control:
 	_reserve_grid.add_theme_constant_override("h_separation", 6)
 	_reserve_grid.add_theme_constant_override("v_separation", 6)
 	v.add_child(_reserve_grid)
-	_selected_info = _label("", 15, UiTheme.MUTED)
-	_selected_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_selected_info = _rich_line("{hp}", 15) as RichTextLabel  # (HP with its heart)
+	_selected_info.add_theme_color_override("default_color", UiTheme.MUTED)
 	v.add_child(_selected_info)
 	var rrow := HBoxContainer.new()
 	rrow.add_theme_constant_override("separation", 6)
@@ -1014,7 +1120,7 @@ func _rebuild_reserve() -> void:
 			card.modulate = Color(1, 1, 1, 0.5)
 			card.tooltip_text = "Downed: back in %d s" % ceili(u.revive_left)
 		elif u.hp < u.max_hp() - 0.5:
-			card.text = "Lv %d\n%d HP" % [u.level + 1, ceili(u.hp)]
+			_card_hp(card, "Lv %d" % (u.level + 1), ceili(u.hp))
 		card.icon = Art.tex("unit_" + u.kind)
 		card.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		card.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
@@ -1036,14 +1142,14 @@ func _refresh_reserve_texts(reserve: Array[MilitaryUnit]) -> void:
 	if _selected_unit:
 		var lines: Array[String] = ["%s, level %d" % [_selected_unit.display_name(), _selected_unit.level + 1]]
 		lines.append_array(_selected_unit.behavior.info_lines(_selected_unit))
-		_selected_info.text = "\n".join(lines)
+		_set_rich_label(_selected_info, "\n".join(lines), 15)
 	if _selected_unit:
 		var opts := _selected_unit.upgrade_options()
 		_upgrade_reserve_button.disabled = opts.is_empty()
 		set_rich_text(_upgrade_reserve_button, "Selected %s is max level" % _selected_unit.display_name().to_lower() if opts.is_empty() else ("Upgrade selected..." if opts.size() > 1 else "Upgrade selected  (%s)" % Config.cost_icons(opts[0]["cost"])))
-		var info: Array[String] = ["%s, level %d: %d / %d HP" % [_selected_unit.display_name(), _selected_unit.level + 1, ceili(_selected_unit.hp), ceili(_selected_unit.max_hp())]]
+		var info: Array[String] = ["%s, level %d: {hp} %d / %d" % [_selected_unit.display_name(), _selected_unit.level + 1, ceili(_selected_unit.hp), ceili(_selected_unit.max_hp())]]
 		info.append_array(_selected_unit.behavior.info_lines(_selected_unit))
-		_selected_info.text = "\n".join(info)
+		_set_rich_label(_selected_info, "\n".join(info), 15)
 
 
 # --- reserve card press / drag ----------------------------------------------------------
@@ -1953,10 +2059,10 @@ func _refresh_wave() -> void:
 	_enemies_label.text = str(w.enemies_left())
 	if w.in_progress():
 		_wave_label.text = "Wave %d attacking" % w.wave
-		_call_button.text = "Fighting..."
+		set_rich_text(_call_button, "Fighting...")
 		_call_button.disabled = true
 	else:
 		var s := int(ceil(maxf(w.countdown, 0.0)))
 		_wave_label.text = "Wave %d in %d:%02d" % [w.wave + 1, s / 60, s % 60]
-		_call_button.text = "Call now +%dg" % w.early_call_bonus()
+		set_rich_text(_call_button, "Call now +%d {gold}" % w.early_call_bonus())
 		_call_button.disabled = false

@@ -70,6 +70,9 @@ func _run() -> void:
 	await _test_defence()
 	await _test_loot()
 	await _test_ui()
+	await _test_teardown()
+	await _test_boxed_in_tower()
+	_test_hero_bar()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -173,7 +176,9 @@ func _test_packs() -> void:
 			if a != b:
 				min_gap = minf(min_gap, a.grid_pos.distance_to(b.grid_pos))
 	check(out and min_gap > 0.2, "the pack runs with a little space between the rats (closest %.2f tiles)" % min_gap)
-	# A fire mage's explosion catches several of them.
+	# A fire mage's explosion catches several of them (a pack bunched up).
+	for k in rs.size():
+		rs[k].set_grid_pos(rs[0].grid_pos + Vector2(0.3 * k, 0.0))
 	var pack_hp := rs.map(func(e: Enemy) -> float: return e.hp)
 	var fm := MilitaryUnit.new("fire_mage")
 	fm.village = game.player_village
@@ -361,8 +366,9 @@ func _test_defence() -> void:
 				best = d
 				spot = t
 	var b: Barracks = game.construction.place("barracks", spot)
-	b.progress = 1.0
-	b.finish()
+	game.construction.queue.erase(b)
+	b.progress = b.build_time
+	game.construction.complete(b)
 	await frames(2)
 	var u := game.army.recruit("shield_bearer")
 	game.army.station(u, b)
@@ -428,11 +434,22 @@ func _test_ui() -> void:
 	hud._refresh()
 	var place: Button = hud._build_buttons["tower"]
 	var rich: RichTextLabel = place.get_node_or_null("Rich")
-	check(rich != null and "icon_materials.svg" in rich.text and place.text.contains("materials"), "costs show their icon (%s)" % place.text)
+	check(rich != null and "icon_materials.svg" in rich.text and Hud.button_text(place).contains("materials"), "costs show their icon (%s)" % Hud.button_text(place))
+	check(place.text == "" and place.get_combined_minimum_size().x >= 100.0, "under the icons the button has no text of its own, and still its size (%.0f px)" % place.get_combined_minimum_size().x)
 	var recruit: Button = hud._military_buttons["archer"]
 	check(recruit.get_node_or_null("Rich") != null and "icon_gold.svg" in (recruit.get_node("Rich") as RichTextLabel).text, "gold costs show the gold icon")
 	hud._refresh_hero()
-	check(hud._hero_button.get_node_or_null("Rich") != null and "icon_xp.svg" in (hud._hero_button.get_node("Rich") as RichTextLabel).text and hud._hero_button.text.begins_with("XP "), "the hero's XP shows the XP icon")
+	check(hud._hero_button.get_node_or_null("Rich") != null and "icon_xp.svg" in (hud._hero_button.get_node("Rich") as RichTextLabel).text and Hud.button_text(hud._hero_button).begins_with("XP "), "the hero's XP shows the XP icon")
+	hud._hero_panel.visible = true
+	hud._refresh_hero()
+	check("icon_hp.svg" in hud._hero_stats.text and not "HP" in hud._hero_stats.text, "the hero panel shows his HP with a heart")
+	hud._hero_panel.visible = false
+	var hurt := game.army.recruit("archer")
+	hurt.hp = hurt.max_hp() * 0.5
+	hud._reserve_signature = ""
+	hud._rebuild_reserve()
+	var cards := hud._reserve_grid.get_children().filter(func(c: Node) -> bool: return c.get_node_or_null("Rich") != null)
+	check(not cards.is_empty() and "icon_hp.svg" in (cards[0].get_node("Rich") as RichTextLabel).text and Hud.button_text(cards[0]).ends_with("HP"), "a hurt unit's card shows a heart and its HP")
 	var page: Control = hud._reserve_grid.get_parent()
 	var grid_i := -1
 	for c in page.get_children():
@@ -440,3 +457,167 @@ func _test_ui() -> void:
 			grid_i = c.get_index()
 	check(hud._reserve_grid.get_index() < grid_i, "the Army tab shows the units in stock above the recruiting")
 	check(ResourceLoader.exists("res://art/icon_xp.svg") and ResourceLoader.exists("res://art/unit_rat.svg"), "the XP icon and the rat have their art")
+
+
+# --- tear-down ---------------------------------------------------------------------------------
+
+func find_spot(kind: String, near: Vector2i) -> Vector2i:
+	var cands: Array = []
+	for y in game.map.size:
+		for x in game.map.size:
+			var t := Vector2i(x, y)
+			if game.construction.placement_error(kind, t) == "":
+				cands.append([Vector2(t).distance_to(Vector2(near)), t])
+	cands.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	for c in cands:
+		var t: Vector2i = c[1]
+		for nb in [t, t + Vector2i(1, 0), t + Vector2i(-1, 0), t + Vector2i(0, 1), t + Vector2i(0, -1)]:
+			if game.world.pathing.is_walkable(nb) and not game.world.pathing.find_path(game.player_village.center, nb).is_empty():
+				return t
+	return Vector2i(-1, -1)
+
+
+## Earlier tests kill villagers: makes sure one of `role` is there (a hut
+## freed from a gatherer or explorer if need be).
+func ensure_role(role: String) -> void:
+	if game.population.count(role) > 0:
+		return
+	game.economy.add("food", 100)
+	while game.population.free_huts().is_empty():
+		var spare := game.population.civilians.filter(func(c: Civilian) -> bool: return c.role in ["gatherer", "explorer", "miner"])
+		game.population.kill(spare.back() if not spare.is_empty() else game.population.civilians.back())
+	game.population.recruit(role)
+
+
+func built(kind: String) -> Building:
+	game.economy.add("materials", 300)
+	game.economy.add("gold", 300)
+	var b := game.construction.place(kind, find_spot(kind, game.player_village.center + Vector2i(6, 6)))
+	game.construction.queue.erase(b)
+	b.progress = b.build_time
+	game.construction.complete(b)
+	return b
+
+
+func _test_teardown() -> void:
+	var v := game.player_village
+	await clear_enemies()
+	ensure_role("builder")
+	# A manned tower: the unit leaves at once, a builder takes it down, 33 % back.
+	var tower := built("tower") as Tower
+	var u := game.army.recruit("archer")
+	game.army.station(u, tower)
+	await wait_until(func() -> bool: return u.state == MilitaryUnit.State.STATIONED, 60.0)
+	var d := game.building_info(tower)
+	var acts: Array = d["actions"]
+	check(not acts.is_empty() and str(acts.back()["label"]).begins_with("Tear down"), "a finished building's panel ends with \"Tear down\" (%s)" % Config.plain_text(str(acts.back()["label"])))
+	var mats := game.economy.amount("materials")
+	check(game.command("tear_down", {"building": tower.nid})["ok"] and tower.tearing_down, "Tear down marks it, no questions asked")
+	check(u.state != MilitaryUnit.State.STATIONED and tower.garrison == null and not tower.can_garrison(), "its unit leaves at once, and nobody can be stationed there")
+	check(game.construction.queue.has(tower) and tower.has_work(), "it's a job for the builders now")
+	var info_d := game.building_info(tower)
+	check((info_d["actions"] as Array).any(func(x: Dictionary) -> bool: return x["label"] == "Stop tear-down"), "its panel offers \"Stop tear-down\"")
+	var home := await wait_until(func() -> bool: return u.state == MilitaryUnit.State.RESERVE, 60.0)
+	check(home, "the unit walks back into the reserve")
+	var want := floori(Config.BUILDINGS["tower"]["cost"]["materials"] * Config.TEARDOWN_REFUND)
+	var gone := await wait_until(func() -> bool: return not is_instance_valid(tower) or tower.is_queued_for_deletion(), 90.0)
+	await frames(2)
+	if not gone:
+		print("    (builders %d, tower builder %s, %.0f%%, queue %s)" % [game.population.count("builder"), tower.builder, 100 * tower.work_fraction(), game.construction.queue.map(func(x: Building) -> String: return x.label())])
+	check(gone and game.economy.amount("materials") >= mats + want and logs.any(func(l: String) -> bool: return "torn down: +%d materials" % want in l), "a builder tears it down: +%d materials (33 %%), logged" % want)
+	# A barracks, upgraded once: the upgrade counts; a pending upgrade is refunded; stoppable.
+	var b := built("barracks") as Barracks
+	b.level = 2
+	b.fit_slots()
+	var spent: int = Config.BUILDINGS["barracks"]["cost"]["materials"] + Config.BARRACKS_LEVELS[1]["cost"]["materials"]
+	check(b.teardown_refund() == floori(spent * Config.TEARDOWN_REFUND), "paid upgrades count towards the refund (%d)" % b.teardown_refund())
+	game.construction.order_upgrade(b)
+	var before := game.economy.amount("materials")
+	game.command("tear_down", {"building": b.nid})
+	check(not b.upgrading and game.economy.amount("materials") == before + int(Config.BARRACKS_LEVELS[2]["cost"].get("materials", 0)), "a pending upgrade is called off and refunded")
+	check(game.command("stop_tear_down", {"building": b.nid})["ok"] and not b.tearing_down and b.working() and not game.construction.queue.has(b), "Stop tear-down: it works again as before")
+	# A farm: its farmer is freed (or moves to another vacant farm); huts can't go.
+	ensure_role("farmer")
+	var f := built("farm") as Farm
+	game.population.unassign_farmer(f)
+	if farm.farmer == null:
+		game.population.assign_farmer(farm)
+	var worker: Civilian = farm.farmer
+	game.command("tear_down", {"building": farm.nid})
+	if not (worker != null and farm.farmer == null and worker.workplace() == f):
+		print("    (worker %s, farm.farmer %s, now at %s, f %s, farms %s)" % [worker.label() if worker else "none", farm.farmer, worker.workplace().label() if worker and worker.workplace() else "-", f.label(), game.world.buildings.filter(func(x: Building) -> bool: return x is Farm).map(func(x: Building) -> String: return "%s:%s" % [x.label(), x.worker != null])])
+	check(worker != null and farm.farmer == null and worker.workplace() == f, "a farm's farmer is freed at once and moves to a vacant farm")
+	game.population.unassign_farmer(f)
+	game.command("stop_tear_down", {"building": farm.nid})
+	check(farm.farmer == worker, "spared, a free farmer takes it up again")
+	var hut: Building = v.intact_huts()[0]
+	check(not game.command("tear_down", {"building": hut.nid})["ok"] and not hut.can_tear_down(), "village huts can't be torn down")
+	var wall: Building = game.world.buildings.filter(func(x: Building) -> bool: return x.kind == "wall_tower")[0]
+	check(not wall.can_tear_down(), "nor the wall towers")
+	# Barracks range on the map, like a tower's.
+	game.select(b)
+	check(is_equal_approx(game.world.overlay._range, b.activation_range()) and game.world.overlay._range_center == b.act_center(), "a selected barracks shows its range (%.1f)" % b.activation_range())
+	game.deselect()
+	check(not game.hud._recruit_rows.has("spatial_archmage"), "the Spatial Archmage isn't in the Village tab")
+
+
+func _test_hero_bar() -> void:
+	var hud := game.hud
+	check(hud._hero_button.get_node_or_null("HealthBar") != null and hud._hero_hp_bar.size.y >= 6.0, "the hero button has a health bar along its bottom (%.0f px)" % hud._hero_hp_bar.size.y)
+	check(hud.hero_hp_color(1.0) == hud.hero_hp_color(0.5) and hud.hero_hp_color(0.49) == hud.hero_hp_color(0.2) and hud.hero_hp_color(0.19) != hud.hero_hp_color(0.2) and hud.hero_hp_color(0.5) != hud.hero_hp_color(0.49), "green from 50 %, yellow from 20 %, red below")
+	var h := game.hero
+	h.hp = h.max_hp * 0.3
+	check(is_equal_approx(hud.hero_hp_share(), 0.3), "it shows his share of HP")
+	h.hp = h.max_hp
+
+
+# --- a tower boxed in by trees -------------------------------------------------------------------
+
+## The free tile next to a tower nearest the village can be a pocket cut off
+## by trees; units must use a tile they can actually reach.
+func _test_boxed_in_tower() -> void:
+	var v := game.player_village
+	await clear_enemies()
+	var tower := built("tower") as Tower
+	var t := tower.tile
+	var toward := Vector2i((Vector2(v.center) - Vector2(t)).sign())  # the corner facing the village
+	if toward.x == 0:
+		toward.x = 1
+	if toward.y == 0:
+		toward.y = 1
+	var pocket := t + toward
+	var trees: Array[Vector2i] = []
+	for d in [Vector2i(toward.x, 0), Vector2i(0, toward.y), toward * 2, Vector2i(toward.x * 2, toward.y), Vector2i(toward.x, toward.y * 2), Vector2i(toward.x * 2, 0), Vector2i(0, toward.y * 2)]:
+		trees.append(t + d)
+	var old := {}
+	for tt in trees + [pocket]:
+		old[tt] = game.map.get_terrain(tt)
+	for tt in trees:
+		game.map.set_terrain(tt, MapData.Terrain.FOREST)
+		game.world.pathing.set_solid(tt, false)
+	game.map.set_terrain(pocket, MapData.Terrain.GRASS)
+	game.world.pathing.set_solid(pocket, false)
+	var reach := game.world.pathing.find_path(v.center, tower.work_tile())
+	var u := game.army.recruit("archer")
+	var err := game.army.station_error(u, tower)
+	check(err == "" and not reach.is_empty() and tower.work_tile() != pocket, "a tower whose nearest free side is cut off by trees can still be manned (%s)" % err)
+	# Placing: a tower that nobody could reach once it's built is refused.
+	var spot := find_spot("tower", v.center + Vector2i(-7, 6))
+	var ring := {}
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var n := spot + Vector2i(dx, dy)
+			if n != spot:
+				ring[n] = game.map.get_terrain(n)
+				game.map.set_terrain(n, MapData.Terrain.FOREST)
+				game.world.pathing.set_solid(n, false)
+	var why := game.construction.placement_error("tower", spot)
+	check(why.begins_with("Nobody could get to it"), "a tower ringed by trees can't be placed (%s)" % why)
+	for n in ring:
+		game.map.set_terrain(n, ring[n])
+		game.world.pathing.set_solid(n, false)
+	check(game.construction.placement_error("tower", spot) == "", "with a way next to it, it can")
+	for tt in old:
+		game.map.set_terrain(tt, old[tt])
+		game.world.pathing.set_solid(tt, false)
+	game.army.units.erase(u)

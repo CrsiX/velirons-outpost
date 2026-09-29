@@ -15,6 +15,9 @@ var _walk := PackedByteArray()
 var enemy_dist := PackedInt32Array()
 ## Per village id: road steps to that village's nearest gate.
 var village_fields: Array[PackedInt32Array] = []
+## Goes up whenever a tile's walkability changes (keys the reach cache).
+var version := 0
+var _reach_cache := {}  # from tile -> [version, distance field]
 
 
 func _init(p_map: MapData) -> void:
@@ -45,8 +48,23 @@ func _init(p_map: MapData) -> void:
 func set_solid(t: Vector2i, solid: bool) -> void:
 	var blocked := solid or not map.is_passable(t)
 	astar.set_point_solid(t, blocked)
-	if map.in_bounds(t):
+	if map.in_bounds(t) and _walk[map.index(t)] != (0 if blocked else 1):
 		_walk[map.index(t)] = 0 if blocked else 1
+		version += 1
+
+
+## Steps from `from` to every tile (distance_field), kept until the map's
+## walkability changes: for "can anyone get there from the village?".
+func reach_from(from: Vector2i) -> PackedInt32Array:
+	var c: Array = _reach_cache.get(from, [])
+	if c.is_empty() or c[0] != version:
+		c = [version, distance_field(from)]
+		_reach_cache[from] = c
+	return c[1]
+
+
+func can_reach(from: Vector2i, t: Vector2i) -> bool:
+	return map.in_bounds(t) and reach_from(from)[map.index(t)] < UNREACHABLE
 
 
 func is_walkable(t: Vector2i) -> bool:

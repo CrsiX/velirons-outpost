@@ -57,9 +57,27 @@ func placement_error(kind: String, tile: Vector2i, free: bool = false) -> String
 			return "Nothing grows in the %s" % Config.ZONES[map.zone(t)]["name"].to_lower()
 		if map.near_crater(t):
 			return "Too close to the volcano"
+	if SOLID_KINDS.has(kind) and not _reachable_side(Building.footprint(tile, spec["size"])):
+		return "Nobody could get to it: keep a way free next to it"
 	if not free and not village.economy.can_afford(spec["cost"]):
 		return "Not enough building material" if spec["cost"].keys() == ["materials"] else "Not enough resources"
 	return ""
+
+
+## Kinds that block their tiles once built (Building.is_solid_when_complete):
+## a builder and units need a free, reachable tile next to them.
+const SOLID_KINDS := ["tower", "lightstone"]
+
+
+func _reachable_side(footprint: Array[Vector2i]) -> bool:
+	var pathing := game.world.pathing
+	for t in footprint:
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var n := t + Vector2i(dx, dy)
+				if not footprint.has(n) and pathing.is_walkable(n) and pathing.can_reach(village.center, n):
+					return true
+	return false
 
 
 ## A claimed ruined watchtower becomes a watchtower site at `cost` (half
@@ -137,9 +155,58 @@ func order_upgrade(tower: Building) -> bool:
 	return true
 
 
+## Marks a finished building for tear-down: it stops working at once (its
+## units walk home, its worker is freed, a pending upgrade is refunded) and a
+## builder comes to take it apart. Stoppable until then (stop_tear_down).
+func order_tear_down(b: Building) -> bool:
+	if not b.can_tear_down():
+		return false
+	if b.upgrading:
+		cancel(b)
+	village.events.debug("order tear-down of %s" % b.label())
+	b.set_tearing_down(true)
+	village.army.eject(b)
+	if b is Workplace:
+		village.population.free_workplace(b)
+	if b is Farm:
+		(b as Farm).rats.clear()
+	queue.append(b)
+	Sfx.play("place")
+	changed.emit()
+	return true
+
+
+## Spares a building marked for tear-down: it works again as before. (Units
+## that were sent away stay in the reserve; a free worker takes it up.)
+func stop_tear_down(b: Building) -> void:
+	if not b.tearing_down:
+		return
+	village.events.debug("stop tearing down %s" % b.label())
+	queue.erase(b)
+	b.builder = null
+	b.set_tearing_down(false)
+	if b is Workplace:
+		village.population.assign_worker(b, true)
+	changed.emit()
+
+
+func _torn_down(b: Building) -> void:
+	var back := b.teardown_refund()
+	village.economy.add("materials", back)
+	village.events.info("%s torn down: +%d materials" % [b.label().capitalize(), back])
+	if village.is_local() and game.selected == b:
+		game.deselect()
+	game.world.remove_building(b)
+	Sfx.play("build")
+	changed.emit()
+
+
 func complete(site: Building) -> void:
 	queue.erase(site)
 	site.builder = null
+	if site.complete and site.tearing_down:
+		_torn_down(site)
+		return
 	if site.complete and site.upgrading:
 		site.finish_upgrade()
 		village.events.info("%s upgraded to level %d" % [site.label(), site.level])
@@ -216,6 +283,9 @@ func _trees_near(t: Vector2i, r: int) -> int:
 
 
 func cancel(site: Building) -> void:
+	if site.tearing_down:
+		stop_tear_down(site)
+		return
 	village.events.debug("cancel %s of %s (refunded)" % ["upgrade" if site.complete and site.upgrading else "construction", site.label()])
 	if site.complete and site.upgrading:
 		queue.erase(site)

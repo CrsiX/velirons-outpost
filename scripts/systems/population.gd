@@ -180,7 +180,7 @@ func vacant_workplaces(role: String) -> Array[Building]:
 	var kind: String = Config.CIVILIANS[role].get("works_at", "")
 	if kind == "":
 		return []
-	var out: Array[Building] = game.world.buildings.filter(func(b: Building) -> bool: return b is Workplace and b.village == village and b.kind == kind and b.complete and b.worker == null)
+	var out: Array[Building] = game.world.buildings.filter(func(b: Building) -> bool: return b is Workplace and b.village == village and b.kind == kind and b.working() and b.worker == null)
 	var c := Vector2(village.center)
 	out.sort_custom(func(a: Building, b: Building) -> bool: return Vector2(a.tile).distance_to(c) < Vector2(b.tile).distance_to(c))
 	return out
@@ -189,7 +189,7 @@ func vacant_workplaces(role: String) -> Array[Building]:
 ## Puts an idle worker of the right role to work at `place`. False if it's
 ## taken, unfinished, or nobody is free.
 func assign_worker(place: Workplace, auto: bool = false) -> bool:
-	if place.worker != null or not place.complete:
+	if place.worker != null or not place.working():
 		return false
 	var free := free_workers(place.worker_role())
 	if free.is_empty():
@@ -197,6 +197,19 @@ func assign_worker(place: Workplace, auto: bool = false) -> bool:
 	_assign(free[0], place, auto)
 	changed.emit()
 	return true
+
+
+## The workplace is going (tear-down): its worker leaves and takes up
+## another vacant one of its kind if there is one.
+func free_workplace(place: Workplace) -> void:
+	var civ: Civilian = place.worker
+	unassign_worker(place)
+	if civ == null or civ.dead:
+		return
+	var other := vacant_workplaces(civ.role)
+	if not other.is_empty():
+		_assign(civ, other[0], true)
+		changed.emit()
 
 
 func unassign_worker(place: Workplace) -> void:

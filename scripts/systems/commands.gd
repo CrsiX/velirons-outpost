@@ -17,6 +17,8 @@ signal applied(village: Village, type: String, args: Dictionary, result: Diction
 const HANDLERS := {
 	"place_building": "_place_building",
 	"cancel_site": "_cancel_site",
+	"tear_down": "_tear_down",
+	"stop_tear_down": "_stop_tear_down",
 	"rebuild_hut": "_rebuild_hut",
 	"upgrade_tower": "_upgrade_tower",
 	"recruit_villager": "_recruit_villager",
@@ -153,6 +155,21 @@ func _cancel_site(v: Village, a: Dictionary) -> Dictionary:
 	if b == null or not b.has_work():
 		return fail("Nothing to cancel")
 	v.construction.cancel(b)
+	return ok()
+
+
+func _tear_down(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if b == null or not b.can_tear_down():
+		return fail("That can't be torn down")
+	return ok() if v.construction.order_tear_down(b) else fail("Can't tear that down now")
+
+
+func _stop_tear_down(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if b == null or not b.tearing_down:
+		return fail("Nothing is being torn down there")
+	v.construction.stop_tear_down(b)
 	return ok()
 
 

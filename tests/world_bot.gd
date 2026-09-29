@@ -493,7 +493,7 @@ func _test_game() -> void:
 	check(up["ok"] and hero.level == 1 and hero.xp == 7 and is_equal_approx(hero.max_hp, Config.hero_stat("hp", 1)) and Config.hero_stat("damage", 1) > Config.HERO["damage"], "spending %d XP he reaches level 2: %d HP, %.0f damage" % [cost, int(hero.max_hp), Config.hero_stat("damage", 1)])
 	game.hud._hero_panel.visible = true
 	game.hud._refresh_hero()
-	check("Level 2" in game.hud._hero_stats.text and ("Level up to 3  (%d XP)" % hero.level_up_cost()) == game.hud._hero_level_button.text and game.hud._hero_level_button.disabled, "his panel shows the level and the next level's cost")
+	check("Level 2" in game.hud._hero_stats.text and ("Level up to 3  (%d XP)" % hero.level_up_cost()) == Hud.button_text(game.hud._hero_level_button) and game.hud._hero_level_button.disabled, "his panel shows the level and the next level's cost")
 	game.hud._hero_panel.visible = false
 	check(Config.hero_level_cost(Config.HERO_MAX_LEVEL - 1) == 0 and Config.hero_level_cost(0) < Config.hero_level_cost(Config.HERO_MAX_LEVEL - 2), "each level costs more; none past the last")
 

@@ -214,6 +214,8 @@ func select(b: Building) -> void:
 	events.debug("select %s" % b.label())
 	if b is Tower and b.complete:
 		world.overlay.show_selection(b.tiles(), Vector2(b.tile), b.range_tiles())
+	elif b is Barracks and b.complete:
+		world.overlay.show_selection(b.tiles(), b.act_center(), b.activation_range())
 	else:
 		world.overlay.show_selection(b.tiles())
 	hud.show_info(building_info(b))
@@ -297,6 +299,8 @@ func select_unit(unit: MilitaryUnit) -> void:
 	var p := unit.post
 	if p is Tower:
 		world.overlay.show_selection(p.tiles(), Vector2(p.tile), (p as Tower).range_tiles())
+	elif p is Barracks:
+		world.overlay.show_selection(p.tiles(), (p as Barracks).act_center(), (p as Barracks).activation_range())
 	else:
 		world.overlay.show_selection(p.tiles())
 	events.debug("select %s on %s" % [unit.label(), p.label()])
@@ -307,7 +311,7 @@ func select_unit(unit: MilitaryUnit) -> void:
 func unit_info(unit: MilitaryUnit) -> Dictionary:
 	var lines: Array[String] = ["Level %d, on %s" % [unit.level + 1, unit.post.display_name()]]
 	if not (unit.post is Tower):
-		lines.append("%d / %d HP" % [ceili(unit.hp), ceili(unit.max_hp())])
+		lines.append("{hp} %d / %d" % [ceili(unit.hp), ceili(unit.max_hp())])
 	lines.append_array(unit.behavior.info_lines(unit))
 	lines.append("Drag it onto another tower or barracks to move it there, or onto the %s to withdraw it." % ("panel below" if Layout.portrait else "sidebar"))
 	var actions: Array[Dictionary] = []
@@ -583,6 +587,7 @@ func apply_speed(i: int) -> void:
 ## A building's panel; another village's buildings can be looked at, not ordered.
 func building_info(b: Building) -> Dictionary:
 	var d := b.info()
+	b.add_tear_down_action(d)
 	if b.village and b.village != player_village:
 		d["actions"] = [] as Array[Dictionary]
 		(d["lines"] as Array).push_front("Belongs to %s." % b.village.village_name)

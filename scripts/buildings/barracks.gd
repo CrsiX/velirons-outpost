@@ -73,7 +73,7 @@ func refresh() -> void:
 
 ## Enemies near? Everyone who's sitting on a bench (and not downed) goes out.
 func _process(delta: float) -> void:
-	if game.is_client or not complete:
+	if game.is_client or not working():
 		return
 	_scan -= delta
 	if _scan > 0.0:
@@ -116,7 +116,15 @@ func _enemy_near() -> bool:
 # --- upgrades (like towers: building material and a builder's time) --------------------
 
 func can_upgrade() -> bool:
-	return complete and not upgrading and level < max_level()
+	return working() and not upgrading and level < max_level()
+
+
+## Its price plus the upgrades paid for (tear-down refund).
+func materials_spent() -> int:
+	var n := super.materials_spent()
+	for i in range(1, level):
+		n += int(Config.BARRACKS_LEVELS[i]["cost"].get("materials", 0))
+	return n
 
 
 func upgrade_cost() -> Dictionary:
@@ -164,7 +172,7 @@ func set_unit_ghosted(on: bool, unit: MilitaryUnit = null) -> void:
 
 func info() -> Dictionary:
 	var d := super.info()
-	if not complete:
+	if not working():
 		return d
 	d["title"] = "%s  ·  Level %d/%d" % [display_name(), level, max_level()]
 	var lines: Array[String] = d["lines"]
@@ -174,7 +182,7 @@ func info() -> Dictionary:
 		var u: MilitaryUnit = slots[i]
 		var inc: MilitaryUnit = incoming_slots[i]
 		if u:
-			lines.append("Bench %d: %s, level %d: %d/%d HP, %s" % [i + 1, u.display_name(), u.level + 1, ceili(u.hp), ceili(u.max_hp()), u.state_text()])
+			lines.append("Bench %d: %s, level %d: {hp} %d/%d, %s" % [i + 1, u.display_name(), u.level + 1, ceili(u.hp), ceili(u.max_hp()), u.state_text()])
 			if u.is_available() and not u.upgrade_options().is_empty():
 				actions.append({"label": "Upgrade %s (bench %d)..." % [u.display_name().to_lower(), i + 1], "action": func() -> void: game.hud.open_upgrade(u)})
 			if u.is_available():

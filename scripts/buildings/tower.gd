@@ -40,7 +40,15 @@ func range_tiles() -> float:
 
 
 func can_upgrade() -> bool:
-	return complete and not upgrading and level < max_level()
+	return working() and not upgrading and level < max_level()
+
+
+## Its price plus the upgrades paid for (tear-down refund).
+func materials_spent() -> int:
+	var n := super.materials_spent()
+	for i in range(1, level):
+		n += int(Config.TOWER_LEVELS[i]["cost"].get("materials", 0))
+	return n
 
 
 func upgrade_cost() -> Dictionary:
@@ -187,6 +195,8 @@ func outer_tile() -> Vector2i:
 			var t := tile + Vector2i(dx, dy)
 			if t == tile or game.map.in_village(t) or not game.world.pathing.is_walkable(t):
 				continue
+			if not game.world.pathing.can_reach(village.center, t):
+				continue  # (a pocket cut off by trees: summons would be stuck there)
 			var d := Vector2(t).distance_to(Vector2(village.center))
 			if d > best_d:
 				best_d = d
@@ -209,7 +219,7 @@ func recoil() -> void:
 
 func info() -> Dictionary:
 	var d := super.info()
-	if not complete:
+	if not working():
 		return d
 	d["title"] = "%s  ·  Level %d/%d" % [display_name(), level, max_level()]
 	var lines: Array[String] = d["lines"]

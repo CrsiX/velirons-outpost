@@ -233,6 +233,26 @@ func unstation(unit: MilitaryUnit) -> void:
 	changed.emit()
 
 
+## The post is being torn down: every unit on it (or marching to it) walks
+## back to the town centre into the reserve; downed ones revive there.
+func eject(post: Building) -> void:
+	if not (post is MilitaryPost):
+		return
+	for u in units.duplicate():
+		if u.post != post:
+			continue
+		match u.state:
+			MilitaryUnit.State.STATIONED, MilitaryUnit.State.MARCHING:
+				unstation(u)
+			MilitaryUnit.State.DOWNED:
+				if u.revive_at_post and u.slot < post.slots.size() and post.slots[u.slot] == u:
+					post.set_slot(u.slot, null)
+				u.revive_at_post = false
+				u.post = null
+	post.refresh()
+	changed.emit()
+
+
 func _free_reservation(unit: MilitaryUnit) -> void:
 	var p := unit.post
 	if is_instance_valid(p) and unit.slot < p.incoming_slots.size() and p.incoming_slots[unit.slot] == unit:

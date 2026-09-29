@@ -39,6 +39,8 @@ func refresh() -> void:
 	_shed.visible = complete
 	_site_sprite.visible = not complete
 	_field.modulate = Color.WHITE if (farmer != null or not complete) else Color(0.7, 0.7, 0.7)
+	if tearing_down:
+		_field.modulate.a = 0.6
 	queue_redraw()
 
 
@@ -50,7 +52,7 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	if game.is_client:
 		return
-	if complete and farmer != null and not has_rats():
+	if working() and farmer != null and not has_rats():
 		stored = minf(stored + rate() * delta, Config.FARM_CAPACITY)
 
 
@@ -93,7 +95,7 @@ func take_food() -> int:
 
 func info() -> Dictionary:
 	var d := super.info()
-	if not complete:
+	if not working():
 		return d
 	var lines: Array[String] = d["lines"]
 	var actions: Array[Dictionary] = d["actions"]
@@ -118,14 +120,14 @@ func info() -> Dictionary:
 
 ## Bottom progress bar sits over the field centre, not the back-tile origin.
 func _draw() -> void:
-	if complete:
+	if not has_work():
 		return
 	var c := Iso.to_world(Vector2(1, 1))
 	var w := 80.0
 	var r := Rect2(c + Vector2(-w / 2.0, -70.0), Vector2(w, 8.0))
 	draw_rect(r.grow(2.0), Color("15110d"))
 	draw_rect(r, Color("3a2e22"))
-	draw_rect(Rect2(r.position, Vector2(w * clampf(progress / build_time, 0.0, 1.0), r.size.y)), Color("c9a24a"))
+	draw_rect(Rect2(r.position, Vector2(w * bar_fraction(), r.size.y)), work_color())
 
 
 func pick_rect() -> Rect2:
