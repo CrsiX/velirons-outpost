@@ -42,6 +42,9 @@ var _confirm_yes: Button
 var _gray: ColorRect
 var _settings_note: Label
 var _paused_banner: Label
+## Co-op: greys out everything below the top bar while the game is paused.
+var _pause_gray: ColorRect
+var _host_paused := false
 # co-op help
 var _send_panel: PanelContainer
 var _send_labels: Dictionary = {}  # resource -> Label
@@ -1355,7 +1358,8 @@ func open_upgrade(unit: MilitaryUnit) -> void:
 		_upgrade_options.remove_child(c)
 		c.queue_free()
 	for opt in unit.upgrade_options():
-		var b := _button("%s   (%s)" % [MilitaryUnit.option_text(opt), Config.cost_text(opt["cost"])], Vector2(0, 52))
+		# (a wrapping button needs a width to wrap in, or it measures one word per line)
+		var b := _button("%s   (%s)" % [MilitaryUnit.option_text(opt), Config.cost_text(opt["cost"])], Vector2(_upgrade_width(), 52))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", 15)
 		b.disabled = not game.economy.can_afford(opt["cost"]) or not unit.is_available()
@@ -1371,8 +1375,23 @@ func open_upgrade(unit: MilitaryUnit) -> void:
 		_upgrade_options.add_child(b)
 	_upgrade_hint.text = "From level %d on, a unit can also specialise (it starts again at level 1)." % Config.BRANCH_MIN_LEVEL if not unit.spec().get("branches", []).is_empty() else ""
 	_upgrade_hint.visible = _upgrade_hint.text != ""
+	_upgrade_hint.custom_minimum_size.x = _upgrade_width()
+	_upgrade_title.custom_minimum_size.x = _upgrade_width()
 	_upgrade_panel.visible = true
-	_upgrade_panel.reset_size()
+	_fit_dialog(_upgrade_panel)
+	_fit_dialog.call_deferred(_upgrade_panel)  # (again once the wrapped texts are laid out)
+
+
+## Width of the upgrade dialog's content: 420 px, less on narrow screens.
+func _upgrade_width() -> float:
+	return minf(420.0, get_viewport().get_visible_rect().size.x - 64.0)
+
+
+## Shrinks a centred dialog to its content and keeps it on screen.
+func _fit_dialog(p: Control) -> void:
+	p.reset_size()
+	var vp := get_viewport().get_visible_rect().size
+	p.position = ((vp - p.size) / 2.0).max(Vector2(8, 8))
 
 
 func _pick_upgrade(unit: MilitaryUnit, to: String) -> void:
@@ -1383,6 +1402,7 @@ func _pick_upgrade(unit: MilitaryUnit, to: String) -> void:
 
 ## The Spatial Archmage leaves the army for good: ask first.
 func _ask_archmage(unit: MilitaryUnit) -> void:
+	_confirm_text.custom_minimum_size.x = _upgrade_width()
 	_confirm_text.text = "This %s will leave your army for good and move into a hut as the Spatial Archmage, a civilian. Continue?" % unit.display_name().to_lower()
 	_confirm_yes.text = "Become the Spatial Archmage  (%s)" % Config.cost_text(Config.ARCHMAGE_COST)
 	for c in _confirm_yes.pressed.get_connections():
@@ -1395,7 +1415,8 @@ func _ask_archmage(unit: MilitaryUnit) -> void:
 			_selected_unit = null
 			_queue_refresh())
 	_confirm_panel.visible = true
-	_confirm_panel.reset_size()
+	_fit_dialog(_confirm_panel)
+	_fit_dialog.call_deferred(_confirm_panel)
 
 
 func _build_upgrade_dialogs() -> void:
@@ -1406,7 +1427,6 @@ func _build_upgrade_dialogs() -> void:
 	_upgrade_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
-	v.custom_minimum_size = Vector2(420, 0)
 	_upgrade_panel.add_child(v)
 	_upgrade_title = _label("", 21, UiTheme.GOLD)
 	v.add_child(_upgrade_title)
@@ -1528,6 +1548,17 @@ void fragment() {
 
 
 func _build_settings() -> void:
+	# Co-op pause: the map and HUD below the top bar turn grey (the top bar stays in colour).
+	_pause_gray = ColorRect.new()
+	var pmat := ShaderMaterial.new()
+	var psh := Shader.new()
+	psh.code = GRAYSCALE_SHADER
+	pmat.shader = psh
+	_pause_gray.material = pmat
+	_pause_gray.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_pause_gray)
+	_pause_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_pause_gray.visible = false
 	_settings = Control.new()
 	_settings.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(_settings)
@@ -1600,7 +1631,7 @@ func open_settings() -> void:
 	var pauses := game.is_host_player()
 	if pauses:
 		get_tree().paused = true
-	_gray.visible = pauses
+	_gray.visible = pauses and not game.networked  # (co-op: _pause_gray, which spares the top bar)
 	_settings_note.visible = not pauses
 	_settings_title_button.text = "Leave game" if game.networked else "Back to title"
 	_trade_panel.visible = false
@@ -1705,6 +1736,28 @@ func set_host_paused(v: bool) -> void:
 		_paused_banner.offset_top = _top_h + 60.0
 		_paused_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_paused_banner.visible = v
+	_host_paused = v
+	_update_pause_gray()
+
+
+func _paused_banner_off() -> void:
+	_host_paused = false
+	if _paused_banner:
+		_paused_banner.visible = false
+
+
+## Co-op only: grey below the top bar while the game is paused (by the host:
+## settings open or speed 0; for clients, as the host's snapshots say).
+func _update_pause_gray() -> void:
+	var on := game.networked and not _overlay.visible and (_host_paused if game.is_client else get_tree().paused)
+	_pause_gray.visible = on
+	if on:
+		_pause_gray.offset_top = _topbar.get_global_rect().end.y
+		# What's drawn after the veil keeps its colour: it sits over the map, the
+		# sidebar and the panels, under toasts, dialogs and the paused banner.
+		var at := _toasts.get_index()
+		if _pause_gray.get_index() != at - 1:
+			_root.move_child(_pause_gray, at - 1 if _pause_gray.get_index() < at else at)
 
 
 ## Co-op: the session is over (the host left, connection lost).
@@ -1713,8 +1766,11 @@ func show_session_ended(reason: String) -> void:
 	_overlay_title.add_theme_color_override("font_color", UiTheme.BAD)
 	_overlay_sub.text = "The game can't go on without the host."
 	_overlay_button.text = "Main menu"
+	_overlay_menu_button.visible = false  # (the main button already goes there)
 	_overlay.visible = true
 	_info_panel.visible = false
+	_paused_banner_off()
+	_update_pause_gray()
 	_connect_overlay(func() -> void: game.go_to_title())
 
 
@@ -1723,6 +1779,7 @@ func show_game_over(title: String, subtitle: String) -> void:
 	_overlay_title.add_theme_color_override("font_color", UiTheme.BAD)
 	_overlay_sub.text = subtitle
 	_overlay_button.text = "Main menu" if game.networked else "Try again"
+	_overlay_menu_button.visible = not game.networked  # (networked: the main button is the way out)
 	_overlay.visible = true
 	_info_panel.visible = false
 	_connect_overlay(func() -> void: game.go_to_title() if game.networked else game.restart())
@@ -1743,6 +1800,8 @@ func _queue_refresh() -> void:
 
 
 func _process(delta: float) -> void:
+	if game.networked:
+		_update_pause_gray()
 	if _log_dirty or not game.events.entries.is_empty():
 		_refresh_log()  # (every frame while messages fade)
 	_tick -= delta
