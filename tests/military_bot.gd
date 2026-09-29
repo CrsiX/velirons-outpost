@@ -47,6 +47,23 @@ func wait_until(cond: Callable, timeout: float) -> bool:
 	return true
 
 
+## A real tap (press and release) on a control, as a player would.
+func tap(c: Control) -> void:
+	var pos := c.get_global_rect().get_center()
+	for pressed in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.pressed = pressed
+		e.position = pos
+		e.global_position = pos
+		get_viewport().push_input(e, true)
+		await frames(1)
+
+
+func on_screen(c: Control) -> bool:
+	return Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size).encloses(c.get_global_rect())
+
+
 func find_spot(kind: String, near: Vector2i) -> Vector2i:
 	var best := Vector2i(-1, -1)
 	var best_d := INF
@@ -408,13 +425,14 @@ func _test_branching() -> void:
 	hud.open_upgrade(ap)
 	await frames(2)
 	check(hud._upgrade_panel.visible and hud._upgrade_options.get_child_count() >= 5, "the upgrade dialog lists every option")
+	check(on_screen(hud._upgrade_panel), "the dialog fits on screen (%s)" % hud._upgrade_panel.get_global_rect())
 	var ice_btn: Button = null
 	for n in hud._upgrade_options.find_children("*", "Button", true, false):
 		if "Ice Mage" in (n as Button).text:
 			ice_btn = n
 	check(ice_btn != null, "with the ice mage among them")
 	if ice_btn:
-		ice_btn.pressed.emit()
+		await tap(ice_btn)
 		await frames(2)
 	check(ap.kind == "ice_mage" and ap.level == 0 and not hud._upgrade_panel.visible, "picking it makes an ice mage, level 1")
 	# Training at the grounds only levels up (no specialising): train() keeps the kind.
@@ -440,11 +458,12 @@ func _test_branching() -> void:
 			arch_btn = n
 	check(arch_btn != null, "the dialog offers the Spatial Archmage")
 	if arch_btn:
-		arch_btn.pressed.emit()
+		await tap(arch_btn)
 		await frames(2)
 	check(hud._confirm_panel.visible and "600" in hud._confirm_yes.text, "it asks for confirmation first (600 gold)")
 	var g0 := game.economy.amount("gold")
-	hud._confirm_yes.pressed.emit()
+	check(on_screen(hud._confirm_panel), "the confirmation fits on screen")
+	await tap(hud._confirm_yes)
 	await frames(3)
 	check(not game.army.units.has(sp) and game.population.count("spatial_archmage") == 1, "confirmed: the mage leaves the army, the Spatial Archmage moves into a hut")
 	check(g0 - game.economy.amount("gold") == Config.ARCHMAGE_COST["gold"], "for 600 gold")

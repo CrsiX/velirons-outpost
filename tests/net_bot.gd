@@ -96,9 +96,13 @@ func _host() -> void:
 	var v0 := game.villages[0]
 	var v1 := game.villages[1]
 	check(game.villages.size() == 2 and v0.village_name == HOST_NAME and v1.village_name == CLIENT_NAME and not game.is_client, "two villages, named after the players")
-	# (a tile just behind the client's village, seen from the host's: the random map may put them close)
-	var behind := v1.center + Vector2i((Vector2(v1.center - v0.center).normalized() * 5.0).round())
-	check(game.fog.is_explored_by(0, v1.center) and not game.fog.is_explored_by(0, behind) and game.fog.is_explored_by(1, behind), "each village has its own fog (the other's walls are known, nothing around them)")
+	# (a tile 3 beyond the client's walls, on the far side from the host's village)
+	var dir := Vector2(v1.center - v0.center).normalized()
+	var behind := v1.center
+	while Rect2i(v1.rect).has_point(behind) and game.map.in_bounds(behind):
+		behind = v1.center + Vector2i((dir * (Vector2(behind - v1.center).length() + 1.0)).round())
+	behind = v1.center + Vector2i((dir * (Vector2(behind - v1.center).length() + 3.0)).round())
+	check(game.fog.is_explored_by(0, v1.center) and not game.fog.is_explored_by(0, behind) and game.fog.is_explored_by(1, behind), "each village has its own fog (the other's walls are known, nothing around them) [%s %s %s, behind %s, centers %s %s]" % [game.fog.is_explored_by(0, v1.center), game.fog.is_explored_by(0, behind), game.fog.is_explored_by(1, behind), behind, v0.center, v1.center])
 	var recruited := await wait_until(func() -> bool: return v1.army.units.size() >= 1)
 	check(recruited and v1.army.units[0].original_owner == v1 and v0.army.units.is_empty(), "the client's command recruits an archer in its own village")
 	var caravan := await wait_until(func() -> bool: return v0.events.entries.any(func(e: Dictionary) -> bool: return str(e["text"]).begins_with("Caravan from %s arrived" % CLIENT_NAME)), 120.0)
@@ -106,6 +110,8 @@ func _host() -> void:
 	check(game.speed_index == 0, "the client couldn't change the speed")
 	# Pause for a moment: the client should notice.
 	game.command("set_speed", {"index": 3})
+	await get_tree().process_frame
+	check(game.hud._pause_gray.visible and game.hud._pause_gray.offset_top >= game.hud._topbar.get_global_rect().end.y - 0.5, "paused: our game turns grey, except the top bar")
 	await seconds(3.0)
 	game.command("set_speed", {"index": 0})
 	var left := await wait_until(func() -> bool: return not Net.players.has(cid) or not Net.players[cid]["online"])
@@ -167,3 +173,10 @@ func _client() -> void:
 	var saw_pause := await wait_until(func() -> bool: return game.hud._paused_banner != null and game.hud._paused_banner.visible, 150.0)
 	check(saw_pause, "when the host pauses, we see it")
 	await seconds(1.0)
+	var hud: Hud = game.hud
+	check(hud._pause_gray.visible and hud._pause_gray.offset_top >= hud._topbar.get_global_rect().end.y - 0.5 and hud._paused_banner.get_index() > hud._pause_gray.get_index(), "while paused the game is grey below the top bar (top bar and banner stay in colour)")
+	# The host is gone: one way out, not two.
+	hud.show_session_ended("The host left the game")
+	await get_tree().process_frame
+	var outs := hud._overlay.find_children("*", "Button", true, false).filter(func(b: Button) -> bool: return b.is_visible_in_tree())
+	check(outs.size() == 1 and outs[0].text == "Main menu" and not hud._pause_gray.visible, "the session-ended dialog has a single Main menu button (%s)" % str(outs.map(func(b: Button) -> String: return b.text)))
