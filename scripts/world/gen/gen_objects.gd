@@ -263,11 +263,7 @@ func _unlock_sites() -> void:
 	for kind in Config.UNLOCK_SITES:
 		var spec: Dictionary = Config.UNLOCK_SITES[kind]
 		var order: Array = range(c.players)
-		for k in range(order.size() - 1, 0, -1):  # (seeded shuffle)
-			var j := c.rng.randi_range(0, k)
-			var tmp = order[k]
-			order[k] = order[j]
-			order[j] = tmp
+		c.shuffle(order)
 		var placed := 0
 		for s in order:
 			if placed >= copies:

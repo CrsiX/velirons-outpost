@@ -1,4 +1,4 @@
-extends Node
+extends "res://tests/bot_base.gd"
 ## Headless end-to-end test of every core mechanic. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/sim_bot.tscn
 ## Exits 0 when every check passes. Drives real input events where the
@@ -6,17 +6,10 @@ extends Node
 
 const SEED := 20260926
 
-var game: Game
-var failures: Array[String] = []
 ## Every game event logged during the run: [level, text].
 var history: Array = []
 ## Every command submitted during the run: [type, args, ok].
 var cmd_log: Array = []
-var checks := 0
-
-
-func _ready() -> void:
-	_run.call_deferred()
 
 
 ## Title screen: menu, difficulty toggle and its effect on enemy stats.
@@ -70,30 +63,8 @@ func _test_title() -> void:
 	await frames(2)
 
 
-func check(cond: bool, msg: String) -> void:
-	checks += 1
-	print(("  ok   " if cond else "  FAIL ") + msg)
-	if not cond:
-		failures.append(msg)
-
-
-func wait_until(cond: Callable, timeout: float) -> bool:
-	var t := 0.0
-	while not cond.call():
-		await get_tree().process_frame
-		t += get_process_delta_time()
-		if t > timeout:
-			return false
-	return true
-
-
 func wait(seconds: float) -> void:
 	await wait_until(func() -> bool: return false, seconds)
-
-
-func frames(n: int) -> void:
-	for i in n:
-		await get_tree().process_frame
 
 
 # --- input helpers -----------------------------------------------------------------

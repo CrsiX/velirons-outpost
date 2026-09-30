@@ -3,11 +3,10 @@ extends Node
 ## One player's village and everything that belongs to it: economy, villagers,
 ## construction queue, army, hero and event log. Buildings, villagers, units
 ## and elementals know their village (`village`) and use its systems, never
-## someone else's. Single player has one village; co-op will have one per
+## someone else's. Single player has one village; co-op has one per
 ## player (docs/multiplayer-design.md). The map, waves, corpses, fog and
 ## pathing are shared and stay on Game.
 
-signal fallen_changed(village: Village)
 
 const HERO_SCRIPT := preload("res://scripts/units/hero.gd")
 
@@ -149,5 +148,4 @@ func update_fallen() -> bool:
 	if now_fallen == fallen:
 		return false
 	fallen = now_fallen
-	fallen_changed.emit(self)
 	return true

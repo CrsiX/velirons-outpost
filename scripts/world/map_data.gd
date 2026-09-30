@@ -102,10 +102,6 @@ func is_water(t: Vector2i) -> bool:
 	return in_bounds(t) and (terrain[index(t)] == Terrain.WATER or terrain[index(t)] == Terrain.SHALLOW)
 
 
-func is_deep(t: Vector2i) -> bool:
-	return in_bounds(t) and terrain[index(t)] == Terrain.WATER
-
-
 ## Ground units (civilians, soldiers) can't enter forest, mountains, deep water or lava.
 func is_passable(t: Vector2i) -> bool:
 	if not in_bounds(t):
@@ -175,18 +171,6 @@ func village_at(t: Vector2i) -> int:
 	return -1
 
 
-## Id of the village whose centre is nearest to `t`.
-func nearest_village(t: Vector2i) -> int:
-	var best := 0
-	var best_d := INF
-	for i in villages.size():
-		var d := Vector2(t).distance_squared_to(Vector2(villages[i]["center"]))
-		if d < best_d:
-			best_d = d
-			best = i
-	return best
-
-
 func building_at(t: Vector2i) -> Node:
 	return buildings.get(t)
 
@@ -233,6 +217,15 @@ static func from_bytes(bytes: PackedByteArray) -> MapData:
 	m.map_type = d["map_type"]
 	m.seed_value = d["seed"]
 	return m
+
+
+## Every tile of `r`, row by row.
+static func rect_tiles(r: Rect2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for y in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
+			out.append(Vector2i(x, y))
+	return out
 
 
 static func neighbors4(t: Vector2i) -> Array[Vector2i]:

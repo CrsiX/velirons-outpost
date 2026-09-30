@@ -47,7 +47,8 @@ var map_seed := 0
 var reveal_map := Config.REVEAL_MAP
 var disable_fog := Config.DISABLE_FOG
 var in_game := false
-## Set for the level scene: {"seed", "villages": [{"name", "color", "peer"}], "difficulty", "local"}.
+## Set for the level scene: {"seed", "villages": [{"name", "color", "peer"}], "difficulty",
+## "local", "map_type", "reveal_map", "disable_fog"}. (A client before the game: {"name", "color"}.)
 var setup: Dictionary = {}
 ## Client: the map the host sent (MapData), for the level scene.
 var map: MapData
@@ -201,7 +202,7 @@ func _on_peer_disconnected(id: int) -> void:
 # --- lobby (host decides) -------------------------------------------------------------------
 
 ## What the host does with a player who says hello: "" = welcome, else why not.
-## (`peer` rejoining with the name of a player who dropped is let back in.)
+## (A player rejoining with the name of one who dropped is let back in.)
 func join_decision(proto: int, p_name: String) -> String:
 	if proto != PROTOCOL:
 		return "Different game version (host %d, you %d)" % [PROTOCOL, proto]

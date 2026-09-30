@@ -13,7 +13,8 @@ var hp := 20.0
 var damage := 4.0
 var dead := false
 var target: Enemy = null
-## The summoner's tower; the elemental stays within its leash of this tile.
+## The summoner's post (its tower's tile, or where it stood); the elemental
+## stays within its leash of this tile.
 var home := Vector2i.ZERO
 ## Numbered across all summoners: "elemental 3".
 var uid := 0
@@ -53,7 +54,7 @@ func setup(p_game: Game, p_home: Vector2i, spawn_tile: Vector2i, p_hp: float, p_
 
 
 func _process(delta: float) -> void:
-	if Config.SUMMONS[summon]["hover"]:  # a flame: bobs above the ground and flickers
+	if flies():  # a flame: bobs above the ground and flickers
 		_flicker += delta
 		sprite.offset.y = -6.0 - 3.0 * sin(_flicker * 5.0)
 		sprite.self_modulate = Color(1.0, 0.85 + 0.15 * sin(_flicker * 23.0), 0.8 + 0.2 * sin(_flicker * 17.0))
@@ -71,10 +72,10 @@ func _process(delta: float) -> void:
 		var dist := target.grid_pos.distance_to(grid_pos)
 		if dist <= Config.SUMMON["attack_range"]:
 			_set_moving(false)
-			sprite.flip_h = Iso.to_world(target.grid_pos - grid_pos).x < 0.0
+			face(target.grid_pos)
 			if _attack_timer <= 0.0:
 				_attack_timer = Config.SUMMON["attack_cooldown"]
-				_strike()
+				_strike(target)
 		else:
 			if path_index >= path.size() or target.current_tile() != _chase_tile:
 				_chase()
@@ -91,7 +92,7 @@ func _pick_target() -> void:
 		if e.dead or (e.flies() and not flies()):
 			continue  # (an earth elemental can't reach a flyer; a fire elemental flies too)
 		var d := e.grid_pos.distance_to(grid_pos)
-		# Only enemies it can see, and not too far from its tower.
+		# Only enemies it can see, and not too far from its post.
 		if d <= Config.SUMMON["sight"] and e.grid_pos.distance_to(Vector2(home)) <= Config.SUMMON["leash"] + Config.SUMMON["sight"] and d < best_d:
 			best_d = d
 			best = e
@@ -141,21 +142,18 @@ func counter_strike(e: Enemy) -> void:
 	if dead or _attack_timer > 0.0 or e.dead:
 		return
 	_attack_timer = Config.SUMMON["attack_cooldown"]
-	var t := target
-	target = e
-	_strike()
-	target = t
+	_strike(e)
 
 
-func _strike() -> void:
-	target.take_damage(damage, self)
+func _strike(foe: Enemy) -> void:
+	foe.take_damage(damage, self)
 	var burn: float = Config.SUMMONS[summon]["self_damage"]
 	if burn > 0.0:
 		take_damage(damage * burn, self)  # fire burns itself up
 		if dead:
 			return
 	var tw := create_tween()
-	var lunge := (Iso.to_world(target.grid_pos) - position).normalized() * 5.0
+	var lunge := (Iso.to_world(foe.grid_pos) - position).normalized() * 5.0
 	tw.tween_property(sprite, "position", lunge, 0.08)
 	tw.tween_property(sprite, "position", Vector2.ZERO, 0.12)
 	Sfx.play("hit", 0.25)
@@ -199,8 +197,4 @@ func sight_center() -> Vector2:
 func _draw() -> void:
 	if dead or hp >= max_hp:
 		return
-	var w := 26.0
-	var r := Rect2(-w / 2.0, -48.0, w, 4.0)
-	draw_rect(r.grow(1.5), Color("15110d"))
-	draw_rect(r, Color("2a3a20"))
-	draw_rect(Rect2(r.position, Vector2(w * clampf(hp / max_hp, 0.0, 1.0), r.size.y)), Color("8fd05a"))
+	_draw_hp_bar(26.0, -48.0, 4.0, hp / max_hp, Color("2a3a20"), Color("8fd05a"))

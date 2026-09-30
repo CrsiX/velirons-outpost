@@ -7,7 +7,7 @@ extends Node
 ## through that village's systems. The result says whether it worked:
 ## {"ok": true, ...} or {"ok": false, "error": "why"}.
 ##
-## Single player applies commands at once. In co-op a client will send the
+## Single player applies commands at once. In co-op a client sends the
 ## same dictionaries to the host, which applies them for the client's village
 ## (docs/multiplayer-design.md §8.3), so nothing in `args` may be an object.
 

@@ -1,7 +1,7 @@
 class_name MonsterCamp
 extends MapObject
 ## A monster camp guarding a treasure (docs/world-design.md §9.3): a tent, a
-## fire and 2-5 neutral monsters that stay by the camp (CampBehavior) and
+## fire and 2-4 neutral monsters that stay by the camp (CampBehavior) and
 ## fight whoever comes close. Only cleared on the player's order: the camp's
 ## panel has "Attack with the hero". Killed monsters stay dead and hurt ones
 ## don't heal, so a failed attack isn't wasted.

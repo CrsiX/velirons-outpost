@@ -3,6 +3,12 @@ extends RefCounted
 ## What an enemy does besides walking to a gate. One instance per enemy.
 
 
+## A villager enemies can't get at (at home, in a mine, inside the walls).
+## The hero is a Civilian too, but never counts as sheltered.
+static func _sheltered(node) -> bool:
+	return node is Civilian and not (node is Hero) and not (node as Civilian).is_exposed()
+
+
 ## Called every frame. Return true to hold the enemy in place this frame
 ## (e.g. while fighting or casting), false to let it keep walking.
 func tick(_enemy: Enemy, _delta: float) -> bool:

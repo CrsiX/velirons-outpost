@@ -29,7 +29,7 @@ var _timer := 0.0
 ## Host, per peer id: {"known": {nid: state}, "ev": [], "to": [], "ft": [], "fx": [],
 ## "ex": PackedInt32Array, "full": bool, "vd": last village data}
 var _peers: Dictionary = {}
-## Client: dummy units standing on others' towers, per building nid.
+## Client: dummy units standing on others' towers, per "building nid:slot".
 var _foreign_units: Dictionary = {}
 
 
@@ -103,15 +103,6 @@ func _fx_for(at: Vector2, fx: Array) -> void:
 		var v := Net.village_of_peer(id)
 		if v and game.fog.is_watched_by(v.id, t):
 			_peers[id]["fx"].append(fx)
-
-
-## An arrow flying from `from` to `to` (world positions), for those who watch it.
-func arrow(from: Vector2, to: Vector2) -> void:
-	var t := Iso.to_tile(to)
-	for id in _peers:
-		var v := Net.village_of_peer(id)
-		if v and game.fog.is_watched_by(v.id, t):
-			_peers[id]["fx"].append(["arrow", from, to])
 
 
 func _process(delta: float) -> void:
@@ -355,11 +346,6 @@ func _apply(d: Dictionary) -> void:
 		game.world.float_text(f[0], f[1], f[2])
 	for f in d.get("fx", []):
 		match f[0]:
-			"arrow":
-				var a := Arrow.new()
-				a.visual_only = true
-				game.world.effects.add_child(a)
-				a.fly(f[1], f[2])
 			"shot":
 				var sh := Shot.new()
 				game.world.effects.add_child(sh)

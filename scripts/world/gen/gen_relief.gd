@@ -28,7 +28,7 @@ static func _mountains(c: GenContext) -> void:
 	for y in m.size:
 		for x in m.size:
 			var t := Vector2i(x, y)
-			if not c.is_land(t) or _near_centre(c, t, Config.VILLAGE_CENTER_RADIUS - 4.0):
+			if not c.is_land(t) or c.near_slice_centre(t, Config.VILLAGE_CENTER_RADIUS - 4.0):
 				continue
 			var ridge := 1.0 - absf(rn.get_noise_2d(x, y))
 			var s := ridge * 0.7 + c.h(t) * 0.3 + c.detail[c.i(t)] * 0.03
@@ -60,13 +60,6 @@ static func _mountains(c: GenContext) -> void:
 					m.set_terrain(p, MapData.Terrain.GRASS)
 
 
-static func _near_centre(c: GenContext, t: Vector2i, r: float) -> bool:
-	for s in c.m.slices:
-		if Vector2(t).distance_to(s["center"]) < r:
-			return true
-	return false
-
-
 static func _volcano_tile(c: GenContext, t: Vector2i) -> bool:
 	for v in c.m.volcanoes:
 		if absi(t.x - v.x) <= 1 and absi(t.y - v.y) <= 1:
@@ -84,7 +77,7 @@ static func _volcanoes(c: GenContext) -> void:
 		for dist_try in [Config.VOLCANO_SLICE_DIST, Config.VOLCANO_SLICE_DIST * 0.75, Config.VILLAGE_VOLCANO_DIST]:
 			for sample in 120:
 				var t := Vector2i(c.rng.randi_range(6, m.size - 7), c.rng.randi_range(6, m.size - 7))
-				if _near_centre(c, t, dist_try):
+				if c.near_slice_centre(t, dist_try):
 					continue
 				var ok := true
 				for v in m.volcanoes:

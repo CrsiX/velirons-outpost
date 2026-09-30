@@ -1,4 +1,4 @@
-extends Node
+extends "res://tests/bot_base.gd"
 ## Headless test of the military expansion (docs/military-design.md): the
 ## config's tech tree and curves, barracks (benches, sorties, upgrades),
 ## unit HP, downing and reviving, healing, every attack effect, fire
@@ -8,43 +8,7 @@ extends Node
 
 const SEED := 20260928
 
-var failures: Array[String] = []
-var checks := 0
-var game: Game
 var far := Vector2i.ZERO
-
-
-func _ready() -> void:
-	_run.call_deferred()
-
-
-func check(cond: bool, msg: String) -> void:
-	checks += 1
-	print(("  ok   " if cond else "  FAIL ") + msg)
-	if not cond:
-		failures.append(msg)
-
-
-func frames(n: int) -> void:
-	for i in n:
-		await get_tree().process_frame
-
-
-func wait(seconds: float) -> void:
-	var t := 0.0
-	while t < seconds:
-		await get_tree().process_frame
-		t += get_process_delta_time()
-
-
-func wait_until(cond: Callable, timeout: float) -> bool:
-	var t := 0.0
-	while not cond.call():
-		await get_tree().process_frame
-		t += get_process_delta_time()
-		if t > timeout:
-			return false
-	return true
 
 
 ## A real tap (press and release) on a control, as a player would.

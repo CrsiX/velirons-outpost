@@ -52,7 +52,3 @@ static func _on_border(m: MapData, t: Vector2i) -> bool:
 		if m.in_bounds(nb) and m.slice_of[m.index(nb)] != s:
 			return true
 	return false
-
-
-static func center(c: GenContext, s: int) -> Vector2:
-	return c.m.slices[s]["center"]

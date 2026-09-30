@@ -33,11 +33,11 @@ func refresh() -> void:
 	queue_redraw()
 
 
-## The stationed unit, if it is here and can still level up by training.
 func post_kind() -> String:
 	return "training"
 
 
+## The stationed unit, if it is here and can still level up by training.
 func trainable_unit() -> MilitaryUnit:
 	if working() and garrison != null and garrison.state == MilitaryUnit.State.STATIONED and garrison.can_train():
 		return garrison

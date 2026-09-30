@@ -101,13 +101,13 @@ func on_action(_kind: String) -> void:
 	pass
 
 
-## Override: unexplored tile this unit is heading for, if exploring.
 ## The building this villager works at (farm, camp), or null. Roles with a
 ## workplace ("works_at" in Config.CIVILIANS) implement assign(b) / unassign() too.
 func workplace() -> Building:
 	return null
 
 
+## Override: unexplored tile this unit is heading for, if exploring.
 func exploring_target() -> Vector2i:
 	return Vector2i(-1, -1)
 
@@ -191,7 +191,7 @@ func inside_walls() -> bool:
 ## Hurt by an enemy (a blow, a bite, a spell): at 0 HP the villager dies.
 ## Villagers never fight back; they flee (see _evade).
 func take_damage(amount: float, source = null) -> void:
-	if dead or not is_exposed():
+	if not is_exposed():  # (nor if dead)
 		return
 	hp -= amount
 	queue_redraw()
@@ -200,7 +200,7 @@ func take_damage(amount: float, source = null) -> void:
 	if hp <= 0.0:
 		hp = 0.0
 		village.population.kill(self, "from the attack of %s" % game.who(source))
-	elif not evading and not at_home and wants_to_evade():
+	elif not evading and wants_to_evade():
 		_evade()
 
 
@@ -214,11 +214,7 @@ func _home_regen(delta: float) -> void:
 func _draw() -> void:
 	if dead or hp >= max_hp or at_home:
 		return
-	var w := 24.0
-	var r := Rect2(-w / 2.0, -44.0, w, 4.0)
-	draw_rect(r.grow(1.5), Color("15110d"))
-	draw_rect(r, Color("3a2a10"))
-	draw_rect(Rect2(r.position, Vector2(w * clampf(hp / max_hp, 0.0, 1.0), r.size.y)), Color("8fd05a"))
+	_draw_hp_bar(24.0, -44.0, 4.0, hp / max_hp, Color("3a2a10"), Color("8fd05a"))
 
 
 ## Called by Population when this villager is killed. Subclasses release jobs.

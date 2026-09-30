@@ -12,18 +12,16 @@ extends Node2D
 enum Mode { NONE, BUILD, STATION }
 
 signal speed_changed(index: int)
-## A unit kind or villager role was unlocked (for every village).
-signal unlocked(key: String)
 
 ## Game speeds the speed button cycles through; 0 = paused.
 const SPEEDS: Array[float] = [1.0, 2.0, 4.0, 0.0]
 
 const VILLAGE_SCRIPT := preload("res://scripts/systems/village.gd")
 
-@export var map_seed := 0  # 0 = random every game
-## Debug switches, defaulting to config.gd (tests may override before _ready).
 ## Map type (Config.MAP_TYPES) and seed; 0 = random seed.
+@export var map_seed := 0  # 0 = random every game
 var map_type := "temperate"
+## Debug switches, defaulting to config.gd (tests may override before _ready).
 var reveal_map := Config.REVEAL_MAP
 var disable_fog := Config.DISABLE_FOG
 ## Villages on this device (1 = single player; more = hot-seat co-op test mode).
@@ -512,7 +510,7 @@ func go_to_title() -> void:
 		Net.leave()
 	Engine.time_scale = 1.0
 	get_tree().paused = false
-	get_tree().change_scene_to_file("res://scenes/title.tscn")
+	get_tree().change_scene_to_file(Net.TITLE_SCENE)
 
 
 # --- commands, entity ids, speed ---------------------------------------------------------
@@ -635,7 +633,6 @@ func unlock(key: String, v: Village = null, who: Node = null) -> void:
 	for vil in villages:
 		vil.toast("%s unlocked!" % what, UiTheme.GOLD)
 	world.on_unlocked(key)
-	unlocked.emit(key)
 	hud._queue_refresh()
 
 

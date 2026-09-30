@@ -32,10 +32,10 @@ static func build() -> Theme:
 	t.set_stylebox("panel", "PanelContainer", panel)
 	t.set_stylebox("panel", "Panel", panel)
 
-	t.set_stylebox("normal", "Button", box(Color("3a2e23"), Color("15110d"), 2, 8, 8))
+	t.set_stylebox("normal", "Button", box(Color("3a2e23"), INK, 2, 8, 8))
 	t.set_stylebox("hover", "Button", box(Color("4a3b2c"), Color("6b5a3a"), 2, 8, 8))
-	t.set_stylebox("pressed", "Button", box(Color("2a2119"), Color("c9a24a"), 2, 8, 8))
-	t.set_stylebox("disabled", "Button", box(Color("2a2622"), Color("15110d"), 2, 8, 8))
+	t.set_stylebox("pressed", "Button", box(Color("2a2119"), GOLD, 2, 8, 8))
+	t.set_stylebox("disabled", "Button", box(Color("2a2622"), INK, 2, 8, 8))
 	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
 	t.set_color("font_color", "Button", TEXT)
 	t.set_color("font_hover_color", "Button", Color.WHITE)

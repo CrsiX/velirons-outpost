@@ -24,6 +24,20 @@ func _init_sprite(art_name: String) -> void:
 	add_child(sprite)
 
 
+## Turns the sprite to look towards `grid_target`.
+func face(grid_target: Vector2) -> void:
+	sprite.flip_h = Iso.to_world(grid_target - grid_pos).x < 0.0
+
+
+## A small HP bar over the unit (call from _draw): `w` wide and `h` high, its
+## top at `y`, filled to `share`.
+func _draw_hp_bar(w: float, y: float, h: float, share: float, back: Color, fill: Color) -> void:
+	var r := Rect2(-w / 2.0, y, w, h)
+	draw_rect(r.grow(1.5), Color("15110d"))
+	draw_rect(r, back)
+	draw_rect(Rect2(r.position, Vector2(w * clampf(share, 0.0, 1.0), r.size.y)), fill)
+
+
 func set_grid_pos(p: Vector2) -> void:
 	grid_pos = p
 	position = Iso.to_world(p)

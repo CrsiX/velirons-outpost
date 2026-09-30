@@ -1,7 +1,7 @@
 class_name SpellBolt
 extends Node2D
 ## A witch's whirling pink bolt. Homes in on its target: a tower's unit gets
-## enchanted (no damage); a melee defender (earth elemental, hero) takes damage.
+## enchanted (no damage); a melee defender or a villager takes damage.
 
 var target: Node
 ## The witch who cast it (may be gone by the time it hits; left untyped).

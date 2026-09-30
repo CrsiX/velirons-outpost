@@ -88,8 +88,7 @@ func _identity_rows(parent: Control) -> void:
 		Settings.player_name = t.strip_edges()
 		Settings.save_player())
 	parent.add_child(ne)
-	if name_edit == null:
-		name_edit = ne
+	name_edit = ne
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	parent.add_child(row)

@@ -27,7 +27,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 		_foe = null
 		var best := INF
 		for node in enemy.get_tree().get_nodes_in_group("melee_defenders") + enemy.get_tree().get_nodes_in_group("villagers"):
-			if node.dead or (node is Civilian and not (node is Hero) and not node.is_exposed()) or node.grid_pos.distance_to(centre) > Config.CAMP_AGGRO:
+			if node.dead or _sheltered(node) or node.grid_pos.distance_to(centre) > Config.CAMP_AGGRO:
 				continue
 			var d: float = node.grid_pos.distance_to(enemy.grid_pos)
 			if d < best:

@@ -1,13 +1,15 @@
 class_name WitchBehavior
 extends EnemyBehavior
 ## Walks to the village until something worth enchanting is within spell range:
-##   1. whoever last attacked her (a tower's unit, or an earth elemental),
-##   2. otherwise the nearest manned tower or military unit outside (walking,
-##      or out of a barracks: even a summoner, who never attacks her).
+##   1. whoever last attacked her (a tower's unit, or a melee defender: the
+##      hero, a soldier, an elemental),
+##   2. otherwise the nearest manned tower, military unit outside (walking,
+##      or out of a barracks: even a summoner, who never attacks her) or
+##      villager outside.
 ## She then stands and casts a pink bolt every `spell_cooldown` seconds. A bolt
 ## enchants a tower's unit for `spell_cooldown * enchant_ratio` seconds (it stops
-## shooting/summoning; no damage), or deals `spell_damage` to an elemental or
-## a unit outside.
+## shooting/summoning; no damage), or deals `spell_damage` to an elemental,
+## a unit or a villager outside.
 ## Witches never fight in melee.
 ##
 ## Anti-stall tracker: she counts her casts per target. A target that has taken
@@ -54,10 +56,10 @@ func is_ignoring(n: Node, enemy: Enemy) -> bool:
 	return casts_at(n) >= int(enemy.stat("spell_ignore_after"))
 
 
-func on_damaged(_enemy: Enemy, source: Node) -> void:
+func on_damaged(enemy: Enemy, source: Node) -> void:
 	if source is Tower or source.is_in_group("melee_defenders"):
 		if attacker != source:
-			_enemy.game.log_for(source, EventLog.Level.DEBUG, "%s turns on %s, who attacked her" % [_enemy.label(), _enemy.game.who(source)])
+			enemy.game.log_for(source, EventLog.Level.DEBUG, "%s turns on %s, who attacked her" % [enemy.label(), enemy.game.who(source)])
 		attacker = source
 		_casts.erase(source.get_instance_id())  # it fought back: fair game again
 
@@ -82,8 +84,8 @@ func _choose_target(enemy: Enemy) -> Node:
 	return best
 
 
-## A usable target: a finished tower with a unit on duty, or a living melee
-## defender (earth elemental, hero).
+## A usable target: a finished tower with a unit on duty, a living melee
+## defender (hero, soldier, elemental), or a villager out in the open.
 ## Untyped on purpose: the remembered attacker may already be freed, and a freed
 ## object can't be passed as a typed Node argument.
 static func _valid(n) -> bool:

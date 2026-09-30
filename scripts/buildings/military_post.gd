@@ -32,7 +32,7 @@ func capacity() -> int:
 	return 1
 
 
-## Grows / shrinks the slot lists to capacity() (barracks upgrades).
+## Grows the slot lists to capacity() (barracks upgrades).
 func fit_slots() -> void:
 	while slots.size() < capacity():
 		slots.append(null)

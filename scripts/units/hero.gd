@@ -96,10 +96,6 @@ func set_mode(m: int) -> void:
 	changed.emit()
 
 
-func cycle_mode() -> void:
-	set_mode((mode + 1) % MODE_NAMES.size())
-
-
 func mode_name() -> String:
 	return MODE_NAMES[mode]
 
@@ -146,13 +142,18 @@ func set_support_target(v: Village) -> void:
 func _leave_mode() -> void:
 	if mode == Mode.SUPPORT and at_home and base() != village:
 		_set_home(false)  # standing in someone else's village: walk from there
+	_drop_work()
+	sprite.rotation = 0.0
+
+
+## Lets go of whatever he was doing: his mode's job, training, a fight.
+func _drop_work() -> void:
 	if jobs.has(mode):
 		jobs[mode].release()
 		jobs[mode].state = 0
 	_stop_training()
 	target = null
 	_returning = false
-	sprite.rotation = 0.0
 
 
 func _stop_training() -> void:
@@ -272,10 +273,10 @@ func _fight(delta: float) -> void:
 	var dist := target.grid_pos.distance_to(grid_pos)
 	if dist <= Config.HERO["attack_range"]:
 		_set_moving(false)
-		sprite.flip_h = Iso.to_world(target.grid_pos - grid_pos).x < 0.0
+		face(target.grid_pos)
 		if _attack_timer <= 0.0:
 			_attack_timer = Config.HERO["attack_cooldown"]
-			_strike()
+			_strike(target)
 	else:
 		if path_index >= path.size() or target.current_tile() != _chase_tile:
 			_chase()
@@ -372,17 +373,14 @@ func counter_strike(e: Enemy) -> void:
 	if dead or _attack_timer > 0.0 or e.dead:
 		return
 	_attack_timer = Config.HERO["attack_cooldown"]
-	var t := target
-	target = e
-	_strike()
-	target = t
+	_strike(e)
 
 
-func _strike() -> void:
-	target.take_damage(Config.hero_stat("damage", level), self)
+func _strike(foe: Enemy) -> void:
+	foe.take_damage(Config.hero_stat("damage", level), self)
 	on_action("hit")
 	var tw := create_tween()
-	var lunge := (Iso.to_world(target.grid_pos) - position).normalized() * 6.0
+	var lunge := (Iso.to_world(foe.grid_pos) - position).normalized() * 6.0
 	tw.tween_property(sprite, "position", lunge, 0.08)
 	tw.tween_property(sprite, "position", Vector2.ZERO, 0.12)
 	Sfx.play("hit", 0.25)
@@ -531,12 +529,7 @@ func _downed(source = null) -> void:
 	village.events.important("The hero was struck down by %s (%d XP lost); back after the wave" % [game.who(source), xp])
 	float_text("Hero down!", Color("ff7a6a"))
 	camp_target = null
-	if jobs.has(mode):
-		jobs[mode].release()
-		jobs[mode].state = 0
-	_stop_training()
-	target = null
-	_returning = false
+	_drop_work()
 	dead = true
 	evading = false
 	xp = 0
@@ -594,8 +587,4 @@ func status() -> String:
 func _draw() -> void:
 	if dead or hp >= max_hp:
 		return
-	var w := 30.0
-	var r := Rect2(-w / 2.0, -52.0, w, 5.0)
-	draw_rect(r.grow(1.5), Color("15110d"))
-	draw_rect(r, Color("3a2a10"))
-	draw_rect(Rect2(r.position, Vector2(w * clampf(hp / max_hp, 0.0, 1.0), r.size.y)), Color("e8c040"))
+	_draw_hp_bar(30.0, -52.0, 5.0, hp / max_hp, Color("3a2a10"), Color("e8c040"))

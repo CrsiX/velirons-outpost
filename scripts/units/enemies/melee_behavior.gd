@@ -1,7 +1,8 @@
 class_name MeleeBehavior
 extends EnemyBehavior
-## Goblins, skeletons, orks: stop to fight any defender that stands in the way
-## (group "melee_defenders": earth elementals, the hero), then walk on.
+## Goblins, skeletons, orks, gargoyles, thieves: stop to fight any defender that
+## stands in the way (group "melee_defenders": the hero, soldiers, elementals),
+## or a villager outside in reach, then walk on.
 ## Enemies with 0 damage never stop.
 
 var _attack_timer := 0.0
@@ -29,7 +30,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 					break
 		if _foe != null and not (is_instance_valid(before) and before == _foe):
 			enemy.game.log_for(_foe, EventLog.Level.DEBUG, "%s fights %s" % [enemy.label(), _foe.label()])
-	if not is_instance_valid(_foe) or _foe.dead or (_foe is Civilian and not (_foe is Hero) and not _foe.is_exposed()) or _foe.grid_pos.distance_to(enemy.grid_pos) > Config.SUMMON["attack_range"] * 1.5:
+	if not is_instance_valid(_foe) or _foe.dead or _sheltered(_foe) or _foe.grid_pos.distance_to(enemy.grid_pos) > Config.SUMMON["attack_range"] * 1.5:
 		_foe = null
 		return false
 	enemy.face(_foe.grid_pos)

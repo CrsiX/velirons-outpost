@@ -58,6 +58,24 @@ func is_land(t: Vector2i) -> bool:
 
 
 ## Weighted pick from {name: weight}.
+## Within `r` of any slice's centre (where a village goes)?
+func near_slice_centre(t: Vector2i, r: float) -> bool:
+	for s in m.slices:
+		if Vector2(t).distance_to(s["center"]) < r:
+			return true
+	return false
+
+
+## Shuffles `arr` in place with the seeded RNG (Fisher-Yates, from the end
+## down), so a seed always gives the same order.
+func shuffle(arr: Array) -> void:
+	for k in range(arr.size() - 1, 0, -1):
+		var j := rng.randi_range(0, k)
+		var tmp = arr[k]
+		arr[k] = arr[j]
+		arr[j] = tmp
+
+
 func pick(weights: Dictionary) -> String:
 	var total := 0.0
 	for k in weights:
@@ -75,7 +93,7 @@ func count_in(range_v: Vector2i, scale: float = 1.0) -> int:
 	return maxi(0, roundi(rng.randf_range(range_v.x, range_v.y + 0.999) * scale - 0.499))
 
 
-## Breadth-first steps (4 directions) from every tile to the nearest tile for
+## Breadth-first steps (4 directions, or 8 with `diagonal`) from every tile to the nearest tile for
 ## which `is_source` is true, over the whole map. Returns large values where none.
 func distance_to(is_source: Callable, diagonal: bool = false) -> PackedInt32Array:
 	var dist := PackedInt32Array()

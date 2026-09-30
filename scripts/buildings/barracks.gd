@@ -80,7 +80,7 @@ func _process(delta: float) -> void:
 		return
 	_scan = 0.3
 	var farm: Farm = null
-	if not _enemy_near():
+	if not enemy_near():
 		farm = _farm_with_rats()
 		if farm == null:
 			return
@@ -99,11 +99,9 @@ func _farm_with_rats() -> Farm:
 	return null
 
 
+## An enemy the bench can fight within the activation range? (Soldiers
+## guarding a farm drop it for this.)
 func enemy_near() -> bool:
-	return _enemy_near()
-
-
-func _enemy_near() -> bool:
 	var c := act_center()
 	var r := activation_range()
 	var only_melee := units().all(func(u: MilitaryUnit) -> bool: return u.role() == "melee")

@@ -87,10 +87,7 @@ func restore_ruin(ruin: RuinedTower, cost: Dictionary) -> Building:
 		return null
 	var tile := ruin.tile
 	game.world.remove_map_object(ruin)
-	var b: Building = KIND_SCRIPTS["tower"].new()
-	b.village = village
-	b.setup(game, "tower", tile, false)
-	game.world.add_building(b)
+	var b := _new_building("tower", tile, false)
 	queue.append(b)
 	village.events.info("A builder will restore the ruined watchtower (%s)" % Config.cost_text(cost))
 	Sfx.play("place")
@@ -98,14 +95,20 @@ func restore_ruin(ruin: RuinedTower, cost: Dictionary) -> Building:
 	return b
 
 
+## A new building of ours on the map: a site, or already `complete`.
+func _new_building(kind: String, tile: Vector2i, complete: bool) -> Building:
+	var b: Building = KIND_SCRIPTS[kind].new()
+	b.village = village
+	b.setup(game, kind, tile, complete)
+	game.world.add_building(b)
+	return b
+
+
 func place(kind: String, tile: Vector2i) -> Building:
 	if placement_error(kind, tile) != "":
 		return null
 	village.economy.spend(Config.BUILDINGS[kind]["cost"])
-	var b: Building = KIND_SCRIPTS[kind].new()
-	b.village = village
-	b.setup(game, kind, tile, false)
-	game.world.add_building(b)
+	var b := _new_building(kind, tile, false)
 	queue.append(b)
 	village.events.debug("place %s at %s for %s" % [b.label(), str(tile), Config.cost_text(Config.BUILDINGS[kind]["cost"])])
 	Sfx.play("place")
@@ -166,7 +169,6 @@ func release(site: Building, unreachable: bool) -> void:
 	changed.emit()
 
 
-## Queues a paid tower upgrade as a builder job; the tower keeps fighting.
 ## A tower or barracks: its next level, for building material and a builder's time.
 func order_upgrade(tower: Building) -> bool:
 	if not tower.can_upgrade() or not village.economy.spend(tower.upgrade_cost()):
@@ -257,10 +259,7 @@ func build_starting() -> void:
 		if spot == Vector2i(-1, -1):
 			push_warning("No room for the starting %s" % kind)
 			continue
-		var b: Building = KIND_SCRIPTS[kind].new()
-		b.village = village
-		b.setup(game, kind, spot, true)
-		game.world.add_building(b)
+		var b := _new_building(kind, spot, true)
 		village.events.debug("%s stands ready at %s (free at the start)" % [b.label(), str(spot)])
 		game.fog.reveal(Vector2(spot), 2.5)
 
@@ -331,6 +330,3 @@ func cancel(site: Building) -> void:
 		game.deselect()
 	changed.emit()
 
-
-func pending_count() -> int:
-	return queue.size()

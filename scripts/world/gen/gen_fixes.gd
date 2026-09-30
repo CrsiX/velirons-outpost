@@ -29,10 +29,7 @@ static func _fair_land(c: GenContext, v: Dictionary) -> void:
 			if not m.in_bounds(t) or d > Config.ZONE_FAIR_RADIUS or not c.is_land(t) or m.in_village(t):
 				continue
 			if d <= Config.ZONE_FAIR_CLEAR and m.zone(t) in ["steppe", "swamp", "ash"]:
-				m.set_zone(t, "meadow")
-				if m.get_terrain(t) == MapData.Terrain.DESERT:
-					m.set_terrain(t, MapData.Terrain.GRASS)
-				m.decor.erase(t)
+				_to_meadow(m, t)
 				if m.is_forest(t):
 					m.props[t] = "tree_oak"
 			land.append(t)
@@ -45,10 +42,7 @@ static func _fair_land(c: GenContext, v: Dictionary) -> void:
 		var open := land.filter(func(t: Vector2i) -> bool: return m.zone(t) != "meadow" and not m.is_forest(t))
 		open.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return Vector2(a).distance_squared_to(Vector2(centre)) < Vector2(b).distance_squared_to(Vector2(centre)))
 		for t in open.slice(0, need_meadow - meadow):
-			m.set_zone(t, "meadow")
-			if m.get_terrain(t) == MapData.Terrain.DESERT:
-				m.set_terrain(t, MapData.Terrain.GRASS)
-			m.decor.erase(t)
+			_to_meadow(m, t)
 	# Enough trees: plant oaks on open tiles, the farthest from the walls first.
 	var need_trees := int(ceil(Config.ZONE_FAIR_MIN["trees"] * land.size()))
 	var trees := land.filter(func(t: Vector2i) -> bool: return m.is_forest(t)).size()
@@ -71,15 +65,19 @@ static func _next_to_road(m: MapData, t: Vector2i) -> bool:
 
 ## Guarantees one 3x3 farm plot touching the village's clear ring, inside its
 ## starting view; stored as the village's "farm_plot".
+## `t` becomes meadow: grass instead of sand, no decor.
+static func _to_meadow(m: MapData, t: Vector2i) -> void:
+	m.set_zone(t, "meadow")
+	if m.get_terrain(t) == MapData.Terrain.DESERT:
+		m.set_terrain(t, MapData.Terrain.GRASS)
+	m.decor.erase(t)
+
+
 static func _farm_plot(c: GenContext, v: Dictionary) -> void:
 	var m := c.m
 	var centre: Vector2i = v["center"]
 	var corners: Array[Vector2i] = [Vector2i(4, 4), Vector2i(-4, 4), Vector2i(4, -4), Vector2i(-4, -4)]
-	for k in range(corners.size() - 1, 0, -1):  # (seeded shuffle)
-		var j := c.rng.randi_range(0, k)
-		var tmp := corners[k]
-		corners[k] = corners[j]
-		corners[j] = tmp
+	c.shuffle(corners)
 	for off in [Vector2i(5, 5), Vector2i(-5, 5), Vector2i(5, -5), Vector2i(-5, -5), Vector2i(6, 0), Vector2i(-6, 0), Vector2i(0, 6), Vector2i(0, -6)]:
 		corners.append(off)
 	for off in corners:
@@ -108,7 +106,7 @@ static func _farm_plot(c: GenContext, v: Dictionary) -> void:
 	c.fail("no farm plot for village at %s" % str(centre))
 
 
-## A worker camp wants 6+ trees within 5 tiles of a spot near the village: if
+## A worker camp wants 8+ trees within 5 tiles of a spot near the village (the camp itself needs 6): if
 ## no such spot exists, a small grove is planted.
 static func _camp_trees(c: GenContext, v: Dictionary) -> void:
 	var m := c.m

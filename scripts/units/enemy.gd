@@ -56,10 +56,10 @@ var _shadow: Polygon2D
 var _sack: Sprite2D
 
 
-func setup(p_game: Game, route: Array[Vector2i], hp_scale: float, p_kind: String) -> void:
+func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: String) -> void:
 	game = p_game
 	kind = p_kind
-	self.hp_scale = hp_scale
+	hp_scale = p_hp_scale
 	max_hp = stat("hp") * hp_scale
 	hp = max_hp
 	speed = stat("speed") * randf_range(0.92, 1.08)
@@ -201,9 +201,6 @@ func hit_point() -> Vector2:
 	return global_position + Vector2(0, -34 if flies() else -18)
 
 
-func face(grid_target: Vector2) -> void:
-	sprite.flip_h = Iso.to_world(grid_target - grid_pos).x < 0.0
-
 
 ## Walks its own path (set with follow) for a behavior that took over.
 ## Returns true at the end of it.
@@ -289,8 +286,8 @@ func _update_visibility() -> void:
 	visible = game.fog.is_watched(current_tile())
 
 
-## `source` is whoever dealt the damage (a Tower for arrows, an EarthElemental
-## in melee); behaviors may react to it.
+## `source` is whoever dealt the damage (a Tower, or a melee defender);
+## behaviors may react to it.
 func take_damage(amount: float, source: Node = null) -> void:
 	if dead:
 		return
@@ -340,8 +337,4 @@ func _draw() -> void:
 		draw_circle(to, 7.0 + 2.0 * sin(Time.get_ticks_msec() / 120.0), Color(0.42, 1.0, 0.54, a * 0.35))
 	if dead or hp >= max_hp:
 		return
-	var w := 28.0
-	var r := Rect2(-w / 2.0, -62.0 if flies() else -46.0, w, 5.0)
-	draw_rect(r.grow(1.5), Color("15110d"))
-	draw_rect(r, Color("4a1510"))
-	draw_rect(Rect2(r.position, Vector2(w * clampf(hp / max_hp, 0.0, 1.0), r.size.y)), Color("d8412f"))
+	_draw_hp_bar(28.0, -62.0 if flies() else -46.0, 5.0, hp / max_hp, Color("4a1510"), Color("d8412f"))

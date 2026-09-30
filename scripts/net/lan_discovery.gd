@@ -61,7 +61,7 @@ func is_listening() -> bool:
 	return _listen != null
 
 
-## Games heard recently, newest name order.
+## Games heard recently, sorted by name.
 func games() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for g in _games.values():

@@ -1,4 +1,4 @@
-extends Node
+extends "res://tests/bot_base.gd"
 ## Headless test of rats, villager HP, farm defence, dropped loot and the
 ## icon UI. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/rat_bot.tscn
@@ -6,43 +6,7 @@ extends Node
 
 const SEED := 777
 
-var failures: Array[String] = []
-var checks := 0
-var game: Game
 var logs: Array[String] = []
-
-
-func _ready() -> void:
-	_run.call_deferred()
-
-
-func check(cond: bool, msg: String) -> void:
-	checks += 1
-	print(("  ok   " if cond else "  FAIL ") + msg)
-	if not cond:
-		failures.append(msg)
-
-
-func frames(n: int) -> void:
-	for i in n:
-		await get_tree().process_frame
-
-
-func wait(seconds: float) -> void:
-	var t := 0.0
-	while t < seconds:
-		await get_tree().process_frame
-		t += get_process_delta_time()
-
-
-func wait_until(cond: Callable, timeout: float) -> bool:
-	var t := 0.0
-	while not cond.call():
-		await get_tree().process_frame
-		t += get_process_delta_time()
-		if t > timeout:
-			return false
-	return true
 
 
 func _run() -> void:
@@ -84,15 +48,6 @@ func _run() -> void:
 	get_tree().quit(1 if failures.size() > 0 else 0)
 
 
-func _bench_hero(on: bool) -> void:
-	var h := game.hero
-	h.process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
-	if on:
-		h.remove_from_group("melee_defenders")
-	else:
-		h.add_to_group("melee_defenders")
-
-
 ## A rat (or `kind`) standing on `at`, walking the road from there.
 func spawn(kind: String, at: Vector2, hp_scale: float = 1.0) -> Enemy:
 	game.waves._spawn({"kind": kind, "spawn": game.map.edge_spawns[0], "hp_scale": hp_scale, "village": game.player_village})
@@ -105,13 +60,6 @@ func spawn(kind: String, at: Vector2, hp_scale: float = 1.0) -> Enemy:
 
 func rats() -> Array:
 	return get_tree().get_nodes_in_group("enemies").filter(func(e) -> bool: return e.kind == "rat" and not e.dead)
-
-
-func clear_enemies() -> void:
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if not e.dead:
-			e.take_damage(1e9)
-	await frames(3)
 
 
 # --- config ---------------------------------------------------------------------------------
@@ -465,22 +413,6 @@ func _test_ui() -> void:
 
 
 # --- tear-down ---------------------------------------------------------------------------------
-
-func find_spot(kind: String, near: Vector2i) -> Vector2i:
-	var cands: Array = []
-	for y in game.map.size:
-		for x in game.map.size:
-			var t := Vector2i(x, y)
-			if game.construction.placement_error(kind, t) == "":
-				cands.append([Vector2(t).distance_to(Vector2(near)), t])
-	cands.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
-	for c in cands:
-		var t: Vector2i = c[1]
-		for nb in [t, t + Vector2i(1, 0), t + Vector2i(-1, 0), t + Vector2i(0, 1), t + Vector2i(0, -1)]:
-			if game.world.pathing.is_walkable(nb) and not game.world.pathing.find_path(game.player_village.center, nb).is_empty():
-				return t
-	return Vector2i(-1, -1)
-
 
 ## Earlier tests kill villagers: makes sure one of `role` is there (a hut
 ## freed from a gatherer or explorer if need be).

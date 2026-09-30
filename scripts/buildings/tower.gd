@@ -103,7 +103,7 @@ func refresh() -> void:
 	_unit_sprite.visible = complete and garrison != null
 	if garrison:
 		Art.apply(_unit_sprite, "unit_" + garrison.kind)
-		_unit_sprite.position = Vector2(0, -Art.info(_art())["platform"] + 2.0)
+		_unit_sprite.position = _unit_spot()
 	queue_redraw()
 
 
@@ -129,10 +129,6 @@ func set_slot(i: int, unit: MilitaryUnit) -> void:
 	enchanted = 0.0
 	_spell_glow.visible = false
 	super.set_slot(i, unit)
-
-
-func post_kind() -> String:
-	return "tower"
 
 
 ## Behaviors act from here (see MilitaryBehavior): the tower's tile and range.
@@ -181,6 +177,11 @@ func is_enchanted() -> bool:
 
 # --- helpers for behaviors -------------------------------------------------------
 
+## Where the stationed unit stands: on the platform.
+func _unit_spot() -> Vector2:
+	return Vector2(0, -Art.info(_art())["platform"] + 2.0)
+
+
 func face(grid_target: Vector2) -> void:
 	_unit_sprite.flip_h = Iso.to_world(grid_target).x < position.x
 
@@ -210,7 +211,7 @@ func muzzle_position() -> Vector2:
 
 func recoil() -> void:
 	var tw := create_tween()
-	var base := Vector2(0, -Art.info(_art())["platform"] + 2.0)
+	var base := _unit_spot()
 	tw.tween_property(_unit_sprite, "position", base + Vector2(3.0 if _unit_sprite.flip_h else -3.0, 0), 0.05)
 	tw.tween_property(_unit_sprite, "position", base, 0.12)
 

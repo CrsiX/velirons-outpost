@@ -1,49 +1,13 @@
-extends Node
+extends "res://tests/bot_base.gd"
 ## Headless test of the thief, the gargoyle and the necromancer. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/enemy_bot.tscn
 ## Exits 0 when every check passes.
 
 const SEED := 778
 
-var failures: Array[String] = []
-var checks := 0
-var game: Game
 var logs: Array[String] = []
 ## Levels of the "raised from the dead" log lines.
 var raise_levels: Array[int] = []
-
-
-func _ready() -> void:
-	_run.call_deferred()
-
-
-func check(cond: bool, msg: String) -> void:
-	checks += 1
-	print(("  ok   " if cond else "  FAIL ") + msg)
-	if not cond:
-		failures.append(msg)
-
-
-func frames(n: int) -> void:
-	for i in n:
-		await get_tree().process_frame
-
-
-func wait(seconds: float) -> void:
-	var t := 0.0
-	while t < seconds:
-		await get_tree().process_frame
-		t += get_process_delta_time()
-
-
-func wait_until(cond: Callable, timeout: float) -> bool:
-	var t := 0.0
-	while not cond.call():
-		await get_tree().process_frame
-		t += get_process_delta_time()
-		if t > timeout:
-			return false
-	return true
 
 
 func _run() -> void:
@@ -78,15 +42,6 @@ func _run() -> void:
 	get_tree().quit(1 if failures.size() > 0 else 0)
 
 
-func _bench_hero(on: bool) -> void:
-	var h := game.hero
-	h.process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
-	if on:
-		h.remove_from_group("melee_defenders")
-	else:
-		h.add_to_group("melee_defenders")
-
-
 ## An enemy of `kind` at `at`. `walk`: it walks the roads from there to the
 ## village; else it stands still.
 func spawn(kind: String, at: Vector2, hp_scale: float = 1.0, walk: bool = false) -> Enemy:
@@ -104,13 +59,6 @@ func spawn(kind: String, at: Vector2, hp_scale: float = 1.0, walk: bool = false)
 		e.speed = 0.0
 		e.follow(PackedVector2Array([at, at + Vector2(0.001, 0)]))
 	return e
-
-
-func clear_enemies() -> void:
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if not e.dead:
-			e.take_damage(1e9)
-	await frames(3)
 
 
 func clear_corpses() -> void:

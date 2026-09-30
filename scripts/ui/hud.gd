@@ -43,7 +43,6 @@ var _upgrade_panel: PanelContainer
 var _upgrade_title: Label
 var _upgrade_options: VBoxContainer
 var _upgrade_hint: Label
-var _upgrade_unit: MilitaryUnit
 var _confirm_panel: PanelContainer
 var _confirm_text: Label
 var _confirm_yes: Button
@@ -133,7 +132,7 @@ var _relayout_queued := false
 var _tab_buttons: Dictionary = {}
 var _tab_pages: Dictionary = {}
 var _build_buttons: Dictionary = {}
-var _recruit_rows: Dictionary = {}  # role -> {button, title}
+var _recruit_rows: Dictionary = {}  # role -> _entry() dict {panel, title, button, desc}
 var _military_buttons: Dictionary = {}  # kind -> recruit Button
 var _military_panels: Dictionary = {}  # kind -> its entry (hidden while locked)
 var _selected_info: RichTextLabel
@@ -271,7 +270,6 @@ func set_rich_text(b: Button, text: String) -> void:
 		rt.add_theme_color_override("default_color", UiTheme.TEXT)
 		b.add_child(rt)
 		rt.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		rt.offset_left = 6
 		rt.offset_right = -6
 		if not b.has_meta("rich_dim"):
 			b.set_meta("rich_dim", true)
@@ -537,10 +535,6 @@ func _on_speed_changed(i: int) -> void:
 
 func _speed_name(speed: float) -> String:
 	return "paused" if speed == 0.0 else "%dx" % int(speed)
-
-
-func current_speed() -> float:
-	return Game.SPEEDS[_speed_index]
 
 
 func toggle_fullscreen() -> void:
@@ -1302,10 +1296,6 @@ func _refresh_reserve_texts(reserve: Array[MilitaryUnit]) -> void:
 	_send_reserve_button.visible = _selected_unit != null and game.villages.size() > 1
 	_selected_info.visible = _selected_unit != null
 	if _selected_unit:
-		var lines: Array[String] = ["%s, level %d" % [_selected_unit.display_name(), _selected_unit.level + 1]]
-		lines.append_array(_selected_unit.behavior.info_lines(_selected_unit))
-		_set_rich_label(_selected_info, "\n".join(lines), 15)
-	if _selected_unit:
 		var opts := _selected_unit.upgrade_options()
 		_upgrade_reserve_button.disabled = opts.is_empty()
 		set_rich_text(_upgrade_reserve_button, "Selected %s is max level" % _selected_unit.display_name().to_lower() if opts.is_empty() else ("Upgrade selected..." if opts.size() > 1 else "Upgrade selected  (%s)" % Config.cost_icons(opts[0]["cost"])))
@@ -1630,8 +1620,9 @@ func _build_send_dialog() -> void:
 	_send_unit_panel.add_child(u)
 	_send_unit_title = _label("", 20, UiTheme.GOLD)
 	u.add_child(_send_unit_title)
-	u.add_child(_label("It walks there and joins that village's army. It can't be called back.", 14, UiTheme.MUTED))
-	(u.get_child(1) as Label).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var note := _label("It walks there and joins that village's army. It can't be called back.", 14, UiTheme.MUTED)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	u.add_child(note)
 	_send_unit_target_button = _button("", Vector2(0, 48))
 	_send_unit_target_button.pressed.connect(func() -> void:
 		_send_unit_target = _next_other(_send_unit_target)
@@ -1709,7 +1700,6 @@ func _refresh_send() -> void:
 
 ## The upgrade dialog for `unit`: one button per option (MilitaryUnit.upgrade_options).
 func open_upgrade(unit: MilitaryUnit) -> void:
-	_upgrade_unit = unit
 	_confirm_panel.visible = false
 	_upgrade_title.text = "Upgrade %s (level %d)" % [unit.display_name(), unit.level + 1]
 	for c in _upgrade_options.get_children():
@@ -1906,15 +1896,21 @@ void fragment() {
 """
 
 
+## A full-size rect that turns everything drawn before it grey.
+func _grayscale_rect() -> ColorRect:
+	var r := ColorRect.new()
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = GRAYSCALE_SHADER
+	mat.shader = sh
+	r.material = mat
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
+
+
 func _build_settings() -> void:
 	# Co-op pause: the map and HUD below the top bar turn grey (the top bar stays in colour).
-	_pause_gray = ColorRect.new()
-	var pmat := ShaderMaterial.new()
-	var psh := Shader.new()
-	psh.code = GRAYSCALE_SHADER
-	pmat.shader = psh
-	_pause_gray.material = pmat
-	_pause_gray.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_gray = _grayscale_rect()
 	_root.add_child(_pause_gray)
 	_pause_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_pause_gray.visible = false
@@ -1923,14 +1919,8 @@ func _build_settings() -> void:
 	_root.add_child(_settings)
 	_settings.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# Everything drawn before this (the map and the rest of the HUD) turns grey.
-	var gray := ColorRect.new()
+	var gray := _grayscale_rect()
 	_gray = gray
-	var mat := ShaderMaterial.new()
-	var sh := Shader.new()
-	sh.code = GRAYSCALE_SHADER
-	mat.shader = sh
-	gray.material = mat
-	gray.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_settings.add_child(gray)
 	gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var center := CenterContainer.new()
@@ -1963,6 +1953,7 @@ func _build_settings() -> void:
 		_refresh_settings())
 	v.add_child(_settings_log_button)
 	_settings_lang_button = _button("", Vector2(0, 64))
+	_settings_lang_button.visible = false  # temporary for export, we have no support yet, so strip it
 	_settings_lang_button.expand_icon = true
 	_settings_lang_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_settings_lang_button.pressed.connect(func() -> void:
@@ -2202,8 +2193,6 @@ func _refresh() -> void:
 	for kind in _military_buttons:
 		(_military_buttons[kind] as Button).disabled = not game.economy.can_afford(Config.MILITARY[kind]["cost"])
 		(_military_panels[kind] as Control).visible = game.is_unlocked(kind)
-	for b in _trade_buttons:
-		b.disabled = false
 	_rebuild_reserve()
 	_refresh_send()
 

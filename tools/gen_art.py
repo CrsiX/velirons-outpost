@@ -1538,15 +1538,20 @@ def icon_svg(name, body):
 
 def icons():
     # XP: three sparkling green orbs.
+    # XP: a light-blue star with a sparkle.
     icon_svg("icon_xp", f"""
-  <circle cx="21" cy="40" r="13" fill="#3fbf3a" stroke="{INK}" stroke-width="3.5"/>
-  <circle cx="44" cy="44" r="11" fill="#57d24a" stroke="{INK}" stroke-width="3.5"/>
-  <circle cx="34" cy="19" r="12" fill="#6fe35a" stroke="{INK}" stroke-width="3.5"/>
-  <circle cx="17" cy="36" r="4" fill="#d6ffb8"/>
-  <circle cx="41" cy="40" r="3.5" fill="#d6ffb8"/>
-  <circle cx="30" cy="15" r="4" fill="#e8ffd4"/>
-  <path d="M52 10 L54 16 L60 18 L54 20 L52 26 L50 20 L44 18 L50 16Z" fill="#f2ffe0" stroke="{INK}" stroke-width="1.5" stroke-linejoin="round"/>
-  <path d="M8 16 L9 19 L12 20 L9 21 L8 24 L7 21 L4 20 L7 19Z" fill="#f2ffe0"/>""")
+  <path d="M32 5 L39.5 23 L59 24.5 L44 37 L48.8 56 L32 45.5 L15.2 56 L20 37 L5 24.5 L24.5 23 Z" fill="#7fd0ff" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M32 13 L37 25 L50 26 L40 34.5" fill="none" stroke="#e4f6ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M55 5 L56.5 9.5 L61 11 L56.5 12.5 L55 17 L53.5 12.5 L49 11 L53.5 9.5Z" fill="#ffffff" stroke="{INK}" stroke-width="1.2"/>""")
+    # The hero's level-up: three green chevrons rising, and a soft glow behind them.
+    icon_svg("levelup_chevrons", f"""
+  <path d="M10 58 L32 42 L54 58 L54 48 L32 32 L10 48 Z" fill="#3f9a3a" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M10 42 L32 26 L54 42 L54 32 L32 16 L10 32 Z" fill="#5cc24a" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M14 22 L32 8 L50 22 L50 15 L32 2 L14 15 Z" fill="#9aee6e" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>""")
+    icon_svg("levelup_glow", """
+  <defs><radialGradient id="g"><stop offset="0" stop-color="#eaffb0" stop-opacity="0.95"/><stop offset="0.45" stop-color="#8cf06a" stop-opacity="0.45"/><stop offset="1" stop-color="#4ac04a" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="32" cy="32" r="32" fill="url(#g)"/>""")
+
     # Hero modes (the icon row in his panel).
     icon_svg("mode_defend", f"""
   <path d="M32 5 L54 12 L54 30 C54 44 44 54 32 59 C20 54 10 44 10 30 L10 12 Z" fill="#6a7fa0" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>

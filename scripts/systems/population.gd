@@ -228,7 +228,7 @@ func _assign(civ: Civilian, place: Workplace, auto: bool) -> void:
 	place.refresh()
 
 
-# Farmer / forester names for the same thing (used by the building panels).
+# Farmer / forester names for the same thing (free_* for the building panels; the rest for tests).
 
 func free_farmers() -> Array[Civilian]:
 	return free_workers("farmer")

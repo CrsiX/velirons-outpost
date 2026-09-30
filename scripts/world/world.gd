@@ -89,7 +89,7 @@ func setup(p_game: Game, seed_value: int) -> void:
 		if v["farm_plot"] != Vector2i(-1, -1):
 			fog.reveal(Vector2(v["farm_plot"]), 2.0, i)
 		for j in map.villages.size():
-			fog.explore_tiles(_rect_tiles(v["rect"]), j)
+			fog.explore_tiles(MapData.rect_tiles(v["rect"]), j)
 	if map.villages.size() > 1:
 		_spawn_village_labels()
 	if game.reveal_map:
@@ -281,14 +281,6 @@ func _spawn_village() -> void:
 		add_building(b)
 
 
-static func _rect_tiles(r: Rect2i) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	for y in range(r.position.y, r.end.y):
-		for x in range(r.position.x, r.end.x):
-			out.append(Vector2i(x, y))
-	return out
-
-
 ## Trees and peaks show on explored tiles of the local village's fog.
 func refresh_props() -> void:
 	for o in map_objects:
@@ -405,8 +397,6 @@ func refresh_village_labels() -> void:
 		l.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6) if v.fallen else v.color)
 
 
-## Front-most building whose sprite covers `world_pos`, falling back to the tile.
-## The post whose stationed unit figure is under `world_pos`, or null.
 ## The stationed unit whose figure (on a tower, a barracks bench...) is under
 ## `world_pos`, or null. Its post is `unit.post`.
 func pick_unit(world_pos: Vector2) -> MilitaryUnit:
@@ -420,6 +410,7 @@ func pick_unit(world_pos: Vector2) -> MilitaryUnit:
 	return best
 
 
+## Front-most building whose sprite covers `world_pos`, falling back to the tile.
 func pick_building(world_pos: Vector2) -> Building:
 	var best: Building = null
 	var cands: Array[Building] = buildings.duplicate()
@@ -492,12 +483,12 @@ func find_tree(from: Vector2i, radius: float, who: Node) -> Dictionary:
 	return best
 
 
-## Chops `seconds` off a tree. Returns true when it falls (tile becomes meadow).
 ## Log name of the tree on `t`, numbered by its tile: "tree 482".
 func tree_label(t: Vector2i) -> String:
 	return "tree %d" % map.index(t)
 
 
+## Chops `seconds` off a tree. Returns true when it falls (tile becomes meadow).
 func chop_tree(t: Vector2i, seconds: float) -> bool:
 	if not is_tree(t):
 		return true

@@ -157,15 +157,11 @@ func distance_field(from: Vector2i) -> PackedInt32Array:
 	return dist
 
 
-## The unexplored tile (explored[i] == 0) nearest to `from` by walking, where
-## tiles within `claim_radius` of a `claims` tile count `penalty` steps more.
-## Stops as soon as nothing closer can turn up. (-1, -1) if none is reachable.
 ## The nearest fog to explore from `from`: [the unexplored tile, where to
 ## stand for it], or [] if none. A walkable unexplored tile is walked onto;
 ## unexplored forest, rock or water is looked into from the walkable tile
 ## next to it (explorers see into it; they can't walk there).
 func nearest_frontier(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], claim_radius: float, penalty: int) -> Array[Vector2i]:
-	var n := map.size
 	var stand := nearest_unexplored(from, explored, claims, claim_radius, penalty)
 	if stand == Vector2i(-1, -1):
 		return []

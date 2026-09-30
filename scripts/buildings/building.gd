@@ -3,8 +3,6 @@ extends Node2D
 ## Base for everything placed on the tile grid. A building is either a
 ## construction site (complete == false, worked on by builders) or finished.
 
-signal completed(building: Building)
-
 ## Number within its kind (see label()), given when it is added to the world.
 var uid := 0
 var game: Game
@@ -31,6 +29,8 @@ var upgrade_time := 1.0
 ## and a share of its building material comes back.
 var tearing_down := false
 var teardown_progress := 0.0
+## Tear-down bars count down in this colour.
+const TEARDOWN_COLOR := Color("a8553a")
 var sprite: Sprite2D
 
 
@@ -134,7 +134,7 @@ func sight_center() -> Vector2:
 	return Vector2(tile)
 
 
-## Does a builder have anything to do here (construction or an upgrade)?
+## Does a builder have anything to do here (construction, an upgrade or a tear-down)?
 func has_work() -> bool:
 	return not complete or upgrading or tearing_down
 
@@ -152,7 +152,7 @@ func work_fraction() -> float:
 	return clampf(upgrade_progress / upgrade_time, 0.0, 1.0)
 
 
-## Advance construction (or an upgrade). Returns true once done.
+## Advance construction (or an upgrade, or a tear-down). Returns true once done.
 func add_progress(dt: float) -> bool:
 	queue_redraw()
 	if not complete:
@@ -221,7 +221,6 @@ func finish() -> void:
 	var tw := create_tween()
 	scale = Vector2(1.08, 0.92)
 	tw.tween_property(self, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	completed.emit(self)
 
 
 ## Override: create sprites.
@@ -285,10 +284,6 @@ func work_color() -> Color:
 	if not complete:
 		return Color("c9a24a")
 	return TEARDOWN_COLOR if tearing_down else Color("8fb8e0")
-
-
-## Tear-down bars count down in this colour.
-const TEARDOWN_COLOR := Color("a8553a")
 
 
 ## Height of the work progress bar above the anchor.

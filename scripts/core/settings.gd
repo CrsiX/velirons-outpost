@@ -86,7 +86,6 @@ func difficulty_name() -> String:
 	return NAMES[difficulty]
 
 
-## "easy" / "normal" / "hard", for string-keyed config tables.
 ## Supported languages (English only so far); the settings button shows the flag.
 const LANGUAGES: Array[String] = ["en"]
 const LANGUAGE_INFO := {"en": {"name": "English", "flag": "flag_gb"}}
@@ -105,6 +104,7 @@ func language_flag() -> String:
 	return LANGUAGE_INFO[language]["flag"]
 
 
+## "easy" / "normal" / "hard", for string-keyed config tables.
 func difficulty_key() -> String:
 	return NAMES[difficulty].to_lower()
 

@@ -140,7 +140,7 @@ static func _lakes(c: GenContext) -> void:
 		var best_h := INF
 		for k in 60:
 			var t := Vector2i(c.rng.randi_range(4, m.size - 5), c.rng.randi_range(4, m.size - 5))
-			if not c.is_land(t) or _near_slice_centre(c, t, keep_off) or _water_within(c, t, 8):
+			if not c.is_land(t) or c.near_slice_centre(t, keep_off) or _water_within(c, t, 8):
 				continue
 			if c.h(t) < best_h:
 				best_h = c.h(t)
@@ -164,7 +164,7 @@ static func _lakes(c: GenContext) -> void:
 			frontier.remove_at(pick_i)
 			tiles[t] = true
 			for nb in MapData.neighbors4(t):
-				if not tiles.has(nb) and not frontier.has(nb) and c.is_land(nb) and nb.x > 1 and nb.y > 1 and nb.x < m.size - 2 and nb.y < m.size - 2 and not _near_slice_centre(c, nb, keep_off - 2.0):
+				if not tiles.has(nb) and not frontier.has(nb) and c.is_land(nb) and nb.x > 1 and nb.y > 1 and nb.x < m.size - 2 and nb.y < m.size - 2 and not c.near_slice_centre(nb, keep_off - 2.0):
 					frontier.append(nb)
 		for t: Vector2i in tiles:
 			m.set_terrain(t, MapData.Terrain.WATER)
@@ -173,13 +173,6 @@ static func _lakes(c: GenContext) -> void:
 				if not tiles.has(nb):
 					m.set_terrain(t, MapData.Terrain.SHALLOW)
 					break
-
-
-static func _near_slice_centre(c: GenContext, t: Vector2i, r: float) -> bool:
-	for s in c.m.slices:
-		if Vector2(t).distance_to(s["center"]) < r:
-			return true
-	return false
 
 
 static func _water_within(c: GenContext, t: Vector2i, r: int) -> bool:
@@ -201,7 +194,7 @@ static func _rivers(c: GenContext) -> void:
 		var src := Vector2i(-1, -1)
 		for k in 80:
 			var t := Vector2i(c.rng.randi_range(3, m.size - 4), c.rng.randi_range(3, m.size - 4))
-			if c.is_land(t) and c.h(t) > 0.8 and not _near_slice_centre(c, t, 16.0) and not _water_within(c, t, 6):
+			if c.is_land(t) and c.h(t) > 0.8 and not c.near_slice_centre(t, 16.0) and not _water_within(c, t, 6):
 				src = t
 				break
 		if src.x < 0:
@@ -237,7 +230,7 @@ static func route_river(c: GenContext, src: Vector2i, lava: bool, max_len: int =
 		for x in m.size:
 			var t := Vector2i(x, y)
 			var w := 1.0 + 7.0 * clampf(c.h(t), 0.0, 1.2) + (c.detail[c.i(t)] + 1.0) * 0.8
-			if _near_slice_centre(c, t, Config.VILLAGE_CENTER_RADIUS - 2.0):
+			if c.near_slice_centre(t, Config.VILLAGE_CENTER_RADIUS - 2.0):
 				w += 40.0
 			if m.is_mountain(t):
 				w += 12.0

@@ -56,8 +56,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_WHEEL_DOWN:
 				if mb.pressed:
 					zoom_at(mb.position, 1.0 / 1.12)
-			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
-				if mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
+			MOUSE_BUTTON_RIGHT:
+				if mb.pressed:
 					cancelled.emit()
 	elif event is InputEventMagnifyGesture:
 		var mg := event as InputEventMagnifyGesture

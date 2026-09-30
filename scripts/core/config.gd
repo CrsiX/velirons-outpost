@@ -12,7 +12,6 @@ const MAX_PLAYERS := 8
 ## Debug: start this many villages on one device (hot-seat test mode; 1 = normal
 ## single player). Switch between them with the village button in the top bar or Tab.
 const HOTSEAT_VILLAGES := 1
-const VILLAGE_EDGE_MARGIN := 14  # village centres stay this far from the map edge
 const WAVE_EXTRA_PER_PLAYER := 0.25  # extra enemies: this x one village's wave, per player
 const CARAVAN_SPEED := 1.4  # tiles per second
 const VILLAGE_NAMES: Array[String] = ["Veliron's Outpost", "Rivermoor", "Eastwatch", "Ashford", "Greyholt", "Thornvale", "Kestrel Keep", "Mirefield"]
@@ -36,7 +35,8 @@ const VILLAGE_LAYOUT: Array[String] = [
 	"TWGWT",
 ]
 
-const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
+const START_RESOURCES := {"gold": 15000, "food": 12000, "materials": 7000}
+#const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
 const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explorer"]
 ## Built for free near the village at the start (the farm on the guaranteed
 ## farm plot, the camp close to the forest); the starting farmer and forester work them.
@@ -95,7 +95,6 @@ const ROAD_DETOUR_MAX := 2.5  # a link longer than this x the straight distance 
 const ROAD_COSTS := {"road": 0.3, "meadow": 1.0, "steppe": 1.0, "heath": 1.6, "oak": 1.6, "pine": 2.5, "swamp": 2.5, "ash": 2.0, "crossing": 4.0, "pass": 15.0}
 const ROAD_COST_NOISE := 0.3
 const ROAD_BESIDE_COST := 2.0  # extra cost next to an existing road: merge or keep away
-const ROAD_VERGE := 0  # tree-free tiles beside roads (optional)
 const SP_SPAWNS := Vector2i(3, 5)  # single player: edge spawns
 const COOP_SPAWNS := Vector2i(2, 3)  # co-op: edge spawns per village, on its slice's edge
 ## Water.
@@ -208,15 +207,15 @@ const BUILDINGS := {
 		"desc": "Base for one forester, who cuts nearby trees for building material.",
 	},
 	"barracks": {
-		"name": "Barracks", "cost": {"materials": 70, "gold": 60}, "build_time": 16.0, "size": 2, "art": "barracks",
+		"name": "Barracks", "cost": {"materials": 20, "gold": 30}, "build_time": 16.0, "size": 2, "art": "barracks",
 		"desc": "2x2. Units wait on its benches (1 per level, up to 3) and turn out when enemies come near. Upgrade for more benches and range.",
 	},
 	"training": {
-		"name": "Training Grounds", "cost": {"materials": 60, "gold": 80}, "build_time": 14.0, "size": 2, "art": "training_grounds",
+		"name": "Training Grounds", "cost": {"materials": 40, "gold": 40}, "build_time": 14.0, "size": 2, "art": "training_grounds",
 		"desc": "2x2. Station a military unit here; the hero (in Train mode) passes on his XP to level it up for free.",
 	},
 	"lightstone": {
-		"name": "Light Stone", "cost": {"materials": 40}, "build_time": 10.0, "size": 1, "art": "light_stone",
+		"name": "Light Stone", "cost": {"materials": 20}, "build_time": 10.0, "size": 1, "art": "light_stone",
 		"desc": "Rune pillar that lights up the land around it. Needs no one to man it.",
 	},
 }
@@ -320,8 +319,6 @@ const EXPLORER_WANDER_SLACK := 8
 const EXPLORER_CLAIM_RADIUS := 7.0
 const EXPLORER_CLAIM_PENALTY := 30
 
-## Military units. Every kind is stationed on a tower; its "behavior" script
-## decides what it does there. Upgrades never change range: towers own range.
 ## --- Military (docs/military-design.md) ------------------------------------------------
 ## Every unit goes up to MAX_UNIT_LEVEL. Stats are given for level 1 and level 10
 ## ("stats": key -> [level 1, level 10]); levels in between follow the curve
@@ -575,7 +572,7 @@ const HERO_XP_PER_ACTION := {
 	"hit": 2,  # a melee hit in combat
 	"build_second": 1,  # each second of construction work
 	"explore": 1,  # each exploring step that uncovers new tiles
-	"corpse": 3,  # each corpse picked up
+	"corpse": 4,  # each corpse picked up
 }
 
 ## Earth elementals summoned by summoners. hp/damage come from the summoner's
@@ -726,7 +723,7 @@ const WAVE_MIX := {
 	"witch": {"from_wave": 5, "share": 0.10, "growth": 0.02, "max_share": 0.2},
 	"thief": {"from_wave": 7, "share": 0.08, "growth": 0.01, "max_share": 0.15},
 	"gargoyle": {"from_wave": 10, "share": 0.06, "growth": 0.01, "max_share": 0.15},
-	"necromancer": {"from_wave": 20, "share": 0.04, "growth": 0.005, "max_share": 0.08},
+	"necromancer": {"from_wave": 13, "share": 0.04, "growth": 0.005, "max_share": 0.08},
 }
 const WAVE_FILLER := "goblin"
 ## The special kinds together never take more than this share of a wave

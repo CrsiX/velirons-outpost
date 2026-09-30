@@ -22,10 +22,7 @@ var _beside := {}  # tiles next to a road that got the extra cost
 
 
 static func build(p_c: GenContext) -> void:
-	var r := GenRoads.new()
-	r.c = p_c
-	r.m = p_c.m
-	r._setup()
+	var r := router(p_c)
 	if r.c.players == 1:
 		r._single()
 	else:
@@ -63,7 +60,7 @@ func _setup() -> void:
 				solid = true  # the edge only where a spawn is (opened per route)
 			astar.set_point_solid(t, solid)
 	for v in m.villages:
-		for t in _rect_tiles((v["rect"] as Rect2i).grow(1)):
+		for t in MapData.rect_tiles((v["rect"] as Rect2i).grow(1)):
 			if m.in_bounds(t):
 				astar.set_point_solid(t, true)
 		# (later roads, like mine spurs, keep off the farm plot)
@@ -133,7 +130,7 @@ func _coop() -> void:
 	# on past a village (enemies whose target fell walk on to the next one).
 	for v in m.villages:
 		var ring := (v["rect"] as Rect2i).grow(1)
-		for t in _rect_tiles(ring):
+		for t in MapData.rect_tiles(ring):
 			if not (v["rect"] as Rect2i).has_point(t):
 				_set_road(t)
 	var pairs: Array[Vector2i] = []
@@ -326,7 +323,7 @@ func _route(from: Vector2i, to: Vector2i, allow_pass: bool) -> Array[Vector2i]:
 		for y in range(1, m.size - 1):
 			for x in range(1, m.size - 1):
 				var t := Vector2i(x, y)
-				if m.is_mountain(t) and not _volcano(t):
+				if m.is_mountain(t) and not GenRelief._volcano_tile(c, t):
 					astar.set_point_solid(t, false)
 					astar.set_point_weight_scale(t, Config.ROAD_COSTS["pass"])
 					cut.append(t)
@@ -339,12 +336,6 @@ func _route(from: Vector2i, to: Vector2i, allow_pass: bool) -> Array[Vector2i]:
 			astar.set_point_solid(t, true)
 	return out
 
-
-func _volcano(t: Vector2i) -> bool:
-	for v in m.volcanoes:
-		if absi(t.x - v.x) <= 1 and absi(t.y - v.y) <= 1:
-			return true
-	return false
 
 
 ## Makes `path` road: bridges over rivers, fords through shallow water,
@@ -420,11 +411,3 @@ static func approaches(map: MapData, v: Dictionary) -> int:
 
 func _edge_tiles() -> Array[Vector2i]:
 	return GenWater._edge_tiles(m)
-
-
-static func _rect_tiles(r: Rect2i) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	for y in range(r.position.y, r.end.y):
-		for x in range(r.position.x, r.end.x):
-			out.append(Vector2i(x, y))
-	return out

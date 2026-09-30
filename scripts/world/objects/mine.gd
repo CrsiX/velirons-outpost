@@ -4,7 +4,7 @@ extends MapObject
 ## (docs/world-design.md §9.6). Nobody owns it: one miner at a time works it,
 ## whoever's miner gets there first. A second miner is turned away and walks
 ## home unassigned. Anyone walking up to a mine the first time unlocks the
-## miner for every village (World._check_mines).
+## miner for every village (World._process).
 
 ## The miner working it (from any village), or null.
 var worker: Node = null

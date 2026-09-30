@@ -117,7 +117,7 @@ func _on_farm(enemy: Enemy, delta: float) -> bool:
 
 func _chase(enemy: Enemy, delta: float) -> bool:
 	var reach := float(enemy.spec()["bite_range"])
-	var lost: bool = not is_instance_valid(foe) or foe.dead or (foe is Civilian and not (foe is Hero) and not (foe as Civilian).is_exposed()) or foe.grid_pos.distance_to(enemy.grid_pos) > reach * 1.6
+	var lost: bool = not is_instance_valid(foe) or foe.dead or _sheltered(foe) or foe.grid_pos.distance_to(enemy.grid_pos) > reach * 1.6
 	if lost:
 		foe = null
 		if _farm_ok() and not ignored.has(farm):
@@ -159,7 +159,7 @@ static func _nearest_victim(enemy: Enemy, r: float) -> Node:
 	var best_d := r
 	for group in ["villagers", "melee_defenders"]:
 		for node in enemy.get_tree().get_nodes_in_group(group):
-			if node.dead or (node is Civilian and not (node is Hero) and not (node as Civilian).is_exposed()):
+			if node.dead or _sheltered(node):
 				continue
 			var d: float = node.grid_pos.distance_to(enemy.grid_pos)
 			if d <= best_d:

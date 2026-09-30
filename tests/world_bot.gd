@@ -1,4 +1,4 @@
-extends Node
+extends "res://tests/bot_base.gd"
 ## Headless test of the world generation rework (docs/world-design.md): the
 ## generator's promises for every player count and map type (slices, zones,
 ## water, volcanoes, roads, objects, fairness, determinism), then gameplay in
@@ -8,42 +8,6 @@ extends Node
 ##   godot --headless --fixed-fps 60 --path . res://tests/world_bot.tscn
 ## Exits 0 when every check passes.
 
-var failures: Array[String] = []
-var checks := 0
-var game: Game
-
-
-func _ready() -> void:
-	_run.call_deferred()
-
-
-func check(cond: bool, msg: String) -> void:
-	checks += 1
-	print(("  ok   " if cond else "  FAIL ") + msg)
-	if not cond:
-		failures.append(msg)
-
-
-func frames(n: int) -> void:
-	for i in n:
-		await get_tree().process_frame
-
-
-func wait(seconds: float) -> void:
-	var t := 0.0
-	while t < seconds:
-		await get_tree().process_frame
-		t += get_process_delta_time()
-
-
-func wait_until(cond: Callable, timeout: float) -> bool:
-	var t := 0.0
-	while not cond.call():
-		await get_tree().process_frame
-		t += get_process_delta_time()
-		if t > timeout:
-			return false
-	return true
 
 
 func _run() -> void:

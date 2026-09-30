@@ -5,7 +5,6 @@ extends Control
 ##   Singleplayer - Play, Difficulty, Levels, Back;
 ##   Multiplayer  - village name and colour, host / join, lobby (MultiplayerMenu).
 
-const LEVEL_SCENE := "res://scenes/main.tscn"
 ## Levels offered on the Levels panel. Only the first exists so far.
 const LEVELS: Array[Dictionary] = [
 	{"name": "The Last Outpost", "available": true},
@@ -22,8 +21,10 @@ var difficulty_button: Button
 var map_button: Button
 var seed_edit: LineEdit
 var levels_button: Button
+var help_button: Button
 var back_button: Button
 var levels_panel: PanelContainer
+var help_panel: PanelContainer
 var _menu: VBoxContainer
 var _main_page: VBoxContainer
 var _sp_page: VBoxContainer
@@ -75,7 +76,7 @@ func _ready() -> void:
 	difficulty_button = _menu_button(_sp_page, "", _cycle_difficulty)
 	map_button = _menu_button(_sp_page, "", func() -> void:
 		Settings.cycle_map_type()
-		_update_difficulty())
+		_update_sp_buttons())
 	map_button.tooltip_text = "The kind of land: Temperate, Highlands, Coast, Desert, Volcanic or Random"
 	seed_edit = LineEdit.new()
 	seed_edit.placeholder_text = "Map seed (empty: random)"
@@ -86,14 +87,25 @@ func _ready() -> void:
 	_sp_page.add_child(seed_edit)
 	_sp_page.move_child(seed_edit, map_button.get_index() + 1)
 	levels_button = _menu_button(_sp_page, "Levels", func() -> void: levels_panel.visible = true)
+	help_button = _menu_button(_sp_page, "Help", func() -> void: help_panel.visible = true)
 	back_button = _menu_button(_sp_page, "Back", func() -> void: show_page(_main_page))
+	if OS.has_feature("web"):
+		levels_button.visible = false
+		back_button.visible = false
 	mp_menu = MultiplayerMenu.new()
 	_menu.add_child(mp_menu)
 	mp_menu.back_pressed.connect(func() -> void: show_page(_main_page))
-	# Back from a game (or a lobby left open): straight to the multiplayer pages.
-	show_page(mp_menu if Net.is_online() and not Net.in_game else _main_page)
-	_update_difficulty()
+	
+	if OS.has_feature("web"):
+		show_page(_sp_page)
+	elif Net.is_online() and not Net.in_game:
+		show_page(mp_menu)
+	else:
+		show_page(_main_page)
+	
+	_update_sp_buttons()
 	_build_levels_panel()
+	_build_help_panel()
 	get_viewport().size_changed.connect(_layout)
 	# Pages change height (Singleplayer, the multiplayer join page and lobby): fit again.
 	_menu.minimum_size_changed.connect(func() -> void: _layout.call_deferred())
@@ -163,6 +175,50 @@ func _menu_button(page: VBoxContainer, text: String, action: Callable) -> Button
 	return b
 
 
+func _build_help_panel() -> void:
+	help_panel = PanelContainer.new()
+	add_child(help_panel)
+
+	help_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	help_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	help_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 16)
+	v.custom_minimum_size = Vector2(520, 0)
+	help_panel.add_child(v)
+
+	var head := Label.new()
+	head.text = "Help"
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.add_theme_font_size_override("font_size", 36)
+	head.add_theme_color_override("font_color", UiTheme.GOLD)
+	v.add_child(head)
+
+	var help_text := Label.new()
+	help_text.text = """Welcome to Veliron's Outpost
+
+Your task is defending a small castle of huts from hordes of monsters that roam in the wilderness. Hold out as long as you possibly can.
+
+Explore the unknown lands around Veliron's last outpost. Build huts, camps and towers. Station military units on them to defend the village. Ensure the safety of your villagers. Find unknown treasures and kill many monsters. For wealth and glory!"""
+	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	help_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	help_text.add_theme_font_size_override("font_size", 20)
+	help_text.custom_minimum_size = Vector2(480, 180)
+	v.add_child(help_text)
+
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(0, 52)
+	close.focus_mode = Control.FOCUS_NONE
+	close.pressed.connect(func() -> void:
+		help_panel.visible = false
+	)
+	v.add_child(close)
+
+	help_panel.visible = false
+	
+	
 func _build_levels_panel() -> void:
 	levels_panel = PanelContainer.new()
 	add_child(levels_panel)
@@ -202,16 +258,16 @@ func _build_levels_panel() -> void:
 
 func _cycle_difficulty() -> void:
 	Settings.cycle_difficulty()
-	_update_difficulty()
+	_update_sp_buttons()
 
 
-func _update_difficulty() -> void:
+func _update_sp_buttons() -> void:
 	difficulty_button.text = "Difficulty: %s" % Settings.difficulty_name()
 	map_button.text = "Map: %s" % Settings.map_type_name()
 
 
 func _play() -> void:
-	get_tree().change_scene_to_file(LEVEL_SCENE)
+	get_tree().change_scene_to_file(Net.LEVEL_SCENE)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

@@ -239,9 +239,6 @@ func act_range() -> float:
 	return unit.field_range()
 
 
-func face(grid_target: Vector2) -> void:
-	sprite.flip_h = Iso.to_world(grid_target - grid_pos).x < 0.0
-
 
 func recoil() -> void:
 	var tw := create_tween()
@@ -266,10 +263,6 @@ func sight_center() -> Vector2:
 
 
 func _draw() -> void:
-	if unit == null or dead or unit.hp >= unit.max_hp():
+	if dead or unit.hp >= unit.max_hp():  # (dead: also without a unit)
 		return
-	var w := 26.0
-	var r := Rect2(-w / 2.0, -50.0, w, 4.0)
-	draw_rect(r.grow(1.5), Color("15110d"))
-	draw_rect(r, Color("3a2a10"))
-	draw_rect(Rect2(r.position, Vector2(w * clampf(unit.hp / unit.max_hp(), 0.0, 1.0), r.size.y)), Color("e0c050"))
+	_draw_hp_bar(26.0, -50.0, 4.0, unit.hp / unit.max_hp(), Color("3a2a10"), Color("e0c050"))
