@@ -7,6 +7,9 @@ extends EnemyBehavior
 ##   ON_FARM  - wandering about the field, nibbling: the farm grows nothing
 ##              and each rat eats `farm_eat` of its stored food per second;
 ##              after `vanish_after` s without being attacked the rat is gone;
+##              once the farm is empty and grew nothing for `give_up_after` s,
+##              each rat may give it up for good (`give_up_chance` every
+##              `give_up_check` s) and walk on to the next farm or the gate;
 ##   CHASE    - biting a villager or unit within `bite_range` (very little
 ##              damage); when it's gone or away, back to the farm or the road.
 ## Leftover rats all vanish once the wave says so (Waves.rats_leave). A rat
@@ -23,6 +26,9 @@ var _bite := 0.0
 var _idle := 0.0
 var _nibble := 0.0
 var _repath := 0.0
+var _give_up := 0.0
+## Farms this rat gave up on (empty and barren): it never goes back.
+var ignored: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 
 
@@ -68,7 +74,7 @@ func _think(enemy: Enemy) -> void:
 		_repath = 0.0
 		return
 	if state == State.ROAD:
-		var f := _nearest_farm(enemy, float(enemy.spec()["farm_search"]))
+		var f := _nearest_farm(enemy, float(enemy.spec()["farm_search"]), ignored)
 		if f:
 			_go_farm(enemy, f)
 
@@ -84,6 +90,14 @@ func _on_farm(enemy: Enemy, delta: float) -> bool:
 		enemy.vanish()
 		return true
 	farm.stored = maxf(0.0, farm.stored - float(enemy.spec()["farm_eat"]) * delta)
+	_give_up -= delta
+	if _give_up <= 0.0:
+		_give_up = float(enemy.spec()["give_up_check"])
+		if farm.barren(float(enemy.spec()["give_up_after"])) and _rng.randf() < float(enemy.spec()["give_up_chance"]):
+			enemy.game.log_for(farm, EventLog.Level.DEBUG, "%s finds nothing left on %s and moves on" % [enemy.label(), farm.label()])
+			ignored[farm] = true
+			_to_road(enemy)
+			return false
 	if _nibble > 0.0:
 		# Eating the crops: a quick bob and a wiggle of the head.
 		_nibble -= delta
@@ -106,10 +120,10 @@ func _chase(enemy: Enemy, delta: float) -> bool:
 	var lost: bool = not is_instance_valid(foe) or foe.dead or (foe is Civilian and not (foe is Hero) and not (foe as Civilian).is_exposed()) or foe.grid_pos.distance_to(enemy.grid_pos) > reach * 1.6
 	if lost:
 		foe = null
-		if _farm_ok():
+		if _farm_ok() and not ignored.has(farm):
 			_go_farm(enemy, farm)
 			return true
-		var f := _nearest_farm(enemy, float(enemy.spec()["farm_search"]))
+		var f := _nearest_farm(enemy, float(enemy.spec()["farm_search"]), ignored)
 		if f:
 			_go_farm(enemy, f)
 			return true
@@ -154,11 +168,11 @@ static func _nearest_victim(enemy: Enemy, r: float) -> Node:
 	return best
 
 
-static func _nearest_farm(enemy: Enemy, r: float) -> Farm:
+static func _nearest_farm(enemy: Enemy, r: float, skip: Dictionary = {}) -> Farm:
 	var best: Farm = null
 	var best_d := r
 	for b in enemy.game.world.buildings:
-		if b is Farm and b.working():
+		if b is Farm and b.working() and not skip.has(b):
 			var d := Vector2(b.tile).distance_to(enemy.grid_pos)
 			if d <= best_d:
 				best_d = d

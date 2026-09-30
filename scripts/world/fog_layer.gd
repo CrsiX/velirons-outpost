@@ -38,6 +38,9 @@ var _texture: ImageTexture
 var _pixels := PackedByteArray()
 var _watch_timer := 0.0
 var _explored_dirty := true
+## Units outside explore around them (Config.UNIT_REVEAL). Off on co-op
+## clients: the host explores and tells them.
+var units_explore := true
 
 
 func setup(p_map: MapData, villages: int = 1) -> void:
@@ -163,6 +166,8 @@ func update_surveillance() -> void:
 			var radius: float = node.sight_radius()
 			if radius <= 0.0:
 				continue
+			if units_explore and not (node is Building):
+				_unit_reveal(node, vid)
 			var base := vid * area
 			var c: Vector2 = node.sight_center()
 			var r := int(ceil(radius))
@@ -176,6 +181,14 @@ func update_surveillance() -> void:
 		watched_of[vid] = all.slice(vid * area, (vid + 1) * area)
 	map.watched = watched_of[local].duplicate()
 	_rebuild()
+
+
+## A unit outside explores around it; the hero learns from it (unless he's
+## exploring: his Explore job counts that).
+func _unit_reveal(node: Node, vid: int) -> void:
+	var c: Vector2 = node.sight_center()
+	if reveal(c, Config.UNIT_REVEAL, vid) > 0 and node is Hero and (node as Hero).mode != Hero.Mode.EXPLORE:
+		(node as Hero).on_action("explore")
 
 
 ## Which village an observer watches for: its own (units, buildings, a

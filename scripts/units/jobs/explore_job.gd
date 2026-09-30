@@ -11,7 +11,10 @@ extends CivilianJob
 enum State { RESTING, EXPLORING, RETURNING }
 
 var state := State.RESTING
+## The unexplored tile it's after, and the walkable tile it goes to for it
+## (the same, or the edge of forest / rock it can only look into).
 var target := Vector2i(-1, -1)
+var stand := Vector2i(-1, -1)
 var reveal := Config.EXPLORER_REVEAL
 var _reveal_timer := 0.0
 var _think_timer := 0.0
@@ -74,7 +77,7 @@ func _pick_target() -> bool:
 	var chosen := choose_target(w.current_tile() if not w.at_home else w.village.center)
 	if chosen == Vector2i(-1, -1):
 		return false
-	if not w.head_out(chosen):
+	if not w.head_out(stand):
 		return false
 	if chosen != target:
 		w.village.events.debug("%s heads for the fog at %s" % [w.label(), str(chosen)])
@@ -92,19 +95,35 @@ func choose_target(from: Vector2i) -> Vector2i:
 		if other != w and other.exploring_target() != Vector2i(-1, -1):
 			claims.append(other.exploring_target())
 	# The nearest fog from here (a breadth-first search that stops early).
-	var best_local := pathing.nearest_unexplored(from, explored, claims, Config.EXPLORER_CLAIM_RADIUS, Config.EXPLORER_CLAIM_PENALTY)
-	if best_local == Vector2i(-1, -1):
-		return best_local
+	var local := pathing.nearest_frontier(from, explored, claims, Config.EXPLORER_CLAIM_RADIUS, Config.EXPLORER_CLAIM_PENALTY)
+	if local.is_empty():
+		return Vector2i(-1, -1)
+	var best_local: Vector2i = local[0]
+	var best_local_stand: Vector2i = local[1]
 	# The nearest fog from the village (its walking distances are cached).
 	var best_home := Vector2i(-1, -1)
+	var best_home_stand := Vector2i(-1, -1)
 	var best_home_score := Pathing.UNREACHABLE
 	for i in explored.size():
 		if explored[i] == 1:
 			continue
+		var t := Vector2i(i % map.size, i / map.size)
 		var d := from_village[i]
+		var at := t
+		if d >= Pathing.UNREACHABLE:
+			# Can't walk there: seen from the nearest walkable tile next to it.
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var nx := t.x + dx
+					var ny := t.y + dy
+					if nx < 0 or ny < 0 or nx >= map.size or ny >= map.size:
+						continue
+					var nd := from_village[ny * map.size + nx]
+					if nd < Pathing.UNREACHABLE and nd + 1 < d:
+						d = nd + 1
+						at = Vector2i(nx, ny)
 		if d >= best_home_score:
 			continue
-		var t := Vector2i(i % map.size, i / map.size)
 		var penalty := 0
 		for c in claims:
 			if Vector2(c).distance_to(Vector2(t)) < Config.EXPLORER_CLAIM_RADIUS:
@@ -113,10 +132,13 @@ func choose_target(from: Vector2i) -> Vector2i:
 		if d + penalty < best_home_score:
 			best_home_score = d + penalty
 			best_home = t
+			best_home_stand = at
 	# Don't wander off while much closer unexplored ground is still waiting.
-	var local_from_village := from_village[map.index(best_local)]
+	var local_from_village := from_village[map.index(best_local_stand)]
 	if best_home != Vector2i(-1, -1) and local_from_village > best_home_score * Config.EXPLORER_WANDER_FACTOR + Config.EXPLORER_WANDER_SLACK:
+		stand = best_home_stand
 		return best_home
+	stand = best_local_stand
 	return best_local
 
 

@@ -72,6 +72,7 @@ func setup(p_game: Game, seed_value: int) -> void:
 	lava.setup(map, true)
 	ground_top.setup(map, true)
 	fog.setup(map, game.villages.size())
+	fog.units_explore = not game.is_client
 	fog.revealed.connect(_on_revealed)
 	fog.explored_changed.connect(_on_explored)
 	warnings.setup(game)

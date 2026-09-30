@@ -179,6 +179,10 @@ const MINE_REACH := 2.0
 ## Sight: explored tiles are only "under surveillance" (enemies visible) near
 ## observers. Building sight is measured from the edge of the footprint.
 const UNIT_SIGHT := 4.0  # villagers and soldiers outside the walls
+## Every unit of ours outside (villagers, the hero, soldiers, summons,
+## caravans) also explores the fog this close around it, whatever it's doing.
+## The hero earns XP for it like for exploring. Explorers see further.
+const UNIT_REVEAL := 1.8
 const HUT_SIGHT := 4.0  # every intact hut
 const GATE_SIGHT := 3.0  # every gate, manned or not
 const LIGHTSTONE_SIGHT := 5.5  # light stones watch this far, entirely passively
@@ -654,6 +658,9 @@ const ENEMIES := {
 		"farm_search": 6.0, "bite_range": 2.5,
 		"farm_eat": 0.2, "gate_eat": 5, "gate_eat_share": 0.05,
 		"vanish_after": 30.0,
+		# An empty farm that grew nothing for give_up_after s: every
+		# give_up_check s each rat on it gives it up for good with give_up_chance.
+		"give_up_after": 15.0, "give_up_check": 1.0, "give_up_chance": 0.5,
 	},
 }
 ## Rat packs: from `from_wave`, a wave gets rat packs with chance `chance`:

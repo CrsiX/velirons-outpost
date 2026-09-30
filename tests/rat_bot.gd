@@ -72,6 +72,9 @@ func _run() -> void:
 	await _test_ui()
 	await _test_teardown()
 	await _test_boxed_in_tower()
+	await _test_fog()
+	await _test_safe_walls()
+	await _test_rats_give_up()
 	_test_hero_bar()
 	_test_people()
 	Engine.time_scale = 1.0
@@ -236,6 +239,7 @@ func _test_farm() -> void:
 	while t < Config.ENEMIES["rat"]["vanish_after"] + 8.0:
 		await get_tree().process_frame
 		t += get_process_delta_time()
+		farm.stored = maxf(farm.stored, 10.0)  # (food left: they stay)
 		if is_instance_valid(kept) and not kept.dead and int(t * 10) % 50 == 0:
 			kept.behavior.on_damaged(kept, game.hero)  # (someone keeps after it)
 		gone = not is_instance_valid(rs[0]) or rs[0].dead
@@ -688,3 +692,211 @@ func _test_people() -> void:
 	check(game.construction.ruined_huts().is_empty() and not hud._rebuild_huts_button.visible, "then the rest; the button goes away")
 	hud.toggle_people(false)
 	check(not hud._people_panel.visible, "and closes again")
+
+
+# --- fog: every unit explores a little; explorers look into forest --------------------------------
+
+func unexplore(tiles: Array[Vector2i]) -> void:
+	var vid := game.player_village.id
+	for t in tiles:
+		game.fog.explored_of[vid][game.map.index(t)] = 0
+		game.map.explored[game.map.index(t)] = 0
+
+
+func around(c: Vector2i, r: float) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var n := int(ceil(r))
+	for dy in range(-n, n + 1):
+		for dx in range(-n, n + 1):
+			var t := c + Vector2i(dx, dy)
+			if game.map.in_bounds(t) and Vector2(dx, dy).length() <= r:
+				out.append(t)
+	return out
+
+
+func _test_fog() -> void:
+	var v := game.player_village
+	var vid := v.id
+	await clear_enemies()
+	# The hero building (not exploring) uncovers the fog around him, and learns.
+	game.fog.disabled = false  # (this bot plays without fog)
+	var hero := game.hero
+	_bench_hero(false)
+	hero.set_mode(Hero.Mode.BUILD)
+	await frames(2)
+	hero.set_process(false)  # (stands still where we put him)
+	var spot := game.world.pathing.nearest_walkable(v.center + Vector2i(9, -3))
+	hero.at_home = false
+	hero.visible = true
+	hero.set_grid_pos(Vector2(spot))
+	var patch := around(spot, 1.5)
+	unexplore(patch)
+	var xp0 := hero.xp
+	await wait(0.6)
+	check(patch.all(func(t: Vector2i) -> bool: return game.fog.is_explored_by(vid, t)) and hero.xp > xp0, "the hero in Build mode uncovers the fog around him and earns XP (+%d)" % (hero.xp - xp0))
+	hero.set_process(true)
+	hero.set_mode(Hero.Mode.REST)
+	_bench_hero(true)
+	# So does a villager at work (no XP: only the hero learns).
+	ensure_role("gatherer")
+	var ga: Civilian = game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "gatherer")[0]
+	ga.set_process(false)
+	ga.at_home = false
+	ga.visible = true
+	var spot2 := game.world.pathing.nearest_walkable(v.center + Vector2i(-9, 4))
+	ga.set_grid_pos(Vector2(spot2))
+	var patch2 := around(spot2, 1.5)
+	unexplore(patch2)
+	await wait(0.6)
+	check(patch2.all(func(t: Vector2i) -> bool: return game.fog.is_explored_by(vid, t)), "a villager outside uncovers the fog around it too")
+	ga.set_process(true)
+	ga.arrive_home()
+	game.fog.disabled = true
+	# Unexplored forest next to open land: the explorer goes to its edge and looks in.
+	game.fog.reveal_all()
+	var edge := Vector2i(-1, -1)
+	for y in game.map.size:
+		for x in game.map.size:
+			var t := Vector2i(x, y)
+			if edge == Vector2i(-1, -1) and game.map.get_terrain(t) == MapData.Terrain.FOREST and Vector2(t).distance_to(Vector2(v.center)) < 20.0:
+				for nb in [t + Vector2i(1, 0), t + Vector2i(-1, 0), t + Vector2i(0, 1), t + Vector2i(0, -1)]:
+					if game.world.pathing.is_walkable(nb) and game.world.pathing.can_reach(v.center, nb):
+						edge = t
+	var woods: Array[Vector2i] = around(edge, 1.5).filter(func(t: Vector2i) -> bool: return game.map.get_terrain(t) == MapData.Terrain.FOREST)
+	unexplore(woods)
+	ensure_role("explorer")
+	var ex: Explorer = game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "explorer")[0]
+	var goal := ex.job.choose_target(v.center)
+	check(woods.has(goal) and game.world.pathing.is_walkable(ex.job.stand) and Vector2(ex.job.stand).distance_to(Vector2(goal)) < 1.5, "fog over forest by open land is a target: the explorer stands at its edge (%s for %s)" % [ex.job.stand, goal])
+	var seen := await wait_until(func() -> bool: return woods.all(func(t: Vector2i) -> bool: return game.fog.is_explored_by(vid, t)), 90.0)
+	check(seen, "and uncovers it from there")
+	# Land cleared of trees: walkable, reachable and explored like any other.
+	var wall: Array[Vector2i] = []
+	var base := game.world.pathing.nearest_walkable(v.center + Vector2i(0, 10))
+	for dx in range(-6, 7):
+		wall.append(base + Vector2i(dx, 2))
+	var keep := {}
+	for t in wall:
+		keep[t] = game.map.get_terrain(t)
+		game.map.set_terrain(t, MapData.Terrain.FOREST)
+		game.world.pathing.set_solid(t, false)
+	var beyond := base + Vector2i(0, 4)
+	game.map.set_terrain(beyond, MapData.Terrain.GRASS)
+	game.world.pathing.set_solid(beyond, false)
+	var blocked := game.world.pathing.find_path(base, beyond).size()
+	for t in wall.slice(5, 8):
+		game.world.remove_tree(t)
+	var cut: Array[Vector2i] = wall.slice(5, 8)
+	var path := game.world.pathing.find_path(base, beyond)
+	var through := false
+	for p in path:
+		through = through or cut.has(Vector2i(p))
+	check(game.world.pathing.can_reach(base, wall[6]) and not path.is_empty() and (through or blocked > 0), "paths lead through a cut forest (%d steps)" % path.size())
+	unexplore(cut)
+	var goal2 := ex.job.choose_target(base)
+	check(cut.has(goal2) and ex.job.stand == goal2, "unexplored cleared land is walked onto (%s)" % goal2)
+	for t in keep:
+		game.map.set_terrain(t, keep[t])
+		game.world.pathing.set_solid(t, false)
+
+
+# --- inside the walls is safe ----------------------------------------------------------------
+
+func _test_safe_walls() -> void:
+	var v := game.player_village
+	await clear_enemies()
+	ensure_role("builder")
+	var hut: Hut = null
+	for h in v.intact_huts():
+		if hut == null and not is_instance_valid((h as Hut).resident):
+			hut = h
+	if hut == null:
+		hut = v.intact_huts()[0]
+	hut.destroy("test")
+	# A goblin right outside the nearest gate, rooted there.
+	var gate: Vector2i = v.gates[0]
+	for g in v.gates:
+		if Vector2(g).distance_to(Vector2(hut.tile)) < Vector2(gate).distance_to(Vector2(hut.tile)):
+			gate = g
+	var out := gate + (gate - v.center).sign()
+	var gob := spawn("goblin", Vector2(game.world.pathing.nearest_walkable(out)), 50.0)
+	gob.speed = 0.0
+	check(Vector2(hut.tile).distance_to(gob.grid_pos) < Config.EVADE_RADIUS, "(a goblin %.1f tiles from the ruined hut, outside the gate)" % Vector2(hut.tile).distance_to(gob.grid_pos))
+	var b: Civilian = game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "builder")[0]
+	var fled := false
+	game.economy.add("materials", 100)
+	game.construction.order_rebuild(hut)
+	var built := false
+	var t := 0.0
+	while t < 60.0 and not built:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		fled = fled or b.evading
+		built = hut.is_intact()
+	check(built and not fled, "a builder rebuilds a hut inside the walls with a goblin at the gate, and doesn't flee")
+	# Inside the walls nobody can be hurt.
+	b.set_process(false)
+	b.at_home = false
+	b.visible = true
+	b.set_grid_pos(Vector2(hut.tile))
+	var hp0 := b.hp
+	b.take_damage(5.0, gob)
+	check(b.inside_walls() and not b.is_exposed() and b.hp == hp0, "inside the walls a villager can't be hurt")
+	b.set_grid_pos(Vector2(game.world.pathing.nearest_walkable(out + (gate - v.center).sign() * 2)))
+	check(not b.inside_walls() and b.is_exposed(), "outside it can")
+	b.set_process(true)
+	b.arrive_home()
+	await clear_enemies()
+
+
+# --- rats move on from empty farms -----------------------------------------------------------------
+
+func _test_rats_give_up() -> void:
+	await clear_enemies()
+	var farms: Array = game.world.buildings.filter(func(x: Building) -> bool: return x is Farm and x.working())
+	var decoy: Farm = farms[0]
+	# A bare farm (nothing stored, nobody working it): rats don't stay.
+	game.population.unassign_farmer(decoy)
+	decoy.stored = 0.0
+	decoy.since_gain = 100.0
+	var road := game.world.pathing.nearest_road(decoy.tile)
+	var r := spawn("rat", Vector2(road))
+	var came := await wait_until(func() -> bool: return decoy.rats.has(r), 20.0)
+	var t0 := 0.0
+	var left := false
+	while t0 < 12.0 and not left:
+		await get_tree().process_frame
+		t0 += get_process_delta_time()
+		left = not is_instance_valid(r) or r.dead or (r.behavior as RatBehavior).ignored.has(decoy)
+	check(came and left and t0 < 10.0, "a rat on an empty, barren farm gives it up within seconds (%.1f s)" % t0)
+	var back := false
+	for k in 120:
+		await get_tree().process_frame
+		back = back or (is_instance_valid(r) and decoy.rats.has(r))
+	check(not back, "and never goes back to it")
+	await clear_enemies()
+	# A stocked farm: eaten empty first; 15 s after its last growth they move on, before 30 s.
+	decoy.stored = 2.0
+	decoy.since_gain = 0.0
+	var pack: Array = []  # (untyped: rats that moved on and left are freed)
+	for k in 3:
+		pack.append(spawn("rat", Vector2(road) + Vector2(0.3 * k, 0.0)))
+	await wait_until(func() -> bool: return pack.all(func(x) -> bool: return decoy.rats.has(x)), 20.0)
+	check(decoy.barren(0.0) == false, "(it has food at first)")
+	var t := 0.0
+	var gone := false
+	var gave_up := {}  # rat -> how long the farm had grown nothing when it gave up
+	while t < 40.0 and not gone:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		gone = true
+		for x in pack:
+			if is_instance_valid(x) and not x.dead:
+				if (x.behavior as RatBehavior).ignored.has(decoy):
+					if not gave_up.has(x):
+						gave_up[x] = decoy.since_gain
+				else:
+					gone = false
+	var earliest: float = gave_up.values().min() if not gave_up.is_empty() else -1.0
+	check(gone and not gave_up.is_empty() and decoy.stored <= 0.001 and earliest >= Config.ENEMIES["rat"]["give_up_after"] - 0.05 and t < Config.ENEMIES["rat"]["vanish_after"], "they eat it empty, then move on once it grew nothing for %.0f s (first at %.1f s, all within %.0f s of arriving: before vanishing at %.0f s)" % [Config.ENEMIES["rat"]["give_up_after"], earliest, t, Config.ENEMIES["rat"]["vanish_after"]])
+	await clear_enemies()

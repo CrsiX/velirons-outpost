@@ -381,7 +381,7 @@ func _test_help() -> void:
 	check(game.command("hero_mode", {"mode": Hero.Mode.SUPPORT})["ok"] and hero.support_target == v1, "Support mode picks the other village")
 	hud._refresh_hero()
 	await frames(2)
-	check(hud._hero_support_button.is_visible_in_tree() and v1.village_name in hud._hero_support_button.text and "defends it" in hud._hero_mode_hint.text, "the panel shows a second toggle with the village he supports")
+	check(hud._hero_support_button.is_visible_in_tree() and v1.village_name in hud._hero_support_button.text and "defends it" in hud._hero_mode_hint.text and hud._hero_mode_word.text == "supporting" and hud._hero_mode_buttons[Hero.Mode.SUPPORT].visible, "the panel shows a second toggle with the village he supports (\"Hero: supporting\", Support icon shown in co-op)")
 	var walk := {"ok": true, "last": hero.grid_pos}
 	var there := await wait_until(func() -> bool:
 		walk["ok"] = walk["ok"] and hero.grid_pos.distance_to(walk["last"]) < 1.0

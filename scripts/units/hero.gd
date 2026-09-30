@@ -24,6 +24,10 @@ signal changed
 
 enum Mode { DEFEND, BUILD, EXPLORE, GATHER, TRAIN, REST, SUPPORT }
 const MODE_NAMES: Array[String] = ["Defend", "Build", "Explore", "Gather", "Train", "Rest", "Support"]
+## The mode as a word for his panel's title ("Hero: defending").
+const MODE_WORDS: Array[String] = ["defending", "building", "exploring", "gathering", "training", "resting", "supporting"]
+## Icon per mode (art/mode_*.svg).
+const MODE_ICONS: Array[String] = ["mode_defend", "mode_build", "mode_explore", "mode_gather", "mode_train", "mode_rest", "mode_support"]
 
 var mode := Mode.DEFEND
 var xp := 0

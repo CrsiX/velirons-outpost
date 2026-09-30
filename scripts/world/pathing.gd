@@ -160,6 +160,28 @@ func distance_field(from: Vector2i) -> PackedInt32Array:
 ## The unexplored tile (explored[i] == 0) nearest to `from` by walking, where
 ## tiles within `claim_radius` of a `claims` tile count `penalty` steps more.
 ## Stops as soon as nothing closer can turn up. (-1, -1) if none is reachable.
+## The nearest fog to explore from `from`: [the unexplored tile, where to
+## stand for it], or [] if none. A walkable unexplored tile is walked onto;
+## unexplored forest, rock or water is looked into from the walkable tile
+## next to it (explorers see into it; they can't walk there).
+func nearest_frontier(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], claim_radius: float, penalty: int) -> Array[Vector2i]:
+	var n := map.size
+	var stand := nearest_unexplored(from, explored, claims, claim_radius, penalty)
+	if stand == Vector2i(-1, -1):
+		return []
+	var i := map.index(stand)
+	if explored[i] == 0:
+		return [stand, stand]
+	for k in 8:
+		var t := stand + Vector2i([-1, 1, 0, 0, -1, 1, -1, 1][k], [0, 0, -1, 1, -1, -1, 1, 1][k])
+		if map.in_bounds(t) and explored[map.index(t)] == 0:
+			return [t, stand]
+	return []
+
+
+## Walkable tile from which the nearest fog is explored (see nearest_frontier):
+## an unexplored walkable tile, or one next to unexplored ground nobody can
+## walk on. Breadth first from `from`; fog near `claims` costs `penalty` extra.
 func nearest_unexplored(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], claim_radius: float, penalty: int) -> Vector2i:
 	var n := map.size
 	from = nearest_walkable(from)
@@ -185,10 +207,24 @@ func nearest_unexplored(from: Vector2i, explored: PackedByteArray, claims: Array
 		var d := dist[i]
 		if d >= best_score:
 			break  # (breadth first: nothing nearer is left)
-		if explored[i] == 0:
-			var score := d
+		var x := i % n
+		var y := i / n
+		# Fog here, or fog next to it that can't be walked on (seen from here).
+		var fog := explored[i] == 0
+		if not fog:
+			for k in 8:
+				var ddx := -1 if k in [0, 4, 6] else (1 if k in [1, 5, 7] else 0)
+				var ddy := -1 if k in [2, 4, 5] else (1 if k in [3, 6, 7] else 0)
+				if x + ddx < 0 or x + ddx >= n or y + ddy < 0 or y + ddy >= n:
+					continue
+				var jj := i + steps[k]
+				if walk[jj] == 0 and explored[jj] == 0:
+					fog = true
+					break
+		if fog:
+			var score := d if explored[i] == 0 else d + 1
 			if not claims.is_empty():
-				var t := Vector2(i % n, i / n)
+				var t := Vector2(x, y)
 				for c in claims:
 					if Vector2(c).distance_to(t) < claim_radius:
 						score += penalty
@@ -196,8 +232,6 @@ func nearest_unexplored(from: Vector2i, explored: PackedByteArray, claims: Array
 			if score < best_score:
 				best_score = score
 				best = i
-		var x := i % n
-		var y := i / n
 		for k in 8:
 			var dx := -1 if k in [0, 4, 6] else (1 if k in [1, 5, 7] else 0)
 			var dy := -1 if k in [2, 4, 5] else (1 if k in [3, 6, 7] else 0)

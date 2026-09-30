@@ -87,7 +87,10 @@ const HERO_HP_BAR := 7.0  # px
 var _hero_panel: PanelContainer
 var _hero_stats: RichTextLabel
 var _hero_status: Label
-var _hero_mode_button: Button
+## One icon button per mode (Hero.Mode order); the title shows the current one.
+var _hero_mode_buttons: Array[Button] = []
+var _hero_mode_icon: TextureRect
+var _hero_mode_word: Label
 var _hero_mode_hint: Label
 var _hero_train_label: Label
 var _hero_train_bar: ProgressBar
@@ -606,10 +609,14 @@ func _build_hero_panel() -> void:
 	_hero_panel.add_child(v)
 	var head := HBoxContainer.new()
 	v.add_child(head)
+	head.add_theme_constant_override("separation", 6)
 	head.add_child(_icon(Art.tex("icon_hero"), 34))
-	var title := _label("Hero", 22, UiTheme.GOLD)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
+	head.add_child(_label("Hero:", 22, UiTheme.GOLD))
+	_hero_mode_icon = _icon(Art.tex(Hero.MODE_ICONS[0]), 30)
+	head.add_child(_hero_mode_icon)
+	_hero_mode_word = _label(Hero.MODE_WORDS[0], 22, UiTheme.GOLD)
+	_hero_mode_word.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(_hero_mode_word)
 	var close := _button("X", Vector2(44, 40))
 	close.pressed.connect(func() -> void: _hero_panel.visible = false)
 	head.add_child(close)
@@ -621,6 +628,29 @@ func _build_hero_panel() -> void:
 	_hero_stats.add_theme_font_size_override("normal_font_size", 17)
 	_hero_stats.add_theme_color_override("default_color", UiTheme.TEXT)
 	v.add_child(_hero_stats)
+	# His modes, one icon each (the current one framed).
+	var modes := HBoxContainer.new()
+	modes.add_theme_constant_override("separation", 5)
+	v.add_child(modes)
+	for i in Hero.MODE_NAMES.size():
+		var b := _button("", Vector2(42, 46))
+		b.icon = Art.tex(Hero.MODE_ICONS[i])
+		b.expand_icon = true
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.tooltip_text = Hero.MODE_NAMES[i]
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(func() -> void:
+			_do("hero_mode", {"mode": i})
+			_refresh_hero())
+		modes.add_child(b)
+		_hero_mode_buttons.append(b)
+	_hero_support_button = _button("", Vector2(0, 48))
+	_hero_support_button.tooltip_text = "Tap to pick the village he supports"
+	_hero_support_button.pressed.connect(func() -> void:
+		var cur: Village = game.hero.support_target
+		_do("hero_support", {"target": _next_other(cur.id if cur else -1)})
+		_refresh_hero())
+	v.add_child(_hero_support_button)
 	_hero_level_button = _button("", Vector2(0, 46))
 	_hero_level_button.tooltip_text = "Spend the hero's XP on his next level: more HP, a harder sword"
 	_hero_level_button.pressed.connect(func() -> void:
@@ -630,22 +660,6 @@ func _build_hero_panel() -> void:
 	_hero_status = _label("", 15, UiTheme.MUTED)
 	_hero_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_hero_status)
-	_hero_mode_button = _button("", Vector2(0, 50))
-	_hero_mode_button.tooltip_text = "Tap to change what the hero does"
-	_hero_mode_button.pressed.connect(func() -> void:
-		var next := (game.hero.mode + 1) % Hero.MODE_NAMES.size()
-		if next == Hero.Mode.SUPPORT and game.villages.size() < 2:
-			next = (next + 1) % Hero.MODE_NAMES.size()  # single player: nobody to support
-		_do("hero_mode", {"mode": next})
-		_refresh_hero())
-	v.add_child(_hero_mode_button)
-	_hero_support_button = _button("", Vector2(0, 48))
-	_hero_support_button.tooltip_text = "Tap to pick the village he supports"
-	_hero_support_button.pressed.connect(func() -> void:
-		var cur: Village = game.hero.support_target
-		_do("hero_support", {"target": _next_other(cur.id if cur else -1)})
-		_refresh_hero())
-	v.add_child(_hero_support_button)
 	_hero_mode_hint = _label("", 14, UiTheme.MUTED)
 	_hero_mode_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_hero_mode_hint)
@@ -840,7 +854,12 @@ func _refresh_hero() -> void:
 	_hero_level_button.disabled = top or not h.can_level_up() or h.village != game.player_village
 	var st := h.status_text()
 	_hero_status.text = "Now: " + st
-	_hero_mode_button.text = "Mode: %s   (tap to change)" % h.mode_name()
+	_hero_mode_icon.texture = Art.tex(Hero.MODE_ICONS[h.mode])
+	_hero_mode_word.text = Hero.MODE_WORDS[h.mode]
+	for i in _hero_mode_buttons.size():
+		var b := _hero_mode_buttons[i]
+		b.visible = i != Hero.Mode.SUPPORT or game.villages.size() > 1  # (single player: nobody to support)
+		UiTheme.style_selected(b, i == h.mode)
 	_hero_mode_hint.text = HERO_MODE_HINTS[h.mode]
 	_hero_support_button.visible = h.mode == Hero.Mode.SUPPORT
 	if h.support_target:

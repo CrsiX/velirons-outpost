@@ -9,6 +9,8 @@ var farmer: Node:
 var stored := 0.0
 ## Rats eating the crops right now (enemy -> true): the farm grows nothing.
 var rats: Dictionary = {}
+## Seconds since the stock last grew (rats give up on empty, barren farms).
+var since_gain := 0.0
 var _ground_bonus := -1.0  # (computed once: the ground doesn't change)
 var _field: Sprite2D
 var _shed: Sprite2D
@@ -52,8 +54,15 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	if game.is_client:
 		return
+	var before := stored
 	if working() and farmer != null and not has_rats():
 		stored = minf(stored + rate() * delta, Config.FARM_CAPACITY)
+	since_gain = 0.0 if stored > before else since_gain + delta
+
+
+## Nothing stored and nothing grown for `seconds`: nothing left for rats.
+func barren(seconds: float) -> bool:
+	return stored <= 0.001 and since_gain >= seconds
 
 
 func add_rat(rat: Node) -> void:

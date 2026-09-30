@@ -526,12 +526,19 @@ func _run() -> void:
 	check(not game.population.civilians.has(hero) and game.population.count() == 4, "the hero doesn't count as a villager")
 	check(hud._hero_button.is_visible_in_tree() and Hud.button_text(hud._hero_button) == "XP 0" and hud._hero_button.icon == Art.tex("icon_hero"), "top bar shows the hero button with his XP")
 	await tap(center(hud._hero_button))
-	check(hud._hero_panel.visible and "Defend" in hud._hero_mode_button.text, "tapping the hero button opens his panel (mode: Defend)")
+	check(hud._hero_panel.visible and hud._hero_mode_word.text == "defending" and hud._hero_mode_icon.texture == Art.tex("mode_defend"), "tapping the hero button opens his panel: \"Hero: defending\" with the shield")
+	var shown := hud._hero_mode_buttons.filter(func(b: Button) -> bool: return b.visible)
+	check(shown.size() == Hero.MODE_NAMES.size() - 1 and not hud._hero_mode_buttons[Hero.Mode.SUPPORT].visible and shown.all(func(b: Button) -> bool: return b.text == "" and b.icon != null), "one icon button per mode (no Support in single player)")
 	var seen_modes: Array[String] = []
-	for i in Hero.MODE_NAMES.size() - 1:  # (Support is skipped in single player)
-		await tap(center(hud._hero_mode_button))
+	var words: Array[String] = []
+	for i in [Hero.Mode.BUILD, Hero.Mode.EXPLORE, Hero.Mode.GATHER, Hero.Mode.TRAIN, Hero.Mode.REST, Hero.Mode.DEFEND]:
+		await tap(center(hud._hero_mode_buttons[i]))
 		seen_modes.append(hero.mode_name())
-	check(seen_modes == ["Build", "Explore", "Gather", "Train", "Rest", "Defend"], "the mode button cycles Defend > Build > Explore > Gather > Train > Rest > Defend")
+		words.append(hud._hero_mode_word.text)
+	check(seen_modes == ["Build", "Explore", "Gather", "Train", "Rest", "Defend"] and words == ["building", "exploring", "gathering", "training", "resting", "defending"], "tapping a mode's icon sets it; the title names it (%s)" % str(words))
+	check(hud._hero_mode_buttons[Hero.Mode.DEFEND].has_theme_stylebox_override("normal") and not hud._hero_mode_buttons[Hero.Mode.REST].has_theme_stylebox_override("normal"), "the current mode's icon is framed")
+	var col := hud._hero_mode_buttons[0].get_parent()
+	check(col.get_index() < hud._hero_level_button.get_index() and hud._hero_stats.get_index() < col.get_index() and hud._hero_goto_button.get_index() == hud._hero_goto_button.get_parent().get_child_count() - 1, "order: stats, mode icons, level up, ..., Go to hero last")
 	hero.set_mode(Hero.Mode.TRAIN)
 	hud._refresh_hero()
 	check(hud._hero_train_label.visible and "Training Grounds" in hud._hero_train_label.text and "Training Grounds" in hud._hero_mode_hint.text, "Train mode says it needs training grounds")

@@ -1436,6 +1436,62 @@ def icons():
   <circle cx="30" cy="15" r="4" fill="#e8ffd4"/>
   <path d="M52 10 L54 16 L60 18 L54 20 L52 26 L50 20 L44 18 L50 16Z" fill="#f2ffe0" stroke="{INK}" stroke-width="1.5" stroke-linejoin="round"/>
   <path d="M8 16 L9 19 L12 20 L9 21 L8 24 L7 21 L4 20 L7 19Z" fill="#f2ffe0"/>""")
+    # Hero modes (the icon row in his panel).
+    icon_svg("mode_defend", f"""
+  <path d="M32 5 L54 12 L54 30 C54 44 44 54 32 59 C20 54 10 44 10 30 L10 12 Z" fill="#6a7fa0" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M32 11 L48 16 L48 30 C48 41 41 49 32 53 Z" fill="#8ea3c4"/>
+  <path d="M32 5 L32 59 M10 28 L54 28" stroke="{GOLD}" stroke-width="4"/>
+  <path d="M32 5 L54 12 L54 30 C54 44 44 54 32 59 C20 54 10 44 10 30 L10 12 Z" fill="none" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>""")
+    icon_svg("mode_build", f"""
+  <g transform="rotate(-45 32 32)">
+    <path d="M25 4 L39 4 L39 44 L25 44 Z" fill="#c9ced6" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M25 8 L21 10 L25 13 L21 16 L25 19 L21 22 L25 25 L21 28 L25 31 L21 34 L25 37 L21 40 L25 43" fill="none" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="23" y="44" width="18" height="15" rx="4" fill="{WOOD_L}" stroke="{INK}" stroke-width="3"/>
+    <rect x="28" y="48" width="8" height="7" rx="2" fill="{WOOD_D}"/>
+  </g>
+  <g transform="rotate(45 32 32) translate(32 32) scale(0.86) translate(-32 -32)">
+    <rect x="28" y="16" width="8" height="46" rx="3" fill="#b08a58" stroke="{INK}" stroke-width="3.5"/>
+    <rect x="12" y="4" width="40" height="15" rx="3" fill="#8a929c" stroke="{INK}" stroke-width="4"/>
+    <rect x="15" y="7" width="16" height="4" rx="2" fill="#b8c0ca"/>
+  </g>""")
+    icon_svg("mode_explore", f"""
+  <circle cx="32" cy="32" r="25" fill="#3a78c8" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M18 16 Q26 12 30 18 Q34 24 27 28 Q22 32 24 38 Q26 44 20 46 Q12 40 11 30 Q12 20 18 16Z" fill="#5fae4a" stroke="{INK}" stroke-width="2"/>
+  <path d="M38 12 Q48 14 53 24 Q55 34 50 42 Q44 46 40 40 Q37 34 42 30 Q46 26 40 22 Q35 18 38 12Z" fill="#5fae4a" stroke="{INK}" stroke-width="2"/>
+  <path d="M34 48 Q40 46 44 50 Q40 55 34 55Z" fill="#5fae4a" stroke="{INK}" stroke-width="2"/>
+  <path d="M15 22 Q18 15 26 12" fill="none" stroke="#a8d4ff" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="25" fill="none" stroke="{INK}" stroke-width="3.5"/>""")
+    icon_svg("mode_gather", f"""
+  <path d="M12 20 Q32 2 52 20" fill="none" stroke="{WOOD}" stroke-width="5" stroke-linecap="round"/>
+  <path d="M12 20 Q32 2 52 20" fill="none" stroke="{INK}" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+  <circle cx="32" cy="24" r="12" fill="#ece4cf" stroke="{INK}" stroke-width="3"/>
+  <rect x="27" y="31" width="10" height="7" rx="2" fill="#ece4cf" stroke="{INK}" stroke-width="2.5"/>
+  <circle cx="27.5" cy="23" r="3.2" fill="{INK}"/>
+  <circle cx="36.5" cy="23" r="3.2" fill="{INK}"/>
+  <path d="M30 34 L30 38 M34 34 L34 38" stroke="{INK}" stroke-width="1.5"/>
+  <path d="M8 30 L56 30 L50 58 L14 58 Z" fill="#c08a48" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M11 39 L53 39 M13 48 L51 48" stroke="#8a5a26" stroke-width="3"/>
+  <path d="M22 30 L24 58 M32 30 L32 58 M42 30 L40 58" stroke="#8a5a26" stroke-width="2.5"/>""")
+    icon_svg("mode_train", f"""
+  <path d="M38 50 L40 18 Q41 12 47 12 Q53 12 54 18 L56 50 Z" fill="#e0a070" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <circle cx="47" cy="12" r="9" fill="#e8a878" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M42 9 Q47 6 52 9 M42 14 Q47 11 52 14" fill="none" stroke="{INK}" stroke-width="2" stroke-linecap="round"/>
+  <path d="M4 44 Q4 36 12 35 Q18 20 32 22 Q42 24 46 36 L56 48 Q58 58 46 59 L10 59 Q4 56 4 44 Z" fill="#e8a878" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M16 34 Q24 26 34 29" fill="none" stroke="#ffd2b0" stroke-width="4" stroke-linecap="round"/>
+  <path d="M20 46 Q32 44 42 50" fill="none" stroke="#c07850" stroke-width="3" stroke-linecap="round"/>""")
+    icon_svg("mode_rest", f"""
+  <path d="M6 44 L16 44 L6 56 L16 56" fill="none" stroke="{INK}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M6 44 L16 44 L6 56 L16 56" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M22 26 L36 26 L22 42 L36 42" fill="none" stroke="{INK}" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M22 26 L36 26 L22 42 L36 42" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M40 6 L58 6 L40 26 L58 26" fill="none" stroke="{INK}" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M40 6 L58 6 L40 26 L58 26" fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>""")
+    icon_svg("mode_support", f"""
+  <path d="M1 50 L16 26 L32 36 L16 61 Z" fill="#6a7fa0" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M63 50 L48 26 L32 36 L48 61 Z" fill="#a0503a" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <ellipse cx="32" cy="30" rx="18" ry="12" fill="#e8a878" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M24 20 L24 28 M30 19 L30 28 M36 19 L36 28 M42 21 L42 28" stroke="{INK}" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M16 32 Q24 40 34 36" fill="none" stroke="{INK}" stroke-width="2.5" stroke-linecap="round"/>""")
     # HP: a plain bold red heart with a highlight.
     icon_svg("icon_hp", f"""
   <path d="M32 56 C20 46 6 36 6 22 C6 13 13 7 21 7 C26 7 30 10 32 14 C34 10 38 7 43 7 C51 7 58 13 58 22 C58 36 44 46 32 56Z" fill="#d8342c" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>

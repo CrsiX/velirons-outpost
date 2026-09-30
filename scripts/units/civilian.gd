@@ -58,7 +58,7 @@ func _process(delta: float) -> void:
 		net_follow(delta)  # the host simulates; we just follow
 		return
 	_home_regen(delta)
-	if not at_home and not evading and wants_to_evade():
+	if not at_home and not evading and wants_to_evade() and not inside_walls():
 		_threat_timer -= delta
 		if _threat_timer <= 0.0:
 			_threat_timer = 0.25
@@ -175,9 +175,17 @@ func arrive_home() -> void:
 	_set_moving(false)
 
 
-## Out and about where enemies can get at it (not at home, not inside a mine).
+## Out and about where enemies can get at it (not at home, not inside a mine,
+## not inside the village walls).
 func is_exposed() -> bool:
-	return not at_home and not dead and visible
+	return not at_home and not dead and visible and not inside_walls()
+
+
+## Within the village walls: always safe. Enemies never get in (at a gate
+## they burn a hut, or a rat eats food, and are gone), so villagers working
+## there (a builder on a hut) carry on through an attack.
+func inside_walls() -> bool:
+	return game.map.in_village(current_tile())
 
 
 ## Hurt by an enemy (a blow, a bite, a spell): at 0 HP the villager dies.
