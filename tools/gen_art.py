@@ -1377,6 +1377,117 @@ def goblin():
     a.save("unit_goblin")
 
 
+def thief():
+    """Lean, hooded figure in dark green with a dagger and a face mask."""
+    def extra(a, layer):
+        if layer == "back":
+            a.line([(-6, -24), (-11, -14)], INK, 3.6)  # back arm
+            a.line([(-6, -24), (-11, -14)], "#233a20", 2.2)
+        else:
+            a.poly([(-4.5, -31), (6, -31), (5.5, -28), (-4, -28)], "#141a12", INK, 0.8)  # mask
+            a.line([(4, -21), (11, -17)], INK, 3.6)  # dagger arm, low and forward
+            a.line([(4, -21), (11, -17)], "#2e4a2a", 2.2)
+            a.line([(10, -16.5), (12, -19.5)], INK, 2.2)  # guard
+            a.poly([(11, -18.5), (13, -17), (20, -23), (19.5, -24)], "#c8ccd4", INK, 0.9)  # blade
+            a.poly([(-8, -14), (-2, -14), (-3, -9), (-8, -10)], "#6a5230", INK, 0.9)  # belt pouch
+    person("unit_thief", ("#2e4a2a", "#233a20"), hood="#1f3320", skin="#c8a080", extra=extra)
+
+
+def gargoyle(frame):
+    """Grey stone gargoyle with horns and bat wings, flying (no shadow: the
+    game draws it on the ground). Two frames: wings up / wings down."""
+    a = Art()
+    stone, stone_d, stone_l = "#7c7f86", "#5d6068", "#a2a6ae"
+    if frame == 0:  # wings up
+        wing_l = [(-5, -26), (-24, -46), (-20, -38), (-28, -36), (-21, -30), (-26, -24), (-8, -20)]
+        wing_r = [(5, -26), (24, -46), (20, -38), (28, -36), (21, -30), (26, -24), (8, -20)]
+    else:  # wings down
+        wing_l = [(-5, -24), (-26, -20), (-21, -16), (-27, -11), (-19, -10), (-21, -4), (-7, -16)]
+        wing_r = [(5, -24), (26, -20), (21, -16), (27, -11), (19, -10), (21, -4), (7, -16)]
+    a.poly(wing_l, stone_d, INK, 1.3)
+    a.poly(wing_r, stone_d, INK, 1.3)
+    a.line([wing_l[0], wing_l[1]], stone_l, 1.4)
+    a.line([wing_r[0], wing_r[1]], stone_l, 1.4)
+    # hunched body and tucked legs with claws
+    a.poly([(-7, -12), (7, -12), (9, -26), (-9, -26)], stone, INK, 1.4)
+    a.poly([(0, -12), (7, -12), (9, -26), (0, -26)], stone_d, stroke=None, opacity=0.6)
+    a.line([(-4, -12), (-6, -6)], INK, 4.2)
+    a.line([(4, -12), (6, -6)], INK, 4.2)
+    a.line([(-4, -12), (-6, -6)], stone, 2.6)
+    a.line([(4, -12), (6, -6)], stone, 2.6)
+    a.line([(-8, -5), (-4, -6)], INK, 1.6)
+    a.line([(4, -6), (8, -5)], INK, 1.6)
+    a.poly([(1, -10), (-2, -3), (4, -1), (2, -3)], stone_d, INK, 1)  # tail
+    # head: horns, heavy brow, glowing eyes, fangs
+    a.poly([(-5, -34), (-9, -41), (-3, -36)], stone_l, INK, 1)
+    a.poly([(5, -34), (9, -41), (3, -36)], stone_l, INK, 1)
+    a.ellipse(0, -31, 6.5, 5.5, stone, INK, 1.3)
+    a.line([(-5, -33), (5, -33)], INK, 1.6)
+    a.ellipse(-2.3, -31.5, 1.3, 1, "#ffb02a")
+    a.ellipse(2.3, -31.5, 1.3, 1, "#ffb02a")
+    a.poly([(-2, -27.5), (-1, -25), (0, -27.5)], "#e8e4dc", INK, 0.5)
+    a.poly([(0.5, -27.5), (1.5, -25), (2.5, -27.5)], "#e8e4dc", INK, 0.5)
+    a.save("unit_gargoyle" if frame == 0 else "unit_gargoyle_flap", fixed=(-31, -50, 31, 3))
+
+
+def necromancer():
+    """Black robe and hood, pale face, a staff with a skull and a green glow."""
+    def extra(a, layer):
+        if layer == "back":
+            a.line([(12, -2), (12, -46)], INK, 3.4)  # staff
+            a.line([(12, -2), (12, -46)], "#3a2a1a", 1.8)
+            a.ellipse(12, -49, 6.5, 6.5, "#6aff8a", opacity=0.3)  # glow
+            a.ellipse(12, -49, 4, 3.6, "#e8e4d8", INK, 1)  # skull
+            a.ellipse(10.6, -49.4, 1.1, 1.1, "#1a3a1a")
+            a.ellipse(13.4, -49.4, 1.1, 1.1, "#1a3a1a")
+            a.line([(10.8, -46.6), (13.2, -46.6)], INK, 0.8)
+        else:
+            a.poly([(-5, -24), (5, -24), (3, -20), (-3, -20)], "#2a4a2a", INK, 0.8)  # green collar
+            a.line([(4, -21), (11, -30)], INK, 3.8)  # hand on the staff
+            a.line([(4, -21), (11, -30)], "#15121a", 2.2)
+            a.ellipse(11.5, -30.5, 1.8, 1.8, "#d8d0c8", INK, 0.8)
+            a.ellipse(3, -33.5, 1, 1, "#6aff8a")  # green eye
+    person("unit_necromancer", ("#1a161e", "#110e14"), hood="#15121a", robe=True, skin="#d8d0c8", extra=extra)
+
+
+def corpse_thief():
+    a = Art()
+    a.ellipse(0, 0, 17, 5.5, "#000", opacity=0.3)
+    a.ellipse(0, 1, 13, 4, "#3a1a14", opacity=0.5)
+    a.poly([(-12, -2), (6, -6), (9, -1), (-10, 3)], "#2e4a2a", INK, 1.1)  # tunic
+    a.ellipse(12, -3, 5.5, 4.5, "#1f3320", INK, 1.2)  # hooded head
+    a.poly([(-2, 5), (-12, 8), (-11.5, 9), (-1.5, 6)], "#c8ccd4", INK, 0.8)  # dagger
+    for x, y in ((-16, -2), (-18, 1), (-14, 3)):  # spilled coins
+        a.ellipse(x, y, 2, 1.3, GOLD, INK, 0.7)
+    a.save("corpse_thief")
+
+
+def corpse_gargoyle():
+    a = Art()
+    a.ellipse(0, 0, 20, 6.5, "#000", opacity=0.3)
+    stone, stone_d = "#7c7f86", "#5d6068"
+    a.poly([(-10, -2), (4, -7), (10, -1), (-6, 4)], stone, INK, 1.2)  # body, cracked
+    a.line([(-2, -4), (2, 1)], INK, 1)
+    a.poly([(-18, -2), (-10, -6), (-8, 0), (-16, 4), (-13, 0)], stone_d, INK, 1.1)  # broken wing
+    a.ellipse(13, -3, 5, 4, stone, INK, 1.2)  # head
+    a.poly([(15, -6), (19, -10), (16, -4)], "#a2a6ae", INK, 0.8)  # horn
+    for x, y, r in ((-4, 6, 2.2), (6, 5, 1.6), (18, 3, 1.8)):  # rubble
+        a.ellipse(x, y, r, r * 0.7, stone_d, INK, 0.8)
+    a.save("corpse_gargoyle")
+
+
+def corpse_necromancer():
+    a = Art()
+    a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
+    a.poly([(-14, 0), (6, -5), (10, 2), (-10, 5)], "#1a161e", INK, 1.2)  # robe
+    a.ellipse(12, -3, 5, 4.5, "#15121a", INK, 1.2)  # hood
+    a.line([(-16, 7), (8, 9)], INK, 3)  # staff on the ground
+    a.line([(-16, 7), (8, 9)], "#3a2a1a", 1.6)
+    a.ellipse(-18, 6, 3.4, 3, "#e8e4d8", INK, 0.9)  # skull
+    a.ellipse(-18, 6, 5, 4.5, "#6aff8a", opacity=0.18)
+    a.save("corpse_necromancer")
+
+
 def rat():
     """A small grey-brown rat, side view, facing right (the game flips it)."""
     a = Art()
@@ -3355,6 +3466,13 @@ def main():
     witch()
     corpse_ork()
     corpse_witch()
+    thief()
+    gargoyle(0)
+    gargoyle(1)
+    necromancer()
+    corpse_thief()
+    corpse_gargoyle()
+    corpse_necromancer()
     spell_bolt()
     spell_glow()
     arrow()

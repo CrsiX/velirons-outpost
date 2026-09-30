@@ -1,7 +1,8 @@
 class_name GatherJob
 extends CivilianJob
 ## Stays in the village until enemies have been killed, then walks out to
-## collect "safe" corpses (no living enemy nearby), up to `capacity` per trip,
+## collect "safe" corpses (no living enemy nearby) on land its village has
+## explored, up to `capacity` per trip,
 ## and brings them home for gold and a little food. Loot a downed hero dropped
 ## (a sack) is picked up first, and paid out at home like his loot.
 
@@ -10,6 +11,8 @@ enum State { RESTING, TO_CORPSE, LOOTING, RETURNING }
 var state := State.RESTING
 var target: Corpse = null
 var carried: Array[String] = []  # enemy kinds
+## Stolen gold found on thieves' corpses, carried with them.
+var carried_gold := 0
 ## A dropped-loot sack on the way to / being picked up, and loot carried.
 var sack: Treasure = null
 var loot: Dictionary = {}
@@ -76,6 +79,7 @@ func tick(delta: float) -> void:
 			w.sprite.rotation = sin(w._bob) * 0.15
 			if _timer <= 0.0:
 				carried.append(target.kind)
+				carried_gold += target.extra_gold
 				w.village.events.debug("%s collected %s" % [w.label(), target.label()])
 				w.game.corpses.remove(target)
 				target = null
@@ -100,7 +104,9 @@ func tick(delta: float) -> void:
 func _pick_next() -> bool:
 	if _pick_sack():
 		return true
-	var options := w.game.corpses.available()
+	# (only corpses on land its village has explored: none in the black fog)
+	var vid := w.village.id
+	var options := w.game.corpses.available().filter(func(c: Corpse) -> bool: return w.game.fog.is_explored_by(vid, c.tile()))
 	if options.is_empty():
 		return false
 	var from := w.current_tile() if not w.at_home else w.village.center
@@ -182,8 +188,9 @@ func _deliver() -> void:
 			w.float_text(what, UiTheme.GOLD)
 	if carried.is_empty():
 		return
-	var gold := 0
+	var gold := carried_gold
 	var food := 0
+	carried_gold = 0
 	for k in carried:
 		gold += Config.enemy_stat_int(k, "gold_on_collect")
 		food += Config.enemy_stat_int(k, "food_on_collect")
@@ -209,6 +216,7 @@ func after_evade() -> void:
 func release() -> void:
 	_release_target()
 	carried.clear()
+	carried_gold = 0
 	loot = {}
 	_sack.visible = false
 

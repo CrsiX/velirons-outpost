@@ -662,6 +662,42 @@ const ENEMIES := {
 		# give_up_check s each rat on it gives it up for good with give_up_chance.
 		"give_up_after": 15.0, "give_up_check": 1.0, "give_up_chance": 0.5,
 	},
+	# A goblin's strength, quicker on its feet. At a gate it burns nothing: it
+	# steals max(a random whole number from wave to 2 x wave, steal_share of
+	# the gold), never more than there is, and runs back to where it came
+	# from. Killed with the loot, its corpse holds the stolen gold as well.
+	"thief": {
+		"name": "Thief", "art": "thief", "behavior": "thief",
+		"hp": 20.0, "speed": 1.5,
+		"damage": 4.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 2, "gold_on_collect": 3, "food_on_collect": 0,
+		"steal_share": 0.04,
+	},
+	# The first flyer: it keeps to the roads, but no ground slows it (swamps,
+	# fords). Fights like a goblin. Only ranged attacks (towers, archers,
+	# mages) and fire elementals (flyers too) can go for it; ground melee
+	# units (the hero, shield bearers, earth elementals) only hit back when it
+	# hits them and their own blow is ready (a counter-strike).
+	"gargoyle": {
+		"name": "Gargoyle", "art": "gargoyle", "behavior": "melee", "flying": true,
+		"hp": 40.0, "speed": 0.8,
+		"damage": 7.0, "attack_cooldown": 1.2,
+		"gold_on_kill": 8, "gold_on_collect": 0, "food_on_collect": 4,
+	},
+	# No attack: it raises the dead. When a corpse of another enemy lies within
+	# raise_range it stops and channels on it for cast_time seconds; then the
+	# corpse rises again as its old kind with raise_hp of its max HP, which
+	# drains to 0 over raise_decay seconds. After a raise it walks for at least
+	# cast_time before the next one. Killed, a raised enemy pays raise_gold of
+	# its kind's kill gold (rounded down); decayed, nothing. A raised enemy's
+	# corpse, and a necromancer's own, can never be raised.
+	"necromancer": {
+		"name": "Necromancer", "art": "necromancer", "behavior": "necromancer", "revivable": false,
+		"hp": 20.0, "speed": 0.95,
+		"damage": 0.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 25, "gold_on_collect": 0, "food_on_collect": 0,
+		"cast_time": 8.0, "raise_range": 3.0, "raise_hp": 0.5, "raise_decay": 20.0, "raise_gold": 0.5,
+	},
 }
 ## Rat packs: from `from_wave`, a wave gets rat packs with chance `chance`:
 ## `packs` of them (more every `more_every` waves), `size` rats each, spawned
@@ -688,8 +724,14 @@ const WAVE_MIX := {
 	"skeleton": {"from_wave": 2, "share": 0.12, "growth": 0.06, "max_share": 0.35},
 	"ork": {"from_wave": 3, "share": 0.10, "growth": 0.03, "max_share": 0.25},
 	"witch": {"from_wave": 5, "share": 0.10, "growth": 0.02, "max_share": 0.2},
+	"thief": {"from_wave": 7, "share": 0.08, "growth": 0.01, "max_share": 0.15},
+	"gargoyle": {"from_wave": 10, "share": 0.06, "growth": 0.01, "max_share": 0.15},
+	"necromancer": {"from_wave": 20, "share": 0.04, "growth": 0.005, "max_share": 0.08},
 }
 const WAVE_FILLER := "goblin"
+## The special kinds together never take more than this share of a wave
+## (scaled down evenly beyond it), so late waves keep some of everything.
+const WAVE_MIX_CAP := 0.85
 
 
 ## Kind -> count for wave n (counts add up to wave_size(n)).
@@ -697,11 +739,17 @@ static func wave_composition(n: int) -> Dictionary:
 	var total := wave_size(n)
 	var out := {}
 	var used := 0
+	var shares := {}
+	var sum := 0.0
 	for kind in WAVE_MIX:
 		var mix: Dictionary = WAVE_MIX[kind]
 		if n < mix["from_wave"]:
 			continue
-		var share := minf(mix["share"] + mix["growth"] * (n - mix["from_wave"]), mix["max_share"])
+		shares[kind] = minf(mix["share"] + mix["growth"] * (n - mix["from_wave"]), mix["max_share"])
+		sum += shares[kind]
+	var k := WAVE_MIX_CAP / sum if sum > WAVE_MIX_CAP else 1.0
+	for kind in shares:
+		var share: float = shares[kind] * k
 		var c := maxi(1, roundi(total * share))
 		c = mini(c, total - used)
 		if c > 0:

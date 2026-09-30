@@ -143,6 +143,8 @@ func _share(n: int, hp_scale: float, spawns: Array[Vector2i], target: Village) -
 					spec["gap"] = float(rp["gap"])
 				pack.append(spec)
 			var pos := _rng.randi_range(0, out.size())
+			while pos < out.size() and out[pos].has("gap"):
+				pos += 1  # (never into the middle of another pack)
 			for k in pack.size():
 				out.insert(pos + k, pack[k])
 	return out
@@ -234,10 +236,14 @@ func _spawn(spec: Dictionary) -> void:
 	var g: Enemy = ENEMY_SCRIPT.new()
 	g.setup(game, route, spec["hp_scale"], spec.get("kind", Config.WAVE_FILLER))
 	g.wave = wave
+	_add(g, target)
+	g.target_village.events.debug("%s appears at %s" % [g.label(), str(route[0])])
+
+
+func _add(g: Enemy, target: Village) -> void:
 	g.uid = game.next_id(g.kind)
 	g.nid = game.register(g)
 	g.target_village = target
-	g.target_village.events.debug("%s appears at %s" % [g.label(), str(route[0])])
 	g.killed.connect(_on_enemy_killed)
 	g.reached_gate.connect(_on_enemy_reached_gate)
 	g.vanished.connect(func(_e: Enemy) -> void: _enemy_gone())
@@ -245,18 +251,60 @@ func _spawn(spec: Dictionary) -> void:
 	_alive += 1
 
 
+## Villages whose first raised dead are logged already (at Info; later: Debug).
+var _raise_logged := {}
+
+
+## A necromancer's spell is done: the corpse rises as its old kind, with a
+## share of its HP draining away (Enemy.make_raised), and walks the roads to
+## the necromancer's village. It counts as alive for the wave.
+func raise_corpse(c: Corpse, by: Enemy) -> Enemy:
+	if not game.corpses.corpses.has(c):
+		return null
+	var target: Village = by.target_village if is_instance_valid(by.target_village) else game.villages[0]
+	var pathing := game.world.pathing
+	var road := pathing.nearest_road(c.tile())
+	var field := target.id if game.villages.size() > 1 and pathing.enemy_distance(road, target.id) < Pathing.UNREACHABLE else -1
+	var route := pathing.enemy_route(road, _rng, field)
+	var g: Enemy = ENEMY_SCRIPT.new()
+	g.setup(game, route, c.hp_scale, c.kind)
+	g.wave = c.wave
+	var pts := PackedVector2Array([c.grid_pos])
+	pts.append_array(g.path)
+	g.set_grid_pos(c.grid_pos)
+	g.follow(pts)
+	var spec: Dictionary = by.spec()
+	g.make_raised(float(spec["raise_hp"]), float(spec["raise_decay"]))
+	game.corpses.remove(c)
+	_add(g, target)
+	var first := not _raise_logged.has(target.id)
+	_raise_logged[target.id] = true
+	target.events.add(EventLog.Level.INFO if first else EventLog.Level.DEBUG, "A necromancer raised a dead %s!" % str(g.spec()["name"]).to_lower() if first else "%s raised %s from the dead" % [by.label(), g.label()])
+	Combat.burst(game, "warp", g.position + Vector2(0, -16), 0.8)
+	return g
+
+
 func _on_enemy_killed(g: Enemy) -> void:
 	# The kill pays whoever made it (tower, elemental, hero); else the village it attacked.
 	var gold := Config.enemy_stat_int(g.kind, "gold_on_kill")
+	if g.raised:  # (its gold was paid once already; drained away: nothing)
+		gold = 0 if g.decayed else floori(gold * float(Config.ENEMIES["necromancer"]["raise_gold"]))
 	var v := game.village_of(g.killer)
 	if v == null:
 		v = g.target_village if is_instance_valid(g.target_village) else game.villages[0]
-	v.economy.add("gold", gold)
-	v.events.debug("killed %s (by %s, +%d gold)" % [g.label(), game.who(g.killer), gold])
-	game.world.float_text("+%d gold" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
-	Sfx.play("coin")
+	if g.decayed:
+		v.events.debug("%s crumbles to dust" % g.label())
+	else:
+		v.economy.add("gold", gold)
+		v.events.debug("killed %s (by %s, +%d gold)" % [g.label(), game.who(g.killer), gold])
+		if gold > 0:
+			game.world.float_text("+%d gold" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
+			Sfx.play("coin")
 	if g.spec().get("corpse", true):
-		game.corpses.spawn(g.kind, g.wave, g.grid_pos)
+		var c := game.corpses.spawn(g.kind, g.wave, g.grid_pos)
+		c.extra_gold = g.loot_gold
+		c.hp_scale = g.hp_scale
+		c.revivable = c.revivable and not g.raised
 	_enemy_gone()
 
 

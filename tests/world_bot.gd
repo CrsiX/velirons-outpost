@@ -417,6 +417,7 @@ func _test_game() -> void:
 	hero.set_mode(Hero.Mode.REST)
 	await wait_until(func() -> bool: return hero.at_home, 60.0)
 	game.fog.reveal(Vector2(mine.tile), 2.5, v.id)
+	game.unlocks.erase("miner")  # (someone may have passed a mine while exploring)
 	logs.clear()
 	var walker: Civilian = game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "explorer")[0]
 	walker.set_process(false)

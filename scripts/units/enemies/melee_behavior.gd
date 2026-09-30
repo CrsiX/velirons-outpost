@@ -37,4 +37,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 		_attack_timer = enemy.stat("attack_cooldown")
 		enemy.swing(_foe.grid_pos)
 		_foe.take_damage(enemy.stat("damage"), enemy)
+		# A flyer out of a ground fighter's reach still gets hit back.
+		if enemy.flies() and is_instance_valid(_foe) and not _foe.dead and _foe.has_method("counter_strike"):
+			_foe.counter_strike(enemy)
 	return true

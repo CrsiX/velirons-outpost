@@ -326,8 +326,8 @@ func _pick_enemy() -> Enemy:
 	var centre := Vector2(base().center)
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or e.grid_pos.distance_to(centre) > Config.HERO["leash"]:
-			continue
+		if e.dead or e.flies() or e.grid_pos.distance_to(centre) > Config.HERO["leash"]:
+			continue  # (flyers: out of his sword's reach, he only hits back)
 		var near_gate := false
 		for g in base().gates:
 			near_gate = near_gate or e.grid_pos.distance_to(Vector2(g)) <= Config.HERO["alert_radius"]
@@ -365,6 +365,17 @@ func _chase() -> void:
 	p[0] = grid_pos
 	p[p.size() - 1] = target.grid_pos
 	follow(p)
+
+
+## A flyer hit him: if his blow is ready he strikes back at once.
+func counter_strike(e: Enemy) -> void:
+	if dead or _attack_timer > 0.0 or e.dead:
+		return
+	_attack_timer = Config.HERO["attack_cooldown"]
+	var t := target
+	target = e
+	_strike()
+	target = t
 
 
 func _strike() -> void:

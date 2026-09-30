@@ -441,6 +441,21 @@ func station_unit_name(t: MilitaryPost) -> String:
 
 # --- raids and defeat -----------------------------------------------------------------
 
+## A thief at a gate steals max(a random whole number from wave to 2 x
+## wave, steal_share of the gold), never more than the village has.
+## Returns the amount (it carries it away, see ThiefBehavior).
+func thief_steals(g: Enemy) -> int:
+	var v: Village = g.target_village if is_instance_valid(g.target_village) else player_village
+	var gold := int(v.economy.amount("gold"))
+	var w := maxi(1, waves.wave)
+	var n := maxi(maxi(randi_range(w, 2 * w), roundi(gold * float(g.spec()["steal_share"]))), 0)
+	n = mini(n, gold)
+	v.economy.add("gold", -n)
+	v.events.info("%s got into the village and stole %d gold" % [g.label().capitalize(), n])
+	v.toast("A thief stole %d gold!" % n, Color("ffb07a"))
+	return n
+
+
 func on_enemy_reached_gate(g: Enemy) -> void:
 	if game_over:
 		return
@@ -695,6 +710,8 @@ func _reroute_from(v: Village) -> void:
 		var e := node as Enemy
 		if e.dead or e.target_village != v:
 			continue
+		if e.behavior is ThiefBehavior and (e.behavior as ThiefBehavior).escaping:
+			continue  # (running off with its loot)
 		var nv := nearest_standing_village(e.current_tile())
 		if nv:
 			e.retarget(nv, rng)

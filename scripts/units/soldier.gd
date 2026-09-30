@@ -150,15 +150,28 @@ func _nearest_foe() -> Enemy:
 		home = Vector2(farm.tile)
 	var best: Enemy = null
 	var best_d := INF
+	var melee := unit.role() == "melee"
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
 		if e.dead or e.grid_pos.distance_to(home) > reach:
 			continue
+		if melee and e.flies():
+			continue  # (out of reach: it only gets hit back, see counter_strike)
 		var d := e.grid_pos.distance_to(grid_pos)
 		if d < best_d:
 			best_d = d
 			best = e
 	return best
+
+
+## A flyer hit it: a melee unit whose blow is ready strikes back at once.
+func counter_strike(e: Enemy) -> void:
+	if dead or mode != Mode.SORTIE or unit.role() != "melee" or _strike_cd > 0.0 or e.dead:
+		return
+	_strike_cd = unit.stat("cooldown")
+	face(e.grid_pos)
+	Combat.attack(game, unit, muzzle_position(), e, self)
+	recoil()
 
 
 func _close_in(delta: float, to: Vector2) -> void:

@@ -88,8 +88,8 @@ func _pick_target() -> void:
 	var best_d := INF
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead:
-			continue
+		if e.dead or (e.flies() and not flies()):
+			continue  # (an earth elemental can't reach a flyer; a fire elemental flies too)
 		var d := e.grid_pos.distance_to(grid_pos)
 		# Only enemies it can see, and not too far from its tower.
 		if d <= Config.SUMMON["sight"] and e.grid_pos.distance_to(Vector2(home)) <= Config.SUMMON["leash"] + Config.SUMMON["sight"] and d < best_d:
@@ -129,6 +129,22 @@ func _wander(delta: float) -> void:
 			if not p.is_empty():
 				follow(p)
 				return
+
+
+## Fire elementals fly (they hover): they fight flyers like anyone.
+func flies() -> bool:
+	return Config.SUMMONS[summon]["hover"]
+
+
+## A flyer hit it: if its blow is ready it strikes back at once.
+func counter_strike(e: Enemy) -> void:
+	if dead or _attack_timer > 0.0 or e.dead:
+		return
+	_attack_timer = Config.SUMMON["attack_cooldown"]
+	var t := target
+	target = e
+	_strike()
+	target = t
 
 
 func _strike() -> void:

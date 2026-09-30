@@ -853,6 +853,8 @@ func _test_safe_walls() -> void:
 
 func _test_rats_give_up() -> void:
 	await clear_enemies()
+	for u in game.army.stationed():  # (no barracks turning out for the rats)
+		game.army.unstation(u)
 	var farms: Array = game.world.buildings.filter(func(x: Building) -> bool: return x is Farm and x.working())
 	var decoy: Farm = farms[0]
 	# A bare farm (nothing stored, nobody working it): rats don't stay.

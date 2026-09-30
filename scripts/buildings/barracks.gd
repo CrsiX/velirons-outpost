@@ -106,9 +106,12 @@ func enemy_near() -> bool:
 func _enemy_near() -> bool:
 	var c := act_center()
 	var r := activation_range()
+	var only_melee := units().all(func(u: MilitaryUnit) -> bool: return u.role() == "melee")
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if not e.dead and e.grid_pos.distance_to(c) <= r:
+		if e.dead or (e.flies() and only_melee):
+			continue  # (melee benches can't go for flyers)
+		if e.grid_pos.distance_to(c) <= r:
 			return true
 	return false
 

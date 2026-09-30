@@ -12,3 +12,15 @@ func tick(_enemy: Enemy, _delta: float) -> bool:
 ## Called when the enemy is hurt by `source` (a Tower, or a melee defender).
 func on_damaged(_enemy: Enemy, _source: Node) -> void:
 	pass
+
+
+## Called when the enemy's walk ends (normally: at a gate). Return true when
+## the behavior took care of it (a thief turns back with its loot); false and
+## it has reached the gate.
+func on_path_end(_enemy: Enemy) -> bool:
+	return false
+
+
+## Called once when the enemy dies or vanishes.
+func on_death(_enemy: Enemy) -> void:
+	pass

@@ -14,6 +14,14 @@ var claimed_by: Node = null
 var uid := 0
 ## Network id (Game.register).
 var nid := 0
+## Gold a thief stole, paid out with the corpse.
+var extra_gold := 0
+## The HP factor of its wave (a raised enemy keeps it).
+var hp_scale := 1.0
+## Can a necromancer raise it? (Not a raised enemy's, nor a necromancer's.)
+var revivable := true
+## The necromancer raising it right now.
+var raising_by: Node = null
 
 
 func label() -> String:
@@ -26,6 +34,7 @@ func setup(p_game: Game, p_kind: String, p_wave: int, at: Vector2) -> void:
 	wave = p_wave
 	grid_pos = at
 	position = Iso.to_world(at)
+	revivable = Config.ENEMIES[kind].get("revivable", true)
 	var s := Art.sprite("corpse_" + Config.ENEMIES[kind]["art"])
 	s.flip_h = randf() < 0.5
 	add_child(s)
