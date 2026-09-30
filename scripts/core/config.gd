@@ -35,8 +35,7 @@ const VILLAGE_LAYOUT: Array[String] = [
 	"TWGWT",
 ]
 
-const START_RESOURCES := {"gold": 15000, "food": 12000, "materials": 7000}
-#const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
+const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
 const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explorer"]
 ## Built for free near the village at the start (the farm on the guaranteed
 ## farm plot, the camp close to the forest); the starting farmer and forester work them.
