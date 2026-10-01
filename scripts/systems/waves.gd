@@ -264,7 +264,7 @@ func _check_rats(delta: float) -> void:
 		rat_deadline = Config.RAT_WAVE_LINGER
 
 
-func _spawn(spec: Dictionary) -> void:
+func _spawn(spec: Dictionary) -> Enemy:
 	var target: Village = spec.get("village")
 	var coop := game.villages.size() > 1
 	if target == null or (coop and target.fallen):
@@ -281,6 +281,7 @@ func _spawn(spec: Dictionary) -> void:
 	g.from_lair = is_instance_valid(lair) and (lair as MonsterLair).woke_at == wave
 	_add(g, target)
 	g.target_village.events.debug("%s appears at %s" % [g.label(), str(route[0])])
+	return g
 
 
 func _add(g: Enemy, target: Village) -> void:
@@ -289,9 +290,21 @@ func _add(g: Enemy, target: Village) -> void:
 	g.target_village = target
 	g.killed.connect(_on_enemy_killed)
 	g.reached_gate.connect(_on_enemy_reached_gate)
-	g.vanished.connect(func(_e: Enemy) -> void: _enemy_gone())
+	g.vanished.connect(func(e: Enemy) -> void: _enemy_gone(e))
 	game.world.objects.add_child(g)
 	_alive += 1
+
+
+## Debug (Commands._debug): an enemy of `kind` at a random edge spawn of
+## `target`, now, wave or no wave. It doesn't count for the wave.
+func debug_spawn(kind: String, target: Village) -> Enemy:
+	var points: Array = target.home_spawns if game.villages.size() > 1 and not target.home_spawns.is_empty() else game.map.edge_spawns
+	if points.is_empty():
+		return null
+	var g := _spawn(_spec(kind, points[_rng.randi() % points.size()], pow(Config.WAVE_HP_GROWTH, maxi(wave, 1) - 1), target))
+	_alive -= 1
+	_uncounted[g] = true
+	return g
 
 
 ## Villages whose first raised dead are logged already (at Info; later: Debug).
@@ -348,15 +361,22 @@ func _on_enemy_killed(g: Enemy) -> void:
 		c.extra_gold = g.loot_gold
 		c.hp_scale = g.hp_scale
 		c.revivable = c.revivable and not g.raised
-	_enemy_gone()
+	_enemy_gone(g)
 
 
 func _on_enemy_reached_gate(g: Enemy) -> void:
 	game.on_enemy_reached_gate(g)
-	_enemy_gone()
+	_enemy_gone(g)
 
 
-func _enemy_gone() -> void:
+## Debug enemies (debug_spawn), which don't count for the wave.
+var _uncounted := {}
+
+
+func _enemy_gone(g: Enemy = null) -> void:
+	if _uncounted.erase(g):
+		changed.emit()
+		return
 	_alive -= 1
 	if not in_progress() and wave > 0:
 		rat_deadline = -1.0

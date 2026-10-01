@@ -35,7 +35,6 @@ const VILLAGE_LAYOUT: Array[String] = [
 	"TWGWT",
 ]
 
-#const START_RESOURCES := {"gold": 15000, "food": 12000, "materials": 7000}
 const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
 const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explorer"]
 ## Built for free near the village at the start (the farm on the guaranteed
@@ -44,6 +43,7 @@ const START_BUILDINGS: Array[String] = ["farm", "camp"]
 const START_REVEAL_RADIUS := 7.5
 
 ## Debug / sandbox switches.
+const DEBUG := true  # true: the settings dialog has a Debug page (resources, XP, reveal, unlocks, enemies)
 const REVEAL_MAP := false  # true: the whole map starts explored (terrain known)
 const DISABLE_FOG := false  # true: no fog of war at all; everything is visible
 

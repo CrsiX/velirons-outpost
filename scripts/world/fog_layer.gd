@@ -55,7 +55,7 @@ func setup(p_map: MapData, villages: int = 1) -> void:
 	# Grid space -> iso world: x axis goes down-right, y axis down-left.
 	transform = Transform2D(Vector2(Iso.HALF_W, Iso.HALF_H), Vector2(-Iso.HALF_W, Iso.HALF_H), Vector2.ZERO)
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	var side := map.size + 2  # one dark pixel of padding around the map
+	var side := map.size + 2  # one pixel of padding around the map (see _rebuild)
 	_pixels.resize(side * side * 2)
 	_image = Image.create_from_data(side, side, false, Image.FORMAT_LA8, _pixels)
 	_texture = ImageTexture.create_from_image(_image)
@@ -208,13 +208,16 @@ func _rebuild() -> void:
 	for i in side * side:
 		px[i * 2] = FOG_LUMA
 		px[i * 2 + 1] = UNEXPLORED_ALPHA
-	for y in map.size:
-		for x in map.size:
-			var i := y * map.size + x
+	# The padding repeats the edge tiles: the fog is drawn over the objects, and
+	# a dark rim would cut off whatever tall stands on the edge (trees, peaks,
+	# lairs). The map's dark rim is MapEdgeFade, under the objects.
+	for y in side:
+		for x in side:
+			var i := clampi(y - 1, 0, map.size - 1) * map.size + clampi(x - 1, 0, map.size - 1)
 			var alpha := UNEXPLORED_ALPHA
 			if map.explored[i] == 1:
 				alpha = 0 if map.watched[i] == 1 else UNWATCHED_ALPHA
-			px[((y + 1) * side + x + 1) * 2 + 1] = alpha
+			px[(y * side + x) * 2 + 1] = alpha
 	if px == _pixels:
 		return
 	_pixels = px

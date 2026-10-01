@@ -43,6 +43,7 @@ const HANDLERS := {
 	"restore_ruin": "_restore_ruin",
 	"assign_miner": "_assign_miner",
 	"unassign_miner": "_unassign_miner",
+	"debug": "_debug",
 }
 
 const CARAVAN_SCRIPT := preload("res://scripts/units/caravan.gd")
@@ -416,4 +417,43 @@ func _set_speed(v: Village, a: Dictionary) -> Dictionary:
 	if i < 0 or i >= Game.SPEEDS.size():
 		return fail("Unknown speed")
 	game.apply_speed(i)
+	return ok()
+
+
+## Config.DEBUG only (the settings dialog's Debug page). `what`: "gold",
+## "food", "materials" (+DEBUG_AMOUNT), "xp" (the hero), "reveal" (the whole
+## map explored, the fog of war stays), "unlock" (every locked unit and role),
+## "spawn" (an enemy of `kind` at the edge, outside the waves' rules).
+const DEBUG_AMOUNT := 1000
+
+
+func _debug(v: Village, a: Dictionary) -> Dictionary:
+	if not Config.DEBUG:
+		return fail("Debugging is off")
+	var what := str(a.get("what", ""))
+	match what:
+		"gold", "food", "materials":
+			v.economy.add(what, DEBUG_AMOUNT)
+		"xp":
+			if v.hero == null:
+				return fail("No hero")
+			v.hero.xp += DEBUG_AMOUNT
+			v.hero.changed.emit()
+		"reveal":
+			var all: Array[Vector2i] = []
+			for i in game.map.size * game.map.size:
+				all.append(Vector2i(i % game.map.size, i / game.map.size))
+			game.fog.explore_tiles(all, v.id)
+		"unlock":
+			for key: String in Config.LOCKED:
+				game.unlock(key, v)
+		"spawn":
+			var kind := str(a.get("kind", ""))
+			if not Config.ENEMIES.has(kind):
+				return fail("Unknown enemy '%s'" % kind)
+			if game.waves.debug_spawn(kind, v) == null:
+				return fail("No spawn point")
+		_:
+			return fail("Unknown debug action '%s'" % what)
+	v.events.debug("debug: %s %s" % [what, str(a.get("kind", ""))])
 	return ok()

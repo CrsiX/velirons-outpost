@@ -76,6 +76,11 @@ var _settings_continue: Button
 var _settings_log_button: Button
 var _settings_lang_button: Button
 var _settings_title_button: Button
+var _settings_panel: Control
+## Config.DEBUG: the Debug page (instead of the settings) and its enemy list.
+var _debug_panel: Control
+var _debug_main: Control
+var _debug_enemies: Control
 var _speed_before := 0
 var _log_box: VBoxContainer
 var _log_dirty := true
@@ -814,7 +819,7 @@ func _people_row(c: Civilian) -> Control:
 	status.add_theme_color_override("default_color", UiTheme.MUTED)
 	text.add_child(status)
 	_people_rows[c] = status
-	var go := _button("Go to", Vector2(84, 42))
+	var go := _button("View", Vector2(84, 42))
 	go.tooltip_text = "Move the view to %s" % c.label()
 	go.pressed.connect(func() -> void: go_to_person(c))
 	row.add_child(go)
@@ -1986,6 +1991,7 @@ func _build_settings() -> void:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UiTheme.box(Color("2a1a14"), UiTheme.GOLD, 4, 14, 22))
 	center.add_child(panel)
+	_settings_panel = panel
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 14)
 	v.custom_minimum_size = Vector2(380, 0)
@@ -2026,11 +2032,97 @@ func _build_settings() -> void:
 	_settings_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_settings_note.visible = false
 	v.add_child(_settings_note)
+	if Config.DEBUG:
+		var dbg := _button("Debug...", Vector2(0, 52))
+		dbg.pressed.connect(func() -> void: _show_debug(true))
+		v.add_child(dbg)
+		_build_debug(center)
 	_settings_title_button = _button("Back to title", Vector2(0, 56))
 	UiTheme.style_danger(_settings_title_button)
 	_settings_title_button.pressed.connect(func() -> void: game.go_to_title())
 	v.add_child(_settings_title_button)
 	_settings.visible = false
+
+
+## The Debug page (Config.DEBUG): cheats as commands (Commands._debug), so
+## they work for a co-op client too.
+func _build_debug(center: Control) -> void:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UiTheme.box(Color("2a1a14"), UiTheme.GOLD, 4, 14, 22))
+	panel.visible = false
+	center.add_child(panel)
+	_debug_panel = panel
+	var pages := VBoxContainer.new()
+	pages.custom_minimum_size = Vector2(380, 0)
+	panel.add_child(pages)
+	# Main page.
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	pages.add_child(v)
+	_debug_main = v
+	var title := _label("Debug", 34, UiTheme.GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title)
+	for e: Array in [["Add 1000 {gold}", "gold"], ["Add 1000 {food}", "food"], ["Add 1000 {materials}", "materials"],
+			["Add 1000 {xp} (hero)", "xp"], ["Reveal entire map", "reveal"], ["Unlock all", "unlock"]]:
+		var what: String = e[1]
+		var b := _button(e[0], Vector2(0, 48))
+		b.pressed.connect(func() -> void: _debug_command({"what": what}))
+		v.add_child(b)
+	var spawn := _button("Spawn enemy...", Vector2(0, 48))
+	spawn.pressed.connect(func() -> void:
+		_debug_main.visible = false
+		_debug_enemies.visible = true)
+	v.add_child(spawn)
+	var back := _button("Back", Vector2(0, 52))
+	UiTheme.style_good(back)
+	back.pressed.connect(func() -> void: _show_debug(false))
+	v.add_child(back)
+	# Enemy list: any kind, at the edge of the map, now.
+	var ev := VBoxContainer.new()
+	ev.add_theme_constant_override("separation", 10)
+	ev.visible = false
+	pages.add_child(ev)
+	_debug_enemies = ev
+	var etitle := _label("Spawn enemy", 30, UiTheme.GOLD)
+	etitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ev.add_child(etitle)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	ev.add_child(grid)
+	for kind: String in Config.ENEMIES:
+		var name := str(Config.ENEMIES[kind]["name"])
+		var b := _button(name, Vector2(180, 52))
+		b.icon = Art.tex("unit_" + str(Config.ENEMIES[kind]["art"]))
+		b.expand_icon = true
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(func() -> void: _debug_command({"what": "spawn", "kind": kind}))
+		grid.add_child(b)
+	var eback := _button("Back", Vector2(0, 52))
+	UiTheme.style_good(eback)
+	eback.pressed.connect(func() -> void:
+		_debug_enemies.visible = false
+		_debug_main.visible = true)
+	ev.add_child(eback)
+
+
+func _show_debug(on: bool) -> void:
+	if _debug_panel == null:
+		return
+	_debug_panel.visible = on
+	_debug_main.visible = true
+	_debug_enemies.visible = false
+	_settings_panel.visible = not on
+
+
+## At once, no confirmation; only a refusal shows (as a toast).
+func _debug_command(args: Dictionary) -> void:
+	var r := game.command("debug", args)
+	if not r.get("ok", false):
+		toast(str(r.get("error", "Failed")), Color("ff7a6a"))
 
 
 ## Pauses the game (remembering its speed), greys it out and shows the dialog.
@@ -2056,6 +2148,7 @@ func close_settings() -> void:
 	if not _settings.visible:
 		return
 	_settings.visible = false
+	_show_debug(false)
 	game.events.debug("close settings")
 	if game.is_host_player():
 		set_speed_index(_speed_before)

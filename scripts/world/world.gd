@@ -71,6 +71,11 @@ func setup(p_game: Game, seed_value: int) -> void:
 	water.setup(map, false)
 	lava.setup(map, true)
 	ground_top.setup(map, true)
+	var rim := MapEdgeFade.new()
+	rim.name = "EdgeFade"
+	add_child(rim)
+	move_child(rim, decals.get_index() + 1)  # (over the ground and decals, under the overlay and objects)
+	rim.setup(map)
 	fog.setup(map, game.villages.size())
 	fog.units_explore = not game.is_client
 	fog.revealed.connect(_on_revealed)
