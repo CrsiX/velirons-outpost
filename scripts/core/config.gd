@@ -142,7 +142,7 @@ const RELICS := {
 }
 ## Monster camps guard some far treasures: neutral monsters that stay by the
 ## camp and fight whoever comes close. Cleared only on the player's order.
-const CAMP_CHANCE := 0.33  # of tier-3 treasures (half that for tier 2)
+const CAMP_CHANCE: Array[float] = [0.0, 0.5, 1.0]  # a camp guards a treasure of tier 1/2/3 (every slice has one tier-3 camp)
 const CAMP_MONSTERS: Array = [["goblin", "goblin"], ["goblin", "goblin", "ork"], ["goblin", "ork", "ork", "witch"]]
 const CAMP_AGGRO := 3.5  # monsters attack what comes this close to the camp
 const CAMP_LEASH := 5.0  # and never follow it farther from the camp

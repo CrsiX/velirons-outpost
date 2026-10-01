@@ -207,7 +207,7 @@ func _treasures() -> void:
 			var tier := 1 + int(j * 3 / k)  # the same tier pattern in every slice
 			var lo: float = Config.TREASURE_DISTANCE.x if tier == 1 else Config.TREASURE_TIER_DIST[tier - 2]
 			var hi: float = Config.TREASURE_TIER_DIST[tier - 1] if tier < 3 else Config.TREASURE_DISTANCE.y
-			var t := _sample(s, Vector2(lo, hi), func(p: Vector2i) -> bool: return _free(p, 1, vi))
+			var t := _treasure_spot(s, vi, tier, lo, hi)
 			if t.x < 0:
 				continue
 			var kind := _treasure_kind(t)
@@ -226,8 +226,7 @@ func _treasures() -> void:
 				relics += 1
 			o["reward"] = reward
 			var idx := _add(o)
-			var chance := Config.CAMP_CHANCE if tier == 3 else (Config.CAMP_CHANCE * 0.5 if tier == 2 else 0.0)
-			if c.rng.randf() < chance:
+			if c.rng.randf() < Config.CAMP_CHANCE[tier - 1]:
 				_camp_for(idx, s, vi, tier)
 
 
@@ -244,16 +243,46 @@ func _treasure_kind(t: Vector2i) -> String:
 	return c.pick(weights) if not weights.is_empty() else "chest"
 
 
+## Where a treasure of this tier goes. A tier-3 one always gets a camp, so it
+## needs room for one beside it; if its band is too crowded, it may come
+## closer to the village (still tier 3) rather than be left out.
+func _treasure_spot(s: int, vi: int, tier: int, lo: float, hi: float) -> Vector2i:
+	if tier < 3:
+		return _sample(s, Vector2(lo, hi), func(p: Vector2i) -> bool: return _free(p, 1, vi))
+	var fits := func(p: Vector2i) -> bool: return _free(p, 1, vi) and _camp_ring(p, vi).x >= 0
+	for low in [lo, Config.TREASURE_TIER_DIST[0], Config.TREASURE_DISTANCE.x]:
+		var t := _sample(s, Vector2(low, hi), fits)
+		if t.x >= 0:
+			return t
+	return _sample(s, Vector2(lo, hi), func(p: Vector2i) -> bool: return _free(p, 1, vi))
+
+
 func _camp_for(idx: int, s: int, vi: int, tier: int) -> void:
 	var at: Vector2i = m.objects[idx]["tile"]
+	var spot := Vector2i(-1, -1)
 	for tries in 40:
 		var t := at + Vector2i(c.rng.randi_range(-3, 3), c.rng.randi_range(-3, 3))
 		var d := Vector2(t).distance_to(Vector2(at))
-		if d < 1.9 or d > 3.2 or not _free(t, 1, vi, 1.5):
-			continue
-		var cid := _add({"kind": "camp", "art": "camp", "tile": t, "size": 1, "slice": s, "tier": tier, "guards": idx, "monsters": (Config.CAMP_MONSTERS[tier - 1] as Array).duplicate()})
-		m.objects[idx]["guard"] = cid
+		if d >= 1.9 and d <= 3.2 and _free(t, 1, vi, 1.5):
+			spot = t
+			break
+	if spot.x < 0:
+		spot = _camp_ring(at, vi)
+	if spot.x < 0:
 		return
+	var cid := _add({"kind": "camp", "art": "camp", "tile": spot, "size": 1, "slice": s, "tier": tier, "guards": idx, "monsters": (Config.CAMP_MONSTERS[tier - 1] as Array).duplicate()})
+	m.objects[idx]["guard"] = cid
+
+
+## The first free tile 2-3 tiles from a treasure where its camp could stand.
+func _camp_ring(at: Vector2i, vi: int) -> Vector2i:
+	for dy in range(-3, 4):
+		for dx in range(-3, 4):
+			var t := at + Vector2i(dx, dy)
+			var d := Vector2(t).distance_to(Vector2(at))
+			if d >= 1.9 and d <= 3.2 and _free(t, 1, vi, 1.5):
+				return t
+	return Vector2i(-1, -1)
 
 
 # --- unit-unlock sites ---------------------------------------------------------------------------
