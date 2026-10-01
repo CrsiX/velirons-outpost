@@ -40,6 +40,8 @@ var _slow_left := 0.0
 var _push_immune := 0.0
 ## Set by a behavior that moved the enemy itself this frame (rats off the road).
 var self_moved := false
+## Came out of a lair that woke up this wave (WarningLights mark it).
+var from_lair := false
 ## Its wave's HP factor (a raised corpse keeps it).
 var hp_scale := 1.0
 ## Gold a thief stole; its corpse holds it too.

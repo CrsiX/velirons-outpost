@@ -70,7 +70,7 @@ func _setup() -> void:
 				astar.set_point_solid(t, true)
 
 
-## A router on the current map (for mine spurs).
+## A router on the current map (for mine and lair spurs).
 static func router(p_c: GenContext) -> GenRoads:
 	var r := GenRoads.new()
 	r.c = p_c
@@ -81,6 +81,79 @@ static func router(p_c: GenContext) -> GenRoads:
 
 ## A short road from `from` (a mine's front tile) to the nearest road.
 func spur_from(from: Vector2i) -> void:
+	var goal := _nearest_road(from)
+	if goal.x >= 0:
+		_route_and_carve(from, goal, false)
+
+
+## A winding road from `from` (in front of a monster lair) to the nearest
+## road: bent through waypoints off the straight line, over extra noise, and
+## ending where it first meets the network. False if there is no way.
+func winding_spur_from(from: Vector2i) -> bool:
+	var goal := _nearest_road(from)
+	if goal.x < 0:
+		return false
+	var d := Vector2(goal - from)
+	var steps := absf(d.x) + absf(d.y)
+	var bends := 0 if steps < Config.LAIR_ROAD_BENDS.x else (1 if steps < Config.LAIR_ROAD_BENDS.y else 2)
+	var side := 1.0 if c.rng.randf() < 0.5 else -1.0
+	var stops: Array[Vector2i] = [from]
+	for j in bends:
+		var off := Vector2(-d.y, d.x).normalized() * maxf(Config.LAIR_ROAD_BEND_MIN, d.length() * c.rng.randf_range(Config.LAIR_ROAD_BEND.x, Config.LAIR_ROAD_BEND.y)) * side
+		side = -side
+		var w := _open_near(Vector2i((Vector2(from) + d * (j + 1.0) / (bends + 1.0) + off).round()))
+		if w.x >= 0:
+			stops.append(w)
+	stops.append(goal)
+	var saved := _wiggle(from, goal)
+	var path: Array[Vector2i] = []
+	for j in stops.size() - 1:
+		var leg := _route(stops[j], stops[j + 1], false)
+		if leg.is_empty():
+			path = _route(from, goal, false)
+			break
+		path.append_array(leg if path.is_empty() else leg.slice(1))
+	for t: Vector2i in saved:
+		astar.set_point_weight_scale(t, saved[t])
+	if path.is_empty():
+		return false
+	for k in path.size():
+		if m.is_road(path[k]):
+			path = path.slice(0, k + 1)
+			break
+	_carve(path)
+	return true
+
+
+## Extra cost noise over the box round `a` and `b` (returns the old weights).
+func _wiggle(a: Vector2i, b: Vector2i) -> Dictionary:
+	var noise := FastNoiseLite.new()
+	noise.seed = c.seed_value * 31 + 911
+	noise.frequency = 0.15
+	var saved := {}
+	var box := Rect2i(a, Vector2i.ZERO).expand(b).grow(8).intersection(Rect2i(0, 0, m.size, m.size))
+	for t in MapData.rect_tiles(box):
+		if m.is_road(t):
+			continue
+		var w := astar.get_point_weight_scale(t)
+		saved[t] = w
+		astar.set_point_weight_scale(t, w * (1.0 + Config.LAIR_ROAD_NOISE * noise.get_noise_2d(t.x, t.y)))
+	return saved
+
+
+## The open land tile nearest `t` (within 3 tiles; off roads and villages).
+func _open_near(t: Vector2i) -> Vector2i:
+	for r in 4:
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				var p := t + Vector2i(dx, dy)
+				if maxi(absi(dx), absi(dy)) == r and m.in_bounds(p) and c.is_land(p) and not astar.is_point_solid(p) and not m.is_road(p) and not m.in_village(p):
+					return p
+	return Vector2i(-1, -1)
+
+
+## The road tile nearest `from`, walking over open tiles (-1, -1 if none).
+func _nearest_road(from: Vector2i) -> Vector2i:
 	var seen := {from: true}
 	var queue: Array[Vector2i] = [from]
 	var head := 0
@@ -97,8 +170,7 @@ func spur_from(from: Vector2i) -> void:
 				break
 			if not astar.is_point_solid(nb):
 				queue.append(nb)
-	if goal.x >= 0:
-		_route_and_carve(from, goal, false)
+	return goal
 
 
 # --- single player ------------------------------------------------------------------------------

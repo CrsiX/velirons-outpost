@@ -13,6 +13,7 @@ var m: MapData
 var reach := PackedInt32Array()  # per tile: walking-connected area id, or -1
 var _home_area: Array[int] = []  # per village: the area id of its centre
 var _router: GenRoads = null  # (for mine spurs, set up once)
+var _lair_router: GenRoads = null  # (for lair roads, which keep off the objects)
 
 
 static func place(p_c: GenContext) -> void:
@@ -327,13 +328,49 @@ func _lairs() -> void:
 					size = 1
 					if art == "lair_tree" or not _free(t, 1, vi):
 						continue
+				var front := _lair_road(t, size, vi)
+				if front.x < 0:
+					continue
 				if size == 2 and art != "lair_tree":
 					art += "_big"
-				_add({"kind": "lair", "art": art, "tile": t, "size": size, "slice": s})
+				_add({"kind": "lair", "art": art, "tile": t, "size": size, "slice": s, "front": front})
 				found = true
 				break
 			if not found:
 				break
+
+
+## Links a lair at `t` to the road network by a winding road (§9.6). Returns
+## the tile in front of it where its road starts, or (-1, -1) if no road fits.
+func _lair_road(t: Vector2i, size: int, vi: int) -> Vector2i:
+	if _lair_router == null:
+		_lair_router = GenRoads.router(c)
+		for o in m.objects:  # roads keep off the other objects
+			for p in Building.footprint(o["tile"], o.get("size", 1)):
+				_lair_router.astar.set_point_solid(p, true)
+	var astar := _lair_router.astar
+	var foot := Building.footprint(t, size)
+	var fronts: Array[Vector2i] = []
+	for p in foot:
+		for nb in MapData.neighbors4(p):
+			if foot.has(nb) or fronts.has(nb) or not m.in_bounds(nb):
+				continue
+			if m.is_road(nb):
+				return nb
+			if c.is_land(nb) and not m.in_village(nb) and not m.is_edge(nb) and reach[c.i(nb)] == _home_area[vi] and not astar.is_point_solid(nb):
+				fronts.append(nb)
+	var centre := Vector2(m.villages[vi]["center"])
+	fronts.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return Vector2(a).distance_to(centre) < Vector2(b).distance_to(centre))
+	var was: Array[bool] = []
+	for p in foot:
+		was.append(astar.is_point_solid(p))
+		astar.set_point_solid(p, true)
+	for f in fronts:
+		if _lair_router.winding_spur_from(f):
+			return f
+	for k in foot.size():
+		astar.set_point_solid(foot[k], was[k])
+	return Vector2i(-1, -1)
 
 
 ## The lair art that fits the surroundings of `t` ("" if none).

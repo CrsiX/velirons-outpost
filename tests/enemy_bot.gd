@@ -1,5 +1,6 @@
 extends "res://tests/bot_base.gd"
-## Headless test of the thief, the gargoyle and the necromancer. Run with:
+## Headless test of the thief, the gargoyle, the necromancer, the vampire
+## and the monster lairs. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/enemy_bot.tscn
 ## Exits 0 when every check passes.
 
@@ -36,6 +37,7 @@ func _run() -> void:
 	await _test_necromancer()
 	await _test_fog_corpses()
 	await _test_vampire()
+	await _test_lairs()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -510,3 +512,100 @@ func _test_vampire() -> void:
 	check(is_equal_approx(hs[0] - nk.hp, 15.0) and is_equal_approx(hs[1] - gb.hp, 10.0) and absf(hs[2] - rg.hp - 20.0) < 0.2, "holy damage: a necromancer takes 1.5 x, a raised enemy 2 x, a goblin 1 x")
 	await clear_enemies()
 	await clear_corpses()
+
+
+# --- monster lairs -------------------------------------------------------------------------------
+
+## A lair of `art` beside the road tile `door`, found by us.
+func _make_lair(art: String, door: Vector2i) -> MonsterLair:
+	var t := Vector2i(-1, -1)
+	for n in MapData.neighbors4(door):
+		if t.x < 0 and game.map.in_bounds(n) and not game.map.is_road(n) and not game.map.in_village(n) and not game.map.buildings.has(n) and game.world.pathing.is_walkable(n):
+			t = n
+	var d := {"kind": "lair", "art": art, "tile": t, "size": 1, "slice": 0, "front": door}
+	game.map.objects.append(d)
+	var o := game.world._add_map_object(game.map.objects.size() - 1, d) as MonsterLair
+	o.on_found(game.player_village.id, true)
+	return o
+
+
+func _test_lairs() -> void:
+	var v := game.player_village
+	var w := game.waves
+	await clear_enemies()
+	var a := _make_lair("lair_crypt", road_out(12))
+	var b := _make_lair("lair_cave", road_out(18))
+	game.world._schedule_lairs()
+	var at: Array = []
+	for o in game.world.map_objects:
+		if o is MonsterLair and int(o.data["slice"]) == 0:
+			at.append(o.wake_wave)
+	at.sort()
+	var want: Array = []
+	for k in at.size():
+		want.append(Config.LAIR_FROM_WAVE + k * Config.LAIR_EVERY)
+	check(at.size() >= 2 and at == want, "a slice's lairs wake one by one: the first at wave 10, then one every 3 waves (%s)" % str(at))
+	for o in game.world.map_objects:
+		if o is MonsterLair:
+			o.wake_wave = 0  # (the map's own lairs sleep through this test)
+	a.wake_wave = 10
+	b.wake_wave = 13
+	check(not game.command("attack_camp", {"camp": a.nid})["ok"], "a sleeping lair can't be attacked")
+	a.found_by.erase(v.id)
+	logs.clear()
+	game.world.wake_lairs(9)
+	check(not a.awake and a.alive().is_empty(), "before its wave a lair sleeps, with no guards")
+	w.wave = 10
+	game.world.wake_lairs(10)
+	var guards: Array = Config.LAIR_THEMES["lair_crypt"]["guards"]
+	check(a.awake and not b.awake and a.alive().size() == guards.size() and a.alive().all(func(g: Enemy) -> bool: return g.behavior is CampBehavior and is_equal_approx(g.hp_scale, pow(Config.WAVE_HP_GROWTH, 9))), "at wave 10 the first lair wakes up, with %d guards as strong as the wave" % guards.size())
+	check(a._glow != null and a._glow.visible, "awake, it glows red")
+	check(logs.any(func(l: String) -> bool: return "Something stirs in a crypt somewhere to the" in l and "Skeletons will come out" in l), "not found yet: the log says roughly which way it is and what comes out")
+	# One more spawn point: its share of the wave, its theme's kinds only.
+	var share: Array = w._share(10, 1.0, game.map.edge_spawns, v)
+	var pts := mini(Config.wave_spawn_points(10), game.map.edge_spawns.size())
+	var plain := share.filter(func(sp: Dictionary) -> bool: return sp["kind"] != "rat")
+	var from_lair := plain.filter(func(sp: Dictionary) -> bool: return sp.has("lair"))
+	var expect := 0
+	for i in plain.size():
+		if i % (pts + 1) == pts:
+			expect += 1
+	check(from_lair.size() == expect and expect > 0, "the lair is one more spawn point: %d of %d enemies (%d edge spawns + the lair)" % [from_lair.size(), plain.size(), pts])
+	check(from_lair.all(func(sp: Dictionary) -> bool: return sp["kind"] == "skeleton" and sp["spawn"] == a.door()), "a crypt at wave 10 sends skeletons, from its door")
+	var comp := {}
+	for sp in plain:
+		comp[sp["kind"]] = comp.get(sp["kind"], 0) + 1
+	check(comp == Config.wave_composition(10), "the wave keeps its mix (the lair takes its kinds from the share)")
+	check(str(b.kinds_for(13)) == str(["ork", "gargoyle"]) and str(a.kinds_for(13)) == str(["skeleton", "necromancer", "vampire"]) and str(b.kinds_for(3)) == str(["ork"]) and str(b.kinds_for(1)) == str(["goblin"]), "themes: a cave sends orks and gargoyles, a crypt skeletons, necromancers and vampires (once their wave has come; goblins before)")
+	w._spawn(from_lair[0])
+	await frames(2)
+	var e: Enemy = null
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if node.from_lair:
+			e = node
+	var to_gate := e != null and v.gates.has(Vector2i(e.path[e.path.size() - 1].round()))
+	check(e != null and Vector2i(e.path[0].round()) == a.door() and to_gate, "its enemies walk its winding road and on to a gate")
+	check(game.world.warnings.enabled() == (Settings.difficulty != Settings.Difficulty.HARD), "the warning lights mark the new road in (easy and normal), even after wave %d" % Config.WARNING_LIGHT_WAVES)
+	kill(e)
+	# Cleared by the hero: loot at its door, quiet for 3 waves, then awake again.
+	a.on_found(v.id, true)
+	check(game.command("attack_camp", {"camp": a.nid})["ok"] and game.hero.camp_target == a, "an awake lair can be attacked with the hero")
+	logs.clear()
+	for g in a.alive():
+		kill(g, game.hero)
+	await frames(3)
+	game.hero.camp_target = null
+	var sacks := game.world.map_objects.filter(func(o: MapObject) -> bool: return o.data.get("sack", false))
+	check(a.cleared and not a.awake and not a._glow.visible and a.quiet_until == 11 + Config.LAIR_QUIET_WAVES, "cleared, it sleeps (no glow) until wave %d" % (11 + Config.LAIR_QUIET_WAVES))
+	check(not sacks.is_empty() and Vector2(sacks.back().tile).distance_to(Vector2(a.door())) <= 1.5 and not (sacks.back().data["reward"] as Dictionary).is_empty(), "it leaves a sack of loot at its door (%s)" % (str(sacks.back().data["reward"]) if not sacks.is_empty() else "none"))
+	check(logs.any(func(l: String) -> bool: return "cleared a monster lair" in l), "the log says so")
+	check(w._share(11, 1.0, game.map.edge_spawns, v).all(func(sp: Dictionary) -> bool: return not sp.has("lair")), "a cleared lair sends nobody")
+	game.world.wake_lairs(13)
+	check(b.awake and not a.awake, "wave 13: the next lair of the slice wakes up; the cleared one still sleeps")
+	logs.clear()
+	game.world.wake_lairs(14)
+	check(a.awake and a.alive().size() == guards.size() and logs.any(func(l: String) -> bool: return "The crypt to the" in l and "woken up again" in l), "wave 14: it wakes up again, with new guards, and the log says so")
+	for l in [a, b]:
+		for g in l.alive():
+			kill(g)
+	await clear_enemies()

@@ -98,6 +98,7 @@ func _start_wave() -> void:
 	countdown = -1.0
 	var n := wave
 	var hp_scale := pow(Config.WAVE_HP_GROWTH, n - 1)
+	game.world.wake_lairs(n)
 	if game.villages.size() == 1:
 		_queue.append_array(_share(n, hp_scale, game.map.edge_spawns, game.villages[0]))
 	else:
@@ -120,25 +121,34 @@ func _start_wave() -> void:
 
 
 ## One village's share of wave `n`: Config.wave_composition, shuffled so the
-## kinds arrive mixed, from up to wave_spawn_points(n) of `spawns`.
+## kinds arrive mixed, from up to wave_spawn_points(n) of `spawns` plus the
+## awake lairs of its slice (each one more spawn point, sending its theme).
 func _share(n: int, hp_scale: float, spawns: Array[Vector2i], target: Village) -> Array:
 	var points := spawns.duplicate() if not spawns.is_empty() else game.map.edge_spawns.duplicate()
 	points.shuffle()
 	points = points.slice(0, mini(Config.wave_spawn_points(n), points.size()))
+	var pool: Array = []  # (untyped: edge tiles and lairs)
+	pool.append_array(points)
+	var rat_pool: Array = pool.duplicate()
+	for l in game.world.awake_lairs(int(game.map.villages[target.id].get("slice", 0))):
+		pool.append(l)
+		if (l.theme()["kinds"] as Array).has("rat"):
+			rat_pool.append(l)
 	var kinds := _kinds(n)
 	kinds.shuffle()
 	var out := []
 	for i in kinds.size():
-		out.append({"kind": kinds[i], "spawn": points[i % points.size()], "hp_scale": hp_scale, "village": target})
+		out.append(_spec(kinds[i], pool[i % pool.size()], hp_scale, target))
+	_theme_lairs(out, n)
 	# Rat packs: whole packs, each from one spawn, the rats a moment apart.
 	var rp: Dictionary = Config.RAT_PACKS
 	if n >= int(rp["from_wave"]) and _rng.randf() < float(rp["chance"]):
 		var packs := _rng.randi_range(int(rp["packs"][0]), int(rp["packs"][1])) + (n - int(rp["from_wave"])) / int(rp["more_every"])
 		for p in packs:
-			var at: Vector2i = points[_rng.randi() % points.size()]
+			var at = rat_pool[_rng.randi() % rat_pool.size()]
 			var pack := []
 			for k in _rng.randi_range(int(rp["size"][0]), int(rp["size"][1])):
-				var spec := {"kind": "rat", "spawn": at, "hp_scale": hp_scale, "village": target}
+				var spec := _spec("rat", at, hp_scale, target)
 				if k > 0:
 					spec["gap"] = float(rp["gap"])
 				pack.append(spec)
@@ -148,6 +158,37 @@ func _share(n: int, hp_scale: float, spawns: Array[Vector2i], target: Village) -
 			for k in pack.size():
 				out.insert(pos + k, pack[k])
 	return out
+
+
+## A queue entry: `at` is a spawn tile or a lair (its door).
+func _spec(kind: String, at, hp_scale: float, target: Village) -> Dictionary:
+	var spec := {"kind": kind, "spawn": at, "hp_scale": hp_scale, "village": target}
+	if at is MonsterLair:
+		spec["spawn"] = (at as MonsterLair).door()
+		spec["lair"] = at
+	return spec
+
+
+## Lairs send only their theme's kinds: a lair's entry with another kind
+## swaps it with an edge entry of a fitting kind, else becomes one.
+func _theme_lairs(out: Array, n: int) -> void:
+	for spec in out:
+		if not spec.has("lair"):
+			continue
+		var fits: Array[String] = (spec["lair"] as MonsterLair).kinds_for(n)
+		if fits.has(spec["kind"]):
+			continue
+		var swap = null
+		for other in out:
+			if not other.has("lair") and fits.has(other["kind"]):
+				swap = other
+				break
+		if swap != null:
+			var k: String = swap["kind"]
+			swap["kind"] = spec["kind"]
+			spec["kind"] = k
+		else:
+			spec["kind"] = fits[_rng.randi() % fits.size()]
 
 
 ## Co-op extra: WAVE_EXTRA_PER_PLAYER x P of one village's wave, spawning at
@@ -236,6 +277,8 @@ func _spawn(spec: Dictionary) -> void:
 	var g: Enemy = ENEMY_SCRIPT.new()
 	g.setup(game, route, spec["hp_scale"], spec.get("kind", Config.WAVE_FILLER))
 	g.wave = wave
+	var lair = spec.get("lair")
+	g.from_lair = is_instance_valid(lair) and (lair as MonsterLair).woke_at == wave
 	_add(g, target)
 	g.target_village.events.debug("%s appears at %s" % [g.label(), str(route[0])])
 

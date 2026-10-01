@@ -464,7 +464,7 @@ func attack_camp(camp: MonsterCamp) -> void:
 	camp_target = camp
 	target = null
 	_returning = false
-	village.events.info("The hero sets off to clear a monster camp")
+	village.events.info("The hero sets off to clear a %s" % camp.display_name().to_lower())
 	changed.emit()
 
 

@@ -164,10 +164,40 @@ const RUINED_TOWERS := Vector2i(0, 2)  # per slice
 const RUIN_DISTANCE := Vector2(12.0, 40.0)
 const RUIN_CLAIM_TIME := 5.0
 const RUIN_RESTORE_SHARE := 0.5  # of a watchtower's cost
-## Monster lairs: scenery for now, their look by zone (1x1 or 2x2).
+## Monster lairs: their look by zone (1x1 or 2x2).
 const LAIRS := {"mountain": "lair_cave", "pine": "lair_tree", "swamp": "lair_ruin", "ash": "lair_pit", "steppe": "lair_crypt"}
 const LAIRS_PER_SLICE := Vector2i(0, 2)
 const LAIR_DISTANCE := 25.0
+## Every lair gets a winding road to the network: bent through one or two
+## waypoints pushed this share of its length off the straight line (at least
+## LAIR_ROAD_BEND_MIN tiles; one bend from LAIR_ROAD_BENDS.x tiles long, two
+## from .y), over extra cost noise.
+const LAIR_ROAD_BEND := Vector2(0.25, 0.4)
+const LAIR_ROAD_BEND_MIN := 2.0
+const LAIR_ROAD_BENDS := Vector2(5.0, 16.0)
+const LAIR_ROAD_NOISE := 0.8
+## Lairs wake up (docs/world-design.md §9.6): per slice, the first at
+## LAIR_FROM_WAVE, each further one LAIR_EVERY waves later (in random order).
+## An awake lair is one more spawn point for its slice's share of the wave,
+## sending only its theme's kinds (those whose wave has come; goblins
+## otherwise), and has guards (wave-strength). The hero can clear it: it drops
+## loot and sleeps LAIR_QUIET_WAVES waves, then wakes again.
+const LAIR_FROM_WAVE := 10
+const LAIR_EVERY := 3
+const LAIR_QUIET_WAVES := 3
+const LAIR_THEMES := {
+	"lair_cave": {"name": "cave", "kinds": ["ork", "gargoyle"], "guards": ["ork", "ork", "goblin"]},
+	"lair_tree": {"name": "hollow tree", "kinds": ["goblin", "rat"], "guards": ["goblin", "goblin", "goblin"]},
+	"lair_ruin": {"name": "sunken ruin", "kinds": ["skeleton", "witch"], "guards": ["skeleton", "skeleton", "witch"]},
+	"lair_pit": {"name": "smoking pit", "kinds": ["ork", "gargoyle"], "guards": ["ork", "ork", "goblin"]},
+	"lair_crypt": {"name": "crypt", "kinds": ["skeleton", "necromancer", "vampire"], "guards": ["skeleton", "skeleton", "skeleton"]},
+}
+## A cleared lair's loot (a sack at its door): x (1 + LAIR_LOOT_GROWTH per
+## wave past LAIR_FROM_WAVE); sometimes a relic instead (one the clearing
+## village doesn't have yet).
+const LAIR_LOOT := {"gold": [60, 100], "materials": [20, 40]}
+const LAIR_LOOT_GROWTH := 0.1
+const LAIR_RELIC_CHANCE := 0.25
 ## Mines on the outer edge of mountain ranges, linked to the roads, worked
 ## by one miner (first to arrive). Walking up to one unlocks the miner for all.
 const MINES_PER_SLICE := 1.0  # x the map type's "mines"

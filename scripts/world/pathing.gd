@@ -161,8 +161,8 @@ func distance_field(from: Vector2i) -> PackedInt32Array:
 ## stand for it], or [] if none. A walkable unexplored tile is walked onto;
 ## unexplored forest, rock or water is looked into from the walkable tile
 ## next to it (explorers see into it; they can't walk there).
-func nearest_frontier(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], claim_radius: float, penalty: int) -> Array[Vector2i]:
-	var stand := nearest_unexplored(from, explored, claims, claim_radius, penalty)
+func nearest_frontier(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], claim_radius: float, penalty: int, danger := PackedByteArray()) -> Array[Vector2i]:
+	var stand := nearest_unexplored(from, explored, claims, claim_radius, penalty, danger)
 	if stand == Vector2i(-1, -1):
 		return []
 	var i := map.index(stand)
@@ -178,7 +178,8 @@ func nearest_frontier(from: Vector2i, explored: PackedByteArray, claims: Array[V
 ## Walkable tile from which the nearest fog is explored (see nearest_frontier):
 ## an unexplored walkable tile, or one next to unexplored ground nobody can
 ## walk on. Breadth first from `from`; fog near `claims` costs `penalty` extra.
-func nearest_unexplored(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], claim_radius: float, penalty: int) -> Vector2i:
+## Tiles marked in `danger` (if given) are neither explored from nor walked through.
+func nearest_unexplored(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], claim_radius: float, penalty: int, danger := PackedByteArray()) -> Vector2i:
 	var n := map.size
 	from = nearest_walkable(from)
 	if not map.in_bounds(from):
@@ -197,12 +198,15 @@ func nearest_unexplored(from: Vector2i, explored: PackedByteArray, claims: Array
 	var best := -1
 	var best_score := UNREACHABLE
 	var steps := PackedInt32Array([-1, 1, -n, n, -n - 1, -n + 1, n - 1, n + 1])
+	var avoid := not danger.is_empty()
 	while head < tail:
 		var i := queue[head]
 		head += 1
 		var d := dist[i]
 		if d >= best_score:
 			break  # (breadth first: nothing nearer is left)
+		if avoid and danger[i] == 1 and i != start:
+			continue
 		var x := i % n
 		var y := i / n
 		# Fog here, or fog next to it that can't be walked on (seen from here).

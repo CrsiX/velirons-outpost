@@ -3,6 +3,7 @@ extends Node2D
 ## Beginner help: during the first WARNING_LIGHT_WAVES waves on easy and normal,
 ## a soft red light marks where each hidden enemy will come out of the dark,
 ## i.e. where its road first enters land under surveillance. Drawn above the fog.
+## Later, only for enemies from a lair that woke up this wave (a new road in).
 
 const UPDATE_INTERVAL := 0.3
 const MERGE_DISTANCE := 2.5  # lights closer than this (tiles) are merged
@@ -22,7 +23,12 @@ func setup(p_game: Game) -> void:
 
 func enabled() -> bool:
 	var w := game.waves
-	return Settings.difficulty != Settings.Difficulty.HARD and w.wave >= 1 and w.wave <= Config.WARNING_LIGHT_WAVES and w.in_progress()
+	return Settings.difficulty != Settings.Difficulty.HARD and w.wave >= 1 and w.in_progress() and (_early() or not game.world.awake_lairs().filter(func(l: MonsterLair) -> bool: return l.woke_at == w.wave).is_empty())
+
+
+## The first waves: every hidden enemy gets a light.
+func _early() -> bool:
+	return game.waves.wave <= Config.WARNING_LIGHT_WAVES
 
 
 func _process(delta: float) -> void:
@@ -48,9 +54,10 @@ func _process(delta: float) -> void:
 ## village, the enemies coming for it, as its fog shows them (co-op host).
 func compute_spots(vid: int = -1) -> Array[Vector2]:
 	var out: Array[Vector2] = []
+	var early := _early()
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead:
+		if e.dead or e.behavior is CampBehavior or not (early or e.from_lair):
 			continue
 		if vid < 0:
 			if e.visible:

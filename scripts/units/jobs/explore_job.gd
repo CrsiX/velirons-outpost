@@ -5,7 +5,9 @@ extends CivilianJob
 ##   from wherever it is (a greedy depth-first sweep);
 ## - switches to fog closer to the village when its local frontier is much
 ##   farther out than the village's nearest frontier;
-## - avoids fog another explorer is already heading for.
+## - avoids fog another explorer is already heading for;
+## - keeps away from monster camp guards (it would only flee from them, again
+##   and again): fog by them waits until the camp is cleared.
 ## `reveal` is the sight radius used for exploring.
 
 enum State { RESTING, EXPLORING, RETURNING }
@@ -95,7 +97,8 @@ func choose_target(from: Vector2i) -> Vector2i:
 		if other != w and other.exploring_target() != Vector2i(-1, -1):
 			claims.append(other.exploring_target())
 	# The nearest fog from here (a breadth-first search that stops early).
-	var local := pathing.nearest_frontier(from, explored, claims, Config.EXPLORER_CLAIM_RADIUS, Config.EXPLORER_CLAIM_PENALTY)
+	var danger := _camp_danger()
+	var local := pathing.nearest_frontier(from, explored, claims, Config.EXPLORER_CLAIM_RADIUS, Config.EXPLORER_CLAIM_PENALTY, danger)
 	if local.is_empty():
 		return Vector2i(-1, -1)
 	var best_local: Vector2i = local[0]
@@ -105,7 +108,7 @@ func choose_target(from: Vector2i) -> Vector2i:
 	var best_home_stand := Vector2i(-1, -1)
 	var best_home_score := Pathing.UNREACHABLE
 	for i in explored.size():
-		if explored[i] == 1:
+		if explored[i] == 1 or (not danger.is_empty() and danger[i] == 1):
 			continue
 		var t := Vector2i(i % map.size, i / map.size)
 		var d := from_village[i]
@@ -140,6 +143,25 @@ func choose_target(from: Vector2i) -> Vector2i:
 		return best_home
 	stand = best_local_stand
 	return best_local
+
+
+## Tiles near camp guards (where it would flee), or empty if there are none.
+func _camp_danger() -> PackedByteArray:
+	var out := PackedByteArray()
+	var map := w.game.map
+	var r := Config.EVADE_RADIUS + 0.5
+	for node in w.get_tree().get_nodes_in_group("enemies"):
+		var g := node as Enemy
+		if g.dead or not (g.behavior is CampBehavior):
+			continue
+		if out.is_empty():
+			out.resize(map.size * map.size)
+		var c := g.grid_pos
+		for y in range(floori(c.y - r), ceili(c.y + r) + 1):
+			for x in range(floori(c.x - r), ceili(c.x + r) + 1):
+				if x >= 0 and y >= 0 and x < map.size and y < map.size and Vector2(x, y).distance_to(c) < r:
+					out[y * map.size + x] = 1
+	return out
 
 
 func status() -> String:

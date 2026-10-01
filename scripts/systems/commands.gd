@@ -93,8 +93,8 @@ func _unit(village: Village, args: Dictionary, key: String = "unit") -> Military
 
 func _attack_camp(v: Village, a: Dictionary) -> Dictionary:
 	var camp = game.entity(int(a.get("camp", 0)))
-	if not (camp is MonsterCamp) or camp.cleared:
-		return fail("There's no camp to attack")
+	if not (camp is MonsterCamp) or not camp.attackable():
+		return fail("There's nothing to attack there")
 	if not camp.is_found_by(v):
 		return fail("You haven't found that camp")
 	if v.hero.dead:

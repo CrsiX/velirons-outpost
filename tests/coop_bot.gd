@@ -244,8 +244,9 @@ func _test_hotseat() -> void:
 	check(game.game_over, "when the last village falls, the game is lost")
 
 
+## Live wave enemies (not the monsters standing by their camps).
 func _enemies() -> Array:
-	return get_tree().get_nodes_in_group("enemies").filter(func(e) -> bool: return is_instance_valid(e) and not e.dead)
+	return get_tree().get_nodes_in_group("enemies").filter(func(e) -> bool: return is_instance_valid(e) and not e.dead and not e.behavior is CampBehavior)
 
 
 func logged_all(part: String) -> bool:

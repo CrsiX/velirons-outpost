@@ -362,6 +362,15 @@ func _test_game() -> void:
 		if o is UnlockSite and o.data["site"] == "stone_circle":
 			circle = o
 	check(circle != null and not circle.awake and not circle.claimable(), "the stone circle sleeps before its wave")
+	# (the hero may have passed it on his way to the camp: forget it again)
+	circle.found_by.erase(v.id)
+	var fog_e: PackedByteArray = game.fog.explored_of[v.id]
+	for dy in range(-3, 4):
+		for dx in range(-3, 4):
+			var t: Vector2i = circle.tile + Vector2i(dx, dy)
+			if game.map.in_bounds(t):
+				fog_e[game.map.index(t)] = 0
+	game.fog.explored_of[v.id] = fog_e
 	logs.clear()
 	game.waves.wave_started.emit(Config.UNLOCK_SITES["stone_circle"]["wave"])
 	await frames(2)

@@ -135,7 +135,47 @@ func _spawn_map_objects() -> void:
 		for o in map_objects:
 			if o is MonsterCamp:
 				(o as MonsterCamp).spawn_monsters()
+		_schedule_lairs()
 	(func() -> void: _quiet = false).call_deferred()
+
+
+## Host: when each lair first wakes up. Per slice, in an order fixed by the
+## map's seed: the first at LAIR_FROM_WAVE, each further one LAIR_EVERY later.
+func _schedule_lairs() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = map.seed_value * 13 + 5
+	var by_slice := {}
+	for o in map_objects:
+		if o is MonsterLair:
+			var s := int(o.data.get("slice", 0))
+			if not by_slice.has(s):
+				by_slice[s] = []
+			by_slice[s].append(o)
+	for s in by_slice:
+		var list: Array = by_slice[s]
+		for i in range(list.size() - 1, 0, -1):  # (shuffled with the seeded rng)
+			var j := rng.randi_range(0, i)
+			var tmp = list[i]
+			list[i] = list[j]
+			list[j] = tmp
+		for k in list.size():
+			(list[k] as MonsterLair).wake_wave = Config.LAIR_FROM_WAVE + k * Config.LAIR_EVERY
+
+
+## Host, at the start of wave `n`: lairs whose time has come wake up.
+func wake_lairs(n: int) -> void:
+	for o in map_objects:
+		if o is MonsterLair:
+			(o as MonsterLair).on_wave(n)
+
+
+## The awake lairs in slice `s` (-1: all).
+func awake_lairs(s: int = -1) -> Array[MonsterLair]:
+	var out: Array[MonsterLair] = []
+	for o in map_objects:
+		if o is MonsterLair and (o as MonsterLair).awake and (s < 0 or int(o.data.get("slice", 0)) == s):
+			out.append(o)
+	return out
 
 
 func _add_map_object(i: int, d: Dictionary) -> MapObject:
