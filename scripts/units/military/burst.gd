@@ -1,6 +1,7 @@
 extends Node2D
 ## A short effect drawn in code: an exploding fireball (flash, fire ring and
-## sparks), a healing ring, or a warp blink. Fades out on its own.
+## sparks), a healing ring, a warp blink, or a puff of dark smoke. Fades out
+## on its own.
 
 const LIFE := 0.55
 
@@ -45,6 +46,11 @@ func _draw() -> void:
 		"warp":
 			_ellipse(rx * 0.5 * (1.0 - k) + 6.0, Color(0.75, 0.5, 1.0, 0.9 * fade), 4.0)
 			_ellipse(rx * 0.3, Color(0.9, 0.8, 1.0, 0.6 * fade), 2.0)
+		"smoke":  # a vampire changing shape: dark puffs drifting out and up
+			for s in _sparks:
+				var p := Vector2(s.x * rx * 0.9, s.y * rx * 0.45 - 18.0 * k)
+				draw_circle(p, 7.0 + 6.0 * k, Color(0.16, 0.08, 0.14, 0.7 * fade))
+			draw_circle(Vector2.ZERO, rx * 0.35 * (1.0 - k) + 4.0, Color(0.55, 0.1, 0.18, 0.5 * fade))
 
 
 func _ellipse(rx: float, col: Color, w: float) -> void:

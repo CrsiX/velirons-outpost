@@ -1168,7 +1168,7 @@ func _run() -> void:
 		for dx in range(-5, 6):
 			var t := wt_tower.tile + Vector2i(dx, dy)
 			var d := Vector2(t).distance_to(Vector2(wt_tower.tile))
-			if wspot2 == Vector2i(-1, -1) and d >= 3.0 and d <= 4.0 and game.world.pathing.is_walkable(t) and not map.in_village(t):
+			if wspot2 == Vector2i(-1, -1) and d >= 2.5 and d <= Config.ENEMIES["witch"]["spell_range"] and game.world.pathing.is_walkable(t) and not map.in_village(t):
 				wspot2 = t
 	game.waves._spawn({"kind": "witch", "spawn": far_spot, "hp_scale": 1000.0})
 	var hag: Enemy = get_tree().get_nodes_in_group("enemies").back()
@@ -1243,31 +1243,30 @@ func _run() -> void:
 			game.army.unstation(t.garrison)
 	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
 	var reach: float = Config.ENEMIES["witch"]["spell_range"]
-	# Needs a tower the witch outranges; build a fresh level-1 watchtower if none.
+	# A tower whose unit can't hurt her (a healing mage): a fresh watchtower.
 	var lone: Tower = null
-	for t in game.world.towers():
-		if t.complete and t.range_tiles() < reach - 0.2:
-			lone = t
 	if lone == null:
 		game.economy.add("materials", 100)
 		lone = game.construction.place("tower", find_spot("tower", game.player_village.center + Vector2i(-7, 0)))
 		await wait_until(func() -> bool: return lone.complete, 90.0)
-	var reserve_archers := game.army.reserve().filter(func(u: MilitaryUnit) -> bool: return u.kind == "archer")
-	game.army.station(reserve_archers[0] if not reserve_archers.is_empty() else game.army.recruit("archer"), lone)
+	game.economy.add("gold", 100)
+	var healer := game.army.recruit("apprentice")
+	healer.set_kind("healing_mage")
+	game.army.station(healer, lone)
 	await wait_until(func() -> bool: return lone.garrison != null, 60.0)
 	var limit := int(Config.ENEMIES["witch"]["spell_ignore_after"])
 	var cast_cd: float = Config.ENEMIES["witch"]["spell_cooldown"]
 	var outward := (Vector2(lone.tile) - Vector2(game.player_village.center)).normalized()
-	var stall_pos := Vector2(lone.tile) + outward * ((lone.range_tiles() + reach) / 2.0)
+	var stall_pos := Vector2(lone.tile) + outward * (minf(lone.range_tiles(), reach) - 0.6)
 	game.waves._spawn({"kind": "witch", "spawn": far_spot, "hp_scale": 1.0})
 	var w3: Enemy = get_tree().get_nodes_in_group("enemies").back()
 	w3.speed = 0.0
 	w3.set_grid_pos(stall_pos)
 	var wb3: WitchBehavior = w3.behavior
-	check(stall_pos.distance_to(Vector2(lone.tile)) > lone.range_tiles() and stall_pos.distance_to(Vector2(lone.tile)) <= reach, "witch parked beyond the archer's range but within her own (the old soft-lock)")
+	check(stall_pos.distance_to(Vector2(lone.tile)) <= reach and lone.garrison.kind == "healing_mage", "witch parked by a tower whose unit can't hurt her (a healing mage)")
 	var gave_up := await wait_until(func() -> bool: return wb3.casts_at(lone) >= limit and wb3.target == null, limit * cast_cd + 20.0)
-	check(gave_up, "after %d spells at a tower that can't reach her, the witch ignores it (%d casts)" % [limit, wb3.casts_at(lone)])
-	check(is_instance_valid(w3) and not w3.dead and is_equal_approx(w3.hp, w3.max_hp), "the tower's unit really could not reach her")
+	check(gave_up, "after %d spells at a tower that can't hurt her, the witch ignores it (%d casts)" % [limit, wb3.casts_at(lone)])
+	check(is_instance_valid(w3) and not w3.dead and is_equal_approx(w3.hp, w3.max_hp), "the tower's unit really could not hurt her")
 	await wait(3.0)
 	check(not lone.is_enchanted(), "the ignored tower is no longer bewitched")
 	if is_instance_valid(w3) and not w3.dead:

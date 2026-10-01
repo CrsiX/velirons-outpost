@@ -27,6 +27,12 @@ func on_path_end(_enemy: Enemy) -> bool:
 	return false
 
 
+## Called right after the enemy lost HP, before it may die (a vampire saves
+## itself as a bat here).
+func on_hurt(_enemy: Enemy) -> void:
+	pass
+
+
 ## Called once when the enemy dies or vanishes.
 func on_death(_enemy: Enemy) -> void:
 	pass

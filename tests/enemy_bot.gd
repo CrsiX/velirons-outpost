@@ -35,6 +35,7 @@ func _run() -> void:
 	await _test_gargoyle()
 	await _test_necromancer()
 	await _test_fog_corpses()
+	await _test_vampire()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -106,6 +107,7 @@ func _test_config() -> void:
 	check(E["gargoyle"].get("flying", false) and is_equal_approx(E["gargoyle"]["speed"], E["ork"]["speed"]) and E["gargoyle"]["gold_on_kill"] > 0 and E["gargoyle"]["gold_on_collect"] == 0 and E["gargoyle"]["food_on_collect"] > 0, "the gargoyle flies, as slow as an ork; kill gold, a corpse of food only")
 	check(E["necromancer"]["speed"] < E["skeleton"]["speed"] and E["necromancer"]["speed"] > E["ork"]["speed"] and E["necromancer"]["damage"] == 0.0 and E["necromancer"]["hp"] == E["goblin"]["hp"], "the necromancer: between skeleton and ork in speed, goblin HP, no attack")
 	check(E["necromancer"]["gold_on_kill"] >= 4 * E["goblin"]["gold_on_kill"] and E["necromancer"]["gold_on_collect"] == 0 and E["necromancer"]["food_on_collect"] == 0 and not E["necromancer"].get("revivable", true), "much gold on kill; its corpse yields nothing and can't be raised")
+	check(E["witch"]["spell_range"] <= Config.TOWER_RANGE["tower"] + Config.TOWER_LEVELS[0]["range_bonus"], "a witch can't outrange a level 1 watchtower (%.1f vs %.1f)" % [E["witch"]["spell_range"], Config.TOWER_RANGE["tower"]])
 	var firsts := {}
 	for kind in ["thief", "gargoyle", "necromancer"]:
 		for n in range(1, 30):
@@ -374,3 +376,137 @@ func _test_fog_corpses() -> void:
 	check(ga != null and taken, "once that land is explored, a gatherer fetches it")
 	for ex in explorers:
 		ex.set_process(true)
+
+
+# --- vampire and damage categories ------------------------------------------------------------------
+
+func _test_vampire() -> void:
+	var v := game.player_village
+	var E := Config.ENEMIES
+	await clear_enemies()
+	await clear_corpses()
+	check(Config.ATTACKS.values().all(func(a: Dictionary) -> bool: return Config.DAMAGE_CATEGORIES.has(a.get("category", ""))) and E["witch"]["attack_category"] == "magical", "every attack has a damage category (the witch's is magical)")
+	var first := -1
+	for n in range(1, 30):
+		if first < 0 and Config.wave_composition(n).has("vampire"):
+			first = n
+	check(first == Config.WAVE_MIX["vampire"]["from_wave"] and first == 13, "vampires join from wave 13")
+	check(E["vampire"]["hp"] == 2.0 * E["goblin"]["hp"] and E["vampire"]["speed"] < E["goblin"]["speed"] and E["vampire"]["damage"] / E["vampire"]["attack_cooldown"] == E["goblin"]["damage"] / E["goblin"]["attack_cooldown"], "a vampire: twice a goblin's HP, slower, a goblin's blows")
+	check(E["vampire"]["gold_on_kill"] == 6 and E["vampire"]["gold_on_collect"] == 8 and E["vampire"]["food_on_collect"] == 0, "loot: 6 gold, a corpse of 8 gold, no food")
+	# Magic hurts it less: a fireball (and its splash) 0.67 x, an arrow in full.
+	var at := Vector2(road_out(7))
+	var vp := spawn("vampire", at, 10.0)
+	var fm := MilitaryUnit.new("fire_mage")
+	fm.village = v
+	var h0 := vp.hp
+	Combat.hit(game, fm, vp, 10.0, null, vp.hit_point())
+	var magic := h0 - vp.hp
+	var ar := MilitaryUnit.new("archer")
+	ar.village = v
+	h0 = vp.hp
+	Combat.hit(game, ar, vp, 10.0, null, vp.hit_point())
+	var arrow := h0 - vp.hp
+	check(is_equal_approx(magic, 6.7) and is_equal_approx(arrow, 10.0), "magic does 0.67 x to a vampire (%.1f of 10), an arrow all of it (%.1f)" % [magic, arrow])
+	var gob := spawn("goblin", at + Vector2(0.5, 0.0), 10.0)
+	h0 = gob.hp
+	Combat.hit(game, fm, gob, 10.0, null, gob.hit_point())
+	check(is_equal_approx(h0 - gob.hp, 10.0), "a goblin takes magic in full")
+	gob.take_damage(1e9)
+	# Never killed in one blow: a deadly hit leaves it a bat with a third of its HP.
+	vp.take_damage(1e9, null, "projectile")
+	check(not vp.dead and is_equal_approx(vp.hp, vp.max_hp * E["vampire"]["bat_below"]) and vp.airborne, "a deadly blow at full HP: it keeps %d %% of its HP and becomes a bat" % roundi(E["vampire"]["bat_below"] * 100))
+	vp.take_damage(1e9, null, "projectile")
+	check(vp.dead, "only once: the next deadly blow kills it")
+	var rv := spawn("vampire", at + Vector2(0.0, 0.6), 10.0)
+	rv.make_raised(0.5, 1000.0)
+	rv.take_damage(1e9, null, "projectile")
+	check(not rv.dead and absf(rv.hp - rv.max_hp * E["vampire"]["bat_below"]) < 0.5 and rv.max_hp < E["vampire"]["hp"] * 10.0, "a raised vampire too, at a third of its (halved) max HP")
+	kill(rv)
+	await frames(2)
+	await clear_corpses()
+	# It drains what it really takes: 4 damage at a villager with 2 HP left: +2 x 0.67.
+	var vic: Civilian = ensure_role("gatherer")
+	vic.set_process(false)
+	vic.at_home = false
+	vic.visible = true
+	var spot := Vector2(road_out(28))  # (far out: as a bat it flies 18 tiles along the road)
+	vic.set_grid_pos(spot)
+	vic.hp = 2.0
+	var va := spawn("vampire", spot + Vector2(0.6, 0.0), 1.0, true)
+	va.speed = 0.0
+	va.hp = 30.0
+	var bit := await wait_until(func() -> bool: return vic.dead or not is_instance_valid(vic), 10.0)
+	await frames(1)
+	check(bit and is_equal_approx(va.hp, 30.0 + 2.0 * 0.67), "it heals 67 %% of the HP really taken (2 of a 4 blow: +%.2f)" % (va.hp - 30.0))
+	# Never above its max.
+	var hero := game.hero
+	hero.add_to_group("melee_defenders")
+	hero.max_hp = 5000.0
+	hero.hp = 5000.0
+	hero.set_grid_pos(va.grid_pos + Vector2(0.5, 0.0))
+	va.hp = va.max_hp - 0.5
+	await wait_until(func() -> bool: return hero.hp < 4990.0, 10.0)
+	check(is_equal_approx(va.hp, va.max_hp), "and never above its max HP")
+	# Below a third of its HP, once, a bat for 10 s: it flies and doesn't bite.
+	# (Its road leads out and back, so the bat's flight never reaches a gate.)
+	var vb := va.behavior as VampireBehavior
+	var loop := PackedVector2Array([va.grid_pos])
+	for k in 40:  # (back and forth, 40 tiles: longer than the bat's 18)
+		loop.append(va.grid_pos + Vector2(1.0 if k % 2 == 0 else 0.0, 0.0))
+	va.follow(loop)
+	va.hp = va.max_hp * 0.2
+	await frames(3)
+	var hhp := hero.hp
+	check(va.airborne and va.flies() and is_equal_approx(va.speed, E["vampire"]["bat_speed"]) and is_equal_approx(va.hp, va.max_hp * E["vampire"]["bat_below"]), "below a third of its HP it turns into a bat (back at a third): it flies, and fast")
+	await wait(0.6)
+	var arts := {}
+	for k in 30:
+		await get_tree().process_frame
+		arts[va.sprite.texture] = true
+	check(arts.has(Art.tex("unit_vampire_bat")) and arts.has(Art.tex("unit_vampire_bat_flap")) and va._shadow != null and va._shadow.visible, "it beats its bat wings over its shadow")
+	check(is_equal_approx(hero.hp, hhp) and game.hero._pick_enemy() == null, "a bat doesn't bite, and the hero can't go for it")
+	var landed := await wait_until(func() -> bool: return not va.airborne, E["vampire"]["bat_time"] + 3.0)
+	await wait(1.0)
+	check(landed and vb.bat_used and not va.airborne and va.sprite.texture == Art.tex("unit_vampire") and is_equal_approx(va.speed, 0.0), "after %.0f s it lands as a vampire again, at its old speed" % E["vampire"]["bat_time"])
+	check(not va.airborne, "only once: still low on HP, it stays on its feet")
+	hero.remove_from_group("melee_defenders")
+	hero.set_grid_pos(Vector2(v.center))
+	# Raised by a necromancer once.
+	kill(va, hero)
+	await frames(2)
+	var vc: Corpse = null
+	for c in game.corpses.corpses:
+		if c.kind == "vampire":
+			vc = c
+	check(vc != null and vc.revivable and vc.extra_gold == 0, "its corpse can be raised (once)")
+	# A bat at a gate: no harm done; it gains a third of its HP and flies back.
+	# Landed, the vampire walks to the village again.
+	var huts := v.intact_huts().size()
+	var people := game.population.count()
+	var near := spawn("vampire", Vector2(road_out(3)), 1.0, true)
+	near.take_damage(1e9, null, "projectile")
+	var nb2 := near.behavior as VampireBehavior
+	var turned := await wait_until(func() -> bool: return nb2.fled, 10.0)
+	var gate_hp := near.hp
+	check(turned and near.airborne and is_equal_approx(gate_hp, near.max_hp * (E["vampire"]["bat_below"] + E["vampire"]["bat_gate_heal"])) and v.intact_huts().size() == huts and game.population.count() == people, "a bat at a gate gains a third of its HP back (%.0f of %.0f), burns nothing and kills nobody" % [gate_hp, near.max_hp])
+	var g0 := near.grid_pos.distance_to(Vector2(v.center))
+	await wait(1.0)
+	check(near.grid_pos.distance_to(Vector2(v.center)) > g0 + 0.5, "and flies back the way it came")
+	var down := await wait_until(func() -> bool: return not near.airborne, E["vampire"]["bat_time"] + 3.0)
+	var to_gate := false
+	if down and not near.path.is_empty():
+		for gt in v.gates:
+			to_gate = to_gate or near.path[near.path.size() - 1].distance_to(Vector2(gt)) < 1.5
+	check(down and not nb2.fled and to_gate and near.speed < E["vampire"]["bat_speed"], "landed, the vampire walks to the village again")
+	kill(near)
+	# Holy damage: a necromancer 1.5 x, anything it raised 2 x, a goblin in full.
+	var nk := spawn("necromancer", at, 10.0)
+	var gb := spawn("goblin", at + Vector2(0.5, 0.0), 10.0)
+	var rg := spawn("goblin", at + Vector2(-0.5, 0.0), 10.0)
+	rg.make_raised(1.0, 1000.0)
+	var hs := [nk.hp, gb.hp, rg.hp]
+	for e in [nk, gb, rg]:
+		e.take_damage(10.0, null, "holy")
+	check(is_equal_approx(hs[0] - nk.hp, 15.0) and is_equal_approx(hs[1] - gb.hp, 10.0) and absf(hs[2] - rg.hp - 20.0) < 0.2, "holy damage: a necromancer takes 1.5 x, a raised enemy 2 x, a goblin 1 x")
+	await clear_enemies()
+	await clear_corpses()

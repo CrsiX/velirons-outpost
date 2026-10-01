@@ -276,7 +276,7 @@ func _describe(n: Node) -> Array:
 		var e := n as Enemy
 		if e.dead:
 			return []
-		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "ch": e.channel_to if e.channel_to != Vector2.INF else null}), e.current_tile(), -1, false]
+		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "air": e.airborne, "ch": e.channel_to if e.channel_to != Vector2.INF else null}), e.current_tile(), -1, false]
 	if n is Soldier:
 		var s := n as Soldier
 		vid = s.unit.village.id if s.unit.village else -1
@@ -567,6 +567,8 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		if st.get("rz", false) and not en.raised:
 			en.raised = true
 			en.modulate = Color(0.7, 1.0, 0.75, 0.8)
+		if bool(st.get("air", false)) != en.airborne:
+			en.set_airborne(bool(st.get("air", false)))
 		var ch = st.get("ch")
 		en.channel_to = Vector2(ch) if ch != null else Vector2.INF
 

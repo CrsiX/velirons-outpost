@@ -377,7 +377,7 @@ func counter_strike(e: Enemy) -> void:
 
 
 func _strike(foe: Enemy) -> void:
-	foe.take_damage(Config.hero_stat("damage", level), self)
+	foe.take_damage(Config.hero_stat("damage", level), self, "melee")
 	on_action("hit")
 	var tw := create_tween()
 	var lunge := (Iso.to_world(foe.grid_pos) - position).normalized() * 6.0
@@ -549,7 +549,7 @@ func _home_regen(_delta: float) -> void:
 	pass
 
 
-func take_damage(amount: float, source = null) -> void:
+func take_damage(amount: float, source = null, _category: String = "pure") -> void:
 	if dead:
 		return
 	hp -= amount

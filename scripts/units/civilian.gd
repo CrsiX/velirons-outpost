@@ -190,7 +190,7 @@ func inside_walls() -> bool:
 
 ## Hurt by an enemy (a blow, a bite, a spell): at 0 HP the villager dies.
 ## Villagers never fight back; they flee (see _evade).
-func take_damage(amount: float, source = null) -> void:
+func take_damage(amount: float, source = null, _category: String = "pure") -> void:
 	if not is_exposed():  # (nor if dead)
 		return
 	hp -= amount

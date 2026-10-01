@@ -206,7 +206,7 @@ func _comrades_center() -> Vector2:
 
 # --- taking hits ---------------------------------------------------------------------------
 
-func take_damage(amount: float, source = null) -> void:
+func take_damage(amount: float, source = null, _category: String = "pure") -> void:
 	if dead:
 		return
 	unit.hp -= amount

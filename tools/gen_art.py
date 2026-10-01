@@ -1488,6 +1488,66 @@ def corpse_necromancer():
     a.save("corpse_necromancer")
 
 
+def vampire():
+    """Pale, black-haired, a high-collared black cape lined in red, red eyes."""
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-11, -30), (11, -30), (14, -2), (-14, -2)], "#7a1420", INK, 1.4)  # cape, red inside
+            a.poly([(-11, -30), (-3, -30), (-6, -2), (-14, -2)], "#15111a", INK, 1.2)  # black outside
+            a.poly([(11, -30), (3, -30), (6, -2), (14, -2)], "#15111a", INK, 1.2)
+            a.poly([(-11, -27), (-9, -42), (-4, -30)], "#15111a", INK, 1)  # high collar, behind the head
+            a.poly([(11, -27), (9, -42), (4, -30)], "#15111a", INK, 1)
+        else:
+            a.raw('<path d="M-6,-37 Q0,-45 6,-37 L3,-38 L0,-35 L-3,-38 Z" fill="#15111a" stroke="%s" stroke-width="1"/>' % INK, [(-7, -45), (7, -35)])  # hair, widow's peak
+            a.ellipse(1.5, -33.5, 1.2, 1, "#ff3030")
+            a.ellipse(4.5, -33.5, 1.0, 0.9, "#ff3030")
+            a.poly([(2, -29.5), (2.6, -28), (3.2, -29.5)], "#ffffff", INK, 0.5)  # fang
+            a.line([(4, -21), (11, -18)], INK, 3.6)  # clawed hand forward
+            a.line([(4, -21), (11, -18)], "#2a2030", 2.2)
+            a.ellipse(12, -17.5, 1.8, 1.8, "#e8e0e4", INK, 0.8)
+    person("unit_vampire", ("#2a2030", "#1e1724"), skin="#e8e0e4", extra=extra)
+
+
+def vampire_bat(frame):
+    """The vampire as a big bat: black body, wide wings with a dark red skin
+    between the fingers, pointed ears, red eyes. Flies (the game draws the
+    shadow). Not grey stone like the gargoyle, and no horns."""
+    a = Art()
+    body, wing, skin = "#1b1620", "#2a2030", "#6a1a2a"
+    if frame == 0:  # wings up, spread
+        l = [(-4, -26), (-14, -40), (-22, -44), (-30, -36), (-24, -32), (-26, -24), (-18, -26), (-14, -20), (-6, -22)]
+    else:  # wings down
+        l = [(-4, -24), (-14, -16), (-24, -12), (-30, -4), (-22, -6), (-18, 0), (-14, -8), (-8, -6), (-5, -18)]
+    r = [(-x, y) for x, y in l]
+    for pts in (l, r):
+        a.poly(pts, skin, INK, 1.3)
+        a.line([pts[0], pts[2]], wing, 2.4)  # wing bones
+        a.line([pts[1], pts[4]], wing, 1.6)
+        a.line([pts[1], pts[6]], wing, 1.6)
+    a.ellipse(0, -22, 6, 8, body, INK, 1.4)  # body
+    a.ellipse(0, -31, 5, 4.5, body, INK, 1.3)  # head
+    a.poly([(-4, -33), (-6, -40), (-1.5, -34.5)], body, INK, 1)  # ears
+    a.poly([(4, -33), (6, -40), (1.5, -34.5)], body, INK, 1)
+    a.ellipse(-1.8, -31.5, 1.2, 1, "#ff3030")
+    a.ellipse(1.8, -31.5, 1.2, 1, "#ff3030")
+    a.poly([(-1.2, -28.5), (-0.6, -27), (0, -28.5)], "#ffffff", INK, 0.4)
+    a.poly([(0, -28.5), (0.6, -27), (1.2, -28.5)], "#ffffff", INK, 0.4)
+    a.line([(-2, -14), (-3, -11)], INK, 1.4)  # feet
+    a.line([(2, -14), (3, -11)], INK, 1.4)
+    a.save("unit_vampire_bat" if frame == 0 else "unit_vampire_bat_flap", fixed=(-31, -50, 31, 3))
+
+
+def corpse_vampire():
+    a = Art()
+    a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
+    a.poly([(-16, -2), (8, -7), (12, 2), (-12, 6)], "#7a1420", INK, 1.2)  # spread cape
+    a.poly([(-12, -1), (6, -4), (9, 1), (-9, 4)], "#2a2030", INK, 1)
+    a.ellipse(12, -3, 5, 4.5, "#e8e0e4", INK, 1.2)
+    a.line([(9, -6), (15, -6)], "#15111a", 2.2)  # hair
+    a.ellipse(-18, 5, 4, 2.5, "#4a1018", opacity=0.6)  # dark stain
+    a.save("corpse_vampire")
+
+
 def rat():
     """A small grey-brown rat, side view, facing right (the game flips it)."""
     a = Art()
@@ -3475,6 +3535,10 @@ def main():
     corpse_thief()
     corpse_gargoyle()
     corpse_necromancer()
+    vampire()
+    vampire_bat(0)
+    vampire_bat(1)
+    corpse_vampire()
     spell_bolt()
     spell_glow()
     arrow()

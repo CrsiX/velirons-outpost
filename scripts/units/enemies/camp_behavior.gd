@@ -47,7 +47,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 			if dmg <= 0.0:  # (a witch at a camp hits with her spell)
 				dmg = maxf(float(enemy.spec().get("spell_damage", 4.0)), 4.0)
 			enemy.swing(_foe.grid_pos)
-			_foe.take_damage(dmg, enemy)
+			_foe.take_damage(dmg, enemy, enemy.attack_category())
 		return true
 	# Nobody around: back to its spot by the fire.
 	if enemy.grid_pos.distance_to(home) > 0.05:

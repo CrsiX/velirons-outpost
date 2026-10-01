@@ -33,7 +33,7 @@ static func hit(game: Game, unit: MilitaryUnit, t, dmg: float, source: Node, at:
 	if is_instance_valid(t) and not t.dead:
 		var e := t as Enemy
 		center = e.grid_pos
-		e.take_damage(dmg, source if is_instance_valid(source) else null)
+		e.take_damage(dmg, source if is_instance_valid(source) else null, a.get("category", "pure"))
 		if not e.dead:
 			if unit.has_stat("slow"):
 				e.slow(unit.stat("slow"), unit.stat("slow_time"))
@@ -44,9 +44,18 @@ static func hit(game: Game, unit: MilitaryUnit, t, dmg: float, source: Node, at:
 		for node in game.get_tree().get_nodes_in_group("enemies"):
 			var o := node as Enemy
 			if o != t and not o.dead and o.grid_pos.distance_to(center) <= r:
-				o.take_damage(dmg * float(a.get("splash_share", 0.5)), source if is_instance_valid(source) else null)
+				o.take_damage(dmg * float(a.get("splash_share", 0.5)), source if is_instance_valid(source) else null, a.get("category", "pure"))
 	if a.get("explode", false):
 		burst(game, "explosion", Iso.to_world(center) + Vector2(0, -16), unit.stat("splash") if unit.has_stat("splash") else 1.0)
+
+
+## The effect on this machine only (each player plays it, e.g. a vampire
+## changing shape, which every client sees happen by itself).
+static func local_burst(game: Game, kind: String, at: Vector2, radius: float) -> void:
+	var b: Node2D = BURST_SCRIPT.new()
+	b.setup(kind, radius)
+	b.position = at
+	game.world.effects.add_child(b)
 
 
 ## Heals every allied unit outside (any village's) and every hero within
@@ -76,9 +85,6 @@ static func heal_around(game: Game, center: Vector2, radius: float, amount: floa
 
 ## A short visual effect ("explosion", "heal", "warp") at world position `at`.
 static func burst(game: Game, kind: String, at: Vector2, radius: float) -> void:
-	var b: Node2D = BURST_SCRIPT.new()
-	b.setup(kind, radius)
-	b.position = at
-	game.world.effects.add_child(b)
+	local_burst(game, kind, at, radius)
 	if game.replicator and game.replicator.hosting:
 		game.replicator.burst(kind, at, radius)

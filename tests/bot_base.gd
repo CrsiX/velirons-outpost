@@ -68,6 +68,13 @@ func _bench_hero(on: bool) -> void:
 
 func clear_enemies() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
-		if not e.dead:
-			e.take_damage(1e9)
+		kill(e)
 	await frames(3)
+
+
+## Kills `e` for sure (a vampire survives the first deadly blow as a bat).
+func kill(e: Enemy, source: Node = null) -> void:
+	for k in 3:
+		if not is_instance_valid(e) or e.dead:
+			return
+		e.take_damage(1e9, source)

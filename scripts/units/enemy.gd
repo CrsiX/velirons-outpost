@@ -16,6 +16,7 @@ const BEHAVIORS := {
 	"rat": preload("res://scripts/units/enemies/rat_behavior.gd"),
 	"thief": preload("res://scripts/units/enemies/thief_behavior.gd"),
 	"necromancer": preload("res://scripts/units/enemies/necromancer_behavior.gd"),
+	"vampire": preload("res://scripts/units/enemies/vampire_behavior.gd"),
 }
 
 var kind := ""
@@ -48,6 +49,8 @@ var raised := false
 var decay_rate := 0.0
 ## Died of that drain, not killed: no gold.
 var decayed := false
+## Flying for now (a vampire in bat form): see set_airborne.
+var airborne := false
 ## A necromancer's spell on a corpse there (grid position; INF = none).
 var channel_to := Vector2.INF
 var _fly_t := 0.0
@@ -74,19 +77,7 @@ func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: Stri
 	follow(pts)
 	behavior = BEHAVIORS[spec()["behavior"]].new()
 	if flies():
-		# Its shadow on the ground (drawn first, under it).
-		_shadow = Polygon2D.new()
-		var ring := PackedVector2Array()
-		for i in 16:
-			var a := TAU * i / 16.0
-			ring.append(Vector2(cos(a) * 13.0, 2.0 + sin(a) * 5.0))
-		_shadow.polygon = ring
-		_shadow.color = Color(0, 0, 0, 0.28)
-		_shadow.show_behind_parent = true
-		add_child(_shadow)
-		move_child(_shadow, 0)
-		_fly_base = sprite.offset
-		_fly_t = randf() * TAU
+		_take_off()
 	add_to_group("enemies")
 	_update_visibility()
 
@@ -150,10 +141,65 @@ func spec() -> Dictionary:
 	return Config.ENEMIES[kind]
 
 
-## Flies (gargoyles): keeps to the roads, but no ground slows it, and only
-## ranged attacks and other flyers can go for it.
+## What kind of damage its blows do (Config.DAMAGE_CATEGORIES).
+func attack_category() -> String:
+	return spec().get("attack_category", "melee")
+
+
+## Flies (gargoyles; a vampire in bat form): keeps to the roads, but no
+## ground slows it, and only ranged attacks and other flyers can go for it.
 func flies() -> bool:
-	return spec().get("flying", false)
+	return airborne or spec().get("flying", false)
+
+
+## The art it shows now: its own, or the bat's.
+func art_base() -> String:
+	return "vampire_bat" if airborne else str(spec()["art"])
+
+
+## Into the air (`on`) as a bat, or back on its feet: a puff of dark smoke,
+## shrinking into it and growing out again in the new shape.
+func set_airborne(on: bool) -> void:
+	if airborne == on:
+		return
+	airborne = on
+	Combat.local_burst(game, "smoke", position + Vector2(0, -20), 0.9)
+	var tw := create_tween()
+	tw.tween_property(sprite, "scale", Vector2(0.15, 0.15), 0.15)
+	tw.tween_callback(func() -> void:
+		var flip := sprite.flip_h
+		Art.apply(sprite, "unit_" + art_base())
+		sprite.flip_h = flip
+		if airborne:
+			_take_off()
+		else:
+			_land()
+		sprite.scale = Vector2(0.15, 0.15))
+	tw.tween_property(sprite, "scale", Vector2(0.5, 0.5), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Starts flying: a shadow on the ground under it (drawn first), bobbing.
+func _take_off() -> void:
+	if _shadow == null:
+		_shadow = Polygon2D.new()
+		var ring := PackedVector2Array()
+		for i in 16:
+			var a := TAU * i / 16.0
+			ring.append(Vector2(cos(a) * 13.0, 2.0 + sin(a) * 5.0))
+		_shadow.polygon = ring
+		_shadow.color = Color(0, 0, 0, 0.28)
+		_shadow.show_behind_parent = true
+		add_child(_shadow)
+		move_child(_shadow, 0)
+	_shadow.visible = true
+	_fly_base = sprite.offset
+	_fly_t = randf() * TAU
+
+
+func _land() -> void:
+	if _shadow:
+		_shadow.visible = false
+	_fly_base = sprite.offset
 
 
 func _walk_factor() -> float:
@@ -253,7 +299,9 @@ func _process(delta: float) -> void:
 		if hp <= 0.0:
 			decayed = true
 			take_damage(1.0, null)
-			return
+			decayed = dead  # (unless a vampire saved itself as a bat)
+			if dead:
+				return
 	if _slow_left > 0.0:
 		_slow_left -= delta
 		if _slow_left <= 0.0:  # the frost wears off
@@ -287,11 +335,16 @@ func _update_visibility() -> void:
 
 
 ## `source` is whoever dealt the damage (a Tower, or a melee defender);
-## behaviors may react to it.
-func take_damage(amount: float, source: Node = null) -> void:
+## behaviors may react to it. `category` (Config.DAMAGE_CATEGORIES) is scaled
+## by the kind's "resist" table (a vampire takes less from magic).
+func take_damage(amount: float, source: Node = null, category: String = "pure") -> void:
 	if dead:
 		return
+	amount *= float(spec().get("resist", {}).get(category, 1.0))
+	if raised and category == "holy":
+		amount *= float(Config.ENEMIES["necromancer"]["raised_holy"])  # (the undead it raised)
 	hp -= amount
+	behavior.on_hurt(self)
 	queue_redraw()
 	sprite.modulate = Color(1.0, 0.45, 0.45)
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
@@ -314,16 +367,22 @@ func take_damage(amount: float, source: Node = null) -> void:
 ## on the ground, see _draw.)
 func _fly(delta: float) -> void:
 	_fly_t += delta
-	var flap := int(_fly_t * 7.0) % 2 == 0
-	var art := "unit_%s%s" % [spec()["art"], "" if flap else "_flap"]
+	# A bat beats its wings faster than a gargoyle and flutters from side to side.
+	var bat := airborne
+	var flap := int(_fly_t * (14.0 if bat else 7.0)) % 2 == 0
+	var art := "unit_%s%s" % [art_base(), "" if flap else "_flap"]
 	if sprite.texture != Art.tex(art):
 		var flip := sprite.flip_h
+		var sc := sprite.scale
 		Art.apply(sprite, art)
 		sprite.flip_h = flip
+		sprite.scale = sc
 		_fly_base = sprite.offset
 	# (offset is in texture pixels: the sprite is drawn at half size)
-	sprite.offset = _fly_base + Vector2(0, (-16.0 - 4.0 * sin(_fly_t * 3.2)) * 2.0)
-	_shadow.scale = Vector2.ONE * (1.0 - 0.12 * sin(_fly_t * 3.2))  # smaller while higher
+	var side := sin(_fly_t * 5.3) * 5.0 if bat else 0.0
+	sprite.offset = _fly_base + Vector2(side, (-16.0 - 4.0 * sin(_fly_t * (5.0 if bat else 3.2))) * 2.0)
+	if _shadow:  # (a vampire gets its shadow a moment after it starts to change)
+		_shadow.scale = Vector2.ONE * (1.0 - 0.12 * sin(_fly_t * 3.2))  # smaller while higher
 
 
 func _draw() -> void:

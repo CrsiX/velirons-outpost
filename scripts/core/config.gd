@@ -35,8 +35,8 @@ const VILLAGE_LAYOUT: Array[String] = [
 	"TWGWT",
 ]
 
-const START_RESOURCES := {"gold": 15000, "food": 12000, "materials": 7000}
-#const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
+#const START_RESOURCES := {"gold": 15000, "food": 12000, "materials": 7000}
+const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
 const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explorer"]
 ## Built for free near the village at the start (the farm on the guaranteed
 ## farm plot, the camp close to the forest); the starting farmer and forester work them.
@@ -451,16 +451,23 @@ const MILITARY_TREE: Array[String] = ["archer", "crossbowman", "swiftbowman", "s
 ## s), "push" (thrown back "push" tiles along its road, once per push_immunity s),
 ## "heal" (heals allies within the unit's "radius").
 const ATTACKS := {
-	"arrow": {"projectile": "arrow", "arc": true, "sound": "shoot"},
-	"swift_arrow": {"projectile": "swift_arrow", "arc": true, "sound": "shoot"},
-	"bolt": {"projectile": "crossbow_bolt", "arc": false, "speed": 900.0, "sound": "shoot"},
-	"orb": {"projectile": "arcane_orb", "whirl": true, "speed": 420.0, "sound": "hit"},
-	"fireball": {"projectile": "fireball", "whirl": true, "speed": 380.0, "splash_share": 0.6, "explode": true, "sound": "hit"},
-	"frost": {"projectile": "frost_orb", "whirl": true, "speed": 420.0, "sound": "hit"},
-	"warp": {"projectile": "warp_orb", "whirl": true, "speed": 460.0, "push_immunity": 4.0, "sound": "hit"},
-	"heal": {"projectile": "", "sound": "recruit"},
-	"strike": {"projectile": "", "sound": "hit"},
+	"arrow": {"projectile": "arrow", "arc": true, "sound": "shoot", "category": "projectile"},
+	"swift_arrow": {"projectile": "swift_arrow", "arc": true, "sound": "shoot", "category": "projectile"},
+	"bolt": {"projectile": "crossbow_bolt", "arc": false, "speed": 900.0, "sound": "shoot", "category": "projectile"},
+	"orb": {"projectile": "arcane_orb", "whirl": true, "speed": 420.0, "sound": "hit", "category": "magical"},
+	"fireball": {"projectile": "fireball", "whirl": true, "speed": 380.0, "splash_share": 0.6, "explode": true, "sound": "hit", "category": "magical"},
+	"frost": {"projectile": "frost_orb", "whirl": true, "speed": 420.0, "sound": "hit", "category": "magical"},
+	"warp": {"projectile": "warp_orb", "whirl": true, "speed": 460.0, "push_immunity": 4.0, "sound": "hit", "category": "magical"},
+	"heal": {"projectile": "", "sound": "recruit", "category": "holy"},
+	"strike": {"projectile": "", "sound": "hit", "category": "melee"},
 }
+
+## What kind of damage a hit does (ATTACKS "category"; enemies: "attack_category",
+## melee if not given). An enemy's "resist" table scales what it takes by
+## category (a vampire takes 0.67 x magical damage). The hero's sword, earth
+## elementals and soldiers' strikes are melee; fire elementals are magical.
+## "pure" (a raised enemy's drain, a flame burning itself up) is never scaled.
+const DAMAGE_CATEGORIES: Array[String] = ["melee", "projectile", "magical", "holy", "pure"]
 
 ## Summoned elementals, relative to Config.SUMMON (earth elementals).
 const SUMMONS := {
@@ -624,11 +631,11 @@ const ENEMIES := {
 	# enchants their unit (it stops shooting/summoning for a while). Spells hurt
 	# earth elementals. Whoever attacks her becomes her first target.
 	"witch": {
-		"name": "Witch", "art": "witch", "behavior": "witch",
+		"name": "Witch", "art": "witch", "behavior": "witch", "attack_category": "magical",
 		"hp": 12.0, "speed": 1.0,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 12, "gold_on_collect": 0, "food_on_collect": 1,
-		"spell_range": 4.0,  # tiles
+		"spell_range": 3.6,  # tiles: no farther than a level 1 watchtower shoots (TOWER_RANGE)
 		"spell_cooldown": 2.0, 
 		"enchant_ratio": 0.45,  # a bewitched unit stops for 45 % of her spell cooldown (0.9 s)
 		"spell_damage": 5.0,  # dealt to earth elementals (tower units take none)
@@ -694,6 +701,28 @@ const ENEMIES := {
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 25, "gold_on_collect": 0, "food_on_collect": 0,
 		"cast_time": 5.0, "raise_range": 3.0, "raise_hp": 0.5, "raise_decay": 20.0, "raise_gold": 0.5,
+		"resist": {"holy": 1.5},  # holy damage hurts it more
+		"raised_holy": 2.0,  # what it raises takes 2 x holy damage (on top of its kind's own factor)
+	},
+	# Slower than a goblin, twice its HP, a goblin's blows. Takes resist x the
+	# damage of a category (magic: 0.67). Of the HP it really takes from
+	# whatever it hits it gets `drain` back (never over its max). Once, the
+	# moment its HP would drop below bat_below of its max (even to 0: it is
+	# never killed in one blow), it keeps that much HP and turns into a bat
+	# for bat_time s: it flies (only ranged attacks and fire elementals reach
+	# it) over every ground unit, at bat_speed, and can't attack. A bat that
+	# reaches a gate does no harm: it gains bat_gate_heal of its max HP (never
+	# over its max) and flies back the way it came. Landed, it walks to the
+	# village again as a vampire. (Flying allied units, if they ever come,
+	# would be the bat's to fight.)
+	"vampire": {
+		"name": "Vampire", "art": "vampire", "behavior": "vampire",
+		"hp": 40.0, "speed": 0.9,
+		"damage": 4.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 6, "gold_on_collect": 8, "food_on_collect": 0,
+		"resist": {"magical": 0.67},
+		"drain": 0.67,
+		"bat_below": 0.33, "bat_time": 10.0, "bat_speed": 1.8, "bat_gate_heal": 0.33,
 	},
 }
 ## Rat packs: from `from_wave`, a wave gets rat packs with chance `chance`:
@@ -724,6 +753,7 @@ const WAVE_MIX := {
 	"thief": {"from_wave": 7, "share": 0.08, "growth": 0.01, "max_share": 0.15},
 	"gargoyle": {"from_wave": 10, "share": 0.06, "growth": 0.01, "max_share": 0.15},
 	"necromancer": {"from_wave": 13, "share": 0.04, "growth": 0.005, "max_share": 0.08},
+	"vampire": {"from_wave": 13, "share": 0.05, "growth": 0.01, "max_share": 0.12},
 }
 const WAVE_FILLER := "goblin"
 ## The special kinds together never take more than this share of a wave

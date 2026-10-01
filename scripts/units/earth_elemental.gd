@@ -146,10 +146,10 @@ func counter_strike(e: Enemy) -> void:
 
 
 func _strike(foe: Enemy) -> void:
-	foe.take_damage(damage, self)
+	foe.take_damage(damage, self, "magical" if flies() else "melee")  # (a flame is magic)
 	var burn: float = Config.SUMMONS[summon]["self_damage"]
 	if burn > 0.0:
-		take_damage(damage * burn, self)  # fire burns itself up
+		take_damage(damage * burn, self, "pure")  # fire burns itself up
 		if dead:
 			return
 	var tw := create_tween()
@@ -159,7 +159,7 @@ func _strike(foe: Enemy) -> void:
 	Sfx.play("hit", 0.25)
 
 
-func take_damage(amount: float, source = null) -> void:
+func take_damage(amount: float, source = null, _category: String = "pure") -> void:
 	if dead:
 		return
 	hp -= amount

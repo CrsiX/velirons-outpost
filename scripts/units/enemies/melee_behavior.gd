@@ -37,8 +37,13 @@ func tick(enemy: Enemy, delta: float) -> bool:
 	if _attack_timer <= 0.0:
 		_attack_timer = enemy.stat("attack_cooldown")
 		enemy.swing(_foe.grid_pos)
-		_foe.take_damage(enemy.stat("damage"), enemy)
+		_hit(enemy, _foe)
 		# A flyer out of a ground fighter's reach still gets hit back.
 		if enemy.flies() and is_instance_valid(_foe) and not _foe.dead and _foe.has_method("counter_strike"):
 			_foe.counter_strike(enemy)
 	return true
+
+
+## One blow at `foe` (a vampire drains from it, see VampireBehavior).
+func _hit(enemy: Enemy, foe: Node) -> void:
+	foe.take_damage(enemy.stat("damage"), enemy, enemy.attack_category())

@@ -135,7 +135,7 @@ func _chase(enemy: Enemy, delta: float) -> bool:
 		if _bite <= 0.0:
 			_bite = float(enemy.spec()["attack_cooldown"])
 			enemy.swing(foe.grid_pos)
-			foe.take_damage(enemy.stat("damage"), enemy)
+			foe.take_damage(enemy.stat("damage"), enemy, enemy.attack_category())
 		return true
 	_repath -= delta
 	if _repath <= 0.0:

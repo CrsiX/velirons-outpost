@@ -53,8 +53,7 @@ func spawn_dummy(kind: String, at: Vector2, hp_scale: float) -> Enemy:
 
 func clear_enemies() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
-		if not e.dead:
-			e.take_damage(1e9)
+		kill(e)
 	await frames(2)
 
 
