@@ -456,6 +456,13 @@ func _test_game() -> void:
 	hero.xp = cost + 7
 	var up := game.command("hero_level_up")
 	check(up["ok"] and hero.level == 1 and hero.xp == 7 and is_equal_approx(hero.max_hp, Config.hero_stat("hp", 1)) and Config.hero_stat("damage", 1) > Config.HERO["damage"], "spending %d XP he reaches level 2: %d HP, %.0f damage" % [cost, int(hero.max_hp), Config.hero_stat("damage", 1)])
+	var fx := hero.get_node_or_null("LevelUpFx")
+	check(fx != null and fx.get_child_count() == 3 and (fx.get_child(1) as Sprite2D).texture == Art.tex("levelup_chevrons"), "glowing chevrons rise over his head")
+	var y0: float = fx.position.y if fx else 0.0
+	await frames(3)
+	check(is_instance_valid(fx) and fx.position.y < y0, "and float upwards")
+	var gone := await wait_until(func() -> bool: return not is_instance_valid(fx), 10.0)
+	check(gone, "then fade away")
 	game.hud._hero_panel.visible = true
 	game.hud._refresh_hero()
 	check("Level 2" in game.hud._hero_stats.text and ("Level up to 3  (%d XP)" % hero.level_up_cost()) == Hud.button_text(game.hud._hero_level_button) and game.hud._hero_level_button.disabled, "his panel shows the level and the next level's cost")

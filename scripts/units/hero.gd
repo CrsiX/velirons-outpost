@@ -409,10 +409,47 @@ func level_up() -> bool:
 		hp = minf(max_hp, hp + max_hp - old_max)
 	village.events.info("The hero reached level %d: %d HP, %d damage" % [level + 1, int(max_hp), int(Config.hero_stat("damage", level))])
 	float_text("Level %d!" % (level + 1), UiTheme.GOLD)
+	play_level_up_fx()
 	Sfx.play("build")
 	queue_redraw()
 	changed.emit()
 	return true
+
+
+## Three glowing chevrons rise over his head (co-op clients play it too,
+## when the host says his level went up).
+func play_level_up_fx() -> void:
+	var fx := Node2D.new()
+	fx.name = "LevelUpFx"
+	fx.position = Vector2(0, -52)
+	add_child(fx)
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	var glow := Sprite2D.new()
+	glow.texture = Art.tex("levelup_glow")
+	glow.material = add
+	glow.scale = Vector2.ONE * 0.75
+	fx.add_child(glow)
+	var chev := Sprite2D.new()
+	chev.texture = Art.tex("levelup_chevrons")
+	chev.scale = Vector2.ONE * 0.38
+	fx.add_child(chev)
+	var shine := Sprite2D.new()  # (the chevrons once more, added on top: they glow)
+	shine.texture = chev.texture
+	shine.material = add
+	shine.scale = chev.scale * 1.08
+	fx.add_child(shine)
+	fx.modulate.a = 0.0
+	var tw := fx.create_tween().set_parallel()
+	tw.tween_property(fx, "position:y", -96.0, 1.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(fx, "modulate:a", 1.0, 0.25)
+	tw.tween_property(glow, "scale", Vector2.ONE * 1.15, 0.8).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(shine, "modulate:a", 0.25, 0.4).set_delay(0.25)
+	tw.chain().tween_property(fx, "modulate:a", 0.0, 0.5)
+	tw.chain().tween_callback(fx.queue_free)
+	# He lights up for a moment as well.
+	sprite.modulate = Color(1.6, 1.6, 1.2)
+	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.6)
 
 
 # --- monster camps -------------------------------------------------------------------------------

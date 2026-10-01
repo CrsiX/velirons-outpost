@@ -112,7 +112,10 @@ func _test_config() -> void:
 			if Config.wave_composition(n).has(kind):
 				firsts[kind] = n
 				break
-	check(firsts.get("thief") == 7 and firsts.get("gargoyle") == 10 and firsts.get("necromancer") == 20, "they join from waves 7, 10 and 20 (%s)" % str(firsts))
+	var want := {}
+	for kind in ["thief", "gargoyle", "necromancer"]:
+		want[kind] = Config.WAVE_MIX[kind]["from_wave"]
+	check(firsts == want, "they join from their waves (%s)" % str(firsts))
 	var late := Config.wave_composition(40)
 	check(late.has(Config.WAVE_FILLER) and late.has("necromancer") and late.has("skeleton"), "late waves still have some of everything (%s)" % str(late))
 	for kind in ["thief", "gargoyle", "necromancer"]:
@@ -293,12 +296,19 @@ func _test_necromancer() -> void:
 			c2 = x
 	check(decayed and seen.get("decayed", false) and int(v.economy.amount("gold")) == gold0 and c2 != null and not c2.revivable, "decayed: no gold, and its corpse can't be raised again")
 	# The second raise (the ork, after the cooldown): logged at Debug only; killed, half the gold.
-	var again := await wait_until(func() -> bool: return not game.corpses.corpses.has(c3), 30.0)
+	var again := await wait_until(func() -> bool: return raise_levels.size() >= 2, 30.0)
+	check(again and raise_levels[1] == EventLog.Level.DEBUG, "the next raise is logged at Debug only")
 	var orc: Enemy = null
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e.raised and e.kind == "ork" and not e.dead:
 			orc = e
-	check(again and orc != null and raise_levels.size() == 2 and raise_levels[1] == EventLog.Level.DEBUG, "the next raise is logged at Debug only")
+	if orc == null:  # (it may have drained away already: raise a fresh one)
+		var c5 := game.corpses.spawn("ork", game.waves.wave, nec.grid_pos + Vector2(0.5, 1.0))
+		nb._cool = 0.0
+		await wait_until(func() -> bool: return not game.corpses.corpses.has(c5), 20.0)
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if e.raised and e.kind == "ork" and not e.dead:
+				orc = e
 	if orc:
 		var gold1 := int(v.economy.amount("gold"))
 		orc.take_damage(1e9, game.hero)
@@ -318,6 +328,25 @@ func _test_necromancer() -> void:
 	game.corpses.remove(c4)
 	await wait(1.0)
 	check(nb.corpse == null and nec.channel_to == Vector2.INF and not get_tree().get_nodes_in_group("enemies").any(func(e: Enemy) -> bool: return e.raised and not e.dead), "the corpse gone mid-spell: the cast is lost")
+	# One of our fighters near: it stands and waits for its next raise.
+	await clear_corpses()
+	nec.speed = Config.ENEMIES["necromancer"]["speed"]
+	var road := game.world.pathing.nearest_road(Vector2i(nec.grid_pos.round()))
+	var route := game.world.pathing.enemy_route(road, RandomNumberGenerator.new(), -1)
+	var pts := PackedVector2Array([nec.grid_pos])
+	for t in route:
+		pts.append(Vector2(t))
+	nec.follow(pts)
+	var hero := game.hero
+	hero.add_to_group("melee_defenders")  # (benched: he stands there, it doesn't fight)
+	hero.set_grid_pos(nec.grid_pos + Vector2(1.5, 0.0))
+	var p0 := nec.grid_pos
+	await wait(2.0)
+	var held := nec.grid_pos.distance_to(p0) < 0.05
+	hero.set_grid_pos(Vector2(v.center))
+	hero.remove_from_group("melee_defenders")
+	await wait(2.0)
+	check(held and nec.grid_pos.distance_to(p0) > 0.5, "a fighter of ours near: the necromancer stands and waits; gone: it walks on")
 	# Killed, it pays a lot; its corpse is worth nothing.
 	var gold2 := int(v.economy.amount("gold"))
 	nec.take_damage(1e9, game.hero)

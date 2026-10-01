@@ -35,7 +35,8 @@ const VILLAGE_LAYOUT: Array[String] = [
 	"TWGWT",
 ]
 
-const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
+const START_RESOURCES := {"gold": 15000, "food": 12000, "materials": 7000}
+#const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
 const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explorer"]
 ## Built for free near the village at the start (the farm on the guaranteed
 ## farm plot, the camp close to the forest); the starting farmer and forester work them.
@@ -692,7 +693,7 @@ const ENEMIES := {
 		"hp": 20.0, "speed": 0.95,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 25, "gold_on_collect": 0, "food_on_collect": 0,
-		"cast_time": 8.0, "raise_range": 3.0, "raise_hp": 0.5, "raise_decay": 20.0, "raise_gold": 0.5,
+		"cast_time": 5.0, "raise_range": 3.0, "raise_hp": 0.5, "raise_decay": 20.0, "raise_gold": 0.5,
 	},
 }
 ## Rat packs: from `from_wave`, a wave gets rat packs with chance `chance`:

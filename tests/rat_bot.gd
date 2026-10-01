@@ -41,6 +41,7 @@ func _run() -> void:
 	await _test_rats_give_up()
 	_test_hero_bar()
 	_test_people()
+	_test_hud_extras()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -252,6 +253,8 @@ func _test_gate() -> void:
 
 func _test_villagers() -> void:
 	var v := game.player_village
+	check(game.population.count("explorer") == 0, "with the whole map revealed, nobody starts as an explorer")
+	ensure_role("explorer")
 	var ex: Civilian = v.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "explorer")[0]
 	check(is_equal_approx(ex.max_hp, Config.CIVILIAN_HP) and ex.is_in_group("villagers"), "villagers have %.0f HP" % Config.CIVILIAN_HP)
 	ex.set_process(false)
@@ -834,3 +837,44 @@ func _test_rats_give_up() -> void:
 	var earliest: float = gave_up.values().min() if not gave_up.is_empty() else -1.0
 	check(gone and not gave_up.is_empty() and decoy.stored <= 0.001 and earliest >= Config.ENEMIES["rat"]["give_up_after"] - 0.05 and t < Config.ENEMIES["rat"]["vanish_after"], "they eat it empty, then move on once it grew nothing for %.0f s (first at %.1f s, all within %.0f s of arriving: before vanishing at %.0f s)" % [Config.ENEMIES["rat"]["give_up_after"], earliest, t, Config.ENEMIES["rat"]["vanish_after"]])
 	await clear_enemies()
+
+
+# --- floating icons, Space, the "no builder" banner --------------------------------------------------
+
+func _test_hud_extras() -> void:
+	var hud := game.hud
+	game.world.float_text("+3 {gold}  +8 {food}", Vector2(100, 100), UiTheme.GOLD)
+	var ft = game.world.effects.get_child(game.world.effects.get_child_count() - 1)
+	check(ft is RichTextLabel and "icon_gold.svg" in ft.text and "icon_food.svg" in ft.text, "floating \"+3 gold +8 food\" texts show the icons")
+	# Space: pause and back to the speed before; paused with the button, Space goes to 1x.
+	var scale := Engine.time_scale
+	var pause := Game.SPEEDS.find(0.0)
+	hud.set_speed_index(Game.SPEEDS.find(2.0))
+	hud.toggle_pause()
+	var paused := hud._speed_index == pause
+	hud.toggle_pause()
+	check(paused and Game.SPEEDS[hud._speed_index] == 2.0, "Space pauses, and Space again goes back to 2x")
+	hud.set_speed_index(Game.SPEEDS.find(4.0))
+	hud.set_speed_index(pause)
+	hud.toggle_pause()
+	check(Game.SPEEDS[hud._speed_index] == 1.0, "paused with the speed button, Space goes to 1x")
+	Engine.time_scale = scale
+	# No builder, the hero not building, something queued: after 5 s a warning.
+	for c in game.population.civilians.duplicate():
+		if c.role == "builder":
+			game.population.kill(c)
+	game.hero.set_mode(Hero.Mode.REST)
+	game.economy.add("materials", 100)
+	var site := game.construction.place("tower", find_spot("tower", game.player_village.center + Vector2i(-6, 6)))
+	hud._no_builder_for = 0.0
+	hud._refresh_builder_warning(3.0)
+	var early := hud._builder_warning.visible
+	hud._refresh_builder_warning(2.5)
+	check(site != null and not early and hud._builder_warning.visible, "no builder, the hero not building: after 5 s a warning says nothing will be built")
+	game.hero.set_mode(Hero.Mode.BUILD)
+	hud._refresh_builder_warning(0.25)
+	check(not hud._builder_warning.visible, "the hero in Build mode: no warning")
+	game.hero.set_mode(Hero.Mode.REST)
+	game.construction.cancel(site)
+	hud._refresh_builder_warning(0.25)
+	check(not hud._builder_warning.visible, "nothing queued: no warning")

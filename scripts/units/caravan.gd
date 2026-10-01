@@ -59,7 +59,7 @@ func _arrive() -> void:
 	var text := ", ".join(got.keys().filter(func(r: String) -> bool: return got[r] > 0).map(func(r: String) -> String: return "+%d %s" % [got[r], "material" if r == "materials" else r]))
 	to.events.info("Caravan from %s arrived: %s" % [from.village_name, text])
 	from.events.info("Your caravan reached %s: %s" % [to.village_name, text])
-	float_text(text, UiTheme.GOLD)
+	float_text(", ".join(got.keys().filter(func(r: String) -> bool: return got[r] > 0).map(func(r: String) -> String: return "+%d {%s}" % [got[r], r])), UiTheme.GOLD)
 	Sfx.play("coin")
 	var tw := create_tween()
 	tw.tween_property(self, "modulate:a", 0.0, 0.5)

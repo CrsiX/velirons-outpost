@@ -1578,23 +1578,24 @@ def icons():
   <path d="M15 22 Q18 15 26 12" fill="none" stroke="#a8d4ff" stroke-width="3" stroke-linecap="round"/>
   <circle cx="32" cy="32" r="25" fill="none" stroke="{INK}" stroke-width="3.5"/>""")
     icon_svg("mode_gather", f"""
-  <path d="M12 20 Q32 2 52 20" fill="none" stroke="{WOOD}" stroke-width="5" stroke-linecap="round"/>
-  <path d="M12 20 Q32 2 52 20" fill="none" stroke="{INK}" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
-  <circle cx="32" cy="24" r="12" fill="#ece4cf" stroke="{INK}" stroke-width="3"/>
-  <rect x="27" y="31" width="10" height="7" rx="2" fill="#ece4cf" stroke="{INK}" stroke-width="2.5"/>
-  <circle cx="27.5" cy="23" r="3.2" fill="{INK}"/>
-  <circle cx="36.5" cy="23" r="3.2" fill="{INK}"/>
-  <path d="M30 34 L30 38 M34 34 L34 38" stroke="{INK}" stroke-width="1.5"/>
-  <path d="M8 30 L56 30 L50 58 L14 58 Z" fill="#c08a48" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
-  <path d="M11 39 L53 39 M13 48 L51 48" stroke="#8a5a26" stroke-width="3"/>
-  <path d="M22 30 L24 58 M32 30 L32 58 M42 30 L40 58" stroke="#8a5a26" stroke-width="2.5"/>""")
+  <path d="M8 26 L46 26 L40 44 L14 44 Z" fill="{WOOD_L}" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M46 26 L60 18" stroke="{INK}" stroke-width="4" stroke-linecap="round"/>
+  <path d="M18 44 L16 54 M38 44 L40 54" stroke="{INK}" stroke-width="3"/>
+  <circle cx="20" cy="52" r="7" fill="{WOOD_D}" stroke="{INK}" stroke-width="3"/>
+  <path d="M14 22 L30 14" stroke="#ece4cf" stroke-width="5" stroke-linecap="round"/>
+  <path d="M14 22 L30 14" stroke="{INK}" stroke-width="1" opacity="0.4"/>
+  <circle cx="36" cy="17" r="7" fill="#ece4cf" stroke="{INK}" stroke-width="2.5"/>
+  <circle cx="34" cy="16" r="1.8" fill="{INK}"/>
+  <circle cx="39" cy="16" r="1.8" fill="{INK}"/>""")
     icon_svg("mode_train", f"""
-  <path d="M38 50 L40 18 Q41 12 47 12 Q53 12 54 18 L56 50 Z" fill="#e0a070" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
-  <circle cx="47" cy="12" r="9" fill="#e8a878" stroke="{INK}" stroke-width="3.5"/>
-  <path d="M42 9 Q47 6 52 9 M42 14 Q47 11 52 14" fill="none" stroke="{INK}" stroke-width="2" stroke-linecap="round"/>
-  <path d="M4 44 Q4 36 12 35 Q18 20 32 22 Q42 24 46 36 L56 48 Q58 58 46 59 L10 59 Q4 56 4 44 Z" fill="#e8a878" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
-  <path d="M16 34 Q24 26 34 29" fill="none" stroke="#ffd2b0" stroke-width="4" stroke-linecap="round"/>
-  <path d="M20 46 Q32 44 42 50" fill="none" stroke="#c07850" stroke-width="3" stroke-linecap="round"/>""")
+  <path d="M32 30 L32 60" stroke="{WOOD_D}" stroke-width="5" stroke-linecap="round"/>
+  <path d="M8 30 L56 30" stroke="{INK}" stroke-width="7" stroke-linecap="round"/>
+  <path d="M8 30 L56 30" stroke="{WOOD_L}" stroke-width="4" stroke-linecap="round"/>
+  <path d="M20 28 L44 28 L42 50 L22 50 Z" fill="#d8b860" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M24 36 L40 36 M23 43 L41 43" stroke="#a08030" stroke-width="2.5"/>
+  <circle cx="32" cy="16" r="10" fill="#d8b860" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M27 13 L31 17 M31 13 L27 17 M33 13 L37 17 M37 13 L33 17" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M40 38 L54 46" stroke="#b0b4bc" stroke-width="3" stroke-linecap="round"/>""")
     icon_svg("mode_rest", f"""
   <path d="M6 44 L16 44 L6 56 L16 56" fill="none" stroke="{INK}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
   <path d="M6 44 L16 44 L6 56 L16 56" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
@@ -1636,10 +1637,6 @@ def icons():
   <path d="M8 50 Q8 30 22 30 Q36 30 36 50Z" fill="#7a6048" stroke="{INK}" stroke-width="3.5"/>
   <circle cx="42" cy="22" r="8" fill="#d8b08c" stroke="{INK}" stroke-width="3.5"/>
   <path d="M28 54 Q28 32 42 32 Q56 32 56 54Z" fill="#566a3a" stroke="{INK}" stroke-width="3.5"/>''')
-    icon_svg("icon_build", f'''
-  <path d="M14 54 L38 30" stroke="{INK}" stroke-width="9" stroke-linecap="round"/>
-  <path d="M14 54 L38 30" stroke="{WOOD_L}" stroke-width="5" stroke-linecap="round"/>
-  <path d="M30 14 L50 34 L56 28 L44 16 Q38 8 30 14Z" fill="#8a8a8a" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')
     icon_svg("icon_village", f'''
   <path d="M8 32 L32 12 L56 32Z" fill="#5b4a2e" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <rect x="14" y="32" width="36" height="22" fill="#8c7b62" stroke="{INK}" stroke-width="3.5"/>

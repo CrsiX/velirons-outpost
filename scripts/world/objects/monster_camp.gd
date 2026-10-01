@@ -55,7 +55,7 @@ func _on_killed(e: Enemy) -> void:
 	if v:
 		v.economy.add("gold", gold)
 		v.events.debug("killed %s at a camp (by %s, +%d gold)" % [e.label(), game.who(e.killer), gold])
-	game.world.float_text("+%d gold" % gold, e.position + Vector2(0, -50), Color("c9a24a"))
+	game.world.float_text("+%d {gold}" % gold, e.position + Vector2(0, -50), Color("c9a24a"))
 	if monsters.is_empty() and not cleared:
 		cleared = true
 		refresh()

@@ -538,6 +538,9 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		var h := o as Hero
 		h.mode = st["m"]
 		h.xp = st["xp"]
+		if h.has_meta("lv_seen") and int(st.get("lv", 0)) > h.level and h.visible:
+			h.play_level_up_fx()  # (not for the level he already had when we joined)
+		h.set_meta("lv_seen", true)
 		h.level = st.get("lv", 0)
 		h.hp = st["hp"]
 		h.max_hp = st["mhp"]

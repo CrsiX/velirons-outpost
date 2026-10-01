@@ -520,23 +520,47 @@ func remove_tree(t: Vector2i) -> void:
 	ground.redraw_tile(t)
 
 
+## A short text rising from `at` (world position) and fading. Icon tokens
+## ({gold} {food} {materials} {xp} {hp}) are drawn as their icons.
 func float_text(text: String, at: Vector2, color: Color) -> void:
 	if game.replicator and game.replicator.hosting:
 		game.replicator.float_text(text, at, color)
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", 20)
-	l.add_theme_color_override("font_color", color)
-	l.add_theme_color_override("font_outline_color", Color("15110d"))
-	l.add_theme_constant_override("outline_size", 6)
+	var l: Control
+	if "{" in text:
+		var rt := RichTextLabel.new()
+		rt.bbcode_enabled = true
+		rt.scroll_active = false
+		rt.fit_content = true
+		rt.autowrap_mode = TextServer.AUTOWRAP_OFF
+		rt.add_theme_font_size_override("normal_font_size", 20)
+		rt.add_theme_color_override("default_color", color)
+		rt.add_theme_color_override("font_outline_color", Color("15110d"))
+		rt.add_theme_constant_override("outline_size", 6)
+		rt.text = "[center]%s[/center]" % Hud.icon_bbcode(text, 20)
+		rt.custom_minimum_size = Vector2(FLOAT_TEXT_W, 0)
+		l = rt
+	else:
+		var lb := Label.new()
+		lb.text = text
+		lb.add_theme_font_size_override("font_size", 20)
+		lb.add_theme_color_override("font_color", color)
+		lb.add_theme_color_override("font_outline_color", Color("15110d"))
+		lb.add_theme_constant_override("outline_size", 6)
+		l = lb
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	effects.add_child(l)
 	var sz := l.get_minimum_size()
+	if l is RichTextLabel:
+		sz = Vector2(FLOAT_TEXT_W, 26.0)
 	l.position = at - sz / 2.0
 	var tw := l.create_tween().set_parallel()
 	tw.tween_property(l, "position:y", l.position.y - 36.0, 1.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(l, "modulate:a", 0.0, 1.0).set_delay(0.4)
 	tw.chain().tween_callback(l.queue_free)
+
+
+## Width of a floating text with icons (centred in it).
+const FLOAT_TEXT_W := 320.0
 
 
 func world_rect() -> Rect2:

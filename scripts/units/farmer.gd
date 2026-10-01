@@ -80,7 +80,7 @@ func _deliver() -> void:
 	if carrying > 0:
 		village.economy.add("food", carrying)
 		village.events.debug("%s brings %d food home" % [label(), carrying])
-		float_text("+%d food" % carrying, Color("e0b070"))
+		float_text("+%d {food}" % carrying, Color("e0b070"))
 	carrying = 0
 	_sack.visible = false
 

@@ -298,7 +298,7 @@ func _on_enemy_killed(g: Enemy) -> void:
 		v.economy.add("gold", gold)
 		v.events.debug("killed %s (by %s, +%d gold)" % [g.label(), game.who(g.killer), gold])
 		if gold > 0:
-			game.world.float_text("+%d gold" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
+			game.world.float_text("+%d {gold}" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
 			Sfx.play("coin")
 	if g.spec().get("corpse", true):
 		var c := game.corpses.spawn(g.kind, g.wave, g.grid_pos)

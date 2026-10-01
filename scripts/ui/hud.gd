@@ -107,6 +107,14 @@ const HERO_MODE_HINTS: Array[String] = [
 ]
 var _speed_button: Button
 var _speed_index := 0
+## Speed to go back to when Space ends a pause Space started (-1: the pause
+## was set with the speed button, so Space goes to 1x).
+var _resume_index := -1
+## "No builder" banner: shown once the build queue has waited NO_BUILDER_DELAY s
+## with nobody to work on it (no builder, and the hero alive but not building).
+var _builder_warning: Label
+var _no_builder_for := 0.0
+const NO_BUILDER_DELAY := 5.0
 
 var _sidebar: PanelContainer  # the dock: right sidebar or bottom sheet
 var _sidebar_toggle: Button
@@ -182,6 +190,7 @@ func setup(p_game: Game) -> void:
 	_build_info_panel()
 	_build_mode_panel()
 	_build_toasts()
+	_build_builder_warning()
 	_build_trade_dialog()
 	_build_send_dialog()
 	_build_upgrade_dialogs()
@@ -522,6 +531,8 @@ func set_speed_index(i: int) -> void:
 ## The button follows the game speed, whoever set it.
 func _on_speed_changed(i: int) -> void:
 	_speed_index = i
+	if Game.SPEEDS[i] != 0.0:
+		_resume_index = -1
 	_speed_button.disabled = not game.is_host_player()
 	var speed := Game.SPEEDS[i]
 	_speed_button.icon = Art.tex(SPEED_ICONS[i])
@@ -531,6 +542,21 @@ func _on_speed_changed(i: int) -> void:
 		game.events.debug("game speed: %s" % _speed_name(speed))
 	if speed == 0.0:
 		toast("Paused", UiTheme.GOLD)
+
+
+## Space: pause, remembering the speed; Space again: back to that speed (or
+## to 1x if it was paused with the speed button).
+func toggle_pause() -> void:
+	if _settings.visible:
+		return
+	var pause := Game.SPEEDS.find(0.0)
+	if _speed_index != pause:
+		var was := _speed_index
+		set_speed_index(pause)
+		if _speed_index == pause:
+			_resume_index = was
+	else:
+		set_speed_index(_resume_index if _resume_index >= 0 else Game.SPEEDS.find(1.0))
 
 
 func _speed_name(speed: float) -> String:
@@ -554,6 +580,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_TAB:
 			if game.villages.size() > 1:
 				game.switch_village()
+		KEY_SPACE:
+			toggle_pause()
 
 
 # --- the village shown ----------------------------------------------------------------
@@ -897,7 +925,7 @@ func _build_sidebar() -> void:
 	_tabs_row = HBoxContainer.new()
 	_tabs_row.add_theme_constant_override("separation", 6)
 	v.add_child(_tabs_row)
-	for tab in [["build", "Build", "icon_build"], ["village", "Village", "icon_village"], ["army", "Army", "icon_army"]]:
+	for tab in [["build", "Build", "mode_build"], ["village", "Village", "icon_village"], ["army", "Army", "icon_army"]]:
 		var b := _button(tab[1], Vector2(0, 48))
 		b.icon = Art.tex(tab[2])
 		b.expand_icon = false
@@ -1097,6 +1125,9 @@ func _relayout() -> void:
 		p.offset_top = _top_h + 6.0
 		p.offset_left = 10.0 if _portrait else 330.0
 	_toasts.offset_top = _top_h + 70.0
+	_builder_warning.offset_top = _top_h + 34.0
+	_builder_warning.offset_left = 20.0
+	_builder_warning.offset_right = -(SIDEBAR_W + 20.0) if not _portrait and _side_open else -20.0
 	_toasts.offset_right = -SIDEBAR_W if not _portrait and _side_open else 0.0
 	_mode_panel.offset_top = _top_h + 10.0
 	_mode_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if _portrait else TextServer.AUTOWRAP_OFF
@@ -1486,6 +1517,31 @@ func _build_toasts() -> void:
 	_root.add_child(_toasts)
 	_toasts.anchor_left = 0.0
 	_toasts.anchor_right = 1.0
+
+
+func _build_builder_warning() -> void:
+	_builder_warning = _label("No builder: nothing will be built. Recruit a builder (Village tab) or set the hero to Build.", 18, UiTheme.BAD)
+	_builder_warning.name = "BuilderWarning"
+	_builder_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_builder_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_builder_warning.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_builder_warning)
+	_builder_warning.anchor_left = 0.0
+	_builder_warning.anchor_right = 1.0
+	_builder_warning.visible = false
+
+
+## Work waiting, but nobody to do it?
+func nobody_builds() -> bool:
+	var h: Hero = game.hero
+	if game.construction.queue.is_empty() or game.population.count("builder") > 0:
+		return false
+	return h != null and not h.dead and h.effective_mode() != Hero.Mode.BUILD
+
+
+func _refresh_builder_warning(delta: float) -> void:
+	_no_builder_for = _no_builder_for + delta if nobody_builds() else 0.0
+	_builder_warning.visible = _no_builder_for >= NO_BUILDER_DELAY
 
 
 func toast(text: String, color: Color = UiTheme.TEXT) -> void:
@@ -2162,6 +2218,7 @@ func _process(delta: float) -> void:
 		_refresh_log()  # (every frame while messages fade)
 	_tick -= delta
 	if _tick <= 0.0:
+		_refresh_builder_warning(0.25 - _tick)
 		_tick = 0.25
 		_refresh_wave()
 		_refresh_resources()

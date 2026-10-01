@@ -6,11 +6,17 @@ extends EnemyBehavior
 ## green beam, Enemy.channel_to); then it rises again (Waves.raise_corpse)
 ## and the necromancer walks on for at least cast_time before the next one.
 ## A corpse that is gone before the spell is done: the cast is lost.
+## While one of the village's fighters is near (the hero, a soldier or an
+## elemental within raise_range, or a manned tower that has it in range), it
+## doesn't walk on: it stays and waits for its next raise.
 
 var corpse: Corpse = null
 var _channel := 0.0
 var _cool := 0.0
 var _scan := 0.0
+var _ally_scan := 0.0
+## A fighter of the village is near: it stands and waits (see tick).
+var _held := false
 
 
 func tick(enemy: Enemy, delta: float) -> bool:
@@ -32,15 +38,19 @@ func tick(enemy: Enemy, delta: float) -> bool:
 			enemy.game.waves.raise_corpse(c, enemy)
 			return false
 		return true
+	_ally_scan -= delta
+	if _ally_scan <= 0.0:
+		_ally_scan = 0.3
+		_held = _fighter_near(enemy)
 	if _cool > 0.0:
-		return false
+		return _held
 	_scan -= delta
 	if _scan > 0.0:
-		return false
+		return _held
 	_scan = 0.5
 	var c := _find(enemy)
 	if c == null:
-		return false
+		return _held
 	corpse = c
 	c.raising_by = enemy
 	_channel = 0.0
@@ -64,6 +74,18 @@ func _stop(enemy: Enemy) -> void:
 			corpse.raising_by = null
 	corpse = null
 	enemy.channel_to = Vector2.INF
+
+
+static func _fighter_near(enemy: Enemy) -> bool:
+	var r := float(enemy.spec()["raise_range"])
+	for node in enemy.get_tree().get_nodes_in_group("melee_defenders"):
+		if not node.dead and node.grid_pos.distance_to(enemy.grid_pos) <= r:
+			return true
+	for b in enemy.game.world.towers():
+		var t := b as Tower
+		if t and t.garrison != null and t.garrison.state == MilitaryUnit.State.STATIONED and Vector2(t.tile).distance_to(enemy.grid_pos) <= t.range_tiles():
+			return true
+	return false
 
 
 ## The nearest corpse it may raise: another kind's, never raised before, not

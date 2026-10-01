@@ -86,7 +86,7 @@ func _arrive_camp() -> void:
 	if carrying > 0:
 		village.economy.add("materials", carrying)
 		village.events.debug("%s delivers %d building material at %s" % [label(), carrying, camp.label() if is_instance_valid(camp) else "camp"])
-		float_text("+%d material" % carrying, Color("c9b98f"))
+		float_text("+%d {materials}" % carrying, Color("c9b98f"))
 		carrying = 0
 	state = State.AT_CAMP
 	_timer = Config.FORESTER_REST
