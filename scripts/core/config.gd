@@ -103,6 +103,14 @@ const LAKE_COUNT := Vector2i(1, 3)  # per 75x75 of map area
 const LAKE_SIZE := Vector2i(12, 60)
 const LAKE_VILLAGE_DIST := 6.0
 const RIVER_COUNT := Vector2i(0, 2)
+## Rivers wind: a slow noise (bends every ~1/freq tiles) adds up to
+## RIVER_MEANDER to a tile's routing cost (flat land would give a straight
+## line; in hills the height still leads), and a little per-tile jitter
+## breaks ties (long straight runs with one sharp jog).
+const RIVER_MEANDER := 14.0
+const RIVER_MEANDER_FREQ := 0.1
+const RIVER_JITTER := 0.5
+const RIVER_GOAL_SLACK := 1.3
 const COAST_SHARE := Vector2(0.15, 0.3)
 ## Bridge look by the zone around it (the look only).
 const BRIDGE_STYLES := {"meadow": "stone", "oak": "stone", "pine": "timber", "heath": "timber", "steppe": "rope", "swamp": "stilts", "ash": "charred"}

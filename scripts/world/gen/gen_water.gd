@@ -221,15 +221,37 @@ static func route_river(c: GenContext, src: Vector2i, lava: bool, max_len: int =
 					goal = t
 	if goal.x < 0:
 		return
+	if not lava and Config.RIVER_GOAL_SLACK > 1.0:
+		var pick := RandomNumberGenerator.new()
+		pick.seed = hash([c.seed_value, src, "goal"])
+		var cands: Array[Vector2i] = []
+		for y in m.size:
+			for x in m.size:
+				var t := Vector2i(x, y)
+				var ok := (m.is_water(t) and not c.rivers.has(t)) or x == 0 or y == 0 or x == m.size - 1 or y == m.size - 1
+				if ok and Vector2(t).distance_to(Vector2(src)) <= best_d * Config.RIVER_GOAL_SLACK:
+					cands.append(t)
+		goal = cands[pick.randi() % cands.size()]
 	var astar := AStarGrid2D.new()
 	astar.region = Rect2i(0, 0, m.size, m.size)
 	astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
 	astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
 	astar.update()
+	# Water winds (Config.RIVER_MEANDER); its own noise and random numbers,
+	# so the rest of the map's seeded rolls stay as they were.
+	var meander := FastNoiseLite.new()
+	meander.seed = c.seed_value * 31 + 4241
+	meander.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	meander.frequency = Config.RIVER_MEANDER_FREQ
+	meander.fractal_octaves = 1
+	var jitter := RandomNumberGenerator.new()
+	jitter.seed = hash([c.seed_value, src])
 	for y in m.size:
 		for x in m.size:
 			var t := Vector2i(x, y)
 			var w := 1.0 + 7.0 * clampf(c.h(t), 0.0, 1.2) + (c.detail[c.i(t)] + 1.0) * 0.8
+			if not lava:
+				w += Config.RIVER_MEANDER * absf(meander.get_noise_2d(x, y)) + Config.RIVER_JITTER * jitter.randf()
 			if c.near_slice_centre(t, Config.VILLAGE_CENTER_RADIUS - 2.0):
 				w += 40.0
 			if m.is_mountain(t):
