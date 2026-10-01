@@ -11,6 +11,8 @@ const CORPSE_SCRIPT := preload("res://scripts/units/corpse.gd")
 
 var game: Game
 var corpses: Array[Corpse] = []
+## False while the tutorial runs: corpses lie until a gatherer comes.
+var rot := true
 
 
 func setup(p_game: Game) -> void:

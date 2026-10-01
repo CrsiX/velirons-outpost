@@ -1724,6 +1724,14 @@ def icons():
   <rect x="37" y="12" width="12" height="40" rx="3" fill="#efe3c8" stroke="{INK}" stroke-width="3.5"/>''')
     icon_svg("icon_play", f'''
   <path d="M18 12 L50 32 L18 52Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')
+    icon_svg("icon_check", f'''
+  <path d="M12 34 L26 48 L52 16" fill="none" stroke="{INK}" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12 34 L26 48 L52 16" fill="none" stroke="#7fd36b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>''')
+    icon_svg("icon_book", f'''
+  <path d="M4 19 L4 54 C14 51 24 51 32 57 C40 51 50 51 60 54 L60 19 Z" fill="#7a2a1f" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M32 18 C24 11 14 11 7 14 L7 49 C15 46 24 47 32 53 Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M32 18 C40 11 50 11 57 14 L57 49 C49 46 40 47 32 53 Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M12 22 C17 20 22 20 27 23 M12 30 C17 28 22 28 27 31 M12 38 C17 36 22 36 27 39 M37 23 C42 20 47 20 52 22 M37 31 C42 28 47 28 52 30 M37 39 C42 36 47 36 52 38" fill="none" stroke="#a8997c" stroke-width="2.2" stroke-linecap="round"/>''')
     icon_svg("icon_fast", f'''
   <path d="M6 14 L32 32 L6 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M32 14 L58 32 L32 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')

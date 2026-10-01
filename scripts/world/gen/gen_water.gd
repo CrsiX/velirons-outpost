@@ -202,8 +202,9 @@ static func _rivers(c: GenContext) -> void:
 		route_river(c, src, false)
 
 
-## A river from `src` downhill to the nearest water or map edge: A* over the
-## height field, kept off the slice centres (where villages go).
+## A river from `src` downhill to water or the map edge (lava: the nearest;
+## water: one of the near ones), A* over the height field, kept off the slice
+## centres (where villages go); water winds (Config.RIVER_MEANDER).
 static func route_river(c: GenContext, src: Vector2i, lava: bool, max_len: int = 1 << 20) -> void:
 	var m := c.m
 	var goal := Vector2i(-1, -1)
@@ -221,6 +222,7 @@ static func route_river(c: GenContext, src: Vector2i, lava: bool, max_len: int =
 					goal = t
 	if goal.x < 0:
 		return
+	# Water: not always the nearest goal (Config.RIVER_GOAL_SLACK), so it needn't run straight.
 	if not lava and Config.RIVER_GOAL_SLACK > 1.0:
 		var pick := RandomNumberGenerator.new()
 		pick.seed = hash([c.seed_value, src, "goal"])

@@ -33,7 +33,7 @@ func setup(p_village: Village, spawn_start: bool = true) -> void:
 	game = village.game
 	if not spawn_start:
 		return
-	for role in Config.START_CIVILIANS:
+	for role in game.start_civilians:
 		if role == "explorer" and (game.reveal_map or game.disable_fog):
 			continue  # (the whole map is known already: nothing to explore)
 		spawn(role)

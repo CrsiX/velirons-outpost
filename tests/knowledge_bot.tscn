@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tests/knowledge_bot.gd" id="1_kb"]
+
+[node name="KnowledgeBot" type="Node"]
+script = ExtResource("1_kb")

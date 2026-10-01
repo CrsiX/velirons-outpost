@@ -196,6 +196,7 @@ func _deliver() -> void:
 		food += Config.enemy_stat_int(k, "food_on_collect")
 	w.village.economy.add("gold", gold)
 	w.village.economy.add("food", food)
+	w.village.corpses_delivered += carried.size()
 	w.village.events.debug("%s brings %d corpse%s home: +%d gold, +%d food" % [w.label(), carried.size(), "" if carried.size() == 1 else "s", gold, food])
 	w.float_text("+%d {gold}  +%d {food}" % [gold, food], Color("c9a24a"))
 	Sfx.play("coin")

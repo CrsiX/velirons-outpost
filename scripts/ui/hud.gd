@@ -38,6 +38,11 @@ var _wave_label: Label
 var _enemies_label: Label
 var _call_button: Button
 var _settings_button: Button
+var _book_button: Button
+## The knowledge base (book icon); single player is paused while it's open.
+var knowledge_base: KnowledgeBase
+var _kb_paused := false
+var _kb_speed_before := 0
 var _village_button: Button
 var _upgrade_panel: PanelContainer
 var _upgrade_title: Label
@@ -210,6 +215,9 @@ func setup(p_game: Game) -> void:
 	_drag_ghost.modulate.a = 0.85
 	_root.add_child(_drag_ghost)
 	_build_settings()
+	knowledge_base = KnowledgeBase.new()
+	knowledge_base.closed.connect(_on_knowledge_base_closed)
+	_root.add_child(knowledge_base)
 
 
 	for sig in [game.waves.changed, game.corpses.changed]:
@@ -491,6 +499,9 @@ func _build_topbar() -> void:
 		if not game.networked:
 			game.switch_village())
 	row.add_child(_village_button)
+	_book_button = _icon_button("icon_book", "Knowledge base: enemies, units, buildings, villagers, hero, places")
+	_book_button.pressed.connect(open_knowledge_base)
+	row.add_child(_book_button)
 	_settings_button = _icon_button("icon_settings", "Settings (pauses the game)")
 	_settings_button.pressed.connect(open_settings)
 	row.add_child(_settings_button)
@@ -552,7 +563,7 @@ func _on_speed_changed(i: int) -> void:
 ## Space: pause, remembering the speed; Space again: back to that speed (or
 ## to 1x if it was paused with the speed button).
 func toggle_pause() -> void:
-	if _settings.visible:
+	if _settings.visible or knowledge_base.visible:
 		return
 	var pause := Game.SPEEDS.find(0.0)
 	if _speed_index != pause:
@@ -1378,7 +1389,7 @@ func _input(event: InputEvent) -> void:
 
 
 func is_over_ui(screen_pos: Vector2) -> bool:
-	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, _upgrade_panel, _confirm_panel]:
+	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, _upgrade_panel, _confirm_panel, knowledge_base]:
 		if c.is_visible_in_tree() and c.get_global_rect().has_point(screen_pos):
 			return true
 	return false
@@ -2154,6 +2165,27 @@ func close_settings() -> void:
 		set_speed_index(_speed_before)
 
 
+## The knowledge base. Single player (hot-seat too) pauses while it's open,
+## and goes on at the old speed after; in co-op nobody pauses.
+func open_knowledge_base(tab := "") -> void:
+	if knowledge_base.visible:
+		return
+	_kb_paused = not game.networked
+	if _kb_paused:
+		_kb_speed_before = _speed_index
+		get_tree().paused = true
+	_trade_panel.visible = false
+	knowledge_base.open(tab)
+	game.events.debug("open knowledge base" + (" (game paused)" if _kb_paused else ""))
+
+
+func _on_knowledge_base_closed() -> void:
+	game.events.debug("close knowledge base")
+	if _kb_paused:
+		_kb_paused = false
+		set_speed_index(_kb_speed_before)
+
+
 func _refresh_settings() -> void:
 	_settings_log_button.text = "Log level: %s" % game.events.level_name()
 	_settings_map_label.text = "Map: %s  ·  seed %d" % [Settings.map_type_name(game.map.map_type), game.map.seed_value]
@@ -2283,17 +2315,93 @@ func show_game_over(title: String, subtitle: String) -> void:
 	_overlay_title.text = title
 	_overlay_title.add_theme_color_override("font_color", UiTheme.BAD)
 	_overlay_sub.text = subtitle
-	_overlay_button.text = "Main menu" if game.networked else "Try again"
+	var again_tutorial := game.tutorial != null and game.tutorial.active
+	_overlay_button.text = "Main menu" if game.networked else ("Try the tutorial again" if again_tutorial else "Try again")
 	_overlay_menu_button.visible = not game.networked  # (networked: the main button is the way out)
 	_overlay.visible = true
 	_info_panel.visible = false
-	_connect_overlay(func() -> void: game.go_to_title() if game.networked else game.restart())
+	_connect_overlay(func() -> void: game.go_to_title() if game.networked else game.restart(again_tutorial))
 
 
 func _connect_overlay(cb: Callable) -> void:
 	for c in _overlay_button.pressed.get_connections():
 		_overlay_button.pressed.disconnect(c["callable"])
 	_overlay_button.pressed.connect(cb)
+
+
+# --- tutorial hooks (Tutorial) ---------------------------------------------------------------
+
+## A control the tutorial points at: "build:tower", "army:archer",
+## "village:farmer", "tab:army", "dock" (the sidebar / sheet toggle), "call",
+## "hero", "hero_mode:<Hero.Mode>", "hero_level", "reserve". null if unknown.
+func control_named(n: String) -> Control:
+	var parts := n.split(":")
+	var key := parts[1] if parts.size() > 1 else ""
+	match parts[0]:
+		"build":
+			return _build_buttons.get(key)
+		"army":
+			return _military_buttons.get(key)
+		"village":
+			return _recruit_rows[key]["button"] if _recruit_rows.has(key) else null
+		"tab":
+			return _tab_buttons.get(key)
+		"dock":
+			return _sidebar_toggle
+		"call":
+			return _call_button
+		"hero":
+			return _hero_button
+		"hero_mode":
+			return _hero_mode_buttons[int(key)]
+		"hero_level":
+			return _hero_level_button
+		"reserve":
+			return _reserve_grid
+	return null
+
+
+## Opens the dock on `tab` (portrait: the bottom sheet; landscape: the sidebar).
+func show_tab(tab: String) -> void:
+	_select_tab(tab)
+	if _portrait:
+		set_sheet_open(true)
+		_relayout()
+	elif not _side_open:
+		_side_open = true
+		_relayout()
+
+
+## Scrolls the dock so that `c` (an entry in it) is in view.
+func scroll_to(c: Control) -> void:
+	if is_instance_valid(c) and c.is_visible_in_tree() and _sheet_scroll.is_ancestor_of(c):
+		_sheet_scroll.ensure_control_visible(c)
+
+
+## The dock's scroll area on screen, if `c` is in it (outlines are clipped to
+## it); else an empty rect.
+func dock_clip(c: Control) -> Rect2:
+	return _sheet_scroll.get_global_rect() if is_instance_valid(c) and _sheet_scroll.is_ancestor_of(c) else Rect2()
+
+
+## The hero panel on screen, or an empty rect while it's closed.
+func hero_panel_rect() -> Rect2:
+	return _hero_panel.get_global_rect() if _hero_panel.visible else Rect2()
+
+
+func top_height() -> float:
+	return _top_h
+
+
+func is_portrait() -> bool:
+	return _portrait
+
+
+## Adds a tutorial control: `on_top` (the highlight) over all of the HUD but
+## the settings dialog; else (the card) under the dialogs.
+func add_layer(c: Control, on_top: bool) -> void:
+	_root.add_child(c)
+	_root.move_child(c, _pause_gray.get_index() if on_top else _upgrade_panel.get_index())
 
 
 # --- refresh ---------------------------------------------------------------------------------
@@ -2365,8 +2473,12 @@ func _refresh_wave() -> void:
 		_wave_label.text = "Wave %d attacking" % w.wave
 		set_rich_text(_call_button, "Fighting...")
 		_call_button.disabled = true
+	elif w.call_locked:
+		_wave_label.text = "Wave %d: not yet" % (w.wave + 1)  # (the tutorial starts it)
+		set_rich_text(_call_button, "Not yet")
+		_call_button.disabled = true
 	else:
 		var s := int(ceil(maxf(w.countdown, 0.0)))
-		_wave_label.text = "Wave %d in %d:%02d" % [w.wave + 1, s / 60, s % 60]
+		_wave_label.text = "Wave %d waits" % (w.wave + 1) if w.hold and game.tutorial_mode else "Wave %d in %d:%02d" % [w.wave + 1, s / 60, s % 60]
 		set_rich_text(_call_button, "Call now +%d {gold}" % w.early_call_bonus())
 		_call_button.disabled = false

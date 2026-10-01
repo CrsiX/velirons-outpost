@@ -21,6 +21,10 @@ var wave := 0
 var countdown := -1.0
 ## Tests / debugging: the countdown stands still (calling a wave still works).
 var hold := false
+## The tutorial: the player can't call a wave (the tutorial starts it).
+var call_locked := false
+## The tutorial's waves, used up first: [{"kinds": {kind: count}, "spawn": tile}].
+var scripted: Array[Dictionary] = []
 ## Co-op client: [wave, countdown, in progress, enemies left, can call].
 var _net: Array = [0, 0.0, false, 0, true]
 var _queue: Array[Dictionary] = []
@@ -49,7 +53,7 @@ func in_progress() -> bool:
 func can_call() -> bool:
 	if game and game.is_client:
 		return _net[4]
-	return not in_progress()
+	return not in_progress() and not call_locked
 
 
 ## Enemies alive plus those of the current wave still to come.
@@ -91,6 +95,12 @@ func call_next(caller: Village = null) -> void:
 	_start_wave()
 
 
+## The next wave now, without the early-call bonus (the tutorial's wave 2).
+func start_now() -> void:
+	countdown = -1.0
+	_start_wave()
+
+
 func _start_wave() -> void:
 	rat_deadline = -1.0
 	rats_leave = false
@@ -99,7 +109,12 @@ func _start_wave() -> void:
 	var n := wave
 	var hp_scale := pow(Config.WAVE_HP_GROWTH, n - 1)
 	game.world.wake_lairs(n)
-	if game.villages.size() == 1:
+	if not scripted.is_empty():
+		var sw: Dictionary = scripted.pop_front()
+		for kind in sw["kinds"]:
+			for i in int(sw["kinds"][kind]):
+				_queue.append(_spec(kind, sw["spawn"], hp_scale, game.villages[0]))
+	elif game.villages.size() == 1:
 		_queue.append_array(_share(n, hp_scale, game.map.edge_spawns, game.villages[0]))
 	else:
 		var shares: Array = []

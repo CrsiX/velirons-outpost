@@ -250,11 +250,12 @@ func complete(site: Building) -> void:
 
 # --- starting buildings -----------------------------------------------------------------
 
-## The free, finished buildings the level starts with (Config.START_BUILDINGS):
+## The free, finished buildings the level starts with (Game.start_buildings,
+## normally Config.START_BUILDINGS):
 ## the farm on the map's guaranteed farm plot, a worker camp close to the
 ## village by the forest. Run before the villagers move in, who then take them.
 func build_starting() -> void:
-	for kind in Config.START_BUILDINGS:
+	for kind in game.start_buildings:
 		var spot := _start_spot(kind)
 		if spot == Vector2i(-1, -1):
 			push_warning("No room for the starting %s" % kind)

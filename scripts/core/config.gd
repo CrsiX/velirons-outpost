@@ -42,6 +42,22 @@ const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explor
 const START_BUILDINGS: Array[String] = ["farm", "camp"]
 const START_REVEAL_RADIUS := 7.5
 
+## The guided tutorial (docs/tutorial-design.md): its map, the small starting
+## village (no farm, no farmer, no explorer), enough resources for every step,
+## and its two waves. The spots for the steps (watchtower, farm field,
+## barracks) are picked on the road the tutorial waves take (Vector2i(-1, -1):
+## pick; the farm field is the map's guaranteed farm plot). Its waves come
+## down that road from `spawn_distance` road tiles before the gate.
+const TUTORIAL := {
+	"seed": 1337, "map_type": "highlands", "difficulty": "easy",
+	"civilians": ["builder", "forester"], "buildings": ["camp"],
+	"resources": {"gold": 200, "food": 150, "materials": 150},
+	"tower_tile": Vector2i(-1, -1), "farm_tile": Vector2i(-1, -1), "barracks_tile": Vector2i(-1, -1),
+	"spawn_distance": 18,
+	"waves": [{"goblin": 2}, {"goblin": 5, "ork": 1}],
+	"step_pause": 1.0,  # seconds between a finished step and the next card
+}
+
 ## Debug / sandbox switches.
 const DEBUG := true  # true: the settings dialog has a Debug page (resources, XP, reveal, unlocks, enemies)
 const REVEAL_MAP := false  # true: the whole map starts explored (terrain known)
@@ -103,13 +119,15 @@ const LAKE_COUNT := Vector2i(1, 3)  # per 75x75 of map area
 const LAKE_SIZE := Vector2i(12, 60)
 const LAKE_VILLAGE_DIST := 6.0
 const RIVER_COUNT := Vector2i(0, 2)
-## Rivers wind: a slow noise (bends every ~1/freq tiles) adds up to
-## RIVER_MEANDER to a tile's routing cost (flat land would give a straight
-## line; in hills the height still leads), and a little per-tile jitter
-## breaks ties (long straight runs with one sharp jog).
-const RIVER_MEANDER := 14.0
+## Rivers wind: a river heads for a random edge / water tile within
+## RIVER_GOAL_SLACK x the nearest one's distance (the nearest is usually in
+## line with its source: only a straight path would be shortest). A ridged
+## noise (zero lines every ~1/freq tiles) adds up to RIVER_MEANDER to a tile's
+## routing cost, so it follows winding channels, and a little per-tile
+## jitter breaks the remaining ties.
+const RIVER_MEANDER := 10.0
 const RIVER_MEANDER_FREQ := 0.1
-const RIVER_JITTER := 0.5
+const RIVER_JITTER := 0.4
 const RIVER_GOAL_SLACK := 1.3
 const COAST_SHARE := Vector2(0.15, 0.3)
 ## Bridge look by the zone around it (the look only).
@@ -634,6 +652,7 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 # --- enemies ------------------------------------------------------------------------
 ## Every enemy kind in one place. Keys (all required):
 ##   name, art ........ display name; sprites are unit_<art> and corpse_<art>
+##   desc ............. one line for the knowledge base
 ##   behavior ......... what it does besides walking to a gate: "melee" (fights
 ##                      summons blocking its way) or "witch" (casts spells)
 ##   hp, speed ........ hit points; tiles per second along the road
@@ -647,6 +666,7 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 const ENEMIES := {
 	"goblin": {
 		"name": "Goblin", "art": "goblin", "behavior": "melee",
+		"desc": "The most common foe: walks the road to a gate and fights whatever blocks its way.",
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
@@ -654,6 +674,7 @@ const ENEMIES := {
 	# Same as goblins, but bones give no food.
 	"skeleton": {
 		"name": "Skeleton", "art": "skeleton", "behavior": "melee",
+		"desc": "A goblin's strength in bones. Its corpse gives gold, but no food.",
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 0,
@@ -661,6 +682,7 @@ const ENEMIES := {
 	# Slower and much tougher; hits hard. Gold only on kill, lots of food as a corpse.
 	"ork": {
 		"name": "Ork", "art": "ork", "behavior": "melee",
+		"desc": "Slow and very tough, and it hits hard. A good meal as a corpse.",
 		"hp": 55.0, "speed": 0.8,
 		"damage": 11.0, "attack_cooldown": 1.2,
 		"gold_on_kill": 6, "gold_on_collect": 0, "food_on_collect": 6,
@@ -670,6 +692,7 @@ const ENEMIES := {
 	# earth elementals. Whoever attacks her becomes her first target.
 	"witch": {
 		"name": "Witch", "art": "witch", "behavior": "witch", "attack_category": "magical",
+		"desc": "No close combat: she stops at manned towers in range and bewitches their unit, which then stops shooting for a moment.",
 		"hp": 12.0, "speed": 1.0,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 12, "gold_on_collect": 0, "food_on_collect": 1,
@@ -694,6 +717,7 @@ const ENEMIES := {
 	# vanish within RAT_WAVE_LINGER seconds. Killed: a little gold, no corpse.
 	"rat": {
 		"name": "Rat", "art": "rat", "behavior": "rat", "corpse": false,
+		"desc": "Comes in fast packs and goes for the farms, eating their food. Rats that get through a gate eat from the stores.",
 		"hp": 7.0, "speed": 2.4,
 		"damage": 0.6, "attack_cooldown": 0.8,
 		"gold_on_kill": 1, "gold_on_collect": 0, "food_on_collect": 0,
@@ -710,6 +734,7 @@ const ENEMIES := {
 	# from. Killed with the loot, its corpse holds the stolen gold as well.
 	"thief": {
 		"name": "Thief", "art": "thief", "behavior": "thief",
+		"desc": "Quick on its feet. At a gate it burns nothing: it steals gold and runs back. Kill it to get the gold back.",
 		"hp": 20.0, "speed": 1.5,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 2, "gold_on_collect": 3, "food_on_collect": 0,
@@ -722,6 +747,7 @@ const ENEMIES := {
 	# hits them and their own blow is ready (a counter-strike).
 	"gargoyle": {
 		"name": "Gargoyle", "art": "gargoyle", "behavior": "melee", "flying": true,
+		"desc": "Flies along the roads: only ranged attacks and fire elementals can go for it.",
 		"hp": 40.0, "speed": 0.8,
 		"damage": 7.0, "attack_cooldown": 1.2,
 		"gold_on_kill": 8, "gold_on_collect": 0, "food_on_collect": 4,
@@ -735,6 +761,7 @@ const ENEMIES := {
 	# corpse, and a necromancer's own, can never be raised.
 	"necromancer": {
 		"name": "Necromancer", "art": "necromancer", "behavior": "necromancer", "revivable": false,
+		"desc": "No attack: it stops by the corpses of other enemies and raises them again for a while.",
 		"hp": 20.0, "speed": 0.95,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 25, "gold_on_collect": 0, "food_on_collect": 0,
@@ -755,6 +782,7 @@ const ENEMIES := {
 	# would be the bat's to fight.)
 	"vampire": {
 		"name": "Vampire", "art": "vampire", "behavior": "vampire",
+		"desc": "Drains life with its bites. Almost beaten, it turns into a bat once and flies away to heal.",
 		"hp": 40.0, "speed": 0.9,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 6, "gold_on_collect": 8, "food_on_collect": 0,

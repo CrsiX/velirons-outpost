@@ -49,7 +49,7 @@ func spec() -> Dictionary:
 
 
 func _process(delta: float) -> void:
-	if game.is_client:
+	if game.is_client or not game.corpses.rot:
 		return
 	time_left -= delta
 	if time_left < 10.0:

@@ -2,8 +2,9 @@ class_name TitleScreen
 extends Control
 ## Title screen: backdrop, game name and a menu in pages:
 ##   main         - Singleplayer, Multiplayer, Exit;
-##   Singleplayer - Play, Difficulty, Levels, Back;
+##   Singleplayer - Tutorial, Play, Difficulty, Map, seed, Levels, Help, Back;
 ##   Multiplayer  - village name and colour, host / join, lobby (MultiplayerMenu).
+## The book icon in the top-right corner opens the knowledge base (any page).
 
 ## Levels offered on the Levels panel. Only the first exists so far.
 const LEVELS: Array[Dictionary] = [
@@ -17,6 +18,7 @@ var multiplayer_button: Button
 var exit_button: Button
 var mp_menu: MultiplayerMenu
 var play_button: Button
+var tutorial_button: Button
 var difficulty_button: Button
 var map_button: Button
 var seed_edit: LineEdit
@@ -25,6 +27,8 @@ var help_button: Button
 var back_button: Button
 var levels_panel: PanelContainer
 var help_panel: PanelContainer
+var book_button: Button
+var knowledge_base: KnowledgeBase
 var _menu: VBoxContainer
 var _main_page: VBoxContainer
 var _sp_page: VBoxContainer
@@ -71,6 +75,10 @@ func _ready() -> void:
 	exit_button = _menu_button(_main_page, "Exit", func() -> void: get_tree().quit())
 	exit_button.visible = not OS.has_feature("web")  # browsers can't close the tab
 	_sp_page = _page()
+	tutorial_button = _menu_button(_sp_page, "Tutorial", play_tutorial)
+	tutorial_button.tooltip_text = "A guided first game: learn the basics step by step"
+	tutorial_button.expand_icon = false
+	tutorial_button.add_theme_constant_override("icon_max_width", 30)
 	play_button = _menu_button(_sp_page, "Play", _play)
 	UiTheme.style_primary(play_button)
 	difficulty_button = _menu_button(_sp_page, "", _cycle_difficulty)
@@ -106,6 +114,23 @@ func _ready() -> void:
 	_update_sp_buttons()
 	_build_levels_panel()
 	_build_help_panel()
+	book_button = Button.new()
+	book_button.icon = Art.tex("icon_book")
+	book_button.expand_icon = true
+	book_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	book_button.add_theme_constant_override("icon_max_width", 48)
+	book_button.custom_minimum_size = Vector2(64, 60)
+	book_button.focus_mode = Control.FOCUS_NONE
+	book_button.tooltip_text = "Knowledge base: enemies, units, buildings, villagers, hero, places"
+	book_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	book_button.offset_left = -80
+	book_button.offset_right = -16
+	book_button.offset_top = 16
+	book_button.offset_bottom = 76
+	book_button.pressed.connect(func() -> void: knowledge_base.open())
+	add_child(book_button)
+	knowledge_base = KnowledgeBase.new()
+	add_child(knowledge_base)
 	get_viewport().size_changed.connect(_layout)
 	# Pages change height (Singleplayer, the multiplayer join page and lobby): fit again.
 	_menu.minimum_size_changed.connect(func() -> void: _layout.call_deferred())
@@ -134,6 +159,12 @@ func _layout() -> void:
 	# screen (never over the title). The multiplayer pages are taller.
 	var want := ((0.28 if mp else 0.5) if portrait else (0.22 if mp else 0.42)) * vp.y
 	var title_bottom := _title.anchor_top * vp.y + (64.0 if portrait else 84.0) * 1.35
+	# Short screens: the Singleplayer page's buttons get lower, so it fits under the title.
+	var tall := _sp_page.get_child_count() * (64.0 + 14.0) + title_bottom + 20.0 <= vp.y
+	_sp_page.add_theme_constant_override("separation", 14 if tall else 8)
+	for c in _sp_page.get_children():
+		if c is Button:
+			(c as Button).custom_minimum_size.y = 64.0 if tall else 52.0
 	var h := _menu.get_combined_minimum_size().y
 	var top := clampf(want, title_bottom, maxf(title_bottom, vp.y - h - 20.0))
 	_menu.anchor_top = 0.0
@@ -264,10 +295,17 @@ func _cycle_difficulty() -> void:
 func _update_sp_buttons() -> void:
 	difficulty_button.text = "Difficulty: %s" % Settings.difficulty_name()
 	map_button.text = "Map: %s" % Settings.map_type_name()
+	tutorial_button.icon = Art.tex("icon_check") if Settings.tutorial_done else null  # (finished or skipped once)
 
 
 func _play() -> void:
 	get_tree().change_scene_to_file(Net.LEVEL_SCENE)
+
+
+## The guided tutorial (docs/tutorial-design.md): its own map and village.
+func play_tutorial() -> void:
+	Settings.tutorial_next = true
+	_play()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

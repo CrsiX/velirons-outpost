@@ -44,6 +44,10 @@ func _ready() -> void:
 		var env := minf(t * 12.0, 1.0) * clampf((1.1 - t) * 5.0, 0.0, 1.0)
 		var ph := fmod(f * t, 1.0)
 		return (ph * 2.0 - 1.0) * 0.35 * env)
+	_streams["chime"] = _synth(0.7, func(t: float) -> float:  # (a tutorial step done)
+		var f := 784.0 if t < 0.14 else 1175.0
+		var k := t if t < 0.14 else t - 0.14
+		return (sin(TAU * f * t) + 0.3 * sin(TAU * 2.0 * f * t)) * 0.25 * exp(-k * 6.0))
 	_streams["lose"] = _synth(1.2, func(t: float) -> float:
 		var notes := [294.0, 247.0, 220.0, 147.0]
 		var f: float = notes[mini(int(t / 0.28), 3)]

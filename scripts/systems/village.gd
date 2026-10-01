@@ -34,6 +34,8 @@ var hero: Hero
 var fallen := false
 ## Relics found (Config.RELICS keys): small permanent bonuses.
 var relics: Array[String] = []
+## Corpses brought home so far (by gatherers or the hero).
+var corpses_delivered := 0
 
 
 ## Creates the (not yet set up) systems as child nodes. Call before the world
@@ -80,7 +82,7 @@ func apply_map(d: Dictionary) -> void:
 
 ## Starting state: resources, the free starting buildings, villagers, the hero.
 func setup() -> void:
-	economy.setup(Config.START_RESOURCES)
+	economy.setup(game.start_resources)
 	construction.setup(self)
 	construction.build_starting()  # before the villagers, who then go to work there
 	population.setup(self)

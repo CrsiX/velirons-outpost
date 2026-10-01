@@ -32,6 +32,14 @@ var is_client := false
 var replicator: Replicator
 ## Networked game (host or client), not hot-seat.
 var networked := false
+## The guided tutorial runs in this game (single player; tests may set it
+## before _ready, the title screen asks via Settings.tutorial_next).
+var tutorial_mode := false
+var tutorial: Tutorial = null
+## How the villages start (Config.START_*; the tutorial's: Config.TUTORIAL).
+var start_resources: Dictionary = Config.START_RESOURCES.duplicate()
+var start_civilians: Array[String] = Config.START_CIVILIANS.duplicate()
+var start_buildings: Array[String] = Config.START_BUILDINGS.duplicate()
 
 var mode := Mode.NONE
 var build_kind := ""
@@ -85,6 +93,11 @@ var _ids: Dictionary = {}
 
 
 func _ready() -> void:
+	tutorial_mode = (Settings.take_tutorial() or tutorial_mode) and not (Net.in_game and Net.is_online()) and hotseat_villages <= 1
+	if tutorial_mode:
+		tutorial = Tutorial.new()
+		tutorial.name = "Tutorial"
+		tutorial.prepare(self)  # (the map, the difficulty and the small village)
 	var s := map_seed if map_seed != 0 else (Settings.map_seed if Settings.map_seed != 0 else randi())
 	if map_seed == 0:
 		map_type = Settings.resolve_map_type(Settings.map_type, s)
@@ -140,6 +153,10 @@ func _ready() -> void:
 			Net.client_game_ready(self)
 		else:
 			Net.host_game_ready(self)
+
+	if tutorial:
+		add_child(tutorial)
+		tutorial.start()
 
 	camera.process_mode = Node.PROCESS_MODE_ALWAYS  # pan and zoom while paused
 	camera.bounds = world.world_rect().grow(-200.0)
@@ -729,7 +746,9 @@ func log_for(about, level: EventLog.Level, text: String) -> void:
 		log_all(level, text)
 
 
-func restart() -> void:
+## `again_tutorial`: start the guided tutorial again.
+func restart(again_tutorial := false) -> void:
+	Settings.tutorial_next = again_tutorial
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	get_tree().reload_current_scene()
