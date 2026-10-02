@@ -46,10 +46,10 @@ var _enemies_label: Label
 var _call_button: Button
 var _settings_button: Button
 var _book_button: Button
-## The knowledge base (book icon); single player is paused while it's open.
-var knowledge_base: KnowledgeBase
-var _kb_paused := false
-var _kb_speed_before := 0
+## The library (book icon); single player is paused while it's open.
+var library: Library
+var _lib_paused := false
+var _lib_speed_before := 0
 var _village_button: Button
 var _upgrade_panel: PanelContainer
 var _upgrade_title: Label
@@ -241,9 +241,9 @@ func setup(p_game: Game) -> void:
 	_drag_ghost.modulate.a = 0.85
 	_root.add_child(_drag_ghost)
 	_build_settings()
-	knowledge_base = KnowledgeBase.new()
-	knowledge_base.closed.connect(_on_knowledge_base_closed)
-	_root.add_child(knowledge_base)
+	library = Library.new()
+	library.closed.connect(_on_library_closed)
+	_root.add_child(library)
 
 
 	for sig in [game.waves.changed, game.corpses.changed]:
@@ -428,7 +428,7 @@ func _build_topbar() -> void:
 	_topbar.custom_minimum_size.y = TOPBAR_H
 	# Resources and the hero on the left, wave controls on the right: side by
 	# side in landscape; stacked in portrait, the wave controls (wave, speed,
-	# knowledge base, settings) on top.
+	# library, settings) on top.
 	_topbar_box = BoxContainer.new()
 	_topbar_box.add_theme_constant_override("separation", 6)
 	_topbar.add_child(_topbar_box)
@@ -526,8 +526,8 @@ func _build_topbar() -> void:
 		if not game.networked:
 			game.switch_village())
 	row.add_child(_village_button)
-	_book_button = _icon_button("icon_book", "Knowledge base: enemies, units, buildings, villagers, hero, places")
-	_book_button.pressed.connect(open_knowledge_base)
+	_book_button = _icon_button("icon_book", "Library: enemies, units, buildings, villagers, hero, places")
+	_book_button.pressed.connect(open_library)
 	row.add_child(_book_button)
 	_settings_button = _icon_button("icon_settings", "Settings (pauses the game)")
 	_settings_button.pressed.connect(open_settings)
@@ -590,7 +590,7 @@ func _on_speed_changed(i: int) -> void:
 ## Space: pause, remembering the speed; Space again: back to that speed (or
 ## to 1x if it was paused with the speed button).
 func toggle_pause() -> void:
-	if _settings.visible or knowledge_base.visible:
+	if _settings.visible or library.visible:
 		return
 	var pause := Game.SPEEDS.find(0.0)
 	if _speed_index != pause:
@@ -1007,7 +1007,7 @@ func _build_sidebar() -> void:
 	for p in _tab_pages.values():
 		pages.add_child(p)
 	pages.minimum_size_changed.connect(func() -> void: _fit_sheet.call_deferred())
-	# A finger scrolls the dock from anywhere on it (as in the knowledge base):
+	# A finger scrolls the dock from anywhere on it (as in the library):
 	# its boxes let the touch through, its buttons pass it on.
 	_touch_scrollable(pages)
 	get_tree().node_added.connect(func(n: Node) -> void:
@@ -1575,7 +1575,7 @@ func _on_build_pressed(kind: String) -> void:
 
 
 func is_over_ui(screen_pos: Vector2) -> bool:
-	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _cancel_button, _place_bar, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, _upgrade_panel, _confirm_panel, knowledge_base]:
+	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _cancel_button, _place_bar, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, _upgrade_panel, _confirm_panel, library]:
 		if c.is_visible_in_tree() and c.get_global_rect().has_point(screen_pos):
 			return true
 	return false
@@ -2436,25 +2436,25 @@ func close_settings() -> void:
 		set_speed_index(_speed_before)
 
 
-## The knowledge base. Single player (hot-seat too) pauses while it's open,
+## The library. Single player (hot-seat too) pauses while it's open,
 ## and goes on at the old speed after; in co-op nobody pauses.
-func open_knowledge_base(tab := "") -> void:
-	if knowledge_base.visible:
+func open_library(tab := "") -> void:
+	if library.visible:
 		return
-	_kb_paused = not game.networked
-	if _kb_paused:
-		_kb_speed_before = _speed_index
+	_lib_paused = not game.networked
+	if _lib_paused:
+		_lib_speed_before = _speed_index
 		get_tree().paused = true
 	_trade_panel.visible = false
-	knowledge_base.open(tab)
-	game.events.debug("open knowledge base" + (" (game paused)" if _kb_paused else ""))
+	library.open(tab)
+	game.events.debug("open library" + (" (game paused)" if _lib_paused else ""))
 
 
-func _on_knowledge_base_closed() -> void:
-	game.events.debug("close knowledge base")
-	if _kb_paused:
-		_kb_paused = false
-		set_speed_index(_kb_speed_before)
+func _on_library_closed() -> void:
+	game.events.debug("close library")
+	if _lib_paused:
+		_lib_paused = false
+		set_speed_index(_lib_speed_before)
 
 
 func _refresh_settings() -> void:
@@ -2670,9 +2670,13 @@ func dock_clip(c: Control) -> Rect2:
 	return _sheet_scroll.get_global_rect() if is_instance_valid(c) and _sheet_scroll.is_ancestor_of(c) else Rect2()
 
 
-## The hero panel on screen, or an empty rect while it's closed.
-func hero_panel_rect() -> Rect2:
-	return _hero_panel.get_global_rect() if _hero_panel.visible else Rect2()
+## The panel open in the top-left corner (hero, villager list or building
+## material; one at a time), or an empty rect while none is.
+func corner_panel_rect() -> Rect2:
+	for p: Control in [_hero_panel, _people_panel, _trade_panel]:
+		if p.visible:
+			return p.get_global_rect()
+	return Rect2()
 
 
 ## The part of the screen where the map shows: below the top bar, above the

@@ -276,7 +276,7 @@ func _describe(n: Node) -> Array:
 		var e := n as Enemy
 		if e.dead:
 			return []
-		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "air": e.airborne, "ch": e.channel_to if e.channel_to != Vector2.INF else null}), e.current_tile(), -1, false]
+		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0, "c": e.color}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "air": e.airborne, "ch": e.channel_to if e.channel_to != Vector2.INF else null}), e.current_tile(), -1, false]
 	if n is Soldier:
 		var s := n as Soldier
 		vid = s.unit.village.id if s.unit.village else -1
@@ -462,6 +462,7 @@ func _spawn(nid: int, type: String, s: Dictionary, st: Dictionary) -> void:
 		"e":
 			var e: Enemy = ENEMY_SCRIPT.new()
 			e.setup(game, [Vector2i(Vector2(st["p"]).round())] as Array[Vector2i], 1.0, s["k"])
+			e.set_color(s.get("c", ""))
 			e.uid = s["u"]
 			e.target_village = game.villages[s["v"]]
 			e.nid = nid

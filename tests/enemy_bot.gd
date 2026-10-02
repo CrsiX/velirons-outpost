@@ -39,6 +39,7 @@ func _run() -> void:
 	await _test_fog_corpses()
 	await _test_vampire()
 	await _test_lairs()
+	await _test_slimes()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -627,3 +628,105 @@ func _test_lairs() -> void:
 		for g in l.alive():
 			kill(g)
 	await clear_enemies()
+
+
+# --- slimes ------------------------------------------------------------------------------------------
+
+func _slimes(kind: String) -> Array:
+	return get_tree().get_nodes_in_group("enemies").filter(func(e: Enemy) -> bool: return e.kind == kind and not e.dead)
+
+
+func _test_slimes() -> void:
+	print("-- slimes")
+	var E := Config.ENEMIES
+	var s3: Dictionary = E["slime3"]
+	var s2: Dictionary = E["slime2"]
+	var s1: Dictionary = E["slime1"]
+	check(s3["hp"] == 40.0 and s3["damage"] == E["ork"]["damage"] and s3["attack_cooldown"] == E["ork"]["attack_cooldown"] and s3["speed"] == E["ork"]["speed"], "a big slime: 40 HP, an ork's blows and pace")
+	check(s3["hp"] == 2.0 * s2["hp"] and s2["hp"] == 2.0 * s1["hp"] and s3["damage"] == 2.0 * s2["damage"] and s2["damage"] == 2.0 * s1["damage"], "each level has twice the HP and damage of the one below")
+	check(s1["speed"] > s2["speed"] and s2["speed"] == E["goblin"]["speed"] and s2["speed"] > s3["speed"], "level 1 is fast, level 2 normal, level 3 slow")
+	check([s3, s2, s1].all(func(d: Dictionary) -> bool: return not d.get("corpse", true) and d["behavior"] == "melee"), "slimes leave no corpse (nothing to raise) and walk the roads like goblins and orks")
+	check(not s3.has("raid_chance") and s2["raid_chance"] == 0.5 and s1["raid_chance"] == 0.25, "at the gate: a big slime always burns a hut, a slime half, a small one a quarter of the time")
+	var first := 0
+	for n in range(1, 30):
+		if Config.wave_composition(n).has("slime3"):
+			first = n
+			break
+	check(first == 4 and not Config.wave_composition(12).has("slime2") and not Config.wave_composition(12).has("slime1"), "big slimes march from wave 4 (%d); the smaller ones only come out of them" % first)
+	var art_ok := true
+	var widths: Array[float] = []
+	for lv in [3, 2, 1]:
+		widths.append(Art.tex("unit_slime%d" % lv).get_width())
+		for c in Config.SLIME_COLORS:
+			art_ok = art_ok and ResourceLoader.exists("res://art/unit_slime%d_%s.svg" % [lv, c])
+	check(art_ok and Config.SLIME_COLORS == ["red", "blue", "yellow", "green", "pink"], "every level in all 5 colours")
+	check(widths[0] > widths[1] and widths[1] > widths[2], "the bigger the level, the bigger the sprite %s" % str(widths))
+	# The die: each colour about a fifth of the time.
+	var counts := {}
+	for i in 500:
+		var e: Enemy = Enemy.new()
+		e.setup(game, [Vector2i(game.player_village.center)] as Array[Vector2i], 1.0, "slime3")
+		counts[e.color] = counts.get(e.color, 0) + 1
+		e.free()
+	check(counts.size() == 5 and counts.values().all(func(n: int) -> bool: return n > 60 and n < 140), "each spawned slime rolls its colour, all equally likely %s" % str(counts))
+	var shares := {}
+	for kind in ["slime3", "slime2", "slime1", "goblin"]:
+		var e: Enemy = Enemy.new()
+		e.setup(game, [Vector2i(game.player_village.center)] as Array[Vector2i], 1.0, kind)
+		var hits := 0
+		for i in 4000:
+			hits += 1 if game.raid_roll(e) else 0
+		shares[kind] = hits / 4000.0
+		e.free()
+	check(shares["slime3"] == 1.0 and shares["goblin"] == 1.0 and absf(shares["slime2"] - 0.5) < 0.04 and absf(shares["slime1"] - 0.25) < 0.04, "the gate roll: big slime always, slime ~50 %%, small slime ~25 %% %s" % str(shares))
+
+	# A big slime splits into 2 slimes, each into 2 small ones; those just die.
+	await clear_corpses()
+	var at := Vector2(road_out(8))
+	var big := spawn("slime3", at, 1.0, true)
+	await frames(2)
+	check(big.color in Config.SLIME_COLORS and big.sprite.texture == Art.tex("unit_slime3_" + big.color), "it shows its colour (%s)" % big.color)
+	var col := big.color
+	var big_pos := big.grid_pos
+	var big_target := big.target_village
+	var alive0: int = game.waves._alive
+	var gold0 := int(game.economy.amount("gold"))
+	big.take_damage(1e9, game.hero)
+	await frames(2)
+	var mids := _slimes("slime2")
+	check(mids.size() == 2 and mids.all(func(e: Enemy) -> bool: return e.color == col and e.sprite.texture == Art.tex("unit_slime2_" + col)), "slain, it splits into 2 slimes of its colour")
+	check(mids.all(func(e: Enemy) -> bool: return e.grid_pos.distance_to(big_pos) < 0.6 and e.path.size() >= 2 and e.target_village == big_target) and mids[0].grid_pos.distance_to(mids[1].grid_pos) > 0.2, "side by side where it died, walking on along its road")
+	check(game.waves._alive == alive0 + 1 and game.corpses.corpses.is_empty() and int(game.economy.amount("gold")) - gold0 == Config.enemy_stat_int("slime3", "gold_on_kill"), "both count for the wave; no corpse; the kill pays %d gold" % Config.enemy_stat_int("slime3", "gold_on_kill"))
+	check(logs.any(func(l: String) -> bool: return "splits into" in l), "the split is logged")
+	for m: Enemy in mids:
+		m.take_damage(1e9, game.hero)
+	await frames(2)
+	var smalls := _slimes("slime1")
+	check(smalls.size() == 4 and smalls.all(func(e: Enemy) -> bool: return e.color == col) and game.waves._alive == alive0 + 3, "each slime splits into 2 small slimes (4, same colour)")
+	for m: Enemy in smalls:
+		m.take_damage(1e9, game.hero)
+	await frames(2)
+	check(_slimes("slime1").is_empty() and _slimes("slime2").is_empty() and game.corpses.corpses.is_empty() and game.waves._alive == alive0 - 1, "small slimes just die: no split, no corpse; all gone, the wave is clear of them")
+
+	# At the gate: a big slime burns a hut; the smaller ones may melt away.
+	for kind in ["slime1", "slime2", "slime3"]:
+		var huts := game.player_village.intact_huts().size()
+		var n_logs := logs.size()
+		var e := spawn(kind, Vector2(road_out(2)), 1.0, true)
+		var t := 0.0
+		while is_instance_valid(e) and not e.dead and t < 20.0:
+			await wait(0.25)
+			t += 0.25
+		await frames(2)
+		var lost := huts - game.player_village.intact_huts().size()
+		var melted := logs.slice(n_logs).any(func(l: String) -> bool: return "melted away" in l)
+		var ok := lost == 1 and not melted if kind == "slime3" else (lost == 1) != melted
+		check((not is_instance_valid(e) or e.dead) and ok, "%s at the gate: %d hut%s destroyed%s" % [kind, lost, "" if lost == 1 else "s", " (it melted away)" if melted else ""])
+	check(_slimes("slime2").is_empty() and _slimes("slime1").is_empty(), "nothing splits at the gate")
+
+	var lib := Library.entries("enemies")
+	var bigs := lib.filter(func(d: Dictionary) -> bool: return "slime" in str(d["name"]).to_lower())
+	var e3: Dictionary = bigs[0] if bigs.size() == 1 else {}
+	check(bigs.size() == 1 and e3["name"] == "Slime" and e3["art"] == "unit_slime3", "the library has one entry, \"Slime\", showing the big slime")
+	check(e3.get("text", "") == "Slain, it splits into two smaller slimes, and each of those into two more." and ("HP %s" % Library._n(Config.enemy_stat("slime3", "hp"))) in "\n".join(e3.get("facts", [])), "its text only tells of the split; its numbers are the big slime's")
+

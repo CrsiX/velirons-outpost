@@ -1,10 +1,10 @@
-class_name KnowledgeBase
+class_name Library
 extends Control
-## The knowledge base (docs/tutorial-design.md §4): reference pages in tabs
+## The library (docs/tutorial-design.md §4): reference pages in tabs
 ## (enemies, units, buildings, villagers, hero, places). Every entry is built
 ## from Config when its tab opens, so the numbers never go out of date. Used
 ## by the HUD (book icon in the top bar) and the title screen; whoever opens
-## it pauses the game if it should (Hud.open_knowledge_base). It shows
+## it pauses the game if it should (Hud.open_library). It shows
 ## everything, also what hasn't been found yet.
 
 signal closed
@@ -16,7 +16,7 @@ const STAT_NAMES := {
 	"hp": "HP", "damage": "Damage per hit", "cooldown": "Seconds between attacks",
 	"interval": "Seconds between summons", "max_summons": "Elementals at once",
 	"summon_hp": "Elemental HP", "summon_damage": "Elemental damage per hit",
-	"heal": "Heals per pulse", "radius": "Heal radius (tiles)", "splash": "Splash radius (tiles)",
+	"heal": "Heals per pulse", "radius": "Heal radius out of a tower (tiles)", "splash": "Splash radius (tiles)",
 	"slow": "Slowed to (x speed)", "slow_time": "Slow lasts (s)", "push": "Throws back (tiles)",
 }
 const XP_WORDS := {
@@ -46,7 +46,7 @@ var _list: VBoxContainer
 
 
 func _init() -> void:
-	name = "KnowledgeBase"
+	name = "Library"
 	theme = UiTheme.build()
 	process_mode = Node.PROCESS_MODE_ALWAYS  # (open while the game is paused)
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -66,7 +66,7 @@ func _init() -> void:
 	head.add_theme_constant_override("separation", 10)
 	v.add_child(head)
 	head.add_child(_icon("icon_book", 40))
-	var title := _label("Knowledge base", 30, UiTheme.GOLD)
+	var title := _label("Library", 30, UiTheme.GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.clip_text = true
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -260,11 +260,15 @@ static func _enemies() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for kind: String in Config.ENEMIES:
 		var e: Dictionary = Config.ENEMIES[kind]
+		if not e.get("library", true):
+			continue  # (the smaller slimes: part of the slime's entry)
 		var f := PackedStringArray()
 		var from := _enemy_from_wave(kind)
 		if from > 0:
 			f.append("In the waves from wave %d%s" % [from, " (in packs)" if kind == "rat" else ""])
 		f.append("HP %s · speed %s tiles/s" % [_n(Config.enemy_stat(kind, "hp")), _n(Config.enemy_stat(kind, "speed"))])
+		if e.has("split_into"):
+			f.append("Slain, it splits into %d smaller slimes, and each of those into %d more" % [e["split_count"], Config.ENEMIES[e["split_into"]]["split_count"]])
 		if float(e["damage"]) > 0.0:
 			f.append("Hits for %s every %s s" % [_n(Config.enemy_stat(kind, "damage")), _n(e["attack_cooldown"])])
 		else:
@@ -292,7 +296,7 @@ static func _enemies() -> Array[Dictionary]:
 				lairs.append(str(Config.LAIR_THEMES[art]["name"]))
 		if not lairs.is_empty():
 			f.append("Comes out of monster lairs: %s" % ", ".join(lairs))
-		out.append({"name": e["name"], "art": "unit_" + str(e["art"]), "text": e.get("desc", ""), "facts": f})
+		out.append({"name": e.get("library_name", e["name"]), "art": "unit_" + str(e["art"]), "text": e.get("desc", ""), "facts": f})
 	return out
 
 

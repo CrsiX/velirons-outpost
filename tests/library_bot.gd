@@ -1,10 +1,10 @@
 extends "res://tests/bot_base.gd"
-## Headless test of the knowledge base (docs/tutorial-design.md, part B): every
+## Headless test of the library (docs/tutorial-design.md, part B): every
 ## kind in Config has its entry with Config's numbers, the art exists, the
 ## book icon opens it in a game (pausing single player, back at the old speed
 ## after; co-op doesn't pause), on the title screen, and it fits on screen in
 ## landscape and portrait. Run with:
-##   godot --headless --fixed-fps 60 --path . res://tests/knowledge_bot.tscn
+##   godot --headless --fixed-fps 60 --path . res://tests/library_bot.tscn
 ## Exits 0 when every check passes.
 
 
@@ -22,13 +22,13 @@ func _run() -> void:
 
 func _names(tab: String) -> Array[String]:
 	var out: Array[String] = []
-	for e in KnowledgeBase.entries(tab):
+	for e in Library.entries(tab):
 		out.append(str(e["name"]))
 	return out
 
 
 func _entry(tab: String, name: String) -> Dictionary:
-	for e in KnowledgeBase.entries(tab):
+	for e in Library.entries(tab):
 		if e["name"] == name:
 			return e
 	return {}
@@ -46,7 +46,7 @@ func _all_in(names: Array[String], wanted: Array, what: String) -> void:
 
 func _pages() -> void:
 	print("-- the pages")
-	_all_in(_names("enemies"), Config.ENEMIES.values().map(func(e: Dictionary) -> String: return e["name"]), "enemies")
+	_all_in(_names("enemies"), Config.ENEMIES.values().filter(func(e: Dictionary) -> bool: return e.get("library", true)).map(func(e: Dictionary) -> String: return e.get("library_name", e["name"])), "enemies")
 	_all_in(_names("units"), Config.MILITARY_TREE.map(func(k: String) -> String: return Config.MILITARY[k]["name"]), "units, specialisations too")
 	_all_in(_names("units"), Config.SUMMONS.values().map(func(s: Dictionary) -> String: return s["name"]), "summoned elementals")
 	_all_in(_names("buildings"), Config.BUILDINGS.values().map(func(b: Dictionary) -> String: return b["name"]) + ["Wall Tower"], "buildings")
@@ -59,7 +59,7 @@ func _pages() -> void:
 	_all_in(_names("places"), Config.UNLOCK_SITES.values().map(func(s: Dictionary) -> String: return s["name"]), "unit-unlock sites")
 	# The numbers are Config's.
 	var gob := _facts("enemies", "Goblin")
-	check(("HP %s" % KnowledgeBase._n(Config.enemy_stat("goblin", "hp"))) in gob and "from wave 1" in gob, "goblin: HP and first wave from Config\n%s" % gob)
+	check(("HP %s" % Library._n(Config.enemy_stat("goblin", "hp"))) in gob and "from wave 1" in gob, "goblin: HP and first wave from Config\n%s" % gob)
 	check("from wave %d" % Config.WAVE_MIX["vampire"]["from_wave"] in _facts("enemies", "Vampire") and "magical" in _facts("enemies", "Vampire"), "vampire: its wave and its resistance")
 	check("leaves no corpse" in _facts("enemies", "Rat") and "in packs" in _facts("enemies", "Rat"), "rats: packs, no corpse")
 	check("Flies" in _facts("enemies", "Gargoyle"), "gargoyles fly")
@@ -68,7 +68,7 @@ func _pages() -> void:
 	check("Barracks only" in _facts("units", "Shield Bearer"), "shield bearers: barracks only")
 	check("found first" in _facts("units", "Summoner") and "stone circle" in _facts("units", "Summoner"), "summoner: found at the stone circle")
 	check("specialisation of the Apprentice" in _facts("units", "Fire Mage"), "fire mage: an apprentice's specialisation")
-	check(("%s tiles" % KnowledgeBase._n(Config.TOWER_RANGE["tower"])) in _facts("buildings", "Watchtower"), "watchtower: its range")
+	check(("%s tiles" % Library._n(Config.TOWER_RANGE["tower"])) in _facts("buildings", "Watchtower"), "watchtower: its range")
 	check("3 benches" in _facts("buildings", "Barracks"), "barracks: its levels")
 	check("found first" in _facts("villagers", "Miner") and "Can't be recruited" in _facts("villagers", "Spatial Archmage"), "miner locked, archmage not recruited")
 	check(("%d XP for level 2" % Config.hero_level_cost(0)) in _facts("hero", "Hero"), "hero: level cost")
@@ -77,8 +77,8 @@ func _pages() -> void:
 	# Every entry has text or facts, and its art exists.
 	var bad: Array[String] = []
 	var empty: Array[String] = []
-	for tab in KnowledgeBase.TABS:
-		for e in KnowledgeBase.entries(tab):
+	for tab in Library.TABS:
+		for e in Library.entries(tab):
 			if not ResourceLoader.exists("res://art/%s.svg" % e["art"]):
 				bad.append("%s (%s)" % [e["name"], e["art"]])
 			if str(e.get("text", "")) == "" and (e["facts"] as PackedStringArray).is_empty():
@@ -93,41 +93,41 @@ func _in_game() -> void:
 	add_child(game)
 	await frames(3)
 	var hud := game.hud
-	var kb := hud.knowledge_base
+	var lib := hud.library
 	check(hud._book_button.get_index() == hud._settings_button.get_index() - 1, "the book icon sits left of the settings icon")
 	hud.set_speed_index(Game.SPEEDS.find(2.0))
 	await frames(1)
 	hud._book_button.pressed.emit()
 	await frames(2)
-	check(kb.visible and get_tree().paused, "the book icon opens it and pauses the game")
-	for tab in KnowledgeBase.TABS:
-		(kb._tab_buttons[tab] as Button).pressed.emit()
+	check(lib.visible and get_tree().paused, "the book icon opens it and pauses the game")
+	for tab in Library.TABS:
+		(lib._tab_buttons[tab] as Button).pressed.emit()
 		await frames(1)
-		check(kb.tab == tab and kb.shown_names() == _names(tab), "tab %s shows its %d entries" % [tab, _names(tab).size()])
+		check(lib.tab == tab and lib.shown_names() == _names(tab), "tab %s shows its %d entries" % [tab, _names(tab).size()])
 	hud.toggle_pause()
-	check(get_tree().paused and kb.visible, "Space does nothing while it's open")
+	check(get_tree().paused and lib.visible, "Space does nothing while it's open")
 	var esc := InputEventKey.new()
 	esc.keycode = KEY_ESCAPE
 	esc.pressed = true
-	kb._unhandled_key_input(esc)
+	lib._unhandled_key_input(esc)
 	await frames(2)
-	check(not kb.visible and not get_tree().paused and Game.SPEEDS[hud._speed_index] == 2.0, "Escape closes it; the game goes on at 2x")
-	hud.open_knowledge_base()
-	check(kb.tab == "places", "it opens on the tab shown last")
-	kb.close()
+	check(not lib.visible and not get_tree().paused and Game.SPEEDS[hud._speed_index] == 2.0, "Escape closes it; the game goes on at 2x")
+	hud.open_library()
+	check(lib.tab == "places", "it opens on the tab shown last")
+	lib.close()
 	await frames(1)
 	hud.set_speed_index(Game.SPEEDS.find(0.0))
-	hud.open_knowledge_base("units")
-	check(kb.tab == "units", "it can open on a given tab")
-	kb.close()
+	hud.open_library("units")
+	check(lib.tab == "units", "it can open on a given tab")
+	lib.close()
 	await frames(1)
 	check(get_tree().paused and Game.SPEEDS[hud._speed_index] == 0.0, "paused before: still paused after")
 	hud.set_speed_index(Game.SPEEDS.find(1.0))
 	await frames(1)
 	game.networked = true  # (as in co-op)
-	hud.open_knowledge_base()
-	check(kb.visible and not get_tree().paused, "co-op: it doesn't pause")
-	kb.close()
+	hud.open_library()
+	check(lib.visible and not get_tree().paused, "co-op: it doesn't pause")
+	lib.close()
 	game.networked = false
 	await frames(1)
 	for sz in [Vector2i(1280, 720), Vector2i(720, 1280)]:
@@ -142,11 +142,11 @@ func _in_game() -> void:
 			check(wave_y < res_y, "portrait: the wave, speed, book and settings row is above the resources and hero")
 		else:
 			check(is_equal_approx(wave_y, res_y) and hud._top_left.get_global_rect().position.x < hud._top_right.get_global_rect().position.x, "landscape: one row, resources on the left")
-		hud.open_knowledge_base("units")
+		hud.open_library("units")
 		await frames(3)
-		var r: Rect2 = kb._panel.get_global_rect()
-		check(vp.encloses(r) and r.size.x >= minf(sz.x - 24.0, 900.0) - 1.0, "%dx%d: the knowledge base fits on screen (%s)" % [sz.x, sz.y, str(r)])
-		kb.close()
+		var r: Rect2 = lib._panel.get_global_rect()
+		check(vp.encloses(r) and r.size.x >= minf(sz.x - 24.0, 900.0) - 1.0, "%dx%d: the library fits on screen (%s)" % [sz.x, sz.y, str(r)])
+		lib.close()
 		await frames(1)
 	game.queue_free()
 	await frames(3)
@@ -162,20 +162,20 @@ func _first_open() -> void:
 	await frames(3)
 	var layer := CanvasLayer.new()
 	add_child(layer)
-	var kb := KnowledgeBase.new()
-	layer.add_child(kb)
+	var lib := Library.new()
+	layer.add_child(lib)
 	await frames(1)
-	kb.open("enemies")
+	lib.open("enemies")
 	var vp := Rect2(Vector2.ZERO, Vector2(sz))
 	await frames(3)
-	check(vp.encloses(kb._panel.get_global_rect()), "the first open fits on screen (%s)" % str(kb._panel.get_global_rect()))
+	check(vp.encloses(lib._panel.get_global_rect()), "the first open fits on screen (%s)" % str(lib._panel.get_global_rect()))
 	var stops: Array[String] = []
-	for c in kb._list.find_children("*", "Control", true, false):
+	for c in lib._list.find_children("*", "Control", true, false):
 		if (c as Control).mouse_filter == Control.MOUSE_FILTER_STOP:
 			stops.append(str(c.get_class()))
 	check(stops.is_empty(), "nothing in the entries catches the mouse, so they scroll %s" % str(stops))
-	check(kb._scroll.get_v_scroll_bar().max_value > kb._scroll.size.y, "the list is longer than the view: it scrolls")
-	var first: Control = kb._list.get_child(0)
+	check(lib._scroll.get_v_scroll_bar().max_value > lib._scroll.size.y, "the list is longer than the view: it scrolls")
+	var first: Control = lib._list.get_child(0)
 	var at := first.get_global_rect().get_center()
 	var down := InputEventMouseButton.new()
 	down.button_index = MOUSE_BUTTON_WHEEL_DOWN
@@ -184,7 +184,7 @@ func _first_open() -> void:
 	down.global_position = at
 	get_viewport().push_input(down)
 	await frames(2)
-	check(kb._scroll.scroll_vertical > 0, "the wheel over an entry scrolls (%d)" % kb._scroll.scroll_vertical)
+	check(lib._scroll.scroll_vertical > 0, "the wheel over an entry scrolls (%d)" % lib._scroll.scroll_vertical)
 	layer.queue_free()
 	await frames(1)
 
@@ -194,18 +194,25 @@ func _title() -> void:
 	var t = load("res://scenes/title.tscn").instantiate()
 	add_child(t)
 	await frames(3)
-	var bb: Button = t.knowledge_button
-	check(bb.is_visible_in_tree() and bb.get_index() == t.multiplayer_button.get_index() + 1, "the title screen's menu has Knowledge base, under Multiplayer")
-	check(t.help_button.is_visible_in_tree() and t.help_button.get_index() == bb.get_index() + 1, "and Help under that")
+	var bb: Button = t.library_button
+	var order: Array = t.singleplayer_button.get_parent().get_children().map(func(n: Button) -> String: return n.text)
+	check(order == ["Singleplayer", "Multiplayer", "Tutorial", "Library", "Exit"], "the main menu: Singleplayer, Multiplayer, Tutorial, Library, Exit (no Help) %s" % [order])
+	check(t.singleplayer_button.get_theme_stylebox("normal") == t.multiplayer_button.get_theme_stylebox("normal"), "Singleplayer isn't highlighted: it looks like the others")
+	var icons := {t.tutorial_button: "icon_tutorial", t.singleplayer_button: "icon_singleplayer", t.multiplayer_button: "icon_multiplayer", bb: "icon_book", t.exit_button: "icon_exit"}
+	var wrong := []
+	for b: Button in icons:
+		if b.icon != Art.tex(icons[b]) or b.get_theme_constant("icon_max_width") != 34:
+			wrong.append(b.text)
+	check(wrong.is_empty(), "every main-menu button has its own icon at the same size %s" % [wrong])
 	bb.pressed.emit()
 	await frames(2)
-	var kb: KnowledgeBase = t.knowledge_base
-	check(kb.visible and kb.shown_names().size() > 0, "it opens the knowledge base")
+	var lib: Library = t.library
+	check(lib.visible and lib.shown_names().size() > 0, "it opens the library")
 	var esc := InputEventKey.new()
 	esc.keycode = KEY_ESCAPE
 	esc.pressed = true
-	kb._unhandled_key_input(esc)
+	lib._unhandled_key_input(esc)
 	await frames(1)
-	check(not kb.visible and t._main_page.visible, "Escape closes it, the menu stays")
+	check(not lib.visible and t._main_page.visible, "Escape closes it, the menu stays")
 	t.queue_free()
 	await frames(1)

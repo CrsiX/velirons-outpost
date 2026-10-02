@@ -1548,6 +1548,39 @@ def corpse_vampire():
     a.save("corpse_vampire")
 
 
+def slimes():
+    """Slimes, 3 sizes (level 3 biggest) x 5 pastel colours: unit_slime<level>_<colour>.
+    unit_slime<level> is the green one (the library's and the debug menu's picture)."""
+    colours = {  # body, darker underside, outline-side shade
+        "red": ("#f6a8a4", "#e2827e"),
+        "blue": ("#a9c9f2", "#7fa6d8"),
+        "yellow": ("#f7e59a", "#dcc46c"),
+        "green": ("#b6e8a8", "#88c97a"),
+        "pink": ("#f6b9e2", "#dc92c4"),
+    }
+    for level, r in ((1, 8.5), (2, 12.5), (3, 18.0)):
+        h = r * 1.05
+        sw = 1.1 if level == 1 else 1.3
+        for name, (body, under) in colours.items():
+            a = Art()
+            a.shadow(r * 1.1, r * 0.4, opacity=0.3)
+            d = ("M%s,0 C%s,%s %s,%s 0,%s C%s,%s %s,%s %s,0 Q0,%s %s,0 Z"
+                 % (fmt(-r), fmt(-r), fmt(-h * 0.85), fmt(-r * 0.6), fmt(-h * 1.3), fmt(-h * 1.3),
+                    fmt(r * 0.6), fmt(-h * 1.3), fmt(r), fmt(-h * 0.85), fmt(r), fmt(r * 0.22), fmt(-r)))
+            a.raw('<path d="%s" fill="%s" stroke="%s" stroke-width="%s" stroke-linejoin="round"/>' % (d, body, INK, sw),
+                  [(-r, -h * 1.3), (r, r * 0.12)])
+            a.ellipse(0, -h * 0.18, r * 0.78, h * 0.2, under, opacity=0.7)
+            a.ellipse(-r * 0.42, -h * 0.92, r * 0.24, h * 0.14, "#ffffff", opacity=0.75)
+            a.ellipse(-r * 0.62, -h * 0.6, r * 0.08, h * 0.08, "#ffffff", opacity=0.6)
+            for ex in (r * 0.12, r * 0.52):
+                a.ellipse(ex, -h * 0.62, r * 0.12, h * 0.15, INK)
+                a.ellipse(ex - r * 0.03, -h * 0.67, r * 0.04, h * 0.05, "#ffffff")
+            a.line([(r * 0.2, -h * 0.36), (r * 0.32, -h * 0.3), (r * 0.44, -h * 0.36)], INK, 0.9 if level == 1 else 1.1)
+            a.save("unit_slime%d_%s" % (level, name))
+            if name == "green":
+                a.save("unit_slime%d" % level)
+
+
 def rat():
     """A small grey-brown rat, side view, facing right (the game flips it)."""
     a = Art()
@@ -1594,6 +1627,37 @@ def sack():
 def icon_svg(name, body):
     with open(os.path.join(ART, name + ".svg"), "w") as f:
         f.write('<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 64 64">\n%s\n</svg>\n' % body)
+
+
+def title_icons():
+    """The title screen's menu icons."""
+    # Singleplayer: one person, profile-picture style in a round frame.
+    icon_svg("icon_singleplayer", f'''
+  <circle cx="32" cy="32" r="27" fill="#3a4a5a" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M13 51 Q14 36 32 36 Q50 36 51 51 Q42 59 32 59 Q22 59 13 51Z" fill="#566a3a" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <circle cx="32" cy="23" r="10" fill="#d8b08c" stroke="{INK}" stroke-width="3.5"/>''')
+    # Multiplayer: a group of three.
+    icon_svg("icon_multiplayer", f'''
+  <circle cx="15" cy="22" r="7" fill="#d8b08c" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M3 48 Q3 31 15 31 Q27 31 27 48Z" fill="#7a6048" stroke="{INK}" stroke-width="3.5"/>
+  <circle cx="49" cy="22" r="7" fill="#d8b08c" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M37 48 Q37 31 49 31 Q61 31 61 48Z" fill="#7a2a1f" stroke="{INK}" stroke-width="3.5"/>
+  <circle cx="32" cy="24" r="9" fill="#d8b08c" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M16 56 Q16 35 32 35 Q48 35 48 56Z" fill="#566a3a" stroke="{INK}" stroke-width="3.5"/>''')
+    # Tutorial: a scholar's cap with a gold tassel.
+    icon_svg("icon_tutorial", f'''
+  <path d="M16 30 L16 44 Q32 54 48 44 L48 30Z" fill="#2a2a34" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M2 24 L32 11 L62 24 L32 37Z" fill="#3a3a48" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M32 24 L52 30 L52 46" fill="none" stroke="{GOLD}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="52" cy="49" r="4" fill="{GOLD}" stroke="{INK}" stroke-width="2"/>
+  <circle cx="32" cy="24" r="3" fill="{GOLD}" stroke="{INK}" stroke-width="1.5"/>''')
+    # Exit: an open door with an arrow leading out.
+    icon_svg("icon_exit", f'''
+  <path d="M8 6 L36 6 L36 58 L8 58Z" fill="#4a3a2a" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M8 6 L28 12 L28 62 L8 58Z" fill="#8a5a32" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <circle cx="23" cy="36" r="2.5" fill="{GOLD}" stroke="{INK}" stroke-width="1.5"/>
+  <path d="M34 32 L54 32 M46 23 L56 32 L46 41" fill="none" stroke="{INK}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M34 32 L54 32 M46 23 L56 32 L46 41" fill="none" stroke="#e05a4a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>''')
 
 
 def icons():
@@ -3504,6 +3568,7 @@ def main():
     archer()
     goblin()
     rat()
+    slimes()
     gatherer()
     forester()
     worker_camp()
@@ -3553,6 +3618,7 @@ def main():
     sack()
     biome_art()
     icons()
+    title_icons()
     flags()
     app_icon()
     title_background()

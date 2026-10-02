@@ -569,6 +569,12 @@ func thief_steals(g: Enemy) -> int:
 	return n
 
 
+## Whether `g`, through a gate, burns a hut: always, or with its kind's
+## raid_chance (the small slimes).
+func raid_roll(g: Enemy) -> bool:
+	return randf() < float(g.spec().get("raid_chance", 1.0))
+
+
 func on_enemy_reached_gate(g: Enemy) -> void:
 	if game_over:
 		return
@@ -583,6 +589,9 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 		v.economy.add("food", -eat)
 		v.events.info("%s got into the village and ate %d food" % [g.label().capitalize(), eat])
 		v.toast("A rat ate %d food!" % eat, Color("ffb07a"))
+		return
+	if not raid_roll(g):
+		v.events.debug("%s got into the village and melted away" % g.label().capitalize())
 		return
 	v.events.debug("%s broke through the gate" % g.label())
 	var intact := v.intact_huts()

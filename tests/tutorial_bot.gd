@@ -192,7 +192,19 @@ func _play_through() -> void:
 	game.hud._hero_button.pressed.emit()
 	await wait(0.5)
 	check(tut.highlight.target == game.hud.control_named("hero_mode:%d" % Hero.Mode.EXPLORE), "then at the Explore mode")
-	check(tut.card.position.x >= game.hud.hero_panel_rect().end.x, "the card moves beside the hero panel")
+	check(tut.card.position.x >= game.hud.corner_panel_rect().end.x, "the card moves beside the hero panel")
+	# The villager list and the material dialog open in that corner too.
+	game.hud._pop_button.pressed.emit()
+	await frames(2)
+	check(game.hud._people_panel.visible and tut.card.position.x >= game.hud._people_panel.get_global_rect().end.x, "and beside the villager list")
+	game.hud._materials_button.pressed.emit()
+	await frames(2)
+	check(game.hud._trade_panel.visible and tut.card.position.x >= game.hud._trade_panel.get_global_rect().end.x, "and beside the material dialog")
+	game.hud._trade_panel.visible = false
+	await frames(2)
+	check(is_equal_approx(tut.card.position.x, 10.0), "all closed: back in the corner")
+	game.hud._hero_button.pressed.emit()
+	await frames(2)
 	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
 	check(await at_step(8, 120.0), "step 9 once he has earned XP")
 
@@ -293,7 +305,7 @@ func _title() -> void:
 	add_child(t)
 	await frames(2)
 	var tb: Button = t.tutorial_button
-	check(tb.is_visible_in_tree() and tb.get_index() == t.singleplayer_button.get_index() - 1, "Tutorial is on the main page, above Singleplayer")
-	check(tb.icon == null, "no tick: it can always be played again")
+	check(tb.is_visible_in_tree() and tb.get_index() == t.multiplayer_button.get_index() + 1, "Tutorial is on the main page, under Multiplayer")
+	check(tb.icon == Art.tex("icon_tutorial"), "its icon is the scholar's cap, no tick: it can always be played again")
 	t.queue_free()
 	await frames(1)

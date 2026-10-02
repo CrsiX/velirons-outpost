@@ -58,6 +58,8 @@ var channel_to := Vector2.INF
 var _fly_t := 0.0
 var _fly_base := Vector2.ZERO
 var _shadow: Polygon2D
+## A slime's colour (Config.SLIME_COLORS), rolled at spawn; "" for the rest.
+var color := ""
 var _sack: Sprite2D
 
 
@@ -69,7 +71,10 @@ func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: Stri
 	hp = max_hp
 	speed = stat("speed") * randf_range(0.92, 1.08)
 	base_speed = speed
-	_init_sprite("unit_" + spec()["art"])
+	var colors: Array = spec().get("colors", [])
+	if not colors.is_empty():
+		color = colors[randi() % colors.size()]
+	_init_sprite(unit_art())
 	var pts := PackedVector2Array()
 	# A small sideways offset per enemy so groups don't walk in single file.
 	_jitter = Vector2(randf_range(-0.18, 0.18), randf_range(-0.18, 0.18))
@@ -152,6 +157,47 @@ func attack_category() -> String:
 ## ground slows it, and only ranged attacks and other flyers can go for it.
 func flies() -> bool:
 	return airborne or spec().get("flying", false)
+
+
+## Its sprite: unit_<art>, or unit_<art>_<colour> for a slime.
+func unit_art() -> String:
+	return "unit_%s%s" % [spec()["art"], "_" + color if color != "" else ""]
+
+
+## A slime's halves keep its colour.
+func set_color(c: String) -> void:
+	if c == "" or c == color:
+		return
+	color = c
+	var flip := sprite.flip_h
+	Art.apply(sprite, unit_art())
+	sprite.flip_h = flip
+
+
+## Jelly (slimes): squashes and stretches as it walks.
+func is_jelly() -> bool:
+	return spec().has("colors")
+
+
+## Split off a bigger slime: it pops out of it.
+func pop_in() -> void:
+	scale = Vector2(0.4, 0.4)
+	create_tween().tween_property(self, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _animate(delta: float) -> void:
+	if not is_jelly():
+		super._animate(delta)
+		return
+	_bob += delta * 8.0
+	var q := sin(_bob) * 0.1
+	sprite.scale = Vector2(0.5 * (1.0 + q), 0.5 * (1.0 - q))
+
+
+func _set_moving(v: bool) -> void:
+	super._set_moving(v)
+	if not v and is_jelly():
+		sprite.scale = Vector2(0.5, 0.5)
 
 
 ## The art it shows now: its own, or the bat's.
@@ -398,4 +444,4 @@ func _draw() -> void:
 		draw_circle(to, 7.0 + 2.0 * sin(Time.get_ticks_msec() / 120.0), Color(0.42, 1.0, 0.54, a * 0.35))
 	if dead or hp >= max_hp:
 		return
-	_draw_hp_bar(28.0, -62.0 if flies() else -46.0, 5.0, hp / max_hp, Color("4a1510"), Color("d8412f"))
+	_draw_hp_bar(28.0, -62.0 if flies() else float(spec().get("hp_bar_y", -46.0)), 5.0, hp / max_hp, Color("4a1510"), Color("d8412f"))

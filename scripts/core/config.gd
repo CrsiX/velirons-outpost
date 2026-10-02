@@ -482,7 +482,7 @@ const MILITARY := {
 		"name": "Healing Mage", "role": "healer", "posts": ["tower", "barracks"], "recruit": false,
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "heal",
-		"desc": "No damage. Heals every allied unit and hero around it (not summons).",
+		"desc": "No damage. Heals every allied unit and hero around it (not summons): in a tower as far as the tower reaches, elsewhere within its own radius.",
 		"stats": {"hp": [15.0, 45.0], "heal": [6.0, 30.0], "cooldown": [3.0, 1.4], "radius": [2.5, 3.5]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -654,7 +654,7 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 # --- enemies ------------------------------------------------------------------------
 ## Every enemy kind in one place. Keys (all required):
 ##   name, art ........ display name; sprites are unit_<art> and corpse_<art>
-##   desc ............. one line for the knowledge base
+##   desc ............. one line for the library
 ##   behavior ......... what it does besides walking to a gate: "melee" (fights
 ##                      summons blocking its way) or "witch" (casts spells)
 ##   hp, speed ........ hit points; tiles per second along the road
@@ -663,8 +663,14 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 ##   gold_on_kill ..... paid the moment it dies
 ##   gold_on_collect, food_on_collect .. paid when a gatherer brings the corpse home
 ## Behaviours may add their own keys (see "witch").
+## Optional: corpse (false: none), raid_chance (of burning a hut at the gate; 1),
+## split_into / split_count, colors, level, hp_bar_y (see "slime3"),
+## library (false: no library entry of its own), library_name (its name there).
 ## Any enemy that gets through a gate destroys exactly one random hut, on every
-## difficulty (the villager living there, if any, dies with it).
+## difficulty (the villager living there, if any, dies with it). Except
+## rats (they eat food), and kinds with a raid_chance roll for it.
+## The pastel colours a slime can roll (equal chances), see "slime3".
+const SLIME_COLORS: Array[String] = ["red", "blue", "yellow", "green", "pink"]
 const ENEMIES := {
 	"goblin": {
 		"name": "Goblin", "art": "goblin", "behavior": "melee",
@@ -688,6 +694,40 @@ const ENEMIES := {
 		"hp": 55.0, "speed": 0.8,
 		"damage": 11.0, "attack_cooldown": 1.2,
 		"gold_on_kill": 6, "gold_on_collect": 0, "food_on_collect": 6,
+	},
+	# Slimes come in 3 levels, each its own kind: a slime that dies splits
+	# into `split_count` of `split_into` (level 3 -> 2 x level 2 -> 2 x level 1
+	# each); level 1 just dies. Each level has twice the HP and damage of the
+	# one below. A spawned slime rolls one of `colors` (Enemy.color, sprite
+	# unit_<art>_<color>); its halves keep it. No corpses, so nothing for the
+	# necromancer. At the gate a big slime burns a hut like any enemy; the
+	# smaller ones only with `raid_chance`, else they just melt away.
+	"slime3": {
+		"name": "Big slime", "art": "slime3", "behavior": "melee", "corpse": false, "level": 3,
+		"desc": "Slain, it splits into two smaller slimes, and each of those into two more.",
+		"library_name": "Slime",
+		"hp": 40.0, "speed": 0.8,
+		"damage": 11.0, "attack_cooldown": 1.2,
+		"gold_on_kill": 3, "gold_on_collect": 0, "food_on_collect": 0,
+		"split_into": "slime2", "split_count": 2,
+		"colors": SLIME_COLORS, "hp_bar_y": -33.0,
+	},
+	"slime2": {
+		"name": "Slime", "art": "slime2", "behavior": "melee", "corpse": false, "level": 2, "raid_chance": 0.5, "library": false,
+		"desc": "Half of a big slime. Slain, it splits into two small slimes. In the village, it burns a hut only half of the time.",
+		"hp": 20.0, "speed": 1.1,
+		"damage": 5.5, "attack_cooldown": 1.2,
+		"gold_on_kill": 2, "gold_on_collect": 0, "food_on_collect": 0,
+		"split_into": "slime1", "split_count": 2,
+		"colors": SLIME_COLORS, "hp_bar_y": -25.0,
+	},
+	"slime1": {
+		"name": "Small slime", "art": "slime1", "behavior": "melee", "corpse": false, "level": 1, "raid_chance": 0.25, "library": false,
+		"desc": "The smallest and quickest slime. It just dies. In the village, it burns a hut only a quarter of the time.",
+		"hp": 10.0, "speed": 1.4,
+		"damage": 2.75, "attack_cooldown": 1.2,
+		"gold_on_kill": 1, "gold_on_collect": 0, "food_on_collect": 0,
+		"colors": SLIME_COLORS, "hp_bar_y": -19.0,
 	},
 	# Fragile spell-caster: no melee. Stops at manned towers in range and
 	# enchants their unit (it stops shooting/summoning for a while). Spells hurt
@@ -817,6 +857,7 @@ const DIFFICULTY_SCALED: Array[String] = [
 const WAVE_MIX := {
 	"skeleton": {"from_wave": 2, "share": 0.12, "growth": 0.06, "max_share": 0.35},
 	"ork": {"from_wave": 3, "share": 0.10, "growth": 0.03, "max_share": 0.25},
+	"slime3": {"from_wave": 4, "share": 0.06, "growth": 0.02, "max_share": 0.15},
 	"witch": {"from_wave": 5, "share": 0.10, "growth": 0.02, "max_share": 0.2},
 	"thief": {"from_wave": 7, "share": 0.08, "growth": 0.01, "max_share": 0.15},
 	"gargoyle": {"from_wave": 10, "share": 0.06, "growth": 0.01, "max_share": 0.15},

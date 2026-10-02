@@ -376,7 +376,41 @@ func _on_enemy_killed(g: Enemy) -> void:
 		c.extra_gold = g.loot_gold
 		c.hp_scale = g.hp_scale
 		c.revivable = c.revivable and not g.raised
+	_split(g)
 	_enemy_gone(g)
+
+
+## A slain slime splits into split_count smaller ones (Config "split_into"),
+## side by side where it died, in its colour; they walk on along its road.
+## They count for the wave (or not, like a debug slime).
+func _split(g: Enemy) -> void:
+	var into := str(g.spec().get("split_into", ""))
+	if into == "" or g.raised:
+		return
+	var target: Village = g.target_village if is_instance_valid(g.target_village) else game.villages[0]
+	var rest := g.path.slice(mini(g.path_index, g.path.size()))
+	var ahead := (rest[0] - g.grid_pos) if not rest.is_empty() else Vector2.RIGHT
+	var side := Vector2(-ahead.y, ahead.x).normalized() if ahead.length() > 0.01 else Vector2(0.7, -0.7)
+	var n := int(g.spec()["split_count"])
+	var names := PackedStringArray()
+	for i in n:
+		var c: Enemy = ENEMY_SCRIPT.new()
+		c.setup(game, [g.current_tile()] as Array[Vector2i], g.hp_scale, into)
+		c.wave = g.wave
+		c.set_color(g.color)
+		var start := g.grid_pos + side * 0.25 * (float(i) - (n - 1) / 2.0) * 2.0
+		var pts := PackedVector2Array([start])
+		for p in rest:
+			pts.append(p - g._jitter + c._jitter)
+		c.set_grid_pos(start)
+		c.follow(pts)
+		_add(c, target)
+		if _uncounted.has(g):
+			_alive -= 1
+			_uncounted[c] = true
+		c.pop_in()
+		names.append(c.label())
+	target.events.debug("%s splits into %s" % [g.label(), " and ".join(names)])
 
 
 func _on_enemy_reached_gate(g: Enemy) -> void:

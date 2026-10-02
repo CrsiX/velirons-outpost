@@ -523,20 +523,21 @@ func _build_card() -> void:
 	_build_skip_dialog()
 
 
-## Top left under the top bar; beside the hero panel while it's open
-## (portrait: under it), and under the placing hint in portrait.
+## Top left under the top bar; beside the hero panel, villager list or
+## material dialog while one is open (portrait: under it), and under the
+## placing hint in portrait.
 func _place_card() -> void:
 	var hud := game.hud
 	var vp := card.get_viewport_rect().size
 	var portrait := hud.is_portrait()
 	var w := minf(vp.x - 20.0, 520.0) if portrait else 360.0
 	var pos := Vector2(10.0, hud.top_height() + 6.0)
-	var hero := hud.hero_panel_rect()
-	if hero.has_area():
+	var corner := hud.corner_panel_rect()
+	if corner.has_area():
 		if portrait:
-			pos.y = hero.end.y + 6.0
+			pos.y = corner.end.y + 6.0
 		else:
-			pos.x = hero.end.x + 10.0
+			pos.x = corner.end.x + 10.0
 	if portrait and hud._mode_panel.visible:
 		pos.y = maxf(pos.y, hud._mode_panel.get_global_rect().end.y + 6.0)
 	card.custom_minimum_size.x = w

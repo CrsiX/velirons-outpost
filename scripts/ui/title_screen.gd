@@ -1,7 +1,7 @@
 class_name TitleScreen
 extends Control
 ## Title screen: backdrop, game name and a menu in pages:
-##   main         - Tutorial, Singleplayer, Multiplayer, Knowledge base, Help, Exit;
+##   main         - Singleplayer, Multiplayer, Tutorial, Library, Exit;
 ##   Singleplayer - Play, Difficulty, Map, seed, Back;
 ##   Multiplayer  - village name and colour, host / join, lobby (MultiplayerMenu).
 
@@ -14,11 +14,9 @@ var tutorial_button: Button
 var difficulty_button: Button
 var map_button: Button
 var seed_edit: LineEdit
-var knowledge_button: Button
-var help_button: Button
+var library_button: Button
 var back_button: Button
-var help_panel: PanelContainer
-var knowledge_base: KnowledgeBase
+var library: Library
 var _menu: VBoxContainer
 var _main_page: VBoxContainer
 var _sp_page: VBoxContainer
@@ -59,18 +57,13 @@ func _ready() -> void:
 	add_child(_menu)
 
 	_main_page = _page()
-	tutorial_button = _menu_button(_main_page, "Tutorial", play_tutorial)
+	singleplayer_button = _menu_button(_main_page, "Singleplayer", func() -> void: show_page(_sp_page), "icon_singleplayer")
+	multiplayer_button = _menu_button(_main_page, "Multiplayer", func() -> void: show_page(mp_menu), "icon_multiplayer")
+	tutorial_button = _menu_button(_main_page, "Tutorial", play_tutorial, "icon_tutorial")
 	tutorial_button.tooltip_text = "A guided first game: learn the basics step by step"
-	singleplayer_button = _menu_button(_main_page, "Singleplayer", func() -> void: show_page(_sp_page))
-	UiTheme.style_primary(singleplayer_button)
-	multiplayer_button = _menu_button(_main_page, "Multiplayer", func() -> void: show_page(mp_menu))
-	knowledge_button = _menu_button(_main_page, "Knowledge base", func() -> void: knowledge_base.open())
-	knowledge_button.tooltip_text = "Enemies, units, buildings, villagers, hero, places"
-	knowledge_button.icon = Art.tex("icon_book")
-	knowledge_button.expand_icon = false
-	knowledge_button.add_theme_constant_override("icon_max_width", 34)
-	help_button = _menu_button(_main_page, "Help", func() -> void: help_panel.visible = true)
-	exit_button = _menu_button(_main_page, "Exit", func() -> void: get_tree().quit())
+	library_button = _menu_button(_main_page, "Library", func() -> void: library.open(), "icon_book")
+	library_button.tooltip_text = "Enemies, units, buildings, villagers, hero, places"
+	exit_button = _menu_button(_main_page, "Exit", func() -> void: get_tree().quit(), "icon_exit")
 	exit_button.visible = not OS.has_feature("web")  # browsers can't close the tab
 	_sp_page = _page()
 	play_button = _menu_button(_sp_page, "Play", _play)
@@ -99,9 +92,8 @@ func _ready() -> void:
 		show_page(_main_page)
 	
 	_update_sp_buttons()
-	_build_help_panel()
-	knowledge_base = KnowledgeBase.new()
-	add_child(knowledge_base)
+	library = Library.new()
+	add_child(library)
 	get_viewport().size_changed.connect(_layout)
 	# Pages change height (Singleplayer, the multiplayer join page and lobby): fit again.
 	_menu.minimum_size_changed.connect(func() -> void: _layout.call_deferred())
@@ -165,59 +157,19 @@ func in_singleplayer_page() -> bool:
 	return _sp_page.visible
 
 
-func _menu_button(page: VBoxContainer, text: String, action: Callable) -> Button:
+func _menu_button(page: VBoxContainer, text: String, action: Callable, icon := "") -> Button:
 	var b := Button.new()
 	b.text = text
+	if icon != "":
+		b.icon = Art.tex(icon)
+		b.expand_icon = false
+		b.add_theme_constant_override("icon_max_width", 34)
 	b.custom_minimum_size = Vector2(320, 64)
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_size_override("font_size", 26)
 	b.pressed.connect(action)
 	page.add_child(b)
 	return b
-
-
-func _build_help_panel() -> void:
-	help_panel = PanelContainer.new()
-	add_child(help_panel)
-
-	help_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	help_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	help_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 16)
-	v.custom_minimum_size = Vector2(520, 0)
-	help_panel.add_child(v)
-
-	var head := Label.new()
-	head.text = "Help"
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	head.add_theme_font_size_override("font_size", 36)
-	head.add_theme_color_override("font_color", UiTheme.GOLD)
-	v.add_child(head)
-
-	var help_text := Label.new()
-	help_text.text = """Welcome to Veliron's Outpost
-
-Your task is defending a small castle of huts from hordes of monsters that roam in the wilderness. Hold out as long as you possibly can.
-
-Explore the unknown lands around Veliron's last outpost. Build huts, camps and towers. Station military units on them to defend the village. Ensure the safety of your villagers. Find unknown treasures and kill many monsters. For wealth and glory!"""
-	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	help_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	help_text.add_theme_font_size_override("font_size", 20)
-	help_text.custom_minimum_size = Vector2(480, 180)
-	v.add_child(help_text)
-
-	var close := Button.new()
-	close.text = "Close"
-	close.custom_minimum_size = Vector2(0, 52)
-	close.focus_mode = Control.FOCUS_NONE
-	close.pressed.connect(func() -> void:
-		help_panel.visible = false
-	)
-	v.add_child(close)
-
-	help_panel.visible = false
 
 
 func _cycle_difficulty() -> void:
@@ -251,9 +203,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				else:
 					show_page(_sp_page)
 			KEY_ESCAPE:
-				if help_panel.visible:
-					help_panel.visible = false
-				elif mp_menu.visible and Net.is_online():
+				if mp_menu.visible and Net.is_online():
 					Net.leave()
 				else:
 					show_page(_main_page)

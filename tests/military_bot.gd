@@ -315,6 +315,28 @@ func _test_effects() -> void:
 	game.army.unstation(sm[0])
 	# Healing mage: heals units and heroes of every village, not summons.
 	var hm: Array = await _manned("healing_mage")
+	var tw: Tower = hm[1]
+	check(is_equal_approx(HealerBehavior.heal_radius(tw, hm[0]), tw.act_range()) and not is_equal_approx(tw.act_range(), hm[0].stat("radius")), "in a tower it heals as far as the tower reaches (%.1f tiles, not its own %.1f)" % [tw.act_range(), hm[0].stat("radius")])
+	var hurt := game.army.recruit("archer")
+	var far: Soldier = game.army._spawn_walker(hurt, tw.outer_tile())
+	far.set_process(false)
+	hurt.state = MilitaryUnit.State.MARCHING
+	far.set_grid_pos(tw.act_center() + Vector2(tw.act_range() - 0.15, 0.0))
+	hurt.hp = 5.0
+	check(await wait_until(func() -> bool: return hurt.hp > 5.0, 10.0), "a unit near the edge of the tower's range gets healed")
+	far.set_grid_pos(tw.act_center() + Vector2(tw.act_range() + 0.6, 0.0))
+	await frames(2)
+	var hp1 := hurt.hp
+	await wait(Config.unit_stat("healing_mage", "cooldown", hm[0].level) * 2.0 + 0.5)
+	check(is_equal_approx(hurt.hp, hp1), "one just outside it doesn't")
+	far.queue_free()
+	hurt.walker = null
+	hurt.state = MilitaryUnit.State.RESERVE
+	var field: Soldier = game.army._spawn_walker(hurt, tw.outer_tile())
+	field.set_process(false)
+	check(is_equal_approx(HealerBehavior.heal_radius(field, hm[0]), hm[0].stat("radius")), "out of a tower (in the field): its own radius (%.1f tiles)" % hm[0].stat("radius"))
+	field.queue_free()
+	hurt.walker = null
 	var hero := game.hero
 	hero.hp = hero.max_hp * 0.4
 	var hero_home := hero.grid_pos
