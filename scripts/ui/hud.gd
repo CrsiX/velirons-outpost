@@ -401,7 +401,8 @@ func _build_topbar() -> void:
 	_topbar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_topbar.custom_minimum_size.y = TOPBAR_H
 	# Resources and the hero on the left, wave controls on the right: side by
-	# side in landscape, stacked in two rows in portrait.
+	# side in landscape; stacked in portrait, the wave controls (wave, speed,
+	# knowledge base, settings) on top.
 	_topbar_box = BoxContainer.new()
 	_topbar_box.add_theme_constant_override("separation", 6)
 	_topbar.add_child(_topbar_box)
@@ -1080,6 +1081,7 @@ func _relayout() -> void:
 	var vp := _root.get_viewport_rect().size
 
 	_topbar_box.vertical = _portrait
+	_topbar_box.move_child(_top_right, 0 if _portrait else 1)
 	_spacer_land.visible = not _portrait
 	_spacer_port.visible = _portrait
 	_fit_topbar()

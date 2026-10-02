@@ -282,8 +282,7 @@ func _try_place(tile: Vector2i) -> void:
 	if not r["ok"]:
 		hud.toast(r["error"], Color("ff9a8a"))
 		return
-	if not economy.can_afford(Config.BUILDINGS[build_kind]["cost"]):
-		cancel_mode()
+	cancel_mode()  # (one building per pick: no stray second one with the next tap)
 
 
 func _preview(tile: Vector2i) -> void:

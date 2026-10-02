@@ -98,7 +98,7 @@ func _play_through() -> void:
 	await frames(2)
 	check(tut.highlight.target == null, "placing: only the spot is marked")
 	game._try_place(tut.tower_tile)
-	game.cancel_mode()
+	check(game.mode == Game.Mode.NONE and game.build_kind == "", "placed: build mode ends by itself")
 	check(await at_step(2, 5.0), "step 3 once the site is placed")
 	check(await at_step(3, 60.0), "step 4 once the tower is finished")
 	var tower: Tower = tut._towers()[0]

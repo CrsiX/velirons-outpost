@@ -12,6 +12,7 @@ func _run() -> void:
 	_pages()
 	await _in_game()
 	await _title()
+	await _first_open()
 	Engine.time_scale = 1.0
 	print("CHECKS %d  FAILURES %d" % [checks, failures.size()])
 	for f in failures:
@@ -135,6 +136,12 @@ func _in_game() -> void:
 		await frames(4)
 		var vp := Rect2(Vector2.ZERO, Vector2(sz))
 		check(vp.encloses(hud._topbar.get_global_rect().grow(-0.5)) and hud._settings_button.is_visible_in_tree(), "%dx%d: the top bar with the book icon fits" % [sz.x, sz.y])
+		var wave_y: float = hud._top_right.get_global_rect().position.y
+		var res_y: float = hud._top_left.get_global_rect().position.y
+		if sz.y > sz.x:
+			check(wave_y < res_y, "portrait: the wave, speed, book and settings row is above the resources and hero")
+		else:
+			check(is_equal_approx(wave_y, res_y) and hud._top_left.get_global_rect().position.x < hud._top_right.get_global_rect().position.x, "landscape: one row, resources on the left")
 		hud.open_knowledge_base("units")
 		await frames(3)
 		var r: Rect2 = kb._panel.get_global_rect()
@@ -143,6 +150,43 @@ func _in_game() -> void:
 		await frames(1)
 	game.queue_free()
 	await frames(3)
+
+
+## A new one opened the first time, on a phone screen: it fits at once, and a
+## drag on an entry (not only between them) reaches the scroll list.
+func _first_open() -> void:
+	print("-- first open, portrait")
+	var sz := Vector2i(720, 1280)
+	get_window().size = sz
+	get_viewport().size = sz
+	await frames(3)
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	var kb := KnowledgeBase.new()
+	layer.add_child(kb)
+	await frames(1)
+	kb.open("enemies")
+	var vp := Rect2(Vector2.ZERO, Vector2(sz))
+	await frames(3)
+	check(vp.encloses(kb._panel.get_global_rect()), "the first open fits on screen (%s)" % str(kb._panel.get_global_rect()))
+	var stops: Array[String] = []
+	for c in kb._list.find_children("*", "Control", true, false):
+		if (c as Control).mouse_filter == Control.MOUSE_FILTER_STOP:
+			stops.append(str(c.get_class()))
+	check(stops.is_empty(), "nothing in the entries catches the mouse, so they scroll %s" % str(stops))
+	check(kb._scroll.get_v_scroll_bar().max_value > kb._scroll.size.y, "the list is longer than the view: it scrolls")
+	var first: Control = kb._list.get_child(0)
+	var at := first.get_global_rect().get_center()
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	down.pressed = true
+	down.position = at
+	down.global_position = at
+	get_viewport().push_input(down)
+	await frames(2)
+	check(kb._scroll.scroll_vertical > 0, "the wheel over an entry scrolls (%d)" % kb._scroll.scroll_vertical)
+	layer.queue_free()
+	await frames(1)
 
 
 func _title() -> void:

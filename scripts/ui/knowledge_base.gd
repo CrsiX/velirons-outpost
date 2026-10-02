@@ -100,6 +100,9 @@ func _init() -> void:
 
 func _ready() -> void:
 	get_viewport().size_changed.connect(_fit)
+	# Wrapped text is tall before it knows its width (the first open): fit
+	# again once it has, so the panel doesn't stay too tall.
+	_panel.minimum_size_changed.connect(func() -> void: _fit.call_deferred())
 	_fit()
 
 
@@ -108,6 +111,7 @@ func open(p_tab := "") -> void:
 	visible = true
 	show_tab(p_tab if p_tab in TABS else _last_tab)
 	_fit()
+	_fit.call_deferred()
 
 
 func close() -> void:
@@ -161,11 +165,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 # --- one entry -------------------------------------------------------------------
 
+## (Nothing in an entry takes the mouse: a drag anywhere scrolls the list.)
 func _entry(e: Dictionary) -> Control:
 	var box := PanelContainer.new()
 	box.add_theme_stylebox_override("panel", UiTheme.box(Color("1f1611"), Color("4a3a26"), 1, 8, 10))
 	box.set_meta("entry_name", e["name"])
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var h := HBoxContainer.new()
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_theme_constant_override("separation", 12)
 	box.add_child(h)
 	var art := str(e.get("art", ""))
@@ -175,6 +182,7 @@ func _entry(e: Dictionary) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(v)
 	v.add_child(_label(e["name"], 22, UiTheme.GOLD))
 	if str(e.get("text", "")) != "":
