@@ -22,6 +22,7 @@ const STAT_NAMES := {
 const XP_WORDS := {
 	"hit": "per hit in a fight", "build_second": "per second of building",
 	"explore": "per exploring step that uncovers land", "corpse": "per corpse picked up",
+	"kill": "more for the blow that kills an enemy",
 }
 const TREASURE_TEXT := {
 	"chest": "A chest buried in the wilds, full of gold.",

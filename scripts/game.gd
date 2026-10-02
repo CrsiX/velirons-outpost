@@ -43,6 +43,10 @@ var start_buildings: Array[String] = Config.START_BUILDINGS.duplicate()
 
 var mode := Mode.NONE
 var build_kind := ""
+## Touch: the tile the building to place is shown on, waiting for Build (NO_TILE: none yet).
+var pending_tile := NO_TILE
+## A Build entry is being dragged onto the map.
+var build_drag := false
 var station_unit: MilitaryUnit = null
 var selected: Building = null
 ## A stationed military unit selected by tapping it on its post.
@@ -51,6 +55,9 @@ var selected_unit: MilitaryUnit = null
 ## {"unit", "from" (post), "start" (screen pos), "active" (dragging yet)}.
 var _udrag: Dictionary = {}
 const DRAG_THRESHOLD := 12.0
+const NO_TILE := Vector2i(-1, -1)
+## Dragging a building with a finger, it shows this far above it (px).
+const DRAG_LIFT := 70.0
 var game_over := false
 ## Every village in the game (one in single player).
 var villages: Array[Village] = []
@@ -195,7 +202,18 @@ func begin_build(kind: String) -> void:
 	mode = Mode.BUILD
 	build_kind = kind
 	station_unit = null
+	pending_tile = NO_TILE
+	hud.hide_place_confirm()
 	hud.set_mode_hint("Tap explored grass to place a %s" % Config.BUILDINGS[kind]["name"])
+	get_tree().quit_on_go_back = false  # (Android's back button cancels instead)
+
+
+## The Build entry: picks `kind`, or (picked already) puts it away again.
+func toggle_build(kind: String) -> void:
+	if mode == Mode.BUILD and build_kind == kind:
+		cancel_mode()
+	else:
+		begin_build(kind)
 
 
 func begin_station(unit: MilitaryUnit) -> void:
@@ -207,12 +225,17 @@ func begin_station(unit: MilitaryUnit) -> void:
 	build_kind = ""
 	hud.set_mode_hint("Tap a finished tower or training grounds to station the %s" % unit.display_name().to_lower())
 	_highlight_towers()
+	get_tree().quit_on_go_back = false
 
 
 func cancel_mode() -> void:
 	mode = Mode.NONE
 	build_kind = ""
 	station_unit = null
+	pending_tile = NO_TILE
+	build_drag = false
+	hud.hide_place_confirm()
+	get_tree().quit_on_go_back = true
 	world.overlay.clear()
 	hud.set_mode_hint("")
 	deselect()
@@ -253,7 +276,10 @@ func _on_tapped(world_pos: Vector2) -> void:
 	var tile := Iso.to_tile(world_pos)
 	match mode:
 		Mode.BUILD:
-			_try_place(tile)
+			if Layout.touch:
+				_touch_place(tile)
+			else:
+				_try_place(tile)
 		Mode.STATION:
 			var t := world.pick_building(world_pos)
 			var r := command("station_unit", {"unit": id_of(station_unit), "post": id_of(t)})
@@ -272,17 +298,80 @@ func _on_tapped(world_pos: Vector2) -> void:
 
 
 func _on_hovered(world_pos: Vector2) -> void:
-	if mode == Mode.BUILD:
+	if mode == Mode.BUILD and not build_drag and not Layout.touch:
 		_preview(Iso.to_tile(world_pos))
 
 
-func _try_place(tile: Vector2i) -> void:
+func _try_place(tile: Vector2i) -> bool:
 	var r := command("place_building", {"kind": build_kind, "tile": tile})
 	_preview(tile)
 	if not r["ok"]:
 		hud.toast(r["error"], Color("ff9a8a"))
-		return
+		return false
 	cancel_mode()  # (one building per pick: no stray second one with the next tap)
+	return true
+
+
+## Touch (no hover to see where it goes): the first tap shows the building
+## there with Build / Cancel beside it; a tap on that building, or Build,
+## places it; a tap elsewhere moves it.
+func _touch_place(tile: Vector2i) -> void:
+	if pending_tile != NO_TILE and tile in Building.footprint(pending_tile, Config.BUILDINGS[build_kind]["size"]):
+		confirm_place()
+	else:
+		show_pending(tile)
+
+
+func show_pending(tile: Vector2i) -> void:
+	pending_tile = tile
+	_preview(tile)
+	var err := construction.placement_error(build_kind, tile)
+	hud.show_place_confirm(err)
+	hud.set_mode_hint(err if err != "" else "Tap Build (or the %s) to build it here, or tap elsewhere to move it" % Config.BUILDINGS[build_kind]["name"].to_lower())
+
+
+## The Build button beside the previewed building.
+func confirm_place() -> void:
+	if mode == Mode.BUILD and pending_tile != NO_TILE:
+		_try_place(pending_tile)
+
+
+## Where the previewed building stands on screen (Build / Cancel go below it).
+func pending_screen_pos() -> Vector2:
+	var size: int = Config.BUILDINGS[build_kind]["size"]
+	return camera.world_to_screen(Building.anchor_world(pending_tile, size))
+
+
+# --- dragging a building from the Build tab -------------------------------------------
+
+## Over the map while a Build entry is dragged: the building shows where it
+## would go. A finger hides what's under it, so then it goes a bit above.
+func drag_build_tile(screen_pos: Vector2) -> Vector2i:
+	var lift := Vector2(0, -DRAG_LIFT) if Layout.touch else Vector2.ZERO
+	return Iso.to_tile(camera.screen_to_world(screen_pos + lift))
+
+
+func drag_build(kind: String, screen_pos: Vector2) -> void:
+	if mode != Mode.BUILD or build_kind != kind:
+		begin_build(kind)
+	build_drag = true
+	pending_tile = NO_TILE
+	hud.hide_place_confirm()
+	_preview(drag_build_tile(screen_pos))
+
+
+## Let go: built there; over the HUD: put away. Can't be built there: it
+## stays picked (on touch shown there with Build / Cancel, to move it).
+func drop_build(screen_pos: Vector2) -> void:
+	if mode != Mode.BUILD:
+		return
+	build_drag = false
+	if hud.is_over_ui(screen_pos):
+		cancel_mode()
+		return
+	var tile := drag_build_tile(screen_pos)
+	if not _try_place(tile) and Layout.touch:
+		show_pending(tile)
 
 
 func _preview(tile: Vector2i) -> void:
@@ -346,6 +435,16 @@ func _claim_press(screen_pos: Vector2) -> bool:
 		return false
 	_udrag = {"unit": u, "from": u.post, "start": screen_pos, "active": false}
 	return true
+
+
+## Android's back button while placing or stationing: cancels it.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and mode != Mode.NONE:
+		cancel_mode()
+
+
+func _exit_tree() -> void:
+	get_tree().quit_on_go_back = true
 
 
 func _input(event: InputEvent) -> void:

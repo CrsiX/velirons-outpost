@@ -15,7 +15,8 @@ extends Civilian
 ##             walks back. The village he helps can't give him orders.
 ## Whenever he idles in the village centre (any mode) he slowly gets his HP
 ## back: Config.HERO "rest_regen" per second after "rest_delay" seconds.
-## Every action except training earns XP (Config.HERO_XP_PER_ACTION). When his
+## Every action except training earns XP (Config.HERO_XP_PER_ACTION; the
+## blow that kills an enemy earns a "kill" bonus on top). When his
 ## HP runs out he is downed: all XP is lost, he leaves no corpse, and he revives
 ## in the village centre when the wave is over, still in the same mode.
 ## He has no hut, eats nothing and doesn't count as a villager.
@@ -382,6 +383,8 @@ func counter_strike(e: Enemy) -> void:
 func _strike(foe: Enemy) -> void:
 	foe.take_damage(Config.hero_stat("damage", level), self, "melee")
 	on_action("hit")
+	if foe.dead:  # the last hit: a bonus
+		on_action("kill")
 	var tw := create_tween()
 	var lunge := (Iso.to_world(foe.grid_pos) - position).normalized() * 6.0
 	tw.tween_property(sprite, "position", lunge, 0.08)

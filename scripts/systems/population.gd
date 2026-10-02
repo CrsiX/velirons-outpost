@@ -130,6 +130,29 @@ func kill(civ: Civilian, reason: String = "of unknown causes") -> void:
 	changed.emit()
 
 
+## Why `civ` can't retire, or "" if it can. The last villager stays, or the
+## village would fall.
+func retire_error(civ: Civilian) -> String:
+	if not civilians.has(civ) or civ.dead:
+		return "That isn't your villager"
+	if civilians.size() <= 1:
+		return "Your last villager can't retire"
+	return ""
+
+
+## `civ` leaves the village for good, freeing its hut (and its workplace).
+func retire(civ: Civilian) -> void:
+	if retire_error(civ) != "":
+		return
+	village.events.info("%s retired and left the village" % civ.label())
+	civilians.erase(civ)
+	if is_instance_valid(civ.hut) and civ.hut.resident == civ:
+		civ.hut.resident = null
+	civ.kill("retired")
+	civilian_lost.emit(civ)
+	changed.emit()
+
+
 func kill_random(n: int) -> void:
 	for i in n:
 		if civilians.is_empty():

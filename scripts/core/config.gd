@@ -634,6 +634,7 @@ static func hero_level_cost(level: int) -> int:
 
 const HERO_XP_PER_ACTION := {
 	"hit": 2,  # a melee hit in combat
+	"kill": 10,  # extra, for the blow that kills the enemy (on top of its "hit")
 	"build_second": 1,  # each second of construction work
 	"explore": 1,  # each exploring step that uncovers new tiles
 	"corpse": 4,  # each corpse picked up

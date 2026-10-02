@@ -217,15 +217,16 @@ func _draw() -> void:
 	_draw_hp_bar(24.0, -44.0, 4.0, hp / max_hp, Color("3a2a10"), Color("8fd05a"))
 
 
-## Called by Population when this villager is killed. Subclasses release jobs.
-func kill() -> void:
+## Called by Population when this villager is killed (or retires: `note` is
+## what floats up). Subclasses release jobs.
+func kill(note: String = "lost") -> void:
 	if dead:
 		return
 	dead = true
 	_release_jobs()
 	died.emit(self)
 	if visible:
-		float_text("%s lost" % display_name(), Color("ff7a6a"))
+		float_text("%s %s" % [display_name(), note], Color("ff7a6a") if note == "lost" else UiTheme.MUTED)
 		var tw := create_tween()
 		tw.tween_property(self, "modulate:a", 0.0, 0.4)
 		tw.tween_callback(queue_free)

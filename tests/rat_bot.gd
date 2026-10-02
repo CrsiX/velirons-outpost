@@ -40,7 +40,7 @@ func _run() -> void:
 	await _test_safe_walls()
 	await _test_rats_give_up()
 	_test_hero_bar()
-	_test_people()
+	await _test_people()
 	_test_hud_extras()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
@@ -591,9 +591,9 @@ func _test_people() -> void:
 		out.visible = true
 		out.set_grid_pos(Vector2(game.player_village.center + Vector2i(5, 5)))
 	var row: Control = (hud._people_rows[out] as Control).get_parent().get_parent()
-	var go: Button = row.get_child(row.get_child_count() - 1)
+	var go: Button = row.get_node("View")
 	go.pressed.emit()
-	check(Hud.button_text(go) == "Go to" and game.camera.position.distance_to(out.position) < 2.0, "Go to moves the view to %s" % out.label())
+	check(Hud.button_text(go) == "View" and game.camera.position.distance_to(out.position) < 2.0, "Go to moves the view to %s" % out.label())
 	var home: Civilian = null
 	for x in list:
 		if x.at_home:
@@ -609,6 +609,7 @@ func _test_people() -> void:
 	game.population.recruit("builder")
 	hud._refresh_people()
 	check(hud._people_list.get_child_count() == hud.people().size(), "the list follows new villagers (%d -> %d)" % [n, hud.people().size()])
+	await _test_retire()
 	# Destroyed huts: "Rebuild all huts" at the top queues them all.
 	check(not hud._rebuild_huts_button.visible, "no destroyed hut: no rebuild button")
 	var empty := game.player_village.intact_huts().filter(func(h: Building) -> bool: return not is_instance_valid((h as Hut).resident))
@@ -878,3 +879,59 @@ func _test_hud_extras() -> void:
 	game.construction.cancel(site)
 	hud._refresh_builder_warning(0.25)
 	check(not hud._builder_warning.visible, "nothing queued: no warning")
+
+
+## Retire, next to View: asks first, then the villager leaves and the hut is free.
+func _test_retire() -> void:
+	var hud := game.hud
+	var c: Civilian = hud.people()[-1]
+	var row: Control = (hud._people_rows[c] as Control).get_parent().get_parent()
+	var retire := row.get_node_or_null("Retire") as Button
+	check(retire != null and retire.get_index() == row.get_node("View").get_index() + 1, "a Retire button next to View")
+	if retire == null:
+		return
+	await frames(2)
+	var heights := {}
+	for x in hud._people_rows:
+		var rw: Control = (hud._people_rows[x] as Control).get_parent().get_parent()
+		for nm in ["View", "Retire"]:
+			var b: Control = rw.get_node(nm)
+			heights[b.size.y] = true
+			check(absf(b.get_global_rect().get_center().y - rw.get_global_rect().get_center().y) < 1.5, "%s's %s button is centred in its row" % [x.label(), nm])
+	check(heights.size() == 1, "every View / Retire button has the same height %s" % str(heights.keys()))
+	var hut := c.hut
+	var n := game.population.count()
+	var label := c.label()
+	retire.pressed.emit()
+	await frames(2)
+	check(hud._confirm_panel.visible and c.label() in hud._confirm_title.text and game.population.count() == n, "Retire asks first (%s), nobody leaves yet" % hud._confirm_title.text)
+	check(get_viewport().get_visible_rect().encloses(hud._confirm_panel.get_global_rect()), "the question fits on screen")
+	for b in hud._confirm_panel.get_child(0).get_children():
+		if b is Button and Hud.button_text(b) == "Cancel":
+			b.pressed.emit()
+	check(not hud._confirm_panel.visible and game.population.count() == n and not c.dead, "Cancel: they stay")
+	retire.pressed.emit()
+	hud._confirm_yes.pressed.emit()
+	await frames(2)
+	check(not hud._confirm_panel.visible and game.population.count() == n - 1 and game.population.civilians.all(func(x: Civilian) -> bool: return x.label() != label), "confirmed: %s leaves the village" % label)
+	check(is_instance_valid(hut) and hut.resident == null and game.population.free_huts().has(hut), "and their hut is free again")
+	check(game.player_village.events.entries.any(func(e: Dictionary) -> bool: return e["text"] == "%s retired and left the village" % label), "and it's logged")
+	check(hud._people_list.get_child_count() == hud.people().size() and hud._people_rows.keys().all(func(x: Object) -> bool: return is_instance_valid(x)), "the list drops them")
+	check(not game.player_village.fallen, "the village stands")
+	# The last villager stays.
+	var keep: Civilian = game.population.civilians[0]
+	var roles: Array[String] = []
+	for x in game.population.civilians.duplicate():
+		if x != keep:
+			roles.append(x.role)
+			if roles.size() == 1:
+				check(game.command("retire_villager", {"civilian": x.nid})["ok"], "the command retires %s" % x.label())
+			else:
+				game.population.retire(x)
+	var r: Dictionary = game.command("retire_villager", {"civilian": keep.nid})
+	check(not r["ok"] and game.population.count() == 1 and not game.player_village.fallen, "the last villager can't retire (%s)" % r.get("error", ""))
+	check(not game.command("retire_villager", {"civilian": 0})["ok"], "nobody named: refused")
+	game.economy.add("food", 500)
+	for role in roles:
+		game.population.recruit(role)
+	hud._refresh_people()

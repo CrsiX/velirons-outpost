@@ -32,6 +32,7 @@ func _run() -> void:
 		if t.garrison:
 			game.army.unstation(t.garrison)
 	_bench_hero(true)
+	await _test_kill_xp()
 	await _test_thief()
 	await _test_gargoyle()
 	await _test_necromancer()
@@ -62,6 +63,23 @@ func spawn(kind: String, at: Vector2, hp_scale: float = 1.0, walk: bool = false)
 		e.speed = 0.0
 		e.follow(PackedVector2Array([at, at + Vector2(0.001, 0)]))
 	return e
+
+
+## The hero's blow that kills an enemy earns HERO_XP_PER_ACTION "kill" on top of its "hit".
+func _test_kill_xp() -> void:
+	var hero := game.hero
+	var per_hit := int(Config.HERO_XP_PER_ACTION["hit"])
+	var bonus := int(Config.HERO_XP_PER_ACTION["kill"])
+	check(bonus == 10, "the kill bonus is 10 XP")
+	var g := spawn("goblin", Vector2(game.player_village.center) + Vector2(1, 0), 1000.0)
+	var xp0: int = hero.xp
+	hero._strike(g)
+	check(not g.dead and hero.xp - xp0 == per_hit, "a hit that doesn't kill: %d XP (+%d)" % [per_hit, hero.xp - xp0])
+	g.hp = 0.1
+	xp0 = hero.xp
+	hero._strike(g)
+	check(g.dead and hero.xp - xp0 == per_hit + bonus, "the last hit: %d + %d XP (+%d)" % [per_hit, bonus, hero.xp - xp0])
+	await frames(2)
 
 
 func clear_corpses() -> void:

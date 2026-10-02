@@ -22,12 +22,16 @@ var active := false
 ## Index into `steps` (0-based; the card says "Step index + 1 of N").
 var step := -1
 var steps: Array[Dictionary] = []
+## How far (tiles) a taken spot looks for a free one.
+const SPOT_SEARCH := 6
 ## The spots the steps point at (picked by the road the waves take).
 var tower_tile := Vector2i(-1, -1)
 var farm_tile := Vector2i(-1, -1)
 var barracks_tile := Vector2i(-1, -1)
 ## Where the tutorial waves appear (a road tile), and their road to the gate.
 var spawn_tile := Vector2i(-1, -1)
+## kind + picked spot -> the spot shown now, when the picked one got taken (see _spot).
+var _moved := {}
 var route: Array[Vector2i] = []
 
 var _poll := 0.0
@@ -151,6 +155,34 @@ func _by_road(kind: String, lo: int, hi: int, taken: Array[Vector2i]) -> Vector2
 	return best if best != Vector2i(-1, -1) else _near_village(kind, taken)
 
 
+## The spot to mark for `kind`: `picked` while it's still free, else the
+## nearest free spot to it (kept while it stays free, so the mark doesn't
+## wander), else `picked` all the same.
+func _spot(kind: String, picked: Vector2i) -> Vector2i:
+	var key := "%s %s" % [kind, picked]
+	if picked == Vector2i(-1, -1) or game.construction.placement_error(kind, picked, true) == "":
+		_moved.erase(key)
+		return picked
+	var last: Vector2i = _moved.get(key, Vector2i(-1, -1))
+	if last != Vector2i(-1, -1) and game.construction.placement_error(kind, last, true) == "":
+		return last
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for dy in range(-SPOT_SEARCH, SPOT_SEARCH + 1):
+		for dx in range(-SPOT_SEARCH, SPOT_SEARCH + 1):
+			var t := picked + Vector2i(dx, dy)
+			var d := Vector2(dx, dy).length()
+			if d < best_d and game.map.in_bounds(t) and game.construction.placement_error(kind, t, true) == "":
+				best_d = d
+				best = t
+	if best == Vector2i(-1, -1):
+		_moved.erase(key)
+		return picked
+	_moved[key] = best
+	game.events.debug("tutorial: %s spot %s is taken, marking %s" % [kind, picked, best])
+	return best
+
+
 func _touches_road(t: Vector2i, size: int) -> bool:
 	for f in Building.footprint(t, size):
 		for n in MapData.neighbors4(f):
@@ -200,7 +232,7 @@ func _build_steps() -> void:
 		{"title": "Build a watchtower",
 			"text": "Enemies come along the roads. Build a watchtower on the marked spot by the road: open the menu, Build tab, Watchtower, then tap the spot.",
 			"done": func() -> bool: return not _towers().is_empty(),
-			"point": func() -> Dictionary: return _place_point("tower", [tower_tile])},
+			"point": func() -> Dictionary: return _place_point("tower", [_spot("tower", tower_tile)])},
 		{"title": "Your builder at work",
 			"text": "Your builder walks there and builds it. Villagers do their work on their own.",
 			"done": func() -> bool: return _towers().any(func(t: Tower) -> bool: return t.complete),
@@ -273,7 +305,7 @@ func _unit_point(kind: String, posts: Array) -> Dictionary:
 func _farm_point() -> Dictionary:
 	var farms := _farms()
 	if farms.is_empty():
-		return _place_point("farm", Building.footprint(farm_tile, 3))
+		return _place_point("farm", Building.footprint(_spot("farm", farm_tile), 3))
 	if game.population.count("farmer") == 0:
 		return {"hud": ["village:farmer", "tab:village", "dock"], "tab": "village", "tiles": _first_tiles(farms)}
 	return {"tiles": _first_tiles(farms)}
@@ -287,7 +319,7 @@ func _level_point() -> Dictionary:
 func _barracks_point() -> Dictionary:
 	var bs := _barracks()
 	if bs.is_empty():
-		return _place_point("barracks", Building.footprint(barracks_tile, 2))
+		return _place_point("barracks", Building.footprint(_spot("barracks", barracks_tile), 2))
 	return _unit_point("shield_bearer", bs)
 
 

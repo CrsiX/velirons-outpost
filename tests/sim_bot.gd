@@ -345,7 +345,7 @@ func _run() -> void:
 			if not clip.encloses(b.get_global_rect()) or not Rect2(Vector2.ZERO, pv).encloses(b.get_global_rect()):
 				unreachable.append("%s:%s" % [tab, Hud.button_text(b)])
 	check(unreachable.is_empty() and hud._entry_grids[0].columns == 2, "portrait: all dock buttons are reachable (two columns of entries) %s" % str(unreachable))
-	# Placing a building folds the sheet out of the way; Done brings it back.
+	# Placing a building folds the sheet out of the way; Cancel brings it back.
 	hud._on_tab_pressed("build")
 	await frames(3)
 	check(hud._sheet_scroll.visible, "back on the Build page")
@@ -353,8 +353,8 @@ func _run() -> void:
 	check(game.mode == Game.Mode.BUILD and not hud._sheet_scroll.visible and hud._mode_panel.visible, "portrait: placing a building folds the sheet")
 	var mp := hud._mode_panel.get_global_rect()
 	check(Rect2(Vector2.ZERO, pv).encloses(mp) and mp.position.y >= hud._topbar.get_global_rect().end.y, "the placement hint fits under the top bar")
-	await tap(center(buttons_in(hud._mode_panel)[0]))
-	check(game.mode == Game.Mode.NONE and hud._sheet_scroll.visible, "Done brings the sheet back")
+	await tap(center(hud._cancel_button))
+	check(game.mode == Game.Mode.NONE and hud._sheet_scroll.visible, "Cancel brings the sheet back")
 	# Selecting something folds the sheet; the info panel sits just above it.
 	game.select(game.world.towers()[0])
 	await frames(3)

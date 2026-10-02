@@ -10,6 +10,44 @@ extends "res://tests/bot_base.gd"
 var tut: Tutorial
 
 
+## Moves the camera so that tile `t` is at `screen` (as near as the camera's bounds let it).
+func put_tile_at(t: Vector2i, screen: Vector2) -> Vector2:
+	var cam: Camera2D = game.camera
+	cam.focus(Iso.to_world(t))
+	for i in 3:
+		await frames(1)  # (the canvas transform follows the camera a frame later)
+		cam.position += (cam.world_to_screen(Iso.to_world(t)) - screen) / cam.zoom.x
+	await frames(2)
+	return tut.highlight.tiles_screen_pos()
+
+
+## The marked spot under the top bar or the open dock counts as out of view
+## (only the edge arrow); with the dock folded, its part of the screen is map again.
+func _out_of_view() -> void:
+	var hud: Hud = game.hud
+	var h: TutorialHighlight = tut.highlight
+	var area := hud.map_rect()
+	var side := hud._sidebar.get_global_rect()
+	check(is_equal_approx(area.position.y, hud.top_height()) and area.end.x <= side.position.x + 0.5, "the map area: below the top bar, left of the sidebar (%s)" % str(area))
+	await put_tile_at(tut.tower_tile, get_viewport().get_visible_rect().get_center())
+	check(h.tiles_in_view(), "the spot in the middle: in view")
+	var at := await put_tile_at(tut.tower_tile, Vector2(side.get_center().x, area.get_center().y))
+	if side.has_point(at):
+		check(not h.tiles_in_view(), "under the open sidebar: out of view, only the edge arrow")
+		hud.set_dock_open(false)
+		await frames(3)
+		check(hud.map_rect().end.x > side.position.x and h.tiles_in_view(), "the sidebar folded: the same spot is in view")
+		hud.set_dock_open(true)
+		await frames(3)
+		hud.show_tab("build")
+	else:
+		check(false, "the camera can put the spot under the sidebar (%s)" % str(at))
+	at = await put_tile_at(tut.tower_tile, Vector2(area.get_center().x, hud.top_height() / 2.0))
+	check(at.y > hud.top_height() or not h.tiles_in_view(), "under the top bar: out of view")
+	game.camera.focus(Iso.to_world(tut.tower_tile))
+	await frames(2)
+
+
 func _run() -> void:
 	var diff := Settings.difficulty
 	Settings.difficulty = Settings.Difficulty.HARD
@@ -90,12 +128,13 @@ func _play_through() -> void:
 	await wait(0.5)
 	check(game.hud.dock_open() and game.hud._current_tab == "build", "opened, it shows the Build tab")
 	check(tut.highlight.target == game.hud.control_named("build:tower") and tut.highlight.tiles == [tut.tower_tile], "then the Watchtower entry and the spot")
+	await _out_of_view()
 	check(game.waves.countdown == Config.FIRST_WAVE_DELAY, "no countdown")
 	Engine.time_scale = 8.0
 
 	print("-- steps 2-3: the watchtower")
 	game.begin_build("tower")
-	await frames(2)
+	await wait(Tutorial.POLL + 0.05)
 	check(tut.highlight.target == null, "placing: only the spot is marked")
 	game._try_place(tut.tower_tile)
 	check(game.mode == Game.Mode.NONE and game.build_kind == "", "placed: build mode ends by itself")
@@ -164,7 +203,15 @@ func _play_through() -> void:
 
 	print("-- step 10: barracks")
 	check(game.waves.wave == 1, "wave 2 waits for the barracks")
-	cmd("place_building", {"kind": "barracks", "tile": tut.barracks_tile})
+	# The picked spot taken (as in a real game): the nearest free one is marked instead.
+	cmd("place_building", {"kind": "tower", "tile": tut.barracks_tile})
+	var marked: Array = tut.steps[tut.step]["point"].call()["tiles"]
+	var spot: Vector2i = marked[0] if not marked.is_empty() else tut.barracks_tile
+	check(spot != tut.barracks_tile and game.construction.placement_error("barracks", spot, true) == "" and Vector2(spot).distance_to(Vector2(tut.barracks_tile)) <= 4.0, "the barracks spot is taken: a free one close by is marked %s (was %s)" % [spot, tut.barracks_tile])
+	check(tut.steps[tut.step]["point"].call()["tiles"] == marked, "and it stays put")
+	var corner := Vector2i(1, 1)  # (unexplored: nothing can go anywhere near)
+	check(game.construction.placement_error("barracks", corner, true) != "" and tut._spot("barracks", corner) == corner, "with no free spot near: the picked one all the same (%s, %s)" % [game.construction.placement_error("barracks", corner, true), tut._spot("barracks", corner)])
+	cmd("place_building", {"kind": "barracks", "tile": spot})
 	check(await wait_until(func() -> bool: return tut._barracks().any(func(b: Barracks) -> bool: return b.complete), 90.0), "the barracks are built")
 	var barracks: Barracks = tut._barracks()[0]
 	var sb: MilitaryUnit = game.entity(int(cmd("recruit_unit", {"kind": "shield_bearer"})["id"]))

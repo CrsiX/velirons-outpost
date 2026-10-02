@@ -17,6 +17,13 @@ const SIDEBAR_W := 320.0
 const SPEED_ICONS: Array[String] = ["icon_play", "icon_fast", "icon_fastest", "icon_pause"]
 const TOPBAR_H := 64.0
 const DRAG_THRESHOLD := 12.0
+## The open portrait sheet takes at most this share of the screen's height
+## (but always shows SHEET_MIN_CONTENT px of entries); the rest scrolls.
+const SHEET_MAX := 0.5
+const SHEET_MIN_CONTENT := 150.0
+## Dragging the sheet's handle: let go faster than this (px/s) and it opens or
+## closes that way, whatever the height; slower, it goes to the nearer end.
+const SHEET_FLICK := 600.0
 
 var game: Game
 
@@ -49,6 +56,7 @@ var _upgrade_title: Label
 var _upgrade_options: VBoxContainer
 var _upgrade_hint: Label
 var _confirm_panel: PanelContainer
+var _confirm_title: Label
 var _confirm_text: Label
 var _confirm_yes: Button
 var _gray: ColorRect
@@ -138,6 +146,17 @@ var _sheet_open := false  # portrait sheet expanded
 var _sheet_h := 0.0
 var _auto_closed := false  # sheet folded away for a placement / drag, reopen after
 var _handle_press_y := 0.0
+var _handle_start_h := 0.0
+var _handle_dragging := false
+var _handle_last := Vector2.ZERO  # (y, time in s) of the last move, for the speed
+var _handle_speed := 0.0  # px/s, + downwards
+var _sheet_slide: Tween  # (the glide after a drag; stopped by any new layout)
+var _clock := 0.0  # real seconds (frame time, without the game speed)
+## Where a press in the dock's scroll area began (NO_POS: elsewhere), and
+## whether it has since moved enough to be a scroll rather than a tap.
+var _scroll_from := NO_POS
+var _scrolled := false
+const NO_POS := Vector2(-1e9, -1e9)
 
 var _portrait := false
 var _top_h := TOPBAR_H
@@ -150,6 +169,13 @@ var _relayout_queued := false
 var _tab_buttons: Dictionary = {}
 var _tab_pages: Dictionary = {}
 var _build_buttons: Dictionary = {}
+## A Build entry pressed (its kind), and whether it's being dragged onto the map.
+var _press_build := ""
+var _dragging_build := false
+var _build_dragged := false
+var _cancel_button: Button
+var _place_bar: HBoxContainer
+var _place_build: Button
 var _recruit_rows: Dictionary = {}  # role -> _entry() dict {panel, title, button, desc}
 var _military_buttons: Dictionary = {}  # kind -> recruit Button
 var _military_panels: Dictionary = {}  # kind -> its entry (hidden while locked)
@@ -821,7 +847,9 @@ func _person_status(c: Civilian) -> String:
 func _people_row(c: Civilian) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	row.add_child(_icon(Art.tex("unit_" + c.role), 36))
+	var icon := _icon(Art.tex("unit_" + c.role), 36)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
 	var text := VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.add_theme_constant_override("separation", 0)
@@ -833,8 +861,16 @@ func _people_row(c: Civilian) -> Control:
 	_people_rows[c] = status
 	var go := _button("View", Vector2(84, 42))
 	go.tooltip_text = "Move the view to %s" % c.label()
+	go.name = "View"
+	go.size_flags_vertical = Control.SIZE_SHRINK_CENTER  # all rows' buttons the same height, centred
 	go.pressed.connect(func() -> void: go_to_person(c))
 	row.add_child(go)
+	var retire := _button("Retire", Vector2(84, 42))
+	retire.name = "Retire"
+	retire.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	retire.tooltip_text = "%s leaves the village for good; their hut becomes free" % c.label().capitalize()
+	retire.pressed.connect(func() -> void: ask_retire(c))
+	row.add_child(retire)
 	return row
 
 
@@ -927,20 +963,23 @@ func _build_sidebar() -> void:
 	v.add_theme_constant_override("separation", 8)
 	_sidebar.add_child(v)
 
-	# Grab handle on top of the bottom sheet: tap it, or swipe up / down.
+	# Grab handle on top of the bottom sheet: tap it, or drag it up / down.
 	_sheet_handle = Control.new()
-	_sheet_handle.custom_minimum_size = Vector2(0, 22)
+	_sheet_handle.custom_minimum_size = Vector2(0, 28)  # (room for a finger)
 	_sheet_handle.mouse_filter = Control.MOUSE_FILTER_STOP
-	_sheet_handle.tooltip_text = "Swipe up to open, down to close"
+	_sheet_handle.mouse_default_cursor_shape = Control.CURSOR_VSIZE
+	_sheet_handle.tooltip_text = "Drag up to open, down to close"
 	_sheet_handle.draw.connect(func() -> void:
 		var w := 72.0
-		var r := Rect2((_sheet_handle.size.x - w) / 2.0, 6.0, w, 7.0)
+		var r := Rect2((_sheet_handle.size.x - w) / 2.0, (_sheet_handle.size.y - 7.0) / 2.0, w, 7.0)
 		_sheet_handle.draw_style_box(UiTheme.box(UiTheme.MUTED, UiTheme.MUTED, 0, 4, 0), r))
-	_sheet_handle.gui_input.connect(_on_handle_input)
+	_sheet_handle.gui_input.connect(_on_sheet_drag.bind(_sheet_handle))
 	v.add_child(_sheet_handle)
 
 	_tabs_row = HBoxContainer.new()
 	_tabs_row.add_theme_constant_override("separation", 6)
+	_tabs_row.mouse_filter = Control.MOUSE_FILTER_STOP  # (the gaps between the tabs drag the sheet too)
+	_tabs_row.gui_input.connect(_on_sheet_drag.bind(_tabs_row))
 	v.add_child(_tabs_row)
 	for tab in [["build", "Build", "mode_build"], ["village", "Village", "icon_village"], ["army", "Army", "icon_army"]]:
 		var b := _button(tab[1], Vector2(0, 48))
@@ -951,6 +990,7 @@ func _build_sidebar() -> void:
 		b.clip_text = true  # may shrink instead of pushing the panel wider
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(_on_tab_pressed.bind(tab[0]))
+		b.gui_input.connect(_on_sheet_drag.bind(b))  # (a tap switches the tab, a drag moves the sheet)
 		_tabs_row.add_child(b)
 		_tab_buttons[tab[0]] = b
 
@@ -967,12 +1007,19 @@ func _build_sidebar() -> void:
 	for p in _tab_pages.values():
 		pages.add_child(p)
 	pages.minimum_size_changed.connect(func() -> void: _fit_sheet.call_deferred())
+	# A finger scrolls the dock from anywhere on it (as in the knowledge base):
+	# its boxes let the touch through, its buttons pass it on.
+	_touch_scrollable(pages)
+	get_tree().node_added.connect(func(n: Node) -> void:
+		if n is Control and _sheet_scroll.is_ancestor_of(n):
+			_touch_scrollable.call_deferred(n))
 
 	_sidebar_toggle = _button("", Vector2(40, 64))
 	_sidebar_toggle.expand_icon = true
 	_sidebar_toggle.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root.add_child(_sidebar_toggle)
 	_sidebar_toggle.pressed.connect(_toggle_sidebar)
+	_sidebar_toggle.gui_input.connect(_on_sheet_drag.bind(_sidebar_toggle))
 	_sidebar.resized.connect(_place_sidebar_toggle)
 
 
@@ -996,15 +1043,65 @@ func set_sheet_open(open: bool, manual: bool = true) -> void:
 	_relayout()
 
 
-func _on_handle_input(event: InputEvent) -> void:
-	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT):
+## Dragging the sheet (portrait) by its handle, a tab, the gaps between the
+## tabs or the open / close button: the sheet follows the finger, and on
+## letting go a flick (SHEET_FLICK) or else the nearer end decides. A tap
+## does what it always did: the handle opens / closes, a tab switches, the
+## button opens / closes at once.
+func _on_sheet_drag(event: InputEvent, source: Control) -> void:
+	if not _portrait:
 		return
-	if event.pressed:
-		_handle_press_y = event.position.y
-	else:
-		var dy: float = event.position.y - _handle_press_y
-		set_sheet_open(not _sheet_open if absf(dy) < DRAG_THRESHOLD else dy < 0.0)
-	_sheet_handle.accept_event()
+	var now := _clock
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		var y: float = event.global_position.y
+		if event.pressed:
+			_handle_press_y = y
+			_handle_start_h = _sheet_h
+			_handle_dragging = false
+			_handle_speed = 0.0
+			_handle_last = Vector2(y, now)
+		elif _handle_dragging:
+			_handle_dragging = false
+			var lo := _handle_and_tabs_height()
+			var hi := _sheet_open_height()
+			var open := _sheet_h > (lo + hi) / 2.0
+			if absf(_handle_speed) > SHEET_FLICK:
+				open = _handle_speed < 0.0
+			var from := _sheet_h
+			set_sheet_open(open)
+			_relayout()
+			_slide_sheet(from)
+			source.accept_event()  # (a drag is no tap)
+		elif source == _sheet_handle:
+			set_sheet_open(not _sheet_open)
+		if source == _sheet_handle:
+			source.accept_event()
+	elif event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+		var y: float = event.global_position.y
+		if not _handle_dragging and absf(y - _handle_press_y) > DRAG_THRESHOLD:
+			_handle_dragging = true
+			_sheet_scroll.visible = true  # (the entries show while it's pulled up)
+			if source is BaseButton:
+				source.disabled = true  # (drops its press: letting go won't tap it)
+				source.disabled = false
+		if _handle_dragging:
+			var dt := now - _handle_last.y
+			if dt > 0.0:
+				_handle_speed = lerpf(_handle_speed, (y - _handle_last.x) / dt, 0.6)
+			_handle_last = Vector2(y, now)
+			_sheet_h = clampf(_handle_start_h - (y - _handle_press_y), _handle_and_tabs_height(), _sheet_open_height())
+			_sidebar.offset_top = -_sheet_h
+			source.accept_event()
+
+
+## After a drag: the sheet glides from height `from` to where it settled.
+func _slide_sheet(from: float) -> void:
+	var to := _sidebar.offset_top
+	if is_equal_approx(-from, to):
+		return
+	_sidebar.offset_top = -from
+	_sheet_slide = create_tween()
+	_sheet_slide.tween_property(_sidebar, "offset_top", to, 0.15).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _on_tab_pressed(tab: String) -> void:
@@ -1048,19 +1145,25 @@ func _place_sidebar_toggle() -> void:
 
 # --- layout ------------------------------------------------------------------------------
 
-## Portrait sheet height. Open: as tall as the page needs, at most about half
-## the screen (it scrolls). Re-run when the page's size settles, because
-## wrapped text only knows its height once it has been laid out.
+## Portrait sheet height. Open: as tall as the page needs, at most
+## SHEET_MAX of the screen (its entries scroll). Re-run when the page's size
+## settles, because wrapped text only knows its height once it has been laid out.
 func _fit_sheet() -> void:
-	if not _portrait:
+	if not _portrait or _handle_dragging:
 		return
+	if _sheet_slide:
+		_sheet_slide.kill()
+		_sheet_slide = null
+	_sheet_h = _sheet_open_height() if _sheet_open else _handle_and_tabs_height()
+	_sidebar.offset_top = -_sheet_h
+	_place_info_panel()
+
+
+func _sheet_open_height() -> float:
 	var vp := _root.get_viewport_rect().size
 	var folded := _handle_and_tabs_height()
 	var content: float = _sheet_scroll.get_child(0).get_combined_minimum_size().y + 8.0
-	var most := clampf(vp.y * 0.5, 320.0, vp.y - _top_h - 140.0)
-	_sheet_h = folded + minf(content, most) if _sheet_open else folded
-	_sidebar.offset_top = -_sheet_h
-	_place_info_panel()
+	return folded + minf(content, maxf(vp.y * SHEET_MAX - folded, SHEET_MIN_CONTENT))
 
 
 func _handle_and_tabs_height() -> float:
@@ -1216,9 +1319,11 @@ func _build_page_build() -> Control:
 	for kind in ["tower", "barracks", "farm", "camp", "lightstone", "training"]:
 		var spec: Dictionary = Config.BUILDINGS[kind]
 		var icon := Art.tex(spec["art"])
-		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_icons(spec["cost"]), game.begin_build.bind(kind))
+		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_icons(spec["cost"]), _on_build_pressed.bind(kind))
 		grid.add_child(e["panel"])
 		_build_buttons[kind] = e["button"]
+		(e["button"] as Button).button_down.connect(_on_build_down.bind(kind))
+		e["button"].tooltip_text = "Tap, then tap the map; or drag it onto the map"
 	var hint := _label("Village huts can only be rebuilt: tap a ruined hut inside the walls.", 14, UiTheme.MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(hint)
@@ -1362,12 +1467,68 @@ func _on_card_down(unit: MilitaryUnit) -> void:
 	_press_pos = _root.get_viewport().get_mouse_position()
 
 
+## A Build entry pressed: dragged off the dock it becomes the building to
+## place, following the pointer (a plain tap picks it, see Game.toggle_build).
+func _on_build_down(kind: String) -> void:
+	_press_build = kind
+	_dragging_build = false
+	_build_dragged = false
+	_press_pos = _root.get_viewport().get_mouse_position()
+
+
+## Lets drags anywhere on `n` (and below it) reach the scroll container:
+## buttons (and anything with a tooltip) pass them on, the rest ignores the
+## mouse; sliders and text fields keep theirs.
+func _touch_scrollable(n: Node) -> void:
+	if not is_instance_valid(n) or not n is Control:
+		return
+	var c := n as Control
+	if c is Range or c is LineEdit or c is TextEdit or c is ScrollContainer:
+		pass  # (they need the drag themselves)
+	elif c is BaseButton or c.tooltip_text != "":
+		c.mouse_filter = Control.MOUSE_FILTER_PASS
+	else:
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for k in c.get_children():
+		_touch_scrollable(k)
+
+
+## A press in the dock that turns into a scroll is no tap: its button
+## doesn't fire on release.
+func _dock_scroll_guard(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			var inside := _sheet_scroll.is_visible_in_tree() and _sheet_scroll.get_global_rect().has_point(event.position)
+			_scroll_from = event.position if inside else NO_POS
+			_scrolled = false
+		else:
+			if _scrolled and not _dragging_build and not _dragging_unit:
+				_cancel_presses(_sheet_scroll)
+			_scroll_from = NO_POS
+			_scrolled = false
+	elif event is InputEventMouseMotion and _scroll_from != NO_POS and not _scrolled:
+		if absf(event.position.y - _scroll_from.y) > DRAG_THRESHOLD and is_over_dock(event.position):
+			_scrolled = true
+
+
+func _cancel_presses(n: Node) -> void:
+	for k in n.get_children():
+		if k is BaseButton and not k.toggle_mode and k.is_pressed() and not k.disabled:
+			k.disabled = true  # (resets the press)
+			k.disabled = false
+		_cancel_presses(k)
+
+
 func _input(event: InputEvent) -> void:
+	_dock_scroll_guard(event)
+	if _press_build != "":
+		_build_drag_input(event)
+		return
 	if _press_unit == null:
 		return
 	if event is InputEventMouseMotion:
 		var pos: Vector2 = event.position
-		if not _dragging_unit and pos.distance_to(_press_pos) > DRAG_THRESHOLD:
+		if not _dragging_unit and pos.distance_to(_press_pos) > DRAG_THRESHOLD and not is_over_dock(pos):  # (inside the dock it scrolls)
 			_dragging_unit = true
 			_drag_ghost.visible = true
 			_auto_collapse()  # uncover the map to drop onto
@@ -1390,8 +1551,31 @@ func _input(event: InputEvent) -> void:
 			game.begin_station(unit)
 
 
+func _build_drag_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		var pos: Vector2 = event.position
+		if not _dragging_build and pos.distance_to(_press_pos) > DRAG_THRESHOLD and not is_over_dock(pos):
+			_dragging_build = true  # (inside the dock a drag still scrolls it)
+		if _dragging_build:
+			game.drag_build(_press_build, pos)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		_press_build = ""
+		if _dragging_build:
+			_dragging_build = false
+			_build_dragged = true  # (let go on the entry: that's no tap)
+			game.drop_build(event.position)
+			_auto_restore()
+
+
+func _on_build_pressed(kind: String) -> void:
+	if _build_dragged:
+		_build_dragged = false
+		return
+	game.toggle_build(kind)
+
+
 func is_over_ui(screen_pos: Vector2) -> bool:
-	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, _upgrade_panel, _confirm_panel, knowledge_base]:
+	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _cancel_button, _place_bar, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, _upgrade_panel, _confirm_panel, knowledge_base]:
 		if c.is_visible_in_tree() and c.get_global_rect().has_point(screen_pos):
 			return true
 	return false
@@ -1493,10 +1677,64 @@ func _build_mode_panel() -> void:
 	_mode_label = _label("", 18)
 	_mode_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(_mode_label)
-	var cancel := _button("Done", Vector2(96, 44))
-	cancel.pressed.connect(func() -> void: game.cancel_mode())
-	h.add_child(cancel)
 	_mode_panel.visible = false
+	_mode_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE  # (only a hint: taps go to the map)
+	# Cancel, big, in the bottom corner where the thumb is.
+	_cancel_button = _button("✕  Cancel", Vector2(170, 64))
+	_cancel_button.add_theme_font_size_override("font_size", 22)
+	UiTheme.style_danger(_cancel_button)
+	_cancel_button.pressed.connect(func() -> void: game.cancel_mode())
+	_cancel_button.visible = false
+	_root.add_child(_cancel_button)
+	# Touch: Build / Cancel under the building shown where it would go.
+	_place_bar = HBoxContainer.new()
+	_place_bar.add_theme_constant_override("separation", 10)
+	_place_build = _button("✓  Build", Vector2(140, 60))
+	_place_build.add_theme_font_size_override("font_size", 22)
+	UiTheme.style_good(_place_build)
+	_place_build.pressed.connect(func() -> void: game.confirm_place())
+	_place_bar.add_child(_place_build)
+	var no := _button("✕", Vector2(60, 60))
+	no.add_theme_font_size_override("font_size", 24)
+	UiTheme.style_danger(no)
+	no.pressed.connect(func() -> void: game.cancel_mode())
+	_place_bar.add_child(no)
+	_place_bar.visible = false
+	_root.add_child(_place_bar)
+
+
+## Touch placing: Build (off when `error` says it can't go there) and Cancel
+## under the previewed building; they follow it when the map moves.
+func show_place_confirm(error: String) -> void:
+	_place_build.disabled = error != ""
+	_place_build.tooltip_text = error
+	_place_bar.visible = true
+	_place_place_bar()
+
+
+func hide_place_confirm() -> void:
+	if _place_bar:
+		_place_bar.visible = false
+
+
+func _place_place_bar() -> void:
+	if not _place_bar.visible or game.pending_tile == Game.NO_TILE:
+		return
+	var vp := _root.get_viewport_rect().size
+	var s := _place_bar.get_combined_minimum_size()
+	var at := game.pending_screen_pos() + Vector2(-s.x / 2.0, 34.0)
+	var low := vp.y - s.y - 10.0 - (_sheet_h if _portrait else 0.0)
+	_place_bar.size = s
+	_place_bar.position = Vector2(clampf(at.x, 10.0, vp.x - s.x - 10.0), clampf(at.y, _top_h + 10.0, maxf(_top_h + 10.0, low)))
+
+
+func _place_cancel_button() -> void:
+	var vp := _root.get_viewport_rect().size
+	var s := _cancel_button.get_combined_minimum_size()
+	var right := vp.x - 16.0 - (SIDEBAR_W if not _portrait and _side_open else 0.0)
+	var bottom := vp.y - 16.0 - (_sheet_h if _portrait else 0.0)
+	_cancel_button.size = s
+	_cancel_button.position = Vector2(right - s.x, bottom - s.y)
 
 
 ## Shows the hint for placing / stationing (or hides it with ""). In portrait
@@ -1505,11 +1743,13 @@ func set_mode_hint(text: String) -> void:
 	var was := _mode_panel.visible
 	_mode_label.text = text
 	_mode_panel.visible = text != ""
+	_cancel_button.visible = text != ""
 	_place_mode_panel()
 	if text != "" and not was:
 		_auto_collapse()
 	elif text == "" and was:
 		_auto_restore()
+	_place_cancel_button()
 
 
 ## Centred over the map in landscape; full width under the top bar in portrait.
@@ -1824,18 +2064,47 @@ func _pick_upgrade(unit: MilitaryUnit, to: String) -> void:
 
 ## The Spatial Archmage leaves the army for good: ask first.
 func _ask_archmage(unit: MilitaryUnit) -> void:
-	_confirm_text.custom_minimum_size.x = _upgrade_width()
-	_confirm_text.text = "This %s will leave your army for good and move into a hut as the Spatial Archmage, a civilian. Continue?" % unit.display_name().to_lower()
-	set_rich_text(_confirm_yes, "Become the Spatial Archmage  (%s)" % Config.cost_icons(Config.ARCHMAGE_COST))
-	for c in _confirm_yes.pressed.get_connections():
-		_confirm_yes.pressed.disconnect(c["callable"])
-	_confirm_yes.pressed.connect(func() -> void:
+	_ask("Spatial Archmage", Color("d8c0ff"), "This %s will leave your army for good and move into a hut as the Spatial Archmage, a civilian. Continue?" % unit.display_name().to_lower(),
+		"Become the Spatial Archmage  (%s)" % Config.cost_icons(Config.ARCHMAGE_COST), false, func() -> void:
 		if _do("promote_archmage", {"unit": unit.nid})["ok"]:
 			toast("The Spatial Archmage moves into a hut", Color("d8c0ff"))
 			_confirm_panel.visible = false
 			_upgrade_panel.visible = false
 			_selected_unit = null
 			_queue_refresh())
+
+
+## A villager leaves for good, freeing its hut: ask first.
+func ask_retire(c: Civilian) -> void:
+	if not is_instance_valid(c) or c.dead:
+		return
+	var err := game.population.retire_error(c)
+	if err != "":
+		toast(err, UiTheme.BAD)
+		return
+	_ask("Retire %s?" % c.label(), UiTheme.GOLD, "%s will leave the village for good, and their hut is free for a new villager. This can't be undone." % c.label().capitalize(),
+		"Retire %s" % c.label(), true, func() -> void:
+			if _do("retire_villager", {"civilian": c.nid})["ok"]:
+				toast("%s retired" % c.label().capitalize(), UiTheme.MUTED)
+				_confirm_panel.visible = false
+				_refresh_people())
+
+
+## Shows the confirmation dialog: `yes` runs on the confirm button (red when
+## `danger`); Cancel just closes it.
+func _ask(title: String, color: Color, text: String, yes_text: String, danger: bool, yes: Callable) -> void:
+	_confirm_title.text = title
+	_confirm_title.add_theme_color_override("font_color", color)
+	_confirm_text.custom_minimum_size.x = _upgrade_width()
+	_confirm_text.text = text
+	set_rich_text(_confirm_yes, yes_text)
+	if danger:
+		UiTheme.style_danger(_confirm_yes)
+	else:
+		UiTheme.style_good(_confirm_yes)
+	for c in _confirm_yes.pressed.get_connections():
+		_confirm_yes.pressed.disconnect(c["callable"])
+	_confirm_yes.pressed.connect(yes)
 	_confirm_panel.visible = true
 	_fit_dialog(_confirm_panel)
 	_fit_dialog.call_deferred(_confirm_panel)
@@ -1872,12 +2141,12 @@ func _build_upgrade_dialogs() -> void:
 	c.add_theme_constant_override("separation", 10)
 	c.custom_minimum_size = Vector2(400, 0)
 	_confirm_panel.add_child(c)
-	c.add_child(_label("Spatial Archmage", 24, Color("d8c0ff")))
+	_confirm_title = _label("", 24)
+	c.add_child(_confirm_title)
 	_confirm_text = _label("", 16)
 	_confirm_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	c.add_child(_confirm_text)
 	_confirm_yes = _button("", Vector2(0, 54))
-	UiTheme.style_good(_confirm_yes)
 	c.add_child(_confirm_yes)
 	var no := _button("Cancel", Vector2(0, 46))
 	no.pressed.connect(func() -> void: _confirm_panel.visible = false)
@@ -2406,6 +2675,20 @@ func hero_panel_rect() -> Rect2:
 	return _hero_panel.get_global_rect() if _hero_panel.visible else Rect2()
 
 
+## The part of the screen where the map shows: below the top bar, above the
+## bottom sheet (portrait) or left of the open sidebar (landscape).
+func map_rect() -> Rect2:
+	var vp := get_viewport().get_visible_rect()
+	var r := Rect2(vp.position.x, _top_h, vp.size.x, vp.size.y - _top_h)
+	if _sidebar.visible:
+		var side := _sidebar.get_global_rect()
+		if _portrait:
+			r.size.y = maxf(0.0, side.position.y - r.position.y)
+		else:
+			r.size.x = maxf(0.0, side.position.x - r.position.x)
+	return r
+
+
 func top_height() -> float:
 	return _top_h
 
@@ -2430,8 +2713,13 @@ func _queue_refresh() -> void:
 
 
 func _process(delta: float) -> void:
+	_clock += delta / maxf(Engine.time_scale, 0.001)
 	if game.networked:
 		_update_pause_gray()
+	if _place_bar.visible:
+		_place_place_bar()  # (it follows the building when the map moves)
+	if _cancel_button.visible:
+		_place_cancel_button()
 	if _log_dirty or not game.events.entries.is_empty():
 		_refresh_log()  # (every frame while messages fade)
 	_tick -= delta

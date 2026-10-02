@@ -23,6 +23,7 @@ const HANDLERS := {
 	"rebuild_all_huts": "_rebuild_all_huts",
 	"upgrade_tower": "_upgrade_tower",
 	"recruit_villager": "_recruit_villager",
+	"retire_villager": "_retire_villager",
 	"assign_worker": "_assign_worker",
 	"unassign_worker": "_unassign_worker",
 	"recruit_unit": "_recruit_unit",
@@ -209,6 +210,18 @@ func _recruit_villager(v: Village, a: Dictionary) -> Dictionary:
 		return fail(err)
 	var civ := v.population.recruit(role)
 	return ok({"uid": civ.uid}) if civ else fail("Can't recruit now")
+
+
+## {"civilian": nid}: the villager leaves for good and its hut is free again.
+func _retire_villager(v: Village, a: Dictionary) -> Dictionary:
+	var c = game.entity(int(a.get("civilian", 0)))
+	if not (c is Civilian) or c.village != v:
+		return fail("That isn't your villager")
+	var err := v.population.retire_error(c)
+	if err != "":
+		return fail(err)
+	v.population.retire(c)
+	return ok()
 
 
 func _assign_worker(v: Village, a: Dictionary) -> Dictionary:

@@ -15,6 +15,9 @@ const LANDSCAPE_BASE := Vector2i(1280, 720)
 const PORTRAIT_BASE := Vector2i(720, 1280)
 
 var portrait := false
+## The last press came from a finger (no hover then: building shows a preview
+## to confirm, see Game). A real mouse click sets it back.
+var touch := false
 ## The last full screen request was for this landscape spell (one per turn
 ## to landscape: a player who leaves full screen isn't asked again until then).
 var _fullscreen_asked := false
@@ -24,6 +27,13 @@ func _ready() -> void:
 	get_window().size_changed.connect(_update)
 	_update()
 	_landscape_fullscreen()
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		touch = true
+	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION:
+		touch = false
 
 
 func _update() -> void:
