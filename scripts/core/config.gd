@@ -59,6 +59,111 @@ const TUTORIAL := {
 	"step_pause": 1.0,  # seconds between a finished step and the next card
 }
 
+## The title screen's background (scripts/ui/title_backdrop.gd): real games
+## that play themselves behind the menu in slow motion, one scene after the
+## other, each a fresh game on its own fixed map with a fixed setup. No fog,
+## no sound, no input; enemies at a gate just vanish and the village can't fall.
+## Times are real seconds, except a scene's enemy "at" / "every" (game time).
+## Every key of the defaults below can be set per scene too.
+## Scene keys:
+##   "name":    for the log and the tests.
+##   "road":    which road the scene is on: 0 = the shortest from the map edge
+##              to a gate, 1 = the next, ... (several can share their last stretch).
+##   "posts":   what stands there, ready, before it starts. Each one: "kind" (a
+##              BUILDINGS key, or "wall_tower": the village's corner tower
+##              nearest the road's gate), "at" [lo, hi] (by the road, lo to hi
+##              road tiles before the gate), "level" (towers, barracks),
+##              "units" [{"kind": a MILITARY key, specialisations too, "level"}]
+##              (barracks: one per bench), "site": true (a construction site
+##              the builders work on instead).
+##   "enemies": groups coming down the road: "kinds" {kind: count}, "from" (road
+##              tiles before the gate), "at" (first, game seconds after the
+##              start), "every" (again and again; 0: once), "gap" (seconds
+##              between two of a group), "wave" (their strength, as in that wave).
+##   "camera":  "from" and "to", where it drifts in the scene's time: a number is
+##              the road tile that far before the gate, [x, y] a tile offset from
+##              the village centre; "zoom".
+const TITLE_BACKDROP := {
+	"speed": 0.33,  # game speed behind the menu (1.0: normal): slow motion
+	"duration": 40.0,  # per scene
+	"fade_in": 2.5,  # from black, once a scene is ready
+	"fade_out": 1.5,  # to black, before the next scene
+	"shade": 0.3,  # darkens the game behind the menu, so it reads (0: none)
+	"shuffle": false,  # true: the scenes in a random order (false: as listed)
+	"map_type": "temperate", "seed": 38,
+	"resources": {"gold": 0, "food": 5000, "materials": 0},
+	"civilians": ["builder", "farmer", "forester", "gatherer"],
+	"buildings": ["farm", "camp"],
+	"hero": "defend",  # his mode (Hero.MODE_NAMES, lower case)
+	"scenes": [
+		{
+			"name": "Archers hold the gate", "road": 1,
+			"posts": [
+				{"kind": "wall_tower", "units": [{"kind": "archer", "level": 4}]},
+				{"kind": "tower", "at": [3, 6], "level": 3, "units": [{"kind": "crossbowman", "level": 3}]},
+				{"kind": "tower", "at": [8, 11], "level": 2, "units": [{"kind": "swiftbowman", "level": 2}]},
+			],
+			"enemies": [{"kinds": {"goblin": 5, "ork": 1}, "from": 18, "at": 0.0, "every": 14.0, "gap": 1.2, "wave": 4}],
+			"camera": {"from": 13, "to": 3, "zoom": 1.1},
+		},
+		{
+			"name": "Fire on the farm", "road": 1,
+			"posts": [
+				{"kind": "farm", "at": [14, 19]},
+				{"kind": "tower", "at": [12, 17], "level": 2, "units": [{"kind": "fire_mage", "level": 4}]},
+			],
+			"enemies": [{"kinds": {"rat": 6}, "from": 26, "at": 0.0, "every": 16.0, "gap": 0.4, "wave": 4}],
+			"camera": {"from": 20, "to": 14, "zoom": 1.2},
+		},
+		{
+			"name": "The barracks turn out", "road": 2,
+			"posts": [
+				{"kind": "barracks", "at": [7, 11], "level": 3, "units": [
+					{"kind": "shield_bearer", "level": 4}, {"kind": "shield_bearer", "level": 4}, {"kind": "shield_bearer", "level": 3}]},
+				{"kind": "tower", "at": [3, 6], "level": 2, "units": [{"kind": "archer", "level": 3}]},
+			],
+			"enemies": [{"kinds": {"ork": 3, "goblin": 2}, "from": 20, "at": 0.0, "every": 16.0, "gap": 1.5, "wave": 4}],
+			"camera": {"from": 15, "to": 6, "zoom": 1.1},
+		},
+		{
+			"name": "Summoner and witch", "road": 2,
+			"posts": [
+				{"kind": "tower", "at": [5, 8], "level": 3, "units": [{"kind": "summoner", "level": 5}]},
+				{"kind": "tower", "at": [10, 13], "level": 2, "units": [{"kind": "archer", "level": 3}]},
+			],
+			"enemies": [{"kinds": {"witch": 1, "goblin": 4}, "from": 20, "at": 0.0, "every": 16.0, "gap": 1.2, "wave": 5}],
+			"camera": {"from": 15, "to": 5, "zoom": 1.1},
+		},
+		{
+			"name": "Flyers over the swamp", "road": 0,
+			"posts": [
+				{"kind": "tower", "at": [21, 24], "level": 3, "units": [{"kind": "ice_mage", "level": 4}]},
+				{"kind": "tower", "at": [25, 28], "level": 3, "units": [{"kind": "crossbowman", "level": 4}]},
+				{"kind": "tower", "at": [17, 20], "level": 2, "units": [{"kind": "fire_summoner", "level": 3}]},
+			],
+			"enemies": [{"kinds": {"gargoyle": 3, "vampire": 2}, "from": 34, "at": 0.0, "every": 16.0, "gap": 1.6, "wave": 10}],
+			"camera": {"from": 30, "to": 18, "zoom": 1.1},
+		},
+		{
+			"name": "Slimes split", "road": 0,
+			"posts": [
+				{"kind": "tower", "at": [4, 7], "level": 3, "units": [{"kind": "swiftbowman", "level": 4}]},
+				{"kind": "tower", "at": [8, 11], "level": 2, "units": [{"kind": "apprentice", "level": 4}]},
+			],
+			"enemies": [{"kinds": {"slime3": 2, "goblin": 2}, "from": 16, "at": 0.0, "every": 15.0, "gap": 2.0, "wave": 4}],
+			"camera": {"from": 12, "to": 4, "zoom": 1.2},
+		},
+		{
+			"name": "A quiet day", "road": 1, "hero": "build",
+			"civilians": ["builder", "farmer", "farmer", "forester", "forester", "gatherer"],
+			"buildings": ["farm", "farm", "camp", "camp"],
+			"posts": [{"kind": "tower", "at": [4, 7], "site": true}],
+			"enemies": [],
+			"camera": {"from": [-5, 4], "to": [3, -3], "zoom": 1.0},
+		},
+	],
+}
+
 ## Debug / sandbox switches.
 const DEBUG := true  # true: the settings dialog has a Debug page (resources, XP, reveal, unlocks, enemies)
 const REVEAL_MAP := false  # true: the whole map starts explored (terrain known)

@@ -1,6 +1,6 @@
 class_name TitleScreen
 extends Control
-## Title screen: backdrop, game name and a menu in pages:
+## Title screen: a game playing itself behind (TitleBackdrop), game name and a menu in pages:
 ##   main         - Singleplayer, Multiplayer, Tutorial, Library, Exit;
 ##   Singleplayer - Play, Difficulty, Map, seed, Back;
 ##   Multiplayer  - village name and colour, host / join, lobby (MultiplayerMenu).
@@ -17,6 +17,8 @@ var seed_edit: LineEdit
 var library_button: Button
 var back_button: Button
 var library: Library
+## The game playing behind the menu (Config.TITLE_BACKDROP).
+var backdrop: TitleBackdrop
 var _menu: VBoxContainer
 var _main_page: VBoxContainer
 var _sp_page: VBoxContainer
@@ -29,13 +31,14 @@ func _ready() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 
-	var bg := TextureRect.new()
-	bg.texture = Art.tex("title_bg")
-	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	var bg := ColorRect.new()
+	bg.color = Color.BLACK
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
+	backdrop = TitleBackdrop.new()  # (a game playing itself; fades in once it's made)
+	backdrop.name = "Backdrop"
+	add_child(backdrop)
 
 	var title := Label.new()
 	_title = title

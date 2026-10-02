@@ -36,6 +36,9 @@ var networked := false
 ## before _ready, the title screen asks via Settings.tutorial_next).
 var tutorial_mode := false
 var tutorial: Tutorial = null
+## The title screen's background game plays in this game (set before _ready):
+## its scene's map and setup, no input, no HUD, no sound, no raids, no defeat.
+var backdrop: TitleBackdrop = null
 ## How the villages start (Config.START_*; the tutorial's: Config.TUTORIAL).
 var start_resources: Dictionary = Config.START_RESOURCES.duplicate()
 var start_civilians: Array[String] = Config.START_CIVILIANS.duplicate()
@@ -100,11 +103,13 @@ var _ids: Dictionary = {}
 
 
 func _ready() -> void:
-	tutorial_mode = (Settings.take_tutorial() or tutorial_mode) and not (Net.in_game and Net.is_online()) and hotseat_villages <= 1
+	tutorial_mode = backdrop == null and (Settings.take_tutorial() or tutorial_mode) and not (Net.in_game and Net.is_online()) and hotseat_villages <= 1
 	if tutorial_mode:
 		tutorial = Tutorial.new()
 		tutorial.name = "Tutorial"
 		tutorial.prepare(self)  # (the map, the difficulty and the small village)
+	if backdrop:
+		backdrop.prepare(self)  # (its scene's map and village)
 	var s := map_seed if map_seed != 0 else (Settings.map_seed if Settings.map_seed != 0 else randi())
 	if map_seed == 0:
 		map_type = Settings.resolve_map_type(Settings.map_type, s)
@@ -113,7 +118,7 @@ func _ready() -> void:
 	commands.setup(self)
 	$Systems.add_child(commands)
 	# Co-op over the network: the lobby decided the villages (Net.setup).
-	networked = Net.in_game and Net.is_online()
+	networked = Net.in_game and Net.is_online() and backdrop == null
 	is_client = networked and Net.is_client()
 	var names: Array = []
 	var colors: Array = []
@@ -173,6 +178,8 @@ func _ready() -> void:
 	camera.press_filter = _claim_press
 	camera.hovered.connect(_on_hovered)
 	camera.cancelled.connect(cancel_mode)
+	if backdrop:
+		backdrop.start(self)
 
 
 func _process(delta: float) -> void:
@@ -576,7 +583,7 @@ func raid_roll(g: Enemy) -> bool:
 
 
 func on_enemy_reached_gate(g: Enemy) -> void:
-	if game_over:
+	if game_over or backdrop:
 		return
 	# Exactly one random hut of the village it attacked, on every difficulty.
 	# Only a villager who happens to live in that hut dies; nobody else is killed.
@@ -607,7 +614,7 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 ## A village falls with no villagers or no intact huts; the game is lost when
 ## every village has fallen.
 func _check_defeat() -> void:
-	if game_over:
+	if game_over or backdrop:
 		return
 	for v in villages:
 		if v.update_fallen() and villages.size() > 1:

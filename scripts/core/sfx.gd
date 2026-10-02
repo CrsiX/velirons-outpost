@@ -8,6 +8,8 @@ const VOICES := 10
 var _streams: Dictionary = {}
 var _players: Array[AudioStreamPlayer] = []
 var _next := 0
+## Nothing plays (the title screen's background game).
+var muted := false
 
 
 func _ready() -> void:
@@ -55,7 +57,7 @@ func _ready() -> void:
 
 
 func play(sound: String, pitch_jitter: float = 0.08) -> void:
-	if not _streams.has(sound):
+	if muted or not _streams.has(sound):
 		return
 	var p := _players[_next]
 	_next = (_next + 1) % VOICES

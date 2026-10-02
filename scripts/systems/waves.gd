@@ -316,7 +316,13 @@ func debug_spawn(kind: String, target: Village) -> Enemy:
 	var points: Array = target.home_spawns if game.villages.size() > 1 and not target.home_spawns.is_empty() else game.map.edge_spawns
 	if points.is_empty():
 		return null
-	var g := _spawn(_spec(kind, points[_rng.randi() % points.size()], pow(Config.WAVE_HP_GROWTH, maxi(wave, 1) - 1), target))
+	return spawn_at(kind, points[_rng.randi() % points.size()], target, wave)
+
+
+## An enemy of `kind` at `tile` (on a road), as strong as in wave `strength`,
+## now; it doesn't count for the wave (debug_spawn, the title backdrop).
+func spawn_at(kind: String, tile: Vector2i, target: Village, strength: int) -> Enemy:
+	var g := _spawn(_spec(kind, tile, pow(Config.WAVE_HP_GROWTH, maxi(strength, 1) - 1), target))
 	_alive -= 1
 	_uncounted[g] = true
 	return g
