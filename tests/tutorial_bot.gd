@@ -245,9 +245,8 @@ func _title() -> void:
 	var t = load("res://scenes/title.tscn").instantiate()
 	add_child(t)
 	await frames(2)
-	t.show_page(t._sp_page)
 	var tb: Button = t.tutorial_button
-	check(tb.get_index() == t.play_button.get_index() - 1, "Tutorial sits above Play")
+	check(tb.is_visible_in_tree() and tb.get_index() == t.singleplayer_button.get_index() - 1, "Tutorial is on the main page, above Singleplayer")
 	check(tb.icon == null, "no tick: it can always be played again")
 	t.queue_free()
 	await frames(1)

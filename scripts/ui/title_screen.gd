@@ -1,17 +1,9 @@
 class_name TitleScreen
 extends Control
 ## Title screen: backdrop, game name and a menu in pages:
-##   main         - Singleplayer, Multiplayer, Exit;
-##   Singleplayer - Tutorial, Play, Difficulty, Map, seed, Levels, Help, Back;
+##   main         - Tutorial, Singleplayer, Multiplayer, Knowledge base, Help, Exit;
+##   Singleplayer - Play, Difficulty, Map, seed, Back;
 ##   Multiplayer  - village name and colour, host / join, lobby (MultiplayerMenu).
-## The book icon in the top-right corner opens the knowledge base (any page).
-
-## Levels offered on the Levels panel. Only the first exists so far.
-const LEVELS: Array[Dictionary] = [
-	{"name": "The Last Outpost", "available": true},
-	{"name": "Coming soon", "available": false},
-	{"name": "Coming soon", "available": false},
-]
 
 var singleplayer_button: Button
 var multiplayer_button: Button
@@ -22,12 +14,10 @@ var tutorial_button: Button
 var difficulty_button: Button
 var map_button: Button
 var seed_edit: LineEdit
-var levels_button: Button
+var knowledge_button: Button
 var help_button: Button
 var back_button: Button
-var levels_panel: PanelContainer
 var help_panel: PanelContainer
-var book_button: Button
 var knowledge_base: KnowledgeBase
 var _menu: VBoxContainer
 var _main_page: VBoxContainer
@@ -69,16 +59,20 @@ func _ready() -> void:
 	add_child(_menu)
 
 	_main_page = _page()
+	tutorial_button = _menu_button(_main_page, "Tutorial", play_tutorial)
+	tutorial_button.tooltip_text = "A guided first game: learn the basics step by step"
 	singleplayer_button = _menu_button(_main_page, "Singleplayer", func() -> void: show_page(_sp_page))
 	UiTheme.style_primary(singleplayer_button)
 	multiplayer_button = _menu_button(_main_page, "Multiplayer", func() -> void: show_page(mp_menu))
+	knowledge_button = _menu_button(_main_page, "Knowledge base", func() -> void: knowledge_base.open())
+	knowledge_button.tooltip_text = "Enemies, units, buildings, villagers, hero, places"
+	knowledge_button.icon = Art.tex("icon_book")
+	knowledge_button.expand_icon = false
+	knowledge_button.add_theme_constant_override("icon_max_width", 34)
+	help_button = _menu_button(_main_page, "Help", func() -> void: help_panel.visible = true)
 	exit_button = _menu_button(_main_page, "Exit", func() -> void: get_tree().quit())
 	exit_button.visible = not OS.has_feature("web")  # browsers can't close the tab
 	_sp_page = _page()
-	tutorial_button = _menu_button(_sp_page, "Tutorial", play_tutorial)
-	tutorial_button.tooltip_text = "A guided first game: learn the basics step by step"
-	tutorial_button.expand_icon = false
-	tutorial_button.add_theme_constant_override("icon_max_width", 30)
 	play_button = _menu_button(_sp_page, "Play", _play)
 	UiTheme.style_primary(play_button)
 	difficulty_button = _menu_button(_sp_page, "", _cycle_difficulty)
@@ -94,10 +88,7 @@ func _ready() -> void:
 	seed_edit.text_changed.connect(func(t: String) -> void: Settings.map_seed = Settings.parse_seed(t))
 	_sp_page.add_child(seed_edit)
 	_sp_page.move_child(seed_edit, map_button.get_index() + 1)
-	levels_button = _menu_button(_sp_page, "Levels", func() -> void: levels_panel.visible = true)
-	help_button = _menu_button(_sp_page, "Help", func() -> void: help_panel.visible = true)
 	back_button = _menu_button(_sp_page, "Back", func() -> void: show_page(_main_page))
-	levels_button.visible = false
 	mp_menu = MultiplayerMenu.new()
 	_menu.add_child(mp_menu)
 	mp_menu.back_pressed.connect(func() -> void: show_page(_main_page))
@@ -108,23 +99,7 @@ func _ready() -> void:
 		show_page(_main_page)
 	
 	_update_sp_buttons()
-	_build_levels_panel()
 	_build_help_panel()
-	book_button = Button.new()
-	book_button.icon = Art.tex("icon_book")
-	book_button.expand_icon = true
-	book_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	book_button.add_theme_constant_override("icon_max_width", 48)
-	book_button.custom_minimum_size = Vector2(64, 60)
-	book_button.focus_mode = Control.FOCUS_NONE
-	book_button.tooltip_text = "Knowledge base: enemies, units, buildings, villagers, hero, places"
-	book_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	book_button.offset_left = -80
-	book_button.offset_right = -16
-	book_button.offset_top = 16
-	book_button.offset_bottom = 76
-	book_button.pressed.connect(func() -> void: knowledge_base.open())
-	add_child(book_button)
 	knowledge_base = KnowledgeBase.new()
 	add_child(knowledge_base)
 	get_viewport().size_changed.connect(_layout)
@@ -155,12 +130,13 @@ func _layout() -> void:
 	# screen (never over the title). The multiplayer pages are taller.
 	var want := ((0.28 if mp else 0.5) if portrait else (0.22 if mp else 0.42)) * vp.y
 	var title_bottom := _title.anchor_top * vp.y + (64.0 if portrait else 84.0) * 1.35
-	# Short screens: the Singleplayer page's buttons get lower, so it fits under the title.
-	var tall := _sp_page.get_child_count() * (64.0 + 14.0) + title_bottom + 20.0 <= vp.y
-	_sp_page.add_theme_constant_override("separation", 14 if tall else 8)
-	for c in _sp_page.get_children():
-		if c is Button:
-			(c as Button).custom_minimum_size.y = 64.0 if tall else 52.0
+	# Short screens: the main and Singleplayer pages' buttons get lower, so they fit under the title.
+	for page in [_main_page, _sp_page]:
+		var tall: bool = page.get_child_count() * (64.0 + 14.0) + title_bottom + 20.0 <= vp.y
+		page.add_theme_constant_override("separation", 14 if tall else 8)
+		for c in page.get_children():
+			if c is Button:
+				(c as Button).custom_minimum_size.y = 64.0 if tall else 52.0
 	var h := _menu.get_combined_minimum_size().y
 	var top := clampf(want, title_bottom, maxf(title_bottom, vp.y - h - 20.0))
 	_menu.anchor_top = 0.0
@@ -183,8 +159,6 @@ func show_page(page: VBoxContainer) -> void:
 	if mp_menu:
 		mp_menu.visible = page == mp_menu
 	_layout.call_deferred()
-	if levels_panel:
-		levels_panel.visible = false
 
 
 func in_singleplayer_page() -> bool:
@@ -244,43 +218,6 @@ Explore the unknown lands around Veliron's last outpost. Build huts, camps and t
 	v.add_child(close)
 
 	help_panel.visible = false
-	
-	
-func _build_levels_panel() -> void:
-	levels_panel = PanelContainer.new()
-	add_child(levels_panel)
-	levels_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	levels_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	levels_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 12)
-	v.custom_minimum_size = Vector2(420, 0)
-	levels_panel.add_child(v)
-	var head := Label.new()
-	head.text = "Levels"
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	head.add_theme_font_size_override("font_size", 36)
-	head.add_theme_color_override("font_color", UiTheme.GOLD)
-	v.add_child(head)
-	for i in LEVELS.size():
-		var lv: Dictionary = LEVELS[i]
-		var b := Button.new()
-		b.text = "%d.  %s" % [i + 1, lv["name"]]
-		b.custom_minimum_size = Vector2(0, 58)
-		b.focus_mode = Control.FOCUS_NONE
-		b.add_theme_font_size_override("font_size", 22)
-		b.disabled = not lv["available"]
-		b.pressed.connect(func() -> void:
-			Settings.level = i + 1
-			_play())
-		v.add_child(b)
-	var back := Button.new()
-	back.text = "Back"
-	back.custom_minimum_size = Vector2(0, 52)
-	back.focus_mode = Control.FOCUS_NONE
-	back.pressed.connect(func() -> void: levels_panel.visible = false)
-	v.add_child(back)
-	levels_panel.visible = false
 
 
 func _cycle_difficulty() -> void:
@@ -294,7 +231,7 @@ func _update_sp_buttons() -> void:
 
 
 func _play() -> void:
-	get_tree().change_scene_to_file(Net.LEVEL_SCENE)
+	get_tree().change_scene_to_file(Net.GAME_SCENE)
 
 
 ## The guided tutorial (docs/tutorial-design.md): its own map and village.
@@ -314,8 +251,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				else:
 					show_page(_sp_page)
 			KEY_ESCAPE:
-				if levels_panel.visible:
-					levels_panel.visible = false
+				if help_panel.visible:
+					help_panel.visible = false
 				elif mp_menu.visible and Net.is_online():
 					Net.leave()
 				else:

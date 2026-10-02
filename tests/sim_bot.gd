@@ -20,7 +20,7 @@ func _test_title() -> void:
 	check(ProjectSettings.get_setting("application/run/main_scene") == "res://scenes/title.tscn", "the game starts on the title screen")
 	check(title.singleplayer_button.is_visible_in_tree() and title.exit_button.is_visible_in_tree() and not title.play_button.is_visible_in_tree(), "the title menu offers Singleplayer and Exit")
 	await tap(center(title.singleplayer_button))
-	check(title.play_button.is_visible_in_tree() and title.difficulty_button.is_visible_in_tree() and title.levels_button.is_visible_in_tree() and title.back_button.is_visible_in_tree() and not title.singleplayer_button.is_visible_in_tree(), "Singleplayer opens a sub-menu with Play, Difficulty, Levels and Back")
+	check(title.play_button.is_visible_in_tree() and title.difficulty_button.is_visible_in_tree() and title.back_button.is_visible_in_tree() and not title.singleplayer_button.is_visible_in_tree(), "Singleplayer opens a sub-menu with Play, Difficulty and Back")
 	await tap(center(title.back_button))
 	check(title.singleplayer_button.is_visible_in_tree() and not title.play_button.is_visible_in_tree(), "Back returns to the main menu")
 	check(title.multiplayer_button.is_visible_in_tree(), "the main menu also offers Multiplayer")
@@ -44,17 +44,12 @@ func _test_title() -> void:
 	Settings.difficulty = Settings.Difficulty.HARD
 	check(is_equal_approx(Config.enemy_stat("goblin", "speed"), Config.ENEMIES["goblin"]["speed"] * 1.5) and Config.enemy_stat_int("goblin", "gold_on_kill") == roundi(Config.ENEMIES["goblin"]["gold_on_kill"] * 1.5), "difficulty scales speed and loot too")
 	Settings.difficulty = Settings.Difficulty.NORMAL
-	await tap(center(title.levels_button))
-	check(title.levels_panel.visible, "Levels button opens the level list")
-	var tv := get_viewport().get_visible_rect()
-	check(tv.encloses(title.levels_panel.get_global_rect()), "the level list fits the screen")
-	title.levels_panel.visible = false
 	var land := get_window().size
 	get_window().size = Vector2i(1080, 2400)
 	await frames(4)
 	var pv := get_viewport().get_visible_rect()
 	var menu_ok := true
-	for b in [title.play_button, title.difficulty_button, title.levels_button]:
+	for b in [title.play_button, title.difficulty_button, title.back_button]:
 		menu_ok = menu_ok and pv.encloses(b.get_global_rect()) and b.get_global_rect().position.y > title._title.get_global_rect().end.y
 	check(Layout.portrait and menu_ok and pv.encloses(title._title.get_global_rect()), "portrait title screen: title and menu fit, menu below the title")
 	get_window().size = land

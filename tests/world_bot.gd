@@ -533,9 +533,13 @@ func _test_title_ui() -> void:
 		get_window().size = sz
 		get_viewport().size = sz
 		await frames(4)
-		t.show_page(t._sp_page)
+		t.show_page(t._main_page)
 		await frames(4)
 		var off := _off_screen(t)
+		check(off.is_empty(), "%dx%d: the main page fits on screen %s" % [sz.x, sz.y, str(off)])
+		t.show_page(t._sp_page)
+		await frames(4)
+		off = _off_screen(t)
 		check(off.is_empty(), "%dx%d: the Singleplayer page fits on screen %s" % [sz.x, sz.y, str(off)])
 		t.show_page(t.mp_menu)
 		Net.host("Tester", 0)

@@ -29,7 +29,7 @@ const DISCOVERY_PORT := 47110
 ## The ports in use (tests pick their own: --port=N, discovery on N - 1).
 var game_port := GAME_PORT
 var discovery_port := DISCOVERY_PORT
-const LEVEL_SCENE := "res://scenes/main.tscn"
+const GAME_SCENE := "res://scenes/main.tscn"
 ## ENet peer timeout (ms): generous, because host and clients each stop
 ## answering for a few seconds while the level is built / loaded.
 const TIMEOUT_MIN := 15000
@@ -393,7 +393,7 @@ func start_game() -> bool:
 	var s := map_seed if map_seed != 0 else rng.randi()
 	setup = {"seed": s, "map_type": Settings.resolve_map_type(map_type, s), "villages": villages, "difficulty": difficulty, "local": 0, "reveal_map": reveal_map, "disable_fog": disable_fog}
 	Settings.difficulty = difficulty
-	get_tree().change_scene_to_file(LEVEL_SCENE)
+	get_tree().change_scene_to_file(GAME_SCENE)
 	return true
 
 
@@ -417,7 +417,7 @@ func _start(p_setup: Dictionary, map_bytes: PackedByteArray) -> void:
 	map = MapData.from_bytes(map_bytes)
 	in_game = true
 	Settings.difficulty = int(setup.get("difficulty", 1))
-	get_tree().change_scene_to_file(LEVEL_SCENE)
+	get_tree().change_scene_to_file(GAME_SCENE)
 
 
 ## Client: the level is built; ask the host for the full picture.

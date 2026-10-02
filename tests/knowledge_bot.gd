@@ -150,8 +150,9 @@ func _title() -> void:
 	var t = load("res://scenes/title.tscn").instantiate()
 	add_child(t)
 	await frames(3)
-	var bb: Button = t.book_button
-	check(bb.is_visible_in_tree() and bb.icon != null, "the title screen has the book icon")
+	var bb: Button = t.knowledge_button
+	check(bb.is_visible_in_tree() and bb.get_index() == t.multiplayer_button.get_index() + 1, "the title screen's menu has Knowledge base, under Multiplayer")
+	check(t.help_button.is_visible_in_tree() and t.help_button.get_index() == bb.get_index() + 1, "and Help under that")
 	bb.pressed.emit()
 	await frames(2)
 	var kb: KnowledgeBase = t.knowledge_base

@@ -1,6 +1,6 @@
 extends Node
 ## Autoload "Settings": choices made on the title screen that must survive the
-## switch into a level (difficulty, chosen level).
+## switch into the game (difficulty, map, the tutorial).
 
 enum Difficulty { EASY, NORMAL, HARD }
 
@@ -11,7 +11,6 @@ const ENEMY_MULTIPLIER := {Difficulty.EASY: 0.67, Difficulty.NORMAL: 1.0, Diffic
 const CYCLE := {Difficulty.NORMAL: Difficulty.HARD, Difficulty.HARD: Difficulty.EASY, Difficulty.EASY: Difficulty.NORMAL}
 
 var difficulty := Difficulty.NORMAL
-var level := 1
 ## Multiplayer: this player's village name and colour (index into
 ## Config.VILLAGE_COLORS), remembered between sessions in user://player.cfg.
 var player_name := ""
