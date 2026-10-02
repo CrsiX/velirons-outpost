@@ -16,9 +16,6 @@ var level := 1
 ## Config.VILLAGE_COLORS), remembered between sessions in user://player.cfg.
 var player_name := ""
 var player_color := 0
-## The guided tutorial was finished or skipped once (saved in PLAYER_FILE);
-## the singleplayer page then says "Tutorial ✓".
-var tutorial_done := false
 ## The next game is the guided tutorial (set by the title screen, taken by Game).
 var tutorial_next := false
 
@@ -30,14 +27,12 @@ func _ready() -> void:
 	if cf.load(PLAYER_FILE) == OK:
 		player_name = str(cf.get_value("player", "name", ""))
 		player_color = clampi(int(cf.get_value("player", "color", 0)), 0, Config.VILLAGE_COLORS.size() - 1)
-		tutorial_done = bool(cf.get_value("tutorial", "done", false))
 
 
 func save_player() -> void:
 	var cf := ConfigFile.new()
 	cf.set_value("player", "name", player_name)
 	cf.set_value("player", "color", player_color)
-	cf.set_value("tutorial", "done", tutorial_done)
 	cf.save(PLAYER_FILE)
 
 
@@ -46,12 +41,6 @@ func take_tutorial() -> bool:
 	var t := tutorial_next
 	tutorial_next = false
 	return t
-
-
-func mark_tutorial_done() -> void:
-	if not tutorial_done:
-		tutorial_done = true
-		save_player()
 
 
 ## The Difficulty for "easy" / "normal" / "hard".

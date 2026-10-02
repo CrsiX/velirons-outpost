@@ -268,26 +268,45 @@ func build_starting() -> void:
 func _start_spot(kind: String) -> Vector2i:
 	if kind == "farm" and village.farm_plot != Vector2i(-1, -1) and placement_error(kind, village.farm_plot, true) == "":
 		return village.farm_plot
+	var fixed: Vector2i = Config.TUTORIAL["camp_tile"]
+	if kind == "camp" and game.tutorial_mode and fixed != Vector2i(-1, -1) and placement_error(kind, fixed, true) == "":
+		return fixed
 	# Anywhere near the village, not crowding a gate; a camp wants trees close by.
 	var centre := village.center
 	var candidates: Array = []
 	for dy in range(-9, 10):
 		for dx in range(-9, 10):
 			var t := centre + Vector2i(dx, dy)
-			if placement_error(kind, t, true) != "" or _next_to_gate(t):
+			if placement_error(kind, t, true) != "" or _next_to_gate(t) or _hidden(t):
 				continue
 			var score := Vector2(t).distance_to(Vector2(centre))
 			if kind == "camp":
 				var trees := _trees_near(t, 5)
 				if trees < 6:
 					continue
-				score -= minf(trees, 20) * 0.25
+				score -= minf(trees, 20) * 0.25 + _trees_near(t, 2) * 0.3  # (by the forest's edge)
 			candidates.append([score, t])
 	candidates.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
 	for c in candidates:  # (farms and camps don't block walking; just be reachable)
 		if not game.world.pathing.find_path(centre, c[1]).is_empty():
 			return c[1]
 	return Vector2i(-1, -1)
+
+
+## On screen right behind the village's walls (one row), its corner towers
+## (two rows) or a tree, so they would hide it.
+func _hidden(t: Vector2i) -> bool:
+	for d in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]:
+		if game.world.is_tree(t + d):
+			return true
+	var r := village.rect
+	for y in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
+			var corner := (x == r.position.x or x == r.end.x - 1) and (y == r.position.y or y == r.end.y - 1)
+			var ahead := (x + y) - (t.x + t.y)  # (half-tile rows in front of it)
+			if absi((x - y) - (t.x - t.y)) <= 1 and ahead > 0 and ahead <= (4 if corner else 2):
+				return true
+	return false
 
 
 func _next_to_gate(t: Vector2i) -> bool:

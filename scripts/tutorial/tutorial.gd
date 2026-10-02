@@ -6,8 +6,8 @@ extends Node
 ## every 0.25 s; nothing is blocked meanwhile). Afterwards the same map goes
 ## on as a normal endless game.
 ##
-## While it runs: waves wait to be called (wave 1 by the player in step 5,
-## wave 2 by the tutorial after step 9, both from Config.TUTORIAL), corpses
+## While it runs: waves wait to be called (wave 1 by the player in step 6,
+## wave 2 by the tutorial after step 10, both from Config.TUTORIAL), corpses
 ## don't rot, and the village starts small (Config.TUTORIAL).
 
 signal step_started(index: int)
@@ -47,6 +47,7 @@ var _text: Label
 var _progress: Label
 var _skip: Button
 var _end_row: HBoxContainer
+var _go: Button
 var skip_dialog: Control
 
 
@@ -83,10 +84,11 @@ func start() -> void:
 		if t != Vector2i(-1, -1):
 			game.fog.reveal(Vector2(t), 2.5, game.player_village.id)
 	_build_steps()
-	_build_card()
 	highlight = TutorialHighlight.new(game)
 	highlight.name = "TutorialHighlight"
-	game.hud.add_layer(highlight, true)
+	game.hud.add_layer(highlight, true)  # (before the card: the skip dialog goes over it)
+	_build_card()
+	game.hud.set_dock_open(false)  # (the first thing to tap: open it)
 	game.events.debug("tutorial: tower %s, farm %s, barracks %s, waves from %s" % [tower_tile, farm_tile, barracks_tile, spawn_tile])
 	_begin(0)
 
@@ -190,8 +192,13 @@ func _near_village(kind: String, taken: Array[Vector2i]) -> Vector2i:
 ## tab to open, "tiles": map tiles to mark}. See docs/tutorial-design.md §3.3.
 func _build_steps() -> void:
 	steps = [
+		{"title": "Welcome!",
+			"text": "This is your village. Enemies come in waves: keep them out. A few short steps show you how.",
+			"button": "Let's go",
+			"done": func() -> bool: return false,  # (the button goes on)
+			"point": func() -> Dictionary: return {}},
 		{"title": "Build a watchtower",
-			"text": "Enemies come along the roads. Build a watchtower on the marked spot by the road: Build tab, Watchtower, then tap the spot.",
+			"text": "Enemies come along the roads. Build a watchtower on the marked spot by the road: open the menu, Build tab, Watchtower, then tap the spot.",
 			"done": func() -> bool: return not _towers().is_empty(),
 			"point": func() -> Dictionary: return _place_point("tower", [tower_tile])},
 		{"title": "Your builder at work",
@@ -210,7 +217,7 @@ func _build_steps() -> void:
 			"text": "Ready? Start the first wave now with Call now: calling early pays bonus gold.",
 			"done": func() -> bool: return game.waves.wave >= 1,
 			"point": func() -> Dictionary: return {"hud": ["call"]}},
-		{"title": "Gatherers",
+		{"title": "Gatherers", "id": "gatherers",
 			"ready": func() -> bool: return game.corpses.count() > 0 or game.player_village.corpses_delivered > 0,
 			"wait_text": "Here they come! Watch your archer on the tower.",
 			"text": "Enemies leave corpses. A gatherer brings them home for gold and food. Recruit one in the Village tab.",
@@ -226,7 +233,7 @@ func _build_steps() -> void:
 			"start": _top_up_xp,
 			"done": func() -> bool: return game.hero.level >= 1,
 			"point": _level_point},
-		{"title": "Barracks",
+		{"title": "Barracks", "id": "barracks",
 			"text": "Barracks send their units out to fight what comes near. Build one by the road and station a shield bearer.",
 			"done": func() -> bool: return game.army.units.any(func(u: MilitaryUnit) -> bool: return u.post is Barracks and u.state == MilitaryUnit.State.STATIONED),
 			"point": _barracks_point},
@@ -252,10 +259,15 @@ func _place_point(kind: String, tiles: Array) -> Dictionary:
 	return {"hud": [] if placing else ["build:" + kind, "tab:build", "dock"], "tab": "build", "tiles": tiles}
 
 
-## Manning `posts`: the recruit entry for `kind`, or the reserve once there's a unit.
+## Manning `posts`: the recruit entry for `kind`, the reserve while a unit
+## waits there, nothing in the dock while one walks to its post.
 func _unit_point(kind: String, posts: Array) -> Dictionary:
-	var have := not game.army.reserve().is_empty() or not game.army.walking().is_empty()
-	return {"hud": ["reserve" if have else "army:" + kind, "tab:army", "dock"], "tab": "army", "tiles": _first_tiles(posts)}
+	var tiles := _first_tiles(posts)
+	if not game.army.reserve().is_empty():
+		return {"hud": ["reserve", "tab:army", "dock"], "tab": "army", "tiles": tiles}
+	if not game.army.walking().is_empty():
+		return {"tiles": tiles}
+	return {"hud": ["army:" + kind, "tab:army", "dock"], "tab": "army", "tiles": tiles}
 
 
 func _farm_point() -> Dictionary:
@@ -279,7 +291,7 @@ func _barracks_point() -> Dictionary:
 	return _unit_point("shield_bearer", bs)
 
 
-## Step 10: every unit's kind and level now; done when one has gone up.
+## Step 11: every unit's kind and level now; done when one has gone up.
 func _mark_units() -> void:
 	_mark = {}
 	for u in game.army.units:
@@ -311,7 +323,7 @@ func _first_tiles(list: Array) -> Array[Vector2i]:
 	return (list[0] as Building).tiles() if not list.is_empty() else [] as Array[Vector2i]
 
 
-## Step 8: the hero gets the XP his next level costs, if he has less.
+## Step 9: the hero gets the XP his next level costs, if he has less.
 func _top_up_xp() -> void:
 	var h := game.hero
 	if h.level == 0 and not h.dead and h.xp < h.level_up_cost():
@@ -334,6 +346,8 @@ func _begin(i: int) -> void:
 	var last := i == steps.size() - 1
 	_end_row.visible = last
 	_skip.visible = not last
+	_go.visible = s.has("button")
+	_go.text = str(s.get("button", ""))
 	game.events.debug("tutorial step %d: %s" % [i + 1, s["title"]])
 	_poll = 0.0
 	_point()
@@ -356,9 +370,9 @@ func _process(delta: float) -> void:
 		if _next_in < 0.0:
 			var next: Dictionary = steps[step + 1]
 			if next.has("ready") and not (next["ready"] as Callable).call():
-				_next_in = 0.0  # (keeps waiting: step 6 comes with the first corpse)
+				_next_in = 0.0  # (keeps waiting: step 7 comes with the first corpse)
 				_text.text = str(next.get("wait_text", _text.text))
-				if step + 1 == 5:
+				if next.get("id") == "gatherers":
 					_corpse_fallback()
 			else:
 				_begin(step + 1)
@@ -367,7 +381,7 @@ func _process(delta: float) -> void:
 	if _poll > 0.0:
 		return
 	_poll = POLL
-	if step == 5:
+	if steps[step].get("id") == "gatherers":
 		_corpse_fallback()
 	if (steps[step]["done"] as Callable).call():
 		_step_done()
@@ -382,17 +396,18 @@ func _step_done() -> void:
 	highlight.clear()
 	Sfx.play("chime", 0.0)
 	game.events.debug("tutorial step %d done" % (step + 1))
-	if step == 8:
+	if steps[step].get("id") == "barracks":
 		game.waves.start_now()  # wave 2, for the barracks
 	_next_in = float(Config.TUTORIAL["step_pause"])
 
 
-## Updates the highlight; opens the dock on the step's tab when that changes.
+## Updates the highlight; opens the dock on the step's tab when that changes
+## (folded, the tab is picked and the highlight points at the dock's button).
 func _point() -> void:
 	var p: Dictionary = (steps[step]["point"] as Callable).call()
 	var tab := str(p.get("tab", ""))
 	if tab != "" and tab != _tab:
-		game.hud.show_tab(tab)
+		game.hud.show_tab(tab, game.hud.dock_open())
 	_tab = tab
 	var target: Control = null
 	for n in p.get("hud", []):
@@ -407,7 +422,7 @@ func _point() -> void:
 	highlight.point_at(target, game.hud.dock_clip(target), tiles)
 
 
-## Step 6 needs corpses: if wave 1 is over and left none (the goblins got
+## The gatherers' step needs corpses: if wave 1 is over and left none (the goblins got
 ## through), two goblin corpses lie by the tower.
 func _corpse_fallback() -> void:
 	var w := game.waves
@@ -444,6 +459,10 @@ func _build_card() -> void:
 	_text = hud._label("", 17)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_text)
+	_go = hud._button("", Vector2(0, 50))
+	UiTheme.style_good(_go)
+	_go.pressed.connect(_on_go)
+	v.add_child(_go)
 	_end_row = HBoxContainer.new()
 	_end_row.add_theme_constant_override("separation", 8)
 	v.add_child(_end_row)
@@ -525,6 +544,12 @@ func _build_skip_dialog() -> void:
 	hud.add_layer(skip_dialog, true)
 
 
+## A step's button (the welcome's "Let's go"): straight on to the next step.
+func _on_go() -> void:
+	if active and step + 1 < steps.size() and steps[step].has("button"):
+		_begin(step + 1)
+
+
 func open_skip_dialog() -> void:
 	skip_dialog.visible = true
 
@@ -532,7 +557,7 @@ func open_skip_dialog() -> void:
 # --- the end --------------------------------------------------------------------------
 
 ## Over, finished or skipped: a normal game goes on from the next wave
-## (`play_on`), or back to the title. Remembered as done either way.
+## (`play_on`), or back to the title.
 func finish(play_on: bool) -> void:
 	if not active:
 		return
@@ -542,7 +567,6 @@ func finish(play_on: bool) -> void:
 	game.waves.call_locked = false
 	game.waves.scripted.clear()
 	game.corpses.rot = true
-	Settings.mark_tutorial_done()
 	for c in [card, highlight, skip_dialog]:
 		if is_instance_valid(c):
 			c.queue_free()

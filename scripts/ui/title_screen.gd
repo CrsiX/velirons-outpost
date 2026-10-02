@@ -97,16 +97,12 @@ func _ready() -> void:
 	levels_button = _menu_button(_sp_page, "Levels", func() -> void: levels_panel.visible = true)
 	help_button = _menu_button(_sp_page, "Help", func() -> void: help_panel.visible = true)
 	back_button = _menu_button(_sp_page, "Back", func() -> void: show_page(_main_page))
-	if OS.has_feature("web"):
-		levels_button.visible = false
-		back_button.visible = false
+	levels_button.visible = false
 	mp_menu = MultiplayerMenu.new()
 	_menu.add_child(mp_menu)
 	mp_menu.back_pressed.connect(func() -> void: show_page(_main_page))
 	
-	if OS.has_feature("web"):
-		show_page(_sp_page)
-	elif Net.is_online() and not Net.in_game:
+	if Net.is_online() and not Net.in_game:
 		show_page(mp_menu)
 	else:
 		show_page(_main_page)
@@ -295,7 +291,6 @@ func _cycle_difficulty() -> void:
 func _update_sp_buttons() -> void:
 	difficulty_button.text = "Difficulty: %s" % Settings.difficulty_name()
 	map_button.text = "Map: %s" % Settings.map_type_name()
-	tutorial_button.icon = Art.tex("icon_check") if Settings.tutorial_done else null  # (finished or skipped once)
 
 
 func _play() -> void:

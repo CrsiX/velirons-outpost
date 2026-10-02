@@ -2361,15 +2361,30 @@ func control_named(n: String) -> Control:
 	return null
 
 
-## Opens the dock on `tab` (portrait: the bottom sheet; landscape: the sidebar).
-func show_tab(tab: String) -> void:
+## Opens the dock on `tab` (portrait: the bottom sheet; landscape: the
+## sidebar); `open` false: only picks the tab, the dock stays as it is.
+func show_tab(tab: String, open := true) -> void:
 	_select_tab(tab)
+	if not open:
+		return
 	if _portrait:
 		set_sheet_open(true)
 		_relayout()
 	elif not _side_open:
 		_side_open = true
 		_relayout()
+
+
+## The sidebar (landscape) / bottom sheet (portrait) is shown.
+func dock_open() -> bool:
+	return _sheet_open if _portrait else _side_open
+
+
+## Shows or folds both the sidebar and the sheet (whichever the screen uses).
+func set_dock_open(open: bool) -> void:
+	_side_open = open
+	set_sheet_open(open)
+	_relayout()
 
 
 ## Scrolls the dock so that `c` (an entry in it) is in view.

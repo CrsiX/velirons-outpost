@@ -47,6 +47,9 @@ var _returning := false
 var support_target: Village = null
 ## Seconds he has been idling in the village centre (see _regen).
 var _idle_time := 0.0
+## Resting: the next snore's Z in ... s.
+var _snore_in := 0.0
+var _snores := 0
 ## Real seconds left of his pause after a unit levelled up (Train).
 var train_pause := 0.0
 ## The monster camp he was ordered to clear (docs/world-design.md §9.3).
@@ -414,6 +417,41 @@ func level_up() -> bool:
 	queue_redraw()
 	changed.emit()
 	return true
+
+
+func _process(delta: float) -> void:
+	super(delta)
+	_snore(delta)
+
+
+## Resting in the village: Z's keep rising from his head and fade away, small
+## to big ("Zzz" in motion). Co-op clients too: they know his mode.
+func _snore(delta: float) -> void:
+	if dead or mode != Mode.REST or grid_pos.distance_to(Vector2(base().center)) > 0.3:
+		_snore_in = 0.0
+		return
+	_snore_in -= delta
+	if _snore_in > 0.0:
+		return
+	_snore_in = 0.8
+	var big := _snores % 3  # (z, z, Z)
+	_snores += 1
+	var z := Label.new()
+	z.name = "Snore"
+	z.text = "Z" if big == 2 else "z"
+	z.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	z.add_theme_font_size_override("font_size", 16 + 5 * big)
+	z.add_theme_color_override("font_color", Color("e8ecff"))
+	z.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.16, 0.8))
+	z.add_theme_constant_override("outline_size", 5)
+	z.position = Vector2(6.0, -64.0)
+	z.modulate.a = 0.0
+	add_child(z)
+	var tw := z.create_tween().set_parallel()
+	tw.tween_property(z, "position", Vector2(22.0, -104.0), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(z, "modulate:a", 1.0, 0.3)
+	tw.tween_property(z, "modulate:a", 0.0, 1.0).set_delay(1.0)
+	tw.chain().tween_callback(z.queue_free)
 
 
 ## Three glowing chevrons rise over his head (co-op clients play it too,

@@ -53,6 +53,7 @@ const TUTORIAL := {
 	"civilians": ["builder", "forester"], "buildings": ["camp"],
 	"resources": {"gold": 200, "food": 150, "materials": 150},
 	"tower_tile": Vector2i(-1, -1), "farm_tile": Vector2i(-1, -1), "barracks_tile": Vector2i(-1, -1),
+	"camp_tile": Vector2i(32, 38),  # (west of the village, by the forest, in plain view; -1: picked)
 	"spawn_distance": 18,
 	"waves": [{"goblin": 2}, {"goblin": 5, "ork": 1}],
 	"step_pause": 1.0,  # seconds between a finished step and the next card
