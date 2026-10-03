@@ -199,7 +199,7 @@ func take_damage(amount: float, source = null, _category: String = "pure") -> vo
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
 	if hp <= 0.0:
 		hp = 0.0
-		village.population.kill(self, "from the attack of %s" % game.who(source))
+		village.population.kill(self, "from the attack of %s" % game.who(source), "enemies")
 	elif not evading and wants_to_evade():
 		_evade()
 

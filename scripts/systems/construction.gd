@@ -83,7 +83,7 @@ func _reachable_side(footprint: Array[Vector2i]) -> bool:
 ## A claimed ruined watchtower becomes a watchtower site at `cost` (half
 ## price); a builder builds it like any site.
 func restore_ruin(ruin: RuinedTower, cost: Dictionary) -> Building:
-	if not village.economy.spend(cost):
+	if not village.economy.spend(cost, "buildings"):
 		return null
 	var tile := ruin.tile
 	game.world.remove_map_object(ruin)
@@ -107,7 +107,7 @@ func _new_building(kind: String, tile: Vector2i, complete: bool) -> Building:
 func place(kind: String, tile: Vector2i) -> Building:
 	if placement_error(kind, tile) != "":
 		return null
-	village.economy.spend(Config.BUILDINGS[kind]["cost"])
+	village.economy.spend(Config.BUILDINGS[kind]["cost"], "buildings")
 	var b := _new_building(kind, tile, false)
 	queue.append(b)
 	village.events.debug("place %s at %s for %s" % [b.label(), str(tile), Config.cost_text(Config.BUILDINGS[kind]["cost"])])
@@ -117,7 +117,7 @@ func place(kind: String, tile: Vector2i) -> Building:
 
 
 func order_rebuild(hut: Hut) -> bool:
-	if not hut.ruined or not hut.complete or not village.economy.spend(Config.BUILDINGS["hut"]["cost"]):
+	if not hut.ruined or not hut.complete or not village.economy.spend(Config.BUILDINGS["hut"]["cost"], "buildings"):
 		return false
 	hut.start_rebuild()
 	queue.append(hut)
@@ -171,7 +171,7 @@ func release(site: Building, unreachable: bool) -> void:
 
 ## A tower or barracks: its next level, for building material and a builder's time.
 func order_upgrade(tower: Building) -> bool:
-	if not tower.can_upgrade() or not village.economy.spend(tower.upgrade_cost()):
+	if not tower.can_upgrade() or not village.economy.spend(tower.upgrade_cost(), "upgrades"):
 		return false
 	village.events.debug("order upgrade of %s to level %d for %s" % [tower.label(), tower.level + 1, Config.cost_text(tower.upgrade_cost())])
 	tower.start_upgrade()
@@ -218,7 +218,8 @@ func stop_tear_down(b: Building) -> void:
 
 func _torn_down(b: Building) -> void:
 	var back := b.teardown_refund()
-	village.economy.add("materials", back)
+	village.economy.add("materials", back, "teardown")
+	game.stats.count(village, "torn_down")
 	village.events.info("%s torn down: +%d materials" % [b.label().capitalize(), back])
 	if village.is_local() and game.selected == b:
 		game.deselect()
@@ -240,6 +241,7 @@ func complete(site: Building) -> void:
 		changed.emit()
 		return
 	site.finish()
+	game.stats.count(village, "huts_rebuilt" if site is Hut else "built")
 	game.world.refresh_building(site)
 	village.events.info("%s %s" % [site.label(), "rebuilt" if site is Hut else "finished"])
 	if site is Workplace:
@@ -332,7 +334,7 @@ func cancel(site: Building) -> void:
 	village.events.debug("cancel %s of %s (refunded)" % ["upgrade" if site.complete and site.upgrading else "construction", site.label()])
 	if site.complete and site.upgrading:
 		queue.erase(site)
-		village.economy.refund(site.pending_upgrade_cost())
+		village.economy.refund(site.pending_upgrade_cost(), "upgrades")
 		site.builder = null
 		site.cancel_upgrade()
 		changed.emit()
@@ -341,7 +343,7 @@ func cancel(site: Building) -> void:
 		return
 	queue.erase(site)
 	var cost: Dictionary = Config.BUILDINGS[site.kind]["cost"]
-	village.economy.refund(cost)
+	village.economy.refund(cost, "buildings")
 	if site is Hut:
 		(site as Hut).cancel_rebuild()
 	else:

@@ -392,7 +392,10 @@ func _send_caravan(v: Village, a: Dictionary) -> Dictionary:
 		return fail("You don't have that much")
 	if game.world.pathing.find_path(v.center, t.center).is_empty():
 		return fail("No road to that village")
-	v.economy.spend(cargo)
+	v.economy.spend(cargo, "caravans")
+	game.stats.count(v, "caravans_sent")
+	for res in cargo:
+		game.stats.count(v, "caravan_sent." + res, cargo[res])
 	var c: Caravan = CARAVAN_SCRIPT.new()
 	c.setup(game, v, t, cargo, Config.help_tax(game.villages.size()))
 	c.nid = game.register(c)

@@ -39,12 +39,13 @@ func destroy(cause: String = "") -> void:
 	var by := " by %s" % cause if cause != "" else ""
 	village.events.important("%s destroyed%s%s" % [label(), by, "" if is_instance_valid(resident) else " (nobody was home)"])
 	if is_instance_valid(resident):
-		village.population.kill(resident, "when %s burned their home" % (cause if cause != "" else "enemies"))
+		village.population.kill(resident, "when %s burned their home" % (cause if cause != "" else "enemies"), "hut")
 	resident = null
 	ruined = true
 	complete = true
 	progress = 0.0
 	refresh()
+	game.stats.on_hut_burned(village)
 	var tw := create_tween()
 	modulate = Color(1.0, 0.4, 0.3)
 	tw.tween_property(self, "modulate", Color.WHITE, 0.8)

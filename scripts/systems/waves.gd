@@ -86,7 +86,7 @@ func call_next(caller: Village = null) -> void:
 	var who := caller.village_name if caller and game.villages.size() > 1 else ""
 	for v in game.villages:
 		if bonus > 0:
-			v.economy.add("gold", bonus)
+			v.economy.add("gold", bonus, "call")
 			v.toast("Called early: +%d gold" % bonus, Color("c9a24a"))
 		if who != "":
 			v.events.info("%s called wave %d early: +%d gold" % [who, wave + 1, bonus])
@@ -362,6 +362,7 @@ func raise_corpse(c: Corpse, by: Enemy) -> Enemy:
 
 
 func _on_enemy_killed(g: Enemy) -> void:
+	game.stats.on_kill(g)
 	# The kill pays whoever made it (tower, elemental, hero); else the village it attacked.
 	var gold := Config.enemy_stat_int(g.kind, "gold_on_kill")
 	if g.raised:  # (its gold was paid once already; drained away: nothing)
@@ -372,7 +373,7 @@ func _on_enemy_killed(g: Enemy) -> void:
 	if g.decayed:
 		v.events.debug("%s crumbles to dust" % g.label())
 	else:
-		v.economy.add("gold", gold)
+		v.economy.add("gold", gold, "kills")
 		v.events.debug("killed %s (by %s, +%d gold)" % [g.label(), game.who(g.killer), gold])
 		if gold > 0:
 			game.world.float_text("+%d {gold}" % gold, g.position + Vector2(0, -50), Color("c9a24a"))

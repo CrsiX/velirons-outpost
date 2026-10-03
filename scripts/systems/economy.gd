@@ -3,6 +3,10 @@ extends Node
 ## The three resources. Costs are dictionaries: {"gold": 40, "food": 10, ...}.
 
 signal changed
+## Income with a source ("kills", "farms", ...; see add), for the statistics.
+signal earned(res: String, amount: float, source: String)
+## Spending with a purpose ("buildings", "units", ...; negative: a refund).
+signal spent(res: String, amount: float, what: String)
 
 const RESOURCES: Array[String] = ["gold", "food", "materials"]
 
@@ -26,18 +30,25 @@ func can_afford(cost: Dictionary) -> bool:
 	return true
 
 
-func spend(cost: Dictionary) -> bool:
+## `what` it is spent on ("buildings", "upgrades", "units", "villagers",
+## "trade", "caravans") is counted by the statistics.
+func spend(cost: Dictionary, what: String = "") -> bool:
 	if not can_afford(cost):
 		return false
 	for res in cost:
 		_amounts[res] -= cost[res]
+		if what != "":
+			spent.emit(res, float(cost[res]), what)
 	changed.emit()
 	return true
 
 
-func refund(cost: Dictionary) -> void:
+## Gives back what `spend(cost, what)` took (the statistics count it off again).
+func refund(cost: Dictionary, what: String = "") -> void:
 	for res in cost:
 		_amounts[res] += cost[res]
+		if what != "":
+			spent.emit(res, -float(cost[res]), what)
 	changed.emit()
 
 
@@ -48,8 +59,13 @@ func set_amounts(d: Dictionary) -> void:
 	changed.emit()
 
 
-func add(res: String, value: float) -> void:
+## `source` of income ("kills", "corpses", "mines", "treasure", "call",
+## "caravans", "farms", "foresters", "trade", "teardown") is counted by the
+## statistics; without one (losses, debug) it isn't.
+func add(res: String, value: float, source: String = "") -> void:
 	_amounts[res] += value
+	if source != "" and value > 0.0:
+		earned.emit(res, value, source)
 	changed.emit()
 
 
@@ -65,7 +81,7 @@ func consume_food(value: float) -> bool:
 ## Static exchange: gold -> building material, `bundles` at a time.
 func buy_materials(bundles: int) -> bool:
 	var cost := {"gold": Config.MATERIALS_TRADE["gold"] * bundles}
-	if not spend(cost):
+	if not spend(cost, "trade"):
 		return false
-	add("materials", Config.MATERIALS_TRADE["materials"] * bundles)
+	add("materials", Config.MATERIALS_TRADE["materials"] * bundles, "trade")
 	return true

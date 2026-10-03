@@ -60,7 +60,7 @@ func _tick(delta: float) -> void:
 			if _gold >= 1.0:
 				var n := int(_gold)
 				_gold -= n
-				village.economy.add("gold", n)
+				village.economy.add("gold", n, "mines")
 		State.RETURNING:
 			if step_path(delta):
 				arrive_home()

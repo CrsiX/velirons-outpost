@@ -485,3 +485,29 @@ func send_snapshot(id: int, data: Dictionary) -> void:
 func _snapshot(data: Dictionary) -> void:
 	if game and game.replicator:
 		game.replicator.apply(data)
+
+
+# --- statistics (docs/statistics-design.md) ----------------------------------------------------
+
+## Client: ask the host for the statistics (the screen is open).
+func request_stats() -> void:
+	_stats_request.rpc_id(1)
+
+
+@rpc("any_peer", "reliable")
+func _stats_request() -> void:
+	if not is_host() or game == null or game.stats == null:
+		return
+	_stats_data.rpc_id(multiplayer.get_remote_sender_id(), game.stats.to_net())
+
+
+## Host -> every client: the final numbers at game over.
+func broadcast_stats(data: Dictionary) -> void:
+	for id in client_peers():
+		_stats_data.rpc_id(id, data)
+
+
+@rpc("authority", "reliable")
+func _stats_data(data: Dictionary) -> void:
+	if game and game.stats:
+		game.stats.from_net(data)

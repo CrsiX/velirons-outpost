@@ -55,7 +55,8 @@ func _arrive() -> void:
 	set_process(false)
 	var got := delivered()
 	for res in got:
-		to.economy.add(res, got[res])
+		to.economy.add(res, got[res], "caravans")
+		game.stats.count(to, "caravan_got." + res, got[res])
 	var text := ", ".join(got.keys().filter(func(r: String) -> bool: return got[r] > 0).map(func(r: String) -> String: return "+%d %s" % [got[r], "material" if r == "materials" else r]))
 	to.events.info("Caravan from %s arrived: %s" % [from.village_name, text])
 	from.events.info("Your caravan reached %s: %s" % [to.village_name, text])

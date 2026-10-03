@@ -94,7 +94,7 @@ func _in_game() -> void:
 	await frames(3)
 	var hud := game.hud
 	var lib := hud.library
-	check(hud._book_button.get_index() == hud._settings_button.get_index() - 1, "the book icon sits left of the settings icon")
+	check(hud._book_button.get_index() < hud._settings_button.get_index(), "the book icon sits left of the settings icon")
 	hud.set_speed_index(Game.SPEEDS.find(2.0))
 	await frames(1)
 	hud._book_button.pressed.emit()

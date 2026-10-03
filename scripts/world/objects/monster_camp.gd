@@ -58,10 +58,11 @@ func _spawn_guards(kinds: Array, hp_scale: float) -> void:
 func _on_killed(e: Enemy) -> void:
 	monsters.erase(e)
 	left = monsters.size()
+	game.stats.on_kill(e)
 	var v := game.village_of(e.killer)
 	var gold := Config.enemy_stat_int(e.kind, "gold_on_kill")
 	if v:
-		v.economy.add("gold", gold)
+		v.economy.add("gold", gold, "kills")
 		v.events.debug("killed %s at a camp (by %s, +%d gold)" % [e.label(), game.who(e.killer), gold])
 	game.world.float_text("+%d {gold}" % gold, e.position + Vector2(0, -50), Color("c9a24a"))
 	if monsters.is_empty() and not cleared:

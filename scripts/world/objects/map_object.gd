@@ -79,6 +79,8 @@ func on_found(vid: int, quiet: bool) -> void:
 	if found_by.has(vid):
 		return
 	found_by[vid] = true
+	if not quiet and not game.is_client and not data.get("sack", false):
+		game.stats.count(game.villages[vid], "found." + str(data["kind"]))
 	if not quiet and not game.is_client:
 		var line := found_message(game.villages[vid])
 		if line != "":

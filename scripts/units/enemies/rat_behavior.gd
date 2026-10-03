@@ -89,7 +89,9 @@ func _on_farm(enemy: Enemy, delta: float) -> bool:
 		_leave_farm()
 		enemy.vanish()
 		return true
-	farm.stored = maxf(0.0, farm.stored - float(enemy.spec()["farm_eat"]) * delta)
+	var eaten := minf(farm.stored, float(enemy.spec()["farm_eat"]) * delta)
+	farm.stored -= eaten
+	enemy.game.stats.count(farm.village, "rat_food_farm", eaten)
 	_give_up -= delta
 	if _give_up <= 0.0:
 		_give_up = float(enemy.spec()["give_up_check"])

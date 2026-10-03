@@ -79,10 +79,11 @@ func recruit_error(role: String) -> String:
 func recruit(role: String) -> Civilian:
 	if recruit_error(role) != "":
 		return null
-	village.economy.spend(Config.CIVILIANS[role]["cost"])
+	village.economy.spend(Config.CIVILIANS[role]["cost"], "villagers")
 	Sfx.play("recruit")
 	var civ := spawn(role)
 	if civ:
+		game.stats.count(village, "recruit." + role)
 		village.events.debug("recruit %s for %s" % [civ.label(), Config.cost_text(Config.CIVILIANS[role]["cost"])])
 	if civ and civ.workplace():
 		village.toast("The new %s goes to work at the %s" % [civ.display_name().to_lower(), civ.workplace().display_name().to_lower()], UiTheme.GOLD)
@@ -117,9 +118,11 @@ func spawn(role: String) -> Civilian:
 
 
 ## `reason` completes "farmer 2 died ...", e.g. "by goblin 4 burning their hut".
-func kill(civ: Civilian, reason: String = "of unknown causes") -> void:
+## `cause` is for the statistics: "enemies", "starved", "hut" (burned) or "other".
+func kill(civ: Civilian, reason: String = "of unknown causes", cause: String = "other") -> void:
 	if not civilians.has(civ):
 		return
+	game.stats.count(village, "lost." + cause)
 	village.events.important("%s died %s" % [civ.label(), reason])
 	civilians.erase(civ)
 	if is_instance_valid(civ.hut) and civ.hut.resident == civ:
@@ -169,7 +172,7 @@ func _process(delta: float) -> void:
 		if _starve_timer >= Config.STARVATION_INTERVAL:
 			_starve_timer = 0.0
 			if not civilians.is_empty():
-				kill(civilians[randi() % civilians.size()], "of starvation")
+				kill(civilians[randi() % civilians.size()], "of starvation", "starved")
 			village.toast("A villager starved to death.", Color("ff7a6a"))
 	else:
 		_starve_timer = 0.0

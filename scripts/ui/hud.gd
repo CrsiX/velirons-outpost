@@ -31,6 +31,8 @@ var _root: Control
 var _topbar: PanelContainer
 var _gold_label: Label
 var _food_label: Label
+## "(+12/min)" next to the food, smaller and grey.
+var _food_rate_label: Label
 var _materials_button: Button
 var _pop_button: Button
 ## The villager list (the people button in the top bar).
@@ -50,6 +52,14 @@ var _book_button: Button
 var library: Library
 var _lib_paused := false
 var _lib_speed_before := 0
+## The statistics (bar-chart icon, T); paused like the library.
+var stats_screen: StatsScreen
+var _stats_button: Button
+var _stats_overlay_button: Button
+var _stats_paused := false
+## Greys the game behind the statistics while they pause it (as the settings do).
+var _stats_gray: ColorRect
+var _stats_speed_before := 0
 var _village_button: Button
 var _upgrade_panel: PanelContainer
 var _upgrade_title: Label
@@ -253,6 +263,16 @@ func setup(p_game: Game) -> void:
 	library = Library.new()
 	library.closed.connect(_on_library_closed)
 	_root.add_child(library)
+	stats_screen = StatsScreen.new()
+	stats_screen.setup(game)
+	stats_screen.closed.connect(_on_stats_closed)
+	_root.add_child(stats_screen)
+	_stats_gray = _grayscale_rect()
+	_stats_gray.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stats_screen.add_child(_stats_gray)
+	stats_screen.move_child(_stats_gray, 0)
+	_stats_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_refresh_stats_button()
 
 	for sig in [game.waves.changed, game.corpses.changed]:
 		sig.connect(_queue_refresh)
@@ -450,11 +470,14 @@ func _build_topbar() -> void:
 
 	var gold := _chip("icon_gold", "Gold coins: buy and upgrade military units")
 	_gold_label = gold[1]
-	_gold_label.custom_minimum_size.x = 56
+	_gold_label.custom_minimum_size.x = 44
 	row.add_child(gold[0])
 	var food := _chip("icon_food", "Food: recruits and feeds civilians. Farms produce it.")
 	_food_label = food[1]
-	_food_label.custom_minimum_size.x = 110
+	_food_label.custom_minimum_size.x = 44
+	_food_rate_label = _label("", 15, UiTheme.MUTED)
+	_food_rate_label.custom_minimum_size.x = 66
+	food[0].add_child(_food_rate_label)
 	row.add_child(food[0])
 
 	_materials_button = _button("0", Vector2(0, 44))
@@ -538,6 +561,9 @@ func _build_topbar() -> void:
 	_book_button = _icon_button("icon_book", "Library: enemies, units, buildings, villagers, hero, places")
 	_book_button.pressed.connect(open_library)
 	row.add_child(_book_button)
+	_stats_button = _icon_button("icon_stats", "Statistics (T)")
+	_stats_button.pressed.connect(open_stats)
+	row.add_child(_stats_button)
 	_settings_button = _icon_button("icon_settings", "Settings (pauses the game)")
 	_settings_button.pressed.connect(open_settings)
 	row.add_child(_settings_button)
@@ -599,7 +625,7 @@ func _on_speed_changed(i: int) -> void:
 ## Space: pause, remembering the speed; Space again: back to that speed (or
 ## to 1x if it was paused with the speed button).
 func toggle_pause() -> void:
-	if _settings.visible or library.visible:
+	if _settings.visible or library.visible or stats_screen.visible:
 		return
 	var pause := Game.SPEEDS.find(0.0)
 	if _speed_index != pause:
@@ -634,6 +660,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				game.switch_village()
 		KEY_SPACE:
 			toggle_pause()
+		KEY_T:
+			if not _settings.visible and not library.visible:
+				open_stats()
 
 
 # --- the village shown ----------------------------------------------------------------
@@ -1590,7 +1619,7 @@ func _on_build_pressed(kind: String) -> void:
 
 
 func is_over_ui(screen_pos: Vector2) -> bool:
-	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _cancel_button, _place_bar, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, _upgrade_panel, _confirm_panel, library]:
+	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _cancel_button, _place_bar, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, _upgrade_panel, _confirm_panel, library, stats_screen]:
 		if c.is_visible_in_tree() and c.get_global_rect().has_point(screen_pos):
 			return true
 	return false
@@ -2523,6 +2552,44 @@ func _on_library_closed() -> void:
 		set_speed_index(_lib_speed_before)
 
 
+## The statistics can be opened (from Config.STATS["from_wave"], and after the game).
+func stats_available() -> bool:
+	return game.waves.wave >= int(Config.STATS["from_wave"]) or game.game_over or _overlay.visible
+
+
+func _refresh_stats_button() -> void:
+	if _stats_button == null:
+		return
+	var on := stats_available()
+	_stats_button.modulate.a = 1.0 if on else 0.45
+	_stats_button.tooltip_text = "Statistics (T)" if on else "Available in wave %d" % int(Config.STATS["from_wave"])
+
+
+## The statistics screen. Single player (hot-seat too) pauses while it's open,
+## like the library; in co-op nobody pauses. Before wave 3 it only says when.
+func open_stats(tab := "") -> void:
+	if stats_screen.visible:
+		return
+	if not stats_available():
+		toast("Statistics are available from wave %d" % int(Config.STATS["from_wave"]), UiTheme.MUTED)
+		return
+	_stats_paused = not game.networked and not get_tree().paused and not _overlay.visible
+	if _stats_paused:
+		_stats_speed_before = _speed_index
+		get_tree().paused = true
+	_stats_gray.visible = _stats_paused
+	_trade_panel.visible = false
+	stats_screen.open(tab)
+	game.events.debug("open statistics" + (" (game paused)" if _stats_paused else ""))
+
+
+func _on_stats_closed() -> void:
+	game.events.debug("close statistics")
+	if _stats_paused:
+		_stats_paused = false
+		set_speed_index(_stats_speed_before)
+
+
 func _refresh_settings() -> void:
 	_settings_log_button.text = "Log level: %s" % game.events.level_name()
 	_settings_map_label.text = "Map: %s  ·  seed %d" % [Settings.map_type_name(game.map.map_type), game.map.seed_value]
@@ -2596,6 +2663,13 @@ func _build_overlay() -> void:
 	_overlay_menu_button = _button("Main menu", Vector2(0, 56))
 	_overlay_menu_button.pressed.connect(func() -> void: game.go_to_title())
 	v.add_child(_overlay_menu_button)
+	_stats_overlay_button = _button("Statistics", Vector2(0, 56))
+	_stats_overlay_button.icon = Art.tex("icon_stats")
+	_stats_overlay_button.expand_icon = false
+	_stats_overlay_button.add_theme_constant_override("icon_max_width", 32)
+	_stats_overlay_button.pressed.connect(func() -> void: open_stats())
+	_stats_overlay_button.visible = false
+	v.add_child(_stats_overlay_button)
 	_overlay.visible = false
 
 
@@ -2655,7 +2729,9 @@ func show_game_over(title: String, subtitle: String) -> void:
 	var again_tutorial := game.tutorial != null and game.tutorial.active
 	_overlay_button.text = "Main menu" if game.networked else ("Try the tutorial again" if again_tutorial else "Try again")
 	_overlay_menu_button.visible = not game.networked  # (networked: the main button is the way out)
+	_stats_overlay_button.visible = game.backdrop == null
 	_overlay.visible = true
+	_refresh_stats_button()
 	_info_panel.visible = false
 	_connect_overlay(func() -> void: game.go_to_title() if game.networked else game.restart(again_tutorial))
 
@@ -2836,13 +2912,15 @@ func _refresh_resources() -> void:
 	var p := game.population
 	_gold_label.text = str(int(e.amount("gold")))
 	var rate := p.food_per_second() * 60.0
-	_food_label.text = "%d  (%+d/min)" % [int(e.amount("food")), roundi(rate)]
+	_food_label.text = str(int(e.amount("food")))
+	_food_rate_label.text = "(%+d/min)" % roundi(rate)
 	_food_label.add_theme_color_override("font_color", UiTheme.BAD if p.starving else UiTheme.TEXT)
 	_materials_button.text = str(int(e.amount("materials")))
 	_pop_button.text = "%d / %d" % [p.count(), p.cap()]
 
 
 func _refresh_wave() -> void:
+	_refresh_stats_button()
 	var w := game.waves
 	_enemies_label.text = str(w.enemies_left())
 	if w.in_progress():

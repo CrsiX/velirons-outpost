@@ -48,7 +48,7 @@ func _in_state(s: int) -> Array[MilitaryUnit]:
 
 
 func recruit(kind: String) -> MilitaryUnit:
-	if not game.is_unlocked(kind) or not Config.MILITARY[kind].get("recruit", false) or not village.economy.spend(Config.MILITARY[kind]["cost"]):
+	if not game.is_unlocked(kind) or not Config.MILITARY[kind].get("recruit", false) or not village.economy.spend(Config.MILITARY[kind]["cost"], "units"):
 		return null
 	var u := MilitaryUnit.new(kind)
 	u.village = village
@@ -56,6 +56,7 @@ func recruit(kind: String) -> MilitaryUnit:
 	u.nid = game.register(u)
 	u.uid = game.next_id(kind)
 	units.append(u)
+	game.stats.count(village, "units_recruited")
 	village.events.debug("recruit %s for %s" % [u.label(), Config.cost_text(Config.MILITARY[kind]["cost"])])
 	Sfx.play("recruit")
 	changed.emit()
@@ -194,6 +195,7 @@ func send(unit: MilitaryUnit, target: Village) -> bool:
 	s.walk_to(target.center)
 	unit.state = MilitaryUnit.State.TRAVELLING
 	unit.travel_to = target
+	game.stats.count(village, "units_sent")
 	village.events.debug("send %s to %s" % [unit.label(), target.village_name])
 	Sfx.play("place")
 	changed.emit()
@@ -211,6 +213,8 @@ func adopt(unit: MilitaryUnit) -> void:
 	unit.state = MilitaryUnit.State.RESERVE
 	unit.post = null
 	units.append(unit)
+	if from and from != village:
+		game.stats.count(village, "units_got")
 	village.events.info("%s arrived from %s" % [unit.display_name(), from.village_name if from else "afar"])
 	if from:
 		from.events.debug("%s reached %s" % [unit.label(), village.village_name])
@@ -296,6 +300,7 @@ func down(unit: MilitaryUnit, source = null) -> void:
 		return
 	var at_bench := unit.state == MilitaryUnit.State.STATIONED and unit.post is Barracks
 	village.events.info("%s was downed by %s" % [unit.label().capitalize(), game.who(source)])
+	game.stats.count(village, "units_downed")
 	if is_instance_valid(unit.walker):
 		unit.behavior.on_leave(unit.walker, unit)
 		(unit.walker as Soldier).vanish()
@@ -344,6 +349,7 @@ func train(unit: MilitaryUnit, amount: int) -> int:
 	unit.train_xp += used
 	if unit.train_xp >= unit.train_xp_needed() - 0.001:
 		_set_level(unit, unit.kind, unit.level + 1)
+		game.stats.count(village, "units_trained")
 		village.events.info("%s fully trained to level %d%s" % [unit.label(), unit.level + 1, " at %s" % unit.post.label() if unit.post else ""])
 		if unit.post:
 			game.world.float_text("%s level %d!" % [unit.display_name(), unit.level + 1], unit.post.position + Vector2(0, -90), UiTheme.GOLD)
@@ -375,10 +381,11 @@ func upgrade(unit: MilitaryUnit, to: String = "") -> bool:
 		return false
 	var kind := unit.kind if to == "" else to
 	var opt: Dictionary = unit.upgrade_options().filter(func(o: Dictionary) -> bool: return o["to"] == kind)[0]
-	village.economy.spend(opt["cost"])
+	village.economy.spend(opt["cost"], "upgrades")
 	var was := unit.display_name()
 	var was_kind := unit.kind
 	_set_level(unit, kind, opt["level"])
+	game.stats.count(village, "units_upgraded" if kind == was_kind else "units_specialised")
 	if kind == was_kind:
 		village.events.debug("level-up %s to level %d for %s" % [unit.label(), unit.level + 1, Config.cost_text(opt["cost"])])
 	else:
@@ -422,7 +429,7 @@ func archmage_error(unit: MilitaryUnit) -> String:
 func promote_archmage(unit: MilitaryUnit) -> Civilian:
 	if archmage_error(unit) != "":
 		return null
-	village.economy.spend(Config.ARCHMAGE_COST)
+	village.economy.spend(Config.ARCHMAGE_COST, "upgrades")
 	match unit.state:
 		MilitaryUnit.State.STATIONED:
 			_leave_post(unit)

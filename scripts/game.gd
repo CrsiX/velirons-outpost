@@ -103,6 +103,8 @@ var _ids: Dictionary = {}
 @onready var waves: Waves = $Systems/Waves
 @onready var corpses: Corpses = $Systems/Corpses
 @onready var hud: Hud = $HUD
+## The in-game statistics (docs/statistics-design.md).
+var stats: Stats
 
 
 func _ready() -> void:
@@ -144,6 +146,10 @@ func _ready() -> void:
 		$Systems.add_child(v)
 		villages.append(v)
 	player_village = villages[int(Net.setup.get("local", 0)) if networked else 0]
+	stats = Stats.new()
+	stats.name = "Stats"
+	stats.setup(self)
+	$Systems.add_child(stats)
 	_slice_from = Time.get_ticks_usec()
 	if backdrop:
 		hud.visible = false
@@ -160,6 +166,7 @@ func _ready() -> void:
 		else:
 			village.setup()
 			village.population.civilian_lost.connect(func(_c: Civilian) -> void: _check_defeat())
+	stats.start()
 	await build_step()
 	await hud.setup(self)
 	if networked:
@@ -594,6 +601,7 @@ func thief_steals(g: Enemy) -> int:
 	var n := maxi(maxi(randi_range(w, 2 * w), roundi(gold * float(g.spec()["steal_share"]))), 0)
 	n = mini(n, gold)
 	v.economy.add("gold", -n)
+	stats.count(v, "stolen", n)
 	v.events.info("%s got into the village and stole %d gold" % [g.label().capitalize(), n])
 	v.toast("A thief stole %d gold!" % n, Color("ffb07a"))
 	return n
@@ -611,12 +619,14 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 	# Exactly one random hut of the village it attacked, on every difficulty.
 	# Only a villager who happens to live in that hut dies; nobody else is killed.
 	var v: Village = g.target_village if is_instance_valid(g.target_village) else player_village
+	stats.count(v, "gate")
 	if g.kind == "rat":
 		# Rats burn nothing: they eat food and are gone.
 		var spec: Dictionary = g.spec()
 		var eat := maxi(int(spec["gate_eat"]), roundi(v.economy.amount("food") * float(spec["gate_eat_share"])))
 		eat = mini(eat, int(v.economy.amount("food")))
 		v.economy.add("food", -eat)
+		stats.count(v, "rat_food_gate", eat)
 		v.events.info("%s got into the village and ate %d food" % [g.label().capitalize(), eat])
 		v.toast("A rat ate %d food!" % eat, Color("ffb07a"))
 		return
@@ -656,6 +666,7 @@ func _check_defeat() -> void:
 	Sfx.play("lose", 0.0)
 	var why := "No villagers are left." if no_people else "Every hut lies in ruins."
 	events.important("Veliron's Outpost has fallen: %s" % why.to_lower().trim_suffix("."))
+	stats.finish()
 	hud.show_game_over("Veliron's Outpost has fallen", "%s\nYou held out for %d wave%s." % [why, maxi(waves.wave - 1, 0), "" if waves.wave == 2 else "s"])
 
 

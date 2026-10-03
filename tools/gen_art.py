@@ -1872,6 +1872,13 @@ def icons():
   <path d="M32 18 C24 11 14 11 7 14 L7 49 C15 46 24 47 32 53 Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M32 18 C40 11 50 11 57 14 L57 49 C49 46 40 47 32 53 Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M12 22 C17 20 22 20 27 23 M12 30 C17 28 22 28 27 31 M12 38 C17 36 22 36 27 39 M37 23 C42 20 47 20 52 22 M37 31 C42 28 47 28 52 30 M37 39 C42 36 47 36 52 38" fill="none" stroke="#a8997c" stroke-width="2.2" stroke-linecap="round"/>''')
+    # Statistics: four bars of a bar chart on a base line.
+    icon_svg("icon_stats", f'''
+  <path d="M6 56 L58 56" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>
+  <rect x="8" y="36" width="10" height="18" rx="1.5" fill="#efe3c8" stroke="{INK}" stroke-width="3.5"/>
+  <rect x="21" y="22" width="10" height="32" rx="1.5" fill="{GOLD}" stroke="{INK}" stroke-width="3.5"/>
+  <rect x="34" y="30" width="10" height="24" rx="1.5" fill="#efe3c8" stroke="{INK}" stroke-width="3.5"/>
+  <rect x="47" y="10" width="10" height="44" rx="1.5" fill="{CRIMSON}" stroke="{INK}" stroke-width="3.5"/>''')
     icon_svg("icon_fast", f'''
   <path d="M6 14 L32 32 L6 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M32 14 L58 32 L32 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')

@@ -84,7 +84,7 @@ func _camp_ok() -> bool:
 
 func _arrive_camp() -> void:
 	if carrying > 0:
-		village.economy.add("materials", carrying)
+		village.economy.add("materials", carrying, "foresters")
 		village.events.debug("%s delivers %d building material at %s" % [label(), carrying, camp.label() if is_instance_valid(camp) else "camp"])
 		float_text("+%d {materials}" % carrying, Color("c9b98f"))
 		carrying = 0

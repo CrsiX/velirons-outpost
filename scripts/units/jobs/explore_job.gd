@@ -39,8 +39,10 @@ func tick(delta: float) -> void:
 			_reveal_timer -= delta
 			if _reveal_timer <= 0.0:
 				_reveal_timer = 0.15
-				if w.game.fog.reveal(w.grid_pos, reveal, w.village.id) > 0:
+				var fresh := w.game.fog.reveal(w.grid_pos, reveal, w.village.id)
+				if fresh > 0:
 					w.on_action("explore")
+					w.game.stats.credit(w.village, "explorers", w.label(), fresh)
 			var arrived := w.step_path(delta)
 			_think_timer -= delta
 			# Target already revealed (we see further than we walk): pick the next one.

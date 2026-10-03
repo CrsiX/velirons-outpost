@@ -190,6 +190,7 @@ func wants_to_evade() -> bool:
 
 func on_action(kind: String) -> void:
 	xp += int(Config.HERO_XP_PER_ACTION.get(kind, 0))
+	game.stats.count(village, "hero.xp", int(Config.HERO_XP_PER_ACTION.get(kind, 0)))
 	changed.emit()
 
 
@@ -607,6 +608,7 @@ func take_damage(amount: float, source = null, _category: String = "pure") -> vo
 func _downed(source = null) -> void:
 	village.events.important("The hero was struck down by %s (%d XP lost); back after the wave" % [game.who(source), xp])
 	float_text("Hero down!", Color("ff7a6a"))
+	game.stats.on_hero_down(village)
 	camp_target = null
 	_drop_work()
 	dead = true
@@ -629,6 +631,7 @@ func revive() -> void:
 	visible = true
 	add_to_group("melee_defenders")
 	village.events.info("The hero returns to the village")
+	game.stats.on_hero_back(village)
 	float_text("The hero returns!", UiTheme.GOLD)
 	changed.emit()
 

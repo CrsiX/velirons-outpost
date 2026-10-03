@@ -83,7 +83,7 @@ static func pay(v: Village, r: Dictionary) -> String:
 	for k in r:
 		match k:
 			"gold", "food", "materials":
-				v.economy.add(k, int(r[k]))
+				v.economy.add(k, int(r[k]), "treasure")
 				parts.append("+%d {%s}" % [int(r[k]), k])
 			"hero_xp":
 				if v.hero:

@@ -169,6 +169,25 @@ const TITLE_BACKDROP := {
 	],
 }
 
+## In-game statistics (docs/statistics-design.md): the Statistics screen
+## (top-bar button next to the library, key T, the game-over screen).
+##   "from_wave":       the screen opens from this wave on (always at game over);
+##   "sample_interval": game seconds between two samples for the Timeline graphs
+##                      (game time: faster at 2x / 4x, nothing while paused);
+##   "client_refresh":  co-op client: real seconds between two requests for
+##                      fresh numbers while the screen is open;
+##   "unit_sent_value": the "Best neighbour" award: a unit sent counts as much
+##                      as this many resources sent by caravan;
+##   "kill_kinds":      enemy kinds with their own "killed" row (the rest:
+##                      "Others"; raised dead have a row of their own).
+const STATS := {
+	"from_wave": 3,
+	"sample_interval": 15.0,
+	"client_refresh": 5.0,
+	"unit_sent_value": 50,
+	"kill_kinds": ["goblin", "skeleton", "ork", "witch", "rat", "thief", "gargoyle", "necromancer"],
+}
+
 ## Debug / sandbox switches.
 const DEBUG := true  # true: the settings dialog has a Debug page (resources, XP, reveal, unlocks, enemies)
 const REVEAL_MAP := false  # true: the whole map starts explored (terrain known)
