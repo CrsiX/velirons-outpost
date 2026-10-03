@@ -133,6 +133,11 @@ var _resume_index := -1
 var _builder_warning: Label
 var _no_builder_for := 0.0
 const NO_BUILDER_DELAY := 5.0
+## "Food shortage" banner (under the builder's): shown once the food has been
+## at 0 with a negative rate for FOOD_SHORTAGE_DELAY s, with a tip how to fix it.
+var _food_warning: Label
+var _food_short_for := 0.0
+const FOOD_SHORTAGE_DELAY := 5.0
 
 var _sidebar: PanelContainer  # the dock: right sidebar or bottom sheet
 var _sidebar_toggle: Button
@@ -227,6 +232,7 @@ func setup(p_game: Game) -> void:
 	_build_mode_panel()
 	_build_toasts()
 	_build_builder_warning()
+	_build_food_warning()
 	_build_trade_dialog()
 	_build_send_dialog()
 	_build_upgrade_dialogs()
@@ -1249,6 +1255,9 @@ func _relayout() -> void:
 	_builder_warning.offset_top = _top_h + 34.0
 	_builder_warning.offset_left = 20.0
 	_builder_warning.offset_right = -(SIDEBAR_W + 20.0) if not _portrait and _side_open else -20.0
+	_food_warning.offset_left = 20.0
+	_food_warning.offset_right = _builder_warning.offset_right
+	_place_food_warning()
 	_toasts.offset_right = -SIDEBAR_W if not _portrait and _side_open else 0.0
 	_mode_panel.offset_top = _top_h + 10.0
 	_mode_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if _portrait else TextServer.AUTOWRAP_OFF
@@ -1800,6 +1809,57 @@ func nobody_builds() -> bool:
 func _refresh_builder_warning(delta: float) -> void:
 	_no_builder_for = _no_builder_for + delta if nobody_builds() else 0.0
 	_builder_warning.visible = _no_builder_for >= NO_BUILDER_DELAY
+
+
+func _build_food_warning() -> void:
+	_food_warning = _label("", 18, UiTheme.BAD)
+	_food_warning.name = "FoodWarning"
+	_food_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_food_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_food_warning.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_food_warning)
+	_food_warning.anchor_left = 0.0
+	_food_warning.anchor_right = 1.0
+	_food_warning.visible = false
+
+
+## Right under the builder's warning when that shows, else in its place.
+func _place_food_warning() -> void:
+	_food_warning.offset_top = _builder_warning.offset_top
+	if _builder_warning.visible:
+		_food_warning.offset_top += _builder_warning.get_combined_minimum_size().y + 4.0
+
+
+## Out of food and still losing it?
+func food_short() -> bool:
+	var p := game.population
+	return int(game.economy.amount("food")) <= 0 and p.food_per_second() < 0.0
+
+
+## The food-shortage warning with its tip, by what is missing:
+## no farm -> build one; farms but no farmer -> recruit one; a free farm and a
+## farmer without a farm -> assign them; all worked -> just the warning.
+func food_warning_text() -> String:
+	var farms: Array[Farm] = []
+	for b in game.world.buildings:
+		if b is Farm and b.village == game.player_village and b.working():
+			farms.append(b)
+	var tip := ""
+	if farms.is_empty():
+		tip = "Build a farm (Build tab)."
+	elif game.population.count("farmer") == 0:
+		tip = "Recruit a farmer (Village tab)."
+	elif farms.any(func(f: Farm) -> bool: return f.farmer == null) and not game.population.free_farmers().is_empty():
+		tip = "Assign a farmer to a farm (tap the farm)."
+	return "Food shortage: villagers will starve." + (" " + tip if tip != "" else "")
+
+
+func _refresh_food_warning(delta: float) -> void:
+	_food_short_for = _food_short_for + delta if food_short() else 0.0
+	_food_warning.visible = _food_short_for >= FOOD_SHORTAGE_DELAY
+	if _food_warning.visible:
+		_food_warning.text = food_warning_text()
+		_place_food_warning()
 
 
 func toast(text: String, color: Color = UiTheme.TEXT) -> void:
@@ -2729,6 +2789,7 @@ func _process(delta: float) -> void:
 	_tick -= delta
 	if _tick <= 0.0:
 		_refresh_builder_warning(0.25 - _tick)
+		_refresh_food_warning(0.25 - _tick)
 		_tick = 0.25
 		_refresh_wave()
 		_refresh_resources()

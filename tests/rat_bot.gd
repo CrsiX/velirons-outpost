@@ -41,7 +41,7 @@ func _run() -> void:
 	await _test_rats_give_up()
 	_test_hero_bar()
 	await _test_people()
-	_test_hud_extras()
+	await _test_hud_extras()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -879,6 +879,45 @@ func _test_hud_extras() -> void:
 	game.construction.cancel(site)
 	hud._refresh_builder_warning(0.25)
 	check(not hud._builder_warning.visible, "nothing queued: no warning")
+	await _food_warning_check()
+
+
+## Food at 0 and falling for 5 s: a warning, with a tip by what is missing.
+func _food_warning_check() -> void:
+	var hud := game.hud
+	var pop := game.population
+	var farm := game.construction.place("farm", find_spot("farm", game.player_village.center + Vector2i(8, -8)))
+	game.construction.complete(farm)
+	await frames(2)
+	for f in game.world.buildings.filter(func(b: Building) -> bool: return b is Farm and b.village == game.player_village and b != farm):
+		game.construction.order_tear_down(f)  # only our farm works; its farmer is freed
+	if pop.count("farmer") == 0:
+		game.economy.add("food", 1000)
+		pop.recruit("farmer")
+	await frames(2)
+	if farm.farmer != null:
+		pop.unassign_farmer(farm)
+	game.economy.set_amounts({"food": 0})
+	hud._food_short_for = 0.0
+	hud._refresh_food_warning(3.0)
+	var early := hud._food_warning.visible
+	hud._refresh_food_warning(2.5)
+	check(not early and hud._food_warning.visible and "Food shortage" in hud._food_warning.text, "food at 0 and falling: after 5 s a food-shortage warning")
+	check("Assign a farmer" in hud._food_warning.text, "a free farm and a farmer without one: assign them (%s)" % hud._food_warning.text)
+	pop.assign_farmer(farm)
+	for c in pop.civilians.duplicate():
+		if c.role == "farmer" and c != farm.farmer:
+			pop.kill(c)
+	var tip := hud.food_warning_text()
+	check(tip.begins_with("Food shortage") and tip.ends_with("starve."), "every farm worked: just the warning, no tip (%s)" % tip)
+	pop.kill(farm.farmer)
+	check("Recruit a farmer" in hud.food_warning_text(), "a farm but no farmer: recruit one")
+	game.construction.order_tear_down(farm)
+	check("Build a farm" in hud.food_warning_text(), "no farm: build one")
+	game.economy.add("food", 10)
+	hud._refresh_food_warning(0.25)
+	check(not hud._food_warning.visible, "food in store: no warning")
+	game.economy.set_amounts({"food": 500})
 
 
 ## Retire, next to View: asks first, then the villager leaves and the hut is free.
