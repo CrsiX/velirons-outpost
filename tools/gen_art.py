@@ -1870,97 +1870,6 @@ def app_icon():
 ''')
 
 
-def title_background():
-    """1920x1080 title backdrop: moonlit dusk over mountains, the walled outpost
-    on a hill with lit windows, dark pine forest and a few goblin eyes."""
-    rng = random.Random(1337)
-    W, H = 1920, 1080
-    out = []
-    out.append('''<defs>
-  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#0a0f1a"/><stop offset="0.55" stop-color="#1c2433"/><stop offset="1" stop-color="#3a3140"/>
-  </linearGradient>
-  <radialGradient id="moonglow"><stop offset="0" stop-color="#efe3b8" stop-opacity="0.55"/><stop offset="1" stop-color="#efe3b8" stop-opacity="0"/></radialGradient>
-  <radialGradient id="windowglow"><stop offset="0" stop-color="#f0b04a" stop-opacity="0.5"/><stop offset="1" stop-color="#f0b04a" stop-opacity="0"/></radialGradient>
-  <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a90a0" stop-opacity="0"/><stop offset="0.5" stop-color="#8a90a0" stop-opacity="0.16"/><stop offset="1" stop-color="#8a90a0" stop-opacity="0"/></linearGradient>
-  <radialGradient id="vignette" cx="0.5" cy="0.45" r="0.75"><stop offset="0.55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.75"/></radialGradient>
-</defs>''')
-    out.append('<rect width="%d" height="%d" fill="url(#sky)"/>' % (W, H))
-    for _ in range(140):
-        x, y = rng.uniform(0, W), rng.uniform(0, 520)
-        out.append('<circle cx="%.0f" cy="%.0f" r="%.1f" fill="#e8e4d0" opacity="%.2f"/>' % (x, y, rng.uniform(0.6, 1.8), rng.uniform(0.2, 0.8)))
-    out.append('<circle cx="1480" cy="230" r="260" fill="url(#moonglow)"/>')
-    out.append('<circle cx="1480" cy="230" r="74" fill="#e8dcb0"/>')
-    out.append('<circle cx="1455" cy="215" r="14" fill="#d2c595"/><circle cx="1505" cy="255" r="10" fill="#d2c595"/>')
-
-    def ridge(base, amp, step, color, seed, snow=None):
-        r = random.Random(seed)
-        pts = [(0, H)]
-        x = 0
-        y = base
-        while x <= W + step:
-            y = base - r.uniform(0, amp)
-            pts.append((x, y))
-            x += r.uniform(step * 0.6, step * 1.4)
-        pts.append((W, H))
-        d = " ".join("%.0f,%.0f" % p for p in pts)
-        out.append('<polygon points="%s" fill="%s"/>' % (d, color))
-        if snow:
-            for (px, py) in pts[1:-1]:
-                if py < base - amp * 0.7:
-                    out.append('<polygon points="%.0f,%.0f %.0f,%.0f %.0f,%.0f" fill="%s" opacity="0.5"/>' % (px, py, px - 22, py + 26, px + 20, py + 24, snow))
-    ridge(640, 260, 150, "#1f2733", 1, snow="#5a6474")
-    out.append('<rect x="0" y="520" width="%d" height="200" fill="url(#mist)"/>' % W)
-    ridge(720, 150, 110, "#18201f", 2)
-    out.append('<rect x="0" y="640" width="%d" height="160" fill="url(#mist)"/>' % W)
-
-    # the outpost on its hill
-    out.append('<path d="M560,860 Q760,640 960,650 Q1160,640 1360,860 Z" fill="#141c18"/>')
-    out.append('<path d="M900,880 Q930,800 960,735 Q990,800 1040,880" fill="none" stroke="#2b241c" stroke-width="18" stroke-linecap="round"/>')
-    wall = "#0f1512"
-    rim = "#3a4a52"
-    out.append('<rect x="820" y="610" width="280" height="90" fill="%s"/>' % wall)
-    for x in range(820, 1100, 28):
-        out.append('<rect x="%d" y="596" width="16" height="16" fill="%s"/>' % (x, wall))
-    for tx in (800, 1080):
-        out.append('<rect x="%d" y="560" width="46" height="140" fill="%s"/>' % (tx, wall))
-        for k in range(3):
-            out.append('<rect x="%d" y="546" width="10" height="16" fill="%s"/>' % (tx + k * 18, wall))
-        out.append('<line x1="%d" y1="546" x2="%d" y2="500" stroke="%s" stroke-width="3"/>' % (tx + 23, tx + 23, wall))
-        out.append('<path d="M%d,502 l34,8 l-10,8 l10,8 l-34,6 Z" fill="#8c1c2b"/>' % (tx + 25))
-        out.append('<line x1="%d" y1="560" x2="%d" y2="700" stroke="%s" stroke-width="2" opacity="0.6"/>' % (tx + 45, tx + 45, rim))
-    for hx, hy in [(860, 590), (920, 575), (985, 585), (1045, 592)]:
-        out.append('<path d="M%d,%d l30,-26 l30,26 Z" fill="#1a1510"/>' % (hx - 30, hy))
-    for wx, wy in [(850, 640), (905, 655), (1010, 645), (1060, 660), (815, 590), (1095, 600)]:
-        out.append('<circle cx="%d" cy="%d" r="30" fill="url(#windowglow)"/>' % (wx, wy))
-        out.append('<rect x="%d" y="%d" width="8" height="11" fill="#f0b04a"/>' % (wx - 4, wy - 5))
-    out.append('<path d="M940,700 L940,668 Q960,648 980,668 L980,700 Z" fill="#050807"/>')
-    out.append('<rect x="0" y="760" width="%d" height="140" fill="url(#mist)"/>' % W)
-
-    def pine(x, base, h, color):
-        w = h * 0.36
-        pts = []
-        for k in range(4):
-            t0 = k / 4.0
-            yb = base - h * t0 * 0.85
-            ww = w * (1 - t0 * 0.7)
-            pts.append("M%.0f,%.0f L%.0f,%.0f L%.0f,%.0f Z" % (x - ww, yb, x, yb - h * 0.38, x + ww, yb))
-        out.append('<path d="%s" fill="%s"/>' % (" ".join(pts), color))
-        out.append('<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" fill="%s"/>' % (x - h * 0.03, base - 4, h * 0.06, h * 0.12, color))
-
-    for layer, (base, hmin, hmax, color, count) in enumerate([(880, 90, 160, "#0e1612", 60), (960, 140, 240, "#0a110d", 46), (1080, 260, 420, "#060a08", 18)]):
-        for i in range(count):
-            x = rng.uniform(-40, W + 40)
-            if layer == 2 and 520 < x < 1400:
-                continue  # keep the centre open so the outpost stays visible
-            pine(x, base + rng.uniform(-20, 30), rng.uniform(hmin, hmax), color)
-    for gx, gy in [(330, 930), (1610, 905), (1290, 985)]:
-        out.append('<circle cx="%d" cy="%d" r="3" fill="#ff3b2a"/><circle cx="%d" cy="%d" r="3" fill="#ff3b2a"/>' % (gx, gy, gx + 12, gy))
-    out.append('<rect width="%d" height="%d" fill="url(#vignette)"/>' % (W, H))
-    with open(os.path.join(ART, "title_bg.svg"), "w") as f:
-        f.write('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">\n%s\n</svg>\n' % (W, H, W, H, "\n".join(out)))
-
-
 # ============================================================ biome expansion
 # New ground tiles, bridges, props, map objects, lairs and the miner.
 
@@ -3621,7 +3530,6 @@ def main():
     title_icons()
     flags()
     app_icon()
-    title_background()
     write_manifest()
     print("generated %d sprites" % len(manifest))
 
