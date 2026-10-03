@@ -18,9 +18,10 @@ func spec() -> Dictionary:
 
 
 func art() -> String:
-	if data["site"] == "mage_tower":
-		return "mage_tower_awake" if awake and not used else "mage_tower_ruin"
-	return "stone_circle_awake" if awake and not used else "stone_circle"
+	var site: String = data["site"]
+	if awake and not used:
+		return site + "_awake"
+	return site if site == "stone_circle" else site + "_ruin"  # (the mage's tower, the chapel)
 
 
 func display_name() -> String:

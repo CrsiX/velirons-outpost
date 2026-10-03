@@ -128,16 +128,14 @@ var _speed_index := 0
 ## Speed to go back to when Space ends a pause Space started (-1: the pause
 ## was set with the speed button, so Space goes to 1x).
 var _resume_index := -1
-## "No builder" banner: shown once the build queue has waited NO_BUILDER_DELAY s
+## "No builder" banner: shown once the build queue has waited Config.NO_BUILDER_DELAY s
 ## with nobody to work on it (no builder, and the hero alive but not building).
 var _builder_warning: Label
 var _no_builder_for := 0.0
-const NO_BUILDER_DELAY := 5.0
 ## "Food shortage" banner (under the builder's): shown once the food has been
-## at 0 with a negative rate for FOOD_SHORTAGE_DELAY s, with a tip how to fix it.
+## at 0 with a negative rate for Config.FOOD_SHORTAGE_DELAY s, with a tip how to fix it.
 var _food_warning: Label
 var _food_short_for := 0.0
-const FOOD_SHORTAGE_DELAY := 5.0
 
 var _sidebar: PanelContainer  # the dock: right sidebar or bottom sheet
 var _sidebar_toggle: Button
@@ -1808,7 +1806,7 @@ func nobody_builds() -> bool:
 
 func _refresh_builder_warning(delta: float) -> void:
 	_no_builder_for = _no_builder_for + delta if nobody_builds() else 0.0
-	_builder_warning.visible = _no_builder_for >= NO_BUILDER_DELAY
+	_builder_warning.visible = _no_builder_for >= Config.NO_BUILDER_DELAY
 
 
 func _build_food_warning() -> void:
@@ -1856,7 +1854,7 @@ func food_warning_text() -> String:
 
 func _refresh_food_warning(delta: float) -> void:
 	_food_short_for = _food_short_for + delta if food_short() else 0.0
-	_food_warning.visible = _food_short_for >= FOOD_SHORTAGE_DELAY
+	_food_warning.visible = _food_short_for >= Config.FOOD_SHORTAGE_DELAY
 	if _food_warning.visible:
 		_food_warning.text = food_warning_text()
 		_place_food_warning()

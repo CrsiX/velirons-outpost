@@ -10,8 +10,10 @@ extends Unit
 ## melee units close in and strike; ranged units walk until the nearest enemy
 ## is within their own range, then shoot (their behavior, with this body as
 ## the post); healers stay with their comrades; summoners step outside and
-## summon. They never chase beyond the barracks' range + SORTIE_LEASH and
-## walk back to their bench once no enemy is left in range.
+## summon; a High Priest (support) keeps with its comrades and blesses them.
+## They never chase beyond the barracks' range + SORTIE_LEASH and walk back to
+## their bench once no enemy is left in range. An Inquisitor picks its target
+## by its "hunt" priorities (witches, then the unholy; see _hunt_distance).
 
 signal arrived(soldier: Soldier)
 
@@ -34,6 +36,8 @@ func setup(p_game: Game, p_unit: MilitaryUnit, from: Vector2i) -> void:
 	unit = p_unit
 	speed = unit.spec()["speed"]
 	_init_sprite("unit_" + unit.kind)
+	UnitFx.show_unit(sprite, unit.kind)
+	UnitFx.add_halo(sprite, game, func() -> Vector2: return grid_pos)
 	set_grid_pos(Vector2(from))
 	add_to_group("observers")
 	add_to_group("melee_defenders")
@@ -66,7 +70,7 @@ func start_sortie(b: Barracks, p_farm: Farm = null) -> void:
 	farm = p_farm
 	mode = Mode.SORTIE
 	_calm = 0.0
-	sprite.texture = Art.tex("unit_" + unit.kind)
+	UnitFx.show_unit(sprite, unit.kind)
 
 
 func _process(delta: float) -> void:
@@ -108,7 +112,7 @@ func _sortie(delta: float) -> void:
 			mode = Mode.BACK
 			if not walk_to(barracks.work_tile()):
 				arrived.emit(self)
-		elif unit.role() == "healer" or unit.role() == "summoner":
+		elif unit.role() in ["healer", "summoner", "support"]:
 			unit.behavior.tick(self, unit, delta)
 		return
 	_calm = 0.0
@@ -129,7 +133,7 @@ func _sortie(delta: float) -> void:
 			else:
 				_set_moving(false)
 				unit.behavior.tick(self, unit, delta)
-		"healer":
+		"healer", "support":
 			var mates := _comrades_center()
 			if mates.distance_to(grid_pos) > 1.2:
 				_close_in(delta, mates)
@@ -141,7 +145,9 @@ func _sortie(delta: float) -> void:
 			unit.behavior.tick(self, unit, delta)
 
 
-## The enemy within the barracks' reach nearest to this soldier.
+## The enemy within the barracks' reach nearest to this soldier. With "hunt"
+## priorities (Inquisitor) the lowest effective distance (see _hunt_distance);
+## it keeps its current target unless another is hunt_switch tiles better.
 func _nearest_foe() -> Enemy:
 	var reach := barracks.activation_range() + Config.SORTIE_LEASH
 	var home := barracks.act_center()
@@ -151,17 +157,42 @@ func _nearest_foe() -> Enemy:
 	var best: Enemy = null
 	var best_d := INF
 	var melee := unit.role() == "melee"
+	var hunt: Dictionary = unit.spec().get("hunt", {})
+	var current_d := INF
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
 		if e.dead or e.grid_pos.distance_to(home) > reach:
 			continue
 		if melee and e.flies():
 			continue  # (out of reach: it only gets hit back, see counter_strike)
-		var d := e.grid_pos.distance_to(grid_pos)
+		var d := _hunt_distance(e, e.grid_pos.distance_to(grid_pos), hunt)
+		if e == target:
+			current_d = d
 		if d < best_d:
 			best_d = d
 			best = e
+	if not hunt.is_empty() and current_d < INF and best_d > current_d - float(unit.spec().get("hunt_switch", 0.0)):
+		return target  # not clearly better: it stays in its fight
 	return best
+
+
+## An Inquisitor's priority class of `e`: "witch", "unholy" (ENEMIES "unholy",
+## or raised by a necromancer) or "".
+static func hunt_class(e: Enemy) -> String:
+	if e.kind == "witch":
+		return "witch"
+	if e.raised or e.spec().get("unholy", false):
+		return "unholy"
+	return ""
+
+
+## `d` (tiles) minus the bonus of `e`'s class in `hunt`, if it is within that
+## class's max; beyond it, `e` counts like any other enemy.
+static func _hunt_distance(e: Enemy, d: float, hunt: Dictionary) -> float:
+	var c := hunt_class(e) if not hunt.is_empty() else ""
+	if c == "" or not hunt.has(c) or d > float(hunt[c]["max"]):
+		return d
+	return d - float(hunt[c]["bonus"])
 
 
 ## A flyer hit it: a melee unit whose blow is ready strikes back at once.
@@ -206,10 +237,17 @@ func _comrades_center() -> Vector2:
 
 # --- taking hits ---------------------------------------------------------------------------
 
-func take_damage(amount: float, source = null, _category: String = "pure") -> void:
+func take_damage(amount: float, source = null, category: String = "pure") -> void:
 	if dead:
 		return
 	unit.hp -= amount
+	# A High Priest hit in melee on a sortie strikes back once its blow is ready.
+	if unit.role() == "support" and category == "melee" and source is Enemy and mode == Mode.SORTIE \
+			and _strike_cd <= 0.0 and unit.hp > 0.0 and not source.dead:
+		_strike_cd = unit.stat("cooldown")
+		face(source.grid_pos)
+		Combat.attack(game, unit, muzzle_position(), source, self)
+		recoil()
 	queue_redraw()
 	sprite.modulate = Color(1.0, 0.5, 0.45)
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
@@ -244,6 +282,7 @@ func recoil() -> void:
 	var tw := create_tween()
 	tw.tween_property(sprite, "position", Vector2(0, -3), 0.06)
 	tw.tween_property(sprite, "position", Vector2.ZERO, 0.1)
+	UnitFx.cast(sprite, unit.kind)
 
 
 func muzzle_position() -> Vector2:

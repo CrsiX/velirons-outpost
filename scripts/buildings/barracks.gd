@@ -66,7 +66,7 @@ func refresh() -> void:
 		var s := _bench_sprites[i]
 		s.visible = complete and u != null and not u.out
 		if s.visible:
-			Art.apply(s, "unit_" + u.kind)
+			UnitFx.show_unit(s, u.kind)
 			s.modulate = Color(1, 1, 1, 0.35) if u.is_downed() else Color.WHITE
 	queue_redraw()
 

@@ -44,6 +44,7 @@ func setup(p_game: Game, p_home: Vector2i, spawn_tile: Vector2i, p_hp: float, p_
 	var sm: Dictionary = Config.SUMMONS[summon]
 	speed = sm["speed"]
 	_init_sprite(sm["art"])
+	UnitFx.add_halo(sprite, game, func() -> Vector2: return grid_pos)
 	set_grid_pos(Vector2(spawn_tile))
 	add_to_group("summons")
 	add_to_group("melee_defenders")
@@ -146,7 +147,7 @@ func counter_strike(e: Enemy) -> void:
 
 
 func _strike(foe: Enemy) -> void:
-	foe.take_damage(damage, self, "magical" if flies() else "melee")  # (a flame is magic)
+	foe.take_damage(damage * (1.0 + Combat.holy_bonus(game, grid_pos)), self, "magical" if flies() else "melee")  # (a flame is magic; a High Priest blesses it)
 	var burn: float = Config.SUMMONS[summon]["self_damage"]
 	if burn > 0.0:
 		take_damage(damage * burn, self, "pure")  # fire burns itself up

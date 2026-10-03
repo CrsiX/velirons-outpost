@@ -82,6 +82,7 @@ func _build_visuals() -> void:
 	_unit_sprite = Sprite2D.new()
 	_unit_sprite.show_behind_parent = true
 	add_child(_unit_sprite)
+	UnitFx.add_halo(_unit_sprite, game, act_center)  # (a High Priest's blessing)
 	_spell_glow = Art.sprite("spell_glow")
 	_spell_glow.show_behind_parent = true
 	_spell_glow.visible = false
@@ -102,7 +103,7 @@ func refresh() -> void:
 	_site_sprite.visible = not complete
 	_unit_sprite.visible = complete and garrison != null
 	if garrison:
-		Art.apply(_unit_sprite, "unit_" + garrison.kind)
+		UnitFx.show_unit(_unit_sprite, garrison.kind)
 		_unit_sprite.position = _unit_spot()
 	queue_redraw()
 
@@ -214,6 +215,8 @@ func recoil() -> void:
 	var base := _unit_spot()
 	tw.tween_property(_unit_sprite, "position", base + Vector2(3.0 if _unit_sprite.flip_h else -3.0, 0), 0.05)
 	tw.tween_property(_unit_sprite, "position", base, 0.12)
+	if garrison:
+		UnitFx.cast(_unit_sprite, garrison.kind)
 
 
 # --- UI ---------------------------------------------------------------------------

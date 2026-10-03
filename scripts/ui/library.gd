@@ -18,6 +18,7 @@ const STAT_NAMES := {
 	"summon_hp": "Elemental HP", "summon_damage": "Elemental damage per hit",
 	"heal": "Heals per pulse", "radius": "Heal radius out of a tower (tiles)", "splash": "Splash radius (tiles)",
 	"slow": "Slowed to (x speed)", "slow_time": "Slow lasts (s)", "push": "Throws back (tiles)",
+	"aura": "Allies deal more damage",
 }
 const XP_WORDS := {
 	"hit": "per hit in a fight", "build_second": "per second of building",
@@ -279,6 +280,8 @@ static func _enemies() -> Array[Dictionary]:
 			f.append("Flies: only ranged attacks and fire elementals reach it")
 		for cat: String in e.get("resist", {}):
 			f.append("Takes %s x %s damage" % [_n(e["resist"][cat]), cat])
+		if e.get("unholy", false):
+			f.append("Unholy: the inquisitor hunts it")
 		var loot := "Killed: %d gold" % Config.enemy_stat_int(kind, "gold_on_kill")
 		if e.get("corpse", true):
 			var c := PackedStringArray()
@@ -327,9 +330,24 @@ static func _units() -> Array[Dictionary]:
 			f.append("Has to be found first: the hero unlocks it at a %s (from wave %d)" % [str(site["name"]).to_lower(), site["wave"]])
 		for stat: String in m["stats"]:
 			var stat_name: String = "Seconds between heals" if stat == "cooldown" and m["role"] == "healer" else STAT_NAMES.get(stat, stat)
-			f.append("%s: %s" % [stat_name, _span(Config.unit_stat(kind, stat, 0), Config.unit_stat(kind, stat, top))])
+			if m["role"] == "support" and stat in ["damage", "cooldown"]:
+				stat_name = "Counter-strike: " + stat_name.to_lower()
+			var lo := Config.unit_stat(kind, stat, 0)
+			var hi := Config.unit_stat(kind, stat, top)
+			if stat == "aura":
+				f.append("%s: +%d %% to +%d %% (the strongest aura counts)" % [stat_name, roundi(lo * 100.0), roundi(hi * 100.0)])
+			else:
+				f.append("%s: %s" % [stat_name, _span(lo, hi)])
 		if m.has("range"):
-			f.append("Range out of the barracks: %s tiles" % _n(m["range"]))
+			if m["role"] == "support":
+				f.append("Aura: as far as its tower reaches; out on a barracks sortie %s tiles" % _n(m["range"]))
+			else:
+				f.append("Range out of the barracks: %s tiles" % _n(m["range"]))
+		if m.has("necro_slow"):
+			f.append("Necromancers in its aura raise %s x slower" % _n(m["necro_slow"]))
+		if m.has("hunt"):
+			var h: Dictionary = m["hunt"]
+			f.append("Hunts witches (up to %s tiles away) before the unholy (up to %s), then anything else" % [_n(h["witch"]["max"]), _n(h["unholy"]["max"])])
 		if m.has("attack"):
 			f.append("Damage type: %s" % Config.ATTACKS[m["attack"]]["category"])
 		if m.has("summon"):

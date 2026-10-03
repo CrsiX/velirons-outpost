@@ -2,7 +2,8 @@ extends "res://tests/bot_base.gd"
 ## Headless test of the military expansion (docs/military-design.md): the
 ## config's tech tree and curves, barracks (benches, sorties, upgrades),
 ## unit HP, downing and reviving, healing, every attack effect, fire
-## elementals, specialising and the Spatial Archmage. Run with:
+## elementals, specialising and the Spatial Archmage, and the acolyte line
+## (holy damage, the Inquisitor's hunt, the High Priest's aura; docs/acolyte-design.md). Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/military_bot.tscn
 ## Exits 0 when every check passes.
 
@@ -85,6 +86,7 @@ func _run() -> void:
 	await _test_downing()
 	await _test_effects()
 	await _test_branching()
+	await _test_holy()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -463,3 +465,155 @@ func _test_branching() -> void:
 	await frames(3)
 	check(not game.army.units.has(sp) and game.population.count("spatial_archmage") == 1, "confirmed: the mage leaves the army, the Spatial Archmage moves into a hut")
 	check(g0 - game.economy.amount("gold") == Config.ARCHMAGE_COST["gold"], "for 600 gold")
+
+
+# --- the acolyte line: holy damage, the Inquisitor, the High Priest ---------------------------
+
+func _test_holy() -> void:
+	await clear_enemies()
+	for t in game.world.towers():
+		if t.garrison:
+			game.army.unstation(t.garrison)
+	for u in barracks.units():
+		game.army.unstation(u)
+	await frames(2)
+	# Config: the factors and flags of docs/acolyte-design.md, the chapel.
+	var want := {"goblin": 0.75, "skeleton": 1.25, "ork": 0.75, "witch": 1.0, "rat": 1.0, "thief": 0.75, "gargoyle": 0.75, "necromancer": 1.5, "vampire": 1.5}
+	var factors_ok := true
+	for k in want:
+		factors_ok = factors_ok and is_equal_approx(float(Config.ENEMIES[k].get("resist", {}).get("holy", 1.0)), want[k])
+	check(factors_ok, "holy factors per enemy kind as designed")
+	check(Config.ENEMIES.keys().filter(func(k: String) -> bool: return Config.ENEMIES[k].get("unholy", false)) == ["skeleton", "necromancer", "vampire"], "skeletons, necromancers and vampires are unholy")
+	check(Config.LOCKED.get("acolyte", "") == "chapel" and Config.UNLOCK_SITES["chapel"]["wave"] == 6 and Config.UNLOCK_SITES["chapel"]["distance"].map(func(v) -> int: return int(v)) == [16, 24], "the acolyte is unlocked at the ruined chapel, from wave 6, 16-24 tiles out")
+	check(Config.MILITARY["acolyte"]["cost"] == {"gold": 50} and Config.MILITARY["acolyte"]["range"] < Config.MILITARY["archer"]["range"], "acolyte: 50 gold, shorter field range than the archer")
+	check(absf(Config.unit_stat("acolyte", "hp", 0) - Config.unit_stat("archer", "hp", 0)) < 0.01 and _dps("acolyte", 9) <= _dps("archer", 9) and _dps("acolyte", 9) > 0.7 * _dps("archer", 9), "acolyte: archer HP, a little less DPS")
+	check(Config.MILITARY["inquisitor"]["posts"] == ["barracks"], "the inquisitor never goes on towers")
+	# Damage taken.
+	var gob := spawn_dummy("goblin", Vector2(far), 50.0)
+	var h0 := gob.hp
+	gob.take_damage(10.0, null, "holy")
+	check(is_equal_approx(h0 - gob.hp, 7.5), "a goblin takes x0.75 holy damage")
+	var sk := spawn_dummy("skeleton", Vector2(far), 50.0)
+	h0 = sk.hp
+	sk.take_damage(10.0, null, "holy")
+	check(is_equal_approx(h0 - sk.hp, 12.5), "a skeleton takes x1.25")
+	sk.raised = true
+	h0 = sk.hp
+	sk.take_damage(10.0, null, "holy")
+	check(is_equal_approx(h0 - sk.hp, 25.0), "raised by a necromancer: twice that again")
+	h0 = sk.hp
+	sk.take_damage(10.0, null, "melee")
+	check(is_equal_approx(h0 - sk.hp, 10.0), "other damage isn't changed")
+	await clear_enemies()
+	# The acolyte: a beam from above, holy damage.
+	var ac: Array = await _manned("acolyte")
+	var tw: Tower = ac[1]
+	var foe := spawn_dummy("skeleton", _near_tower(tw, 1.5), 50.0)
+	var fh := foe.hp
+	var beamed := await wait_until(func() -> bool: return game.world.effects.get_children().any(func(n: Node) -> bool: return n.get_script() == Combat.BURST_SCRIPT and n.kind == "holy_beam"), 15.0)
+	check(beamed and foe.hp < fh, "an acolyte on a tower strikes with a beam of light from above")
+	check(tw._unit_sprite.get_node_or_null("Glow") != null, "it glows on its tower")
+	await clear_enemies()
+	# Turning into an inquisitor on a tower: it walks back into the reserve.
+	var acu: MilitaryUnit = ac[0]
+	await wait_until(func() -> bool: return acu.state == MilitaryUnit.State.STATIONED, 60.0)
+	acu.level = Config.BRANCH_MIN_LEVEL - 1
+	game.economy.add("gold", 500)
+	check(game.army.upgrade(acu, "inquisitor"), "an acolyte on a tower can still become an inquisitor")
+	check(tw.garrison == null and tw._unit_sprite.get_node_or_null("Glow") == null, "it leaves the tower at once")
+	check(await wait_until(func() -> bool: return acu.state == MilitaryUnit.State.RESERVE, 90.0), "and walks back into the reserve")
+	# The hunt: witches, then the unholy, then the rest, by effective distance.
+	var hunt: Dictionary = Config.MILITARY["inquisitor"]["hunt"]
+	var w := spawn_dummy("witch", Vector2(far), 50.0)
+	var s2 := spawn_dummy("skeleton", Vector2(far), 50.0)
+	var g2 := spawn_dummy("goblin", Vector2(far), 50.0)
+	check(Soldier._hunt_distance(w, 6.0, hunt) < Soldier._hunt_distance(g2, 2.5, hunt), "a witch 6 tiles away beats a goblin 2.5 tiles away")
+	check(Soldier._hunt_distance(s2, 3.0, hunt) < Soldier._hunt_distance(g2, 1.5, hunt), "a skeleton 3 tiles away beats a goblin 1.5 tiles away")
+	check(is_equal_approx(Soldier._hunt_distance(w, 8.0, hunt), 8.0) and is_equal_approx(Soldier._hunt_distance(s2, 5.5, hunt), 5.5), "beyond their caps they count like anyone")
+	await clear_enemies()
+	# In the barracks it goes for the witch first.
+	game.army.station(acu, barracks)
+	await wait_until(func() -> bool: return barracks.slots[0] == acu, 60.0)
+	var bc := barracks.act_center()
+	var near_gob := spawn_dummy("goblin", Vector2(game.world.pathing.nearest_walkable(Vector2i((bc + Vector2(1.5, 0)).round()))), 200.0)
+	var far_witch := spawn_dummy("witch", Vector2(game.world.pathing.nearest_walkable(Vector2i((bc + Vector2(-3.5, 0)).round()))), 200.0)
+	var went := await wait_until(func() -> bool: return acu.out and is_instance_valid(acu.walker) and acu.walker.target == far_witch, 20.0)
+	check(went, "out on a sortie the inquisitor goes for the witch, not the nearer goblin")
+	near_gob.take_damage(1e9)
+	far_witch.take_damage(1e9)
+	await wait_until(func() -> bool: return not acu.out, 60.0)
+	game.army.unstation(acu)
+	await clear_enemies()
+	# The High Priest's aura.
+	var hp1: Array = await _manned("high_priest")
+	var pt: Tower = hp1[1]
+	var pu: MilitaryUnit = hp1[0]
+	await wait_until(func() -> bool: return pu.state == MilitaryUnit.State.STATIONED, 60.0)
+	await frames(2)
+	var edge := pt.act_center() + Vector2(pt.act_range() - 0.1, 0.0)
+	var out := pt.act_center() + Vector2(pt.act_range() + 0.3, 0.0)
+	check(is_equal_approx(Combat.holy_bonus(game, edge), Config.unit_stat("high_priest", "aura", 0)) and Combat.holy_bonus(game, out) == 0.0, "a High Priest on a tower: +%d %% damage as far as the tower reaches" % roundi(Config.unit_stat("high_priest", "aura", 0) * 100))
+	check(is_equal_approx(Combat.necro_slow(game, edge), 2.0) and Combat.necro_slow(game, out) == 1.0, "necromancers in it raise twice as slowly")
+	pu.level = Config.MAX_UNIT_LEVEL - 1
+	await frames(1)
+	check(is_equal_approx(Combat.holy_bonus(game, edge), 0.2), "+20 %% at level 10")
+	# A second, weaker priest next to it: the stronger aura counts, they don't stack.
+	var t2: Tower = await build("tower", pt.tile + Vector2i(1, 1))
+	game.economy.add("gold", 2000)
+	var pu2 := game.army.recruit("acolyte")
+	pu2.level = Config.BRANCH_MIN_LEVEL - 1
+	game.army.upgrade(pu2, "high_priest")
+	game.army.station(pu2, t2)
+	await wait_until(func() -> bool: return pu2.state == MilitaryUnit.State.STATIONED, 60.0)
+	await frames(1)
+	check(is_equal_approx(Combat.holy_bonus(game, pt.act_center()), 0.2), "two auras don't stack: the strongest counts")
+	# Who it boosts: tower units' attacks, the hero (with a halo), summons.
+	var dummy := spawn_dummy("goblin", Vector2(far), 200.0)
+	var probe := game.army.recruit("acolyte")
+	h0 = dummy.hp
+	Combat.attack(game, probe, Vector2.ZERO, dummy, pt)
+	var boosted := h0 - dummy.hp
+	h0 = dummy.hp
+	Combat.attack(game, probe, Vector2.ZERO, dummy, null)
+	var plain := h0 - dummy.hp
+	check(is_equal_approx(boosted, plain * 1.2), "attacks from inside it deal +20 %% (%.2f vs %.2f)" % [boosted, plain])
+	var hero := game.hero
+	var hero_home := hero.grid_pos
+	hero.set_grid_pos(pt.act_center() + Vector2(0.5, 0.5))
+	var halo := hero.sprite.get_node("Halo") as CanvasItem
+	check(await wait_until(func() -> bool: return halo.visible, 2.0), "the hero inside shows a little halo")
+	hero.set_grid_pos(Vector2(far))
+	check(await wait_until(func() -> bool: return not halo.visible, 2.0), "outside it's gone")
+	hero.set_grid_pos(hero_home)
+	var el: EarthElemental = SummonerBehavior.ELEMENTAL_SCRIPT.new()
+	el.setup(game, pt.outer_tile(), pt.outer_tile(), 50.0, 4.0)
+	el.village = game.player_village
+	game.world.objects.add_child(el)
+	el.set_process(false)
+	el.set_grid_pos(pt.act_center() + Vector2(0.3, 0.3))
+	await frames(1)
+	check(Combat.holy_bonus(game, el.grid_pos) > 0.0, "summons inside are boosted too")
+	el.crumble()
+	await clear_enemies()
+	game.army.unstation(pu)
+	game.army.unstation(pu2)
+	await frames(2)
+	# From the barracks only while out on a sortie, and it strikes back in melee.
+	await wait_until(func() -> bool: return pu.state == MilitaryUnit.State.RESERVE, 90.0)
+	check(game.army.station(pu, barracks), "a High Priest can sit in the barracks (%s)" % game.army.station_error(pu, barracks))
+	await wait_until(func() -> bool: return barracks.slots[0] == pu, 60.0)
+	await frames(1)
+	check(Combat.holy_bonus(game, barracks.act_center()) == 0.0, "on its bench its aura does nothing")
+	var bg := spawn_dummy("goblin", Vector2(game.world.pathing.nearest_walkable(Vector2i((bc + Vector2(2.0, 0)).round()))), 200.0)
+	var sortie := await wait_until(func() -> bool: return pu.out and is_instance_valid(pu.walker), 20.0)
+	await frames(1)
+	check(sortie and Combat.holy_bonus(game, pu.walker.grid_pos) > 0.0, "out on a sortie it is (its own %.1f tiles)" % Config.MILITARY["high_priest"]["range"])
+	if sortie:
+		var bh := bg.hp
+		pu.walker._strike_cd = 0.0
+		pu.walker.take_damage(1.0, bg, "melee")
+		check(bg.hp < bh, "hit in melee, it strikes back")
+	bg.take_damage(1e9)
+	await wait_until(func() -> bool: return not pu.out, 60.0)
+	game.army.unstation(pu)
+	await clear_enemies()

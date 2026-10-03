@@ -8,7 +8,8 @@ extends EnemyBehavior
 ## A corpse that is gone before the spell is done: the cast is lost.
 ## While one of the village's fighters is near (the hero, a soldier or an
 ## elemental within raise_range, or a manned tower that has it in range), it
-## doesn't walk on: it stays and waits for its next raise.
+## doesn't walk on: it stays and waits for its next raise. In a High
+## Priest's aura (it or the corpse) the spell takes necro_slow x as long.
 
 var corpse: Corpse = null
 var _channel := 0.0
@@ -28,7 +29,8 @@ func tick(enemy: Enemy, delta: float) -> bool:
 			_stop(enemy)
 			_cool = cast
 			return false
-		_channel += delta
+		# Near a High Priest (it or the corpse in an aura) the spell takes longer.
+		_channel += delta / maxf(Combat.necro_slow(enemy.game, enemy.grid_pos), Combat.necro_slow(enemy.game, corpse.grid_pos))
 		enemy.face(corpse.grid_pos)
 		corpse.modulate = Color(0.7, 1.0, 0.75).lerp(Color.WHITE, 0.5 + 0.5 * sin(_channel * 6.0))
 		if _channel >= cast:

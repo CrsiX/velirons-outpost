@@ -520,7 +520,7 @@ func _test_vampire() -> void:
 			to_gate = to_gate or near.path[near.path.size() - 1].distance_to(Vector2(gt)) < 1.5
 	check(down and not nb2.fled and to_gate and near.speed < E["vampire"]["bat_speed"], "landed, the vampire walks to the village again")
 	kill(near)
-	# Holy damage: a necromancer 1.5 x, anything it raised 2 x, a goblin in full.
+	# Holy damage: a necromancer 1.5 x, a goblin 0.75 x, a raised goblin 2 x that (docs/acolyte-design.md).
 	var nk := spawn("necromancer", at, 10.0)
 	var gb := spawn("goblin", at + Vector2(0.5, 0.0), 10.0)
 	var rg := spawn("goblin", at + Vector2(-0.5, 0.0), 10.0)
@@ -528,7 +528,7 @@ func _test_vampire() -> void:
 	var hs := [nk.hp, gb.hp, rg.hp]
 	for e in [nk, gb, rg]:
 		e.take_damage(10.0, null, "holy")
-	check(is_equal_approx(hs[0] - nk.hp, 15.0) and is_equal_approx(hs[1] - gb.hp, 10.0) and absf(hs[2] - rg.hp - 20.0) < 0.2, "holy damage: a necromancer takes 1.5 x, a raised enemy 2 x, a goblin 1 x")
+	check(is_equal_approx(hs[0] - nk.hp, 15.0) and is_equal_approx(hs[1] - gb.hp, 7.5) and absf(hs[2] - rg.hp - 15.0) < 0.2, "holy damage: a necromancer takes 1.5 x, a goblin 0.75 x, a raised goblin 2 x that")
 	await clear_enemies()
 	await clear_corpses()
 

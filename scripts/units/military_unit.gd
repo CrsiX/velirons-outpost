@@ -16,6 +16,7 @@ const BEHAVIORS := {
 	"summoner": preload("res://scripts/units/military/summoner_behavior.gd"),
 	"healer": preload("res://scripts/units/military/healer_behavior.gd"),
 	"melee": preload("res://scripts/units/military/military_behavior.gd"),
+	"support": preload("res://scripts/units/military/support_behavior.gd"),
 }
 
 enum State { RESERVE, MARCHING, STATIONED, RETURNING, TRAVELLING, DOWNED }
@@ -81,7 +82,7 @@ func label() -> String:
 	return "%s %d" % [display_name().to_lower(), uid]
 
 
-## "ranged", "melee", "summoner" or "healer".
+## "ranged", "melee", "summoner", "healer" or "support".
 func role() -> String:
 	return spec()["role"]
 
@@ -177,7 +178,9 @@ static func option_text(opt: Dictionary) -> String:
 	var sp: Dictionary = Config.MILITARY[k]
 	var parts: Array[String] = ["%s %d:" % [sp["name"], lv + 1], "%.0f HP" % Config.unit_stat(k, "hp", lv)]
 	var st: Dictionary = sp["stats"]
-	if st.has("damage"):
+	if st.has("aura"):  # (its damage is only a counter-strike)
+		parts.append("allies +%d%% damage" % roundi(100.0 * Config.unit_stat(k, "aura", lv)))
+	elif st.has("damage"):
 		parts.append("%.0f damage every %.2f s" % [Config.unit_stat(k, "damage", lv), Config.unit_stat(k, "cooldown", lv)])
 	if st.has("heal"):
 		parts.append("heals %.0f every %.1f s" % [Config.unit_stat(k, "heal", lv), Config.unit_stat(k, "cooldown", lv)])

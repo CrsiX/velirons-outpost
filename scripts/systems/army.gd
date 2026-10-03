@@ -362,14 +362,14 @@ func upgrade_error(unit: MilitaryUnit, to: String = "") -> String:
 		if opt["to"] == kind and not opt["archmage"]:
 			if not village.economy.can_afford(opt["cost"]):
 				return "Not enough gold"
-			if unit.post and unit.state != MilitaryUnit.State.RESERVE and not MilitaryUnit.new(kind).fits(unit.post.post_kind()):
-				return "It can't stay on this post as a %s" % Config.MILITARY[kind]["name"].to_lower()
 			return ""
 	return "Already at max level" if kind == unit.kind else "It can't become that"
 
 
 ## Next level of its own kind (`to` empty or its kind), or level 1 of a
-## specialisation `to` (from BRANCH_MIN_LEVEL on). Paid in gold.
+## specialisation `to` (from BRANCH_MIN_LEVEL on). Paid in gold. A unit that
+## can't stay on its post as its new kind (an Inquisitor on a tower) walks
+## back into the reserve.
 func upgrade(unit: MilitaryUnit, to: String = "") -> bool:
 	if upgrade_error(unit, to) != "":
 		return false
@@ -383,6 +383,9 @@ func upgrade(unit: MilitaryUnit, to: String = "") -> bool:
 		village.events.debug("level-up %s to level %d for %s" % [unit.label(), unit.level + 1, Config.cost_text(opt["cost"])])
 	else:
 		village.events.info("%s trained as a %s" % [was, unit.display_name()])
+		if is_instance_valid(unit.post) and unit.state in [MilitaryUnit.State.STATIONED, MilitaryUnit.State.MARCHING] and not unit.fits(unit.post.post_kind()):
+			village.events.info("The %s can't serve on the %s: back to the reserve" % [unit.display_name().to_lower(), unit.post.display_name().to_lower()])
+			unstation(unit)
 	Sfx.play("build")
 	changed.emit()
 	return true

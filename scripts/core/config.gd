@@ -289,6 +289,9 @@ const UNLOCK_SITES := {
 	"mage_tower": {"name": "Mage's tower", "unlocks": "apprentice", "wave": 5, "distance": [15.0, 22.0], "visit_time": 5.0,
 		"rumour": "Travellers speak of a mage's tower lost in the wilderness. Whoever finds it can train apprentices.",
 		"awake": "A light shines in the mage's tower. The hero can unlock the apprentice there (Explore mode)."},
+	"chapel": {"name": "Ruined chapel", "unlocks": "acolyte", "wave": 6, "distance": [16.0, 24.0], "visit_time": 5.0,
+		"rumour": "Travellers speak of a ruined chapel where a light still burns. Whoever finds it can ordain acolytes.",
+		"awake": "Light falls through the roof of the ruined chapel. The hero can unlock the acolyte there (Explore mode)."},
 }
 const UNLOCK_SITE_SHARE := 0.5
 ## Ruined watchtowers: claimed by the hero (Explore mode), restored by a builder.
@@ -438,7 +441,7 @@ static func worker_role(kind: String) -> String:
 const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "spatial_archmage"]
 ## Unit kinds and villager roles that have to be unlocked first, and how
 ## (docs/world-design.md §9.4, §9.6). Unlocks are global: for every village.
-const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "miner": "mine"}
+const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "acolyte": "chapel", "miner": "mine"}
 
 ## Villagers have HP: any enemy can hurt them (they flee, never fight); at 0
 ## they die. At home they heal CIVILIAN_REGEN per second.
@@ -446,6 +449,11 @@ const CIVILIAN_HP := 20.0
 const CIVILIAN_REGEN := 2.0
 const FOOD_UPKEEP := 0.05  # food per civilian per second
 const STARVATION_INTERVAL := 15.0  # a civilian dies this often while food is 0
+## HUD warnings (seconds): "nobody can build" once the build queue has waited
+## this long with no builder (and the hero not building); "food shortage" once
+## the food has been at 0 with a negative rate this long.
+const NO_BUILDER_DELAY := 5.0
+const FOOD_SHORTAGE_DELAY := 5.0
 
 const BUILDER_REST := 3.0
 ## Tearing down a placed building (not huts): a builder takes this share of
@@ -491,7 +499,12 @@ const EXPLORER_CLAIM_PENALTY := 30
 ## (pinned the same way), "branch_cost": gold to turn into this specialisation.
 ## Roles: "ranged" (towers or barracks; own "range" in the field, never upgraded,
 ## always below the smallest tower range), "melee" (barracks only), "summoner"
-## (summons elementals; no attack of its own), "healer" (heals allies around it).
+## (summons elementals; no attack of its own), "healer" (heals allies around it),
+## "support" (High Priest: an aura, see docs/acolyte-design.md).
+## Optional: "glow" (a soft pulsing light behind the figure: its colour),
+## "cast_art" (sprite shown for a moment on every attack), "hunt" (melee
+## target priorities, see "inquisitor"), "aura" stat and "necro_slow" (see
+## "high_priest").
 const MAX_UNIT_LEVEL := 10
 ## From this level a base unit can also turn into level 1 of a specialisation.
 const BRANCH_MIN_LEVEL := 3
@@ -600,18 +613,55 @@ const MILITARY := {
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 		"archmage": true,
 	},
+	"acolyte": {
+		"name": "Acolyte", "role": "ranged", "posts": ["tower", "barracks"], "recruit": true,
+		"cost": {"gold": 50}, "speed": 1.7, "attack": "holy_beam", "range": 1.6,
+		"glow": "#ffe9a0", "cast_art": "unit_acolyte_cast",
+		"desc": "Prays, and a beam of holy light falls on the enemy from above. Short reach out of the barracks; holy damage hurts the undead most.",
+		"stats": {"hp": [30.0, 90.0], "damage": [6.5, 36.0], "cooldown": [1.0, 0.48]},
+		"upgrade_cost": [50, 300], "train_xp": [35, 400],
+		"branches": ["inquisitor", "high_priest"],
+	},
+	# Holy melee. Target: the lowest "effective distance" (real distance minus
+	# the bonus of the enemy's class) among enemies within the barracks' reach;
+	# a class's enemies farther than its max are ignored. Classes: "witch"
+	# (the witch), "unholy" (ENEMIES "unholy", or raised). It drops its fight
+	# only for an enemy at least hunt_switch tiles better.
+	"inquisitor": {
+		"name": "Inquisitor", "role": "melee", "posts": ["barracks"], "recruit": false,
+		"branch_of": "acolyte", "branch_cost": {"gold": 150},
+		"speed": 1.6, "attack": "smite",
+		"hunt": {"witch": {"bonus": 4.0, "max": 7.0}, "unholy": {"bonus": 2.0, "max": 5.0}}, "hunt_switch": 1.0,
+		"desc": "Holy cross and warhammer. Hunts witches first, then the undead, then anything else. Barracks only.",
+		"stats": {"hp": [45.0, 140.0], "damage": [9.0, 45.0], "cooldown": [1.1, 0.75]},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
+	},
+	# No attack: a weak melee counter-strike (damage / cooldown) when hit in
+	# melee. Aura: allies within reach (on a tower the tower's range, out of
+	# the barracks on a sortie its own "range") deal +aura x damage (the
+	# strongest aura counts, never stacked); necromancers in it, or raising a
+	# corpse in it, take necro_slow x as long.
+	"high_priest": {
+		"name": "High Priest", "role": "support", "posts": ["tower", "barracks"], "recruit": false,
+		"branch_of": "acolyte", "branch_cost": {"gold": 150},
+		"speed": 1.5, "attack": "strike", "range": 2.6, "glow": "#fff2c0", "necro_slow": 2.0,
+		"desc": "Blesses every ally around it: more damage for units, towers, the hero and summons. Necromancers raise slower near it.",
+		"stats": {"hp": [24.0, 70.0], "aura": [0.02, 0.2], "damage": [3.0, 10.0], "cooldown": [1.4, 1.0]},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
+	},
 }
 ## Recruitable units in the Army tab (specialisations come from upgrades).
-const MILITARY_ORDER: Array[String] = ["archer", "shield_bearer", "summoner", "apprentice"]
+const MILITARY_ORDER: Array[String] = ["archer", "shield_bearer", "summoner", "apprentice", "acolyte"]
 ## Kinds in tech-tree order (base unit, then its specialisations).
-const MILITARY_TREE: Array[String] = ["archer", "crossbowman", "swiftbowman", "shield_bearer", "summoner", "fire_summoner", "apprentice", "fire_mage", "ice_mage", "healing_mage", "spatial_mage"]
+const MILITARY_TREE: Array[String] = ["archer", "crossbowman", "swiftbowman", "shield_bearer", "summoner", "fire_summoner", "apprentice", "fire_mage", "ice_mage", "healing_mage", "spatial_mage", "acolyte", "inquisitor", "high_priest"]
 
 ## What a unit's attack looks like and does. "projectile": art of the shot
 ## ("" = no shot); "whirl": the shot spins; "arc": arrows fly on an arc.
 ## Effects: "splash" (damage to others within the unit's "splash" radius,
 ## times splash_share), "slow" (the unit's "slow" speed factor for "slow_time"
 ## s), "push" (thrown back "push" tiles along its road, once per push_immunity s),
-## "heal" (heals allies within the unit's "radius").
+## "heal" (heals allies within the unit's "radius"); "burst": an effect played
+## on the target with every hit (Burst kinds).
 const ATTACKS := {
 	"arrow": {"projectile": "arrow", "arc": true, "sound": "shoot", "category": "projectile"},
 	"swift_arrow": {"projectile": "swift_arrow", "arc": true, "sound": "shoot", "category": "projectile"},
@@ -622,6 +672,8 @@ const ATTACKS := {
 	"warp": {"projectile": "warp_orb", "whirl": true, "speed": 460.0, "push_immunity": 4.0, "sound": "hit", "category": "magical"},
 	"heal": {"projectile": "", "sound": "recruit", "category": "holy"},
 	"strike": {"projectile": "", "sound": "hit", "category": "melee"},
+	"holy_beam": {"projectile": "", "burst": "holy_beam", "sound": "recruit", "category": "holy"},
+	"smite": {"projectile": "", "burst": "holy_flash", "sound": "hit", "category": "holy"},
 }
 
 ## What kind of damage a hit does (ATTACKS "category"; enemies: "attack_category",
@@ -770,6 +822,8 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 ## Behaviours may add their own keys (see "witch").
 ## Optional: corpse (false: none), raid_chance (of burning a hut at the gate; 1),
 ## split_into / split_count, colors, level, hp_bar_y (see "slime3"),
+## resist (damage taken by category, see DAMAGE_CATEGORIES; holy: docs/acolyte-design.md §3),
+## unholy (true: the Inquisitor hunts it; everything a necromancer raises counts too),
 ## library (false: no library entry of its own), library_name (its name there).
 ## Any enemy that gets through a gate destroys exactly one random hut, on every
 ## difficulty (the villager living there, if any, dies with it). Except
@@ -783,6 +837,7 @@ const ENEMIES := {
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
+		"resist": {"holy": 0.75},
 	},
 	# Same as goblins, but bones give no food.
 	"skeleton": {
@@ -791,6 +846,7 @@ const ENEMIES := {
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 0,
+		"resist": {"holy": 1.25}, "unholy": true,
 	},
 	# Slower and much tougher; hits hard. Gold only on kill, lots of food as a corpse.
 	"ork": {
@@ -799,6 +855,7 @@ const ENEMIES := {
 		"hp": 55.0, "speed": 0.8,
 		"damage": 11.0, "attack_cooldown": 1.2,
 		"gold_on_kill": 6, "gold_on_collect": 0, "food_on_collect": 6,
+		"resist": {"holy": 0.75},
 	},
 	# Slimes come in 3 levels, each its own kind: a slime that dies splits
 	# into `split_count` of `split_into` (level 3 -> 2 x level 2 -> 2 x level 1
@@ -886,6 +943,7 @@ const ENEMIES := {
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 2, "gold_on_collect": 3, "food_on_collect": 0,
 		"steal_share": 0.04,
+		"resist": {"holy": 0.75},
 	},
 	# The first flyer: it keeps to the roads, but no ground slows it (swamps,
 	# fords). Fights like a goblin. Only ranged attacks (towers, archers,
@@ -898,6 +956,7 @@ const ENEMIES := {
 		"hp": 40.0, "speed": 0.8,
 		"damage": 7.0, "attack_cooldown": 1.2,
 		"gold_on_kill": 8, "gold_on_collect": 0, "food_on_collect": 4,
+		"resist": {"holy": 0.75},
 	},
 	# No attack: it raises the dead. When a corpse of another enemy lies within
 	# raise_range it stops and channels on it for cast_time seconds; then the
@@ -913,7 +972,7 @@ const ENEMIES := {
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 25, "gold_on_collect": 0, "food_on_collect": 0,
 		"cast_time": 5.0, "raise_range": 3.0, "raise_hp": 0.5, "raise_decay": 20.0, "raise_gold": 0.5,
-		"resist": {"holy": 1.5},  # holy damage hurts it more
+		"resist": {"holy": 1.5}, "unholy": true,  # holy damage hurts it more
 		"raised_holy": 2.0,  # what it raises takes 2 x holy damage (on top of its kind's own factor)
 	},
 	# Slower than a goblin, twice its HP, a goblin's blows. Takes resist x the
@@ -933,7 +992,7 @@ const ENEMIES := {
 		"hp": 40.0, "speed": 0.9,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 6, "gold_on_collect": 8, "food_on_collect": 0,
-		"resist": {"magical": 0.67},
+		"resist": {"magical": 0.67, "holy": 1.5}, "unholy": true,
 		"drain": 0.67,
 		"bat_below": 0.33, "bat_time": 10.0, "bat_speed": 1.8, "bat_gate_heal": 0.33,
 	},

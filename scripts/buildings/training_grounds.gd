@@ -29,7 +29,7 @@ func refresh() -> void:
 	_site_sprite.visible = not complete
 	_unit_sprite.visible = complete and garrison != null
 	if garrison:
-		Art.apply(_unit_sprite, "unit_" + garrison.kind)
+		UnitFx.show_unit(_unit_sprite, garrison.kind)
 	queue_redraw()
 
 

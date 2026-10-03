@@ -305,7 +305,7 @@ func _unlock_sites() -> void:
 				t = _sample(s, band + Vector2(-2, 6), func(p: Vector2i) -> bool: return _free(p, 1, vi, 3.0))
 			if t.x < 0:
 				continue
-			_add({"kind": "unlock", "site": kind, "art": kind if kind != "mage_tower" else "mage_tower_ruin", "tile": t, "size": 1, "slice": s, "unlocks": spec["unlocks"], "wave": spec["wave"]})
+			_add({"kind": "unlock", "site": kind, "art": kind if kind == "stone_circle" else kind + "_ruin", "tile": t, "size": 1, "slice": s, "unlocks": spec["unlocks"], "wave": spec["wave"]})
 			placed += 1
 		if placed == 0:
 			c.fail("no room for any %s" % kind)

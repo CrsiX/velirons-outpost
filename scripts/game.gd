@@ -632,8 +632,8 @@ func _check_defeat() -> void:
 	Engine.time_scale = 1.0
 	Sfx.play("lose", 0.0)
 	var why := "No villagers are left." if no_people else "Every hut lies in ruins."
-	events.important("Veliron's outpost has fallen: %s" % why.to_lower().trim_suffix("."))
-	hud.show_game_over("Veliron's outpost has fallen", "%s\nYou held out for %d wave%s." % [why, maxi(waves.wave - 1, 0), "" if waves.wave == 2 else "s"])
+	events.important("Veliron's Outpost has fallen: %s" % why.to_lower().trim_suffix("."))
+	hud.show_game_over("Veliron's Outpost has fallen", "%s\nYou held out for %d wave%s." % [why, maxi(waves.wave - 1, 0), "" if waves.wave == 2 else "s"])
 
 
 func go_to_title() -> void:

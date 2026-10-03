@@ -1115,6 +1115,82 @@ def mages():
     mage("unit_spatial_mage", ("#4a3070", "#3a2458"), "#b08ae0", ring, "#b08ae0", "#2a1a40")
 
 
+def acolytes():
+    """The acolyte line: robed in cream and gold. The acolyte prays (hands folded, head bowed) and
+    raises its arms to cast (unit_acolyte_cast). The game draws their glow behind them."""
+    robe = ("#e4dccb", "#c8bea8")
+
+    def hood(col):
+        def f(a):  # a deep cowl, bowed forward
+            a.raw('<path d="M-7,-29 Q-9,-43 1,-43 Q9,-42 8,-33 L5,-32 Q2,-38 -3,-36 Q-5,-33 -5,-28 Z" fill="%s" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % (col, INK), [(-9, -44), (9, -28)])
+        return f
+
+    def praying(a, layer):
+        if layer == "front":
+            a.poly([(-2, -27), (2, -27), (1.5, -6), (-1.5, -6)], GOLD, INK, 0.7)  # stole
+            a.line([(-3, -24), (4, -20)], INK, 4.2)  # arm to the folded hands
+            a.line([(-3, -24), (4, -20)], robe[1], 2.6)
+            a.poly([(4, -26), (7, -25), (7, -19), (4, -19)], "#d8b08c", INK, 1)  # hands together
+    person("unit_acolyte", robe, hat=hood("#d4cab4"), robe=True, extra=praying)
+
+    def casting(a, layer):
+        if layer == "back":
+            a.line([(-4, -26), (-10, -42)], INK, 4.2)  # the far arm, raised
+            a.line([(-4, -26), (-10, -42)], robe[1], 2.6)
+            a.ellipse(-10, -43.5, 2.2, 2.2, "#d8b08c", INK, 0.9)
+        else:
+            a.poly([(-2, -27), (2, -27), (1.5, -6), (-1.5, -6)], GOLD, INK, 0.7)
+            a.line([(4, -26), (11, -42)], INK, 4.2)
+            a.line([(4, -26), (11, -42)], robe[0], 2.6)
+            a.ellipse(11, -43.5, 2.2, 2.2, "#d8b08c", INK, 0.9)
+            a.ellipse(0, -48, 8, 5, "#fff2c0", opacity=0.45)
+            a.ellipse(0, -48, 3, 2, "#fffbe6", opacity=0.9)
+
+    def raised_hood(a):  # head up while casting
+        a.raw('<path d="M-7,-30 Q-8,-43 0,-43 Q8,-43 7,-34 L4,-36 Q0,-40 -4,-36 Q-5,-33 -5,-28 Z" fill="#d4cab4" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-8, -44), (8, -28)])
+    person("unit_acolyte_cast", robe, hat=raised_hood, robe=True, extra=casting)
+
+    def inquisitor(a, layer):
+        if layer == "back":
+            a.poly([(-10, -12), (-4, -12), (-4, -28), (-10, -28)], "#2a1a1a", INK, 1)  # cloak
+        else:
+            a.poly([(-6, -27), (6, -27), (5, -12), (-5, -12)], "#8a8f96", INK, 1)  # breastplate
+            a.line([(0, -25), (0, -14)], GOLD, 2.2)  # the holy cross on it
+            a.line([(-3.5, -21.5), (3.5, -21.5)], GOLD, 2.2)
+            a.line([(4, -20), (10, -22)], INK, 4)  # arm
+            a.line([(10, -8), (12, -40)], INK, 3.4)  # warhammer
+            a.line([(10, -8), (12, -40)], WOOD_L, 1.8)
+            a.poly([(6, -44), (18, -42), (18, -36), (6, -38)], "#8a8f96", INK, 1.2)
+            a.line([(12, -41), (12, -39)], GOLD, 1.2)
+
+    def helm(a):
+        a.raw('<path d="M-7,-31 Q-7,-42 0,-42 Q7,-42 7,-31 L7,-29 L-7,-29 Z" fill="#6a1a20" stroke="%s" stroke-width="1.2"/>' % INK, [(-8, -43), (8, -28)])
+        a.line([(0, -42), (0, -46)], GOLD, 1.6)
+        a.line([(-2, -44.5), (2, -44.5)], GOLD, 1.6)
+    person("unit_inquisitor", ("#3a2224", "#2c1a1c"), hat=helm, extra=inquisitor)
+
+    def priest(a, layer):
+        if layer == "back":
+            a.line([(-9, -2), (-9, -48)], INK, 3.4)  # crosier
+            a.line([(-9, -2), (-9, -48)], GOLD_D, 1.8)
+            a.ellipse(-9, -52, 9, 9, "#fff2c0", opacity=0.35)
+            a.ellipse(-9, -52, 4.2, 4.2, GOLD, INK, 1.1)  # a sun disc
+            for k in range(8):
+                ang = k * math.pi / 4
+                a.line([(-9 + math.cos(ang) * 5, -52 + math.sin(ang) * 5), (-9 + math.cos(ang) * 7.5, -52 + math.sin(ang) * 7.5)], GOLD, 1.1)
+        else:
+            a.poly([(-2.5, -27), (2.5, -27), (2, -3), (-2, -3)], GOLD, INK, 0.8)  # broad stole
+            a.line([(-1, -14), (1, -14)], "#fffbe6", 1)
+            a.line([(4, -22), (9, -18)], INK, 4)
+            a.ellipse(9.5, -17.5, 2.2, 2.2, "#d8b08c", INK, 0.9)
+
+    def mitre(a):
+        a.raw('<path d="M-6,-36 L-5,-47 L0,-52 L5,-47 L6,-36 Z" fill="#f2ecdc" stroke="%s" stroke-width="1.2" stroke-linejoin="round"/>' % INK, [(-7, -53), (7, -35)])
+        a.line([(0, -51), (0, -37)], GOLD, 1.6)
+        a.line([(-6, -37.5), (6, -37.5)], GOLD, 1.6)
+    person("unit_high_priest", ("#f0ead8", "#d4ccb6"), hat=mitre, robe=True, extra=priest)
+
+
 def spatial_archmage():
     """Civilian: robed in violet and gold, a rune halo floating above the head."""
     def extra(a, layer):
@@ -2964,6 +3040,83 @@ def stone_circle(awake=False):
     return a
 
 
+def chapel(awake=False):
+    """Ruined chapel (the acolyte's unlock site): a small stone nave with a broken roof, an open
+    bell-cote over the gable, ivy and rubble. Awake: light falls through the roof, the window
+    glows and motes drift up."""
+    rng = random.Random(680)
+    a = Art()
+    a.shadow(46, 20, cy=4)
+    sl, sr, st = "#7a756c", "#56524b", "#8e897f"
+    w, l, H, R = 0.32, 0.5, 34, 22   # half width, half length (tiles), wall and roof height (px)
+
+    def p(gx, gy, z=0.0):
+        return P(gx, gy, z)
+    # walls: the gable end (front-left, gy = +l) and the long side (front-right, gx = +w)
+    a.poly([p(-w, l), p(w, l), p(w, l, H), p(0, l, H + R), p(-w, l, H)], sl, INK, 1.3)
+    a.poly([p(w, l), p(w, -l), p(w, -l, H), p(w, l, H)], sr, INK, 1.3)
+    for z in (9, 18, 27):  # stone courses
+        a.line([p(-w, l, z), p(w, l, z), p(w, -l, z)], "#3e3b37", 0.8, opacity=0.7)
+    # broken roof: the near slope survives at both ends, a hole with bare rafters between
+    rl, rr = "#4a3a30", "#3a2c24"
+    a.poly([p(w + 0.04, l + 0.04, H - 2), p(w + 0.04, 0.12, H - 2), p(0, 0.2, H + R), p(0, l + 0.04, H + R)], rl, INK, 1.2)
+    a.poly([p(w + 0.04, -0.3, H - 2), p(w + 0.04, -l - 0.04, H - 2), p(0, -l - 0.04, H + R), p(0, -0.22, H + R)], rr, INK, 1.2)
+    a.poly([p(w, 0.12, H), p(w, -0.3, H), p(0, -0.22, H + R), p(0, 0.2, H + R)], "#16120f", INK, 1.0)
+    for gy in (0.02, -0.14):
+        a.line([p(w, gy, H), p(0, gy, H + R)], WOOD_D, 2.4)
+    for gy in (0.36, -0.42):
+        a.line([p(w, gy, H + 1), p(0, gy, H + R - 1)], "#2a201a", 0.8, opacity=0.8)
+    if awake:
+        _glow(a, *p(0.12, -0.05, H + 8), 30, 26, "#ffe9a0", 0.6)
+        x0, y0 = p(0.15, -0.05, H + R + 70)
+        x1, y1 = p(0.15, -0.05, 4)
+        a.poly([(x0 - 10, y0), (x0 + 10, y0), (x1 + 16, y1), (x1 - 16, y1)], "#fff2c0", stroke=None, opacity=0.28)
+        a.poly([(x0 - 4, y0), (x0 + 4, y0), (x1 + 7, y1), (x1 - 7, y1)], "#fffbe6", stroke=None, opacity=0.4)
+    # door in the gable end, arched window in the side
+    dx, dy = p(0, l)
+    a.raw('<path d="M%s,%s L%s,%s Q%s,%s %s,%s L%s,%s Z" fill="#141110" stroke="%s" stroke-width="1.2"/>'
+          % (fmt(dx - 6), fmt(dy - 1), fmt(dx - 6), fmt(dy - 15), fmt(dx), fmt(dy - 23), fmt(dx + 6), fmt(dy - 15 + 3), fmt(dx + 6), fmt(dy + 2), INK),
+          [(dx - 7, dy - 23), (dx + 7, dy + 2)])
+    wx, wy = p(w, 0.22, 14)
+    if awake:
+        _glow(a, wx, wy - 6, 16, 18, "#ffd970", 0.7)
+    a.raw('<path d="M%s,%s L%s,%s Q%s,%s %s,%s L%s,%s Z" fill="%s" stroke="%s" stroke-width="1.1"/>'
+          % (fmt(wx - 3), fmt(wy + 1), fmt(wx - 3), fmt(wy - 9), fmt(wx), fmt(wy - 15), fmt(wx + 3), fmt(wy - 11), fmt(wx + 3), fmt(wy - 1),
+             "#ffe39a" if awake else "#141110", INK), [(wx - 4, wy - 15), (wx + 4, wy + 2)])
+    # bell-cote on the gable's peak: two posts, a little roof, the bell
+    bx, by = p(0, l, H + R)
+    a.poly([(bx - 6, by + 1), (bx - 4, by + 1), (bx - 4, by - 16), (bx - 6, by - 16)], st, INK, 1)
+    a.poly([(bx + 4, by + 1), (bx + 6, by + 1), (bx + 6, by - 16), (bx + 4, by - 16)], sr, INK, 1)
+    a.poly([(bx - 8, by - 16), (bx, by - 23), (bx + 8, by - 16)], rl, INK, 1.1)
+    a.raw('<path d="M%s,%s Q%s,%s %s,%s Q%s,%s %s,%s Z" fill="%s" stroke="%s" stroke-width="0.9"/>'
+          % (fmt(bx - 3.5), fmt(by - 5), fmt(bx - 3), fmt(by - 14), fmt(bx), fmt(by - 14), fmt(bx + 3), fmt(by - 14), fmt(bx + 3.5), fmt(by - 5),
+             GOLD if awake else GOLD_D, INK), [(bx - 4, by - 15), (bx + 4, by - 4)])
+    # a cross over the cote
+    a.line([(bx, by - 23), (bx, by - 31)], INK, 2.4)
+    a.line([(bx - 3, by - 28), (bx + 3, by - 28)], INK, 2.4)
+    a.line([(bx, by - 23), (bx, by - 31)], GOLD if awake else "#8a857c", 1.2)
+    a.line([(bx - 3, by - 28), (bx + 3, by - 28)], GOLD if awake else "#8a857c", 1.2)
+    # ivy on the walls
+    for _ in range(22):
+        if rng.random() < 0.5:
+            gx, gy = rng.uniform(-w, w), l
+        else:
+            gx, gy = w, rng.uniform(-l, l)
+        x, y = p(gx, gy, rng.uniform(2, 24))
+        a.ellipse(x, y, rng.uniform(2, 3.4), rng.uniform(1.4, 2.2), rng.choice(["#2e4a26", "#3a5a2c", "#28401f"]), opacity=0.95)
+    # rubble: fallen roof stones and a slate or two
+    for (gx, gy, rr) in [(0.62, 0.1, 4.5), (0.55, -0.42, 3.5), (-0.28, 0.78, 4)]:
+        x, y = p(gx, gy)
+        _rock(a, rng, x, y, rr, None, sl, sr, st, sw=1.0, n=5)
+    x, y = p(0.6, 0.45)
+    a.poly([(x - 5, y), (x + 3, y - 3), (x + 6, y + 1), (x - 2, y + 3)], rl, INK, 0.8)
+    if awake:
+        for (x, y) in [(-12, -96), (10, -112), (20, -84), (-2, -126)]:
+            a.ellipse(x, y, 4, 4, "#ffe9a0", opacity=0.35)
+            a.ellipse(x, y, 1.4, 1.4, "#fffbe6")
+    return a
+
+
 def mage_tower(awake=False):
     rng = random.Random(670)
     a = Art()
@@ -3404,6 +3557,7 @@ def biome_art():
     _save_pair(camp(), camp(True), "camp", "camp_cleared")
     _save_pair(stone_circle(), stone_circle(True), "stone_circle", "stone_circle_awake")
     _save_pair(mage_tower(), mage_tower(True), "mage_tower_ruin", "mage_tower_awake")
+    _save_pair(chapel(), chapel(True), "chapel_ruin", "chapel_awake")
     watchtower_ruin()
     mine()
     lair_cave()
@@ -3497,6 +3651,7 @@ def main():
     fire_summoner()
     fire_elemental()
     mages()
+    acolytes()
     spatial_archmage()
     projectiles()
     for lv in (1, 2, 3):
