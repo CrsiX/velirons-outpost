@@ -154,7 +154,10 @@ func _ready() -> void:
 	if backdrop:
 		hud.visible = false
 	await world.setup(self, s)
-	fog.local = player_village.id
+	# What world.setup explored for this village (co-op client: not village 0)
+	# becomes the drawn fog, and the trees and objects follow it.
+	fog.set_local(player_village.id)
+	world.refresh_props()
 	for village in villages:
 		village.apply_map(map.villages[village.id])
 	waves.setup(self)

@@ -264,7 +264,7 @@ func build_starting() -> void:
 			continue
 		var b := _new_building(kind, spot, true)
 		village.events.debug("%s stands ready at %s (free at the start)" % [b.label(), str(spot)])
-		game.fog.reveal(Vector2(spot), 2.5)
+		game.fog.reveal(Vector2(spot), 2.5, village.id)
 
 
 func _start_spot(kind: String) -> Vector2i:

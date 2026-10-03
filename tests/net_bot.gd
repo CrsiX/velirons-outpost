@@ -107,6 +107,8 @@ func _host() -> void:
 		behind = v1.center + Vector2i((dir * (Vector2(behind - v1.center).length() + 1.0)).round())
 	behind = v1.center + Vector2i((dir * (Vector2(behind - v1.center).length() + 3.0)).round())
 	check(game.fog.is_explored_by(0, v1.center) and not game.fog.is_explored_by(0, behind) and game.fog.is_explored_by(1, behind), "each village has its own fog (the other's walls are known, nothing around them) [%s %s %s, behind %s, centers %s %s]" % [game.fog.is_explored_by(0, v1.center), game.fog.is_explored_by(0, behind), game.fog.is_explored_by(1, behind), behind, v0.center, v1.center])
+	var their_start := v1.buildings().filter(func(b: Building) -> bool: return not Rect2i(v1.rect).has_point(b.tile) and not (b is StaticPiece))
+	check(not their_start.is_empty() and their_start.all(func(b: Building) -> bool: return not game.fog.is_explored_by(0, b.tile)), "the client's starting farm and camp aren't in our fog (%d buildings)" % their_start.size())
 	# The world (docs/world-design.md): the lobby's map, objects, unlocks.
 	check(game.map.map_type == MAP_TYPE and game.map.seed_value == MAP_SEED and not game.world.map_objects.is_empty(), "the lobby's map type and seed are used (%s, %d, %d objects)" % [game.map.map_type, game.map.seed_value, game.world.map_objects.size()])
 	var camp: MonsterCamp = null
@@ -199,6 +201,10 @@ func _client() -> void:
 	var host_civs := get_tree().get_nodes_in_group("replicated").filter(func(n) -> bool: return n is Civilian and not (n is Hero) and n.village == game.villages[0])
 	check(host_huts.size() == 9 and host_civs.is_empty(), "the host's huts are public, its villagers stay unseen")
 	check(game.fog.is_explored_by(1, mine.center) and game.fog.is_explored_by(1, game.villages[0].center) and not game.fog.is_explored_by(1, game.villages[0].center + Vector2i(5, 0)), "our fog: our land, and only the walls of the other village")
+	check(game.fog.local == mine.id and game.fog.map.explored == game.fog.explored_of[mine.id] and game.fog.map.explored[game.map.index(mine.center + Vector2i(4, 0))] == 1, "the fog drawn is our village's, our start area included")
+	var props: Dictionary = game.world._props
+	var wrong := props.keys().filter(func(t: Vector2i) -> bool: return props[t].visible != (game.fog.map.explored[game.map.index(t)] == 1))
+	check(wrong.is_empty(), "trees show exactly on our explored tiles (%d wrong of %d)" % [wrong.size(), props.size()])
 	game.command("recruit_unit", {"kind": "archer"})
 	var got := await wait_until(func() -> bool: return mine.army.units.size() == 1)
 	check(got and is_equal_approx(mine.economy.amount("gold"), Config.START_RESOURCES["gold"] - Config.MILITARY["archer"]["cost"]["gold"]), "a command goes to the host; the new archer and the gold come back")
