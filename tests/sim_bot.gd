@@ -253,6 +253,19 @@ func _run() -> void:
 	mouse(from + Vector2(-160, -80), false)
 	await frames(2)
 	check(cam.position.distance_to(cam0) > 50.0, "dragging the map pans the camera")
+	# Firefox (mobile, touch simulation) reports touch-made mouse motion with far-off
+	# `relative` values: the map follows the finger's position all the same.
+	cam.focus(cam0)
+	var c1 := cam.position
+	mouse(from, true)
+	await frames(1)
+	for i in range(1, 6):
+		motion(from + Vector2(10.0 * i, 6.0 * i), Vector2(4000, -3000))
+		await frames(1)
+	mouse(from + Vector2(50, 30), false)
+	await frames(2)
+	# The first step stays within the drag threshold: the other four pan.
+	check(cam.position.distance_to(c1 - Vector2(40, 24) / cam.zoom) < 1.0, "a drag pans by the pointer's move, whatever its reported relative motion (%s)" % (cam.position - c1))
 	var z0 := cam.zoom.x
 	for i in 3:
 		var wheel := InputEventMouseButton.new()

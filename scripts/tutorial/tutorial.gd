@@ -273,7 +273,7 @@ func _build_steps() -> void:
 			"text": "Units get better with levels. Tap one and promote it with gold. (Later, training grounds let the hero pass on his XP to a unit instead.)",
 			"start": _mark_units,
 			"done": _unit_promoted,
-			"point": func() -> Dictionary: return {"tiles": _first_tiles(_towers())}},
+			"point": _promote_point},
 		{"title": "Tower upgrades",
 			"text": "Towers can be upgraded too: tap the watchtower and upgrade it. Your builder does the work.",
 			"done": func() -> bool: return _towers(true).any(func(t: Tower) -> bool: return t.level >= 2),
@@ -321,6 +321,18 @@ func _barracks_point() -> Dictionary:
 	if bs.is_empty():
 		return _place_point("barracks", Building.footprint(_spot("barracks", barracks_tile), 2))
 	return _unit_point("shield_bearer", bs)
+
+
+## Step 11: every unit stationed on a post (its figure, not the post); with
+## none, the reserve while a unit waits there; with no unit at all, the Army tab.
+func _promote_point() -> Dictionary:
+	var on_posts := game.army.stationed().filter(func(u: MilitaryUnit) -> bool:
+		return is_instance_valid(u.post) and u.post.unit_rect(u).has_area())
+	if not on_posts.is_empty():
+		return {"units": on_posts}
+	if not game.army.reserve().is_empty():
+		return {"hud": ["reserve", "tab:army", "dock"], "tab": "army"}
+	return {"hud": ["tab:army", "dock"]}
 
 
 ## Step 11: every unit's kind and level now; done when one has gone up.
@@ -451,7 +463,9 @@ func _point() -> void:
 		game.hud.scroll_to(target)  # (once: the player may scroll away)
 	var tiles: Array[Vector2i] = []
 	tiles.assign(p.get("tiles", []))
-	highlight.point_at(target, game.hud.dock_clip(target), tiles)
+	var units: Array[MilitaryUnit] = []
+	units.assign(p.get("units", []))
+	highlight.point_at(target, game.hud.dock_clip(target), tiles, units)
 
 
 ## The gatherers' step needs corpses: if wave 1 is over and left none (the goblins got

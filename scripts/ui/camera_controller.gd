@@ -21,6 +21,16 @@ var press_filter: Callable
 var _pressing := false
 var _dragging := false
 var _press_pos := Vector2.ZERO
+## Where the pointer was at the last press or motion event: panning goes by
+## the change of the position, never by the event's `relative`. Firefox
+## (mobile, and its touch simulation) reports the motion of touch-made mouse
+## events (movementX / Y, Godot's `relative` on the web) far off: jumps that
+## flung the map out of view. (The web build makes mouse motion of every
+## pointer move, fingers too, besides the touch events.)
+var _last_pos := Vector2.ZERO
+## After a pinch the pointer may be another finger: the next motion only
+## takes its position, without panning.
+var _repoint := false
 var _touches: Dictionary = {}  # index -> screen position
 var _pinch_dist := 0.0
 
@@ -50,6 +60,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					_pressing = true
 					_dragging = false
 					_press_pos = mb.position
+					_last_pos = mb.position
+					_repoint = false
 			MOUSE_BUTTON_WHEEL_UP:
 				if mb.pressed:
 					zoom_at(mb.position, 1.12)
@@ -94,9 +106,14 @@ func _input(event: InputEvent) -> void:
 		if _pressing:
 			if not _dragging and mm.position.distance_to(_press_pos) > DRAG_THRESHOLD:
 				_dragging = true
-			if _dragging and _touches.size() < 2:
-				position -= mm.relative / zoom
+			if _touches.size() >= 2:
+				_repoint = true
+			elif _dragging and not _repoint:
+				position -= (mm.position - _last_pos) / zoom
 				_clamp()
+			else:
+				_repoint = false
+			_last_pos = mm.position
 		else:
 			hovered.emit(screen_to_world(mm.position))
 	elif event is InputEventMouseButton:

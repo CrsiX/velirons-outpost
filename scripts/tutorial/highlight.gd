@@ -1,8 +1,8 @@
 class_name TutorialHighlight
 extends Control
 ## The tutorial's pointer (docs/tutorial-design.md §3.2): a pulsing gold
-## outline around a HUD control and / or a pulsing diamond on map tiles, with
-## a bobbing arrow at it. A tile off the map's part of the screen (off screen,
+## outline around a HUD control and / or a pulsing diamond on map tiles or
+## an outline around units' figures on their posts, with a bobbing arrow at it. A tile off the map's part of the screen (off screen,
 ## or under the top bar or the open dock: Hud.map_rect) gets only an arrow at
 ## that area's edge, pointing its way. Draws over the HUD, takes no input.
 
@@ -17,6 +17,8 @@ var target: Control = null
 var clip := Rect2()
 ## Map tiles to mark (a building's footprint), empty: none.
 var tiles: Array[Vector2i] = []
+## Stationed units whose figures (on a tower, a bench...) to outline, empty: none.
+var units: Array[MilitaryUnit] = []
 var _t := 0.0
 ## The tile marks draw here: the map's part of the screen, clipped, so they
 ## never spill over the top bar or the dock.
@@ -33,15 +35,33 @@ func _init(p_game: Game) -> void:
 	add_child(_map_layer)
 
 
-func point_at(control: Control, p_clip: Rect2, p_tiles: Array[Vector2i]) -> void:
+func point_at(control: Control, p_clip: Rect2, p_tiles: Array[Vector2i], p_units: Array[MilitaryUnit] = []) -> void:
 	target = control
 	clip = p_clip
 	tiles = p_tiles
+	units = p_units
 
 
 func clear() -> void:
 	target = null
 	tiles = []
+	units = []
+
+
+## The outlined units' figures on screen (global; the ones not shown are left out).
+func unit_screen_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for u in units:
+		if not is_instance_valid(u.post):
+			continue
+		var r := u.post.unit_rect(u)
+		if not r.has_area():
+			continue
+		var xf := u.post.get_global_transform_with_canvas()
+		var a := xf * r.position
+		var b := xf * r.end
+		out.append(Rect2(a.min(b), (b - a).abs()))
+	return out
 
 
 func _process(delta: float) -> void:
@@ -96,6 +116,7 @@ func tiles_in_view() -> bool:
 
 ## On _map_layer (its own coordinates: the map area's top left is 0, 0).
 func _draw_tiles() -> void:
+	_draw_units()
 	if tiles.is_empty():
 		return
 	var col := GOLD
@@ -131,6 +152,33 @@ func _draw_tiles() -> void:
 	var tip := pts[0] - Vector2(0, 10.0 + bob)
 	tip.y = maxf(tip.y, area.position.y + ARROW * 1.9)
 	_arrow(tip, Vector2.DOWN, col, _map_layer)
+
+
+## On _map_layer: an outline around every outlined unit's figure in view, an
+## arrow over each; none in view: an arrow at the map area's edge towards the first.
+func _draw_units() -> void:
+	var rects := unit_screen_rects()
+	if rects.is_empty():
+		return
+	var col := GOLD
+	col.a = 0.55 + 0.45 * _pulse()
+	var bob := 6.0 * sin(_t * 5.0)
+	var off := _map_layer.get_global_rect().position
+	var area := Rect2(Vector2.ZERO, _map_layer.size)
+	var margin := area.grow(-EDGE)
+	var shown := false
+	for g in rects:
+		var r := Rect2(g.position - off, g.size).grow(3.0 + 2.0 * _pulse())
+		if not margin.has_point(r.get_center()):
+			continue
+		shown = true
+		_map_layer.draw_rect(r, col, false, 3.0)
+		var tip := Vector2(r.get_center().x, maxf(r.position.y - 8.0 - bob, ARROW * 1.9))
+		_arrow(tip, Vector2.DOWN, col, _map_layer)
+	if not shown:
+		var centre := area.get_center()
+		var dir := (rects[0].get_center() - off - centre).normalized()
+		_arrow(centre + dir * _edge_distance(margin, centre, dir), dir, col, _map_layer)
 
 
 ## How far from `from` along `dir` the edge of `r` is.

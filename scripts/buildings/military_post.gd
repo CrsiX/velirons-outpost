@@ -78,6 +78,12 @@ func unit_pick_rect() -> Rect2:
 	return sprite_rect(_unit_sprite)
 
 
+## Where `unit`'s figure is drawn on this post, in local coordinates (empty:
+## it isn't shown here, e.g. still marching or out on a sortie).
+func unit_rect(unit: MilitaryUnit) -> Rect2:
+	return unit_pick_rect() if unit != null and unit == garrison else Rect2()
+
+
 static func sprite_rect(s: Sprite2D) -> Rect2:
 	var r := s.get_rect()
 	var sc := s.scale.abs()

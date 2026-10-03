@@ -163,6 +163,13 @@ func unit_pick_rect() -> Rect2:
 	return Rect2()  # (several benches: see unit_at)
 
 
+func unit_rect(unit: MilitaryUnit) -> Rect2:
+	for i in mini(_bench_sprites.size(), slots.size()):
+		if unit != null and slots[i] == unit and unit.state == MilitaryUnit.State.STATIONED and _bench_sprites[i].visible:
+			return sprite_rect(_bench_sprites[i])
+	return Rect2()
+
+
 func set_unit_ghosted(on: bool, unit: MilitaryUnit = null) -> void:
 	for i in _bench_sprites.size():
 		if unit == null or (i < slots.size() and slots[i] == unit):

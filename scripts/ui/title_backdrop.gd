@@ -24,7 +24,6 @@ var route: Array[Vector2i] = []
 var clock := 0.0
 var game_time := 0.0
 var _viewport: SubViewport
-var _order: Array[int] = []
 ## Per enemy group: game time it comes next (INF: done).
 var _next_group: Array[float] = []
 ## Enemies of the groups still to show up: {"kind", "at", "from", "wave"}.
@@ -51,12 +50,7 @@ func _ready() -> void:
 	texture = _viewport.get_texture()
 	resized.connect(_fit)
 	_fit()
-	var count: int = (Config.TITLE_BACKDROP["scenes"] as Array).size()
-	for i in count:
-		_order.append(i)
-	if Config.TITLE_BACKDROP["shuffle"]:
-		_order.shuffle()
-	if count == 0:
+	if (Config.TITLE_BACKDROP["scenes"] as Array).is_empty():
 		return
 	# The menu shows first, over black; then the first scene is made.
 	await get_tree().process_frame
@@ -84,7 +78,7 @@ func value(key: String):
 	return scene.get(key, Config.TITLE_BACKDROP.get(key))
 
 
-## Plays scene `i` now (tests; -1: the next one in the order).
+## Plays scene `i` now (tests; -1: the next one, see _pick_next).
 func play(i: int) -> void:
 	if _fade:
 		_fade.kill()
@@ -97,10 +91,7 @@ func _next_scene(i := -1) -> void:
 		game.queue_free()
 		game = null
 	var scenes: Array = Config.TITLE_BACKDROP["scenes"]
-	if i >= 0:
-		index = i
-	else:
-		index = _order[(_order.find(index) + 1) % _order.size()] if index >= 0 else _order[0]
+	index = i if i >= 0 else _pick_next()
 	scene = scenes[index]
 	clock = 0.0
 	game_time = 0.0
@@ -117,6 +108,18 @@ func _next_scene(i := -1) -> void:
 	Engine.time_scale = float(value("speed"))
 	_fade_to(Color.WHITE.darkened(float(value("shade"))), float(value("fade_in")))
 	scene_started.emit(index)
+
+
+## The next scene: a random one, never the one just played (with
+## "random" off: the next in the list).
+func _pick_next() -> int:
+	var count: int = (Config.TITLE_BACKDROP["scenes"] as Array).size()
+	if not Config.TITLE_BACKDROP["random"]:
+		return (index + 1) % count
+	if count == 1:
+		return 0
+	var n := randi() % (count - (1 if index >= 0 else 0))
+	return n + 1 if index >= 0 and n >= index else n
 
 
 func _fade_to(c: Color, seconds: float) -> Tween:

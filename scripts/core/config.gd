@@ -89,7 +89,7 @@ const TITLE_BACKDROP := {
 	"fade_in": 2.5,  # from black, once a scene is ready
 	"fade_out": 1.5,  # to black, before the next scene
 	"shade": 0.3,  # darkens the game behind the menu, so it reads (0: none)
-	"shuffle": false,  # true: the scenes in a random order (false: as listed)
+	"random": true,  # every new scene a random one, never the one just played (false: as listed)
 	"map_type": "temperate", "seed": 38,
 	"resources": {"gold": 0, "food": 5000, "materials": 0},
 	"civilians": ["builder", "farmer", "forester", "gatherer"],

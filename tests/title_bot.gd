@@ -20,25 +20,35 @@ func _run() -> void:
 	check(bd != null and bd.modulate == Color.BLACK and bd.game == null, "the title screen starts on black, the game not made yet")
 	check(title.singleplayer_button.is_visible_in_tree(), "the menu is there at once")
 	check(await wait_until(func() -> bool: return bd.game != null, 30.0), "then the first scene's game is made")
-	check(bd.index == 0, "the first scene first (as listed)")
+	check(bd.index >= 0 and bd.index < (CFG["scenes"] as Array).size(), "a random scene first (%d)" % bd.index)
 	await frames(2)
 	check(bd.modulate.v > 0.0 and bd.modulate.v < 1.0 - float(CFG["shade"]) + 0.01, "and it fades in")
 	await wait(float(CFG["fade_in"]) * float(CFG["speed"]) + 0.5)
 	check(is_equal_approx(bd.modulate.v, 1.0 - float(CFG["shade"])), "up to the shade (%.2f)" % bd.modulate.v)
 	check(is_equal_approx(Engine.time_scale, float(CFG["speed"])), "slow motion: speed %.2f" % Engine.time_scale)
 	check(Sfx.muted, "no sound")
-	_input_check()
+	await _input_check()
 	for i in (CFG["scenes"] as Array).size():
-		if i > 0:
+		if i != bd.index:
 			bd.play(i)
 		await _scene(i)
 	check(Settings.difficulty == diff and not Settings.tutorial_next, "the settings are untouched")
-	# Its time over, the next scene (the first again after the last).
-	var started := []
+	# Its time over, a random next scene, never the same one twice in a row.
+	var started := [bd.index]
 	bd.scene_started.connect(func(n: int) -> void: started.append(n))
 	var real := float(bd.value("duration")) + 2.0
 	await wait(real * float(CFG["speed"]))
-	check(started == [0], "after its time the next scene plays (the first after the last): %s" % [started])
+	check(started.size() == 2, "after its time the next scene plays: %s" % [started])
+	var picks := {}
+	var repeat := false
+	for k in 300:
+		var was := bd.index
+		var n := bd._pick_next()
+		repeat = repeat or n == was
+		picks[n] = true
+		bd.index = n
+	check(not repeat and not (started.size() == 2 and started[0] == started[1]), "never the scene just played")
+	check(picks.size() == (CFG["scenes"] as Array).size(), "every scene comes up (%d of %d)" % [picks.size(), (CFG["scenes"] as Array).size()])
 	title.queue_free()
 	await frames(2)
 	check(Engine.time_scale == 1.0 and not Sfx.muted, "leaving the title screen: normal speed and sound again")

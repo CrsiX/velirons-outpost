@@ -238,6 +238,22 @@ func _play_through() -> void:
 
 	print("-- step 11: a unit level")
 	await at_step(10, 5.0)
+	await frames(2)
+	check(tut.highlight.units.has(u) and tut.highlight.tiles.is_empty() and tut.highlight.target == null, "the stationed units are outlined (on their figures, not the towers)")
+	check(tut.highlight.units.all(func(x: MilitaryUnit) -> bool: return x.state == MilitaryUnit.State.STATIONED and x.post.unit_rect(x).has_area()), "only units shown on a post")
+	check(not tut.highlight.unit_screen_rects().is_empty(), "their figures on screen")
+	# Nobody on a post: a unit in the reserve, else the Army tab.
+	var real_stationed := game.army.units.filter(func(x: MilitaryUnit) -> bool: return x.state == MilitaryUnit.State.STATIONED)
+	for x in real_stationed:
+		x.state = MilitaryUnit.State.RESERVE
+	var p1: Dictionary = tut._promote_point()
+	check(p1.get("hud", []).has("reserve") and not p1.has("units"), "no manned post, a unit in the reserve: the reserve")
+	for x in real_stationed:
+		x.state = MilitaryUnit.State.DOWNED
+	var p2: Dictionary = tut._promote_point()
+	check(p2.get("hud", [""])[0] == "tab:army" and not p2.has("units"), "no unit to promote at all: the Army tab")
+	for x in real_stationed:
+		x.state = MilitaryUnit.State.STATIONED
 	check(cmd("upgrade_unit", {"unit": u.nid})["ok"], "the archer goes up a level")
 	check(await at_step(11, 5.0), "step 12")
 
