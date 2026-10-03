@@ -181,7 +181,7 @@ const TITLE_BACKDROP := {
 ##   "kill_kinds":      enemy kinds with their own "killed" row (the rest:
 ##                      "Others"; raised dead have a row of their own).
 const STATS := {
-	"from_wave": 3,
+	"from_wave": 2,
 	"sample_interval": 15.0,
 	"client_refresh": 5.0,
 	"unit_sent_value": 50,
@@ -228,6 +228,15 @@ const ZONE_FAIR_RADIUS := 12.0  # around every village: enough meadow and trees
 const ZONE_FAIR_MIN := {"meadow": 0.25, "trees": 0.25}
 const ZONE_FAIR_CLEAR := 8.0  # no steppe, swamp or ash this close to a village
 const ZONE_FAIR_SPREAD := 0.15  # max difference in zone shares between slices
+## Trees planted when a village has too few (ZONE_FAIR_MIN["trees"]): they grow
+## as woods of zone "zone" (its ground and tree mix), one tile at a time, on the
+## open tile scoring best. Score = "grow" x forest tiles among its 8 neighbours
+## + "clump" x a noise value (0..1; "noise" is its frequency, so groves form
+## in patches) + "far" x distance from the centre / ZONE_FAIR_RADIUS
+## - "meadow" if it is meadow (kept for farms where possible). "grove": trees
+## in the grove planted when no spot near a village suits the worker camp
+## (nearest its middle first there, the same scoring otherwise).
+const ZONE_FAIR_WOODS := {"zone": "oak", "grow": 1.0, "clump": 2.0, "noise": 0.15, "far": 0.6, "meadow": 1.5, "grove": 14}
 ## Villages: within this of their slice's centre, on dry flat land.
 const VILLAGE_CENTER_RADIUS := 12.0
 const VILLAGE_CLEAR_RADIUS := 5.0  # no water, mountains or volcanoes this close to the walls

@@ -2,7 +2,7 @@ extends "res://tests/bot_base.gd"
 ## Headless test of the in-game statistics (docs/statistics-design.md): the
 ## counters (kills by kind and by whom, earned and spent, recruits, losses,
 ## huts), sampling every 15 game seconds (game speed counts, a pause doesn't),
-## the top-bar button (from wave 3, T, pausing single player), the three tabs,
+## the top-bar button (from wave 2, T, pausing single player), the three tabs,
 ## the game-over button, hot-seat columns with the best value marked, and the
 ## numbers surviving the trip to a co-op client (to_net / from_net). Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/stats_bot.tscn
@@ -124,15 +124,15 @@ func _single() -> void:
 	kill(th)
 	await frames(2)
 
-	# The button: from wave 3.
+	# The button: from wave 2.
 	check(hud._stats_button != null and hud._stats_button.get_index() == hud._book_button.get_index() + 1, "the statistics button sits right of the library")
-	check(not hud.stats_available() and hud._stats_button.modulate.a < 1.0 and "wave 3" in hud._stats_button.tooltip_text, "before wave 3 it's greyed out and says when")
+	check(not hud.stats_available() and hud._stats_button.modulate.a < 1.0 and "wave 2" in hud._stats_button.tooltip_text, "before wave 2 it's greyed out and says when")
 	hud._stats_button.pressed.emit()
 	await frames(1)
 	check(not hud.stats_screen.visible, "and it doesn't open")
-	game.waves.wave = 3
+	game.waves.wave = 2
 	hud._refresh()
-	check(hud.stats_available() and hud._stats_button.modulate.a == 1.0, "from wave 3 it's available")
+	check(hud.stats_available() and hud._stats_button.modulate.a == 1.0, "from wave 2 it's available")
 	hud.set_speed_index(Game.SPEEDS.find(2.0))
 	await frames(1)
 	hud._unhandled_key_input(_key(KEY_T))

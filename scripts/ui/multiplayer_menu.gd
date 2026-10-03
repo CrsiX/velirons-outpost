@@ -76,6 +76,15 @@ func _btn(text: String, h: float = 52.0) -> Button:
 	return b
 
 
+## "Ready", with a check icon after it once ticked (art: mobile browsers'
+## fonts lack the ✓ character).
+func _show_ready(on: bool) -> void:
+	ready_button.text = "Ready"
+	ready_button.icon = Art.tex("icon_yes") if on else null
+	ready_button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ready_button.add_theme_constant_override("icon_max_width", 24)
+
+
 func _identity_rows(parent: Control) -> void:
 	parent.add_child(_panel_label("Your village", 20, UiTheme.GOLD))
 	var ne := LineEdit.new()
@@ -181,7 +190,7 @@ func _build_lobby() -> void:
 	ready_button.toggle_mode = true
 	ready_button.toggled.connect(func(on: bool) -> void:
 		Net.set_ready(on)
-		ready_button.text = "Ready ✓" if on else "Ready")
+		_show_ready(on))
 	settings_pane.add_child(ready_button)
 	start_button = _btn("Start", 60)
 	UiTheme.style_good(start_button)
@@ -285,7 +294,7 @@ func refresh() -> void:
 	apply_button.visible = in_lobby and not ready_now
 	ready_button.visible = Net.is_client()
 	ready_button.set_pressed_no_signal(ready_now)
-	ready_button.text = "Ready ✓" if ready_now else "Ready"
+	_show_ready(ready_now)
 	difficulty_button.visible = Net.is_host()
 	difficulty_button.text = "Difficulty: %s" % Settings.NAMES[Net.difficulty]
 	# Everyone sees the map settings; only the host changes them.

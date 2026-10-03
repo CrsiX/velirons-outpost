@@ -111,6 +111,8 @@ var _dock_hint: Label
 var _hero_button: Button
 var _hero_hp_bar: Control
 const HERO_HP_BAR := 7.0  # px
+const YES_NO_ICON := 26  # px: the check and cross icons on the placing buttons
+const VILLAGE_BUTTON_WIDTH := 120.0  # hot-seat village button; longer names end in …
 var _hero_panel: PanelContainer
 var _hero_stats: RichTextLabel
 var _hero_status: Label
@@ -552,8 +554,12 @@ func _build_topbar() -> void:
 	_village_button = _button("", Vector2(0, 44))
 	_village_button.tooltip_text = "Hot-seat: switch to the next village (Tab)"
 	_village_button.add_theme_font_size_override("font_size", 16)
-	_village_button.visible = game.villages.size() > 1
-	_village_button.disabled = game.networked  # networked: just shows whose village this is
+	# Hot-seat only: a networked player always plays their own village.
+	_village_button.visible = game.villages.size() > 1 and not game.networked
+	# A long name is cut short (…) rather than pushing the buttons off the bar.
+	_village_button.clip_text = true
+	_village_button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_village_button.custom_minimum_size.x = VILLAGE_BUTTON_WIDTH
 	_village_button.pressed.connect(func() -> void:
 		if not game.networked:
 			game.switch_village())
@@ -1724,8 +1730,9 @@ func _build_mode_panel() -> void:
 	_mode_panel.visible = false
 	_mode_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE  # (only a hint: taps go to the map)
 	# Cancel, big, in the bottom corner where the thumb is.
-	_cancel_button = _button("✕  Cancel", Vector2(170, 64))
+	_cancel_button = _button("Cancel", Vector2(170, 64))
 	_cancel_button.add_theme_font_size_override("font_size", 22)
+	_yes_no_icon(_cancel_button, "icon_no")
 	UiTheme.style_danger(_cancel_button)
 	_cancel_button.pressed.connect(func() -> void: game.cancel_mode())
 	_cancel_button.visible = false
@@ -1733,18 +1740,28 @@ func _build_mode_panel() -> void:
 	# Touch: Build / Cancel under the building shown where it would go.
 	_place_bar = HBoxContainer.new()
 	_place_bar.add_theme_constant_override("separation", 10)
-	_place_build = _button("✓  Build", Vector2(140, 60))
+	_place_build = _button("Build", Vector2(140, 60))
 	_place_build.add_theme_font_size_override("font_size", 22)
+	_yes_no_icon(_place_build, "icon_yes")
 	UiTheme.style_good(_place_build)
 	_place_build.pressed.connect(func() -> void: game.confirm_place())
 	_place_bar.add_child(_place_build)
-	var no := _button("✕", Vector2(60, 60))
-	no.add_theme_font_size_override("font_size", 24)
+	var no := _button("", Vector2(60, 60))
+	_yes_no_icon(no, "icon_no")
+	no.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UiTheme.style_danger(no)
 	no.pressed.connect(func() -> void: game.cancel_mode())
 	_place_bar.add_child(no)
 	_place_bar.visible = false
 	_root.add_child(_place_bar)
+
+
+## The yes / no icon of a button (art, not the ✓ / ✕ characters: mobile
+## browsers' fonts lack them), the same size on every button.
+func _yes_no_icon(b: Button, icon_name: String) -> void:
+	b.icon = Art.tex(icon_name)
+	b.expand_icon = false
+	b.add_theme_constant_override("icon_max_width", YES_NO_ICON)
 
 
 ## Touch placing: Build (off when `error` says it can't go there) and Cancel
@@ -2566,7 +2583,7 @@ func _refresh_stats_button() -> void:
 
 
 ## The statistics screen. Single player (hot-seat too) pauses while it's open,
-## like the library; in co-op nobody pauses. Before wave 3 it only says when.
+## like the library; in co-op nobody pauses. Before Config.STATS["from_wave"] it only says when.
 func open_stats(tab := "") -> void:
 	if stats_screen.visible:
 		return

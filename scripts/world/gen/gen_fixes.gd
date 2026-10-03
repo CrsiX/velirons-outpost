@@ -43,17 +43,50 @@ static func _fair_land(c: GenContext, v: Dictionary) -> void:
 		open.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return Vector2(a).distance_squared_to(Vector2(centre)) < Vector2(b).distance_squared_to(Vector2(centre)))
 		for t in open.slice(0, need_meadow - meadow):
 			_to_meadow(m, t)
-	# Enough trees: plant oaks on open tiles, the farthest from the walls first.
+	# Enough trees: woods grow in patches (Config.ZONE_FAIR_WOODS).
 	var need_trees := int(ceil(Config.ZONE_FAIR_MIN["trees"] * land.size()))
 	var trees := land.filter(func(t: Vector2i) -> bool: return m.is_forest(t)).size()
 	if trees < need_trees:
 		var ring := Config.FOREST_CLEARING_RING + 1
 		var open := land.filter(func(t: Vector2i) -> bool: return not m.is_forest(t) and not m.is_road(t) and maxi(absi(t.x - centre.x), absi(t.y - centre.y)) > ring and not _next_to_road(m, t))
-		open.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return Vector2(a).distance_squared_to(Vector2(centre)) > Vector2(b).distance_squared_to(Vector2(centre)))
-		for t in open.slice(0, need_trees - trees):
-			m.set_terrain(t, MapData.Terrain.FOREST)
-			m.props[t] = "tree_oak" if c.rng.randf() < 0.6 else "tree_pine_0"
-			m.decor.erase(t)
+		_grow_woods(c, centre, open, need_trees - trees, float(Config.ZONE_FAIR_WOODS["far"]))
+
+
+## Plants `count` trees on tiles of `open`, the best scoring first (forest
+## around it, a noise patch, `far` x distance from `centre`, so negative:
+## nearest first; meadow last). Each tile
+## becomes woods of ZONE_FAIR_WOODS["zone"], so ground and trees match.
+static func _grow_woods(c: GenContext, centre: Vector2i, open: Array, count: int, far: float) -> void:
+	var m := c.m
+	var w: Dictionary = Config.ZONE_FAIR_WOODS
+	var noise := FastNoiseLite.new()
+	noise.seed = c.seed_value * 31 + centre.x * 101 + centre.y
+	noise.frequency = float(w["noise"])
+	var base := {}
+	for t: Vector2i in open:
+		base[t] = float(w["clump"]) * (noise.get_noise_2d(t.x, t.y) * 0.5 + 0.5) \
+			+ far * Vector2(t).distance_to(Vector2(centre)) / Config.ZONE_FAIR_RADIUS \
+			- (float(w["meadow"]) if m.zone(t) == "meadow" else 0.0)
+	var zone: String = w["zone"]
+	for i in mini(count, open.size()):
+		var best := -1
+		var best_s := -INF
+		for k in open.size():
+			var t: Vector2i = open[k]
+			var s: float = base[t]
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					if (dx != 0 or dy != 0) and m.is_forest(t + Vector2i(dx, dy)):
+						s += float(w["grow"])
+			if s > best_s:
+				best_s = s
+				best = k
+		var t: Vector2i = open[best]
+		open.remove_at(best)
+		m.set_zone(t, zone)
+		m.set_terrain(t, MapData.Terrain.FOREST)
+		m.props[t] = c.pick(Config.ZONES[zone]["mix"])
+		m.decor.erase(t)
 
 
 static func _next_to_road(m: MapData, t: Vector2i) -> bool:
@@ -107,7 +140,7 @@ static func _farm_plot(c: GenContext, v: Dictionary) -> void:
 
 
 ## A worker camp wants 8+ trees within 5 tiles of a spot near the village (the camp itself needs 6): if
-## no such spot exists, a small grove is planted.
+## no such spot exists, a small round grove of woods is planted (ZONE_FAIR_WOODS["grove"] trees).
 static func _camp_trees(c: GenContext, v: Dictionary) -> void:
 	var m := c.m
 	var centre: Vector2i = v["center"]
@@ -126,10 +159,10 @@ static func _camp_trees(c: GenContext, v: Dictionary) -> void:
 	# Plant a grove on the side away from the farm plot.
 	var away: Vector2i = -((v["farm_plot"] as Vector2i) - centre).sign() if v["farm_plot"] != Vector2i(-1, -1) else Vector2i(1, 0)
 	var grove := centre + away * 8
-	for dy in range(-2, 3):
-		for dx in range(-2, 3):
+	var open: Array = []
+	for dy in range(-3, 4):
+		for dx in range(-3, 4):
 			var t := grove + Vector2i(dx, dy)
-			if c.is_land(t) and not m.is_road(t) and not _next_to_road(m, t) and not m.in_village(t):
-				m.set_terrain(t, MapData.Terrain.FOREST)
-				m.props[t] = "tree_pine_0" if (dx + dy) % 2 == 0 else "tree_oak"
-				m.decor.erase(t)
+			if Vector2(dx, dy).length() <= 3.2 and c.is_land(t) and not m.is_forest(t) and not m.is_road(t) and not _next_to_road(m, t) and not m.in_village(t):
+				open.append(t)
+	_grow_woods(c, grove, open, int(Config.ZONE_FAIR_WOODS["grove"]), -float(Config.ZONE_FAIR_WOODS["far"]))

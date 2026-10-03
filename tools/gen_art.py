@@ -1867,6 +1867,15 @@ def icons():
     icon_svg("icon_check", f'''
   <path d="M12 34 L26 48 L52 16" fill="none" stroke="{INK}" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M12 34 L26 48 L52 16" fill="none" stroke="#7fd36b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>''')
+    # Yes / no on coloured buttons (Build, Cancel, Ready): light strokes with an
+    # ink outline, both spanning 12..52 so either icon sits the same in its button.
+    # (Instead of the ✓ / ✕ characters, which mobile browsers' fonts lack.)
+    icon_svg("icon_yes", f'''
+  <path d="M12 34 L26 48 L52 16" fill="none" stroke="{INK}" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12 34 L26 48 L52 16" fill="none" stroke="#efe3c8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>''')
+    icon_svg("icon_no", f'''
+  <path d="M14 14 L50 50 M50 14 L14 50" fill="none" stroke="{INK}" stroke-width="13" stroke-linecap="round"/>
+  <path d="M14 14 L50 50 M50 14 L14 50" fill="none" stroke="#efe3c8" stroke-width="7" stroke-linecap="round"/>''')
     icon_svg("icon_book", f'''
   <path d="M4 19 L4 54 C14 51 24 51 32 57 C40 51 50 51 60 54 L60 19 Z" fill="#7a2a1f" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M32 18 C24 11 14 11 7 14 L7 49 C15 46 24 47 32 53 Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
