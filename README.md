@@ -9,6 +9,8 @@ with mouse and keyboard or touch.
 > the village. Ensure the safety of your villagers. Find unknown treasures
 > and kill many monsters. For wealth and glory!_
 
+![Banner](banner.png)
+
 The last outpost of the kingdom of Veliron is a small village surrounded
 by walls. It sits in the middle of a procedurally generated 75x75 map
 of different biomes like forests, meadows, heath, steppe, swamps and
