@@ -4,16 +4,21 @@ extends TextureRect
 ## themselves behind the menu in slow motion, one scene after the other. Each
 ## scene is a fresh Game (Game.backdrop) on its own fixed map, with its posts
 ## ready and manned, enemies coming down its road in groups, and the camera
-## drifting from one spot to another. Black until the first scene is made,
-## then it fades in; between scenes it fades to black and back. The game
+## drifting from one spot to another. Black until the first scene is made
+## (only once the menu shows), then it fades in; between scenes it fades to
+## black, makes the next one and fades in again. A scene's map is baked
+## (BakedMap) and its game is made over several frames while the screen is
+## black (Game.build_step), so the menu stays responsive. The game
 ## renders into its own SubViewport (at the window's resolution), shown here;
 ## nothing passes input on to it, so the menu over it gets every key, click
 ## and touch. It plays no sound; leaving the title screen ends it.
 
 signal scene_started(index: int)
 
-## The game playing now (null while none is).
+## The scene's game (null while none is; set once it's made).
 var game: Game = null
+## The scene plays: made, shown and fading in (or in).
+var playing := false
 ## Index into Config.TITLE_BACKDROP["scenes"] of the scene playing now.
 var index := -1
 ## The scene playing now, with the defaults of Config.TITLE_BACKDROP filled in.
@@ -32,6 +37,12 @@ var _cam_from := Vector2.ZERO
 var _cam_to := Vector2.ZERO
 var _leaving := false
 var _fade: Tween
+## A scene's game is being made (it shows once it's ready: start).
+var _building := false
+## A scene asked for meanwhile (play): made right after (-2: none).
+var _queued := -2
+## Real time (ms) the screen went black, for Config.TITLE_BACKDROP["black"].
+var _black_since := 0
 
 
 func _ready() -> void:
@@ -85,7 +96,14 @@ func play(i: int) -> void:
 	_next_scene(i)
 
 
+## Makes scene `i` (-1: the next one); it fades in once it's ready (start).
 func _next_scene(i := -1) -> void:
+	if _building:
+		_queued = i
+		return
+	modulate = Color.BLACK
+	playing = false
+	_black_since = Time.get_ticks_msec() if game else 0
 	if game:
 		_viewport.remove_child(game)
 		game.queue_free()
@@ -102,12 +120,12 @@ func _next_scene(i := -1) -> void:
 		_next_group.append(float(grp.get("at", 0.0)))
 	Sfx.muted = true
 	Engine.time_scale = 1.0
+	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED  # (nothing to see yet)
 	var g: Game = (load(Net.GAME_SCENE) as PackedScene).instantiate()
 	g.backdrop = self
-	_viewport.add_child(g)  # (makes its map and village: Game._ready calls prepare and start)
-	Engine.time_scale = float(value("speed"))
-	_fade_to(Color.WHITE.darkened(float(value("shade"))), float(value("fade_in")))
-	scene_started.emit(index)
+	g.process_mode = Node.PROCESS_MODE_DISABLED  # (still while it's being made)
+	_building = true
+	_viewport.add_child(g)  # (Game._ready calls prepare, makes it over several frames, then calls start)
 
 
 ## The next scene: a random one, never the one just played (with
@@ -140,6 +158,7 @@ func prepare(g: Game) -> void:
 	g.start_resources = (value("resources") as Dictionary).duplicate()
 	g.start_civilians.assign(value("civilians"))
 	g.start_buildings.assign(value("buildings"))
+	g.preset_map = BakedMap.load_map(g.map_type, g.map_seed)  # (null: not baked, it's generated)
 
 
 ## Game._ready, once it's set up: no HUD or input, its posts, the camera.
@@ -167,10 +186,28 @@ func start(g: Game) -> void:
 	g.camera.zoom = Vector2(z, z)
 	g.camera.position = _cam_from
 	g.events.debug("title backdrop: %s on road %s" % [value("name"), str(route.back()) if not route.is_empty() else "-"])
+	_building = false
+	if _queued != -2:  # (another scene was asked for meanwhile)
+		var q := _queued
+		_queued = -2
+		_next_scene(q)
+		return
+	# A moment of black between two scenes, then it plays and fades in.
+	var wait := float(value("black")) - (Time.get_ticks_msec() - _black_since) / 1000.0
+	if _black_since > 0 and wait > 0.0:
+		await get_tree().create_timer(wait, true, false, true).timeout
+		if game != g:
+			return
+	g.process_mode = Node.PROCESS_MODE_INHERIT
+	playing = true
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	Engine.time_scale = float(value("speed"))
+	_fade_to(Color.WHITE.darkened(float(value("shade"))), float(value("fade_in")))
+	scene_started.emit(index)
 
 
 func _process(delta: float) -> void:
-	if game == null or not is_instance_valid(game):
+	if not playing or not is_instance_valid(game):
 		return
 	clock += delta / maxf(Engine.time_scale, 0.001)
 	game_time += delta

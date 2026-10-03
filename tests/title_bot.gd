@@ -10,6 +10,8 @@ extends "res://tests/bot_base.gd"
 var title: TitleScreen
 var bd: TitleBackdrop
 const CFG := Config.TITLE_BACKDROP
+## No frame while a scene is made takes more than 1 / this of the whole time.
+const MAX_FRAME_SHARE := 6
 
 
 func _run() -> void:
@@ -19,7 +21,23 @@ func _run() -> void:
 	bd = title.backdrop
 	check(bd != null and bd.modulate == Color.BLACK and bd.game == null, "the title screen starts on black, the game not made yet")
 	check(title.singleplayer_button.is_visible_in_tree(), "the menu is there at once")
-	check(await wait_until(func() -> bool: return bd.game != null, 30.0), "then the first scene's game is made")
+	# The scene is made over many frames, none of them a long freeze of the menu.
+	var longest := [0, 0]  # (real usec, frames)
+	var start := Time.get_ticks_usec()
+	var last := [start]
+	var watch := func() -> void:
+		var now := Time.get_ticks_usec()
+		if not bd.playing:
+			longest[0] = maxi(longest[0], now - last[0])
+			longest[1] += 1
+		last[0] = now
+	get_tree().process_frame.connect(watch)
+	check(await wait_until(func() -> bool: return bd.playing, 30.0), "then the first scene's game is made")
+	get_tree().process_frame.disconnect(watch)
+	var total := Time.get_ticks_usec() - start
+	check(longest[1] >= 10 and longest[0] * MAX_FRAME_SHARE < total, "made over %d frames in %d ms, the longest %d ms" % [longest[1], total / 1000, longest[0] / 1000])
+	check(bd.game.preset_map != null, "on its baked map")
+	_baked_maps()
 	check(bd.index >= 0 and bd.index < (CFG["scenes"] as Array).size(), "a random scene first (%d)" % bd.index)
 	await frames(2)
 	check(bd.modulate.v > 0.0 and bd.modulate.v < 1.0 - float(CFG["shade"]) + 0.01, "and it fades in")
@@ -36,9 +54,15 @@ func _run() -> void:
 	# Its time over, a random next scene, never the same one twice in a row.
 	var started := [bd.index]
 	bd.scene_started.connect(func(n: int) -> void: started.append(n))
+	var black := [false]
+	var watch_black := func() -> void:
+		black[0] = black[0] or (bd.modulate == Color.BLACK and bd.game == null)
+	get_tree().process_frame.connect(watch_black)
 	var real := float(bd.value("duration")) + 2.0
 	await wait(real * float(CFG["speed"]))
+	get_tree().process_frame.disconnect(watch_black)
 	check(started.size() == 2, "after its time the next scene plays: %s" % [started])
+	check(black[0], "it fades to black, and the next one is made in the dark")
 	var picks := {}
 	var repeat := false
 	for k in 300:
@@ -80,7 +104,7 @@ func _scene(i: int) -> void:
 	var sc: Dictionary = CFG["scenes"][i]
 	var name := str(sc["name"])
 	print("-- scene %d: %s" % [i, name])
-	check(await wait_until(func() -> bool: return bd.game != null and bd.index == i and bd.game.is_inside_tree(), 30.0), "%s: its game plays" % name)
+	check(await wait_until(func() -> bool: return bd.playing and bd.index == i and bd.game.is_inside_tree(), 30.0), "%s: its game plays" % name)
 	var g := bd.game
 	check(g.backdrop == bd and not g.tutorial_mode and g.disable_fog, "%s: a backdrop game without fog" % name)
 	check(g.map_seed == int(bd.value("seed")) and g.map.map_type == str(bd.value("map_type")), "%s: on its map (%s, seed %d)" % [name, g.map.map_type, g.map_seed])
@@ -124,6 +148,15 @@ func _scene(i: int) -> void:
 	if not is_instance_valid(g):
 		return
 	check(not g.game_over and g.player_village.intact_huts().size() == huts, "%s: no raids, no defeat" % name)
+
+
+## Every scene's map is baked (data/title_maps/), and the bake is up to date.
+func _baked_maps() -> void:
+	for key: Array in load("res://tools/bake_title_maps.gd").maps():
+		var baked := BakedMap.load_map(str(key[0]), int(key[1]))
+		var fresh := MapGenerator.generate(int(key[1]), 1, str(key[0]))
+		check(baked != null and baked.to_bytes() == fresh.to_bytes(),
+			"the baked map %s is up to date (else: godot --headless --path . res://tools/bake_title_maps.tscn)" % BakedMap.path(str(key[0]), int(key[1])))
 
 
 ## The building the scene's post `p` made (not one counted already).

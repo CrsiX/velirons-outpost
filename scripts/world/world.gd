@@ -55,10 +55,19 @@ var _village_labels: Dictionary = {}
 
 func setup(p_game: Game, seed_value: int) -> void:
 	game = p_game
-	# Co-op clients use the map the host generated and sent (Net.map).
-	map = Net.map if game.is_client and Net.map else MapGenerator.generate(seed_value, game.villages.size(), game.map_type)
+	# Co-op clients use the map the host generated and sent (Net.map); the
+	# title backdrop brings a baked one (Game.preset_map).
+	if game.preset_map:
+		map = game.preset_map
+	elif game.is_client and Net.map:
+		map = Net.map
+	else:
+		map = MapGenerator.generate(seed_value, game.villages.size(), game.map_type)
+	await game.build_step()
 	pathing = Pathing.new(map)
-	ground.setup(map)
+	await game.build_step()
+	await ground.setup(map, false, game)
+	await game.build_step(true)  # (its first draw comes at the end of the frame)
 	water = WaterLayer.new()
 	water.name = "Water"
 	lava = WaterLayer.new()
@@ -70,7 +79,9 @@ func setup(p_game: Game, seed_value: int) -> void:
 		move_child(layer, ground.get_index() + 1)
 	water.setup(map, false)
 	lava.setup(map, true)
-	ground_top.setup(map, true)
+	await game.build_step(true)
+	await ground_top.setup(map, true, game)
+	await game.build_step(true)
 	var rim := MapEdgeFade.new()
 	rim.name = "EdgeFade"
 	add_child(rim)
@@ -81,10 +92,13 @@ func setup(p_game: Game, seed_value: int) -> void:
 	fog.revealed.connect(_on_revealed)
 	fog.explored_changed.connect(_on_explored)
 	warnings.setup(game)
-	_spawn_props()
+	await game.build_step()
+	await _spawn_props()
 	if not game.is_client:  # (clients get every building from the host)
 		_spawn_village()
+	await game.build_step()
 	_spawn_map_objects()
+	await game.build_step()
 	game.waves.wave_started.connect(_on_wave_started)
 	# Each village knows its own surroundings, and every village's 5x5 walls
 	# (docs/multiplayer-design.md §6).
@@ -120,6 +134,7 @@ func _spawn_props() -> void:
 		s.visible = false
 		objects.add_child(s)
 		_props[t] = s
+		await game.build_step()
 	for t: Vector2i in map.decor:
 		var s := Art.sprite(map.decor[t])
 		var h := absi(hash(t))
@@ -129,6 +144,7 @@ func _spawn_props() -> void:
 		s.visible = false
 		objects.add_child(s)
 		_decor[t] = s
+		await game.build_step()
 
 
 # --- special objects (docs/world-design.md §9) -------------------------------------------

@@ -39,6 +39,9 @@ var tutorial: Tutorial = null
 ## The title screen's background game plays in this game (set before _ready):
 ## its scene's map and setup, no input, no HUD, no sound, no raids, no defeat.
 var backdrop: TitleBackdrop = null
+## A map made beforehand (the backdrop's baked maps): used instead of generating one.
+var preset_map: MapData = null
+var _slice_from := 0
 ## How the villages start (Config.START_*; the tutorial's: Config.TUTORIAL).
 var start_resources: Dictionary = Config.START_RESOURCES.duplicate()
 var start_civilians: Array[String] = Config.START_CIVILIANS.duplicate()
@@ -141,19 +144,24 @@ func _ready() -> void:
 		$Systems.add_child(v)
 		villages.append(v)
 	player_village = villages[int(Net.setup.get("local", 0)) if networked else 0]
-	world.setup(self, s)
+	_slice_from = Time.get_ticks_usec()
+	if backdrop:
+		hud.visible = false
+	await world.setup(self, s)
 	fog.local = player_village.id
 	for village in villages:
 		village.apply_map(map.villages[village.id])
 	waves.setup(self)
 	corpses.setup(self)
+	await build_step()
 	for village in villages:
 		if is_client:
 			village.setup_client()
 		else:
 			village.setup()
 			village.population.civilian_lost.connect(func(_c: Civilian) -> void: _check_defeat())
-	hud.setup(self)
+	await build_step()
+	await hud.setup(self)
 	if networked:
 		replicator = Replicator.new()
 		replicator.name = "Replicator"
@@ -179,7 +187,22 @@ func _ready() -> void:
 	camera.hovered.connect(_on_hovered)
 	camera.cancelled.connect(cancel_mode)
 	if backdrop:
+		await build_step(true)  # (the last first draws, before it shows)
 		backdrop.start(self)
+
+
+## The title backdrop builds its game over several frames, so the menu over it
+## stays responsive: once the current frame has spent
+## Config.TITLE_BACKDROP["build_slice"] seconds on it (or with `force`), this
+## waits for the next frame. Any other game is made at once (it returns
+## straight away).
+func build_step(force := false) -> void:
+	if backdrop == null:
+		return
+	if not force and Time.get_ticks_usec() - _slice_from < int(float(Config.TITLE_BACKDROP["build_slice"]) * 1000000.0):
+		return
+	await get_tree().process_frame
+	_slice_from = Time.get_ticks_usec()
 
 
 func _process(delta: float) -> void:

@@ -34,23 +34,21 @@ class Chunk:
 		layer._draw_chunk(self)
 
 
-func setup(p_map: MapData, p_top: bool = false) -> void:
+## Pass `step` (Game.build_step) to wait for it between the passes, so
+## their first draws come in different frames (the title backdrop).
+func setup(p_map: MapData, p_top: bool = false, step: Game = null) -> void:
 	map = p_map
 	top = p_top
 	var passes := 1 if top else 3
-	_art.clear()
 	_chunks.clear()
 	for p in passes:
-		var arts := PackedStringArray()
-		arts.resize(map.size * map.size)
-		_art.append(arts)
 		_chunks.append({})
-	for y in map.size:
-		for x in map.size:
-			_cache_tile(Vector2i(x, y))
+	_cache_all()
 	# Chunks back to front (by their diagonal), pass by pass.
 	var nc := ceili(float(map.size) / CHUNK)
 	for p in passes:
+		if step:
+			await step.build_step(true)
 		for s in range(0, nc * 2 - 1):
 			for cx in range(maxi(0, s - nc + 1), mini(s, nc - 1) + 1):
 				var c := Chunk.new()
@@ -79,14 +77,66 @@ func _tex(art_name: String) -> Texture2D:
 	return _tex_cache[art_name]
 
 
-## Works out what each pass draws on `t`.
+## Works out what each pass draws on every tile. (Into local arrays: a
+## write into an array held in _art copies all of it.)
+func _cache_all() -> void:
+	var n := map.size
+	var a0 := PackedStringArray()
+	a0.resize(n * n)
+	if top:
+		for t: Vector2i in map.crossings:
+			a0[map.index(t)] = map.crossings[t][0]
+		# Foam on the land beside open water (as _top_art, from the water out).
+		var terrain := map.terrain
+		for k in n * n:
+			var v := terrain[k]
+			if v != MapData.Terrain.WATER and v != MapData.Terrain.SHALLOW:
+				continue
+			var w := Vector2i(k % n, k / n)
+			if map.crossings.has(w):
+				continue
+			for nb in MapData.neighbors4(w):
+				if map.in_bounds(nb):
+					var j := map.index(nb)
+					var u := terrain[j]
+					if u != MapData.Terrain.WATER and u != MapData.Terrain.SHALLOW and u != MapData.Terrain.LAVA and a0[j] == "":
+						a0[j] = FOAM_MARK
+		_art.assign([a0])
+		return
+	var a1 := a0.duplicate()
+	var a2 := a0.duplicate()
+	for k in n * n:
+		var arts := _tile_arts(Vector2i(k % n, k / n))
+		a0[k] = arts[0]
+		a1[k] = arts[1]
+		a2[k] = arts[2]
+	_art.assign([a0, a1, a2])
+
+
 func _cache_tile(t: Vector2i) -> void:
 	var k := map.index(t)
-	var v := map.get_terrain(t)
 	if top:
-		# (fords and bridges: their art; foam is drawn from the terrain directly)
-		_art[0][k] = map.crossings[t][0] if map.crossings.has(t) else ""
+		_art[0][k] = _top_art(t)
 		return
+	var arts := _tile_arts(t)
+	for p in 3:
+		_art[p][k] = arts[p]
+
+
+## The top layer on `t`: a ford's or bridge's art, FOAM_MARK for land by
+## open water, else "".
+func _top_art(t: Vector2i) -> String:
+	if map.crossings.has(t):
+		return map.crossings[t][0]
+	var v := map.get_terrain(t)
+	if v == MapData.Terrain.WATER or v == MapData.Terrain.SHALLOW or v == MapData.Terrain.LAVA:
+		return ""
+	return FOAM_MARK if _by_open_water(t) else ""
+
+
+## What each pass (base, sand, road) draws on `t`.
+func _tile_arts(t: Vector2i) -> PackedStringArray:
+	var v := map.get_terrain(t)
 	var h := posmod(t.x * 7 + t.y * 13 + (t.x * t.y) % 5, 3)
 	var zname := map.zone(t)
 	var zone: Dictionary = Config.ZONES[zname]
@@ -100,50 +150,67 @@ func _cache_tile(t: Vector2i) -> void:
 	else:
 		var arts: Array = zone["ground"]
 		base = arts[h % arts.size()]
-	_art[0][k] = base
 	var sand := ""
 	if map.beaches.has(t) and v != MapData.Terrain.ROAD:
 		sand = "tile_sand"
 	elif zname == "steppe" and v != MapData.Terrain.WATER and v != MapData.Terrain.SHALLOW:
 		sand = "tile_desert_%d" % (h % 2)
-	_art[1][k] = sand
 	var road := ""
 	if v == MapData.Terrain.ROAD and not map.crossings.has(t):
 		road = "tile_road_pass" if _mountains_beside(t) >= 2 else "tile_road"
-	_art[2][k] = road
+	return PackedStringArray([base, sand, road])
 
 
 func _draw_chunk(c: Chunk) -> void:
 	var arts := _art[c.pass_i]
 	var x1 := mini(c.origin.x + CHUNK, map.size)
 	var y1 := mini(c.origin.y + CHUNK, map.size)
+	# (the top layer: the chunk's foam in one go, under its fords and bridges)
+	var foam := PackedVector2Array()
+	var crossings: Array[Vector2i] = []
 	# Back to front within the chunk: by diagonal.
 	for s in range(c.origin.x + c.origin.y, x1 + y1 - 1):
 		for x in range(maxi(c.origin.x, s - y1 + 1), mini(s - c.origin.y, x1 - 1) + 1):
 			var t := Vector2i(x, s - x)
 			var art := arts[t.y * map.size + t.x]
-			if top:
-				_draw_top_tile(c, t, art)
-			elif art != "":
+			if art == "":
+				continue
+			if art == FOAM_MARK:
+				for e in foam_edges(map, t):
+					foam.append(e[0])
+					foam.append(e[1])
+			elif top:
+				crossings.append(t)
+			else:
 				_blit(c, _tex(art), t)
+	if not foam.is_empty():
+		c.draw_multiline(foam, FOAM, 2.4, true)
+	for t in crossings:
+		_draw_crossing(c, t, arts[t.y * map.size + t.x])
 
 
-## Fords and bridges over the water layer, and foam where land meets water.
-func _draw_top_tile(c: Chunk, t: Vector2i, art: String) -> void:
+## Fords and bridges over the water layer.
+func _draw_crossing(c: Chunk, t: Vector2i, art: String) -> void:
 	if art == "tile_ford":
 		_blit(c, _tex(art), t)
-	elif art != "":
-		var tex := _tex(art)
-		var m := Art.info(art)
-		var size := tex.get_size() * 0.5
-		var anchor := Vector2(m.get("ax", size.x / 2.0), m.get("ay", size.y / 2.0))
-		c.draw_texture_rect(tex, Rect2(Iso.tile_to_world(t) - anchor, size), false)
-	elif not map.is_water(t) and map.get_terrain(t) != MapData.Terrain.LAVA:
-		for e in foam_edges(map, t):
-			c.draw_line(e[0], e[1], FOAM, 2.4, true)
+		return
+	var tex := _tex(art)
+	var m := Art.info(art)
+	var size := tex.get_size() * 0.5
+	var anchor := Vector2(m.get("ax", size.x / 2.0), m.get("ay", size.y / 2.0))
+	c.draw_texture_rect(tex, Rect2(Iso.tile_to_world(t) - anchor, size), false)
 
 
 const FOAM := Color(0.9, 0.95, 0.92, 0.4)
+## The top layer's mark for land with foam along it.
+const FOAM_MARK := "~"
+
+
+func _by_open_water(t: Vector2i) -> bool:
+	for nb in MapData.neighbors4(t):
+		if map.is_water(nb) and not map.crossings.has(nb):
+			return true
+	return false
 
 
 ## Short broken lines (world positions) along the edges of land tile `t`

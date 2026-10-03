@@ -65,6 +65,9 @@ const TUTORIAL := {
 ## no sound, no input; enemies at a gate just vanish and the village can't fall.
 ## Times are real seconds, except a scene's enemy "at" / "every" (game time).
 ## Every key of the defaults below can be set per scene too.
+## The maps ("map_type", "seed") are baked beforehand into data/title_maps/:
+## rerun tools/bake_title_maps.gd after changing them or the map generator
+## (tests/title_bot.gd says when they are stale; a missing one is generated).
 ## Scene keys:
 ##   "name":    for the log and the tests.
 ##   "road":    which road the scene is on: 0 = the shortest from the map edge
@@ -88,6 +91,8 @@ const TITLE_BACKDROP := {
 	"duration": 40.0,  # per scene
 	"fade_in": 2.5,  # from black, once a scene is ready
 	"fade_out": 1.5,  # to black, before the next scene
+	"black": 0.3,  # at least this long black between two scenes (real seconds)
+	"build_slice": 0.05,  # a scene's game is made over several frames, at most about this long each (seconds), so the menu stays responsive
 	"shade": 0.3,  # darkens the game behind the menu, so it reads (0: none)
 	"random": true,  # every new scene a random one, never the one just played (false: as listed)
 	"map_type": "temperate", "seed": 38,

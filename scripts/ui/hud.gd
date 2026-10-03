@@ -216,23 +216,27 @@ var _tick := 0.0
 
 func setup(p_game: Game) -> void:
 	game = p_game
-	process_mode = Node.PROCESS_MODE_ALWAYS
 	_root = Control.new()
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.theme = UiTheme.build()
 	add_child(_root)
 	_build_topbar()
+	await game.build_step()  # (the title backdrop makes it over several frames)
 	_build_hero_panel()
+	await game.build_step()
 	_build_people_panel()
-	_build_sidebar()
+	await _build_sidebar()
+	await game.build_step()
 	_build_info_panel()
 	_build_mode_panel()
+	await game.build_step()
 	_build_toasts()
 	_build_builder_warning()
 	_build_food_warning()
 	_build_trade_dialog()
 	_build_send_dialog()
+	await game.build_step()
 	_build_upgrade_dialogs()
 	_build_log()
 	_build_overlay()
@@ -245,10 +249,10 @@ func setup(p_game: Game) -> void:
 	_drag_ghost.modulate.a = 0.85
 	_root.add_child(_drag_ghost)
 	_build_settings()
+	await game.build_step()
 	library = Library.new()
 	library.closed.connect(_on_library_closed)
 	_root.add_child(library)
-
 
 	for sig in [game.waves.changed, game.corpses.changed]:
 		sig.connect(_queue_refresh)
@@ -258,6 +262,7 @@ func setup(p_game: Game) -> void:
 	Layout.changed.connect(func(_p: bool) -> void: _queue_relayout())
 	_relayout()
 	_refresh()
+	process_mode = Node.PROCESS_MODE_ALWAYS  # (only once it's made)
 
 
 # --- small builders -----------------------------------------------------------------
@@ -1006,8 +1011,11 @@ func _build_sidebar() -> void:
 	pages.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sheet_scroll.add_child(pages)
 	_tab_pages["build"] = _build_page_build()
+	await game.build_step()
 	_tab_pages["village"] = _build_page_village()
+	await game.build_step()
 	_tab_pages["army"] = _build_page_army()
+	await game.build_step()
 	for p in _tab_pages.values():
 		pages.add_child(p)
 	pages.minimum_size_changed.connect(func() -> void: _fit_sheet.call_deferred())
