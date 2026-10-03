@@ -13,7 +13,8 @@ config_version=5
 config/name="Veliron's Outpost"
 run/main_scene="res://scenes/title.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-boot_splash/bg_color=Color(0.168627, 0.113725, 0.0784314, 1)
+boot_splash/bg_color=Color(0, 0, 0, 1)
+boot_splash/image="uid://dkbye0batdgtc"
 config/icon="res://icon.svg"
 
 [autoload]
