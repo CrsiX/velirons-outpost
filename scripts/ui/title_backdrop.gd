@@ -154,7 +154,7 @@ func prepare(g: Game) -> void:
 	g.map_type = str(value("map_type"))
 	g.reveal_map = true
 	g.disable_fog = true
-	g.hotseat_villages = 1
+	g.test_villages = 1
 	g.start_resources = (value("resources") as Dictionary).duplicate()
 	g.start_civilians.assign(value("civilians"))
 	g.start_buildings.assign(value("buildings"))

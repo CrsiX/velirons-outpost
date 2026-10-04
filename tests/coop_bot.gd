@@ -1,6 +1,6 @@
 extends "res://tests/bot_base.gd"
 ## Headless test of the co-op groundwork (milestone 3 of docs/multiplayer-design.md):
-## the multi-village map generator, and a hot-seat game with several villages
+## the multi-village map generator, and a game with several villages on one device (Game.test_villages)
 ## on one device: ownership, switching villages, waves per village, rerouting
 ## when a village falls, standing again. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/coop_bot.tscn
@@ -12,7 +12,7 @@ const SEEDS: Array[int] = [20260926, 777]
 
 func _run() -> void:
 	_test_generator()
-	await _test_hotseat()
+	await _test_villages()
 	await _test_help()
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -106,12 +106,22 @@ func _check_map(p: int, sd: int) -> void:
 	check(errs.is_empty(), "%s: %dx%d, %d village(s), %d link(s), %d edge spawns %s" % [tag, m.size, m.size, m.villages.size(), m.village_links.size(), m.edge_spawns.size(), str(errs.slice(0, 4)) if not errs.is_empty() else ""])
 
 
-# --- hot-seat game ------------------------------------------------------------------------
+# --- several villages on one device (Game.test_villages) --------------------------------
 
-func _test_hotseat() -> void:
+## Plays village `v` from here on (what a LAN player of that village does).
+func _play_as(v: Village) -> void:
+	game.cancel_mode()
+	game.player_village = v
+	game.fog.set_local(v.id)
+	game.world.refresh_props()
+	game.hud.bind_village(v)
+	game.world.refresh_village_labels()
+
+
+func _test_villages() -> void:
 	game = load("res://scenes/main.tscn").instantiate()
 	game.map_seed = SEEDS[0]
-	game.hotseat_villages = 3
+	game.test_villages = 3
 	game.reveal_map = false
 	game.disable_fog = false
 	add_child(game)
@@ -124,7 +134,7 @@ func _test_hotseat() -> void:
 	game.waves.hold = true
 	Engine.time_scale = 4.0
 
-	check(vs.size() == 3 and game.map.size == Config.map_size(3), "hot-seat: 3 villages on a %dx%d map" % [game.map.size, game.map.size])
+	check(vs.size() == 3 and game.map.size == Config.map_size(3), "3 villages on a %dx%d map" % [game.map.size, game.map.size])
 	check(vs.all(func(v: Village) -> bool: return v.village_name == Config.VILLAGE_NAMES[v.id] and v.color == Config.VILLAGE_COLORS[v.id]), "each village has its name and colour")
 	var own_ok := true
 	for v in vs:
@@ -138,25 +148,17 @@ func _test_hotseat() -> void:
 	var labels: Dictionary = game.world._village_labels
 	check(labels.size() == 3 and not labels[0].visible and labels[1].visible and labels[1].text == vs[1].village_name and labels[2].get_theme_color("font_color") == vs[2].color, "the other villages' names float over them in their colour")
 
-	# Switching villages: the HUD follows.
-	check(hud._village_button.is_visible_in_tree() and hud._village_button.text == vs[0].village_name, "a village button in the top bar names the current village")
+	# Playing another village: the HUD follows.
 	vs[1].economy.add("gold", 777 - vs[1].economy.amount("gold"))
-	await _tap(hud._village_button)
+	_play_as(vs[1])
 	await frames(3)
-	check(game.player_village == vs[1] and hud._gold_label.text == "777" and hud._village_button.text == vs[1].village_name, "tapping it switches to the next village, and the HUD shows its resources")
-	check(game.camera.position.distance_to(Iso.tile_to_world(vs[1].center)) < 2.0 and not labels[1].visible and labels[0].visible, "the camera goes there, and the labels follow")
+	check(hud._gold_label.text == "777" and not labels[1].visible and labels[0].visible, "playing village 1: the HUD shows its resources, and the labels follow")
 	var r := game.command("recruit_unit", {"kind": "archer"})
 	check(r["ok"] and vs[1].army.units.size() == 1 and vs[0].army.units.is_empty(), "commands act for the current village")
 	var foreign_tower: Tower = vs[0].buildings().filter(func(b: Building) -> bool: return b is Tower)[0]
 	var r2 := game.command("station_unit", {"unit": vs[1].army.units[0].nid, "post": foreign_tower.nid})
 	check(not r2["ok"] and r2["error"] == "That isn't your tower", "a village can't station units on another village's tower")
-	var key := InputEventKey.new()
-	key.keycode = KEY_TAB
-	key.pressed = true
-	get_viewport().push_input(key)
-	await frames(2)
-	check(game.player_village == vs[2], "Tab switches too")
-	game.switch_village(vs[0])
+	_play_as(vs[0])
 	await frames(2)
 
 	# Waves: one share per village plus the extra.
@@ -275,7 +277,7 @@ func _test_help() -> void:
 	await frames(2)
 	game = load("res://scenes/main.tscn").instantiate()
 	game.map_seed = SEEDS[1]
-	game.hotseat_villages = 2
+	game.test_villages = 2
 	add_child(game)
 	for k in Config.LOCKED:
 		game.unlocks[k] = true  # (this test predates unit unlocks: tests/world_bot.gd)

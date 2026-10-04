@@ -3,7 +3,7 @@ extends "res://tests/bot_base.gd"
 ## counters (kills by kind and by whom, earned and spent, recruits, losses,
 ## huts), sampling every 15 game seconds (game speed counts, a pause doesn't),
 ## the top-bar button (from wave 2, T, pausing single player), the three tabs,
-## the game-over button, hot-seat columns with the best value marked, and the
+## the game-over button, several villages (columns, the best value marked), and the
 ## numbers surviving the trip to a co-op client (to_net / from_net). Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/stats_bot.tscn
 ## Exits 0 when every check passes.
@@ -11,7 +11,7 @@ extends "res://tests/bot_base.gd"
 
 func _run() -> void:
 	await _single()
-	await _hotseat()
+	await _villages()
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	print("CHECKS %d  FAILURES %d" % [checks, failures.size()])
@@ -212,10 +212,10 @@ func _single() -> void:
 	get_tree().paused = false
 
 
-func _hotseat() -> void:
-	print("-- hot-seat co-op")
+func _villages() -> void:
+	print("-- several villages (Game.test_villages)")
 	game = load("res://scenes/main.tscn").instantiate()
-	game.hotseat_villages = 2
+	game.test_villages = 2
 	add_child(game)
 	await frames(3)
 	var st := game.stats
@@ -232,7 +232,7 @@ func _hotseat() -> void:
 	game.hud.open_stats("summary")
 	await frames(3)
 	var scr := game.hud.stats_screen
-	check(get_tree().paused, "hot-seat pauses like single player")
+	check(get_tree().paused, "several villages on one device: pauses like single player")
 	var grids := scr.find_children("*", "GridContainer", true, false)
 	check(not grids.is_empty() and (grids[0] as GridContainer).columns == 3, "a column per village")
 	check(not _with_meta(scr, "section", "Co-op").is_empty(), "the Co-op section with 2 villages")

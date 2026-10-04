@@ -117,7 +117,7 @@ func is_watched_by(vid: int, t: Vector2i) -> bool:
 	return is_explored_by(vid, t) and watched_of[clampi(vid, 0, watched_of.size() - 1)][map.index(t)] == 1
 
 
-## Shows village `vid`'s fog (hot-seat switching).
+## Shows village `vid`'s fog (the local player's village).
 func set_local(vid: int) -> void:
 	local = vid
 	map.explored = explored_of[vid].duplicate()

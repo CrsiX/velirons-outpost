@@ -24,13 +24,14 @@ var map_type := "temperate"
 ## Debug switches, defaulting to config.gd (tests may override before _ready).
 var reveal_map := Config.REVEAL_MAP
 var disable_fog := Config.DISABLE_FOG
-## Villages on this device (1 = single player; more = hot-seat co-op test mode).
-var hotseat_villages := Config.HOTSEAT_VILLAGES
+## Tests only: this many villages in one game without a network (co-op rules,
+## played as village 0). Players get several villages only through LAN co-op.
+var test_villages := 1
 ## Co-op client: the host simulates; this game only shows what it sends.
 var is_client := false
 ## Co-op (host or client): keeps clients in step (see Replicator).
 var replicator: Replicator
-## Networked game (host or client), not hot-seat.
+## Networked game (host or client).
 var networked := false
 ## The guided tutorial runs in this game (single player; tests may set it
 ## before _ready, the title screen asks via Settings.tutorial_next).
@@ -108,7 +109,7 @@ var stats: Stats
 
 
 func _ready() -> void:
-	tutorial_mode = backdrop == null and (Settings.take_tutorial() or tutorial_mode) and not (Net.in_game and Net.is_online()) and hotseat_villages <= 1
+	tutorial_mode = backdrop == null and (Settings.take_tutorial() or tutorial_mode) and not (Net.in_game and Net.is_online()) and test_villages <= 1
 	if tutorial_mode:
 		tutorial = Tutorial.new()
 		tutorial.name = "Tutorial"
@@ -136,7 +137,7 @@ func _ready() -> void:
 		reveal_map = bool(Net.setup.get("reveal_map", reveal_map))
 		disable_fog = bool(Net.setup.get("disable_fog", disable_fog))
 	else:
-		for i in clampi(hotseat_villages, 1, Config.MAX_PLAYERS):
+		for i in clampi(test_villages, 1, Config.MAX_PLAYERS):
 			names.append(Config.VILLAGE_NAMES[i])
 			colors.append(Config.VILLAGE_COLORS[i])
 	# Villages first (empty), so the world can hand them their buildings.
@@ -840,19 +841,6 @@ func village_of(n) -> Village:
 		return n.garrison.village
 	var v = n.get("village")
 	return v if v is Village else null
-
-
-## Hot-seat test mode: the device's player takes over the next village (or `v`).
-func switch_village(v: Village = null) -> void:
-	if v == null:
-		v = villages[(player_village.id + 1) % villages.size()]
-	cancel_mode()
-	player_village = v
-	fog.set_local(v.id)
-	world.refresh_props()
-	camera.focus(Iso.tile_to_world(v.center))
-	hud.bind_village(v)
-	world.refresh_village_labels()
 
 
 ## The standing village whose centre is nearest to `t`, or null if all fell.

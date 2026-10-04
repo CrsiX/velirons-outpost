@@ -9,9 +9,6 @@ const VILLAGE_ORIGIN := VILLAGE_CENTER - Vector2i(2, 2)  # top-left tile of the 
 
 # --- co-op (docs/multiplayer-design.md) ---------------------------------------------------
 const MAX_PLAYERS := 8
-## Debug: start this many villages on one device (hot-seat test mode; 1 = normal
-## single player). Switch between them with the village button in the top bar or Tab.
-const HOTSEAT_VILLAGES := 1
 const WAVE_EXTRA_PER_PLAYER := 0.25  # extra enemies: this x one village's wave, per player
 const CARAVAN_SPEED := 1.4  # tiles per second
 const VILLAGE_NAMES: Array[String] = ["Veliron's Outpost", "Rivermoor", "Eastwatch", "Ashford", "Greyholt", "Thornvale", "Kestrel Keep", "Mirefield"]

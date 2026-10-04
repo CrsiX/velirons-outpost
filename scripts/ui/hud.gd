@@ -60,7 +60,6 @@ var _stats_paused := false
 ## Greys the game behind the statistics while they pause it (as the settings do).
 var _stats_gray: ColorRect
 var _stats_speed_before := 0
-var _village_button: Button
 var _upgrade_panel: PanelContainer
 var _upgrade_title: Label
 var _upgrade_options: VBoxContainer
@@ -112,7 +111,6 @@ var _hero_button: Button
 var _hero_hp_bar: Control
 const HERO_HP_BAR := 7.0  # px
 const YES_NO_ICON := 26  # px: the check and cross icons on the placing buttons
-const VILLAGE_BUTTON_WIDTH := 120.0  # hot-seat village button; longer names end in …
 var _hero_panel: PanelContainer
 var _hero_stats: RichTextLabel
 var _hero_status: Label
@@ -551,19 +549,6 @@ func _build_topbar() -> void:
 		set_speed_index(0)
 	else:
 		_on_speed_changed(game.speed_index)  # (co-op client: shows the host's speed)
-	_village_button = _button("", Vector2(0, 44))
-	_village_button.tooltip_text = "Hot-seat: switch to the next village (Tab)"
-	_village_button.add_theme_font_size_override("font_size", 16)
-	# Hot-seat only: a networked player always plays their own village.
-	_village_button.visible = game.villages.size() > 1 and not game.networked
-	# A long name is cut short (…) rather than pushing the buttons off the bar.
-	_village_button.clip_text = true
-	_village_button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_village_button.custom_minimum_size.x = VILLAGE_BUTTON_WIDTH
-	_village_button.pressed.connect(func() -> void:
-		if not game.networked:
-			game.switch_village())
-	row.add_child(_village_button)
 	_book_button = _icon_button("icon_book", "Library: enemies, units, buildings, villagers, hero, places")
 	_book_button.pressed.connect(open_library)
 	row.add_child(_book_button)
@@ -661,9 +646,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_ESCAPE:
 			if _settings.visible:
 				close_settings()
-		KEY_TAB:
-			if game.villages.size() > 1:
-				game.switch_village()
 		KEY_SPACE:
 			toggle_pause()
 		KEY_T:
@@ -673,8 +655,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 # --- the village shown ----------------------------------------------------------------
 
-## Shows `v`'s economy, villagers, army, hero and log (the local player's
-## village; hot-seat switches it).
+## Shows `v`'s economy, villagers, army, hero and log (the local player's village).
 func bind_village(v: Village) -> void:
 	if _bound:
 		for sig in [_bound.economy.changed, _bound.population.changed, _bound.army.changed, _bound.construction.changed]:
@@ -694,9 +675,6 @@ func bind_village(v: Village) -> void:
 		_send_unit_panel.visible = false
 		_send_target = -1
 		_send_unit_target = -1
-	if _village_button:
-		_village_button.text = v.village_name
-		_village_button.add_theme_color_override("font_color", v.color)
 	if _info_panel:
 		hide_info()
 	_queue_refresh()
@@ -2548,7 +2526,7 @@ func close_settings() -> void:
 		set_speed_index(_speed_before)
 
 
-## The library. Single player (hot-seat too) pauses while it's open,
+## The library. Single player pauses while it's open,
 ## and goes on at the old speed after; in co-op nobody pauses.
 func open_library(tab := "") -> void:
 	if library.visible:
@@ -2582,7 +2560,7 @@ func _refresh_stats_button() -> void:
 	_stats_button.tooltip_text = "Statistics (T)" if on else "Available in wave %d" % int(Config.STATS["from_wave"])
 
 
-## The statistics screen. Single player (hot-seat too) pauses while it's open,
+## The statistics screen. Single player pauses while it's open,
 ## like the library; in co-op nobody pauses. Before Config.STATS["from_wave"] it only says when.
 func open_stats(tab := "") -> void:
 	if stats_screen.visible:
