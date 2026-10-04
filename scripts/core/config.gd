@@ -186,7 +186,7 @@ const STATS := {
 }
 
 ## Debug / sandbox switches.
-const DEBUG := true  # true: the settings dialog has a Debug page (resources, XP, reveal, unlocks, enemies)
+const DEBUG := false  # true: the settings dialog has a Debug page (resources, XP, reveal, unlocks, enemies)
 const REVEAL_MAP := false  # true: the whole map starts explored (terrain known)
 const DISABLE_FOG := false  # true: no fog of war at all; everything is visible
 
