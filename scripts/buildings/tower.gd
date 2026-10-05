@@ -231,7 +231,7 @@ func info() -> Dictionary:
 	lines.append("Tower level %d of %d: range %.1f tiles" % [level, max_level(), range_tiles()])
 	if upgrading:
 		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
-		actions.append({"label": "Cancel upgrade (refund)", "action": func() -> void: game.command("cancel_site", {"building": nid})})
+		add_cancel_action(lines, actions, "Cancel upgrade")
 	elif level < max_level():
 		var bonus: float = Config.TOWER_LEVELS[level]["range_bonus"] - Config.TOWER_LEVELS[level - 1]["range_bonus"]
 		actions.append({

@@ -88,6 +88,7 @@ func restore_ruin(ruin: RuinedTower, cost: Dictionary) -> Building:
 	var tile := ruin.tile
 	game.world.remove_map_object(ruin)
 	var b := _new_building("tower", tile, false)
+	b.paid_share = Config.RUIN_RESTORE_SHARE
 	queue.append(b)
 	village.events.info("A builder will restore the ruined watchtower (%s)" % Config.cost_text(cost))
 	Sfx.play("place")
@@ -327,23 +328,29 @@ func _trees_near(t: Vector2i, r: int) -> int:
 	return n
 
 
+## Calls off a site, an ordered upgrade or a tear-down. Both a site and an
+## upgrade give back what is left of what they cost: all of it while no builder
+## has worked on it, nothing once it is nearly done (Building.refund_share).
 func cancel(site: Building) -> void:
 	if site.tearing_down:
 		stop_tear_down(site)
 		return
-	village.events.debug("cancel %s of %s (refunded)" % ["upgrade" if site.complete and site.upgrading else "construction", site.label()])
 	if site.complete and site.upgrading:
+		var upgrade_back := site.cancel_refund()  # (before cancel_upgrade clears the progress)
 		queue.erase(site)
-		village.economy.refund(site.pending_upgrade_cost(), "upgrades")
+		village.economy.refund(upgrade_back, "upgrades")
 		site.builder = null
 		site.cancel_upgrade()
+		village.events.info("Upgrade of %s called off: %s" % [site.label(), _back_text(upgrade_back)])
 		changed.emit()
 		return
 	if site.complete:
 		return
 	queue.erase(site)
-	var cost: Dictionary = Config.BUILDINGS[site.kind]["cost"]
-	village.economy.refund(cost, "buildings")
+	site.builder = null  # (a cancelled hut stays on the map: it must be claimable again)
+	var back := site.cancel_refund()
+	village.economy.refund(back, "buildings")
+	village.events.info("%s cancelled: %s" % [site.label().capitalize(), _back_text(back)])
 	if site is Hut:
 		(site as Hut).cancel_rebuild()
 	else:
@@ -352,3 +359,7 @@ func cancel(site: Building) -> void:
 		game.deselect()
 	changed.emit()
 
+
+## What a cancel gave back, for the log.
+func _back_text(back: Dictionary) -> String:
+	return "%s back" % Config.cost_text(back) if not back.is_empty() else "too far along, nothing back"

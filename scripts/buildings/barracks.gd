@@ -201,7 +201,7 @@ func info() -> Dictionary:
 			lines.append("Bench %d: free. Drag a unit from the Army tab here." % (i + 1))
 	if upgrading:
 		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
-		actions.append({"label": "Cancel upgrade (refund)", "action": func() -> void: game.command("cancel_site", {"building": nid})})
+		add_cancel_action(lines, actions, "Cancel upgrade")
 	elif level < max_level():
 		var nxt: Dictionary = Config.BARRACKS_LEVELS[level]
 		lines.append("Next level: %d benches, range %.1f." % [nxt["slots"], nxt["range"]])

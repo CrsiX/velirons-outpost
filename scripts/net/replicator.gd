@@ -227,6 +227,8 @@ func _building_spawn(b: Building) -> Dictionary:
 
 func _building_state(b: Building) -> Dictionary:
 	var st := {"c": b.complete, "p": snappedf(b.progress, 0.1), "g": 0}
+	if b.paid_share != 1.0:
+		st["ps"] = b.paid_share  # (a restored ruin: cheaper, so less of a refund)
 	if b.upgrading:
 		st["u"] = snappedf(b.upgrade_progress, 0.1)
 	if b.tearing_down:
@@ -578,6 +580,7 @@ func _apply_building(b: Building, st: Dictionary) -> void:
 	var was_complete := b.complete
 	b.complete = st["c"]
 	b.progress = st.get("p", b.progress)
+	b.paid_share = st.get("ps", 1.0)
 	b.upgrading = st.has("u")
 	b.upgrade_progress = st.get("u", 0.0)
 	if st.has("td") != b.tearing_down:

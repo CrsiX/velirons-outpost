@@ -19,6 +19,9 @@ var progress := 0.0
 var build_time := 1.0
 ## Builder currently assigned to this site (if any).
 var builder: Node = null
+## Share of the kind's listed price that was really paid for the construction
+## under way (a restored ruin is cheaper, see Config.RUIN_RESTORE_SHARE).
+var paid_share := 1.0
 ## Builder work on a finished building (e.g. a tower upgrade). The building
 ## keeps working normally meanwhile.
 var upgrading := false
@@ -165,6 +168,41 @@ func add_progress(dt: float) -> bool:
 	return upgrade_progress >= upgrade_time
 
 
+# --- cancelling a site or an ordered upgrade ----------------------------------------------
+
+## What was paid for the construction under way.
+func paid_cost() -> Dictionary:
+	var out := {}
+	if not Config.BUILDINGS.has(kind):
+		return out
+	var cost: Dictionary = Config.BUILDINGS[kind]["cost"]
+	for res in cost:
+		out[res] = ceili(cost[res] * paid_share)
+	return out
+
+
+## Share of what was paid that cancelling gives back, for a site and for an
+## ordered upgrade alike: all of it while no builder has worked on it, falling
+## off evenly with the work done, and none of it by the time it is finished.
+func refund_share() -> float:
+	if tearing_down or (complete and not upgrading):
+		return 0.0
+	return 1.0 - work_fraction()
+
+
+## Resources cancelling gives back right now: what is left of the site's
+## price, or of the ordered upgrade's.
+func cancel_refund() -> Dictionary:
+	var out := {}
+	var share := refund_share()
+	var paid := pending_upgrade_cost() if complete else paid_cost()
+	for res in paid:
+		var n := floori(paid[res] * share)
+		if n > 0:
+			out[res] = n
+	return out
+
+
 # --- tear-down ---------------------------------------------------------------------------
 
 ## Buildings a player places can be torn down (not village huts).
@@ -240,13 +278,26 @@ func info() -> Dictionary:
 	if not complete:
 		lines.append("Construction site: %d%%" % int(100.0 * progress / build_time))
 		lines.append("Builder at work" if builder != null else "Waiting for a builder")
-		actions.append({"label": "Cancel (refund)", "action": func() -> void: game.command("cancel_site", {"building": nid})})
+		add_cancel_action(lines, actions, "Cancel")
 	elif tearing_down:
 		lines.append("Tearing down: %d%%" % int(100.0 * work_fraction()))
 		lines.append("Builder at work" if builder != null else "Waiting for a builder")
 		lines.append(Config.cost_icons({"materials": teardown_refund()}) + " back when it's done")
 		actions.append({"label": "Stop tear-down", "action": func() -> void: game.command("stop_tear_down", {"building": nid})})
 	return {"title": display_name(), "lines": lines, "actions": actions}
+
+
+## Calling off the work under way (a site, or an ordered upgrade: `what` names
+## it on the button), saying what is left of its price to come back.
+func add_cancel_action(lines: Array[String], actions: Array[Dictionary], what: String) -> void:
+	var back := cancel_refund()
+	var press := func() -> void: game.command("cancel_site", {"building": nid})
+	if back.is_empty():
+		lines.append("Too far along to get anything back")
+		actions.append({"label": what, "action": press})
+		return
+	lines.append("%s back if you cancel now" % Config.cost_icons(back))
+	actions.append({"label": "%s (+%s)" % [what, Config.cost_icons(back)], "action": press})
 
 
 ## The panel's last action: tearing it down (after the building's own ones).

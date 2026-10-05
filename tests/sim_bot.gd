@@ -1448,7 +1448,38 @@ func _run() -> void:
 	if csite:
 		game.construction.cancel(csite)
 		await frames(2)
-		check(game.economy.amount("materials") == mat_c and map.building_at(cspot) == null, "cancelling a construction site refunds it and frees the tile")
+		check(game.economy.amount("materials") == mat_c and map.building_at(cspot) == null, "cancelling an untouched construction site refunds it in full and frees the tile")
+
+	# ...and a site a builder has worked on only gives back what is left of it.
+	var price: int = Config.BUILDINGS["tower"]["cost"]["materials"]
+	for share in [0.5, 0.9]:
+		var pspot := find_spot("tower", game.player_village.center + Vector2i(6, 0))
+		var psite := game.construction.place("tower", pspot)
+		if psite == null:
+			continue
+		psite.progress = psite.build_time * share
+		var left := game.economy.amount("materials")
+		game.construction.cancel(psite)
+		var back := game.economy.amount("materials") - left
+		await frames(2)
+		check(back == floori(price * (1.0 - share)), "a site %d%% built gives %d of its %d back (got %d)" % [int(share * 100.0), floori(price * (1.0 - share)), price, back])
+
+	# An ordered upgrade scales the same way: what is left of the upgrade's price.
+	game.economy.add("materials", 200)
+	var uspot := find_spot("tower", game.player_village.center + Vector2i(6, 0))
+	var utower := game.construction.place("tower", uspot) as Tower
+	if utower:
+		game.construction.complete(utower)  # (stand it up at once: the upgrade is what we test)
+		var uprice: int = Config.TOWER_LEVELS[1]["cost"]["materials"]
+		for share in [0.0, 0.5, 0.9]:
+			check(game.construction.order_upgrade(utower), "the tower takes an upgrade order")
+			utower.upgrade_progress = utower.upgrade_time * share
+			var left := game.economy.amount("materials")
+			game.construction.cancel(utower)
+			var back := game.economy.amount("materials") - left
+			await frames(2)
+			check(not utower.upgrading and back == floori(uprice * (1.0 - share)), "an upgrade %d%% done gives %d of its %d back (got %d)" % [int(share * 100.0), floori(uprice * (1.0 - share)), uprice, back])
+		game.world.remove_building(utower)
 
 	# --- the hero ------------------------------------------------------------------------------
 	await _test_hero(far_spot)
