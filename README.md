@@ -61,4 +61,4 @@ internal project structure is quite messy and the code reeks of gen AI.
 `tests/` holds headless bots that play the game and check what happens.
 Each is a scene that exits 0 when every check passed.
 The helper `run_all.sh` can be used to run all, or some specific tests.
-The `net_bot` needs two processes because it simulates LAN play.
+Notably, the `net_bot` needs two processes because it simulates LAN play.

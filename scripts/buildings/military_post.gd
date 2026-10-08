@@ -91,6 +91,6 @@ static func sprite_rect(s: Sprite2D) -> Rect2:
 
 
 ## Dims the unit while it is being dragged away.
-func set_unit_ghosted(on: bool, unit: MilitaryUnit = null) -> void:
+func set_unit_ghosted(on: bool, unit: MilitaryUnit = null) -> void:  # gdlint:ignore=unused-argument
 	if _unit_sprite:
 		_unit_sprite.modulate.a = 0.35 if on else 1.0

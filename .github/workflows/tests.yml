@@ -1,0 +1,30 @@
+name: Tests
+
+on:
+  # main is left out on purpose: a push there runs the Pages workflow, which
+  # runs the same bots and only deploys if they pass. Testing it here too
+  # would just run every bot twice.
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bots:
+    uses: ./.github/workflows/bots.yml
+
+  all-bots:
+    needs: bots
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "bots: ${{ needs.bots.result }}"
+          [ "${{ needs.bots.result }}" = "success" ]

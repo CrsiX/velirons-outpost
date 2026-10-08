@@ -88,12 +88,12 @@ func _ready() -> void:
 	mp_menu = MultiplayerMenu.new()
 	_menu.add_child(mp_menu)
 	mp_menu.back_pressed.connect(func() -> void: show_page(_main_page))
-	
+
 	if Net.is_online() and not Net.in_game:
 		show_page(mp_menu)
 	else:
 		show_page(_main_page)
-	
+
 	_update_sp_buttons()
 	library = Library.new()
 	add_child(library)

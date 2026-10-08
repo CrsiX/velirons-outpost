@@ -1,0 +1,31 @@
+# Settings for gdlint (part of gdtoolkit), run by tests/lint.sh.
+#
+# Only the entries below differ from gdlint's defaults: anything not named
+# here is filled in from them, so every naming and correctness check stays on.
+#
+# What is switched off is switched off because it argues with the way this
+# code is already written, not because the rule is wrong in general. A check
+# that fires 1500 times on arrival only teaches people to ignore the linter.
+
+disable:
+  # This code puts a whole thought on one line and leans on long ternaries and
+  # format strings. 1520 lines are over 100 characters.
+  - max-line-length
+
+  # Most files stick to it, but some large exceptions break it on purpose
+  - class-definitions-order
+
+  # Size and shape caps. The big systems (hud.gd, config.gd, game.gd) are long
+  # on purpose, and a state machine returns from many branches by nature.
+  - max-file-lines
+  - max-public-methods
+  - max-returns
+
+  # Fires on preloading one script under two dictionary keys, and on the bots
+  # that load main.tscn once per scenario. Both are meant, and a preload is
+  # cached by Godot anyway.
+  - duplicated-load
+
+# `const State = BuildJob.State` aliases a type, so it is spelled like the type
+# it names. Allow PascalCase beside the usual SCREAMING_SNAKE_CASE.
+constant-name: (_?[A-Z][A-Z0-9]*(_[A-Z0-9]+)*|([A-Z][a-z0-9]*)+)

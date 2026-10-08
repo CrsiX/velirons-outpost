@@ -111,7 +111,7 @@ func _test_config() -> void:
 			ranges_ok = ranges_ok and sp["range"] < min_tower
 		for b in sp.get("branches", []):
 			tree_ok = tree_ok and Config.MILITARY.has(b) and Config.MILITARY[b]["branch_of"] == k and not Config.MILITARY[b]["recruit"]
-		tree_ok = tree_ok and Config.MILITARY_TREE.has(k) and BEHAVIORS_HAVE(sp["role"])
+		tree_ok = tree_ok and Config.MILITARY_TREE.has(k) and behaviors_have(sp["role"])
 		tree_ok = tree_ok and (not sp.has("attack") or Config.ATTACKS.has(sp["attack"]))
 		for key in sp["stats"]:
 			var a := Config.unit_stat(k, key, 0)
@@ -137,7 +137,7 @@ func _test_config() -> void:
 	check(Config.BARRACKS_LEVELS.map(func(l: Dictionary) -> int: return l["slots"]) == [1, 2, 3], "barracks: 1 / 2 / 3 benches")
 
 
-func BEHAVIORS_HAVE(role: String) -> bool:
+func behaviors_have(role: String) -> bool:
 	return MilitaryUnit.BEHAVIORS.has(role)
 
 

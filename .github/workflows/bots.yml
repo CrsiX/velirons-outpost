@@ -1,0 +1,180 @@
+name: Test bots
+
+# Nothing starts this on its own: tests.yml runs it off a push or a pull
+# request, pages.yml runs it before it deploys. Both bring their own
+# concurrency group, so this one has none -- it would cancel across them.
+on:
+  workflow_call:
+    inputs:
+      mapgen_seeds:
+        description: "Seeds per map type and player count in the map generation sweep"
+        type: string
+        default: "12"
+      bots:
+        description: "Which bots to run, space separated; empty for all of them"
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      mapgen_seeds:
+        description: "Seeds per map type and player count in the map generation sweep"
+        type: string
+        default: "12"
+      bots:
+        description: "Which bots to run, space separated; empty for all of them"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.7"
+
+jobs:
+  # Fetches Godot once so the bots below only have to restore it. The cache key
+  # is the one pages.yml and build.yml use, so all three share one copy -- which
+  # is why the export templates are in it too, even though no bot needs them.
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot & export templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          BASE=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          wget -q $BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          wget -q $BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          unzip -q Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot
+          TPL=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p $TPL
+          unzip -q Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          mv templates/* $TPL/
+
+  # Map generation, on its own: the unit tests of MapData, GenContext, the save
+  # format and pathing, and then a sweep over many seeds that makes one attempt
+  # per map, so the numbers are the generator's real first-try hit rate rather
+  # than what Config.MAP_TRIES hides. GEN_PROFILE makes it time its own stages.
+  mapgen:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Restore Godot
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+          fail-on-cache-miss: true
+
+      - name: Import assets
+        run: ~/godot --headless --import 2>&1 | tail -5
+
+      - name: Generate maps
+        continue-on-error: true  # what it finds is reported, not fatal
+        env:
+          OUT: ${{ github.workspace }}/logs
+          GEN_PROFILE: "1"
+          MAPGEN_SEEDS: ${{ inputs.mapgen_seeds || '12' }}
+          MAPGEN_BUDGET_MS: "1500000"
+          TIMEOUT: "2100"
+        run: GODOT=~/godot tests/run_all.sh mapgen
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-mapgen
+          path: logs
+          retention-days: 14
+
+  # One job per bot, so a slow one does not hold up the rest and every log comes
+  # back as its own artifact even when the bot fails.
+  bots:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        bot: [build, library, stats, world, title, coop, net, tutorial, military, enemy, rat, sim]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Restore Godot
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+          fail-on-cache-miss: true
+
+      - name: Import assets
+        run: ~/godot --headless --import 2>&1 | tail -5
+
+      - name: Run the ${{ matrix.bot }} bot
+        continue-on-error: true  # what it finds is reported, not fatal
+        if: ${{ inputs.bots == '' || contains(format(' {0} ', inputs.bots), format(' {0} ', matrix.bot)) }}
+        env:
+          OUT: ${{ github.workspace }}/logs
+          TIMEOUT: "2700"
+        run: GODOT=~/godot tests/run_all.sh ${{ matrix.bot }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-${{ matrix.bot }}
+          path: logs
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # Everything the bots printed, in one place: what failed and where in the bot
+  # it was checked, the engine errors, and the map generation tables. A bot that
+  # fails its checks does not fail the run -- it shows up here and as a warning
+  # on the run. Only a run that produced no logs at all is an error, because
+  # then nothing was tested and the summary would be an empty all clear.
+  summary:
+    needs: [bots, mapgen]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: logs
+          pattern: logs-*
+          merge-multiple: false
+
+      - name: Summarize
+        run: |
+          python3 tests/summarize.py logs --source-dir tests \
+            --markdown summary.md --json report.json
+          head -c 900000 summary.md >> "$GITHUB_STEP_SUMMARY"
+          cat summary.md
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: summary
+          path: |
+            summary.md
+            report.json
+          retention-days: 90

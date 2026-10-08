@@ -122,13 +122,13 @@ func road_out(steps: int) -> Vector2i:
 # --- config --------------------------------------------------------------------------------------
 
 func _test_config() -> void:
-	var E := Config.ENEMIES
-	check(E["thief"]["speed"] > E["goblin"]["speed"] and E["thief"]["speed"] < E["rat"]["speed"] and E["thief"]["hp"] == E["goblin"]["hp"] and E["thief"]["damage"] == E["goblin"]["damage"], "the thief: a goblin's strength, quicker (%.1f)" % E["thief"]["speed"])
-	check(E["thief"]["gold_on_kill"] > 0 and E["thief"]["gold_on_collect"] > 0 and E["thief"]["food_on_collect"] == 0, "a thief pays a little gold at once and as a corpse, no food")
-	check(E["gargoyle"].get("flying", false) and is_equal_approx(E["gargoyle"]["speed"], E["ork"]["speed"]) and E["gargoyle"]["gold_on_kill"] > 0 and E["gargoyle"]["gold_on_collect"] == 0 and E["gargoyle"]["food_on_collect"] > 0, "the gargoyle flies, as slow as an ork; kill gold, a corpse of food only")
-	check(E["necromancer"]["speed"] < E["skeleton"]["speed"] and E["necromancer"]["speed"] > E["ork"]["speed"] and E["necromancer"]["damage"] == 0.0 and E["necromancer"]["hp"] == E["goblin"]["hp"], "the necromancer: between skeleton and ork in speed, goblin HP, no attack")
-	check(E["necromancer"]["gold_on_kill"] >= 4 * E["goblin"]["gold_on_kill"] and E["necromancer"]["gold_on_collect"] == 0 and E["necromancer"]["food_on_collect"] == 0 and not E["necromancer"].get("revivable", true), "much gold on kill; its corpse yields nothing and can't be raised")
-	check(E["witch"]["spell_range"] <= Config.TOWER_RANGE["tower"] + Config.TOWER_LEVELS[0]["range_bonus"], "a witch can't outrange a level 1 watchtower (%.1f vs %.1f)" % [E["witch"]["spell_range"], Config.TOWER_RANGE["tower"]])
+	var enemies := Config.ENEMIES
+	check(enemies["thief"]["speed"] > enemies["goblin"]["speed"] and enemies["thief"]["speed"] < enemies["rat"]["speed"] and enemies["thief"]["hp"] == enemies["goblin"]["hp"] and enemies["thief"]["damage"] == enemies["goblin"]["damage"], "the thief: a goblin's strength, quicker (%.1f)" % enemies["thief"]["speed"])
+	check(enemies["thief"]["gold_on_kill"] > 0 and enemies["thief"]["gold_on_collect"] > 0 and enemies["thief"]["food_on_collect"] == 0, "a thief pays a little gold at once and as a corpse, no food")
+	check(enemies["gargoyle"].get("flying", false) and is_equal_approx(enemies["gargoyle"]["speed"], enemies["ork"]["speed"]) and enemies["gargoyle"]["gold_on_kill"] > 0 and enemies["gargoyle"]["gold_on_collect"] == 0 and enemies["gargoyle"]["food_on_collect"] > 0, "the gargoyle flies, as slow as an ork; kill gold, a corpse of food only")
+	check(enemies["necromancer"]["speed"] < enemies["skeleton"]["speed"] and enemies["necromancer"]["speed"] > enemies["ork"]["speed"] and enemies["necromancer"]["damage"] == 0.0 and enemies["necromancer"]["hp"] == enemies["goblin"]["hp"], "the necromancer: between skeleton and ork in speed, goblin HP, no attack")
+	check(enemies["necromancer"]["gold_on_kill"] >= 4 * enemies["goblin"]["gold_on_kill"] and enemies["necromancer"]["gold_on_collect"] == 0 and enemies["necromancer"]["food_on_collect"] == 0 and not enemies["necromancer"].get("revivable", true), "much gold on kill; its corpse yields nothing and can't be raised")
+	check(enemies["witch"]["spell_range"] <= Config.TOWER_RANGE["tower"] + Config.TOWER_LEVELS[0]["range_bonus"], "a witch can't outrange a level 1 watchtower (%.1f vs %.1f)" % [enemies["witch"]["spell_range"], Config.TOWER_RANGE["tower"]])
 	var firsts := {}
 	for kind in ["thief", "gargoyle", "necromancer"]:
 		for n in range(1, 30):
@@ -403,17 +403,17 @@ func _test_fog_corpses() -> void:
 
 func _test_vampire() -> void:
 	var v := game.player_village
-	var E := Config.ENEMIES
+	var enemies := Config.ENEMIES
 	await clear_enemies()
 	await clear_corpses()
-	check(Config.ATTACKS.values().all(func(a: Dictionary) -> bool: return Config.DAMAGE_CATEGORIES.has(a.get("category", ""))) and E["witch"]["attack_category"] == "magical", "every attack has a damage category (the witch's is magical)")
+	check(Config.ATTACKS.values().all(func(a: Dictionary) -> bool: return Config.DAMAGE_CATEGORIES.has(a.get("category", ""))) and enemies["witch"]["attack_category"] == "magical", "every attack has a damage category (the witch's is magical)")
 	var first := -1
 	for n in range(1, 30):
 		if first < 0 and Config.wave_composition(n).has("vampire"):
 			first = n
 	check(first == Config.WAVE_MIX["vampire"]["from_wave"] and first == 13, "vampires join from wave 13")
-	check(E["vampire"]["hp"] == 2.0 * E["goblin"]["hp"] and E["vampire"]["speed"] < E["goblin"]["speed"] and E["vampire"]["damage"] / E["vampire"]["attack_cooldown"] == E["goblin"]["damage"] / E["goblin"]["attack_cooldown"], "a vampire: twice a goblin's HP, slower, a goblin's blows")
-	check(E["vampire"]["gold_on_kill"] == 6 and E["vampire"]["gold_on_collect"] == 8 and E["vampire"]["food_on_collect"] == 0, "loot: 6 gold, a corpse of 8 gold, no food")
+	check(enemies["vampire"]["hp"] == 2.0 * enemies["goblin"]["hp"] and enemies["vampire"]["speed"] < enemies["goblin"]["speed"] and enemies["vampire"]["damage"] / enemies["vampire"]["attack_cooldown"] == enemies["goblin"]["damage"] / enemies["goblin"]["attack_cooldown"], "a vampire: twice a goblin's HP, slower, a goblin's blows")
+	check(enemies["vampire"]["gold_on_kill"] == 6 and enemies["vampire"]["gold_on_collect"] == 8 and enemies["vampire"]["food_on_collect"] == 0, "loot: 6 gold, a corpse of 8 gold, no food")
 	# Magic hurts it less: a fireball (and its splash) 0.67 x, an arrow in full.
 	var at := Vector2(road_out(7))
 	var vp := spawn("vampire", at, 10.0)
@@ -435,13 +435,13 @@ func _test_vampire() -> void:
 	gob.take_damage(1e9)
 	# Never killed in one blow: a deadly hit leaves it a bat with a third of its HP.
 	vp.take_damage(1e9, null, "projectile")
-	check(not vp.dead and is_equal_approx(vp.hp, vp.max_hp * E["vampire"]["bat_below"]) and vp.airborne, "a deadly blow at full HP: it keeps %d %% of its HP and becomes a bat" % roundi(E["vampire"]["bat_below"] * 100))
+	check(not vp.dead and is_equal_approx(vp.hp, vp.max_hp * enemies["vampire"]["bat_below"]) and vp.airborne, "a deadly blow at full HP: it keeps %d %% of its HP and becomes a bat" % roundi(enemies["vampire"]["bat_below"] * 100))
 	vp.take_damage(1e9, null, "projectile")
 	check(vp.dead, "only once: the next deadly blow kills it")
 	var rv := spawn("vampire", at + Vector2(0.0, 0.6), 10.0)
 	rv.make_raised(0.5, 1000.0)
 	rv.take_damage(1e9, null, "projectile")
-	check(not rv.dead and absf(rv.hp - rv.max_hp * E["vampire"]["bat_below"]) < 0.5 and rv.max_hp < E["vampire"]["hp"] * 10.0, "a raised vampire too, at a third of its (halved) max HP")
+	check(not rv.dead and absf(rv.hp - rv.max_hp * enemies["vampire"]["bat_below"]) < 0.5 and rv.max_hp < enemies["vampire"]["hp"] * 10.0, "a raised vampire too, at a third of its (halved) max HP")
 	kill(rv)
 	await frames(2)
 	await clear_corpses()
@@ -478,7 +478,7 @@ func _test_vampire() -> void:
 	va.hp = va.max_hp * 0.2
 	await frames(3)
 	var hhp := hero.hp
-	check(va.airborne and va.flies() and is_equal_approx(va.speed, E["vampire"]["bat_speed"]) and is_equal_approx(va.hp, va.max_hp * E["vampire"]["bat_below"]), "below a third of its HP it turns into a bat (back at a third): it flies, and fast")
+	check(va.airborne and va.flies() and is_equal_approx(va.speed, enemies["vampire"]["bat_speed"]) and is_equal_approx(va.hp, va.max_hp * enemies["vampire"]["bat_below"]), "below a third of its HP it turns into a bat (back at a third): it flies, and fast")
 	await wait(0.6)
 	var arts := {}
 	for k in 30:
@@ -486,9 +486,9 @@ func _test_vampire() -> void:
 		arts[va.sprite.texture] = true
 	check(arts.has(Art.tex("unit_vampire_bat")) and arts.has(Art.tex("unit_vampire_bat_flap")) and va._shadow != null and va._shadow.visible, "it beats its bat wings over its shadow")
 	check(is_equal_approx(hero.hp, hhp) and game.hero._pick_enemy() == null, "a bat doesn't bite, and the hero can't go for it")
-	var landed := await wait_until(func() -> bool: return not va.airborne, E["vampire"]["bat_time"] + 3.0)
+	var landed := await wait_until(func() -> bool: return not va.airborne, enemies["vampire"]["bat_time"] + 3.0)
 	await wait(1.0)
-	check(landed and vb.bat_used and not va.airborne and va.sprite.texture == Art.tex("unit_vampire") and is_equal_approx(va.speed, 0.0), "after %.0f s it lands as a vampire again, at its old speed" % E["vampire"]["bat_time"])
+	check(landed and vb.bat_used and not va.airborne and va.sprite.texture == Art.tex("unit_vampire") and is_equal_approx(va.speed, 0.0), "after %.0f s it lands as a vampire again, at its old speed" % enemies["vampire"]["bat_time"])
 	check(not va.airborne, "only once: still low on HP, it stays on its feet")
 	hero.remove_from_group("melee_defenders")
 	hero.set_grid_pos(Vector2(v.center))
@@ -509,16 +509,16 @@ func _test_vampire() -> void:
 	var nb2 := near.behavior as VampireBehavior
 	var turned := await wait_until(func() -> bool: return nb2.fled, 10.0)
 	var gate_hp := near.hp
-	check(turned and near.airborne and is_equal_approx(gate_hp, near.max_hp * (E["vampire"]["bat_below"] + E["vampire"]["bat_gate_heal"])) and v.intact_huts().size() == huts and game.population.count() == people, "a bat at a gate gains a third of its HP back (%.0f of %.0f), burns nothing and kills nobody" % [gate_hp, near.max_hp])
+	check(turned and near.airborne and is_equal_approx(gate_hp, near.max_hp * (enemies["vampire"]["bat_below"] + enemies["vampire"]["bat_gate_heal"])) and v.intact_huts().size() == huts and game.population.count() == people, "a bat at a gate gains a third of its HP back (%.0f of %.0f), burns nothing and kills nobody" % [gate_hp, near.max_hp])
 	var g0 := near.grid_pos.distance_to(Vector2(v.center))
 	await wait(1.0)
 	check(near.grid_pos.distance_to(Vector2(v.center)) > g0 + 0.5, "and flies back the way it came")
-	var down := await wait_until(func() -> bool: return not near.airborne, E["vampire"]["bat_time"] + 3.0)
+	var down := await wait_until(func() -> bool: return not near.airborne, enemies["vampire"]["bat_time"] + 3.0)
 	var to_gate := false
 	if down and not near.path.is_empty():
 		for gt in v.gates:
 			to_gate = to_gate or near.path[near.path.size() - 1].distance_to(Vector2(gt)) < 1.5
-	check(down and not nb2.fled and to_gate and near.speed < E["vampire"]["bat_speed"], "landed, the vampire walks to the village again")
+	check(down and not nb2.fled and to_gate and near.speed < enemies["vampire"]["bat_speed"], "landed, the vampire walks to the village again")
 	kill(near)
 	# Holy damage: a necromancer 1.5 x, a goblin 0.75 x, a raised goblin 2 x that (docs/acolyte-design.md).
 	var nk := spawn("necromancer", at, 10.0)
@@ -638,13 +638,13 @@ func _slimes(kind: String) -> Array:
 
 func _test_slimes() -> void:
 	print("-- slimes")
-	var E := Config.ENEMIES
-	var s3: Dictionary = E["slime3"]
-	var s2: Dictionary = E["slime2"]
-	var s1: Dictionary = E["slime1"]
-	check(s3["hp"] == 40.0 and s3["damage"] == E["ork"]["damage"] and s3["attack_cooldown"] == E["ork"]["attack_cooldown"] and s3["speed"] == E["ork"]["speed"], "a big slime: 40 HP, an ork's blows and pace")
+	var enemies := Config.ENEMIES
+	var s3: Dictionary = enemies["slime3"]
+	var s2: Dictionary = enemies["slime2"]
+	var s1: Dictionary = enemies["slime1"]
+	check(s3["hp"] == 40.0 and s3["damage"] == enemies["ork"]["damage"] and s3["attack_cooldown"] == enemies["ork"]["attack_cooldown"] and s3["speed"] == enemies["ork"]["speed"], "a big slime: 40 HP, an ork's blows and pace")
 	check(s3["hp"] == 2.0 * s2["hp"] and s2["hp"] == 2.0 * s1["hp"] and s3["damage"] == 2.0 * s2["damage"] and s2["damage"] == 2.0 * s1["damage"], "each level has twice the HP and damage of the one below")
-	check(s1["speed"] > s2["speed"] and s2["speed"] == E["goblin"]["speed"] and s2["speed"] > s3["speed"], "level 1 is fast, level 2 normal, level 3 slow")
+	check(s1["speed"] > s2["speed"] and s2["speed"] == enemies["goblin"]["speed"] and s2["speed"] > s3["speed"], "level 1 is fast, level 2 normal, level 3 slow")
 	check([s3, s2, s1].all(func(d: Dictionary) -> bool: return not d.get("corpse", true) and d["behavior"] == "melee"), "slimes leave no corpse (nothing to raise) and walk the roads like goblins and orks")
 	check(not s3.has("raid_chance") and s2["raid_chance"] == 0.5 and s1["raid_chance"] == 0.25, "at the gate: a big slime always burns a hut, a slime half, a small one a quarter of the time")
 	var first := 0

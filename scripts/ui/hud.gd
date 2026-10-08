@@ -2728,7 +2728,12 @@ func show_game_over(title: String, subtitle: String) -> void:
 	_overlay.visible = true
 	_refresh_stats_button()
 	_info_panel.visible = false
-	_connect_overlay(func() -> void: game.go_to_title() if game.networked else game.restart(again_tutorial))
+	var on_press := func() -> void:
+		if game.networked:
+			game.go_to_title()
+		else:
+			game.restart(again_tutorial)
+	_connect_overlay(on_press)
 
 
 func _connect_overlay(cb: Callable) -> void:

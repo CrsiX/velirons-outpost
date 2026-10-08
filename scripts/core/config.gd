@@ -931,7 +931,7 @@ const ENEMIES := {
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 12, "gold_on_collect": 0, "food_on_collect": 1,
 		"spell_range": 3.6,  # tiles: no farther than a level 1 watchtower shoots (TOWER_RANGE)
-		"spell_cooldown": 2.0, 
+		"spell_cooldown": 2.0,
 		"enchant_ratio": 0.45,  # a bewitched unit stops for 45 % of her spell cooldown (0.9 s)
 		"spell_damage": 5.0,  # dealt to earth elementals (tower units take none)
 		"spell_speed": 5.0,  # tiles per second of the pink bolt
