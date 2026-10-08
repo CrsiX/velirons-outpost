@@ -367,7 +367,7 @@ const LAIR_RELIC_CHANCE := 0.25
 ## by one miner (first to arrive). Walking up to one unlocks the miner for all.
 const MINES_PER_SLICE := 1.0  # x the map type's "mines"
 const MINE_DISTANCE := 10.0  # from any village
-const MINE_GOLD_RATE := 1.0  # gold per second
+const MINE_GOLD_RATE := 0.25  # gold per second
 const MINE_REACH := 2.0
 
 ## Sight: explored tiles are only "under surveillance" (enemies visible) near
