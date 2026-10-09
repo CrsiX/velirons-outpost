@@ -1,0 +1,51 @@
+The kingdom of Veliron has fallen! Its last outpost, a walled village in the
+middle of a wild land, still stands. Goblins, skeletons and worse come
+down the winding roads from the edge of the map towards its gates.
+
+Veliron's Outpost is a fantasy tower defense and village simulation game
+where you don't build the towers yourself: your villagers do. You decide where
+things get built and who mans the towers, and the village works on its own.
+
+<h2><b>Run the village</b></h2>
+<ul>
+<li>Manage 3 resources: gold for soldiers, food for villagers, material for buildings</li>
+<li>Builders, farmers, foresters, explorers, gatherers, traders and miners go about their work by themselves</li>
+<li>Place watchtowers, farms, worker camps, barracks, training grounds and more</li>
+<li>Every village hut houses one villager, and every enemy that breaks through a gate burns one</li>
+</ul>
+
+<h2><b>Command the defense</b></h2>
+<ul>
+<li>Archers, shield bearers, summoners, apprentices and acolytes</li>
+<li>Units can be upgraded and specialized for better effects</li>
+<li>A legendary hero that can be controlled by the player to defend, build, explore, gather, train, rest or help other villages in co-op mode</li>
+</ul>
+
+<h2><b>Face endless waves</b></h2>
+<ul>
+<li>Goblins, skeletons, orks, witches, rat packs, thieves, gargoyles, necromancers, vampires, slimes and many more</li>
+<li>Waves grow stronger every time, and monster lairs wake up later in the game</li>
+</ul>
+
+<h2><b>Explore a new world every game</b></h2>
+<ul>
+<li>Procedurally generated 75x75 maps with different biomes: forests, meadows, heath, steppe, swamps, lakes, rivers, coasts, mountains and volcanoes</li>
+<li>Hidden treasures, relics, monster camps, ruined watchtowers, mines and sites that unlock new units</li>
+<li>Different map types to choose from: Temperate, Highlands, Coast, Desert and Volcanic, with a seed to replay a map</li>
+</ul>
+
+<h2><b>Play together</b></h2>
+<ul>
+<li>LAN co-op for up to 8 players, each with their own village on one shared map</li>
+<li>Send resources by caravan, send soldiers, or let your hero defend a friend's village</li>
+</ul>
+
+<h2><b>Roadmap</b></h2>
+<ul>
+<li>Marketplaces</li>
+<li>More enemy units or mid-bosses</li>
+<li>Scripted scenarios, story and campaign</li>
+</ul>
+
+<h2><b>Anti-features</b></h2>
+Networking: only used for LAN co-op play. The game functions fully offline.
