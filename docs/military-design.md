@@ -84,33 +84,38 @@ Levels 1 → 10. Per-level values follow a curve (§8). DPS = damage ÷ cooldown
 specialisation never lowers its HP or DPS: every specialisation's level 1 is at
 least as strong as its base unit's level 3. Branching from a higher level may
 lose stats; that is the player's choice. Per-hit damage may be lower (the
-swiftbowman's is). The shield bearer's branches meet this rule (tests/military_bot.gd).
+swiftbowman's is).
 
-The older specialisations are still balanced (and tested, `_specs_not_weaker`)
-by a same-level rule instead: at every level at least as strong as the base unit
-at that level (HP; DPS for attackers; summon stats and interval for summoners;
-only HP for the healing mage and the High Priest). Moving them to the level-3
-rule, and dropping the archer's and summoner's pinned levels, is a later change.
+**The higher ceiling.** Level 10 of a specialisation is stronger than level 10 of
+its base unit: more HP, and more DPS if it attacks; a summoner more summon
+output (summons × summon damage × the summon kind's damage factor).
+
+In between, a specialisation may fall a little short of the base unit of the
+same level. "Strength" means HP, plus DPS for units that attack (roles ranged
+and melee); for summoners also `max_summons`, `summon_hp`, `summon_damage` (at
+least as high) and `interval` (no longer) at level 1. The healing mage and the
+High Priest have no real attack: only their HP counts. tests/military_bot.gd
+checks both rules for every specialisation (`_spec_rule_breaks`).
 
 | Unit | Role / posts | HP (L1 → L10) | Own range* | Damage (L1 → L10) | Cooldown s | DPS | Notes |
 |---|---|---|---|---|---|---|---|
-| **Archer** | ranged · tower, barracks | 30 → 90 | 2.6 | 7 → 40 | 1.0 → 0.45 | 7 → 89 | levels 1-4 pinned (damage 7/11/16/24, cooldown 1.0/0.85/0.72/0.6), then linear |
-| **Crossbowman** | ranged · tower, barracks | 34 → 100 | 3.2 | 50 → 170 | 2.25 → 1.7 | 22 → 100 | L1 DPS = archer L3 (22); `pierce` flag reserved (no shielded enemies yet) |
-| **Swiftbowman** | ranged · tower, barracks | 30 → 90 | 2.6 | 7.5 → 17 | 0.30 → 0.18 | 25 → 94 | ≥ 2× the archer's fire rate, small hits; fancier art, multi-string bow |
+| **Archer** | ranged · tower, barracks | 30 → 90 | 2.6 | 7 → 40 | 1.0 → 0.45 | 7 → 89 | L3 16 DPS, L5 29, L7 46 |
+| **Crossbowman** | ranged · tower, barracks | 44 → 100 | 3.2 | 50 → 170 | 2.25 → 1.7 | 22 → 100 | `pierce` flag reserved (no shielded enemies yet) |
+| **Swiftbowman** | ranged · tower, barracks | 44 → 95 | 2.6 | 7.5 → 18 | 0.30 → 0.18 | 25 → 100 | ≥ 2× the archer's fire rate, small hits; fancier art, multi-string bow |
 | **Shield Bearer** | melee · barracks only | 55 → 180 | melee (0.8) | 3 → 12 | 1.2 → 0.9 | 2.5 → 13 | ork-like HP, very low damage: holds enemies up |
 | **Warrior** | melee · barracks only | 90 → 300 | melee (0.8) | 6 → 30 | 1.15 → 0.85 | 5.2 → 35 | the most HP; war cry (§3a) |
 | **Berserker** | melee · barracks only | 85 → 200 | melee (0.8) | 8 → 71 | 1.15 → 0.8 | 7 → 89 at full HP | rage and lifesteal (§3a); ~317 DPS at L10 with 10 % HP |
 | **Halberdier** | melee · barracks only | 85 → 200 | 1.2 | 9 → 76 | 1.25 → 0.85 | 7.2 → 89 | reaches flyers (§3a) |
 | **Summoner** | summoner · tower, barracks | 18 → 50 | - | (summons) | - | - | fragile, no attack of its own (summon table below) |
-| **Fire Summoner** | summoner · tower, barracks | 18 → 50 | - | (summons) | - | - | fire elementals |
+| **Fire Summoner** | summoner · tower, barracks | 26 → 55 | - | (summons) | - | - | fire elementals |
 | **Apprentice** | ranged · tower, barracks | 20 → 60 | 2.8 | 7 → 38 | 1.0 → 0.55 | 7 → 69 | whirling dark-blue orb, plain damage |
-| **Fire Mage** | ranged · tower, barracks | 20 → 60 | 2.8 | 10 → 38 | 0.95 → 0.55 | 10.5 → 69 | fireball explodes: splash within 1.2 → 1.8 tiles (`splash`), 60 % of the damage (`splash_share`) |
-| **Ice Mage** | ranged · tower, barracks | 20 → 60 | 2.8 | 16 → 44 | 0.95 → 0.55 | 17 → 80 | hit enemy slowed to 70 % → 40 % speed for 2 → 3.5 s |
-| **Healing Mage** | healer · tower, barracks | 20 → 60 | heal radius 2.5 → 3.5 | no damage | 3.0 → 1.4 | - | heals 6 → 30 HP to every ally in reach |
-| **Spatial Mage** | ranged · tower, barracks | 20 → 60 | 2.8 | 9 → 38 | 0.95 → 0.55 | 9.5 → 69 | hit enemy is thrown back 1.5 → 4 road tiles, away from the village; the same enemy only once per 4 s (`push_immunity`) |
+| **Fire Mage** | ranged · tower, barracks | 29 → 65 | 2.8 | 15 → 42 | 0.95 → 0.55 | 15.8 → 76 | fireball explodes: splash within 1.2 → 1.8 tiles (`splash`), 60 % of the damage (`splash_share`) |
+| **Ice Mage** | ranged · tower, barracks | 29 → 65 | 2.8 | 16 → 44 | 0.95 → 0.55 | 17 → 80 | hit enemy slowed to 70 % → 40 % speed for 2 → 3.5 s |
+| **Healing Mage** | healer · tower, barracks | 29 → 65 | heal radius 2.5 → 3.5 | no damage | 3.0 → 1.4 | - | heals 6 → 30 HP to every ally in reach |
+| **Spatial Mage** | ranged · tower, barracks | 29 → 65 | 2.8 | 15 → 42 | 0.95 → 0.55 | 15.8 → 76 | hit enemy is thrown back 1.5 → 4 road tiles, away from the village; the same enemy only once per 4 s (`push_immunity`) |
 | **Acolyte** | ranged · tower, barracks | 30 → 90 | 1.6 | 6.5 → 36 | 1.0 → 0.48 | 6.5 → 75 | holy beam (docs/acolyte-design.md) |
-| **Inquisitor** | melee · barracks only | 45 → 140 | melee (0.8) | 9 → 57 | 1.1 → 0.75 | 8.2 → 76 | holy melee, hunts witches and the unholy |
-| **High Priest** | support · tower, barracks | 30 → 90 | aura 2.6 | counter-strike 3 → 10 | 1.4 → 1.0 | - | aura +2 % → +20 % damage to allies |
+| **Inquisitor** | melee · barracks only | 45 → 140 | melee (0.8) | 17 → 57 | 1.1 → 0.75 | 15.5 → 76 | holy melee, hunts witches and the unholy |
+| **High Priest** | support · tower, barracks | 44 → 95 | aura 2.6 | counter-strike 3 → 10 | 1.4 → 1.0 | - | aura +2 % → +20 % damage to allies |
 | **Spatial Archmage** | civilian | - | - | - | - | - | from spatial mage ≥ `ARCHMAGE_LEVEL`; lives in a hut; role in the ending TBD |
 
 Damage categories (`ATTACKS` "category"): arrows and bolts are *projectile*,
@@ -128,8 +133,8 @@ plus the tower level's `range_bonus` (+0.8 at level 2, +1.6 at level 3,
 
 | Unit | Interval s (L1 → L10) | Max summons | Summon HP stat | Summon damage stat |
 |---|---|---|---|---|
-| Summoner | 6.0 → 2.5 (pinned 6.0/5.0/4.2/3.5 for L1-4) | 2 → 8 (pinned 2/3/4/5) | 20 → 90 (pinned 20/26/34/44) | 4 → 18 (pinned 4/5/6.5/8.5) |
-| Fire Summoner | 3.9 → 2.5 | 4 → 8 | 34 → 90 | 6.5 → 18 |
+| Summoner | 6.0 → 2.5 (L3 5.2) | 2 → 8 (L3 3) | 20 → 90 (L3 36) | 4 → 18 (L3 7.1) |
+| Fire Summoner | 3.9 → 2.5 | 4 → 8 | 36 → 95 | 7.5 → 20 |
 
 **Summons** (`SUMMONS`; `hp` and `damage` multiply the summoner's `summon_hp` and
 `summon_damage` at the moment of summoning; `speed` in tiles/s; shared values in
@@ -138,7 +143,7 @@ plus the tower level's `range_bonus` (+0.8 at level 2, +1.6 at level 3,
 | Summon | HP | Speed | Damage | Special |
 |---|---|---|---|---|
 | Earth elemental | 1.0× summon HP (20 → 90) | 1.1 | 1.0× summon damage (4 → 18), melee | at level 1 as strong as a Normal goblin (20 HP, 4 damage); difficulty scales goblins, not elementals |
-| Fire elemental | 0.5× (17 → 45) | 1.8 | 2.5× (16 → 45), magical | burns itself: loses 25 % of the damage it deals, as HP (`self_damage`); hovers and flickers, a flyer |
+| Fire elemental | 0.5× (18 → 48) | 1.8 | 2.5× (19 → 50), magical | burns itself: loses 25 % of the damage it deals, as HP (`self_damage`); hovers and flickers, a flyer |
 
 Existing elementals keep their stats when the summoner levels up. They crumble
 when their summoner leaves them: withdrawn, downed, specialised, or back on its
@@ -155,7 +160,7 @@ only at home). On a tower, a healing mage heals as far as the tower reaches
 ### 3a. The shield bearer's specialisations
 
 All three: from shield bearer level 3, `branch_cost` 150 gold, barracks only,
-upgrades 60 → 300 gold or 40 → 400 hero XP, plain curves (no pinned levels).
+upgrades 60 → 300 gold or 40 → 400 hero XP.
 Their level 1 (85-90 HP, 5.2-7.2 DPS) is above the shield bearer's level 3
 (83 HP, 4.4 DPS).
 
@@ -322,16 +327,14 @@ const MILITARY := {
         "name": "Archer", "role": "ranged", "posts": ["tower", "barracks"], "recruit": true,
         "cost": {"gold": 40}, "speed": 1.8, "attack": "arrow", "range": 2.6,
         "stats": {"hp": [30.0, 90.0], "damage": [7.0, 40.0], "cooldown": [1.0, 0.45]},
-        "pinned": {"damage": [7.0, 11.0, 16.0, 24.0], "cooldown": [1.0, 0.85, 0.72, 0.6]},
-        "upgrade_cost": [45, 300], "upgrade_cost_pinned": [45, 80, 130],
-        "train_xp": [30, 400], "train_xp_pinned": [30, 60, 100],
+        "upgrade_cost": [45, 300], "train_xp": [30, 400],
         "branches": ["crossbowman", "swiftbowman"],
     },
     "fire_mage": {
         "name": "Fire Mage", "role": "ranged", "recruit": false,
         "branch_of": "apprentice", "branch_cost": {"gold": 120},
         "attack": "fireball", "range": 2.8,
-        "stats": {"hp": [20.0, 60.0], "damage": [10.0, 38.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
+        "stats": {"hp": [29.0, 65.0], "damage": [15.0, 42.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
         ...
     },
     ...
@@ -350,10 +353,9 @@ const SUMMON := {"attack_cooldown": 1.0, "attack_range": 0.8, "sight": 3.5, "lea
   a stat of the unit, also the effects: `splash`, `slow`, `slow_time`, `heal`,
   `radius`, `push`, `aura`, and the summoners' `interval`, `max_summons`,
   `summon_hp`, `summon_damage`.
-- `"pinned"`: key → the exact values of the first levels (the archer's damage and
-  cooldown, the summoner's four summon stats, levels 1-4); the curve continues
-  from the last pinned value. `"upgrade_cost_pinned"` / `"train_xp_pinned"` do the
-  same for the gold and hero XP of the first level-ups.
+- Every level follows the curve between those two values: no level is fixed by
+  hand. `"upgrade_cost"` / `"train_xp"` (gold and hero XP for level 2 and for
+  level 10) follow the same curve.
 - `"curve"` (optional, default 1.0 = linear) is an exponent on the curve for all
   of a unit's stats; no unit sets it. `"curves"` sets it per stat (the
   berserker's `{"lifesteal": 1.5}`); a stat not named there uses `"curve"`.
@@ -437,7 +439,7 @@ The acolyte line's art is in docs/acolyte-design.md.
 
 | # | Question | Decision |
 |---|---|---|
-| D1 | Per-level stats | **Curve** between level 1 and level 10 (linear; an optional exponent per unit, unused); the archer's and summoner's levels 1-4 are pinned |
+| D1 | Per-level stats | **Curve** between level 1 and level 10 for every unit (linear; an exponent per unit or per stat, only the berserker's lifesteal uses one); no hand-set levels |
 | D2 | Hurt while walking? | **Yes**: enemies stop to fight walking units, which keep walking; downing while travelling is possible |
 | D3 | Units on towers | **Can't be hurt** (witches still bewitch them) |
 | D4 | Healing on their own | **On barracks benches and unused in the reserve**, both at `UNIT_REGEN` (1 HP/s); anywhere else only by healing mages |
@@ -454,7 +456,7 @@ The acolyte line's art is in docs/acolyte-design.md.
 | D15 | Recruitable units | Archer, shield bearer, summoner, apprentice, acolyte; the summoner, the apprentice and the acolyte have to be unlocked first at their unlock sites (docs/world-design.md §9.4) |
 | D16 | Upgrade costs | Gentle curve: gold for level 10 about **300** (per unit, in config) |
 | D17 | Hero training XP | Rising to about 400 XP for level 10 (per unit, × difficulty) |
-| D18 | Specialisations vs base unit | Level 1 of a specialisation **never weaker than level 3** of its base unit (HP, DPS); the older specialisations still follow a same-level rule until a later change (§3) |
+| D18 | Specialisations vs base unit | Level 1 **never weaker than the base unit's level 3** (HP, DPS, summons); level 10 **stronger than the base unit's level 10**; in between it may fall a little short (§3) |
 | D19 | Shield bearer branches | Warrior, Berserker, Halberdier; like every branch (level 3, 150 gold), barracks only (§3a) |
 | D20 | War cry | Attack speed (every interval, also casting, summoning, healing) +10 % → +50 % for 3 → 5 s, every 10 s on a sortie, 2.5 tiles, also tower units; strict refresh, no stacking |
 | D21 | Berserker | Rage 0.3 → 0.8; lifesteal 10 % → 25 % (curve 1.5) below half HP; the high ceiling is wanted |

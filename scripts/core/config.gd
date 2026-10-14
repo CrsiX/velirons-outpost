@@ -524,11 +524,12 @@ const EXPLORER_CLAIM_PENALTY := 30
 ## Every unit goes up to MAX_UNIT_LEVEL. Stats are given for level 1 and level 10
 ## ("stats": key -> [level 1, level 10]); levels in between follow the curve
 ## (t = 0 at level 1 .. 1 at level 10, value = a + (b - a) * t^curve; "curve"
-## for all of a unit's stats, "curves": stat -> its own exponent). "pinned"
-## fixes the first levels exactly (the archer's and summoner's levels 1-4); the
-## curve then continues from the last pinned value.
+## for all of a unit's stats, "curves": stat -> its own exponent).
 ## "upgrade_cost" / "train_xp": gold / hero XP to reach level 2 and level 10
-## (pinned the same way), "branch_cost": gold to turn into this specialisation.
+## (along the same curve), "branch_cost": gold to turn into this specialisation.
+## A specialisation's level 1 is never weaker than its base unit's level 3
+## (where it branches: HP, DPS, summons), and its level 10 is stronger than
+## the base unit's level 10 (tests/military_bot.gd).
 ## Roles: "ranged" (towers or barracks; own "range" in the field, never upgraded,
 ## always below the smallest tower range), "melee" (barracks only), "summoner"
 ## (summons elementals; no attack of its own), "healer" (heals allies around it),
@@ -560,9 +561,7 @@ const MILITARY := {
 		"cost": {"gold": 40}, "speed": 1.8, "attack": "arrow", "range": 2.6,
 		"desc": "Shoots arrows, from a tower or out of the barracks.",
 		"stats": {"hp": [30.0, 90.0], "damage": [7.0, 40.0], "cooldown": [1.0, 0.45]},
-		"pinned": {"damage": [7.0, 11.0, 16.0, 24.0], "cooldown": [1.0, 0.85, 0.72, 0.6]},
-		"upgrade_cost": [45, 300], "upgrade_cost_pinned": [45, 80, 130],
-		"train_xp": [30, 400], "train_xp_pinned": [30, 60, 100],
+		"upgrade_cost": [45, 300], "train_xp": [30, 400],
 		"branches": ["crossbowman", "swiftbowman"],
 	},
 	"crossbowman": {
@@ -570,7 +569,7 @@ const MILITARY := {
 		"branch_of": "archer", "branch_cost": {"gold": 150},
 		"speed": 1.6, "attack": "bolt", "range": 3.2, "pierce": true,  # (piercing: for shielded enemies, later)
 		"desc": "Slow, heavy crossbow bolts; reaches further than an archer in the field.",
-		"stats": {"hp": [34.0, 100.0], "damage": [50.0, 170.0], "cooldown": [2.25, 1.7]},
+		"stats": {"hp": [44.0, 100.0], "damage": [50.0, 170.0], "cooldown": [2.25, 1.7]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	"swiftbowman": {
@@ -578,7 +577,7 @@ const MILITARY := {
 		"branch_of": "archer", "branch_cost": {"gold": 150},
 		"speed": 2.0, "attack": "swift_arrow", "range": 2.6,
 		"desc": "A hail of light arrows: tiny hits, very fast.",
-		"stats": {"hp": [30.0, 90.0], "damage": [7.5, 17.0], "cooldown": [0.3, 0.18]},
+		"stats": {"hp": [44.0, 95.0], "damage": [7.5, 18.0], "cooldown": [0.3, 0.18]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	"shield_bearer": {
@@ -627,9 +626,7 @@ const MILITARY := {
 		"cost": {"gold": 60}, "speed": 1.4, "summon": "earth",
 		"desc": "Summons earth elementals while enemies are near. Fragile, no attack of its own.",
 		"stats": {"hp": [18.0, 50.0], "interval": [6.0, 2.5], "max_summons": [2.0, 8.0], "summon_hp": [20.0, 90.0], "summon_damage": [4.0, 18.0]},
-		"pinned": {"interval": [6.0, 5.0, 4.2, 3.5], "max_summons": [2.0, 3.0, 4.0, 5.0], "summon_hp": [20.0, 26.0, 34.0, 44.0], "summon_damage": [4.0, 5.0, 6.5, 8.5]},
-		"upgrade_cost": [60, 300], "upgrade_cost_pinned": [60, 100, 150],
-		"train_xp": [40, 400], "train_xp_pinned": [40, 80, 130],
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 		"branches": ["fire_summoner"],
 	},
 	"fire_summoner": {
@@ -637,7 +634,7 @@ const MILITARY := {
 		"branch_of": "summoner", "branch_cost": {"gold": 150},
 		"speed": 1.4, "summon": "fire",
 		"desc": "Summons fire elementals: quick and deadly, but they burn themselves up.",
-		"stats": {"hp": [18.0, 50.0], "interval": [3.9, 2.5], "max_summons": [4.0, 8.0], "summon_hp": [34.0, 90.0], "summon_damage": [6.5, 18.0]},
+		"stats": {"hp": [26.0, 55.0], "interval": [3.9, 2.5], "max_summons": [4.0, 8.0], "summon_hp": [36.0, 95.0], "summon_damage": [7.5, 20.0]},
 		"upgrade_cost": [70, 300], "train_xp": [45, 400],
 	},
 	"apprentice": {
@@ -653,7 +650,7 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "fireball", "range": 2.8,
 		"desc": "Fireballs that explode: an apprentice's damage, splashed over whole groups.",
-		"stats": {"hp": [20.0, 60.0], "damage": [10.0, 38.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
+		"stats": {"hp": [29.0, 65.0], "damage": [15.0, 42.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	"ice_mage": {
@@ -661,7 +658,7 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "frost", "range": 2.8,
 		"desc": "Frost orbs: a bit more damage, and the enemy hit is slowed for a while.",
-		"stats": {"hp": [20.0, 60.0], "damage": [16.0, 44.0], "cooldown": [0.95, 0.55], "slow": [0.7, 0.4], "slow_time": [2.0, 3.5]},
+		"stats": {"hp": [29.0, 65.0], "damage": [16.0, 44.0], "cooldown": [0.95, 0.55], "slow": [0.7, 0.4], "slow_time": [2.0, 3.5]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	"healing_mage": {
@@ -669,7 +666,7 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "heal",
 		"desc": "No damage. Heals every allied unit and hero around it (not summons): in a tower as far as the tower reaches, elsewhere within its own radius.",
-		"stats": {"hp": [20.0, 60.0], "heal": [6.0, 30.0], "cooldown": [3.0, 1.4], "radius": [2.5, 3.5]},
+		"stats": {"hp": [29.0, 65.0], "heal": [6.0, 30.0], "cooldown": [3.0, 1.4], "radius": [2.5, 3.5]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	"spatial_mage": {
@@ -677,7 +674,7 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "warp", "range": 2.8,
 		"desc": "An apprentice's damage, and the enemy hit is thrown back along its road. At level %d it can become the Spatial Archmage." % ARCHMAGE_LEVEL,
-		"stats": {"hp": [20.0, 60.0], "damage": [9.0, 38.0], "cooldown": [0.95, 0.55], "push": [1.5, 4.0]},
+		"stats": {"hp": [29.0, 65.0], "damage": [15.0, 42.0], "cooldown": [0.95, 0.55], "push": [1.5, 4.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 		"archmage": true,
 	},
@@ -701,7 +698,7 @@ const MILITARY := {
 		"speed": 1.6, "attack": "smite",
 		"hunt": {"witch": {"bonus": 4.0, "max": 7.0}, "unholy": {"bonus": 2.0, "max": 5.0}}, "hunt_switch": 1.0,
 		"desc": "Holy cross and warhammer. Hunts witches first, then the undead, then anything else. Barracks only.",
-		"stats": {"hp": [45.0, 140.0], "damage": [9.0, 57.0], "cooldown": [1.1, 0.75]},
+		"stats": {"hp": [45.0, 140.0], "damage": [17.0, 57.0], "cooldown": [1.1, 0.75]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	# No attack: a weak melee counter-strike (damage / cooldown) when hit in
@@ -714,7 +711,7 @@ const MILITARY := {
 		"branch_of": "acolyte", "branch_cost": {"gold": 150},
 		"speed": 1.5, "attack": "strike", "range": 2.6, "glow": "#fff2c0", "necro_slow": 2.0,
 		"desc": "Blesses every ally around it: more damage for units, towers, the hero and summons. Necromancers raise slower near it.",
-		"stats": {"hp": [30.0, 90.0], "aura": [0.02, 0.2], "damage": [3.0, 10.0], "cooldown": [1.4, 1.0]},
+		"stats": {"hp": [44.0, 95.0], "aura": [0.02, 0.2], "damage": [3.0, 10.0], "cooldown": [1.4, 1.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 }
@@ -772,9 +769,8 @@ const BARRACKS_LEVELS: Array[Dictionary] = [
 static func unit_stat(kind: String, key: String, level: int) -> float:
 	var spec: Dictionary = MILITARY[kind]
 	var ends: Array = spec["stats"][key]
-	var pinned: Array = spec.get("pinned", {}).get(key, [])
 	var curve: float = spec.get("curves", {}).get(key, spec.get("curve", 1.0))
-	return _curve(ends[0], ends[1], pinned, clampi(level, 0, MAX_UNIT_LEVEL - 1), MAX_UNIT_LEVEL, curve)
+	return _curve(ends[0], ends[1], clampi(level, 0, MAX_UNIT_LEVEL - 1), MAX_UNIT_LEVEL, curve)
 
 
 ## Gold to go from `level` to the next one (0-based), or {} at the top.
@@ -783,7 +779,7 @@ static func unit_upgrade_cost(kind: String, level: int) -> Dictionary:
 		return {}
 	var spec: Dictionary = MILITARY[kind]
 	var ends: Array = spec["upgrade_cost"]
-	var v := _curve(ends[0], ends[1], spec.get("upgrade_cost_pinned", []), level, MAX_UNIT_LEVEL - 1, spec.get("curve", 1.0))
+	var v := _curve(ends[0], ends[1], level, MAX_UNIT_LEVEL - 1, spec.get("curve", 1.0))
 	return {"gold": roundi(v / 5.0) * 5}
 
 
@@ -793,7 +789,7 @@ static func unit_train_xp(kind: String, level: int) -> float:
 		return 0.0
 	var spec: Dictionary = MILITARY[kind]
 	var ends: Array = spec["train_xp"]
-	return roundf(_curve(ends[0], ends[1], spec.get("train_xp_pinned", []), level, MAX_UNIT_LEVEL - 1, spec.get("curve", 1.0)))
+	return roundf(_curve(ends[0], ends[1], level, MAX_UNIT_LEVEL - 1, spec.get("curve", 1.0)))
 
 
 ## Seconds a downed unit of `level` needs to revive.
@@ -801,20 +797,11 @@ static func unit_revive_time(level: int) -> float:
 	return lerpf(UNIT_REVIVE_TIME[0], UNIT_REVIVE_TIME[1], float(clampi(level, 0, MAX_UNIT_LEVEL - 1)) / (MAX_UNIT_LEVEL - 1))
 
 
-## Value `i` of `n` steps from `first` to `last`; `pinned` fixes the first ones,
-## the rest continues from the last pinned value.
-static func _curve(first: float, last: float, pinned: Array, i: int, n: int, curve: float) -> float:
-	if i < pinned.size():
-		return pinned[i]
-	var from := 0
-	var a := first
-	if not pinned.is_empty():
-		from = pinned.size() - 1
-		a = pinned[-1]
-	if n - 1 <= from:
+## Value `i` of `n` steps from `first` to `last` (t^curve; 1 = linear).
+static func _curve(first: float, last: float, i: int, n: int, curve: float) -> float:
+	if n <= 1:
 		return last
-	var t := float(i - from) / float(n - 1 - from)
-	return lerpf(a, last, pow(t, curve))
+	return lerpf(first, last, pow(float(i) / float(n - 1), curve))
 ## Training XP needed is multiplied by this per difficulty (see Settings).
 const TRAIN_XP_DIFFICULTY := {"easy": 0.8, "normal": 1.0, "hard": 1.5}
 

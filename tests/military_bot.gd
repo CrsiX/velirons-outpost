@@ -103,24 +103,50 @@ func _dps(kind: String, lv: int) -> float:
 	return Config.unit_stat(kind, "damage", lv) / Config.unit_stat(kind, "cooldown", lv)
 
 
-## A specialisation never has less HP, DPS (if it attacks: "ranged" and
-## "melee"), summons or summon strength, nor a longer summon interval, than its
-## base unit of the same level.
-func _specs_not_weaker() -> bool:
+## Elementals' damage per blow, all of them together: max_summons x
+## summon_damage x the summon kind's damage factor.
+func _summon_output(kind: String, lv: int) -> float:
+	var f: float = Config.SUMMONS[Config.MILITARY[kind].get("summon", "earth")]["damage"]
+	return roundi(Config.unit_stat(kind, "max_summons", lv)) * Config.unit_stat(kind, "summon_damage", lv) * f
+
+
+## The specialisation rules (docs/military-design.md §3), as the list of what
+## breaks them:
+## - specialising never costs strength: level 1 at least as strong as the base
+##   unit's level 3 (where it branches): HP; DPS if it attacks (ranged, melee);
+##   summoners as many and as strong summons, no longer interval;
+## - the ceiling is higher: level 10 stronger than the base unit's level 10:
+##   more HP; more DPS if it attacks; summoners more summon output.
+## The healing mage and the High Priest have no real attack: only HP counts.
+func _spec_rule_breaks() -> Array[String]:
+	var out: Array[String] = []
+	var b3 := Config.BRANCH_MIN_LEVEL - 1
+	var top := Config.MAX_UNIT_LEVEL - 1
 	for k in Config.MILITARY:
 		var sp: Dictionary = Config.MILITARY[k]
 		if not sp.has("branch_of"):
 			continue
 		var b: String = sp["branch_of"]
-		for lv in Config.MAX_UNIT_LEVEL:
-			for key in ["hp", "max_summons", "summon_hp", "summon_damage"]:
-				if sp["stats"].has(key) and Config.unit_stat(k, key, lv) < Config.unit_stat(b, key, lv) - 0.001:
-					return false
-			if sp["stats"].has("interval") and Config.unit_stat(k, "interval", lv) > Config.unit_stat(b, "interval", lv) + 0.001:
-				return false
-			if sp["role"] in ["ranged", "melee"] and _dps(k, lv) < _dps(b, lv) - 0.001:
-				return false
-	return true
+		var attacks: bool = sp["role"] in ["ranged", "melee"]
+		if Config.unit_stat(k, "hp", 0) < Config.unit_stat(b, "hp", b3) - 0.001:
+			out.append("%s L1 HP" % k)
+		if attacks and _dps(k, 0) < _dps(b, b3) - 0.001:
+			out.append("%s L1 DPS" % k)
+		if sp["stats"].has("interval"):
+			for key in ["summon_hp", "summon_damage"]:
+				if Config.unit_stat(k, key, 0) < Config.unit_stat(b, key, b3) - 0.001:
+					out.append("%s L1 %s" % [k, key])
+			if roundi(Config.unit_stat(k, "max_summons", 0)) < roundi(Config.unit_stat(b, "max_summons", b3)):
+				out.append("%s L1 max_summons" % k)
+			if Config.unit_stat(k, "interval", 0) > Config.unit_stat(b, "interval", b3) + 0.001:
+				out.append("%s L1 interval" % k)
+		if Config.unit_stat(k, "hp", top) <= Config.unit_stat(b, "hp", top):
+			out.append("%s L10 HP" % k)
+		if attacks and _dps(k, top) <= _dps(b, top):
+			out.append("%s L10 DPS" % k)
+		if sp["stats"].has("interval") and _summon_output(k, top) <= _summon_output(b, top):
+			out.append("%s L10 summon output" % k)
+	return out
 
 
 func _test_config() -> void:
@@ -145,9 +171,11 @@ func _test_config() -> void:
 	check(ranges_ok, "every unit's own range is below the smallest tower range (%.1f)" % min_tower)
 	check(tree_ok, "tech tree: every branch exists, points back, can't be recruited; roles and attacks exist")
 	check(curves_ok, "stat curves run from their level 1 to their level 10 values")
-	check(absf(_dps("archer", 2) - _dps("crossbowman", 0)) < 0.5, "archer L3 and crossbowman L1 deal about the same DPS (%.1f / %.1f)" % [_dps("archer", 2), _dps("crossbowman", 0)])
+	var pinned := Config.MILITARY.values().filter(func(sp: Dictionary) -> bool: return sp.has("pinned") or sp.has("upgrade_cost_pinned") or sp.has("train_xp_pinned"))
+	check(pinned.is_empty() and is_equal_approx(Config.unit_stat("archer", "damage", 3), 7.0 + 33.0 / 3.0), "every unit runs on its curves only (no pinned levels)")
 	check(Config.unit_stat("swiftbowman", "cooldown", 0) * 2.0 <= Config.unit_stat("archer", "cooldown", 2), "swiftbowman: at least twice the fire rate")
-	check(_specs_not_weaker(), "every specialisation is at every level at least as strong as its base unit (HP, DPS, summons)")
+	var breaks := _spec_rule_breaks()
+	check(breaks.is_empty(), "every specialisation: level 1 at least as strong as its base unit's level 3, level 10 stronger than its level 10 %s" % str(breaks))
 	check(Config.unit_stat("crossbowman", "cooldown", 0) > 2.0 * Config.unit_stat("archer", "cooldown", 2) and Config.MILITARY["crossbowman"]["range"] > Config.MILITARY["archer"]["range"], "crossbowman: much slower fire, more range")
 	check(Config.unit_stat("shield_bearer", "hp", 0) >= 0.8 * Config.ENEMIES["ork"]["hp"] and Config.unit_stat("shield_bearer", "hp", 0) > 1.5 * Config.unit_stat("archer", "hp", 0) and Config.MILITARY["shield_bearer"]["posts"] == ["barracks"], "shield bearer: ork-like HP, barracks only")
 	check(Config.unit_stat("apprentice", "hp", 0) < Config.unit_stat("archer", "hp", 0), "HP: apprentice < archer")

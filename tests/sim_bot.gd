@@ -1122,7 +1122,7 @@ func _run() -> void:
 	if first:
 		check(is_equal_approx(first.max_hp, Config.ENEMIES["goblin"]["hp"]) and is_equal_approx(first.damage, Config.ENEMIES["goblin"]["damage"]), "a level-1 elemental is as strong as a goblin")
 	await wait(Config.unit_stat("summoner", "interval", 0) * 4.0)
-	check(sb.summons.size() <= int(summoner.stat("max_summons")), "summons never exceed the cap (%d/%d)" % [sb.summons.size(), int(summoner.stat("max_summons"))])
+	check(sb.summons.size() <= roundi(summoner.stat("max_summons")), "summons never exceed the cap (%d/%d)" % [sb.summons.size(), roundi(summoner.stat("max_summons"))])
 	var hp_b := brute.hp
 	var fought := await wait_until(func() -> bool: return brute.hp < hp_b and sb.summons.any(func(e) -> bool: return is_instance_valid(e) and e.hp < e.max_hp), 30.0)
 	if not fought:
@@ -1139,10 +1139,10 @@ func _run() -> void:
 		if is_instance_valid(e) and not e.dead:
 			survivor = e
 	var old_hp := survivor.max_hp if survivor else 0.0
-	var old_cap := int(summoner.stat("max_summons"))
+	var old_cap := roundi(summoner.stat("max_summons"))  # (rounded, as SummonerBehavior does)
 	var old_interval := summoner.stat("interval")
 	check(game.army.upgrade(summoner), "summoner upgraded with gold")
-	check(summoner.stat("interval") < old_interval and int(summoner.stat("max_summons")) > old_cap, "upgrade: faster summoning and a higher cap")
+	check(summoner.stat("interval") < old_interval and roundi(summoner.stat("max_summons")) > old_cap, "upgrade: faster summoning and a higher cap")
 	var is_new := func(e) -> bool: return is_instance_valid(e) and not e.dead and e != survivor and is_equal_approx(e.max_hp, summoner.stat("summon_hp"))
 	await wait_until(func() -> bool: return sb.summons.any(is_new), 30.0)
 	var newest: Array = sb.summons.filter(is_new)

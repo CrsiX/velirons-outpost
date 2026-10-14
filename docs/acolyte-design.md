@@ -76,8 +76,9 @@ Acolyte ────────────┬──────►  Inquisitor
   `attack` "smite".
   - "smite" is a melee strike with holy damage. Every hit also shows a flash of holy light
     on the target (`"burst": "holy_flash"`).
-- **Stats:** HP 45 → 140, damage 9 → 57, every 1.1 → 0.75 s: about 8.2 → 76 DPS, at every
-  level at least the acolyte's HP and DPS (the specialisation rule, docs/military-design.md §3).
+- **Stats:** HP 45 → 140, damage 17 → 57, every 1.1 → 0.75 s: about 15.5 → 76 DPS. Level 1
+  at least as strong as a level 3 acolyte (43 HP, 14.8 DPS), level 10 above the acolyte's
+  (90 HP, 75 DPS): the specialisation rules, docs/military-design.md §3.
 - **Fighting:** on a barracks sortie it fights like the shield bearer: closes in and strikes.
   Like every ground melee unit, it can't go for flyers; it only counter-strikes them.
 - **Choosing a target (`"hunt"` in its spec):** each enemy within the barracks' reach gets an
@@ -102,8 +103,8 @@ Acolyte ────────────┬──────►  Inquisitor
 - **Config:** `role` "support", `posts` tower and barracks, `attack` "strike" (melee),
   `range` 2.6 (the aura's radius in the field).
 - **Stats:**
-  - HP 30 → 90, like the acolyte (a specialisation is never weaker than its base unit; with
-    no real attack, only its HP is matched: docs/military-design.md §3).
+  - HP 44 → 95: level 1 at least a level 3 acolyte's 43, level 10 above its 90 (with no
+    real attack, only its HP counts for the specialisation rules, docs/military-design.md §3).
   - Counter-strike: damage 3 → 10, every 1.4 → 1.0 s.
   - `aura`: 0.02 → 0.20 (+2 % → +20 % damage).
 - **No attack of its own.** When an enemy hits it in melee and its blow is ready, it strikes
