@@ -1,0 +1,4 @@
+This directory holds more detailed design documents used by and produced for
+AI. It was iterated upon by a developer before putting it in the repo. The
+code base should align with the design docs, but for specific numbers/values,
+the code takes precedence.

@@ -1,0 +1,299 @@
+# Veliron's Outpost
+
+> **For Claude, not for humans.** This file is the project reference for sessions that start without context. Keep it up to date: when a change alters a rule, a control, the code layout, a test or a working fact below, update the matching part here in the same change. Write what is true now (no change history). `README.md` is the user's: never read it for facts or touch it.
+
+## Working on this project (read first)
+
+**Standing rules from the user:**
+- Never modify anything in `exports/` (build outputs). Reading the Godot export templates in `~/.local/share/godot/export_templates` is fine.
+- Don't touch `README.md`.
+- New player units: ask the user how each one is unlocked before building it.
+- Every balance number and tunable goes into `scripts/core/config.gd`, documented there. The user wants things configurable in config.
+- New design work goes into `docs/*-design.md` first when it is big. They describe what is built and carry the details and real numbers this file leaves out; keep the matching doc up to date with a change:
+  - `enemies-design.md` (waves, difficulty, damage categories, every enemy kind), `hero-design.md`, `village-design.md` (resources, villagers, buildings, tear-down, warnings), `military-design.md` (units, barracks, specialising), `acolyte-design.md` (the acolyte line, holy damage), `world-design.md` (map generator, special objects), `multiplayer-design.md`, `tutorial-design.md`, `ui-design.md` (title screen, HUD, dock, placing, dialogs, camera, log), `statistics-design.md` (the statistics screen and what it counts).
+- The memory directory (`~/.claude/projects/.../memory/`) can't be written (sandbox), so lasting notes go here.
+
+**Environment:**
+- Godot 4.7.2 is in `bin/Godot_v4.7.2-stable_linux.x86_64` (the sandbox can't download it from GitHub), and gdtoolkit (gdlint) in `venv/`: `GDLINT=venv/bin/gdlint tests/lint.sh` (run it with `HOME=$TMPDIR`, gdtoolkit writes a cache under `~/.cache`).
+- The sandbox can't write `~/.local/share/godot`, so run Godot through a wrapper script `gd` in the scratchpad:
+  ```
+  #!/bin/bash
+  export XDG_DATA_HOME=$SCRATCH/xdg/data XDG_CONFIG_HOME=$SCRATCH/xdg/config XDG_CACHE_HOME=$SCRATCH/xdg/cache
+  mkdir -p $XDG_DATA_HOME $XDG_CONFIG_HOME $XDG_CACHE_HOME
+  /home/user/velirons-oupost/bin/Godot_v4.7.2-stable_linux.x86_64 "$@" &
+  pid=$!; trap 'kill -9 $pid 2>/dev/null' TERM INT; wait $pid; rc=$?
+  rm -rf $XDG_DATA_HOME/godot/app_userdata/*/logs; exit $rc
+  ```
+  Here `$SCRATCH` stands for the absolute scratchpad path.
+- After adding a new `class_name`, run `gd --headless --path . --import` once, or other scripts won't find it.
+- Run a test: `timeout 2700 gd --headless --path . --fixed-fps 60 res://tests/<bot>.tscn 2>&1 | grep -E "FAIL|CHECKS|SCRIPT ERROR|Parse Error"`. Net: `tests/run_net_test.sh <path to gd>`. Bots take minutes each; run several in one background shell. Game creation takes about 5-8 s headless (map generation about 4 s). This sandbox runs GDScript roughly 10x slower than a normal PC (a million-step loop: ~0.5 s), so judge timings relatively.
+- Headless runs can't render. For anything visual, tell the user what to look at.
+- Art is SVG made by `tools/gen_art.py`. Never hand-edit `art/*.svg` or `scripts/core/art_manifest.gd`; edit the generator and rerun it.
+- The title backdrop's maps are baked into `data/title_maps/` (`BakedMap`). After changing the map generator or the scenes' map type / seed, rebake: `gd --headless --path . res://tools/bake_title_maps.tscn` (title_bot fails while they are stale). Tools that need autoloads must be run as a scene, not with `-s`.
+- Writing into a packed array held inside an Array or Dictionary (`arr[i][k] = x`) can copy the whole packed array: fill a local one and store it once.
+
+**Test baseline:** all bots pass except these known failures, which predate current work:
+- enemy_bot: 1 ("a fighter of ours near: the necromancer stands and waits").
+- rat_bot: 4-6 (goblin hits villager, villager dies, barracks to the farm, uncovers).
+- sim_bot: 3 (the two training-pause checks "during the pause ... no XP goes on" and "changing his mode then keeps his XP"; the log check misses "Debug: cancel construction", a message nothing logs). "Explore: the hero uncovers fog" is flaky on top.
+- title_bot: 1 without `CI` set ("made over N frames in ... ms, the longest ... ms": the frame-time limit, too tight for this slow sandbox); with `CI` set it passes.
+
+Anything else failing is new. Last counts (with `CI=true`): stats 57, library 54, tutorial 104, sim 365, military 114, coop 69, build 78, title 124, enemy 109, rat 139, world 77, mapgen 57, net 19 + 27. Lint (`tests/lint.sh`) is clean.
+
+**Gotchas learned the hard way:**
+- Game speed is `Engine.time_scale` (speed 0 pauses the tree instead and leaves `time_scale` as it was). Code that must run in real time (UI, `train_pause`, the title backdrop's clock and tweens) divides delta by `maxf(Engine.time_scale, 0.001)` or uses `set_ignore_time_scale(true)`. Anything that changes `time_scale` must reset it to 1 on exit.
+- Web input: Godot's web build makes `InputEventMouseMotion` out of every `pointermove`, fingers too, with `relative` taken from `movementX/Y`. Firefox reports that wrongly for touch, so never pan or drag by `relative`; use position differences (see `camera_controller.gd`). Touch also arrives as ScreenTouch/ScreenDrag.
+- Stretch: `canvas_items`, aspect `expand`, base 1280×720; `Layout` switches `content_scale_size` for portrait. A SubViewport shown in the UI must be sized by the final transform's scale or it is blurry (see `TitleBackdrop._fit`).
+- Assigning a filtered array to a typed array fails at runtime; use `typed.assign(arr.filter(...))`.
+- In tests, `await` every coroutine helper, and keep waits shorter than whatever frees the game (the title backdrop swaps games every `duration`).
+- Monster-camp guards are enemies too (`CampBehavior`): filter them out when counting a wave's enemies.
+- Machine-dependent timing checks in the bots (title_bot's frame times) are skipped when the env variable `CI` is set; CI sets `CI=true`, and so should local runs here (`export CI=true`).
+- `game.gd` modes: `tutorial_mode`, `backdrop` (title background game: no raids, no defeat, no input, no HUD), `networked`. A new game-wide rule may need to respect all three.
+
+**Known, not yet looked into:** app start-up spends most of its time compiling the scripts (loading `net.gd` pulls in the whole class graph); the web build has no threads (`variant/thread_support=false`).
+
+# The game
+
+A dark-fantasy isometric village-defense game made with Godot 4.7 (GL Compatibility renderer). It targets Web, Linux, Android and Windows and works with mouse, keyboard or touch.
+
+The last outpost of the kingdom of Veliron sits in the middle of a generated 75×75 map of forests, meadows, heath, steppe, swamps, lakes, rivers and mountains, sometimes by the sea or next to a volcano. Goblins and skeletons come down the winding roads from the map edge towards the village gates. Villagers build, farm and scout on their own. You decide *where* things get built and *who* mans the towers.
+
+## Rules (iteration 2)
+
+| Resource | Used for | Comes from |
+|---|---|---|
+| Gold coins | Buying and upgrading military units, the Spatial Archmage | Kills (`gold_on_kill`, paid instantly), corpses brought home by gatherers (`gold_on_collect`), calling waves early, start |
+| Food | Recruiting civilians and feeding them (upkeep per villager) | Farms worked by farmers |
+| Building material | Watchtowers, farms, worker camps, light stones, rebuilding huts | Foresters chopping trees; buying it with gold (tap the material counter) |
+
+- **Village:** a walled 5×5 block near the centre of the map (co-op: near the centre of its player's slice), laid out as in the spec (`TWGWT`): 9 huts, walls, 4 gates and 4 corner wall towers. Each intact hut houses one civilian, so the huts set the population cap.
+- **Civilians** are recruited with food. You start with one builder, one farmer, one forester and one explorer. A farm and a worker camp stand near the village for free from the start, and the farmer and forester work there (`START_BUILDINGS`).
+  - **Workers are assigned automatically.** A villager whose role works at a building (`works_at` in `CIVILIANS`: farmer at a farm, forester at a worker camp) goes straight to a finished one nobody works at, the one nearest the village first. A newly finished farm or camp takes an idle worker of that role. You can still unassign and assign by hand in the building's panel.
+  - **Builder:** walks to the next construction site, builds it, walks home, rests, repeats.
+  - **Farmer:** works one farm. They fetch its stored food, carry it home (also when they flee), rest, repeat.
+  - **Explorer:** clears the fog on their own (not part of the starting villagers when the whole map is revealed from the start or the fog is off). They head for the nearest fog and push deeper, return to closer fog instead of wandering far off, and avoid areas other explorers are covering and the guards of monster camps (fog by a camp waits until it is cleared). Fog over forest, rock or water they can't walk into is looked into from its edge.
+  - **Forester:** works from one worker camp. They walk from the camp to the nearest tree, chop for a while, walk back (each return pays a little building material; a forester who flees delivers his load at home), rest, and go back to the same tree until it falls. The tile then becomes meadow, and they move on to the next tree. Chop time per tree type is `TREE_CHOP_TIME`.
+  - **Gatherer:** stays in the village until enemies have died, then walks out for their corpses. It only goes for "safe" corpses (no living enemy nearby) on land its village has explored (none in the black fog) and carries up to `GATHERER_CAPACITY` per trip. Back home each corpse pays `gold_on_collect` and `food_on_collect`.
+  - **Every civilian** runs home when they spot an enemy outside the walls, then rests before going back to work. Inside the walls is always safe (enemies never get in): nobody there flees or can be hurt, so builders go on rebuilding huts during an attack. Villagers have HP (`CIVILIAN_HP`): any enemy that gets at one hurts them (they never fight back), at 0 HP they die, and at home they heal (`CIVILIAN_REGEN`).
+  - **Miner:** unlocked for everyone once anyone walks up to a mine. Works one mine for gold (`MINE_GOLD_RATE`), safe inside; one miner per mine, the first to arrive. Lives in a hut (and dies with it) but stays at the mine.
+  - **Spatial Archmage:** can't be recruited: a level 10 spatial mage becomes one (see Military units). Decoration for now ("coming soon"); not listed in the Village tab.
+- **The world** (docs/world-design.md; everything in `config.gd`):
+  - *Map types:* Temperate, Highlands, Coast, Desert, Volcanic or Random, and an optional seed: in the single-player menu and the lobby (host). The settings dialog shows the map's type and seed.
+  - *Zones:* meadow (farms more than half on meadow +20 % food), oak woods, pine forest, heath, steppe (no farms), swamp (walking ×0.7 off the roads, so enemies are never slowed; no farms) and ash land around volcanoes (no farms). Trees are forest tiles that block building and walking.
+  - *Water:* lakes, rivers and coasts. Deep water and lava can't be crossed; shallow water can, at ×0.5. Roads cross rivers on bridges (their look depends on the zone) and shallow water at fords. A farm next to water gets +10 % food.
+  - *Mountains and volcanoes:* impassable; roads go around them or through passes. Nothing is built near a crater.
+  - *Roads:* the only way enemies travel. Single player: 3-5 from the map edge to the gates (an extra one where needed for at least 2 approaches). Co-op: every village is linked to at least two others (one with two players) and has its own spawns on its slice's stretch of the map edge.
+- **Special objects** (hidden in the fog until found; finding one is logged, Info):
+  - *Treasures:* the hero loots them in Explore mode, first come first served, and carries the loot home. Downed on the way, or switched to another mode, he drops it where he is: the hero or a gatherer can pick it up later. Some hold a *relic* (a small permanent bonus).
+  - *Monster camps* guard every far treasure (at least one per village) and half of the middle ones. The hero attacks one only on your order (the camp's panel: *Attack with the hero*). Towers and barracks fight any guard in their range without an order, so building next to a camp wears it down. Hurt monsters don't heal.
+  - *Unit-unlock sites:* the summoner (stone circle, from wave 3), the apprentice (mage's tower, from wave 5) and the acolyte (ruined chapel, from wave 6, 16-24 tiles out) have to be unlocked: the hero visits the awakened site, and the unit is unlocked for every village.
+  - *Ruined watchtowers:* the hero claims them (Explore mode, before new land); restoring one is an order, done by a builder for half a watchtower's cost.
+  - *Mines* at the foot of mountain ranges, with a road; *monster lairs*, each with a winding road to the network. From wave 10 they wake up one by one (per village area, the next every 3 waves) and add a spawn point for their village's wave share (no extra enemies), themed by lair (a crypt sends skeletons, necromancers and vampires); the hero can clear one for loot, and it sleeps 3 waves.
+  - The hero's Explore mode: claims first, then unguarded loot, then unknown land.
+
+- **Buildings:** go on explored open land outside the walls: not on trees, water, lava or mountains, nor next to a volcano's crater. Farms can't go in steppe, swamp or ash land.
+  - *Watchtower* (1×1): holds one military unit. Watchtowers and light stones block their tile, so they need a free tile next to them that can be reached from the village; placing one where trees cut off every side is refused. Builders and units always use the nearest side they can actually reach.
+  - *Farm* (3×3): one farmer.
+  - *Worker camp* (1×1 tent): one forester.
+  - *Training grounds* (2×2 yard with a hut, weapon racks and archery targets; materials and gold): two slots, one military unit (stationed like on a tower, but it doesn't fight there) and the hero. See **Hero** below.
+  - *Barracks* (2×2 yard with benches, food and drink, and a straw puppet full of arrows; materials and gold): 1 bench at level 1, up to 3 at level 3 (`BARRACKS_LEVELS`). Upgrades are done by a builder and add a bench and activation range. When an enemy comes within range (shown as a circle when it is selected), everyone on a bench turns out and fights. They walk back once no enemy is left. Units heal on the benches. The panel has a line and actions for each bench.
+  - *Light stone* (1×1 rune pillar): gives vision on its own, no one can be stationed in it (`LIGHTSTONE_SIGHT`). The starting farm sits on a plot the map always keeps free next to the village. Destroyed huts can be rebuilt on their ruined lot.
+  - **Cancel:** a construction site, an ordered upgrade or a hut rebuild can be cancelled from its panel. The refund is the paid cost × (1 − progress), rounded down (`Building.cancel_refund`); the panel says how much, or "Too far along" when nothing comes back. A cancelled hut rebuild goes back to a ruin.
+  - **Tear down:** every building placed outside the walls (also the starting farm and camp; not huts or wall towers) has *Tear down* as the last action of its panel. It stops working at once: units on it or marching to it walk back to the reserve (downed ones revive there), its worker is freed and takes a vacant workplace of that kind if there is one, and an ordered upgrade is cancelled (refunded like a cancel). A builder (or the hero in Build mode) comes like to a construction site and needs `TEARDOWN_TIME_SHARE` (half) of its build time; the bar counts down. Then it's gone and `TEARDOWN_REFUND` (33 %) of the building material spent on it (list price plus paid upgrades, rounded down; a restored ruined tower counts its full list price) comes back. *Stop tear-down* in the panel spares it; units stay in the reserve.
+- **Towers** (the 4 wall towers and every watchtower) start at level 1 and can be upgraded to level 3 for building material (`TOWER_LEVELS`).
+  - A builder walks over and does the work; the tower keeps fighting meanwhile.
+  - Levels only add range for the stationed unit.
+  - Each level adds decorations: crimson banners and shields at level 2, gold trim and a lit brazier or lantern at level 3.
+  - The tower panel shows the level and offers *Upgrade tower*, *Upgrade <unit>...* and *Withdraw*.
+- **Military units** are bought with gold in the Army tab and wait in its reserve. The summoner, the apprentice and the acolyte first have to be unlocked on the map (see Special objects). Every kind is stationed on a tower (drag a card onto a tower, or tap a card and then the tower).
+  - **Stationed units** can be tapped right on their tower to select them (panel with Upgrade and Withdraw). Drag one off its tower to move it: while dragging, the unit follows the pointer, every free tower or training grounds lights up, the one under the pointer turns green, and a dashed arrow runs from the old post. Drop it on a free post and it walks straight over. Drop it on the sidebar (or the bottom bar in portrait) to withdraw it. Anywhere else, nothing happens.
+  - Units **walk** from the village to the tower, and back when withdrawn. They only reappear in the reserve once home, so towers can't be re-staffed instantly.
+  - Units go up to **level 10** (stat curves in `MILITARY`, level 1 and level 10 values). They are upgraded with gold in a dialog (Army tab, a tower's or a bench's panel). From level 3 the dialog also offers the kind's **specialisations**, each starting again at level 1 (the tech tree is in docs/military-design.md); turning into one refills its HP. A specialisation is at every level at least as strong as its base unit of the same level: no less HP, and no less DPS if it attacks; a fire summoner no fewer, weaker or slower summons (`tests/military_bot.gd` `_specs_not_weaker`). Its single hits may be smaller (Swiftbowman). Training at the grounds only levels units up.
+  - Units have **HP**. On towers they can't be hurt; outside (walking, on a barracks sortie) they can. At 0 HP a unit is **downed**. After a revive time that grows with its level (`UNIT_REVIVE_TIME`) it is back: on its bench if it belongs to barracks, otherwise in the reserve (shown dimmed with a countdown; nothing can be done with it meanwhile). Units heal on benches and while unused in the reserve (`UNIT_REGEN`). Out in the field, ranged units use their own range, which is shorter than any tower's and never upgraded.
+  - *Archer:* shoots the enemy closest to its gate. Becomes a *Crossbowman* (slow, heavy bolts, more range) or a *Swiftbowman* (a hail of light arrows).
+  - *Shield Bearer:* barracks only; lots of HP, little damage, holds enemies up.
+  - *Summoner:* while enemies are within the tower's range or sight, summons earth elementals next to the tower, up to a cap. Upgrades shorten the interval, raise the cap, and make newly summoned elementals stronger (existing ones keep their stats). From barracks it steps outside and summons there, where enemies can attack it; it has no attack of its own. Becomes a *Fire Summoner*: hovering fire elementals with less HP, more speed and much more damage, which burn themselves with every hit.
+  - *Apprentice:* whirling dark-blue orbs. Becomes a *Fire Mage* (exploding fireballs that splash), an *Ice Mage* (slows its target, more with levels), a *Healing Mage* (no damage; heals units and heroes of every village nearby, not summons: in a tower as far as the tower reaches, so tower upgrades widen it; elsewhere within its own `radius`) or a *Spatial Mage* (throws its target back along its road). A level 10 spatial mage can become the **Spatial Archmage** (`ARCHMAGE_COST`, a free hut, after a confirmation). This civilian replaces the archmage, who can no longer be recruited.
+  - *Acolyte* (50 gold; docs/acolyte-design.md): holy damage, a thin golden beam straight down onto the enemy (instant, burst "holy_beam"). Archer HP, a little less DPS, much shorter field range (1.6). Prays (hands folded); a soft pulsing light behind it everywhere it is shown (`glow`), arms raised for a moment when it casts (`cast_art`). Becomes:
+    - *Inquisitor*: holy melee (cross and warhammer, a flash of holy light per blow), barracks or training grounds only. An acolyte that turns into one on a tower (or on its way) walks back into the reserve. Targets by effective distance (`hunt`): witches −4 tiles within 7, the unholy −2 within 5, others as they are; it leaves its fight only for a target at least `hunt_switch` (1) better.
+    - *High Priest*: support, no attack but a weak melee counter-strike when hit on a sortie. Its aura (on a tower as far as the tower reaches, out of barracks only on a sortie within its own 2.6; not on the bench, the training grounds or walking) gives every allied unit, tower unit, hero and summon +2 % → +20 % damage (`aura`; the strongest aura counts, no stacking, no range), shows a tiny still halo over their heads, makes necromancers raise ×2 slower (`necro_slow`), and is the hook for revealing invisible enemies (`Combat.in_holy_aura`).
+- **Earth elementals** wander near their tower until they spot an enemy, then fight it in close combat. Enemies fight back and are held up while they do. A level-1 earth elemental is exactly as strong as a goblin on Normal (difficulty scales goblins, not elementals). Elemental speed is `SUMMONS[kind].speed` (tiles/s); their HP and damage are the summoner's `summon_hp` / `summon_damage` times the kind's factor. Elementals leave no corpse, and they crumble when their summoner is withdrawn, downed or specialised, or back on its bench after a sortie.
+- **Hero** (`HERO` in `config.gd`): half villager, half soldier, with a sword. He starts in the village centre. He has no hut, eats nothing and doesn't count as a villager. The top-bar button shows his XP, has his health bar along its bottom (green from 50 %, yellow from 20 %, red below; empty while downed) and opens his panel: the title names his mode with its icon ("Hero: defending"), then level, HP and XP, one icon button per mode (the current one framed; Support only in co-op, with its village toggle under it), *Level up*, what he is doing, and *Go to hero*. Mode icons: a shield (Defend), a crossed hammer and saw (Build), a globe (Explore), a wheelbarrow with bones (Gather), a straw training dummy (Train), "Zzz" (Rest), a handshake (Support). Modes:
+  - *Defend* (default): waits in the centre. When an enemy comes within `alert_radius` of a gate he goes out to fight it, then re-targets: nearest first, the strongest among equals. He doesn't chase beyond `leash` from the centre. Enemies fight back, and a witch's spells hurt him.
+  - *Build / Explore / Gather:* the villager jobs, done a little less well (half build speed, a smaller reveal radius, 2 corpses per trip). In these modes he runs from enemies like a villager. In *Explore* he first claims unlock sites and ruined watchtowers, then loots unguarded treasures, and only then explores unknown land (see Special objects).
+  - *Attack a camp:* ordered from a monster camp's panel, whatever his mode; he goes back to his mode once it's cleared.
+  - *Train:* needs training grounds with a unit stationed there that isn't at max level. He walks over and passes his XP on to it (`train_rate` per second). When the unit has `train_xp` for its next level it levels up for free, no gold. After each level-up he pauses for `train_pause` (4 real seconds, whatever the game speed; the log and his panel say so), so you can change his mode and keep the rest of his XP. The XP needed grows by level and difficulty (`TRAIN_XP_DIFFICULTY`). The panel shows the XP needed, the progress and the XP he has left. Without such grounds he defends instead, and drops any fight as soon as a unit becomes ready. A gold upgrade resets the unit's training progress.
+  - *Rest:* walks back to the village centre and stays there without fighting.
+  - *Support* (co-op only): defends another village (see Co-op rules).
+  - **Healing:** whenever he idles in the village centre, in any mode, he gets HP back: `rest_regen` (3 HP/s) after `rest_delay` (3 s), up to his max HP.
+  - **Levels:** he spends his own XP on levels in his panel (*Level up*): up to level 20 (`HERO_MAX_LEVEL`), each level costing more XP (`HERO_LEVELS`), for more HP and a harder sword. Three glowing green chevrons rise over his head when he levels up.
+  - **XP:** 2 per sword hit, plus 10 more for the blow that kills an enemy; 1 per second of building, per exploring step that uncovers fog, per unlock site and per claimed ruin; 4 per corpse picked up; 10 per treasure looted (not for picking up dropped loot again) (`HERO_XP_PER_ACTION`, "kill" is the bonus). Training earns none, and no other unit ever gains XP.
+  - **Downed:** at 0 HP he loses all XP (never his levels), leaves no corpse, and revives in the centre with full HP when the wave is over, still in the same mode.
+- **Fog of war** has three states:
+  - *unexplored*: black;
+  - *explored*: darkened, terrain known, enemies **not** visible;
+  - *under surveillance*: clear. That's within 4 tiles of every hut, 3 tiles of every gate and every other finished building, near villagers or soldiers outside the walls, and within the range of **manned** towers (all set in `config.gd`).
+  - Every unit of yours outside (villagers at work, the hero in any mode, soldiers, summons, caravans) also explores the fog close around it (`UNIT_REVEAL`, 1.8 tiles); the hero earns XP for it as for exploring. Only explorers and the hero in Explore mode go looking for fog.
+  
+  Enemies can sneak up on the village unless towers watch the approach. During the first 5 waves on Easy and Normal (not Hard), and in any wave in which a lair just woke, a soft red warning light marks where each hidden enemy's road enters watched land (`WARNING_LIGHT_WAVES`).
+- **Waves:** wave 1 starts 90 s after the level begins (`FIRST_WAVE_DELAY` in `config.gd`). Every later wave starts 30 s after the last enemy of the previous one is gone. "Call now" skips the wait for bonus gold. Waves are endless and escalate: 4 + 2 per wave enemies (rat packs on top), each wave's HP ×`WAVE_HP_GROWTH` (1.15) over the last; damage, speed and loot don't grow. The top bar shows the number of enemies on the map plus those still to come this wave.
+- **Corpses:** a killed enemy leaves a corpse where it fell. Corpses rot after `CORPSE_LIFETIME`, and every corpse of wave N disappears once wave N+1 is finished.
+- **Enemies** (all defined in `ENEMIES` in `config.gd`, one documented entry each; `WAVE_MIX` says who joins from which wave). In melee they lunge at what they fight and sway back.
+  - *Goblin:* the basic attacker. Gold on kill, gold and a little food as a corpse.
+  - *Skeleton:* goblin stats, no food. From wave 2.
+  - *Ork:* slower, tougher and hits much harder. Gold only on kill, lots of food as a corpse. From wave 3.
+  - *Witch:* frail, no melee. Rich gold on kill, no gold and little food as a corpse. From wave 5.
+    - She stops at any manned tower within 3.6 tiles (a level 1 watchtower's range, so towers can always hit back) and casts a whirling pink bolt that bewitches its unit: no shooting, summoning or healing for 45% of her spell cooldown (0.9 s). A pink glow marks the bewitched unit.
+    - Military units outside (walking, or out of a barracks, even a summoner that never attacks her) are targets too: her bolts hurt them.
+    - Her spells damage earth elementals. Whoever attacks her becomes her first target.
+    - She counts her casts per target: after `spell_ignore_after` (20) casts she ignores that target, until it attacks her again (which resets its count). So she can't stall a wave in front of a tower that can't reach her, or a summoner's tower.
+    - Existing elementals are not affected by the enchantment.
+  - *Rat:* in packs of 4-7 (`RAT_PACKS`, from wave 3), frail but growing with the waves, faster than anything, a little space between them (fire mages love them). Rats burn no huts: a rat that gets through a gate eats max(5, 5 %) of the village's food and is gone. On the road they look for a working farm within 6 tiles and go there: it grows nothing while rats are on it, and each rat eats its stored food. They go for villagers and units within 2.5 tiles and bite them in reach (very little damage). Once a farm is empty and has grown nothing for 15 s, each rat on it gives it up for good (50 % chance every second) and walks on to the next farm or the gate, so an empty decoy farm only holds them up briefly. A rat on a farm leaves after 30 s without being attacked, with no corpse and no gold; once the rest of the wave is gone, any rats left vanish within 30 s (`RAT_WAVE_LINGER`). Killed: a little gold, no corpse. The hero in Defend mode goes for rats on his village's farms when nothing else is near a gate, and barracks send their units to farms within twice their range when nothing else is in range (`BARRACKS_FARM_RANGE_FACTOR`).
+  - *Thief* (from wave 7): a goblin's strength, quicker. At a gate it burns nothing: it steals max(a random number from the wave to twice the wave, 4 % of the gold), never more than there is, and runs back to where it came from with a sack of coins. If it gets away, the gold is gone. Killed: a little gold at once, and its corpse holds its own value plus everything it stole (no food).
+  - *Gargoyle* (from wave 10, grey stone): the first **flyer**. It keeps to the roads but no swamp or ford slows it, and it is drawn bobbing with beating wings over its shadow. It fights like a goblin (with twice its HP and harder, slower blows), but only ranged attacks (towers, archers, mages, including slows and pushes) and fire elementals (flyers too) can go for it. Ground melee units (the hero, shield bearers, earth elementals) only hit back when it hits them and their blow is ready (a counter-strike); barracks with only melee units don't turn out for it. As slow as an ork. Kill: gold; corpse: food only.
+  - *Necromancer* (from wave 13): no attack. When the corpse of another enemy lies within 3 tiles, it stops and channels on it (a green beam) for 5 s (`cast_time`); then the corpse rises again as its old kind with half its HP, draining to 0 over 20 s, and the necromancer walks on for at least that long before its next spell. A corpse gone mid-spell ends it. While a fighter of any village is near (the hero, a soldier or an elemental within 3 tiles, or a manned tower that has it in range) it doesn't walk on: it stays and waits for its next raise. A raised enemy killed pays half its kind's kill gold (rounded down), a decayed one nothing, and neither leaves a corpse. The first raise per village and game is logged. Kill: a lot of gold; its corpse yields nothing and can't be raised. Between skeleton and ork in speed, goblin HP. It takes 1.5 x holy damage, and everything it raised takes 2 x (on top of its kind's own factor).
+  - *Vampire* (from wave 13): a ground unit, slower than a goblin, twice its HP, a goblin's blows. Takes 0.67 x magical damage. Of the HP it really takes from whatever it hits (villagers, units, the hero, summons) it gets 67 % back, never above its max. Once, the moment its HP would drop below a third (even to 0: it is never killed in one blow, a raised vampire neither), it keeps a third of its HP and turns into a bat for 10 s in a puff of dark smoke: it flies over every ground unit (only ranged attacks and fire elementals reach it), fast, and doesn't bite. A bat that reaches a gate does no harm: it gains a third of its max HP (never above its max) and flies back the way it came. When it lands, the vampire walks to the village again; only on its feet does it break in and burn a hut. Kill: 6 gold; corpse: 8 gold, no food. A necromancer can raise it once.
+  - *Slime* (from wave 4, `slime3`/`slime2`/`slime1`, one kind per size): a slain slime splits into `split_count` (2) of the next size down; the smallest just dies. Each size has twice the HP and damage of the one below. A spawned slime rolls a pastel colour (`SLIME_COLORS`) that its halves keep. No corpses (nothing to gather or raise). At a gate the big one burns a hut; the smaller ones only with their `raid_chance` (50 %, 25 %), else they melt away. One library entry ("Slime").
+  - Together, the special kinds make up at most about `WAVE_MIX_CAP` (85 %) of a wave: the shares are capped first, then each kind is rounded and gets at least 1, so a wave can end up a little above (86-88 %).
+- **Damage categories:** every hit is *melee* (the hero's sword, shield bearers, earth elementals, enemy blows), *projectile* (arrows and bolts), *magical* (mage orbs, fireballs and their splash, frost, warp, fire elementals, the witch), *holy* (the acolyte line) or *pure* (a raised enemy's drain; never scaled). Enemies can resist or be weak to a category (`resist`, e.g. the vampire's magic 0.67). Holy factors: goblin, ork, thief, gargoyle ×0.75; skeleton ×1.25; necromancer and vampire (bat too) ×1.5; others ×1; anything raised ×2 on top (`raised_holy`). `"unholy": true` marks skeleton, necromancer, vampire (and raised enemies count as unholy).
+  - Difficulty scales strength and loot values (`DIFFICULTY_SCALED`), never cooldowns or ranges.
+- **Huts:** every villager lives in exactly one hut, so the number of intact huts caps the population.
+- **Raids:** each enemy that gets through a gate destroys exactly one random hut, on every difficulty (except rats, thieves, vampire bats and small slimes, as described under each). Only the villager living there dies; empty huts cost no lives.
+- **Starvation:** while food is at 0, a random villager starves every 15 s.
+- **Defeat:** when no civilians or no intact huts remain.
+
+## Title screen
+The game opens on a title screen with **Singleplayer**, **Multiplayer**, **Tutorial**, **Library** and **Exit**, each with an icon (Exit is hidden in the browser).
+- *Behind the menu* a real game plays itself in slow motion (`Config.TITLE_BACKDROP`, `scripts/ui/title_backdrop.gd`): scenes one after the other, each a fresh game on a fixed map with fixed posts, units and enemy groups, the camera drifting along its road. The menu shows at once over black; only then is the first scene made, and it fades in. Between scenes it fades to black (at least `black` seconds), makes the next one and fades in. Scenes are quick to make: their map is baked (`BakedMap`, `data/title_maps/`) and the game is built over many short frames (`Game.build_step`, `build_slice`; still and unrendered meanwhile), so the menu stays responsive. It stays until a game starts. No fog, sound, input, raids or defeat.
+- *Singleplayer* opens a sub-menu with **Play**, **Difficulty**, **Map** (the map type), a **seed** field (empty: random) and **Back** (Esc goes back too).
+- *Multiplayer* (LAN co-op, up to 8 players; docs/multiplayer-design.md):
+  - Pick your village's **name** and **colour** (both remembered). Then **Host game**, or join one of the **games found on your network**, or **join by address**.
+  - In the **lobby** (two panes: the players on the left; your name and colour, the game's settings and Ready / Start / Leave on the right; stacked in portrait): everyone's village in its colour. Names and colours are unique (taken colours are greyed out), and can be changed until you tick **Ready**. The host picks the difficulty, the map type and seed, and **starts** once everyone is ready; nobody can join after that. A player who dropped can rejoin under the same village name.
+  - In the game: every player runs their own village on one shared map, with their own fog. The host simulates; clients send their orders and see only what their village sees (plus every village's huts and name).
+  - Only the host sets the speed and can pause ("Paused by the host"). A client's settings dialog doesn't pause, and its *Back to title* is *Leave game*. If the host leaves, the game ends for everyone.
+  - **Co-op rules** (docs/multiplayer-design.md):
+    - The map grows with the village count (`map_size`); every village gets its own slice of the map with its own stretch of map edge, roads to at least two other villages (one with two), and a ring road round its walls.
+    - Every village gets its own wave share, plus an extra of 25 % × villages.
+    - A village falls when it has no villagers or no intact huts. Its enemies turn to the nearest standing village, and it stands again once it has a villager in an intact hut. The game is lost when every village has fallen.
+    - The other villages' names float over them, and every village has its own fog.
+    - **Sending help:**
+      - *Send resources* (Village tab) sends gold, food or material by caravan, a horse-drawn cart walking from centre to centre. The sender pays at once; the receiver gets the cargo minus a tax (`help_tax`: 10 % per extra player, at most 50 %). Enemies can't attack caravans.
+      - *Send...* (Army tab, next to Upgrade selected) sends a reserve unit. It walks there and can't be recalled; inside the other village's walls it joins that village's army.
+      - The hero's *Support* mode sends him to defend another village (a second toggle in his panel picks which). The village he helps can't give him orders. He heals and earns XP there, and when downed revives at home and walks back.
+- Difficulty cycles Normal → Hard → Easy. It multiplies enemy strength and loot values (`DIFFICULTY_SCALED`: HP, speed, damage, spell damage, gold and food) by 1.5 on Hard and 0.67 on Easy; whole-number values are rounded, minimum 1 unless they start at 0.
+- The defeat screen offers *Try again* and *Main menu*.
+- **Tutorial** (docs/tutorial-design.md) is a guided first game on a fixed map (`Config.TUTORIAL`: Highlands, seed 1337, Easy) with a small village: a builder, a forester and their camp. A card in the top-left corner gives one instruction at a time (13 steps: a welcome with *Let's go* (the sidebar starts folded, so opening it is the first tap), watchtower, archer, farm and farmer, calling a wave, gatherer, the hero exploring and levelling up, barracks and a shield bearer, a unit level, a tower upgrade), and a pulsing outline or a marked spot on the map shows where (with an arrow at the edge of the map area when the spot is off screen or under the top bar or the open dock; a spot built on meanwhile moves to the nearest free one). A step ends when it's done; nothing is blocked meanwhile. While it runs, the waves wait: wave 1 (2 goblins) comes when the player calls it (the gatherer step waits for its first corpse), wave 2 (5 goblins and an ork) when the barracks are manned. Corpses don't rot, and the hero starts resting (he snores: Z's rise from his head whenever he rests). *Play on* (at the end, or after *Skip tutorial*) goes on as a normal game from the next wave; *Back to title* leaves. It can be played again any time (nothing is saved about it). If the village falls, the defeat screen offers *Try the tutorial again*.
+
+For testing, `config.gd` has these switches:
+- `REVEAL_MAP` starts with the whole map explored.
+- `DEBUG` adds *Debug...* to the settings dialog: +1000 gold / food / materials, +1000 XP for the hero, reveal the entire map (all terrain explored, the fog of war stays), unlock all (every unit and role that has to be found), and *Spawn enemy...* (any kind, now, at a random edge spawn of your village, outside the waves' rules: it doesn't start or count for a wave). They are commands (`Commands._debug`), so they work for a co-op client too; with `DEBUG` off the host refuses them.
+- `DISABLE_FOG` removes the fog of war entirely.
+
+
+## Controls
+- Drag the map to pan; scroll, pinch or **+** / **-** to zoom (out to `CAMERA_MIN_ZOOM` 0.22, in to 1.6); WASD or arrow keys pan too (also while paused). Over the sidebar (the bottom sheet in portrait) the wheel only scrolls it, and at its ends does nothing: it never zooms the map there.
+- One speed button in the top bar cycles 1× → 2× → 4× → paused. **1** / **2** / **3** set 1× / 2× / 4×. **Space** or **P** pauses and, pressed again, goes back to the speed before (to 1× if the game was paused with the button).
+- **H** (or *Go to hero* in his panel) moves the view to the hero; while he is down, to where he fell.
+- **Esc** closes the newest open popup, like its Close / Cancel (never its OK): the HUD keeps them on a stack (`Hud.register_popup`: placing, the info panel, the hero panel, the villager list, the trade / send / upgrade dialogs, confirmations, settings, the Debug page, the tutorial's skip dialog; the library and statistics close themselves). With none open, Esc pauses and opens the settings; Esc again closes them and the game goes on as before (paused stays paused). Nothing on the game-over screen.
+- When something waits in the build queue but nobody can build it (no builder, and the hero is alive but not in Build mode), a red warning says so after 5 s. Both warnings count real seconds, whatever the game speed, and paused time doesn't count.
+- When the food has been at 0 with a negative rate (per minute, next to the food) for 5 s, a red **food-shortage** warning shows under it, with a tip by what is missing: no farm → build one; a farm but no farmer → recruit one; a farm without its farmer and a farmer without a farm → assign them; every farm worked → no tip (`Hud.food_warning_text`).
+- Gold, food and material brought home float up with their icons ("+2 gold +8 food" as icons).
+- The people button in the top bar (villagers / huts) opens the **villager list**: every villager of the village, by role, with what they are doing now (and their HP when hurt) a *View* button that moves the view to them (to the village centre for those at home), and *Retire*: after a confirmation the villager leaves the village for good and their hut is free again (say, an explorer who has nothing left to find). The last villager can't retire. A *Rebuild all huts (n)* button queues every ruined hut. Buttons keep their size and sit centred in their row.
+- Costs are shown with icons (gold, food, material), XP with a light-blue star and HP numbers with a heart (in words, "HP" stays a word).
+- The Army tab shows the units in stock at the top, the units to recruit below them.
+- Tap to select a building (info panel with actions) or to place what you picked in the Build tab. One building per pick: once it's placed, build mode ends. Tapping the picked entry again, the big **✕ Cancel** button in the bottom corner, Esc, right-click or Android's back button put it away.
+  - *With a mouse*, the building follows the pointer (green: it can go there, red: it can't) and a click builds it.
+  - *With a finger* (no hover), the first tap shows it there with **✓ Build** and **✕** under it (check and cross are icons, `icon_yes` / `icon_no`: mobile browsers lack the characters). Tap Build or the building to build it, or tap elsewhere to move it. Where it can't go, Build is off and the hint says why.
+  - *Drag* a Build entry out of the sidebar onto the map and let go to build it there (under a finger it shows a little above it, so the finger doesn't hide it). Let go over the sidebar to put it away; a drag inside the sidebar just scrolls.
+- The sidebar can be collapsed for more map on small screens.
+- **Portrait and landscape** switch automatically: Android follows the rotation sensor (`display/window/handheld/orientation = sensor`), browsers and desktop windows switch when they get taller than wide. The `Layout` autoload keeps the UI the same physical size in both.
+  - *Portrait:* the top bar takes two rows: the wave controls (wave, speed, library, statistics, settings) on top, the resources and hero below. The sidebar becomes a **bottom sheet**: the Build / Village / Army tabs always show along the bottom edge. Tap a tab or the chevron to slide the page up (at most half the screen, `SHEET_MAX`; the entries scroll by finger from anywhere on them, and a scroll never taps a button). Tap the open tab, the chevron or the handle to fold it. Or drag it: the handle, any tab, the gaps between the tabs and the chevron all pull the sheet along with the finger; let go and a flick (`SHEET_FLICK`) or else the nearer end decides. A tap on a tab still only switches the tab.
+  - *Full screen:* turned to landscape, a phone or tablet goes full screen: the Android app at once, a mobile browser with the next tap (browsers only allow it then; iOS Safari can't do it for pages). Once per turn to landscape, so leaving full screen sticks until the next turn.
+  - The sheet folds away by itself while you place a building, station a unit or drag a unit card, and comes back afterwards. Selecting something folds it too, and the info panel appears just above it.
+  - Entries sit in two columns when there's room. The hero panel and the trade dialog open one at a time.
+- The window can be resized freely; F11 toggles fullscreen in a game (not on the title screen).
+- **Settings** (gear, top right) pauses the game and shows it in grayscale behind the dialog: *Continue* (resumes at the earlier speed; Esc does the same), *Log level* (Info / Important / Debug), *Language* (built, but hidden while English is the only language), the map's type and seed (to play it again), and a red *Back to title* (no confirmation).
+- **Library** (open book, left of the statistics icon and the gear; on the title screen, the *Library* button): reference pages in tabs, *Enemies*, *Units*, *Buildings*, *Villagers*, *Hero* and *Places*, each entry with its picture, a short text and the real numbers, read from `config.gd` (HP, speed, damage, costs, ranges, levels, from which wave). It shows everything, also what hasn't been found yet. In single player it pauses the game, greys it out behind it like the settings, and goes on at the earlier speed when closed (*Close* or Esc); in co-op nobody pauses. Settings, library and statistics behave alike here.
+- **Statistics** (bar chart, right of the library; or **T**; docs/statistics-design.md): from wave 2 (`STATS.from_wave`; greyed out before, a tap only says so) and from a *Statistics* button on the game-over screen. Tabs:
+  - *Summary:* counters, one column per village (the best in a row marked gold in co-op), in foldable sections Military, Economy, Village, Hero and Co-op (2+ villages). Sub-rows (by kind, source, role) only where something happened.
+  - *Timeline:* a line graph of a picked metric, sampled every 15 s of game time (`STATS.sample_interval`), with a mark per wave; hover or tap for the values.
+  - *Awards:* Deadliest tower, Busiest gatherer, Best explorer, Hero's finest wave, Closest call, Best neighbour (co-op).
+  
+  `Game.stats` (`Stats`) counts on the host (single player: the game) through hooks in the systems and the `Economy.earned` / `spent` signals (calls that add or spend pass a source / purpose); nothing counts before `Stats.start` (the starting village) or after game over, nor in the title backdrop. It pauses like the library and the settings (not in networked co-op, not after game over), shows the game in grayscale behind it, and goes back to the speed before when closed (paused stays paused). A co-op client asks the host by RPC when it opens the screen (and every 5 s while open); at game over the host sends the numbers to everyone.
+- **Event log:** recent game events as plain, see-through text in the bottom left (across the bottom in portrait). Three levels:
+  - *Important:* deaths and destroyed huts, with the cause ("farmer 2 died when goblin 4 burned their home").
+  - *Info:* waves starting and ending, the hero's return, finished buildings and upgrades, completed training, special objects found, unlocks.
+  - *Debug:* every player action and game event.
+
+  The game starts at Info. Everything is kept regardless of the level shown, so changing the level re-filters older messages too. Each level keeps its newest 10 messages, at most 10 are shown, and messages vanish 30 s after they were logged. Everything is numbered per kind for the log ("archer 5", "watchtower 2", "tree 482").
+
+## Code layout
+```
+scripts/
+  core/       config.gd (all balance numbers), settings.gd (autoload: difficulty, map type and seed, tutorial_next, language; player name and colour, the only things saved to disk), screen_layout.gd (autoload "Layout": portrait / landscape), iso.gd (projection), art.gd + generated art_manifest.gd, sfx.gd (autoload, synthesized sounds)
+  world/      map_data, baked_map (maps saved beforehand), map_generator (the pipeline) + gen/ (gen_context, slices, fields, water, relief, zones, villages, roads,
+              fixes, objects, checks), pathing (A* for villagers, flow field for enemies), warning_lights,
+              world (registry + layers), ground_layer, water_layer, fog_layer, world_overlay, map_edge_fade,
+              objects/ (map_object → treasure, monster_camp, unlock_site, ruined_tower, monster_lair, mine)
+  systems/    village (one player's village: holds its economy, population, construction, army, hero and event_log, each its own
+              file and class), commands (every player action as a checked command with plain arguments), and the shared waves,
+              corpses, stats (the statistics): plain nodes under Game
+  buildings/  building (site/complete base), hut, static_piece (wall/gate), military_post (slots) → tower / training_grounds / barracks, workplace → farm / worker_camp, light_stone
+  units/      unit (path following) → civilian (evasion, sight) → builder / farmer / explorer / archmage / miner;
+              forester, gatherer, hero (modes, sword, XP), caravan (co-op help); jobs/ (civilian_job base; build, explore, gather, hero_explore) shared by villagers and the hero;
+              soldier (a military unit's body outside: walking, barracks sorties, melee),
+              military_unit + military/ (military_behavior base; ranged, summoner, healer, support; combat: attack effects, melee hits, High Priest auras; burst; unit_fx: glow, cast frame, halo), shot,
+              earth_elemental (earth and fire), enemy + enemies/ (enemy_behavior base; melee, witch, rat, thief, necromancer, vampire, camp) and spell_bolt, corpse, arrow
+  tutorial/   tutorial (the guided first game: steps, card, its waves), highlight (outline, marked tiles, arrow)
+  ui/         title_screen, multiplayer_menu (join page + lobby), title_backdrop (the live background game), hud, library (the tabbed reference pages, from Config), stats_screen + stats_graph (the statistics screen), camera_controller, ui_theme
+  net/        net (autoload "Net": ENet session, lobby, commands up / snapshots down), lan_discovery, replicator
+  game.gd     composition root: villages, command entry (game.command), entity ids, speed, input modes, selection, raids, defeat
+tools/gen_art.py   generates every SVG in art/ plus scripts/core/art_manifest.gd (python3, no dependencies)
+fastlane/metadata/android/en-US/  store listing (title, descriptions, changelogs/<version code>.txt, images: icon from icon.svg, feature graphic); .gdignore keeps Godot out
+tools/map_shot.sh  pictures of generated maps in maps/ (a plan, or the isometric view; runs map_shot.tscn)
+tools/bake_title_maps.*  bakes the title backdrop's maps into data/title_maps/ (run as a scene)
+tests/sim_bot.*    headless end-to-end test of single player (~360 checks)
+tests/rat_bot.*    rats, villager HP, farm defence, loot, icons, tear-down, the no-builder and food-shortage warnings
+tests/enemy_bot.*  thief, gargoyle, necromancer, vampire, slimes
+tests/bot_base.gd  shared test helpers (check, frames, wait, wait_until, find_spot, kill, clear_enemies)
+tests/coop_bot.*   headless test of the multi-village map generator and the co-op rules (several villages in one game: `Game.test_villages`, tests only; there is no hot-seat)
+tests/military_bot.* headless test of units, barracks, HP/downing, attack effects, specialising, the Spatial Archmage, the acolyte line (holy damage, hunt, aura)
+tests/world_bot.*  headless test of the world generator (every map type) and the special objects in a game
+tests/tutorial_bot.* headless test of the guided tutorial: every step, its waves, Play on / Skip, the title button
+tests/build_bot.*  headless test of placing buildings: one per pick, Cancel, touch's preview with Build / Cancel, dragging from the Build tab, Android's back button; the wheel over the dock; the portrait sheet (height cap, touch scrolling, dragging it by handle / tabs / chevron)
+tests/stats_bot.*  headless test of the statistics: counters, sampling, the button / T / pausing, the tabs, game over, several villages, the client copy
+tests/library_bot.* headless test of the library: an entry for every kind in Config with its numbers, pausing, the book icon and the title screen's button, fitting the screen
+tests/title_bot.*  headless test of the title screen's background game: made over many frames on its baked (up-to-date) map, every scene's posts, units and enemies, slow motion, no input, fading via black
+tests/net_bot.*    two-process LAN test (host + client over localhost): tests/run_net_test.sh <godot>
+tests/mapgen_bot.* the map generator's parts on their own, and a seed sweep
+tests/run_all.sh   runs every bot (env: GODOT, OUT, STOP); tests/summarize.py turns the logs into a summary
+tests/lint.sh      gdlint (gdtoolkit 4.5.0, rules in .gdlintrc)
+scenes/            main.tscn, title.tscn
+.github/workflows/ CI: tests.yml, bots.yml (mapgen job + one job per bot), build.yml (exports), pages.yml (web build); CI fetches Godot "4.7"
+```
+The simulation runs in grid space; `Iso` projects it to the screen. All tunables are in `scripts/core/config.gd`.
+
+## Roadmap
+- Co-op multiplayer (LAN, 1–8 villages on one map): see [docs/multiplayer-design.md](docs/multiplayer-design.md).
+- World generation (zones, roads, water, volcanoes, special objects): built, see [docs/world-design.md](docs/world-design.md). Map pictures: `tools/map_shot.sh <players> [seed] [scale] [iso] [map type]` (a plan by default) → `maps/`.
+
+## Development
+```
+python3 tools/gen_art.py                                              # regenerate art after editing the generator
+godot --headless --fixed-fps 60 --path . res://tests/sim_bot.tscn     # exits 0 when all checks pass
+godot --headless --fixed-fps 60 --path . res://tests/military_bot.tscn  # units, barracks, specialising
+godot --headless --fixed-fps 60 --path . res://tests/rat_bot.tscn       # rats, villager HP, farm defence, loot, icons, tear-down
+godot --headless --fixed-fps 60 --path . res://tests/enemy_bot.tscn     # thief, gargoyle, necromancer, vampire, slimes
+godot --headless --fixed-fps 60 --path . res://tests/world_bot.tscn     # world generator, special objects
+godot --headless --fixed-fps 60 --path . res://tests/tutorial_bot.tscn  # the guided tutorial
+godot --headless --fixed-fps 60 --path . res://tests/library_bot.tscn   # the library
+godot --headless --fixed-fps 60 --path . res://tests/stats_bot.tscn     # the statistics
+godot --headless --fixed-fps 60 --path . res://tests/title_bot.tscn     # the title background
+godot --headless --fixed-fps 60 --path . res://tests/build_bot.tscn     # placing buildings, the portrait sheet
+godot --headless --fixed-fps 60 --path . res://tests/coop_bot.tscn      # multi-village map, co-op rules
+godot --headless --fixed-fps 60 --path . res://tests/mapgen_bot.tscn    # map generator parts, seed sweep
+GODOT=<godot> tests/run_all.sh                                         # every bot
+tests/lint.sh                                                          # gdlint
+tests/run_net_test.sh <godot>                                          # LAN host + client
+```
+To export, install the Godot export templates first (Android also needs the SDK and a keystore). Then use the presets in `export_presets.cfg` (Web, Linux, Android, Windows).
