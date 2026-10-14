@@ -7,8 +7,8 @@ signal tapped(world_pos: Vector2)
 signal hovered(world_pos: Vector2)
 signal cancelled
 
-const MIN_ZOOM := 0.3
-const MAX_ZOOM := 1.6
+const MIN_ZOOM := Config.CAMERA_MIN_ZOOM
+const MAX_ZOOM := Config.CAMERA_MAX_ZOOM
 const DRAG_THRESHOLD := 12.0
 const KEY_PAN_SPEED := 900.0
 

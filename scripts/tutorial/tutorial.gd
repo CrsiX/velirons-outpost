@@ -589,6 +589,7 @@ func _build_skip_dialog() -> void:
 	v.add_child(back)
 	skip_dialog.visible = false
 	hud.add_layer(skip_dialog, true)
+	hud.register_popup(skip_dialog, func() -> void: skip_dialog.visible = false)
 
 
 ## A step's button (the welcome's "Let's go"): straight on to the next step.

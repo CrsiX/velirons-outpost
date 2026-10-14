@@ -42,6 +42,7 @@ func _run() -> void:
 	_test_hero_bar()
 	await _test_people()
 	await _test_hud_extras()
+	await _test_hotkeys()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -974,3 +975,74 @@ func _test_retire() -> void:
 	for role in roles:
 		game.population.recruit(role)
 	hud._refresh_people()
+
+
+# --- hotkeys: 1 / 2 / 3, P, + / -, H, Esc --------------------------------------------------
+
+func _press(key: Key) -> InputEventKey:
+	var e := InputEventKey.new()
+	e.keycode = key
+	e.pressed = true
+	return e
+
+
+func _test_hotkeys() -> void:
+	var hud := game.hud
+	var scale := Engine.time_scale
+	var speeds_ok := true
+	for pair in [[KEY_1, 1.0], [KEY_2, 2.0], [KEY_3, 4.0]]:
+		hud._unhandled_key_input(_press(pair[0]))
+		speeds_ok = speeds_ok and Game.SPEEDS[hud._speed_index] == pair[1]
+	check(speeds_ok, "1 / 2 / 3 set the speed to 1x / 2x / 4x")
+	hud._unhandled_key_input(_press(KEY_P))
+	var paused := Game.SPEEDS[hud._speed_index] == 0.0
+	hud._unhandled_key_input(_press(KEY_P))
+	check(paused and Game.SPEEDS[hud._speed_index] == 4.0, "P pauses, and P again goes back to 4x (like Space)")
+	# Zoom.
+	var cam := game.camera
+	cam.zoom = Vector2.ONE
+	hud._unhandled_key_input(_press(KEY_PLUS))
+	var zin := cam.zoom.x
+	hud._unhandled_key_input(_press(KEY_MINUS))
+	hud._unhandled_key_input(_press(KEY_MINUS))
+	check(zin > 1.0 and cam.zoom.x < 1.0, "+ zooms in, - zooms out")
+	for i in 40:
+		hud._unhandled_key_input(_press(KEY_MINUS))
+	check(is_equal_approx(cam.zoom.x, Config.CAMERA_MIN_ZOOM) and Config.CAMERA_MIN_ZOOM < 0.3, "zooming out stops at %.2f" % Config.CAMERA_MIN_ZOOM)
+	cam.zoom = Vector2.ONE
+	# H: to the hero.
+	cam.focus(Iso.tile_to_world(game.player_village.center + Vector2i(15, 15)))
+	hud._unhandled_key_input(_press(KEY_H))
+	check(cam.position.distance_to(game.hero.position) < 2.0, "H centres the view on the hero")
+	# Esc: the newest popup first, as its Cancel / Close; then the settings.
+	for i in 10:
+		if hud.top_popup() == null:
+			break
+		hud.escape()
+	game.cancel_mode()
+	await frames(1)
+	var civ: Civilian = null
+	for c in game.population.civilians:
+		if game.population.retire_error(c) == "":
+			civ = c
+			break
+	var count := game.population.civilians.size()
+	hud.toggle_people(true)
+	hud.ask_retire(civ)
+	hud._unhandled_key_input(_press(KEY_ESCAPE))
+	check(civ != null and not hud._confirm_panel.visible and hud._people_panel.visible and game.population.civilians.size() == count, "Esc closes the newest popup first: the retire question, as Cancel")
+	hud._unhandled_key_input(_press(KEY_ESCAPE))
+	check(not hud._people_panel.visible and not hud._settings.visible, "Esc again closes the one opened before it")
+	hud.set_speed_index(Game.SPEEDS.find(2.0))
+	hud._unhandled_key_input(_press(KEY_ESCAPE))
+	check(hud._settings.visible and get_tree().paused and hud._gray.visible, "with no popup open, Esc pauses and opens the settings")
+	hud._unhandled_key_input(_press(KEY_ESCAPE))
+	await frames(1)
+	check(not hud._settings.visible and not get_tree().paused and Game.SPEEDS[hud._speed_index] == 2.0, "Esc again closes them, and the game goes on at 2x")
+	hud.set_speed_index(Game.SPEEDS.find(0.0))
+	hud._unhandled_key_input(_press(KEY_ESCAPE))
+	hud._unhandled_key_input(_press(KEY_ESCAPE))
+	await frames(1)
+	check(not hud._settings.visible and Game.SPEEDS[hud._speed_index] == 0.0, "paused before the settings: still paused after")
+	hud.set_speed_index(Game.SPEEDS.find(1.0))
+	Engine.time_scale = scale

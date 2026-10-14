@@ -59,6 +59,11 @@ var _stats_overlay_button: Button
 var _stats_paused := false
 ## Greys the game behind the statistics while they pause it (as the settings do).
 var _stats_gray: ColorRect
+var _lib_gray: ColorRect
+## Open popups, oldest first: Esc closes the newest (as its Close / Cancel
+## would, never its OK); with none open it opens the settings.
+var _popups: Array[Control] = []
+var _popup_close: Dictionary = {}  # Control -> Callable
 var _stats_speed_before := 0
 var _upgrade_panel: PanelContainer
 var _upgrade_title: Label
@@ -272,7 +277,13 @@ func setup(p_game: Game) -> void:
 	stats_screen.add_child(_stats_gray)
 	stats_screen.move_child(_stats_gray, 0)
 	_stats_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_lib_gray = _grayscale_rect()
+	_lib_gray.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	library.add_child(_lib_gray)
+	library.move_child(_lib_gray, 0)
+	_lib_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_refresh_stats_button()
+	_register_popups()
 
 	for sig in [game.waves.changed, game.corpses.changed]:
 		sig.connect(_queue_refresh)
@@ -638,19 +649,120 @@ func toggle_fullscreen() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not event.is_pressed() or event.is_echo():
+	if not event.is_pressed():
+		return
+	if _zoom_key(event as InputEventKey) or event.is_echo():
 		return
 	match (event as InputEventKey).keycode:
 		KEY_F11:
 			toggle_fullscreen()
 		KEY_ESCAPE:
-			if _settings.visible:
-				close_settings()
-		KEY_SPACE:
+			escape()
+		KEY_SPACE, KEY_P:
 			toggle_pause()
 		KEY_T:
 			if not _settings.visible and not library.visible:
 				open_stats()
+		KEY_1, KEY_KP_1:
+			hotkey_speed(1.0)
+		KEY_2, KEY_KP_2:
+			hotkey_speed(2.0)
+		KEY_3, KEY_KP_3:
+			hotkey_speed(4.0)
+		KEY_H:
+			if not _settings.visible:
+				go_to_hero()
+		_:
+			return
+	get_viewport().set_input_as_handled()
+
+
+## + / -: zoom around the middle of the screen (held down, it goes on).
+## True if it was one of them.
+func _zoom_key(event: InputEventKey) -> bool:
+	var f := 0.0
+	match event.keycode:
+		KEY_PLUS, KEY_EQUAL, KEY_KP_ADD:
+			f = Config.CAMERA_KEY_ZOOM
+		KEY_MINUS, KEY_KP_SUBTRACT:
+			f = 1.0 / Config.CAMERA_KEY_ZOOM
+	if f == 0.0:
+		return false
+	if not _settings.visible:
+		game.camera.zoom_at(get_viewport().get_visible_rect().size / 2.0, f)
+	get_viewport().set_input_as_handled()
+	return true
+
+
+## 1 / 2 / 3: that game speed (not while a dialog that pauses is open).
+func hotkey_speed(speed: float) -> void:
+	if _settings.visible or library.visible or stats_screen.visible or _overlay.visible:
+		return
+	set_speed_index(Game.SPEEDS.find(speed))
+
+
+## H and the hero panel's button: the view moves to the hero, or, while he is
+## down, to where he fell (he stays there, unseen, until he revives).
+func go_to_hero() -> void:
+	var h: Hero = game.hero
+	if h == null:
+		return
+	game.events.debug("camera: go to the hero")
+	game.camera.focus(h.position)
+
+
+# --- popups and Esc ----------------------------------------------------------------------
+
+## Every popup the HUD has, with what closes it like its Close / Cancel button.
+func _register_popups() -> void:
+	register_popup(_cancel_button, game.cancel_mode)  # (placing a building or a unit)
+	register_popup(_info_panel, game.deselect)
+	register_popup(_hero_panel, func() -> void: _hero_panel.visible = false)
+	register_popup(_people_panel, func() -> void: toggle_people(false))
+	register_popup(_trade_panel, func() -> void: _trade_panel.visible = false)
+	register_popup(_send_panel, func() -> void: _send_panel.visible = false)
+	register_popup(_send_unit_panel, func() -> void: _send_unit_panel.visible = false)
+	register_popup(_upgrade_panel, func() -> void: _upgrade_panel.visible = false)
+	register_popup(_confirm_panel, func() -> void: _confirm_panel.visible = false)
+	register_popup(_settings, close_settings)
+	if _debug_panel:
+		register_popup(_debug_panel, func() -> void: _show_debug(false))
+
+
+## `c` counts as a popup from now on: shown, it goes on top of the stack;
+## Esc calls `close` while it is the newest one open.
+func register_popup(c: Control, close: Callable) -> void:
+	_popup_close[c] = close
+	c.visibility_changed.connect(func() -> void:
+		_popups.erase(c)
+		if c.visible:
+			_popups.append(c))
+	if c.visible:
+		_popups.append(c)
+
+
+## The newest open popup, or null.
+func top_popup() -> Control:
+	for i in range(_popups.size() - 1, -1, -1):
+		var c := _popups[i]
+		if not is_instance_valid(c):
+			_popups.remove_at(i)
+		elif c.is_visible_in_tree():
+			return c
+	return null
+
+
+## Esc: closes the newest popup; with none open it pauses and opens the
+## settings (from there Esc closes them and the game goes on as before).
+## (The library and the statistics close themselves on Esc.)
+func escape() -> void:
+	var top := top_popup()
+	if top:
+		(_popup_close[top] as Callable).call()
+	elif game.mode != Game.Mode.NONE:
+		game.cancel_mode()
+	elif not _overlay.visible:
+		open_settings()
 
 
 # --- the village shown ----------------------------------------------------------------
@@ -760,10 +872,7 @@ func _build_hero_panel() -> void:
 	_hero_train_bar.add_theme_stylebox_override("fill", UiTheme.box(Color("b07cff"), Color("b07cff"), 0, 4, 0))
 	v.add_child(_hero_train_bar)
 	_hero_goto_button = _button("Go to hero", Vector2(0, 48))
-	_hero_goto_button.pressed.connect(func() -> void:
-		var h: Hero = game.hero
-		game.events.debug("camera: go to the hero")
-		game.camera.focus(Iso.tile_to_world(h.village.center) if h.dead else h.position))
+	_hero_goto_button.pressed.connect(go_to_hero)
 	v.add_child(_hero_goto_button)
 	_hero_panel.visible = false
 
@@ -2531,10 +2640,11 @@ func close_settings() -> void:
 func open_library(tab := "") -> void:
 	if library.visible:
 		return
-	_lib_paused = not game.networked
+	_lib_paused = not game.networked and not _overlay.visible
 	if _lib_paused:
 		_lib_speed_before = _speed_index
 		get_tree().paused = true
+	_lib_gray.visible = _lib_paused
 	_trade_panel.visible = false
 	library.open(tab)
 	game.events.debug("open library" + (" (game paused)" if _lib_paused else ""))
@@ -2568,7 +2678,7 @@ func open_stats(tab := "") -> void:
 	if not stats_available():
 		toast("Statistics are available from wave %d" % int(Config.STATS["from_wave"]), UiTheme.MUTED)
 		return
-	_stats_paused = not game.networked and not get_tree().paused and not _overlay.visible
+	_stats_paused = not game.networked and not _overlay.visible
 	if _stats_paused:
 		_stats_speed_before = _speed_index
 		get_tree().paused = true

@@ -100,6 +100,7 @@ func _in_game() -> void:
 	hud._book_button.pressed.emit()
 	await frames(2)
 	check(lib.visible and get_tree().paused, "the book icon opens it and pauses the game")
+	check(hud._lib_gray.visible and hud._lib_gray.get_index() == 0, "paused: the game behind it turns grey, as behind the settings")
 	for tab in Library.TABS:
 		(lib._tab_buttons[tab] as Button).pressed.emit()
 		await frames(1)
@@ -119,6 +120,7 @@ func _in_game() -> void:
 	hud.set_speed_index(Game.SPEEDS.find(0.0))
 	hud.open_library("units")
 	check(lib.tab == "units", "it can open on a given tab")
+	check(hud._lib_gray.visible, "opened while paused, the game behind it turns grey too")
 	lib.close()
 	await frames(1)
 	check(get_tree().paused and Game.SPEEDS[hud._speed_index] == 0.0, "paused before: still paused after")

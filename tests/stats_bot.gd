@@ -180,6 +180,14 @@ func _single() -> void:
 	await frames(1)
 	check(not scr.visible, "T closes it too")
 	game.networked = false
+	hud.set_speed_index(Game.SPEEDS.find(0.0))
+	hud.open_stats()
+	check(scr.visible and hud._stats_gray.visible, "opened while paused, the game behind it turns grey too")
+	scr.close()
+	await frames(1)
+	check(get_tree().paused and Game.SPEEDS[hud._speed_index] == 0.0, "paused before: still paused after")
+	hud.set_speed_index(Game.SPEEDS.find(1.0))
+	await frames(1)
 
 	# A co-op client gets the numbers: through the same encoding as an RPC.
 	var copy := Stats.new()

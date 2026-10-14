@@ -93,6 +93,7 @@ jobs:
           MAPGEN_SEEDS: ${{ inputs.mapgen_seeds || '12' }}
           MAPGEN_BUDGET_MS: "1500000"
           TIMEOUT: "2100"
+          CI: "true"  # (the bots skip their machine-dependent timing checks)
         run: GODOT=~/godot tests/run_all.sh mapgen
 
       - uses: actions/upload-artifact@v4
@@ -135,6 +136,7 @@ jobs:
         env:
           OUT: ${{ github.workspace }}/logs
           TIMEOUT: "2700"
+          CI: "true"  # (the bots skip their machine-dependent timing checks)
         run: GODOT=~/godot tests/run_all.sh ${{ matrix.bot }}
 
       - uses: actions/upload-artifact@v4

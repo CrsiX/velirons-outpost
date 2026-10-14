@@ -842,6 +842,12 @@ const SUMMON := {
 
 const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 
+## The map view: zoom limits (1 = the art's own size; smaller sees more of the
+## map) and the factor of one + / - key press (the mouse wheel uses its own).
+const CAMERA_MIN_ZOOM := 0.22
+const CAMERA_MAX_ZOOM := 1.6
+const CAMERA_KEY_ZOOM := 1.12
+
 # --- enemies ------------------------------------------------------------------------
 ## Every enemy kind in one place. Keys (all required):
 ##   name, art ........ display name; sprites are unit_<art> and corpse_<art>
