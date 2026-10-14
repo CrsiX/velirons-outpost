@@ -195,6 +195,7 @@ func _ready() -> void:
 	camera.zoom = Vector2(0.75, 0.75)
 	camera.tapped.connect(_on_tapped)
 	camera.press_filter = _claim_press
+	camera.wheel_filter = func(screen_pos: Vector2) -> bool: return hud != null and hud.is_over_dock(screen_pos)
 	camera.hovered.connect(_on_hovered)
 	camera.cancelled.connect(cancel_mode)
 	if backdrop:

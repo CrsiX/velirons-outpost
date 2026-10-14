@@ -27,6 +27,9 @@ func _run() -> void:
 	await _touch_preview()
 	await _drag()
 	await _back_button()
+	hud.set_dock_open(true)
+	await frames(12)
+	await _wheel_over_dock("landscape")
 	await _sheet()
 	Layout.touch = false
 	print("CHECKS %d  FAILURES %d" % [checks, failures.size()])
@@ -303,6 +306,12 @@ func _sheet() -> void:
 			var blocking := _blockers(hud._sheet_scroll, [] as Array[String])
 			check(blocking.is_empty(), "%s: a finger scrolls it from anywhere (nothing stops the drag: %s)" % [tab, ", ".join(blocking)])
 	hud.show_tab("build")
+	await _wheel_over_dock("portrait, the sheet open")
+	hud.set_dock_open(false)
+	await frames(12)
+	await _wheel_over_dock("portrait, the sheet folded")
+	hud.set_dock_open(true)
+	await frames(12)
 	# A page longer than the screen (e.g. many units in the reserve): capped, it scrolls.
 	var filler := Control.new()
 	filler.custom_minimum_size = Vector2(0, 1500)
@@ -399,3 +408,42 @@ func _sheet() -> void:
 	get_viewport().size = Vector2i(1280, 720)
 	await use_touch(false)
 	await frames(3)
+
+
+# --- the mouse wheel over the dock --------------------------------------------------------
+
+func wheel(pos: Vector2, button: MouseButton) -> void:
+	for pressed in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = button
+		e.pressed = pressed
+		e.factor = 1.0
+		e.position = pos
+		e.global_position = pos
+		get_viewport().push_input(e, true)
+
+
+## Over the dock the wheel scrolls its list (or nothing, at either end) and
+## never zooms the map; beside it, it zooms.
+func _wheel_over_dock(where: String) -> void:
+	var was_touch := _touch
+	await use_touch(false)
+	game.cancel_mode()
+	await frames(2)
+	var cam := game.camera
+	cam.zoom = Vector2.ONE
+	var rect := hud._sidebar.get_global_rect()
+	var over := rect.get_center()
+	for button in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_UP]:
+		for i in 12:  # (on past either end of the list)
+			wheel(over, button)
+		await frames(1)
+	check(hud.is_over_dock(over) and is_equal_approx(cam.zoom.x, 1.0), "%s: the wheel over the dock never zooms the map (zoom %.2f)" % [where, cam.zoom.x])
+	var vp := get_viewport().get_visible_rect().size
+	var beside := Vector2(vp.x * 0.25, vp.y * 0.4)
+	check(not hud.is_over_dock(beside), "%s: (a spot beside the dock)" % where)
+	wheel(beside, MOUSE_BUTTON_WHEEL_UP)
+	await frames(1)
+	check(cam.zoom.x > 1.0, "%s: beside it, the wheel zooms (%.2f)" % [where, cam.zoom.x])
+	cam.zoom = Vector2.ONE
+	await use_touch(was_touch)

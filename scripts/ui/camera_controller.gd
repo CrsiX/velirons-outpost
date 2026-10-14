@@ -11,12 +11,17 @@ const MIN_ZOOM := Config.CAMERA_MIN_ZOOM
 const MAX_ZOOM := Config.CAMERA_MAX_ZOOM
 const DRAG_THRESHOLD := 12.0
 const KEY_PAN_SPEED := 900.0
+const WHEEL_BUTTONS: Array[MouseButton] = [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]
 
 var bounds := Rect2()
 ## Optional: called with the screen position of a left press on the map; if it
 ## returns true the press belongs to someone else (e.g. dragging a unit off a
 ## tower), so the camera neither pans nor reports a tap for it.
 var press_filter: Callable
+## Optional: called with the pointer's screen position before a wheel or
+## trackpad zoom / pan; if it returns true the pointer is over the UI (the
+## dock), which keeps the scroll for itself, so the map neither zooms nor pans.
+var wheel_filter: Callable
 
 var _pressing := false
 var _dragging := false
@@ -49,6 +54,9 @@ func focus(world_pos: Vector2) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if (event is InputEventMouseButton and (event as InputEventMouseButton).button_index in WHEEL_BUTTONS) or event is InputEventGesture:
+		if wheel_filter.is_valid() and wheel_filter.call(event.position):
+			return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		match mb.button_index:

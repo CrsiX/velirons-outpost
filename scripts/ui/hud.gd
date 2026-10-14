@@ -2705,7 +2705,7 @@ func _refresh_settings() -> void:
 # --- drag feedback -------------------------------------------------------------------------
 
 func is_over_dock(screen_pos: Vector2) -> bool:
-	return _sidebar.is_visible_in_tree() and _sidebar.get_global_rect().has_point(screen_pos)
+	return _sidebar != null and _sidebar.is_visible_in_tree() and _sidebar.get_global_rect().has_point(screen_pos)
 
 
 ## The unit's image under the pointer while it is dragged. `state`: "move" (over
