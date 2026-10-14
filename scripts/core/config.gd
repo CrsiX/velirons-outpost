@@ -50,7 +50,7 @@ const TUTORIAL := {
 	"civilians": ["builder", "forester"], "buildings": ["camp"],
 	"resources": {"gold": 200, "food": 150, "materials": 150},
 	"tower_tile": Vector2i(-1, -1), "farm_tile": Vector2i(-1, -1), "barracks_tile": Vector2i(-1, -1),
-	"camp_tile": Vector2i(32, 38),  # (west of the village, by the forest, in plain view; -1: picked)
+	"camp_tile": Vector2i(32, 38),  # (west of the village, by the forest, in plain view; -1: the usual start spot)
 	"spawn_distance": 18,
 	"waves": [{"goblin": 2}, {"goblin": 5, "ork": 1}],
 	"step_pause": 1.0,  # seconds between a finished step and the next card
@@ -371,7 +371,7 @@ const MINE_GOLD_RATE := 0.25  # gold per second
 const MINE_REACH := 2.0
 
 ## Sight: explored tiles are only "under surveillance" (enemies visible) near
-## observers. Building sight is measured from the edge of the footprint.
+## observers. Building sight is BUILDING_SIGHT + size / 2 (whole tiles) around the anchor tile.
 const UNIT_SIGHT := 4.0  # villagers and soldiers outside the walls
 ## Every unit of ours outside (villagers, the hero, soldiers, summons,
 ## caravans) also explores the fog this close around it, whatever it's doing.
@@ -479,7 +479,8 @@ const CIVILIAN_HP := 20.0
 const CIVILIAN_REGEN := 2.0
 const FOOD_UPKEEP := 0.05  # food per civilian per second
 const STARVATION_INTERVAL := 15.0  # a civilian dies this often while food is 0
-## HUD warnings (seconds): "nobody can build" once the build queue has waited
+## HUD warnings (real seconds, whatever the game speed; paused time doesn't
+## count): "nobody can build" once the build queue has waited
 ## this long with no builder (and the hero not building); "food shortage" once
 ## the food has been at 0 with a negative rate this long.
 const NO_BUILDER_DELAY := 5.0
@@ -523,7 +524,7 @@ const EXPLORER_CLAIM_PENALTY := 30
 ## Every unit goes up to MAX_UNIT_LEVEL. Stats are given for level 1 and level 10
 ## ("stats": key -> [level 1, level 10]); levels in between follow the curve
 ## (t = 0 at level 1 .. 1 at level 10, value = a + (b - a) * t^curve). "pinned"
-## fixes the first levels exactly (today's archer and summoner levels 1-4); the
+## fixes the first levels exactly (the archer's and summoner's levels 1-4); the
 ## curve then continues from the last pinned value.
 ## "upgrade_cost" / "train_xp": gold / hero XP to reach level 2 and level 10
 ## (pinned the same way), "branch_cost": gold to turn into this specialisation.
@@ -574,7 +575,7 @@ const MILITARY := {
 		"branch_of": "archer", "branch_cost": {"gold": 150},
 		"speed": 2.0, "attack": "swift_arrow", "range": 2.6,
 		"desc": "A hail of light arrows: tiny hits, very fast.",
-		"stats": {"hp": [28.0, 85.0], "damage": [5.5, 14.0], "cooldown": [0.3, 0.18]},
+		"stats": {"hp": [30.0, 90.0], "damage": [7.5, 17.0], "cooldown": [0.3, 0.18]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	"shield_bearer": {
@@ -599,7 +600,7 @@ const MILITARY := {
 		"branch_of": "summoner", "branch_cost": {"gold": 150},
 		"speed": 1.4, "summon": "fire",
 		"desc": "Summons fire elementals: quick and deadly, but they burn themselves up.",
-		"stats": {"hp": [18.0, 50.0], "interval": [4.2, 2.5], "max_summons": [3.0, 7.0], "summon_hp": [34.0, 90.0], "summon_damage": [6.5, 18.0]},
+		"stats": {"hp": [18.0, 50.0], "interval": [3.9, 2.5], "max_summons": [4.0, 8.0], "summon_hp": [34.0, 90.0], "summon_damage": [6.5, 18.0]},
 		"upgrade_cost": [70, 300], "train_xp": [45, 400],
 	},
 	"apprentice": {
@@ -614,8 +615,8 @@ const MILITARY := {
 		"name": "Fire Mage", "role": "ranged", "posts": ["tower", "barracks"], "recruit": false,
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "fireball", "range": 2.8,
-		"desc": "Fireballs that explode: less damage per hit, but it splashes whole groups.",
-		"stats": {"hp": [20.0, 60.0], "damage": [10.0, 27.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
+		"desc": "Fireballs that explode: an apprentice's damage, splashed over whole groups.",
+		"stats": {"hp": [20.0, 60.0], "damage": [10.0, 38.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	"ice_mage": {
@@ -631,15 +632,15 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "heal",
 		"desc": "No damage. Heals every allied unit and hero around it (not summons): in a tower as far as the tower reaches, elsewhere within its own radius.",
-		"stats": {"hp": [15.0, 45.0], "heal": [6.0, 30.0], "cooldown": [3.0, 1.4], "radius": [2.5, 3.5]},
+		"stats": {"hp": [20.0, 60.0], "heal": [6.0, 30.0], "cooldown": [3.0, 1.4], "radius": [2.5, 3.5]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	"spatial_mage": {
 		"name": "Spatial Mage", "role": "ranged", "posts": ["tower", "barracks"], "recruit": false,
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "warp", "range": 2.8,
-		"desc": "Little damage, but the enemy hit is thrown back along its road. At level %d it can become the Spatial Archmage." % ARCHMAGE_LEVEL,
-		"stats": {"hp": [20.0, 60.0], "damage": [9.0, 26.0], "cooldown": [0.95, 0.55], "push": [1.5, 4.0]},
+		"desc": "An apprentice's damage, and the enemy hit is thrown back along its road. At level %d it can become the Spatial Archmage." % ARCHMAGE_LEVEL,
+		"stats": {"hp": [20.0, 60.0], "damage": [9.0, 38.0], "cooldown": [0.95, 0.55], "push": [1.5, 4.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 		"archmage": true,
 	},
@@ -663,7 +664,7 @@ const MILITARY := {
 		"speed": 1.6, "attack": "smite",
 		"hunt": {"witch": {"bonus": 4.0, "max": 7.0}, "unholy": {"bonus": 2.0, "max": 5.0}}, "hunt_switch": 1.0,
 		"desc": "Holy cross and warhammer. Hunts witches first, then the undead, then anything else. Barracks only.",
-		"stats": {"hp": [45.0, 140.0], "damage": [9.0, 45.0], "cooldown": [1.1, 0.75]},
+		"stats": {"hp": [45.0, 140.0], "damage": [9.0, 57.0], "cooldown": [1.1, 0.75]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	# No attack: a weak melee counter-strike (damage / cooldown) when hit in
@@ -676,7 +677,7 @@ const MILITARY := {
 		"branch_of": "acolyte", "branch_cost": {"gold": 150},
 		"speed": 1.5, "attack": "strike", "range": 2.6, "glow": "#fff2c0", "necro_slow": 2.0,
 		"desc": "Blesses every ally around it: more damage for units, towers, the hero and summons. Necromancers raise slower near it.",
-		"stats": {"hp": [24.0, 70.0], "aura": [0.02, 0.2], "damage": [3.0, 10.0], "cooldown": [1.4, 1.0]},
+		"stats": {"hp": [30.0, 90.0], "aura": [0.02, 0.2], "damage": [3.0, 10.0], "cooldown": [1.4, 1.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 }
@@ -713,7 +714,8 @@ const ATTACKS := {
 ## "pure" (a raised enemy's drain, a flame burning itself up) is never scaled.
 const DAMAGE_CATEGORIES: Array[String] = ["melee", "projectile", "magical", "holy", "pure"]
 
-## Summoned elementals, relative to Config.SUMMON (earth elementals).
+## Summoned elementals: "hp" and "damage" multiply the summoner's summon_hp
+## and summon_damage; "speed" is in tiles per second.
 const SUMMONS := {
 	"earth": {"name": "Earth Elemental", "art": "unit_earth_elemental", "hp": 1.0, "damage": 1.0, "speed": 1.1, "self_damage": 0.0, "hover": false},
 	# Fire elementals hover and flicker; they lose self_damage x the damage they deal, as HP.
@@ -825,12 +827,14 @@ const HERO_XP_PER_ACTION := {
 	"build_second": 1,  # each second of construction work
 	"explore": 1,  # each exploring step that uncovers new tiles
 	"corpse": 4,  # each corpse picked up
+	"loot": 10,  # each treasure looted (not for picking up dropped loot)
 }
 
-## Earth elementals summoned by summoners. hp/damage come from the summoner's
-## level; at level 1 an elemental is exactly as strong as a goblin.
+## What every summoned elemental shares (their own numbers are in SUMMONS).
+## HP and damage come from the summoner's level; at level 1 an earth elemental
+## is as strong as a Normal goblin.
 const SUMMON := {
-	"name": "Earth Elemental", "speed": 1.1, "attack_cooldown": 1.0,
+	"attack_cooldown": 1.0,
 	"attack_range": 0.8,  # close combat
 	"sight": 3.5,  # notices enemies this close
 	"leash": 4.0,  # wanders and chases within this distance of its tower
@@ -842,8 +846,9 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 ## Every enemy kind in one place. Keys (all required):
 ##   name, art ........ display name; sprites are unit_<art> and corpse_<art>
 ##   desc ............. one line for the library
-##   behavior ......... what it does besides walking to a gate: "melee" (fights
-##                      summons blocking its way) or "witch" (casts spells)
+##   behavior ......... what it does besides walking to a gate (scripts/units/enemies/):
+##                      "melee" (fights defenders in its way and villagers in reach),
+##                      "witch", "rat", "thief", "necromancer" or "vampire"
 ##   hp, speed ........ hit points; tiles per second along the road
 ##   damage ........... close-combat damage per hit (0 = never fights in melee)
 ##   attack_cooldown .. seconds between melee hits
@@ -857,7 +862,8 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 ## library (false: no library entry of its own), library_name (its name there).
 ## Any enemy that gets through a gate destroys exactly one random hut, on every
 ## difficulty (the villager living there, if any, dies with it). Except
-## rats (they eat food), and kinds with a raid_chance roll for it.
+## rats (they eat food), thieves (they steal gold), vampire bats (they turn
+## back), and kinds with a raid_chance roll for it.
 ## The pastel colours a slime can roll (equal chances), see "slime3".
 const SLIME_COLORS: Array[String] = ["red", "blue", "yellow", "green", "pink"]
 const ENEMIES := {
@@ -933,7 +939,7 @@ const ENEMIES := {
 		"spell_range": 3.6,  # tiles: no farther than a level 1 watchtower shoots (TOWER_RANGE)
 		"spell_cooldown": 2.0,
 		"enchant_ratio": 0.45,  # a bewitched unit stops for 45 % of her spell cooldown (0.9 s)
-		"spell_damage": 5.0,  # dealt to earth elementals (tower units take none)
+		"spell_damage": 5.0,  # to elementals, the hero, units and villagers outside (tower units take none)
 		"spell_speed": 5.0,  # tiles per second of the pink bolt
 		# After this many casts at the same target she ignores it, unless that
 		# target attacks her again (which resets its count). Stops endless stalls.

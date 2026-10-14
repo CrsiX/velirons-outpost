@@ -1,6 +1,6 @@
 class_name Farmer
 extends Civilian
-## Works exactly one farm (assigned by the player): walk out, harvest the
+## Works exactly one farm: walk out, harvest the
 ## stored food, carry it home, rest, repeat.
 
 enum State { RESTING, TO_FARM, HARVESTING, RETURNING }

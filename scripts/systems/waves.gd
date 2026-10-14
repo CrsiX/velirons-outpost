@@ -378,11 +378,10 @@ func _on_enemy_killed(g: Enemy) -> void:
 		if gold > 0:
 			game.world.float_text("+%d {gold}" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
 			Sfx.play("coin")
-	if g.spec().get("corpse", true):
+	if g.spec().get("corpse", true) and not g.raised:  # (the raised leave none)
 		var c := game.corpses.spawn(g.kind, g.wave, g.grid_pos)
 		c.extra_gold = g.loot_gold
 		c.hp_scale = g.hp_scale
-		c.revivable = c.revivable and not g.raised
 	_split(g)
 	_enemy_gone(g)
 

@@ -300,7 +300,7 @@ func _test_necromancer() -> void:
 	var c3 := game.corpses.spawn("ork", game.waves.wave, nec.grid_pos + Vector2(-1.0, 0.5))
 	var soon := await wait_until(func() -> bool: return nb.corpse == c3, Config.ENEMIES["necromancer"]["cast_time"] * 0.5)
 	check(not soon, "after a raise it walks on for a while before the next spell")
-	# Its HP drains away; decayed it pays nothing and can't rise again.
+	# Its HP drains away; decayed it pays nothing and leaves no corpse.
 	var h1 := g.hp
 	await wait(2.0)
 	var rate := (h1 - g.hp) / 2.0
@@ -317,7 +317,7 @@ func _test_necromancer() -> void:
 	for x in game.corpses.corpses:
 		if x.kind == "goblin":
 			c2 = x
-	check(decayed and seen.get("decayed", false) and int(v.economy.amount("gold")) == gold0 and c2 != null and not c2.revivable, "decayed: no gold, and its corpse can't be raised again")
+	check(decayed and seen.get("decayed", false) and int(v.economy.amount("gold")) == gold0 and c2 == null, "decayed: no gold and no corpse")
 	# The second raise (the ork, after the cooldown): logged at Debug only; killed, half the gold.
 	var again := await wait_until(func() -> bool: return raise_levels.size() >= 2, 30.0)
 	check(again and raise_levels[1] == EventLog.Level.DEBUG, "the next raise is logged at Debug only")
@@ -338,6 +338,7 @@ func _test_necromancer() -> void:
 		await frames(2)
 		var got := int(v.economy.amount("gold")) - gold1
 		check(got == floori(Config.enemy_stat_int("ork", "gold_on_kill") * 0.5), "a raised ork killed pays half an ork's gold, rounded down (%d)" % got)
+		check(not game.corpses.corpses.any(func(x: Corpse) -> bool: return x.kind == "ork"), "and leaves no corpse")
 	# Never its own kind, nor corpses already claimed; a lost corpse ends the spell.
 	await clear_corpses()
 	var nc := game.corpses.spawn("necromancer", game.waves.wave, nec.grid_pos + Vector2(1.0, 0.0))

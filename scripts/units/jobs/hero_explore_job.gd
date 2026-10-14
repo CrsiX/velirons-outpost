@@ -129,8 +129,9 @@ func _finish() -> void:
 		var tr := o as Treasure
 		carrying = tr.reward().duplicate()
 		carrying_from = tr.display_name().to_lower()
+		if not tr.data.get("sack", false):
+			w.on_action("loot")  # (none for picking up dropped loot again)
 		tr.mark_looted()
-		w.on_action("gather")
 		v.events.info("The hero looted %s (%s) and carries it home." % [_a(carrying_from), Treasure.reward_text(carrying)])
 		for other in w.game.villages:
 			if other != v:

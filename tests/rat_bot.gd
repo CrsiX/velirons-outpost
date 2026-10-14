@@ -78,7 +78,7 @@ func _test_config() -> void:
 	fastest = maxf(fastest, float(Config.HERO["speed"]))
 	fastest = maxf(fastest, Config.CARAVAN_SPEED)
 	for s in Config.SUMMONS:
-		fastest = maxf(fastest, float(Config.SUMMON["speed"]) * float(Config.SUMMONS[s]["speed"]))
+		fastest = maxf(fastest, float(Config.SUMMONS[s]["speed"]))
 	check(float(rat["speed"]) > fastest, "rats are faster than any other unit (%.1f > %.1f)" % [rat["speed"], fastest])
 	check(float(rat["hp"]) < float(Config.ENEMIES["goblin"]["hp"]) / 2.0, "rats are frail (%.0f HP)" % rat["hp"])
 	var dps := float(rat["damage"]) / float(rat["attack_cooldown"])

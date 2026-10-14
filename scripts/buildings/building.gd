@@ -128,7 +128,7 @@ func is_solid_when_complete() -> bool:
 
 # --- surveillance (group "observers") -------------------------------------------
 
-## Finished buildings watch BUILDING_SIGHT tiles beyond their footprint.
+## Finished buildings watch BUILDING_SIGHT + size / 2 (whole tiles) around their anchor tile.
 func sight_radius() -> float:
 	return Config.BUILDING_SIGHT + size / 2 if complete else 0.0
 

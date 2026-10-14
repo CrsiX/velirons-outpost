@@ -130,7 +130,7 @@ const HERO_MODE_HINTS: Array[String] = [
 	"Explores like an explorer, with a shorter sight range.",
 	"Gathers corpses like a gatherer, 2 at a time.",
 	"Passes his XP on to the unit at the Training Grounds (free level-ups). Only useful with Training Grounds and a unit stationed there; otherwise he defends.",
-	"Walks back to the village centre and rests there, fighting nobody, until his HP is back.",
+	"Walks back to the village centre and rests there, fighting nobody, healing as he idles.",
 	"Walks to another village and defends it like at home: its gates, its centre. He keeps his XP and heals there. That village can't give him orders.",
 ]
 var _speed_button: Button
@@ -2870,8 +2870,10 @@ func _process(delta: float) -> void:
 		_refresh_log()  # (every frame while messages fade)
 	_tick -= delta
 	if _tick <= 0.0:
-		_refresh_builder_warning(0.25 - _tick)
-		_refresh_food_warning(0.25 - _tick)
+		# The warnings wait real seconds, and not while the game is paused.
+		var real := 0.0 if get_tree().paused else (0.25 - _tick) / maxf(Engine.time_scale, 0.001)
+		_refresh_builder_warning(real)
+		_refresh_food_warning(real)
 		_tick = 0.25
 		_refresh_wave()
 		_refresh_resources()

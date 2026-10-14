@@ -1,7 +1,8 @@
 class_name UnlockSite
 extends MapObject
 ## A unit-unlock site (docs/world-design.md §9.4): a stone circle
-## (summoner) or a mage's tower (apprentice). Dormant scenery until its wave;
+## (summoner), a mage's tower (apprentice) or a ruined chapel (acolyte; see
+## Config.UNLOCK_SITES). Dormant scenery until its wave;
 ## then every copy awakens and the first hero to spend `visit_time` there
 ## (Explore mode goes for it first) unlocks the unit for every player. The
 ## other copies stay as scenery.

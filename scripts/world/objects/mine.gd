@@ -33,7 +33,7 @@ func info() -> Dictionary:
 	var d := super.info()
 	var lines: Array[String] = d["lines"]
 	var actions: Array[Dictionary] = d["actions"]
-	lines.append("Gold: %.1f per second while a miner works it (one at a time)." % Config.MINE_GOLD_RATE)
+	lines.append("Gold: %.2f per second while a miner works it (one at a time)." % Config.MINE_GOLD_RATE)
 	if not is_free():
 		var v: Village = worker.village
 		lines.append("Worked by %s." % ("your miner" if v == game.player_village else "a miner from %s" % v.village_name))

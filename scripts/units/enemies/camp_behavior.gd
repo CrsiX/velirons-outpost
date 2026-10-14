@@ -45,7 +45,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 			_attack_timer = float(enemy.spec().get("attack_cooldown", 1.2))
 			var dmg := enemy.stat("damage") if float(enemy.spec().get("damage", 0.0)) > 0.0 else 0.0
 			if dmg <= 0.0:  # (a witch at a camp hits with her spell)
-				dmg = maxf(float(enemy.spec().get("spell_damage", 4.0)), 4.0)
+				dmg = enemy.stat("spell_damage")
 			enemy.swing(_foe.grid_pos)
 			_foe.take_damage(dmg, enemy, enemy.attack_category())
 		return true

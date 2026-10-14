@@ -1,6 +1,6 @@
 class_name Forester
 extends Civilian
-## Works from one worker camp (assigned by the player). The cycle is:
+## Works from one worker camp. The cycle is:
 ## camp -> nearest tree -> chop for a while -> back to camp (drops off building
 ## material) -> rest -> same tree again, until it falls and the tile turns to
 ## meadow; then the next tree nearby.
@@ -75,6 +75,7 @@ func _tick(delta: float) -> void:
 		State.GOING_HOME:
 			if step_path(delta):
 				arrive_home()
+				_deliver("home")
 				state = State.IDLE
 
 
@@ -83,14 +84,18 @@ func _camp_ok() -> bool:
 
 
 func _arrive_camp() -> void:
-	if carrying > 0:
-		village.economy.add("materials", carrying, "foresters")
-		village.events.debug("%s delivers %d building material at %s" % [label(), carrying, camp.label() if is_instance_valid(camp) else "camp"])
-		float_text("+%d {materials}" % carrying, Color("c9b98f"))
-		carrying = 0
+	_deliver("at %s" % camp.label() if is_instance_valid(camp) else "at the camp")
 	state = State.AT_CAMP
 	_timer = Config.FORESTER_REST
 	visible = false  # resting in the tent
+
+
+func _deliver(where: String) -> void:
+	if carrying > 0:
+		village.economy.add("materials", carrying, "foresters")
+		village.events.debug("%s delivers %d building material %s" % [label(), carrying, where])
+		float_text("+%d {materials}" % carrying, Color("c9b98f"))
+	carrying = 0
 
 
 ## Keeps working the current tree until it falls, then picks the next one.
@@ -148,7 +153,7 @@ func _on_evade() -> void:
 
 
 func _after_evade() -> void:
-	carrying = 0
+	_deliver("home")  # (the wood he carried is not lost)
 	state = State.IDLE  # heads back out to the camp after resting
 
 

@@ -100,6 +100,26 @@ func _dps(kind: String, lv: int) -> float:
 	return Config.unit_stat(kind, "damage", lv) / Config.unit_stat(kind, "cooldown", lv)
 
 
+## A specialisation never has less HP, DPS (if it attacks: "ranged" and
+## "melee"), summons or summon strength, nor a longer summon interval, than its
+## base unit of the same level.
+func _specs_not_weaker() -> bool:
+	for k in Config.MILITARY:
+		var sp: Dictionary = Config.MILITARY[k]
+		if not sp.has("branch_of"):
+			continue
+		var b: String = sp["branch_of"]
+		for lv in Config.MAX_UNIT_LEVEL:
+			for key in ["hp", "max_summons", "summon_hp", "summon_damage"]:
+				if sp["stats"].has(key) and Config.unit_stat(k, key, lv) < Config.unit_stat(b, key, lv) - 0.001:
+					return false
+			if sp["stats"].has("interval") and Config.unit_stat(k, "interval", lv) > Config.unit_stat(b, "interval", lv) + 0.001:
+				return false
+			if sp["role"] in ["ranged", "melee"] and _dps(k, lv) < _dps(b, lv) - 0.001:
+				return false
+	return true
+
+
 func _test_config() -> void:
 	var min_tower: float = Config.TOWER_RANGE.values().min()
 	var ranges_ok := true
@@ -123,10 +143,11 @@ func _test_config() -> void:
 	check(tree_ok, "tech tree: every branch exists, points back, can't be recruited; roles and attacks exist")
 	check(curves_ok, "stat curves run from their level 1 to their level 10 values")
 	check(absf(_dps("archer", 2) - _dps("crossbowman", 0)) < 0.5, "archer L3 and crossbowman L1 deal about the same DPS (%.1f / %.1f)" % [_dps("archer", 2), _dps("crossbowman", 0)])
-	check(_dps("swiftbowman", 0) < _dps("archer", 2) and Config.unit_stat("swiftbowman", "cooldown", 0) * 2.0 <= Config.unit_stat("archer", "cooldown", 2), "swiftbowman: a bit less DPS, at least twice the fire rate")
+	check(Config.unit_stat("swiftbowman", "cooldown", 0) * 2.0 <= Config.unit_stat("archer", "cooldown", 2), "swiftbowman: at least twice the fire rate")
+	check(_specs_not_weaker(), "every specialisation is at every level at least as strong as its base unit (HP, DPS, summons)")
 	check(Config.unit_stat("crossbowman", "cooldown", 0) > 2.0 * Config.unit_stat("archer", "cooldown", 2) and Config.MILITARY["crossbowman"]["range"] > Config.MILITARY["archer"]["range"], "crossbowman: much slower fire, more range")
 	check(Config.unit_stat("shield_bearer", "hp", 0) >= 0.8 * Config.ENEMIES["ork"]["hp"] and Config.unit_stat("shield_bearer", "hp", 0) > 1.5 * Config.unit_stat("archer", "hp", 0) and Config.MILITARY["shield_bearer"]["posts"] == ["barracks"], "shield bearer: ork-like HP, barracks only")
-	check(Config.unit_stat("healing_mage", "hp", 0) < Config.unit_stat("apprentice", "hp", 0) and Config.unit_stat("apprentice", "hp", 0) < Config.unit_stat("archer", "hp", 0), "HP: healing mage < apprentice < archer")
+	check(Config.unit_stat("apprentice", "hp", 0) < Config.unit_stat("archer", "hp", 0), "HP: apprentice < archer")
 	check(Config.unit_stat("ice_mage", "slow", 9) < Config.unit_stat("ice_mage", "slow", 0), "the ice mage's slow grows with its level")
 	var top := 0
 	for k in Config.MILITARY:

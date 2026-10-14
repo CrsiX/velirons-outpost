@@ -23,7 +23,7 @@ const STAT_NAMES := {
 const XP_WORDS := {
 	"hit": "per hit in a fight", "build_second": "per second of building",
 	"explore": "per exploring step that uncovers land", "corpse": "per corpse picked up",
-	"kill": "more for the blow that kills an enemy",
+	"kill": "more for the blow that kills an enemy", "loot": "per treasure looted",
 }
 const TREASURE_TEXT := {
 	"chest": "A chest buried in the wilds, full of gold.",
@@ -366,7 +366,7 @@ static func _units() -> Array[Dictionary]:
 		var sp: Dictionary = Config.SUMMONS[s]
 		var f := PackedStringArray()
 		f.append("HP and damage come from the summoner's level (x%s HP, x%s damage)" % [_n(sp["hp"]), _n(sp["damage"])])
-		f.append("Speed %s tiles/s" % _n(Config.SUMMON["speed"] * float(sp["speed"])))
+		f.append("Speed %s tiles/s" % _n(sp["speed"]))
 		if sp["hover"]:
 			f.append("Hovers: it can fight flyers")
 		if float(sp["self_damage"]) > 0.0:
