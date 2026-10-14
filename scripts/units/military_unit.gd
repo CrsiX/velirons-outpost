@@ -54,6 +54,10 @@ var nid := 0
 var original_owner: Village
 ## TRAVELLING: the village it walks to, which becomes its owner on arrival.
 var travel_to: Village
+## A warrior's war cry: how much faster its timers run, until Game.clock
+## reaches cry_until (Combat.war_cry).
+var cry_bonus := 0.0
+var cry_until := -1.0
 
 
 func _init(p_kind: String) -> void:
@@ -115,7 +119,23 @@ func max_hp() -> float:
 	return stat("hp")
 
 
-## Own range out in the field (ranged units; never upgraded).
+## How fast its attack, summon and heal timers run (1 = normal): a war cry's
+## haste, and a berserker's rage (the more HP it has lost, the faster).
+func rate(game: Game) -> float:
+	var r := Combat.haste(game, self)
+	if has_stat("rage"):
+		var missing := clampf(1.0 - hp / max_hp(), 0.0, 1.0)
+		r /= maxf(1.0 - stat("rage") * missing, 0.05)
+	return r
+
+
+## Can it go for flyers? Every unit that shoots or casts; of the melee units
+## only those with "hits_flyers" (the halberdier).
+func hits_flyers() -> bool:
+	return role() != "melee" or spec().get("hits_flyers", false)
+
+
+## Own range out in the field (ranged units; never upgraded; a melee unit's reach).
 func field_range() -> float:
 	return float(spec().get("range", Config.UNIT_MELEE_RANGE))
 
@@ -186,6 +206,12 @@ static func option_text(opt: Dictionary) -> String:
 		parts.append("heals %.0f every %.1f s" % [Config.unit_stat(k, "heal", lv), Config.unit_stat(k, "cooldown", lv)])
 	if st.has("interval"):
 		parts.append("up to %d summons" % roundi(Config.unit_stat(k, "max_summons", lv)))
+	if st.has("cry"):
+		parts.append("war cry +%d%%" % roundi(100.0 * Config.unit_stat(k, "cry", lv)))
+	if st.has("rage"):
+		parts.append("rage up to %.1fx" % (1.0 / maxf(1.0 - Config.unit_stat(k, "rage", lv), 0.05)))
+	if sp.get("hits_flyers", false):
+		parts.append("hits flyers")
 	if sp.has("range"):
 		parts.append("range %.1f" % sp["range"])
 	return " ".join(parts)

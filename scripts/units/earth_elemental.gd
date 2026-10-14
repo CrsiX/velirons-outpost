@@ -29,6 +29,9 @@ func label() -> String:
 	return "%s %d" % ["fire elemental" if summon == "fire" else "elemental", uid]
 
 var _attack_timer := 0.0
+## A warrior's war cry (Combat.war_cry): faster blows until Game.clock reaches cry_until.
+var cry_bonus := 0.0
+var cry_until := -1.0
 var _think_timer := 0.0
 var _idle_timer := 0.0
 var _chase_tile := Vector2i(-9999, -9999)
@@ -45,6 +48,7 @@ func setup(p_game: Game, p_home: Vector2i, spawn_tile: Vector2i, p_hp: float, p_
 	speed = sm["speed"]
 	_init_sprite(sm["art"])
 	UnitFx.add_halo(sprite, game, func() -> Vector2: return grid_pos)
+	UnitFx.add_cry_mark(sprite, game, func() -> Object: return self)
 	set_grid_pos(Vector2(spawn_tile))
 	add_to_group("summons")
 	add_to_group("melee_defenders")
@@ -65,7 +69,7 @@ func _process(delta: float) -> void:
 	if dead:
 		return
 	_think_timer -= delta
-	_attack_timer -= delta
+	_attack_timer -= delta * Combat.haste(game, self)
 	if _think_timer <= 0.0:
 		_think_timer = 0.3
 		_pick_target()

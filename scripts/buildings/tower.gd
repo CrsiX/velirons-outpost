@@ -83,6 +83,7 @@ func _build_visuals() -> void:
 	_unit_sprite.show_behind_parent = true
 	add_child(_unit_sprite)
 	UnitFx.add_halo(_unit_sprite, game, act_center)  # (a High Priest's blessing)
+	UnitFx.add_cry_mark(_unit_sprite, game, func() -> Object: return garrison)  # (a warrior's war cry)
 	_spell_glow = Art.sprite("spell_glow")
 	_spell_glow.show_behind_parent = true
 	_spell_glow.visible = false

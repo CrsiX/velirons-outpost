@@ -104,11 +104,11 @@ func _farm_with_rats() -> Farm:
 func enemy_near() -> bool:
 	var c := act_center()
 	var r := activation_range()
-	var only_melee := units().all(func(u: MilitaryUnit) -> bool: return u.role() == "melee")
+	var no_flyers := not units().any(func(u: MilitaryUnit) -> bool: return u.hits_flyers())
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or (e.flies() and only_melee):
-			continue  # (melee benches can't go for flyers)
+		if e.dead or (e.flies() and no_flyers):
+			continue  # (only melee on the benches, no halberdier: they can't go for flyers)
 		if e.grid_pos.distance_to(c) <= r:
 			return true
 	return false

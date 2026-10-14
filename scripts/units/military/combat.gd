@@ -2,9 +2,10 @@ class_name Combat
 extends RefCounted
 ## How military units' attacks play out (Config.ATTACKS), the same from a
 ## tower and out in the field: the shot, then the hit's damage and effect
-## (splash, slow, push back), and healing for healers. Also the High
-## Priests' holy auras (docs/acolyte-design.md §6): allies in one deal more
-## damage, necromancers raise slower.
+## (splash, slow, push back, a berserker's lifesteal), and healing for
+## healers. Also the High Priests' holy auras (docs/acolyte-design.md §6):
+## allies in one deal more damage, necromancers raise slower; and the
+## warriors' war cries (docs/military-design.md §3a): allies attack faster.
 
 const SHOT_SCRIPT := preload("res://scripts/units/shot.gd")
 const BURST_SCRIPT := preload("res://scripts/units/military/burst.gd")
@@ -37,7 +38,10 @@ static func hit(game: Game, unit: MilitaryUnit, t, dmg: float, source: Node, at:
 	if is_instance_valid(t) and not t.dead:
 		var e := t as Enemy
 		center = e.grid_pos
+		var before := e.hp
 		e.take_damage(dmg, source if is_instance_valid(source) else null, a.get("category", "pure"))
+		if unit.has_stat("lifesteal"):
+			_lifesteal(unit, before - maxf(e.hp, 0.0))
 		if not e.dead:
 			if unit.has_stat("slow"):
 				e.slow(unit.stat("slow"), unit.stat("slow_time"))
@@ -53,6 +57,16 @@ static func hit(game: Game, unit: MilitaryUnit, t, dmg: float, source: Node, at:
 				o.take_damage(dmg * float(a.get("splash_share", 0.5)), source if is_instance_valid(source) else null, a.get("category", "pure"))
 	if a.get("explode", false):
 		burst(game, "explosion", Iso.to_world(center) + Vector2(0, -16), unit.stat("splash") if unit.has_stat("splash") else 1.0)
+
+
+## A berserker below lifesteal_below of its max HP gets back "lifesteal" x
+## the HP its blow really took (`dealt`), never above its max.
+static func _lifesteal(unit: MilitaryUnit, dealt: float) -> void:
+	if dealt <= 0.0 or unit.hp >= unit.max_hp() * float(unit.spec().get("lifesteal_below", 0.5)):
+		return
+	unit.heal(dealt * unit.stat("lifesteal"))
+	if is_instance_valid(unit.walker):
+		unit.walker.queue_redraw()
 
 
 ## The effect on this machine only (each player plays it, e.g. a vampire
@@ -153,3 +167,57 @@ static func necro_slow(game: Game, pos: Vector2) -> float:
 		if pos.distance_to(a["c"]) <= a["r"]:
 			best = maxf(best, a["slow"])
 	return best
+
+
+# --- war cries (warriors) ------------------------------------------------------------
+
+## How fast `holder`'s attack, summon and heal timers run (1 = normal): 1 + its
+## war-cry haste while that lasts. `holder`: a MilitaryUnit, Hero or
+## EarthElemental (each has cry_bonus / cry_until), or null.
+static func haste(game: Game, holder: Object) -> float:
+	if holder == null or not is_instance_valid(game) or game.clock >= float(holder.get("cry_until")):
+		return 1.0
+	return 1.0 + float(holder.get("cry_bonus"))
+
+
+## A warrior's war cry at `center` (grid): every ally within `radius` tiles,
+## of any village (units out on a sortie, tower units by their tower's tile,
+## summons, heroes) is hasted by `bonus` for `duration` s. Returns how many.
+static func war_cry(game: Game, center: Vector2, radius: float, bonus: float, duration: float) -> int:
+	var holders: Array[Object] = []
+	for b in game.world.towers():
+		var t := b as Tower
+		var u := t.garrison
+		if t.working() and u != null and u.state == MilitaryUnit.State.STATIONED and t.act_center().distance_to(center) <= radius:
+			holders.append(u)
+	for node in game.get_tree().get_nodes_in_group("field_units"):
+		var so := node as Soldier
+		if not so.dead and so.mode == Soldier.Mode.SORTIE and so.grid_pos.distance_to(center) <= radius:
+			holders.append(so.unit)
+	for node in game.get_tree().get_nodes_in_group("heroes"):
+		var h := node as Hero
+		if not h.dead and h.grid_pos.distance_to(center) <= radius:
+			holders.append(h)
+	for node in game.get_tree().get_nodes_in_group("summons"):
+		var e := node as EarthElemental
+		if not e.dead and e.grid_pos.distance_to(center) <= radius:
+			holders.append(e)
+	for h in holders:
+		_hasten(game, h, bonus, duration)
+	burst(game, "war_cry", Iso.to_world(center), radius)
+	Sfx.play("recruit", 0.15)
+	return holders.size()
+
+
+## One haste per holder, never stacked: a cry at least as strong as the one it
+## has refills it (the stronger value, the later end); a weaker cry counts only
+## once the stronger one has run out.
+static func _hasten(game: Game, h: Object, bonus: float, duration: float) -> void:
+	var now := game.clock
+	var until: float = h.get("cry_until")
+	var cur: float = h.get("cry_bonus")
+	if now >= until or bonus > cur + 0.0001:
+		h.set("cry_bonus", bonus)
+		h.set("cry_until", now + duration)
+	elif bonus >= cur - 0.0001:
+		h.set("cry_until", maxf(until, now + duration))

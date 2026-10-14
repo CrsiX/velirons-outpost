@@ -3,7 +3,9 @@ extends "res://tests/bot_base.gd"
 ## config's tech tree and curves, barracks (benches, sorties, upgrades),
 ## unit HP, downing and reviving, healing, every attack effect, fire
 ## elementals, specialising and the Spatial Archmage, and the acolyte line
-## (holy damage, the Inquisitor's hunt, the High Priest's aura; docs/acolyte-design.md). Run with:
+## (holy damage, the Inquisitor's hunt, the High Priest's aura; docs/acolyte-design.md),
+## and the shield bearer's branches (the warrior's war cry, the berserker's
+## rage and lifesteal, the halberdier against flyers; §3a). Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/military_bot.tscn
 ## Exits 0 when every check passes.
 
@@ -87,6 +89,7 @@ func _run() -> void:
 	await _test_effects()
 	await _test_branching()
 	await _test_holy()
+	await _test_shield_branches()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -637,4 +640,135 @@ func _test_holy() -> void:
 	bg.take_damage(1e9)
 	await wait_until(func() -> bool: return not pu.out, 60.0)
 	game.army.unstation(pu)
+	await clear_enemies()
+
+
+# --- the shield bearer's branches: warrior, berserker, halberdier (§3a) -----------------------
+
+## A barracks unit of `kind` (a shield bearer branch), on the barracks' first bench.
+func _benched(kind: String) -> MilitaryUnit:
+	for u in barracks.units():
+		game.army.unstation(u)
+	await frames(2)
+	game.economy.add("gold", 2000)
+	var u := game.army.recruit("shield_bearer")
+	u.level = Config.BRANCH_MIN_LEVEL - 1
+	check(game.army.upgrade(u, kind), "a level %d shield bearer becomes a %s" % [Config.BRANCH_MIN_LEVEL, kind])
+	game.army.station(u, barracks)
+	await wait_until(func() -> bool: return barracks.slots[0] == u and u.state == MilitaryUnit.State.STATIONED, 60.0)
+	return u
+
+
+func _test_shield_branches() -> void:
+	await clear_enemies()
+	# The config: three barracks-only branches, never weaker than a level 3 shield bearer.
+	var sb_hp := Config.unit_stat("shield_bearer", "hp", Config.BRANCH_MIN_LEVEL - 1)
+	var sb_dps := _dps("shield_bearer", Config.BRANCH_MIN_LEVEL - 1)
+	check(Config.MILITARY["shield_bearer"]["branches"] == ["warrior", "berserker", "halberdier"], "the shield bearer branches into warrior, berserker and halberdier")
+	var ok := true
+	for k in ["warrior", "berserker", "halberdier"]:
+		var sp: Dictionary = Config.MILITARY[k]
+		ok = ok and sp["posts"] == ["barracks"] and sp["branch_cost"] == {"gold": 150} and sp["role"] == "melee"
+		ok = ok and Config.unit_stat(k, "hp", 0) >= sb_hp and _dps(k, 0) >= sb_dps
+	check(ok, "all three: barracks only, 150 gold, and level 1 at least as strong as a level %d shield bearer (%.0f HP, %.1f DPS)" % [Config.BRANCH_MIN_LEVEL, sb_hp, sb_dps])
+	var top := Config.MAX_UNIT_LEVEL - 1
+	check(absf(_dps("berserker", top) - _dps("archer", top)) < 1.5 and absf(_dps("halberdier", top) - _dps("archer", top)) < 1.5, "berserker and halberdier at level 10 deal an archer's DPS (%.0f / %.0f / %.0f)" % [_dps("berserker", top), _dps("halberdier", top), _dps("archer", top)])
+	var ls5 := Config.unit_stat("berserker", "lifesteal", 4)
+	check(is_equal_approx(ls5, 0.1 + 0.15 * pow(4.0 / 9.0, 1.5)) and is_equal_approx(Config.unit_stat("berserker", "lifesteal", top), 0.25), "the berserker's lifesteal follows its own curve (%.3f at level 5, 0.25 at 10)" % ls5)
+	check(is_equal_approx(Config.unit_stat("berserker", "rage", 0), 0.3) and is_equal_approx(Config.unit_stat("berserker", "damage", 4), 8.0 + 63.0 * 4.0 / 9.0), "its other stats stay linear")
+
+	# Haste: one per unit, refilled by an equal or stronger cry, never stacked.
+	var probe := game.army.recruit("archer")
+	var now := game.clock
+	Combat._hasten(game, probe, 0.3, 3.0)
+	check(is_equal_approx(Combat.haste(game, probe), 1.3) and is_equal_approx(probe.rate(game), 1.3), "a war cry of +30 %: its timers run 1.3x as fast")
+	Combat._hasten(game, probe, 0.1, 10.0)
+	check(is_equal_approx(probe.cry_bonus, 0.3) and is_equal_approx(probe.cry_until, now + 3.0), "a weaker cry meanwhile changes nothing")
+	Combat._hasten(game, probe, 0.3, 5.0)
+	check(is_equal_approx(probe.cry_bonus, 0.3) and is_equal_approx(probe.cry_until, now + 5.0), "an equal cry refills it (no stacking: still +30 %)")
+	Combat._hasten(game, probe, 0.5, 1.0)
+	check(is_equal_approx(probe.cry_bonus, 0.5) and is_equal_approx(probe.cry_until, now + 1.0), "a stronger one takes over")
+	game.clock = now + 2.0
+	check(is_equal_approx(Combat.haste(game, probe), 1.0), "and when it runs out the timers are back to normal")
+	Combat._hasten(game, probe, 0.1, 3.0)
+	check(is_equal_approx(probe.cry_bonus, 0.1), "then a weaker cry counts again")
+	probe.cry_until = -1.0
+	game.army.units.erase(probe)
+
+	# Rage and lifesteal.
+	game.economy.add("gold", 500)
+	var bz := game.army.recruit("shield_bearer")
+	bz.level = Config.BRANCH_MIN_LEVEL - 1
+	game.army.upgrade(bz, "berserker")
+	bz.level = top
+	bz.hp = bz.max_hp()
+	check(is_equal_approx(bz.rate(game), 1.0), "a berserker at full HP strikes at its normal pace")
+	bz.hp = bz.max_hp() * 0.1
+	var want := 1.0 / (1.0 - Config.unit_stat("berserker", "rage", top) * 0.9)
+	check(is_equal_approx(bz.rate(game), want), "at 10 %% HP %.1fx as fast" % want)
+	var dummy := spawn_dummy("goblin", Vector2(far), 200.0)
+	bz.hp = bz.max_hp() * 0.4
+	var hb := bz.hp
+	var eh := dummy.hp
+	Combat.attack(game, bz, Vector2.ZERO, dummy, null)
+	var dealt := eh - dummy.hp
+	check(dealt > 0.0 and is_equal_approx(bz.hp - hb, dealt * Config.unit_stat("berserker", "lifesteal", top)), "below half HP its blow heals it by 25 %% of the damage dealt (+%.1f HP)" % (bz.hp - hb))
+	bz.hp = bz.max_hp() * 0.6
+	hb = bz.hp
+	Combat.attack(game, bz, Vector2.ZERO, dummy, null)
+	check(is_equal_approx(bz.hp, hb), "above half HP no lifesteal")
+	game.army.units.erase(bz)
+	await clear_enemies()
+
+	# The war cry's reach: a tower unit within 2.5 tiles, the hero, not beyond.
+	var tw: Array = await _manned("archer")
+	var tu: MilitaryUnit = tw[0]
+	var tt: Tower = tw[1]
+	var hero := game.hero
+	var hero_home := hero.grid_pos
+	var spot := tt.act_center() + Vector2(2.0, 0.0)
+	hero.set_grid_pos(spot + Vector2(0.0, 0.5))
+	var n := Combat.war_cry(game, spot, float(Config.MILITARY["warrior"]["cry_radius"]), 0.4, 4.0)
+	check(n >= 2 and Combat.haste(game, tu) > 1.0 and Combat.haste(game, hero) > 1.0, "a war cry reaches the unit on a tower 2 tiles away and the hero (%d hasted)" % n)
+	var mark := tt._unit_sprite.get_node("CryMark") as CanvasItem
+	check(await wait_until(func() -> bool: return mark.visible, 1.0), "the tower's unit shows the war cry's chevrons")
+	tu.cry_until = -1.0
+	hero.cry_until = -1.0
+	Combat.war_cry(game, tt.act_center() + Vector2(3.0, 0.0), float(Config.MILITARY["warrior"]["cry_radius"]), 0.4, 4.0)
+	check(is_equal_approx(Combat.haste(game, tu), 1.0), "not from 3 tiles away")
+	check(await wait_until(func() -> bool: return not mark.visible, 1.0), "the chevrons go when the haste is over")
+	hero.set_grid_pos(hero_home)
+	game.army.unstation(tu)
+
+	# The warrior out on a sortie shouts at once; it hastes himself too.
+	var wr: MilitaryUnit = await _benched("warrior")
+	var bc := barracks.act_center()
+	var foe := spawn_dummy("goblin", Vector2(game.world.pathing.nearest_walkable(Vector2i((bc + Vector2(2.0, 0)).round()))), 200.0)
+	var cried := await wait_until(func() -> bool: return wr.out and Combat.haste(game, wr) > 1.0, 20.0)
+	check(cried and is_equal_approx(Combat.haste(game, wr), 1.0 + wr.stat("cry")), "out on a sortie the warrior shouts at once: +%d %% attack speed, himself included" % roundi(wr.stat("cry") * 100.0))
+	foe.take_damage(1e9)
+	await wait_until(func() -> bool: return not wr.out, 60.0)
+
+	# The halberdier: barracks with him turn out for a gargoyle, and he goes for it.
+	var hb_unit: MilitaryUnit = await _benched("halberdier")
+	check(is_equal_approx(hb_unit.field_range(), 1.2) and hb_unit.hits_flyers(), "the halberdier reaches 1.2 tiles, and up to flyers")
+	var garg := spawn_dummy("gargoyle", Vector2(game.world.pathing.nearest_walkable(Vector2i((bc + Vector2(2.0, 0)).round()))), 200.0)
+	check(garg.flies(), "(a flyer)")
+	var g0 := garg.hp
+	var hits := await wait_until(func() -> bool: return hb_unit.out and is_instance_valid(hb_unit.walker) and hb_unit.walker.target == garg and garg.hp < g0, 30.0)
+	check(hits, "barracks with a halberdier turn out for a gargoyle, and he strikes it")
+	garg.take_damage(1e9)
+	await wait_until(func() -> bool: return not hb_unit.out, 60.0)
+	# A shield bearer alone doesn't.
+	game.army.unstation(hb_unit)
+	await frames(2)
+	game.economy.add("gold", 500)
+	var sb2 := game.army.recruit("shield_bearer")
+	game.army.station(sb2, barracks)
+	await wait_until(func() -> bool: return barracks.slots[0] == sb2 and sb2.state == MilitaryUnit.State.STATIONED, 60.0)
+	var garg2 := spawn_dummy("gargoyle", Vector2(game.world.pathing.nearest_walkable(Vector2i((bc + Vector2(2.0, 0)).round()))), 200.0)
+	await wait(2.0)
+	check(not sb2.out, "a bench of only shield bearers doesn't turn out for it")
+	garg2.take_damage(1e9)
+	game.army.unstation(sb2)
 	await clear_enemies()

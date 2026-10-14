@@ -523,7 +523,8 @@ const EXPLORER_CLAIM_PENALTY := 30
 ## --- Military (docs/military-design.md) ------------------------------------------------
 ## Every unit goes up to MAX_UNIT_LEVEL. Stats are given for level 1 and level 10
 ## ("stats": key -> [level 1, level 10]); levels in between follow the curve
-## (t = 0 at level 1 .. 1 at level 10, value = a + (b - a) * t^curve). "pinned"
+## (t = 0 at level 1 .. 1 at level 10, value = a + (b - a) * t^curve; "curve"
+## for all of a unit's stats, "curves": stat -> its own exponent). "pinned"
 ## fixes the first levels exactly (the archer's and summoner's levels 1-4); the
 ## curve then continues from the last pinned value.
 ## "upgrade_cost" / "train_xp": gold / hero XP to reach level 2 and level 10
@@ -535,7 +536,9 @@ const EXPLORER_CLAIM_PENALTY := 30
 ## Optional: "glow" (a soft pulsing light behind the figure: its colour),
 ## "cast_art" (sprite shown for a moment on every attack), "hunt" (melee
 ## target priorities, see "inquisitor"), "aura" stat and "necro_slow" (see
-## "high_priest").
+## "high_priest"), "range" on a melee unit (its reach, else UNIT_MELEE_RANGE),
+## "hits_flyers" (a melee unit that can go for flyers), the war cry (see
+## "warrior") and rage and lifesteal (see "berserker").
 const MAX_UNIT_LEVEL := 10
 ## From this level a base unit can also turn into level 1 of a specialisation.
 const BRANCH_MIN_LEVEL := 3
@@ -584,6 +587,40 @@ const MILITARY := {
 		"desc": "Barracks only. Huge shield, lots of HP, little damage: holds enemies up.",
 		"stats": {"hp": [55.0, 180.0], "damage": [3.0, 12.0], "cooldown": [1.2, 0.9]},
 		"upgrade_cost": [40, 250], "train_xp": [30, 350],
+		"branches": ["warrior", "berserker", "halberdier"],
+	},
+	# War cry: out on a sortie, at once and then every cry_interval s, every ally
+	# within cry_radius tiles (units out, tower units, summons, heroes, himself)
+	# is hasted by "cry" for "cry_time" s: all its attack, summon and heal timers
+	# run 1 + cry times as fast. One haste per unit, never stacked: an equal or
+	# stronger cry refills it, a weaker one counts once it has run out.
+	"warrior": {
+		"name": "Warrior", "role": "melee", "posts": ["barracks"], "recruit": false,
+		"branch_of": "shield_bearer", "branch_cost": {"gold": 150},
+		"speed": 1.4, "attack": "strike", "cry_interval": 10.0, "cry_radius": 2.5,
+		"desc": "Barracks only. Mail, shield and sword, the most HP of all; his war cry makes allies near him attack faster.",
+		"stats": {"hp": [90.0, 300.0], "damage": [6.0, 30.0], "cooldown": [1.15, 0.85], "cry": [0.1, 0.5], "cry_time": [3.0, 5.0]},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
+	},
+	# Rage: his strike interval x (1 - rage x share of HP missing). Lifesteal:
+	# while below lifesteal_below of his max HP, he gets back "lifesteal" x the
+	# HP his blows really take (never above his max).
+	"berserker": {
+		"name": "Berserker", "role": "melee", "posts": ["barracks"], "recruit": false,
+		"branch_of": "shield_bearer", "branch_cost": {"gold": 150},
+		"speed": 1.6, "attack": "strike", "lifesteal_below": 0.5,
+		"desc": "Barracks only. A great axe and no armour: the more HP he has lost, the faster he strikes, and when low he heals from his blows.",
+		"stats": {"hp": [85.0, 200.0], "damage": [8.0, 71.0], "cooldown": [1.15, 0.8], "rage": [0.3, 0.8], "lifesteal": [0.1, 0.25]},
+		"curves": {"lifesteal": 1.5},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
+	},
+	"halberdier": {
+		"name": "Halberdier", "role": "melee", "posts": ["barracks"], "recruit": false,
+		"branch_of": "shield_bearer", "branch_cost": {"gold": 150},
+		"speed": 1.3, "attack": "strike", "range": 1.2, "hits_flyers": true,
+		"desc": "Barracks only. A long halberd reaches farther than other blades, and up to flyers.",
+		"stats": {"hp": [85.0, 200.0], "damage": [9.0, 76.0], "cooldown": [1.25, 0.85]},
+		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	"summoner": {
 		"name": "Summoner", "role": "summoner", "posts": ["tower", "barracks"], "recruit": true,
@@ -684,7 +721,7 @@ const MILITARY := {
 ## Recruitable units in the Army tab (specialisations come from upgrades).
 const MILITARY_ORDER: Array[String] = ["archer", "shield_bearer", "summoner", "apprentice", "acolyte"]
 ## Kinds in tech-tree order (base unit, then its specialisations).
-const MILITARY_TREE: Array[String] = ["archer", "crossbowman", "swiftbowman", "shield_bearer", "summoner", "fire_summoner", "apprentice", "fire_mage", "ice_mage", "healing_mage", "spatial_mage", "acolyte", "inquisitor", "high_priest"]
+const MILITARY_TREE: Array[String] = ["archer", "crossbowman", "swiftbowman", "shield_bearer", "warrior", "berserker", "halberdier", "summoner", "fire_summoner", "apprentice", "fire_mage", "ice_mage", "healing_mage", "spatial_mage", "acolyte", "inquisitor", "high_priest"]
 
 ## What a unit's attack looks like and does. "projectile": art of the shot
 ## ("" = no shot); "whirl": the shot spins; "arc": arrows fly on an arc.
@@ -736,7 +773,8 @@ static func unit_stat(kind: String, key: String, level: int) -> float:
 	var spec: Dictionary = MILITARY[kind]
 	var ends: Array = spec["stats"][key]
 	var pinned: Array = spec.get("pinned", {}).get(key, [])
-	return _curve(ends[0], ends[1], pinned, clampi(level, 0, MAX_UNIT_LEVEL - 1), MAX_UNIT_LEVEL, spec.get("curve", 1.0))
+	var curve: float = spec.get("curves", {}).get(key, spec.get("curve", 1.0))
+	return _curve(ends[0], ends[1], pinned, clampi(level, 0, MAX_UNIT_LEVEL - 1), MAX_UNIT_LEVEL, curve)
 
 
 ## Gold to go from `level` to the next one (0-based), or {} at the top.

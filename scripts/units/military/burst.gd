@@ -1,7 +1,8 @@
 extends Node2D
 ## A short effect drawn in code: an exploding fireball (flash, fire ring and
 ## sparks), a healing ring, a warp blink, a puff of dark smoke, an acolyte's
-## beam of light from straight above, or a flash of holy light from a blow.
+## beam of light from straight above, a flash of holy light from a blow, or a
+## warrior's war cry (red-orange rings rushing out to its reach).
 ## Fades out on its own.
 
 const LIFE := 0.55
@@ -68,6 +69,13 @@ func _draw() -> void:
 			draw_line(Vector2(0.0, -14.0 - l), Vector2(0.0, -14.0 + l), Color(1.0, 0.9, 0.45, fade), 3.0)
 			draw_line(Vector2(-l * 0.7, -14.0), Vector2(l * 0.7, -14.0), Color(1.0, 0.9, 0.45, fade), 3.0)
 			_ellipse(rx * 0.8, Color(1.0, 0.85, 0.35, 0.6 * fade), 2.5)
+		"war_cry":  # a warrior's shout: rings rushing out to the cry's reach, short strokes on the way
+			var reach := radius * Iso.HALF_W * (0.15 + 0.85 * sqrt(k))
+			_ellipse(reach, Color(1.0, 0.45, 0.15, 0.85 * fade), 5.0)
+			_ellipse(reach * 0.7, Color(1.0, 0.7, 0.3, 0.6 * fade), 3.0)
+			for s in _sparks.slice(0, 10):
+				var p := Vector2(s.x * reach, s.y * reach * 0.5)
+				draw_line(p * 0.82 + Vector2(0, -18), p + Vector2(0, -18), Color(1.0, 0.55, 0.2, fade), 2.5)
 
 
 func _ellipse(rx: float, col: Color, w: float) -> void:

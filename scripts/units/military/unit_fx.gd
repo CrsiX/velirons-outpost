@@ -3,17 +3,20 @@ extends Node2D
 ## Effects on a unit's sprite, drawn as a child of it (in its pixels;
 ## docs/acolyte-design.md): an acolyte's soft pulsing light behind the figure
 ## (Config.MILITARY "glow"), and the small holy halo over the head of anyone
-## in a High Priest's aura (Combat.holy_bonus). Also swaps in a unit's
-## casting frame for a moment ("cast_art").
+## in a High Priest's aura (Combat.holy_bonus), and the red-orange double
+## chevron over anyone hasted by a warrior's war cry (Combat.haste). Also
+## swaps in a unit's casting frame for a moment ("cast_art").
 
-enum Kind { GLOW, HALO }
+enum Kind { GLOW, HALO, CRY }
 
 const CAST_TIME := 0.35
 const HALO_COLOR := Color(1.0, 0.9, 0.5)
+const CRY_COLOR := Color(1.0, 0.5, 0.18)
 
 var kind := Kind.GLOW
 var color := Color.WHITE
-## HALO: whose blessing to check, and where it stands (grid).
+## HALO: whose blessing to check, and where it stands (grid). CRY: `where`
+## gives the holder (MilitaryUnit, Hero, EarthElemental, or null).
 var game: Game
 var where: Callable
 var _t := 0.0
@@ -66,6 +69,19 @@ static func add_halo(s: Sprite2D, p_game: Game, p_where: Callable) -> UnitFx:
 	return h
 
 
+## A double chevron on `s` that shows while `p_holder` (a Callable giving the
+## MilitaryUnit, Hero or EarthElemental) is hasted by a war cry.
+static func add_cry_mark(s: Sprite2D, p_game: Game, p_holder: Callable) -> UnitFx:
+	var m := UnitFx.new()
+	m.name = "CryMark"
+	m.kind = Kind.CRY
+	m.game = p_game
+	m.where = p_holder
+	m.visible = false
+	s.add_child(m)
+	return m
+
+
 func _process(delta: float) -> void:
 	_t += delta
 	if kind == Kind.GLOW:
@@ -75,7 +91,10 @@ func _process(delta: float) -> void:
 	_scan -= delta
 	if _scan <= 0.0:
 		_scan = 0.2
-		visible = is_instance_valid(game) and Combat.holy_bonus(game, where.call()) > 0.0
+		if kind == Kind.CRY:
+			visible = is_instance_valid(game) and Combat.haste(game, where.call()) > 1.0
+		else:
+			visible = is_instance_valid(game) and Combat.holy_bonus(game, where.call()) > 0.0
 
 
 func _draw() -> void:
@@ -89,6 +108,14 @@ func _draw() -> void:
 		var rad := r.size.x * 0.5 * (0.9 + 0.12 * k)
 		for i in 4:
 			draw_circle(c, rad * (1.0 - 0.22 * i), Color(color, 0.07 + 0.05 * k))
+		return
+	if kind == Kind.CRY:  # two small upward chevrons beside the head
+		var p := Vector2(r.size.x * 0.28, maxf(r.position.y + 14.0, -82.0))
+		for i in 2:
+			var c := p + Vector2(0.0, -8.0 * i)
+			var pts := PackedVector2Array([c + Vector2(-6, 4), c, c + Vector2(6, 4)])
+			draw_polyline(pts, Color(0.2, 0.08, 0.02, 0.8), 5.0, true)
+			draw_polyline(pts, CRY_COLOR, 3.0, true)
 		return
 	# A still, thin ring of light just over the head (sprite pixels: 2 x art units).
 	var y := maxf(r.position.y + 4.0, -92.0)

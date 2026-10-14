@@ -55,6 +55,9 @@ var _snores := 0
 var train_pause := 0.0
 ## The monster camp he was ordered to clear (docs/world-design.md §9.3).
 var camp_target: MonsterCamp = null
+## A warrior's war cry (Combat.war_cry): his sword is faster until Game.clock reaches cry_until.
+var cry_bonus := 0.0
+var cry_until := -1.0
 
 
 func setup_hero(p_game: Game, p_village: Village) -> void:
@@ -67,6 +70,7 @@ func setup_hero(p_game: Game, p_village: Village) -> void:
 	hp = max_hp
 	_init_sprite("unit_hero")
 	UnitFx.add_halo(sprite, game, func() -> Vector2: return grid_pos)
+	UnitFx.add_cry_mark(sprite, game, func() -> Object: return self)
 	set_grid_pos(Vector2(village.center))
 	at_home = true
 	add_to_group("observers")
@@ -256,7 +260,7 @@ func _regen(delta: float) -> void:
 # --- Defend -----------------------------------------------------------------------------------
 
 func _defend(delta: float) -> void:
-	_attack_timer -= delta
+	_attack_timer -= delta * Combat.haste(game, self)
 	_think_timer -= delta
 	if _think_timer <= 0.0:
 		_think_timer = 0.3
@@ -512,7 +516,7 @@ func attack_camp(camp: MonsterCamp) -> void:
 
 
 func _attack_camp(delta: float) -> void:
-	_attack_timer -= delta
+	_attack_timer -= delta * Combat.haste(game, self)
 	_think_timer -= delta
 	if _think_timer <= 0.0 or not is_instance_valid(target) or target.dead:
 		_think_timer = 0.3

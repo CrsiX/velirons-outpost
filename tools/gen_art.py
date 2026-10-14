@@ -1000,6 +1000,70 @@ def shield_bearer():
     person("unit_shield_bearer", ("#5a4a3a", "#463a2c"), hat=hat, extra=extra)
 
 
+def shield_bearer_branches():
+    """The shield bearer's specialisations: warrior, berserker, halberdier."""
+    steel, steel_d = "#9aa0a8", "#6a7078"
+
+    def warrior(a, layer):
+        if layer == "back":
+            a.ellipse(-8, -20, 7, 8, WOOD, INK, 1.4)  # round shield on his back arm
+            a.ellipse(-8, -20, 7, 8, "none", steel, 1.6)
+            a.ellipse(-8, -20, 2.2, 2.4, steel, INK, 0.8)
+        else:
+            a.poly([(-7, -27), (7, -27), (6, -11), (-6, -11)], steel_d, INK, 1.1)  # mail
+            for y in (-24, -20, -16):
+                a.line([(-6, y), (6, y)], "#555b62", 0.7)
+            a.poly([(-3.5, -27), (3.5, -27), (3, -9), (-3, -9)], CRIMSON, INK, 0.9)  # tabard
+            a.line([(4, -21), (10, -27)], INK, 4)  # arm raised
+            a.line([(10, -27), (14, -46)], INK, 3.6)  # sword
+            a.line([(10, -27), (14, -46)], "#d8dde2", 2)
+            a.line([(7.5, -27.5), (12.5, -26.5)], GOLD, 1.8)  # crossguard
+
+    def warrior_helm(a):
+        a.raw('<path d="M-7,-31 Q-7,-42 0,-42 Q7,-42 7,-31 Z" fill="%s" stroke="%s" stroke-width="1.2"/>' % (steel, INK), [(-8, -43), (8, -30)])
+        a.line([(0, -42), (0, -31)], steel_d, 1.4)  # nose guard ridge
+        a.raw('<path d="M-6,-39 Q-12,-42 -11,-48 Q-8,-43 -4,-41 Z" fill="#e8dcc0" stroke="%s" stroke-width="0.9"/>' % INK, [(-12, -49), (-4, -38)])
+        a.raw('<path d="M6,-39 Q12,-42 11,-48 Q8,-43 4,-41 Z" fill="#e8dcc0" stroke="%s" stroke-width="0.9"/>' % INK, [(4, -49), (12, -38)])
+    person("unit_warrior", (steel_d, "#555b62"), hat=warrior_helm, extra=warrior)
+
+    def berserker(a, layer):
+        if layer == "back":
+            a.raw('<path d="M-4,-29 Q-12,-28 -11,-20 L-12,-12 L-10,-14 L-9,-11 L-7,-13 L-5,-11 Z" fill="#7a5a3a" stroke="%s" stroke-width="1"/>' % INK, [(-12, -30), (-4, -11)])  # shaggy fur cloak
+            for (x, y) in ((-9, -24), (-8, -19), (-10, -16)):
+                a.line([(x, y), (x + 1.5, y + 2)], "#a07a52", 1)
+        else:
+            a.poly([(-6, -27), (6, -27), (6, -14), (-6, -14)], "#d0a080", INK, 1)  # bare chest
+            a.line([(-6, -18), (6, -18)], "#5a3a22", 2.4)  # belt
+            a.line([(4, -21), (11, -24)], INK, 4.2)  # arm
+            a.line([(4, -21), (11, -24)], "#d0a080", 2.6)
+            a.line([(9, -6), (13, -44)], INK, 3.4)  # great axe
+            a.line([(9, -6), (13, -44)], WOOD_L, 1.8)
+            a.raw('<path d="M12,-44 Q22,-46 22,-36 Q16,-38 12,-36 Z" fill="#b8bec6" stroke="%s" stroke-width="1.1"/>' % INK, [(11, -47), (23, -35)])
+            a.raw('<path d="M12,-44 Q4,-46 5,-38 Q9,-39 12,-37 Z" fill="#b8bec6" stroke="%s" stroke-width="1.1"/>' % INK, [(4, -47), (13, -36)])
+
+    def wild_hair(a):
+        # a mane over the top and back of the head, spiky, leaving the face free
+        a.raw('<path d="M-7,-30 L-10,-33 L-8,-36 L-10,-40 L-6,-40 L-5,-44 L-1,-41 L1,-45 L3,-40 L7,-41 L5,-37 Q2,-39 -2,-37 Q-5,-35 -5,-30 Z" fill="#b8481e" stroke="%s" stroke-width="1.1" stroke-linejoin="round"/>' % INK, [(-11, -46), (8, -29)])
+        # a full beard on the chin (he faces right)
+        a.raw('<path d="M-2,-31 Q0,-28 6,-30 Q7,-27 5,-24 L3,-25 L2,-22 L0,-25 L-2,-23 Q-3,-27 -2,-31 Z" fill="#b8481e" stroke="%s" stroke-width="1" stroke-linejoin="round"/>' % INK, [(-3, -32), (8, -21)])
+    person("unit_berserker", ("#6a4a2c", "#5a3c22"), hat=wild_hair, skin="#d0a080", extra=berserker)
+
+    def halberdier(a, layer):
+        if layer == "front":
+            a.poly([(-6, -27), (6, -27), (5, -14), (-5, -14)], steel, INK, 1.1)  # breastplate
+            a.line([(0, -26), (0, -15)], steel_d, 1)
+            a.line([(4, -20), (9, -21)], INK, 4)  # arm
+            a.line([(9, 0), (10, -54)], INK, 3.2)  # the long shaft
+            a.line([(9, 0), (10, -54)], WOOD_L, 1.7)
+            a.raw('<path d="M10,-50 Q19,-50 18,-41 Q14,-43 10,-42 Z" fill="#c8ced6" stroke="%s" stroke-width="1.1"/>' % INK, [(9, -51), (19, -40)])  # axe blade
+            a.poly([(9, -47), (5, -49), (9, -45)], "#c8ced6", INK, 0.9)  # back hook
+            a.poly([(9.2, -54), (10.2, -62), (11.2, -54)], "#c8ced6", INK, 1)  # spike
+
+    def kettle_hat(a):
+        a.raw('<path d="M-10,-34 L10,-34 L6,-37 Q6,-43 0,-43 Q-6,-43 -6,-37 Z" fill="%s" stroke="%s" stroke-width="1.2" stroke-linejoin="round"/>' % (steel, INK), [(-11, -44), (11, -33)])
+    person("unit_halberdier", ("#3a4a6a", "#2c3a54"), hat=kettle_hat, extra=halberdier)
+
+
 def crossbowman():
     def extra(a, layer):
         if layer == "front":
@@ -3662,6 +3726,7 @@ def main():
     hero()
     caravan()
     shield_bearer()
+    shield_bearer_branches()
     crossbowman()
     swiftbowman()
     fire_summoner()

@@ -19,6 +19,8 @@ const STAT_NAMES := {
 	"heal": "Heals per pulse", "radius": "Heal radius out of a tower (tiles)", "splash": "Splash radius (tiles)",
 	"slow": "Slowed to (x speed)", "slow_time": "Slow lasts (s)", "push": "Throws back (tiles)",
 	"aura": "Allies deal more damage",
+	"cry": "War cry: allies attack faster", "cry_time": "War cry lasts (s)",
+	"rage": "Rage (strikes faster as HP drops)", "lifesteal": "Lifesteal when low",
 }
 const XP_WORDS := {
 	"hit": "per hit in a fight", "build_second": "per second of building",
@@ -336,10 +338,20 @@ static func _units() -> Array[Dictionary]:
 			var hi := Config.unit_stat(kind, stat, top)
 			if stat == "aura":
 				f.append("%s: +%d %% to +%d %% (the strongest aura counts)" % [stat_name, roundi(lo * 100.0), roundi(hi * 100.0)])
+			elif stat in ["cry", "lifesteal"]:
+				f.append("%s: +%d %% to +%d %%" % [stat_name, roundi(lo * 100.0), roundi(hi * 100.0)])
 			else:
 				f.append("%s: %s" % [stat_name, _span(lo, hi)])
+		if m.has("cry_interval"):
+			f.append("Shouts on a sortie, every %s s: every ally within %s tiles (also on towers) is hasted; cries don't stack" % [_n(m["cry_interval"]), _n(m["cry_radius"])])
+		if m.has("lifesteal_below"):
+			f.append("The more HP he has lost, the faster he strikes (time between blows x (1 - rage x share of HP lost)); below %d %% HP his blows heal him" % roundi(float(m["lifesteal_below"]) * 100.0))
+		if m.get("hits_flyers", false):
+			f.append("Reaches flyers")
 		if m.has("range"):
-			if m["role"] == "support":
+			if m["role"] == "melee":
+				f.append("Reach: %s tiles" % _n(m["range"]))
+			elif m["role"] == "support":
 				f.append("Aura: as far as its tower reaches; out on a barracks sortie %s tiles" % _n(m["range"]))
 			else:
 				f.append("Range out of the barracks: %s tiles" % _n(m["range"]))

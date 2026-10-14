@@ -29,6 +29,9 @@ var disable_fog := Config.DISABLE_FOG
 var test_villages := 1
 ## Co-op client: the host simulates; this game only shows what it sends.
 var is_client := false
+## Seconds of game time since this game began (stops while paused, runs with the
+## game speed). Timed effects (a war cry's haste) end at a clock time.
+var clock := 0.0
 ## Co-op (host or client): keeps clients in step (see Replicator).
 var replicator: Replicator
 ## Networked game (host or client).
@@ -218,6 +221,7 @@ func build_step(force := false) -> void:
 
 
 func _process(delta: float) -> void:
+	clock += delta
 	_info_timer -= delta
 	if _info_timer <= 0.0:
 		_info_timer = 0.25

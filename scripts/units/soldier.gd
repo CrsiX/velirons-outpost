@@ -14,6 +14,9 @@ extends Unit
 ## They never chase beyond the barracks' range + SORTIE_LEASH and walk back to
 ## their bench once no enemy is left in range. An Inquisitor picks its target
 ## by its "hunt" priorities (witches, then the unholy; see _hunt_distance).
+## A warrior shouts his war cry while out (Combat.war_cry); a halberdier goes
+## for flyers too; a berserker turns redder as it loses HP (its rage:
+## MilitaryUnit.rate).
 
 signal arrived(soldier: Soldier)
 
@@ -27,6 +30,7 @@ var farm: Farm = null
 var target: Enemy = null
 var _think := 0.0
 var _strike_cd := 0.0
+var _cry_cd := 0.0
 var _calm := 0.0
 var _chase_tile := Vector2i(-9999, -9999)
 
@@ -38,6 +42,7 @@ func setup(p_game: Game, p_unit: MilitaryUnit, from: Vector2i) -> void:
 	_init_sprite("unit_" + unit.kind)
 	UnitFx.show_unit(sprite, unit.kind)
 	UnitFx.add_halo(sprite, game, func() -> Vector2: return grid_pos)
+	UnitFx.add_cry_mark(sprite, game, func() -> Object: return unit)
 	set_grid_pos(Vector2(from))
 	add_to_group("observers")
 	add_to_group("melee_defenders")
@@ -70,10 +75,14 @@ func start_sortie(b: Barracks, p_farm: Farm = null) -> void:
 	farm = p_farm
 	mode = Mode.SORTIE
 	_calm = 0.0
+	_cry_cd = 0.0  # (a warrior shouts as soon as he is out)
 	UnitFx.show_unit(sprite, unit.kind)
 
 
 func _process(delta: float) -> void:
+	if unit and unit.has_stat("rage"):  # (the berserker: redder the more HP it has lost)
+		var missing := clampf(1.0 - unit.hp / unit.max_hp(), 0.0, 1.0)
+		sprite.self_modulate = Color(1.0, 1.0 - 0.6 * missing, 1.0 - 0.6 * missing)
 	if game.is_client:
 		net_follow(delta)  # the host simulates; we just follow
 		return
@@ -100,7 +109,9 @@ func _sortie(delta: float) -> void:
 		arrived.emit(self)
 		return
 	_think -= delta
-	_strike_cd -= delta
+	_strike_cd -= delta * unit.rate(game)
+	if unit.has_stat("cry"):
+		_war_cry(delta)
 	if _think <= 0.0:
 		_think = 0.3
 		if farm != null and (not is_instance_valid(farm) or barracks.enemy_near()):
@@ -118,7 +129,7 @@ func _sortie(delta: float) -> void:
 	_calm = 0.0
 	match unit.role():
 		"melee":
-			if target.grid_pos.distance_to(grid_pos) > Config.UNIT_MELEE_RANGE:
+			if target.grid_pos.distance_to(grid_pos) > unit.field_range():
 				_close_in(delta, target.grid_pos)
 			else:
 				_set_moving(false)
@@ -156,15 +167,15 @@ func _nearest_foe() -> Enemy:
 		home = Vector2(farm.tile)
 	var best: Enemy = null
 	var best_d := INF
-	var melee := unit.role() == "melee"
+	var flyers := unit.hits_flyers()
 	var hunt: Dictionary = unit.spec().get("hunt", {})
 	var current_d := INF
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
 		if e.dead or e.grid_pos.distance_to(home) > reach:
 			continue
-		if melee and e.flies():
-			continue  # (out of reach: it only gets hit back, see counter_strike)
+		if e.flies() and not flyers:
+			continue  # (out of a blade's reach: it only gets hit back, see counter_strike)
 		var d := _hunt_distance(e, e.grid_pos.distance_to(grid_pos), hunt)
 		if e == target:
 			current_d = d
@@ -193,6 +204,18 @@ static func _hunt_distance(e: Enemy, d: float, hunt: Dictionary) -> float:
 	if c == "" or not hunt.has(c) or d > float(hunt[c]["max"]):
 		return d
 	return d - float(hunt[c]["bonus"])
+
+
+## A warrior out on a sortie: at once, and then every cry_interval seconds,
+## his war cry hastes every ally around him (Combat.war_cry).
+func _war_cry(delta: float) -> void:
+	_cry_cd -= delta
+	if _cry_cd > 0.0:
+		return
+	_cry_cd = float(unit.spec()["cry_interval"])
+	Combat.war_cry(game, grid_pos, float(unit.spec()["cry_radius"]), unit.stat("cry"), unit.stat("cry_time"))
+	village.events.debug("%s shouts a war cry" % label())
+	recoil()
 
 
 ## A flyer hit it: a melee unit whose blow is ready strikes back at once.

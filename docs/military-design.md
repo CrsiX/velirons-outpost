@@ -18,17 +18,20 @@ and the Spatial Archmage. Every number lives in `scripts/core/config.gd`.
   - *Ranged* units (archers, the acolyte, the attacking mages) can go on towers
     or in barracks. Out in the field they use their own range, which is shorter
     than any tower's.
-  - *Melee* units (the shield bearer, the Inquisitor) go only in barracks.
+  - *Melee* units (the shield bearer and its Warrior, Berserker and Halberdier,
+    the Inquisitor) go only in barracks.
   - *Summoner* (summoner, fire summoner): summons elementals, no attack of its own.
   - *Healer* (healing mage): heals allies, no damage.
   - *Support* (High Priest): a damage aura, see docs/acolyte-design.md.
 - **Tech tree:** from level 3 of a base unit, an upgrade can also turn it into
   **level 1 of a specialised unit**:
   - archer → crossbowman / swiftbowman;
+  - shield bearer → warrior / berserker / halberdier (§3a);
   - summoner → fire summoner;
   - apprentice → fire / ice / healing / spatial mage;
   - acolyte → inquisitor / high priest (holy damage; see docs/acolyte-design.md).
-- **Specialisations are never weaker** than their base unit at the same level (§3).
+- **Specialising never costs strength:** a specialisation's level 1 is at least as
+  strong as its base unit's level 3, where it branches (§3).
 - **Spatial Archmage:** at level 10 a spatial mage can become one. The unit
   leaves the army and becomes a **civilian**. It's meant as a key piece of the
   game's future ending.
@@ -41,8 +44,9 @@ Recruitable (Army tab)        Specialisations (upgrade from level ≥ 3 → leve
 Archer ─────────────┬──────►  Crossbowman      (slow, heavy bolts; later: pierces shields)
   (ranged)          └──────►  Swiftbowman      (very fast, light arrows)
 
-Shield Bearer                 (no specialisations yet)
-  (melee, barracks only)
+Shield Bearer ──────┬──────►  Warrior          (tank; war cry: allies near him attack faster)
+  (melee,           ├──────►  Berserker        (attacks faster the more HP he lost; lifesteal when low)
+   barracks only)   └──────►  Halberdier       (long polearm: reaches flyers)
 
 Summoner ───────────────────► Fire Summoner    (fire elementals instead of earth)
   (summoner)
@@ -76,16 +80,17 @@ Acolyte ────────────┬──────►  Inquisitor
 
 Levels 1 → 10. Per-level values follow a curve (§8). DPS = damage ÷ cooldown.
 
-**The specialisation rule.** At every level, a specialisation is at least as
-strong as its base unit at the same level, in its base stats:
-- HP, always;
-- DPS, for units that attack (roles ranged and melee). The damage per hit may be
-  lower (the swiftbowman's is);
-- for summoners: `max_summons`, `summon_hp` and `summon_damage` at least as high,
-  `interval` no longer;
-- the healing mage and the High Priest have no real attack: only their HP is matched.
+**The specialisation rule.** Upgrading a level 3 base unit into level 1 of a
+specialisation never lowers its HP or DPS: every specialisation's level 1 is at
+least as strong as its base unit's level 3. Branching from a higher level may
+lose stats; that is the player's choice. Per-hit damage may be lower (the
+swiftbowman's is). The shield bearer's branches meet this rule (tests/military_bot.gd).
 
-tests/military_bot.gd checks this for every specialisation and level.
+The older specialisations are still balanced (and tested, `_specs_not_weaker`)
+by a same-level rule instead: at every level at least as strong as the base unit
+at that level (HP; DPS for attackers; summon stats and interval for summoners;
+only HP for the healing mage and the High Priest). Moving them to the level-3
+rule, and dropping the archer's and summoner's pinned levels, is a later change.
 
 | Unit | Role / posts | HP (L1 → L10) | Own range* | Damage (L1 → L10) | Cooldown s | DPS | Notes |
 |---|---|---|---|---|---|---|---|
@@ -93,6 +98,9 @@ tests/military_bot.gd checks this for every specialisation and level.
 | **Crossbowman** | ranged · tower, barracks | 34 → 100 | 3.2 | 50 → 170 | 2.25 → 1.7 | 22 → 100 | L1 DPS = archer L3 (22); `pierce` flag reserved (no shielded enemies yet) |
 | **Swiftbowman** | ranged · tower, barracks | 30 → 90 | 2.6 | 7.5 → 17 | 0.30 → 0.18 | 25 → 94 | ≥ 2× the archer's fire rate, small hits; fancier art, multi-string bow |
 | **Shield Bearer** | melee · barracks only | 55 → 180 | melee (0.8) | 3 → 12 | 1.2 → 0.9 | 2.5 → 13 | ork-like HP, very low damage: holds enemies up |
+| **Warrior** | melee · barracks only | 90 → 300 | melee (0.8) | 6 → 30 | 1.15 → 0.85 | 5.2 → 35 | the most HP; war cry (§3a) |
+| **Berserker** | melee · barracks only | 85 → 200 | melee (0.8) | 8 → 71 | 1.15 → 0.8 | 7 → 89 at full HP | rage and lifesteal (§3a); ~317 DPS at L10 with 10 % HP |
+| **Halberdier** | melee · barracks only | 85 → 200 | 1.2 | 9 → 76 | 1.25 → 0.85 | 7.2 → 89 | reaches flyers (§3a) |
 | **Summoner** | summoner · tower, barracks | 18 → 50 | - | (summons) | - | - | fragile, no attack of its own (summon table below) |
 | **Fire Summoner** | summoner · tower, barracks | 18 → 50 | - | (summons) | - | - | fire elementals |
 | **Apprentice** | ranged · tower, barracks | 20 → 60 | 2.8 | 7 → 38 | 1.0 → 0.55 | 7 → 69 | whirling dark-blue orb, plain damage |
@@ -107,7 +115,7 @@ tests/military_bot.gd checks this for every specialisation and level.
 
 Damage categories (`ATTACKS` "category"): arrows and bolts are *projectile*,
 orbs, fireballs (and splash), frost and warp are *magical*, the acolyte line is
-*holy*, the shield bearer's strike is *melee*.
+*holy*, the shield bearer's line strikes *melee*.
 
 \* **Own range** is used out in the field (barracks sorties). It never grows
 with upgrades and is always smaller than the smallest tower range
@@ -143,6 +151,47 @@ bench after a sortie.
 It doesn't reach summons or villagers (villagers have HP, `CIVILIAN_HP`, but heal
 only at home). On a tower, a healing mage heals as far as the tower reaches
 (so tower upgrades widen it); elsewhere within its own `radius`.
+
+### 3a. The shield bearer's specialisations
+
+All three: from shield bearer level 3, `branch_cost` 150 gold, barracks only,
+upgrades 60 → 300 gold or 40 → 400 hero XP, plain curves (no pinned levels).
+Their level 1 (85-90 HP, 5.2-7.2 DPS) is above the shield bearer's level 3
+(83 HP, 4.4 DPS).
+
+**Warrior: war cry** (`cry`, `cry_time`, `cry_interval`, `cry_radius`)
+- Only out on a sortie (never on the bench or while walking): as soon as he is
+  out, and then every `cry_interval` (10 s) while he stays out, he shouts.
+- The cry reaches every ally within `cry_radius` (2.5 tiles) of him, of any
+  village: units out on a sortie, units on towers (by the tower's tile), summons,
+  heroes, and himself.
+- Each one is **hasted** for `cry_time` (3 → 5 s) by `cry` (+10 % → +50 %): all
+  its timers run 1 + `cry` times as fast, so every interval is divided by
+  1 + `cry`. That is attacks (ranged, melee, holy), summoning (`interval`),
+  healing, the High Priest's counter-strike, the hero's sword and the
+  elementals' blows. Moving speed doesn't change.
+- **Strict refresh, no stacking** (`Combat.war_cry`): a unit holds one haste.
+  A cry at least as strong as the one it has refills it (the stronger value, the
+  later end); a weaker cry counts only once the stronger one has run out. So two
+  warriors shouting in turns keep it up, but never above one cry.
+- Looks: a red-orange shout ring around him (burst "war_cry"); a small
+  red-orange double chevron over every hasted unit (`UnitFx`, host and single
+  player).
+
+**Berserker: rage and lifesteal** (`rage`, `lifesteal`, `lifesteal_below`)
+- **Rage:** his strike interval × (1 − `rage` × share of HP missing), `rage`
+  0.3 → 0.8. At 10 % HP: ×1.37 as fast at level 1, ×3.6 at level 10; near 0 HP
+  at level 10 almost ×5. It stacks with a war cry.
+- **Lifesteal:** while his HP is below `lifesteal_below` (50 %) he gets back
+  `lifesteal` (10 % → 25 %, a steeper curve: `"curves": {"lifesteal": 1.5}`,
+  ~14 % at level 5) of the HP his blows really take, never above his max HP.
+- Looks: his figure turns redder the more HP he has lost.
+
+**Halberdier: reaches flyers** (`hits_flyers`, `range`)
+- Goes for gargoyles and vampire bats like any other enemy, with no bonus
+  (a later cavalry enemy may get one). Barracks with a halberdier turn out for
+  flyers.
+- Reach 1.2 tiles (`range`) instead of the usual melee 0.8.
 
 ## 4. HP, downing and revival
 
@@ -194,10 +243,11 @@ only at home). On a tower, a healing mage heals as far as the tower reaches
 - **Sorties:**
   1. When an enemy comes within the activation range, every unit on a bench that
      isn't downed goes out. Monster-camp guards count too: barracks fight them
-     without an order (only the hero needs one). Barracks with only melee units
-     don't turn out for flyers.
+     without an order (only the hero needs one). Barracks whose units can't
+     reach flyers (only melee units, no halberdier) don't turn out for flyers.
   2. *Melee* units run to the nearest enemy and fight in close combat. They
-     can't go for flyers; they only counter-strike them.
+     can't go for flyers (except the halberdier, `hits_flyers`); they only
+     counter-strike them. A warrior shouts his war cry (§3a).
   3. *Ranged* units walk until the nearest enemy is within their own range, then
      stand and shoot. Healing mages and High Priests stay among their comrades.
      Summoners stay just outside the barracks and summon there; enemies can
@@ -222,7 +272,7 @@ only at home). On a tower, a healing mage heals as far as the tower reaches
 - Summoners and fire summoners can serve on towers or in barracks.
 - Healing mages work from towers (around the tower) and from barracks (they go
   out with the others when enemies come near).
-- Shield bearers and Inquisitors are barracks-only.
+- Shield bearers, warriors, berserkers, halberdiers and Inquisitors are barracks-only.
 - Towers, like barracks, fight monster-camp guards in range without an order.
 - A witch's spell bewitches a tower's unit: no shooting, summoning or healing
   for a while (a High Priest's aura keeps working).
@@ -304,8 +354,13 @@ const SUMMON := {"attack_cooldown": 1.0, "attack_range": 0.8, "sight": 3.5, "lea
   cooldown, the summoner's four summon stats, levels 1-4); the curve continues
   from the last pinned value. `"upgrade_cost_pinned"` / `"train_xp_pinned"` do the
   same for the gold and hero XP of the first level-ups.
-- `"curve"` (optional, default 1.0 = linear) is an exponent on the curve; no unit
-  sets it, so every curve is linear.
+- `"curve"` (optional, default 1.0 = linear) is an exponent on the curve for all
+  of a unit's stats; no unit sets it. `"curves"` sets it per stat (the
+  berserker's `{"lifesteal": 1.5}`); a stat not named there uses `"curve"`.
+- Melee extras: `"hits_flyers"` (the halberdier), `"range"` for a melee reach
+  other than `UNIT_MELEE_RANGE`, `"cry_interval"` / `"cry_radius"` (the warrior),
+  `"lifesteal_below"` (the berserker); the growing parts are stats (`cry`,
+  `cry_time`, `rage`, `lifesteal`).
 - `Config.unit_stat(kind, key, level)` reads a stat; `unit_upgrade_cost` (gold,
   rounded to 5) and `unit_train_xp` read the others.
 - A test checks that every unit's own `range` is below the smallest tower range.
@@ -316,6 +371,10 @@ const SUMMON := {"attack_cooldown": 1.0, "attack_range": 0.8, "sight": 3.5, "lea
 |---|---|
 | `barracks`, `_2`, `_3` | 2×2 yard, hut, fence; 1/2/3 benches; table with bread and mugs; barrel; straw puppet with arrows |
 | `unit_shield_bearer` | smaller person behind a large tower shield (planks, iron rim, crest) |
+| `unit_warrior` | broad soldier in mail with a red tabard, round shield and a raised sword, horned helm |
+| `unit_berserker` | bare-chested, wild red hair and beard, fur cloak, a big two-handed axe |
+| `unit_halberdier` | steel kettle hat and breastplate, a tall halberd (axe blade, spike, hook) |
+| effects | war cry: a red-orange shout ring around the warrior; a red-orange double chevron over hasted units |
 | `unit_crossbowman` | leather armour, heavy crossbow |
 | `unit_swiftbowman` | fancier archer: green-and-gold, feathered cap, a bow with several strings |
 | `unit_fire_summoner` | summoner in red and orange, glowing hands |
@@ -338,7 +397,10 @@ The acolyte line's art is in docs/acolyte-design.md.
   - `HealerBehavior`, `SupportBehavior`;
   - `SummonerBehavior`, parametrised by summon type (`SUMMONS`);
   - melee units use the plain `MilitaryBehavior` (their fighting is in `Soldier`);
-  - `Combat` plays attacks and their effects (splash, slow, push, heal, holy auras).
+  - `Combat` plays attacks and their effects (splash, slow, push, heal, holy auras,
+    the war cry's haste and the berserker's lifesteal). `Combat.haste(holder)`
+    is the factor every attack, summon and heal timer runs at (a unit's
+    `MilitaryUnit.rate()` adds the berserker's rage).
 
   The same behaviours work from a tower (tower range) and in the field (own range).
 - **Field units.** `Soldier` is the unit's body outside, with HP, a combat
@@ -367,7 +429,8 @@ The acolyte line's art is in docs/acolyte-design.md.
 - Barracks: 20 material + 30 gold. Levels 1/2/3 with 1/2/3 slots and 4/5/6 tiles of range.
 - Revive 30-45 s, scaling with level. Regeneration 1 HP/s on benches and in the reserve.
 - Branching from level 3. The branch costs 150 gold (crossbowman, swiftbowman,
-  fire summoner, inquisitor, high priest) and 120 gold for each mage.
+  warrior, berserker, halberdier, fire summoner, inquisitor, high priest) and
+  120 gold for each mage.
 - Spatial Archmage from spatial mage level 10, for 600 gold and a free hut.
 
 ## 12. Decisions (confirmed)
@@ -391,4 +454,9 @@ The acolyte line's art is in docs/acolyte-design.md.
 | D15 | Recruitable units | Archer, shield bearer, summoner, apprentice, acolyte; the summoner, the apprentice and the acolyte have to be unlocked first at their unlock sites (docs/world-design.md §9.4) |
 | D16 | Upgrade costs | Gentle curve: gold for level 10 about **300** (per unit, in config) |
 | D17 | Hero training XP | Rising to about 400 XP for level 10 (per unit, × difficulty) |
-| D18 | Specialisations vs base unit | **Never weaker** at the same level: HP, DPS for attackers, summon stats and interval for summoners; only HP for the healing mage and the High Priest (§3) |
+| D18 | Specialisations vs base unit | Level 1 of a specialisation **never weaker than level 3** of its base unit (HP, DPS); the older specialisations still follow a same-level rule until a later change (§3) |
+| D19 | Shield bearer branches | Warrior, Berserker, Halberdier; like every branch (level 3, 150 gold), barracks only (§3a) |
+| D20 | War cry | Attack speed (every interval, also casting, summoning, healing) +10 % → +50 % for 3 → 5 s, every 10 s on a sortie, 2.5 tiles, also tower units; strict refresh, no stacking |
+| D21 | Berserker | Rage 0.3 → 0.8; lifesteal 10 % → 25 % (curve 1.5) below half HP; the high ceiling is wanted |
+| D22 | Halberdier | Reaches flyers, no bonus (a bonus waits for a cavalry enemy); reach 1.2 |
+| D23 | DPS of the damage dealers | Berserker (at full HP) and halberdier match the archer's level 10 DPS (89) |

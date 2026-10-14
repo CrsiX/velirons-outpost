@@ -9,7 +9,7 @@ var _cooldown := 0.5
 
 
 func tick(post: Node, unit: MilitaryUnit, delta: float) -> void:
-	_cooldown -= delta
+	_cooldown -= delta * unit.rate(post.game)
 	if _cooldown > 0.0:
 		return
 	if Combat.heal_around(post.game, post.act_center(), heal_radius(post, unit), unit.stat("heal")) > 0:
