@@ -566,7 +566,7 @@ const MILITARY := {
 	},
 	"crossbowman": {
 		"name": "Crossbowman", "role": "ranged", "posts": ["tower", "barracks"], "recruit": false,
-		"branch_of": "archer", "branch_cost": {"gold": 150},
+		"branch_of": "archer", "branch_cost": {"gold": 100},
 		"speed": 1.6, "attack": "bolt", "range": 3.2, "pierce": true,  # (piercing: for shielded enemies, later)
 		"desc": "Slow, heavy crossbow bolts; reaches further than an archer in the field.",
 		"stats": {"hp": [44.0, 100.0], "damage": [50.0, 170.0], "cooldown": [2.25, 1.7]},
@@ -574,7 +574,7 @@ const MILITARY := {
 	},
 	"swiftbowman": {
 		"name": "Swiftbowman", "role": "ranged", "posts": ["tower", "barracks"], "recruit": false,
-		"branch_of": "archer", "branch_cost": {"gold": 150},
+		"branch_of": "archer", "branch_cost": {"gold": 100},
 		"speed": 2.0, "attack": "swift_arrow", "range": 2.6,
 		"desc": "A hail of light arrows: tiny hits, very fast.",
 		"stats": {"hp": [44.0, 95.0], "damage": [7.5, 18.0], "cooldown": [0.3, 0.18]},
@@ -595,7 +595,7 @@ const MILITARY := {
 	# stronger cry refills it, a weaker one counts once it has run out.
 	"warrior": {
 		"name": "Warrior", "role": "melee", "posts": ["barracks"], "recruit": false,
-		"branch_of": "shield_bearer", "branch_cost": {"gold": 150},
+		"branch_of": "shield_bearer", "branch_cost": {"gold": 100},
 		"speed": 1.4, "attack": "strike", "cry_interval": 10.0, "cry_radius": 2.5,
 		"desc": "Barracks only. Mail, shield and sword, the most HP of all; his war cry makes allies near him attack faster.",
 		"stats": {"hp": [90.0, 300.0], "damage": [6.0, 30.0], "cooldown": [1.15, 0.85], "cry": [0.1, 0.5], "cry_time": [3.0, 5.0]},
@@ -606,7 +606,7 @@ const MILITARY := {
 	# HP his blows really take (never above his max).
 	"berserker": {
 		"name": "Berserker", "role": "melee", "posts": ["barracks"], "recruit": false,
-		"branch_of": "shield_bearer", "branch_cost": {"gold": 150},
+		"branch_of": "shield_bearer", "branch_cost": {"gold": 100},
 		"speed": 1.6, "attack": "strike", "lifesteal_below": 0.5,
 		"desc": "Barracks only. A great axe and no armour: the more HP he has lost, the faster he strikes, and when low he heals from his blows.",
 		"stats": {"hp": [85.0, 200.0], "damage": [8.0, 71.0], "cooldown": [1.15, 0.8], "rage": [0.3, 0.8], "lifesteal": [0.1, 0.25]},
@@ -615,7 +615,7 @@ const MILITARY := {
 	},
 	"halberdier": {
 		"name": "Halberdier", "role": "melee", "posts": ["barracks"], "recruit": false,
-		"branch_of": "shield_bearer", "branch_cost": {"gold": 150},
+		"branch_of": "shield_bearer", "branch_cost": {"gold": 100},
 		"speed": 1.3, "attack": "strike", "range": 1.2, "hits_flyers": true,
 		"desc": "Barracks only. A long halberd reaches farther than other blades, and up to flyers.",
 		"stats": {"hp": [85.0, 200.0], "damage": [9.0, 76.0], "cooldown": [1.25, 0.85]},
@@ -631,7 +631,7 @@ const MILITARY := {
 	},
 	"fire_summoner": {
 		"name": "Fire Summoner", "role": "summoner", "posts": ["tower", "barracks"], "recruit": false,
-		"branch_of": "summoner", "branch_cost": {"gold": 150},
+		"branch_of": "summoner", "branch_cost": {"gold": 100},
 		"speed": 1.4, "summon": "fire",
 		"desc": "Summons fire elementals: quick and deadly, but they burn themselves up.",
 		"stats": {"hp": [26.0, 55.0], "interval": [3.9, 2.5], "max_summons": [4.0, 8.0], "summon_hp": [36.0, 95.0], "summon_damage": [7.5, 20.0]},
@@ -694,7 +694,7 @@ const MILITARY := {
 	# only for an enemy at least hunt_switch tiles better.
 	"inquisitor": {
 		"name": "Inquisitor", "role": "melee", "posts": ["barracks"], "recruit": false,
-		"branch_of": "acolyte", "branch_cost": {"gold": 150},
+		"branch_of": "acolyte", "branch_cost": {"gold": 100},
 		"speed": 1.6, "attack": "smite",
 		"hunt": {"witch": {"bonus": 4.0, "max": 7.0}, "unholy": {"bonus": 2.0, "max": 5.0}}, "hunt_switch": 1.0,
 		"desc": "Holy cross and warhammer. Hunts witches first, then the undead, then anything else. Barracks only.",
@@ -708,7 +708,7 @@ const MILITARY := {
 	# corpse in it, take necro_slow x as long.
 	"high_priest": {
 		"name": "High Priest", "role": "support", "posts": ["tower", "barracks"], "recruit": false,
-		"branch_of": "acolyte", "branch_cost": {"gold": 150},
+		"branch_of": "acolyte", "branch_cost": {"gold": 100},
 		"speed": 1.5, "attack": "strike", "range": 2.6, "glow": "#fff2c0", "necro_slow": 2.0,
 		"desc": "Blesses every ally around it: more damage for units, towers, the hero and summons. Necromancers raise slower near it.",
 		"stats": {"hp": [44.0, 95.0], "aura": [0.02, 0.2], "damage": [3.0, 10.0], "cooldown": [1.4, 1.0]},

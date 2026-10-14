@@ -20,7 +20,7 @@ rules (levels, HP, downing, barracks, specialising).
 - **Unlock:** the **Ruined chapel**, an unlock site like the stone circle and the mage's
   tower. It awakens at **wave 6**, 16-24 tiles from a village, and the hero visits it.
 - **Holy damage:** every enemy kind has a holy factor (§3).
-- **Specialisations** from level 3 (150 gold each):
+- **Specialisations** from level 3 (100 gold each):
   - **Inquisitor:** melee, holy cross and warhammer. Hunts witches first, then the unholy,
     then anything else. Barracks or training grounds only, never towers.
   - **High Priest:** support. An aura gives allies +2 % to +20 % damage, slows necromancers'

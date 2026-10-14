@@ -696,9 +696,9 @@ func _test_shield_branches() -> void:
 	var ok := true
 	for k in ["warrior", "berserker", "halberdier"]:
 		var sp: Dictionary = Config.MILITARY[k]
-		ok = ok and sp["posts"] == ["barracks"] and sp["branch_cost"] == {"gold": 150} and sp["role"] == "melee"
+		ok = ok and sp["posts"] == ["barracks"] and sp["branch_cost"] == {"gold": 100} and sp["role"] == "melee"
 		ok = ok and Config.unit_stat(k, "hp", 0) >= sb_hp and _dps(k, 0) >= sb_dps
-	check(ok, "all three: barracks only, 150 gold, and level 1 at least as strong as a level %d shield bearer (%.0f HP, %.1f DPS)" % [Config.BRANCH_MIN_LEVEL, sb_hp, sb_dps])
+	check(ok, "all three: barracks only, 100 gold, and level 1 at least as strong as a level %d shield bearer (%.0f HP, %.1f DPS)" % [Config.BRANCH_MIN_LEVEL, sb_hp, sb_dps])
 	var top := Config.MAX_UNIT_LEVEL - 1
 	check(absf(_dps("berserker", top) - _dps("archer", top)) < 1.5 and absf(_dps("halberdier", top) - _dps("archer", top)) < 1.5, "berserker and halberdier at level 10 deal an archer's DPS (%.0f / %.0f / %.0f)" % [_dps("berserker", top), _dps("halberdier", top), _dps("archer", top)])
 	var ls5 := Config.unit_stat("berserker", "lifesteal", 4)

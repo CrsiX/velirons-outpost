@@ -159,7 +159,7 @@ only at home). On a tower, a healing mage heals as far as the tower reaches
 
 ### 3a. The shield bearer's specialisations
 
-All three: from shield bearer level 3, `branch_cost` 150 gold, barracks only,
+All three: from shield bearer level 3, `branch_cost` 100 gold, barracks only,
 upgrades 60 → 300 gold or 40 → 400 hero XP.
 Their level 1 (85-90 HP, 5.2-7.2 DPS) is above the shield bearer's level 3
 (83 HP, 4.4 DPS).
@@ -430,7 +430,7 @@ The acolyte line's art is in docs/acolyte-design.md.
 
 - Barracks: 20 material + 30 gold. Levels 1/2/3 with 1/2/3 slots and 4/5/6 tiles of range.
 - Revive 30-45 s, scaling with level. Regeneration 1 HP/s on benches and in the reserve.
-- Branching from level 3. The branch costs 150 gold (crossbowman, swiftbowman,
+- Branching from level 3. The branch costs 100 gold (crossbowman, swiftbowman,
   warrior, berserker, halberdier, fire summoner, inquisitor, high priest) and
   120 gold for each mage.
 - Spatial Archmage from spatial mage level 10, for 600 gold and a free hut.
@@ -457,7 +457,7 @@ The acolyte line's art is in docs/acolyte-design.md.
 | D16 | Upgrade costs | Gentle curve: gold for level 10 about **300** (per unit, in config) |
 | D17 | Hero training XP | Rising to about 400 XP for level 10 (per unit, × difficulty) |
 | D18 | Specialisations vs base unit | Level 1 **never weaker than the base unit's level 3** (HP, DPS, summons); level 10 **stronger than the base unit's level 10**; in between it may fall a little short (§3) |
-| D19 | Shield bearer branches | Warrior, Berserker, Halberdier; like every branch (level 3, 150 gold), barracks only (§3a) |
+| D19 | Shield bearer branches | Warrior, Berserker, Halberdier; like every branch (level 3, 100 gold), barracks only (§3a) |
 | D20 | War cry | Attack speed (every interval, also casting, summoning, healing) +10 % → +50 % for 3 → 5 s, every 10 s on a sortie, 2.5 tiles, also tower units; strict refresh, no stacking |
 | D21 | Berserker | Rage 0.3 → 0.8; lifesteal 10 % → 25 % (curve 1.5) below half HP; the high ceiling is wanted |
 | D22 | Halberdier | Reaches flyers, no bonus (a bonus waits for a cavalry enemy); reach 1.2 |
