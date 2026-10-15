@@ -498,6 +498,7 @@ func _test_branching() -> void:
 	await frames(2)
 	check(trade_off and not hud._trade_buttons[1].disabled, "the trade dialog's buttons follow the gold too")
 	game.economy.add("gold", gold_had - game.economy.amount("gold"))
+	await frames(2)  # (the dialog's buttons follow the gold back)
 	if ice_btn:
 		await tap(ice_btn)
 		await frames(2)
@@ -627,10 +628,10 @@ func _test_holy() -> void:
 	game.army.station(ac2, barracks)
 	await wait_until(func() -> bool: return ac2.state == MilitaryUnit.State.STATIONED, 60.0)
 	var bait := spawn_dummy("goblin", Vector2(game.world.pathing.nearest_walkable(Vector2i((bc + Vector2(1.5, 0)).round()))), 200.0)
-	var sortie := await wait_until(func() -> bool: return ac2.out and is_instance_valid(ac2.walker), 20.0)
+	var ac2_out := await wait_until(func() -> bool: return ac2.out and is_instance_valid(ac2.walker), 20.0)
 	var body := ac2.walker as Soldier
-	var glowed := sortie and body.sprite.get_node_or_null("Glow") != null
-	check(sortie and game.army.upgrade(ac2, "inquisitor") and ac2.walker == body, "an acolyte out on a sortie becomes an inquisitor")
+	var glowed := ac2_out and body.sprite.get_node_or_null("Glow") != null
+	check(ac2_out and game.army.upgrade(ac2, "inquisitor") and ac2.walker == body, "an acolyte out on a sortie becomes an inquisitor")
 	check(glowed and body.sprite.get_meta("unit_kind", "") == "inquisitor" and body.sprite.get_node_or_null("Glow") == null and is_equal_approx(body.speed, Config.MILITARY["inquisitor"]["speed"]),
 		"the one out there turns into an inquisitor at once: its look (no acolyte glow) and its speed")
 	bait.take_damage(1e9)

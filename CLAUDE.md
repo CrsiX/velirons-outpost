@@ -10,36 +10,38 @@
 - New player units: ask the user how each one is unlocked before building it.
 - Every balance number and tunable goes into `scripts/core/config.gd`, documented there. The user wants things configurable in config.
 - New design work goes into `docs/*-design.md` first when it is big. They describe what is built and carry the details and real numbers this file leaves out; keep the matching doc up to date with a change:
-  - `enemies-design.md` (waves, difficulty, damage categories, every enemy kind), `hero-design.md`, `village-design.md` (resources, villagers, buildings, tear-down, warnings), `military-design.md` (units, barracks, specialising), `acolyte-design.md` (the acolyte line, holy damage), `world-design.md` (map generator, special objects), `multiplayer-design.md`, `tutorial-design.md`, `ui-design.md` (title screen, HUD, dock, placing, dialogs, camera, log), `statistics-design.md` (the statistics screen and what it counts).
+  - `enemies-design.md` (waves, difficulty, damage categories, every enemy kind), `hero-design.md`, `village-design.md` (resources, villagers, buildings, tear-down, warnings), `military-design.md` (units, barracks, specialising), `acolyte-design.md` (the acolyte line, holy damage), `world-design.md` (map generator, special objects), `multiplayer-design.md`, `tutorial-design.md`, `ui-design.md` (title screen, HUD, dock, placing, dialogs, camera, log), `statistics-design.md` (the statistics screen and what it counts), `map-editor-design.md` (the map editor, the JSON map format, playing maps from files, villages nobody plays).
 - Specialisations: the step from a level 3 base unit (`BRANCH_MIN_LEVEL`) to a level 1 specialisation must never lower HP or DPS (summoners: summons), so every specialisation's level 1 is at least as strong as its base unit's level 3; and its level 10 is stronger than the base unit's level 10 (a higher ceiling). In between it may fall a little short. Branching from a higher level may lose stats: that is the player's choice. `military_bot`'s `_spec_rule_breaks` checks both. Every unit runs on its curves only (no hand-set levels).
 - The memory directory (`~/.claude/projects/.../memory/`) can't be written (sandbox), so lasting notes go here.
 
 **Environment:**
-- Godot 4.7.2 is in `bin/Godot_v4.7.2-stable_linux.x86_64` (the sandbox can't download it from GitHub), and gdtoolkit (gdlint) in `venv/`: `GDLINT=venv/bin/gdlint tests/lint.sh` (run it with `HOME=$TMPDIR`, gdtoolkit writes a cache under `~/.cache`).
+- Godot 4.7.2 is in `bin/Godot_v4.7.2-stable_linux.x86_64` (the sandbox can't download it from GitHub), and gdtoolkit (gdlint) in `venv/`: `GDLINT=venv/bin/gdlint tests/lint.sh` (run it with `HOME=$TMPDIR`, gdtoolkit writes a cache under `~/.cache`). The venv's scripts still name the project's old folder (`velirons-oupost`) in their first line; if `venv/bin/gdlint` "cannot execute", point `GDLINT` at a two-line script running `venv/bin/python3 -m gdtoolkit.linter "$@"`.
 - The sandbox can't write `~/.local/share/godot`, so run Godot through a wrapper script `gd` in the scratchpad:
   ```
   #!/bin/bash
   export XDG_DATA_HOME=$SCRATCH/xdg/data XDG_CONFIG_HOME=$SCRATCH/xdg/config XDG_CACHE_HOME=$SCRATCH/xdg/cache
   mkdir -p $XDG_DATA_HOME $XDG_CONFIG_HOME $XDG_CACHE_HOME
-  /home/user/velirons-oupost/bin/Godot_v4.7.2-stable_linux.x86_64 "$@" &
+  /home/user/velirons-outpost/bin/Godot_v4.7.2-stable_linux.x86_64 "$@" &
   pid=$!; trap 'kill -9 $pid 2>/dev/null' TERM INT; wait $pid; rc=$?
   rm -rf $XDG_DATA_HOME/godot/app_userdata/*/logs; exit $rc
   ```
   Here `$SCRATCH` stands for the absolute scratchpad path.
 - After adding a new `class_name`, run `gd --headless --path . --import` once, or other scripts won't find it.
 - Run a test: `timeout 2700 gd --headless --path . --fixed-fps 60 res://tests/<bot>.tscn 2>&1 | grep -E "FAIL|CHECKS|SCRIPT ERROR|Parse Error"`. Net: `tests/run_net_test.sh <path to gd>`. Bots take minutes each; run several in one background shell. Game creation takes about 5-8 s headless (map generation about 4 s). This sandbox runs GDScript roughly 10x slower than a normal PC (a million-step loop: ~0.5 s), so judge timings relatively.
-- Headless runs can't render. For anything visual, tell the user what to look at.
+- Headless runs can't render, but X display `:0` exists (software OpenGL): `tools/ui_shots.tscn` opens the UI there and saves screenshots to look at (`DISPLAY=:0 gd --path . --display-driver x11 --rendering-driver opengl3 res://tools/ui_shots.tscn -- --out=<dir> [--only=title|editor|lobby|game] [--max]` (`--max`: the window maximised for the landscape pictures; the display has been Full HD and 4K); it needs the sandbox off, which the user allowed for this). Windows show on that display while it runs.
 - Art is SVG made by `tools/gen_art.py`. Never hand-edit `art/*.svg` or `scripts/core/art_manifest.gd`; edit the generator and rerun it.
 - The title backdrop's maps are baked into `data/title_maps/` (`BakedMap`). After changing the map generator or the scenes' map type / seed, rebake: `gd --headless --path . res://tools/bake_title_maps.tscn` (title_bot fails while they are stale). Tools that need autoloads must be run as a scene, not with `-s`.
+- A lambda can't assign the caller's local variables (they are captured by value): let it fill an Array or Dictionary the caller holds.
+- Warnings are errors here (a variable inferred from a Variant, a local shadowing a signal such as `changed`, a coroutine called without `await`): give the type, rename, `await` in plain `if` branches.
 - Writing into a packed array held inside an Array or Dictionary (`arr[i][k] = x`) can copy the whole packed array: fill a local one and store it once.
 
 **Test baseline:** all bots pass except these known failures, which predate current work:
 - enemy_bot: 1 ("a fighter of ours near: the necromancer stands and waits").
-- rat_bot: 4-6 (goblin hits villager, villager dies, barracks to the farm, uncovers).
+- rat_bot: 4-6 (killed rats pay gold and leave no corpse, goblin hits villager, villager dies, barracks to the farm, the gatherer's dropped loot, uncovers).
 - sim_bot: 3 (the two training-pause checks "during the pause ... no XP goes on" and "changing his mode then keeps his XP"; the log check misses "Debug: cancel construction", a message nothing logs). "Explore: the hero uncovers fog" is flaky on top.
 - title_bot: 1 without `CI` set ("made over N frames in ... ms, the longest ... ms": the frame-time limit, too tight for this slow sandbox); with `CI` set it passes.
 
-Anything else failing is new. Last counts (with `CI=true`): stats 57, library 54, tutorial 104, sim 365, military 140, coop 69, build 78, title 124, enemy 109, rat 139, world 77, mapgen 57, net 19 + 27. Lint (`tests/lint.sh`) is clean.
+Anything else failing is new. Last counts (with `CI=true`): stats 67, library 54, tutorial 104, sim 367, military 145, coop 69, build 78, title 124, enemy 111, rat 139, world 77, mapgen 64, map_format 151, editor 86, net 19 + 27 and (`--custom`) 12 + 12. Lint (`tests/lint.sh`) is clean.
 
 **Gotchas learned the hard way:**
 - Game speed is `Engine.time_scale` (speed 0 pauses the tree instead and leaves `time_scale` as it was). Code that must run in real time (UI, `train_pause`, the title backdrop's clock and tweens) divides delta by `maxf(Engine.time_scale, 0.001)` or uses `set_ignore_time_scale(true)`. Anything that changes `time_scale` must reset it to 1 on exit.
@@ -167,9 +169,11 @@ The last outpost of the kingdom of Veliron sits in the middle of a generated 75�
 - **Defeat:** when no civilians or no intact huts remain.
 
 ## Title screen
-The game opens on a title screen with **Singleplayer**, **Multiplayer**, **Tutorial**, **Library** and **Exit**, each with an icon (Exit is hidden in the browser).
+The game opens on a title screen with **Singleplayer**, **Multiplayer**, **Tutorial**, **Library**, **Map Editor** and **Exit**, each with an icon (Exit is hidden in the browser).
 - *Behind the menu* a real game plays itself in slow motion (`Config.TITLE_BACKDROP`, `scripts/ui/title_backdrop.gd`): scenes one after the other, each a fresh game on a fixed map with fixed posts, units and enemy groups, the camera drifting along its road. The menu shows at once over black; only then is the first scene made, and it fades in. Between scenes it fades to black (at least `black` seconds), makes the next one and fades in. Scenes are quick to make: their map is baked (`BakedMap`, `data/title_maps/`) and the game is built over many short frames (`Game.build_step`, `build_slice`; still and unrendered meanwhile), so the menu stays responsive. It stays until a game starts. No fog, sound, input, raids or defeat.
-- *Singleplayer* opens a sub-menu with **Play**, **Difficulty**, **Map** (the map type), a **seed** field (empty: random) and **Back** (Esc goes back too).
+- *Singleplayer* opens a sub-menu with **Play**, **Difficulty**, **Map** (the map type; after Random, *Custom...*: a map file from the map picker, then *Your village: n of m* when it has several), a **seed** field (empty: random; hidden for a map file) and **Back** (Esc goes back too).
+- **Map Editor** (docs/map-editor-design.md; `scenes/map_editor.tscn`, `scripts/editor/`): makes, inspects and edits maps of 50-200 tiles (`Config.MAP_SIZES`, villages per size `MAP_SIZE_SLOTS`), isometric or top-down (Tab), with tools for terrain, zones, trees and peaks, decor, beaches, roads (bridges and fords by themselves), volcanoes, villages and their single pieces, spawns, slices and objects; an inspector, layers, live checks (errors keep a map from being played; fewer than 2 approaches and a non-standard village layout only warn), undo / redo, and an automatic tidy-up. Maps are `.json` files (a canonical, readable format: rows of characters per tile layer; strict export, tolerant import that refuses anything outside the format) in `user://maps` (built-in ones: `res://data/maps`), imported / exported anywhere (a download on the web). *Play* tries the map; the game's settings then offer *Back to editor*. The web build warns before opening a map of 150 or more.
+  - A map file can be played in single player and co-op (the host picks it in the lobby, every client gets a copy, the host assigns each player a village). `MapData.for_game` makes the game's map: villages nobody plays become ownerless ruins (huts ruined for good, no owner, their spawns silent, enemies never go there).
 - *Multiplayer* (LAN co-op, up to 8 players; docs/multiplayer-design.md):
   - Pick your village's **name** and **colour** (both remembered). Then **Host game**, or join one of the **games found on your network**, or **join by address**.
   - In the **lobby** (two panes: the players on the left; your name and colour, the game's settings and Ready / Start / Leave on the right; stacked in portrait): everyone's village in its colour. Names and colours are unique (taken colours are greyed out), and can be changed until you tick **Ready**. The host picks the difficulty, the map type and seed, and **starts** once everyone is ready; nobody can join after that. A player who dropped can rejoin under the same village name.
@@ -235,8 +239,8 @@ For testing, `config.gd` has these switches:
 ## Code layout
 ```
 scripts/
-  core/       config.gd (all balance numbers), settings.gd (autoload: difficulty, map type and seed, tutorial_next, language; player name and colour, the only things saved to disk), screen_layout.gd (autoload "Layout": portrait / landscape), iso.gd (projection), art.gd + generated art_manifest.gd, sfx.gd (autoload, synthesized sounds)
-  world/      map_data, baked_map (maps saved beforehand), map_generator (the pipeline) + gen/ (gen_context, slices, fields, water, relief, zones, villages, roads,
+  core/       config.gd (all balance numbers), settings.gd (autoload: difficulty, map type and seed, a map file to play (custom_map, custom_village), the editor's session, tutorial_next, language; player name and colour, the only things saved to disk), screen_layout.gd (autoload "Layout": portrait / landscape), iso.gd (projection), art.gd + generated art_manifest.gd, sfx.gd (autoload, synthesized sounds)
+  world/      map_data, baked_map (maps saved beforehand), map_plan (a map's top-down colours), map_generator (the pipeline; any size) + gen/ (gen_context, slices, fields, water, relief, zones, villages, roads,
               fixes, objects, checks), pathing (A* for villagers, flow field for enemies), warning_lights,
               world (registry + layers), ground_layer, water_layer, fog_layer, world_overlay, map_edge_fade,
               objects/ (map_object → treasure, monster_camp, unlock_site, ruined_tower, monster_lair, mine)
@@ -251,12 +255,16 @@ scripts/
               earth_elemental (earth and fire), enemy + enemies/ (enemy_behavior base; melee, witch, rat, thief, necromancer, vampire, camp) and spell_bolt, corpse, arrow
   tutorial/   tutorial (the guided first game: steps, card, its waves), highlight (outline, marked tiles, arrow)
   ui/         title_screen, multiplayer_menu (join page + lobby), title_backdrop (the live background game), hud, library (the tabbed reference pages, from Config), stats_screen + stats_graph (the statistics screen), camera_controller, ui_theme
-  net/        net (autoload "Net": ENet session, lobby, commands up / snapshots down), lan_discovery, replicator
+  net/        net (autoload "Net": ENet session, lobby (a map file and its village assignment too), commands up / snapshots down), lan_discovery, replicator
+  editor/     the map editor: map_editor (scene root: state, input, undo, files, Play), editor_ui (panels, dialogs), editor_tools (every edit),
+              editor_overlay, iso_view, plan_view; map_json (the file format), map_library (files, import / export), map_tidy, map_checks,
+              map_picker, map_preview
   game.gd     composition root: villages, command entry (game.command), entity ids, speed, input modes, selection, raids, defeat; `clock` (game seconds, for timed effects like a war cry's haste)
 tools/gen_art.py   generates every SVG in art/ plus scripts/core/art_manifest.gd (python3, no dependencies)
 fastlane/metadata/android/en-US/  store listing (title, descriptions, changelogs/<version code>.txt, images: icon from icon.svg, feature graphic); .gdignore keeps Godot out
 tools/map_shot.sh  pictures of generated maps in maps/ (a plan, or the isometric view; runs map_shot.tscn)
 tools/bake_title_maps.*  bakes the title backdrop's maps into data/title_maps/ (run as a scene)
+tools/ui_shots.*   screenshots of the title screen, the map editor, the lobby and a game on a real display
 tests/sim_bot.*    headless end-to-end test of single player (~360 checks)
 tests/rat_bot.*    rats, villager HP, farm defence, loot, icons, tear-down, the no-builder and food-shortage warnings
 tests/enemy_bot.*  thief, gargoyle, necromancer, vampire, slimes
@@ -269,8 +277,10 @@ tests/build_bot.*  headless test of placing buildings: one per pick, Cancel, tou
 tests/stats_bot.*  headless test of the statistics: counters, sampling, the button / T / pausing, the tabs, game over, several villages, the client copy
 tests/library_bot.* headless test of the library: an entry for every kind in Config with its numbers, pausing, the book icon and the title screen's button, fitting the screen
 tests/title_bot.*  headless test of the title screen's background game: made over many frames on its baked (up-to-date) map, every scene's posts, units and enemies, slow motion, no input, fading via black
-tests/net_bot.*    two-process LAN test (host + client over localhost): tests/run_net_test.sh <godot>
-tests/mapgen_bot.* the map generator's parts on their own, and a seed sweep
+tests/net_bot.*    two-process LAN test (host + client over localhost): tests/run_net_test.sh <godot> runs it twice: a generated map, then (`--custom`) a map file with a village nobody plays
+tests/map_format_bot.* the JSON map format end to end: MapData <-> JSON <-> packed on generated maps, tolerant import, every refusal, maps from files played (ownerless villages)
+tests/editor_bot.* the map editor: views, every tool with undo / redo, the pointer, inspector, layers, files, the picker, Play and the session, the web warning
+tests/mapgen_bot.* the map generator's parts on their own, every map size, and a seed sweep
 tests/run_all.sh   runs every bot (env: GODOT, OUT, STOP); tests/summarize.py turns the logs into a summary
 tests/lint.sh      gdlint (gdtoolkit 4.5.0, rules in .gdlintrc)
 scenes/            main.tscn, title.tscn
@@ -280,6 +290,7 @@ The simulation runs in grid space; `Iso` projects it to the screen. All tunables
 
 ## Roadmap
 - Co-op multiplayer (LAN, 1–8 villages on one map): see [docs/multiplayer-design.md](docs/multiplayer-design.md).
+- Map editor and map files: built, see [docs/map-editor-design.md](docs/map-editor-design.md); scenarios (start setup, waves, triggers, areas that start explored) come next, in their own files pointing at a map.
 - World generation (zones, roads, water, volcanoes, special objects): built, see [docs/world-design.md](docs/world-design.md). Map pictures: `tools/map_shot.sh <players> [seed] [scale] [iso] [map type]` (a plan by default) → `maps/`.
 
 ## Development
@@ -296,7 +307,9 @@ godot --headless --fixed-fps 60 --path . res://tests/stats_bot.tscn     # the st
 godot --headless --fixed-fps 60 --path . res://tests/title_bot.tscn     # the title background
 godot --headless --fixed-fps 60 --path . res://tests/build_bot.tscn     # placing buildings, the portrait sheet
 godot --headless --fixed-fps 60 --path . res://tests/coop_bot.tscn      # multi-village map, co-op rules
-godot --headless --fixed-fps 60 --path . res://tests/mapgen_bot.tscn    # map generator parts, seed sweep
+godot --headless --fixed-fps 60 --path . res://tests/mapgen_bot.tscn    # map generator parts, sizes, seed sweep
+godot --headless --fixed-fps 60 --path . res://tests/map_format_bot.tscn # the JSON map format, maps from files
+godot --headless --fixed-fps 60 --path . res://tests/editor_bot.tscn     # the map editor
 GODOT=<godot> tests/run_all.sh                                         # every bot
 tests/lint.sh                                                          # gdlint
 tests/run_net_test.sh <godot>                                          # LAN host + client

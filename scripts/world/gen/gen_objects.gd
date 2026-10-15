@@ -119,7 +119,7 @@ func _add(o: Dictionary) -> int:
 # --- mines --------------------------------------------------------------------------------------
 
 func _mines() -> void:
-	var want := Config.MINES_PER_SLICE * float(c.type.get("mines", 1.0))
+	var want := Config.MINES_PER_SLICE * float(c.type.get("mines", 1.0)) * c.area_scale
 	# Outer-edge mountain tiles per slice (a walkable, reachable tile in front).
 	var by_slice: Array = []
 	for s in c.players:
@@ -172,7 +172,7 @@ func _front(t: Vector2i, vi: int) -> Vector2i:
 func _ruins() -> void:
 	for s in c.players:
 		var vi := _village_of_slice(s)
-		for k in c.count_in(Config.RUINED_TOWERS):
+		for k in c.count_in(Config.RUINED_TOWERS, c.area_scale):
 			var best := Vector2i(-1, -1)
 			var best_s := -INF
 			for tries in 12:
@@ -199,7 +199,7 @@ func _roads_near(t: Vector2i, r: int) -> int:
 # --- treasures and camps ------------------------------------------------------------------------
 
 func _treasures() -> void:
-	var k := c.count_in(Config.TREASURE_COUNT)
+	var k := maxi(1, c.count_in(Config.TREASURE_COUNT, c.area_scale)) if c.area_scale != 1.0 else c.count_in(Config.TREASURE_COUNT)
 	var relics := 0
 	var relic_keys: Array = Config.RELICS.keys()
 	for s in c.players:
@@ -316,7 +316,7 @@ func _unlock_sites() -> void:
 func _lairs() -> void:
 	for s in c.players:
 		var vi := _village_of_slice(s)
-		for k in c.count_in(Config.LAIRS_PER_SLICE):
+		for k in c.count_in(Config.LAIRS_PER_SLICE, c.area_scale):
 			var found := false
 			for tries in 60:
 				var t := _sample(s, Vector2(Config.LAIR_DISTANCE, Config.LAIR_DISTANCE + 25.0), func(p: Vector2i) -> bool: return _lair_art(p) != "", 20)

@@ -187,7 +187,7 @@ static func _water_within(c: GenContext, t: Vector2i, r: int) -> bool:
 
 static func _rivers(c: GenContext) -> void:
 	var m := c.m
-	var n := c.count_in(Config.RIVER_COUNT, float(c.type.get("rivers", 1.0)))
+	var n := c.count_in(Config.RIVER_COUNT, float(c.type.get("rivers", 1.0)) * c.length_scale)
 	if n <= 0:
 		return
 	for r in n:

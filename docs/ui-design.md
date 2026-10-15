@@ -26,13 +26,16 @@ Big touch targets everywhere, so mouse and fingers work the same.
 
 ## 2. Title screen (`title_screen.gd`, `title_backdrop.gd`)
 
-- **Main page:** Singleplayer, Multiplayer, Tutorial, Library and Exit, each with its own icon at the
-  same size. Exit is hidden in the browser (`OS.has_feature("web")`), since a page can't close its tab.
+- **Main page:** Singleplayer, Multiplayer, Tutorial, Library, Map Editor and Exit, each with its own
+  icon at the same size. Exit is hidden in the browser (`OS.has_feature("web")`), since a page can't
+  close its tab. **Map Editor** opens `scenes/map_editor.tscn` (docs/map-editor-design.md).
 - **Singleplayer page:** Play (primary style), Difficulty (cycles Normal → Hard → Easy), Map (the map
-  type: Temperate, Highlands, Coast, Desert, Volcanic, Random), a seed field (empty: random;
-  `Settings.parse_seed`), Back. The choices live in the `Settings` autoload: they carry over into the
-  game and back, but last only until the app closes. Only the multiplayer name and colour are saved
-  to disk (`user://player.cfg`).
+  type: Temperate, Highlands, Coast, Desert, Volcanic, Random, then Custom...: a map file from the
+  map picker, shown by its name; the next press goes back to Temperate), *Your village: n of m* (a map
+  file with several villages), a seed field (empty: random; `Settings.parse_seed`; hidden for a map
+  file), Back. The choices live in the `Settings` autoload: they carry over into the game and back,
+  but last only until the app closes. Only the multiplayer name and colour are saved to disk
+  (`user://player.cfg`).
 - **Multiplayer page:** `MultiplayerMenu` (docs/multiplayer-design.md). The title screen opens on it
   when a LAN session is still open (coming back from a game).
 - **Tutorial** sets `Settings.tutorial_next` and starts the game scene (docs/tutorial-design.md).
@@ -235,7 +238,10 @@ Big touch targets everywhere, so mouse and fingers work the same.
   - **Continue:** goes back to the speed it had before. Esc does the same.
   - **Log level:** cycles Info / Important / Debug.
   - **Language:** built (shows the flag) but hidden (`visible = false`): there is no other language yet.
-  - **Map type and seed:** shown so the map can be played again.
+  - **Map type and seed:** shown so the map can be played again; for a map from a file its name and
+    type instead.
+  - **Back to editor:** only in a game the map editor's Play started (`Settings.editor_play`); back
+    to the editor with its map, unsaved changes and undo (`Game.go_to_editor`).
   - **Back to title:** red, no confirmation; "Leave game" in a networked game.
   - **Co-op client:** the dialog doesn't pause, and a note says so.
   - **Co-op host:** pausing greys everything below the top bar for all players ("Paused by the host").

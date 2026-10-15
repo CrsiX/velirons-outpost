@@ -177,7 +177,7 @@ func _nearest_road(from: Vector2i) -> Vector2i:
 
 func _single() -> void:
 	var v := m.villages[0]
-	var spawns := _pick_edge_spawns(c.count_in(Config.SP_SPAWNS), -1, Vector2(v["center"]))
+	var spawns := _pick_edge_spawns(c.count_in(Config.SP_SPAWNS, c.length_scale), -1, Vector2(v["center"]))
 	for s in spawns:
 		_spawn_road(v, s)
 	# At least two approaches.
@@ -253,7 +253,7 @@ func _coop() -> void:
 	# Each village's own spawns, on its slice's stretch of the map edge.
 	for i in n:
 		var v := m.villages[i]
-		for s in _pick_edge_spawns(c.count_in(Config.COOP_SPAWNS), i, Vector2(v["center"])):
+		for s in _pick_edge_spawns(maxi(1, c.count_in(Config.COOP_SPAWNS, c.length_scale)), i, Vector2(v["center"])):
 			_spawn_road(v, s)
 
 

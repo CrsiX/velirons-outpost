@@ -109,6 +109,9 @@ func setup(p_game: Game, seed_value: int) -> void:
 			fog.reveal(Vector2(v["farm_plot"]), 2.0, i)
 		for j in map.villages.size():
 			fog.explore_tiles(MapData.rect_tiles(v["rect"]), j)
+	for a in map.abandoned:  # (everyone knows where the ruined villages are, too)
+		for j in map.villages.size():
+			fog.explore_tiles(MapData.rect_tiles(a["rect"]), j)
 	if map.villages.size() > 1:
 		_spawn_village_labels()
 	if game.reveal_map:
@@ -333,13 +336,25 @@ func clear_decor(t: Vector2i) -> void:
 
 func _spawn_village() -> void:
 	for piece in map.village_layout:
-		var kind: String = piece["kind"]
-		var b: Building = PIECE_SCRIPTS[kind].new()
-		if b is StaticPiece:
-			b.flip = piece["flip"]
-		b.village = game.villages[piece.get("owner", 0)]
-		b.setup(game, kind, piece["tile"], true)
-		add_building(b)
+		_spawn_piece(piece, game.villages[piece.get("owner", 0)])
+	# Villages of the map nobody plays: ownerless, every hut a ruin for good.
+	for a in map.abandoned:
+		for piece in a["pieces"]:
+			_spawn_piece(piece, null)
+
+
+func _spawn_piece(piece: Dictionary, owner: Village) -> void:
+	var kind: String = piece["kind"]
+	var b: Building = PIECE_SCRIPTS[kind].new()
+	if b is StaticPiece:
+		b.flip = piece["flip"]
+	b.village = owner
+	if owner == null:
+		b.set_meta("abandoned", true)
+		if b is Hut:
+			(b as Hut).ruined = true
+	b.setup(game, kind, piece["tile"], true)
+	add_building(b)
 
 
 ## Trees and peaks show on explored tiles of the local village's fog.

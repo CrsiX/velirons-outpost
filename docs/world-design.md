@@ -58,7 +58,7 @@ pictures in `maps/`).
 
 | What | How many / how big |
 |---|---|
-| Map | 75×75 for 1-2 players, +25 per 2 more players (150×150 for 7-8; `Config.map_size`) |
+| Map | 75×75 for 1-2 players, +25 per 2 more players (150×150 for 7-8; `Config.map_size`). The map editor makes any of `Config.MAP_SIZES` (50-200 in steps of 25; docs/map-editor-design.md §3): then the per-slice amounts below (treasures, ruins, lairs, mines) scale with the slice's area against the usual size, and edge spawns and rivers with the width (`Config.gen_area_scale`, `gen_length_scale`; 1 at the usual size, so those maps don't change) |
 | Slices | one per player, equal tile counts (± 1) |
 | Edge spawns | single player 3-5 (`SP_SPAWNS`), co-op 2-3 per village (`COOP_SPAWNS`), plus extra edge roads when a village needs a second approach |
 | Lakes | 1-3 per 75×75 of map area × the type's `lakes`, 12-60 tiles each |

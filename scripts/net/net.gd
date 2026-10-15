@@ -37,12 +37,17 @@ const TIMEOUT_MAX := 60000
 const TITLE_SCENE := "res://scenes/title.tscn"
 
 var role := Role.NONE
-## peer id -> {"name", "color", "ready", "village", "online", "loaded"}
+## peer id -> {"name", "color", "ready", "village", "slot", "online", "loaded"}
 var players: Dictionary = {}
 var difficulty := 1  # Settings.Difficulty
 ## The host's choice of map type (or "random") and seed (0: random).
 var map_type := "temperate"
 var map_seed := 0
+## A map from a file instead of a generated one (docs/map-editor-design.md §8):
+## the host's pick, which every client gets a copy of in the lobby (for its
+## name and preview). Each player then has a village of it ("slot" in
+## `players`), assigned by the host.
+var custom_map: MapData = null
 ## Host: fog options for the game (Config.REVEAL_MAP / DISABLE_FOG by default).
 var reveal_map := Config.REVEAL_MAP
 var disable_fog := Config.DISABLE_FOG
@@ -109,7 +114,8 @@ func host(p_name: String, color: int) -> String:
 	difficulty = Settings.difficulty
 	map_type = Settings.map_type
 	map_seed = Settings.map_seed
-	players = {1: {"name": p_name.strip_edges(), "color": color, "ready": true, "village": 0, "online": true, "loaded": true}}
+	players = {1: {"name": p_name.strip_edges(), "color": color, "ready": true, "village": 0, "slot": 0, "online": true, "loaded": true}}
+	custom_map = null
 	discovery.start_announcing(_announcement)
 	lobby_changed.emit()
 	return ""
@@ -148,13 +154,14 @@ func leave() -> void:
 	players = {}
 	in_game = false
 	game = null
+	custom_map = null
 	lobby_changed.emit()
 
 
 func _announcement() -> Dictionary:
 	return {
 		"game": GAME_ID, "proto": PROTOCOL, "name": players[1]["name"] if players.has(1) else "?",
-		"players": players.size(), "max": Config.MAX_PLAYERS, "port": game_port,
+		"players": players.size(), "max": max_players(), "port": game_port,
 		"difficulty": Settings.NAMES[difficulty],
 	}
 
@@ -216,9 +223,14 @@ func join_decision(proto: int, p_name: String) -> String:
 		return "The game has already started"
 	if taken >= 0:
 		return "The village name '%s' is taken" % p_name.strip_edges()
-	if players.size() >= Config.MAX_PLAYERS:
+	if players.size() >= max_players():
 		return "The game is full"
 	return ""
+
+
+## How many can play: Config.MAX_PLAYERS, or a custom map's villages.
+func max_players() -> int:
+	return custom_map.villages.size() if custom_map else Config.MAX_PLAYERS
 
 
 func _player_named(p_name: String) -> int:
@@ -262,9 +274,11 @@ func _hello(proto: int, p_name: String, color: int) -> void:
 		_send_start(id)
 		return
 	var c := _free_color(clampi(color, 0, Config.VILLAGE_COLORS.size() - 1))
-	players[id] = {"name": p_name.strip_edges(), "color": c, "ready": false, "village": -1, "online": true, "loaded": false}
+	players[id] = {"name": p_name.strip_edges(), "color": c, "ready": false, "village": -1, "slot": _free_slot(), "online": true, "loaded": false}
 	if c != color:
 		_message.rpc_id(id, "That colour was taken: you got another one")
+	if custom_map:
+		_lobby_map.rpc_id(id, custom_map.to_bytes())
 	_broadcast_lobby()
 
 
@@ -329,6 +343,8 @@ func set_difficulty(d: int) -> void:
 
 func set_map(p_type: String, p_seed: int) -> void:
 	if is_host() and not in_game:
+		if custom_map:
+			set_custom_map(null)
 		map_type = p_type
 		map_seed = p_seed
 		Settings.map_type = p_type
@@ -336,8 +352,63 @@ func set_map(p_type: String, p_seed: int) -> void:
 		_broadcast_lobby()
 
 
+## Host: play the map `m` from a file (null: a generated map again). Every
+## player gets a village of it (in join order); clients get a copy.
+func set_custom_map(m: MapData) -> void:
+	if not is_host() or in_game:
+		return
+	if m != null and players.size() > m.villages.size():
+		_tell(1, "That map has room for %d players, the lobby has %d" % [m.villages.size(), players.size()])
+		return
+	custom_map = m
+	var ids := players.keys()
+	ids.sort()
+	for i in ids.size():
+		players[ids[i]]["slot"] = i
+	_lobby_map.rpc(m.to_bytes() if m else PackedByteArray())
+	_broadcast_lobby()
+
+
+@rpc("authority", "reliable")
+func _lobby_map(bytes: PackedByteArray) -> void:
+	custom_map = MapData.from_bytes(bytes) if not bytes.is_empty() else null
+	lobby_changed.emit()
+
+
+## Host: player `id` plays village `slot` of the custom map (whoever had it
+## swaps with them).
+func set_slot(id: int, slot: int) -> void:
+	if not is_host() or in_game or custom_map == null or not players.has(id) or slot < 0 or slot >= custom_map.villages.size():
+		return
+	var old := int(players[id].get("slot", -1))
+	for other in players:
+		if other != id and int(players[other].get("slot", -1)) == slot:
+			players[other]["slot"] = old
+	players[id]["slot"] = slot
+	_broadcast_lobby()
+
+
+## The first village of the custom map nobody has yet (-1: none, or no custom map).
+func _free_slot() -> int:
+	if custom_map == null:
+		return -1
+	for s in custom_map.villages.size():
+		if not players.values().any(func(p: Dictionary) -> bool: return int(p.get("slot", -1)) == s):
+			return s
+	return -1
+
+
 func can_start() -> bool:
-	return is_host() and not in_game and players.values().all(func(p: Dictionary) -> bool: return p["ready"])
+	if not is_host() or in_game or not players.values().all(func(p: Dictionary) -> bool: return p["ready"]):
+		return false
+	if custom_map:
+		var slots := {}
+		for p in players.values():
+			var s := int(p.get("slot", -1))
+			if s < 0 or s >= custom_map.villages.size() or slots.has(s):
+				return false
+			slots[s] = true
+	return true
 
 
 func _tell(id: int, text: String) -> void:
@@ -387,11 +458,15 @@ func start_game() -> bool:
 	var villages: Array = []
 	for i in ids.size():
 		players[ids[i]]["village"] = i
-		villages.append({"name": players[ids[i]]["name"], "color": players[ids[i]]["color"], "peer": ids[i]})
+		villages.append({"name": players[ids[i]]["name"], "color": players[ids[i]]["color"], "peer": ids[i], "slot": int(players[ids[i]].get("slot", i))})
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var s := map_seed if map_seed != 0 else rng.randi()
 	setup = {"seed": s, "map_type": Settings.resolve_map_type(map_type, s), "villages": villages, "difficulty": difficulty, "local": 0, "reveal_map": reveal_map, "disable_fog": disable_fog}
+	if custom_map:
+		setup["seed"] = custom_map.seed_value
+		setup["map_type"] = custom_map.map_type
+		setup["map_name"] = MapJson.map_name(custom_map)
 	Settings.difficulty = difficulty
 	get_tree().change_scene_to_file(GAME_SCENE)
 	return true

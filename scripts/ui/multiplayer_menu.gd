@@ -6,7 +6,10 @@ extends VBoxContainer
 ##   lobby     - two panes: on the left everyone's village (name in its colour,
 ##               ready or not); on the right your name and colour (changeable
 ##               until you're ready), the game's settings (the host picks the
-##               difficulty, map type and seed) and Ready / Start / Leave.
+##               difficulty, map type and seed, or a map file: Custom...)
+##               and Ready / Start / Leave. With a map file the players pane
+##               shows its preview and which village each player has; the
+##               host assigns them (docs/map-editor-design.md §8).
 ##               In portrait the panes are stacked.
 
 signal back_pressed
@@ -35,6 +38,9 @@ var apply_button: Button
 var lobby_status: Label
 var _join_page: VBoxContainer
 var _color := 0
+## The title screen's map picker (Custom...).
+var picker: MapPicker
+var preview: MapPreview
 
 
 func _ready() -> void:
@@ -160,6 +166,10 @@ func _build_lobby() -> void:
 	players_box = VBoxContainer.new()
 	players_box.add_theme_constant_override("separation", 4)
 	players_pane.add_child(players_box)
+	preview = MapPreview.new()
+	preview.custom_minimum_size = Vector2(220, 220)
+	preview.visible = false
+	players_pane.add_child(preview)
 	# Right: your village, the game's settings, and the buttons.
 	settings_pane = VBoxContainer.new()
 	settings_pane.add_theme_constant_override("separation", 10)
@@ -175,9 +185,7 @@ func _build_lobby() -> void:
 		Net.set_difficulty(Settings.CYCLE[Net.difficulty]))
 	settings_pane.add_child(difficulty_button)
 	map_button = _btn("", 48)
-	map_button.pressed.connect(func() -> void:
-		Settings.cycle_map_type()
-		Net.set_map(Settings.map_type, Net.map_seed))
+	map_button.pressed.connect(_cycle_map)
 	settings_pane.add_child(map_button)
 	seed_edit = LineEdit.new()
 	seed_edit.placeholder_text = "Map seed (empty: random)"
@@ -211,6 +219,22 @@ func _build_lobby() -> void:
 ## Side by side in landscape, stacked in portrait.
 func _fit_panes() -> void:
 	panes.vertical = Layout.portrait
+
+
+## The types in turn, then Random, then Custom... (a map file), then the first type again.
+func _cycle_map() -> void:
+	if Net.custom_map:
+		Settings.map_type = Config.MAP_TYPE_ORDER[0]
+		Net.set_map(Settings.map_type, Net.map_seed)
+	elif Net.map_type == "random" and picker:
+		picker.choose(func(m: MapData, _p: String) -> void: Net.set_custom_map(m),
+			func() -> void:
+				Settings.map_type = Config.MAP_TYPE_ORDER[0]
+				Net.set_map(Settings.map_type, Net.map_seed),
+			"A map for this game", "Use this map")
+	else:
+		Settings.cycle_map_type()
+		Net.set_map(Settings.map_type, Net.map_seed)
 
 
 func pick_color(i: int) -> void:
@@ -284,6 +308,15 @@ func refresh() -> void:
 		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(l)
+		if Net.custom_map:
+			var slot := int(p.get("slot", -1))
+			var vb := _btn("Village %d" % (slot + 1) if slot >= 0 else "No village", 36)
+			vb.add_theme_font_size_override("font_size", 16)
+			vb.tooltip_text = "The host picks who plays which village of the map"
+			vb.disabled = not Net.is_host()
+			var pid: int = id
+			vb.pressed.connect(func() -> void: Net.set_slot(pid, (slot + 1) % Net.custom_map.villages.size()))
+			row.add_child(vb)
 		var state := _panel_label("host" if id == 1 else ("ready" if p["ready"] else "not ready"), 16, UiTheme.GOOD if (id == 1 or p["ready"]) else UiTheme.MUTED)
 		state.autowrap_mode = TextServer.AUTOWRAP_OFF
 		state.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -299,9 +332,23 @@ func refresh() -> void:
 	difficulty_button.text = "Difficulty: %s" % Settings.NAMES[Net.difficulty]
 	# Everyone sees the map settings; only the host changes them.
 	map_button.disabled = not Net.is_host()
-	map_button.text = "Map: %s" % Settings.map_type_name(Net.map_type) + ("" if Net.is_host() else "  (host)")
+	var custom := Net.custom_map
+	if custom:
+		map_button.text = "Map: %s (%d villages)" % [MapJson.map_name(custom), custom.villages.size()] + ("" if Net.is_host() else "  (host)")
+	else:
+		map_button.text = "Map: %s" % Settings.map_type_name(Net.map_type) + ("" if Net.is_host() else "  (host)")
 	map_button.visible = in_lobby
-	seed_edit.visible = in_lobby and Net.is_host()
+	seed_edit.visible = in_lobby and Net.is_host() and custom == null
+	preview.visible = in_lobby and custom != null
+	if preview.visible:
+		if preview.map != custom:
+			preview.show_map(custom)
+		preview.labels.clear()
+		for id in Net.players:
+			var s := int(Net.players[id].get("slot", -1))
+			if s >= 0:
+				preview.labels[s] = str(Net.players[id]["name"])
+		preview.queue_redraw()
 	if Net.is_host() and not seed_edit.has_focus():
 		seed_edit.text = str(Net.map_seed) if Net.map_seed != 0 else ""
 	start_button.visible = Net.is_host()

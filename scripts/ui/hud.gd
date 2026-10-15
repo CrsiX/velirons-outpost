@@ -103,6 +103,8 @@ var _hero_support_button: Button
 var _bound: Village
 var _settings: Control  # grayscale backdrop + dialog, shown while paused
 var _settings_map_label: Label
+## Back to the map editor (a game its Play started).
+var _settings_editor_button: Button
 var _settings_continue: Button
 var _settings_log_button: Button
 var _settings_lang_button: Button
@@ -2527,6 +2529,10 @@ func _build_settings() -> void:
 		dbg.pressed.connect(func() -> void: _show_debug(true))
 		v.add_child(dbg)
 		_build_debug(center)
+	_settings_editor_button = _button("Back to editor", Vector2(0, 56))
+	UiTheme.style_primary(_settings_editor_button)
+	_settings_editor_button.pressed.connect(func() -> void: game.go_to_editor())
+	v.add_child(_settings_editor_button)
 	_settings_title_button = _button("Back to title", Vector2(0, 56))
 	UiTheme.style_danger(_settings_title_button)
 	_settings_title_button.pressed.connect(func() -> void: game.go_to_title())
@@ -2706,7 +2712,12 @@ func _on_stats_closed() -> void:
 
 func _refresh_settings() -> void:
 	_settings_log_button.text = "Log level: %s" % game.events.level_name()
-	_settings_map_label.text = "Map: %s  ·  seed %d" % [Settings.map_type_name(game.map.map_type), game.map.seed_value]
+	if not game.map.meta.is_empty():  # (a map from a file)
+		_settings_map_label.text = "Map: %s  ·  %s" % [MapJson.map_name(game.map), Settings.map_type_name(game.map.map_type)]
+		_settings_map_label.tooltip_text = "A map from a file (Singleplayer: Map: Custom...)"
+	else:
+		_settings_map_label.text = "Map: %s  ·  seed %d" % [Settings.map_type_name(game.map.map_type), game.map.seed_value]
+	_settings_editor_button.visible = Settings.editor_play and not game.networked
 	_settings_lang_button.icon = Art.tex(Settings.language_flag())
 	_settings_lang_button.tooltip_text = "Language: %s" % Settings.language_name()
 

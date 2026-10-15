@@ -524,8 +524,11 @@ func _test_title_ui() -> void:
 	for i in Config.MAP_TYPE_ORDER.size() + 1:
 		t.map_button.pressed.emit()  # (this crashed once: a typed array)
 		await frames(1)
+		if t.picker.visible:  # (after Random: Custom..., a map file; cancelled, back to the first type)
+			t.picker.close()
+			await frames(1)
 		seen.append(Settings.map_type)
-	check(seen.has("random") and seen.has("coast") and seen[-1] == "temperate" and t.map_button.text == "Map: Temperate", "the Map button cycles every map type and Random")
+	check(seen.has("random") and seen.has("coast") and seen[-1] == "temperate" and t.map_button.text == "Map: Temperate", "the Map button cycles every map type, Random and Custom... (cancelled: back to the first type)")
 	t.seed_edit.text_changed.emit("5150")
 	check(Settings.map_seed == 5150, "typing a seed sets it")
 	var sizes := [Vector2i(1280, 720), Vector2i(720, 1280)]

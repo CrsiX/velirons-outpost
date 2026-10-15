@@ -15,11 +15,13 @@ extends RefCounted
 ## always gives the same map (the co-op host generates, clients receive it).
 
 
-static func generate(seed_value: int, players: int = 1, map_type: String = "temperate") -> MapData:
+## `size` 0: the usual size for the player count (Config.map_size); any of
+## Config.MAP_SIZES otherwise (the map editor).
+static func generate(seed_value: int, players: int = 1, map_type: String = "temperate", size: int = 0) -> MapData:
 	var best: MapData = null
 	var best_score := INF
 	for attempt in Config.MAP_TRIES:
-		var c := GenContext.new(seed_value + attempt * 7919, players, map_type)
+		var c := GenContext.new(seed_value + attempt * 7919, players, map_type, size)
 		run(c)
 		c.m.seed_value = seed_value
 		var score := c.failures.size() * 100.0 + c.soft.size()

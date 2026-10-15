@@ -1791,6 +1791,15 @@ def title_icons():
   <path d="M32 24 L52 30 L52 46" fill="none" stroke="{GOLD}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
   <circle cx="52" cy="49" r="4" fill="{GOLD}" stroke="{INK}" stroke-width="2"/>
   <circle cx="32" cy="24" r="3" fill="{GOLD}" stroke="{INK}" stroke-width="1.5"/>''')
+    # Map editor: a folded parchment map with a road, a river and a quill over it.
+    icon_svg("icon_map_editor", f'''
+  <path d="M4 14 L22 8 L42 14 L60 8 L60 50 L42 56 L22 50 L4 56Z" fill="#e8d6a8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M22 8 L22 50 M42 14 L42 56" fill="none" stroke="#b89a60" stroke-width="2.5"/>
+  <path d="M8 44 Q18 34 26 38 Q34 42 40 30" fill="none" stroke="#3f7fbf" stroke-width="4" stroke-linecap="round"/>
+  <path d="M10 22 L18 26 L30 22 L38 28" fill="none" stroke="#a0704a" stroke-width="3" stroke-linecap="round" stroke-dasharray="4 3"/>
+  <path d="M50 2 L62 14 L34 46 L26 50 L30 42Z" fill="#f4f0e6" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M30 42 L34 46" fill="none" stroke="{INK}" stroke-width="3"/>
+  <path d="M52 8 L38 24" fill="none" stroke="#b8b0a0" stroke-width="2"/>''')
     # Exit: an open door with an arrow leading out.
     icon_svg("icon_exit", f'''
   <path d="M8 6 L36 6 L36 58 L8 58Z" fill="#4a3a2a" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>

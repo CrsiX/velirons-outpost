@@ -155,6 +155,7 @@ func _ready() -> void:
 	stats.setup(self)
 	$Systems.add_child(stats)
 	_slice_from = Time.get_ticks_usec()
+	_use_custom_map()
 	if backdrop:
 		hud.visible = false
 	await world.setup(self, s)
@@ -204,6 +205,27 @@ func _ready() -> void:
 	if backdrop:
 		await build_step(true)  # (the last first draws, before it shows)
 		backdrop.start(self)
+
+
+## A map from a file (docs/map-editor-design.md §8): single player plays
+## Settings.custom_map's chosen village; a co-op host the map picked in the
+## lobby, each player on the village assigned to them (clients get the host's
+## map). The other villages are built as ownerless ruins.
+func _use_custom_map() -> void:
+	if backdrop or tutorial_mode or is_client or preset_map != null:
+		return
+	if networked:
+		if Net.custom_map == null:
+			return
+		var played: Array = []
+		for pv in Net.setup["villages"]:
+			played.append(int(pv.get("slot", played.size())))
+		preset_map = Net.custom_map.for_game(played)
+	elif Settings.custom_map != null and test_villages <= 1:
+		preset_map = Settings.custom_map.for_game([clampi(Settings.custom_village, 0, Settings.custom_map.villages.size() - 1)])
+	if preset_map:
+		map_type = preset_map.map_type
+		map_seed = preset_map.seed_value
 
 
 ## The title backdrop builds its game over several frames, so the menu over it
@@ -434,7 +456,7 @@ func _preview(tile: Vector2i) -> void:
 func _highlight_towers() -> void:
 	var tiles: Array[Vector2i] = []
 	for t in world.military_posts():
-		if t.complete:
+		if t.complete and not t.has_meta("abandoned"):
 			tiles.append_array(t.tiles())
 	world.overlay.show_selection(tiles)
 
@@ -683,6 +705,15 @@ func _check_defeat() -> void:
 	hud.show_game_over("Veliron's Outpost has fallen", "%s\nYou held out for %d wave%s." % [why, maxi(waves.wave - 1, 0), "" if waves.wave == 2 else "s"])
 
 
+## Back to the map editor whose Play started this game (its map and state wait in Settings.editor_session).
+func go_to_editor() -> void:
+	Settings.editor_play = false
+	Settings.custom_map = null
+	Engine.time_scale = 1.0
+	get_tree().paused = false
+	get_tree().change_scene_to_file(TitleScreen.EDITOR_SCENE)
+
+
 func go_to_title() -> void:
 	if Net.is_online():
 		Net.leave()
@@ -777,6 +808,9 @@ func apply_speed(i: int) -> void:
 
 ## A building's panel; another village's buildings can be looked at, not ordered.
 func building_info(b: Building) -> Dictionary:
+	if b.has_meta("abandoned"):  # (a village of the map nobody plays)
+		var title := "Ruined Hut" if b is Hut else b.display_name()
+		return {"title": title, "lines": ["An abandoned village: nobody lives here,", "and its ruins can't be rebuilt."], "actions": [] as Array[Dictionary]}
 	var d := b.info()
 	b.add_tear_down_action(d)
 	if b.village and b.village != player_village:

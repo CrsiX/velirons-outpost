@@ -79,6 +79,15 @@ The title screen has a **Multiplayer** button. The multiplayer screen has:
   **seed** (empty: random); everyone sees the map type. Only the host sees
   **Start**, enabled when every other player is ready (the host alone can
   start too).
+- **A map file** (docs/map-editor-design.md §8): after Random the host's Map
+  button offers *Custom...* (the map picker). Everyone gets a copy of the map
+  in the lobby, sees its name and village count and a preview with each
+  player's name by their village. Every player has a village of it (a
+  *Village n* button in their row; the host's cycle it, taking someone's
+  swaps the two; new players get the first free one). The map's villages
+  cap the players ("The game is full"; LAN discovery shows that maximum).
+  Villages nobody plays stand as ownerless ruins: huts ruined for good, no
+  owner, no waves from their spawns, enemies never go there.
 - A player can leave. Nobody can be removed.
 - Joining is refused with a reason: "Different game version (host 2, you 1)"
   (the protocol numbers), "The game is full" (8 players), "The game has
@@ -89,7 +98,8 @@ The title screen has a **Multiplayer** button. The multiplayer screen has:
 1. The host fixes the seed (the typed one, or a random one) and the map type
    ("Random" picks one from the seed), assigns the villages in join order
    (the host's is village 0), generates the map for the player count (§5) and
-   builds its own level.
+   builds its own level. With a map file it takes that map instead, made for
+   the players' villages (`MapData.for_game`: player i plays village i).
 2. The host then sends every connected client the **game setup** (seed, map
    type, difficulty, every village's name, colour and player, which village
    is theirs) and the **map** (§5.6).

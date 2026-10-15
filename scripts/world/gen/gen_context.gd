@@ -32,13 +32,23 @@ var failures: Array[String] = []
 var soft: Array[String] = []
 
 
-func _init(p_seed: int, p_players: int, p_type: String) -> void:
+## Per-slice amounts x this, and edge / width amounts x length_scale
+## (Config.gen_area_scale: 1.0 at the usual size for the player count).
+var area_scale := 1.0
+var length_scale := 1.0
+
+
+## `p_size` 0: the usual size for the player count (Config.map_size).
+func _init(p_seed: int, p_players: int, p_type: String, p_size: int = 0) -> void:
 	seed_value = p_seed
 	rng.seed = p_seed
 	players = clampi(p_players, 1, Config.MAX_PLAYERS)
 	type_key = p_type if Config.MAP_TYPES.has(p_type) else "temperate"
 	type = Config.MAP_TYPES[type_key]
-	m = MapData.new(Config.map_size(players))
+	var n := p_size if p_size > 0 else Config.map_size(players)
+	area_scale = Config.gen_area_scale(n, players)
+	length_scale = Config.gen_length_scale(n, players)
+	m = MapData.new(n)
 	m.map_type = type_key
 
 

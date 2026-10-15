@@ -6,6 +6,8 @@ extends Node
 ## (tests/run_net_test.sh does both.) Each side prints its checks; exit code 0
 ## when all pass. The client finds the host by LAN discovery (loopback), joins
 ## the lobby, gets ready; the host starts; then both check the replicated game.
+## With `--custom` the host picks a map file instead (three villages; the
+## client gets village 3, village 2 stands empty: docs/map-editor-design.md §8).
 
 const HOST_NAME := "Hostwatch"
 const CLIENT_NAME := "Clientvale"
@@ -15,6 +17,7 @@ const MAP_TYPE := "coast"
 const MAP_SEED := 4240
 
 var role := ""
+var custom := false
 var failures: Array[String] = []
 var checks := 0
 
@@ -23,6 +26,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--role="):
 			role = a.trim_prefix("--role=")
+		if a == "--custom":
+			custom = true
 	# Survive the switch into the level: another node becomes the "current scene".
 	var stand_in := Node.new()
 	stand_in.name = "StandIn"
@@ -30,8 +35,12 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	get_tree().current_scene = stand_in
-	if role == "host":
+	if role == "host" and custom:
+		await _host_custom()
+	elif role == "host":
 		await _host()
+	elif role == "client" and custom:
+		await _client_custom()
 	elif role == "client":
 		await _client()
 	else:
@@ -143,6 +152,76 @@ func _host() -> void:
 	game.command("set_speed", {"index": 0})
 	var left := await wait_until(func() -> bool: return not Net.players.has(cid) or not Net.players[cid]["online"])
 	check(left and v0.events.entries.any(func(e: Dictionary) -> bool: return e["text"] == "%s left the game" % CLIENT_NAME), "when the client leaves, its village stays and everyone is told")
+
+
+## The map file the custom session plays: three villages on a 100x100 map.
+static func custom_map() -> MapData:
+	var g := MapGenerator.generate(77, 3, "temperate", 100)
+	g.meta = {"name": "Net bot map", "origin": {"generator_seed": 77, "edited": false, "game_version": ""}}
+	return MapJson.read(MapJson.write(g))["map"]
+
+
+func _host_custom() -> void:
+	check(Net.host(HOST_NAME, 0) == "" and Net.is_host(), "custom: hosting a lobby")
+	var m := custom_map()
+	Net.set_custom_map(m)
+	check(Net.custom_map == m and Net.max_players() == 3 and int(Net.players[1]["slot"]) == 0, "a map file with three villages: at most 3 players, the host on village 1")
+	var joined := await wait_until(func() -> bool: return _client_id() > 0)
+	check(joined, "a client joins")
+	if not joined:
+		return
+	var cid := _client_id()
+	check(int(Net.players[cid]["slot"]) == 1, "the client gets the first free village (2)")
+	Net.set_slot(cid, 2)
+	check(int(Net.players[cid]["slot"]) == 2, "the host gives it village 3")
+	Net.set_slot(cid, 0)
+	check(int(Net.players[cid]["slot"]) == 0 and int(Net.players[1]["slot"]) == 2, "taking the host's village swaps the two")
+	Net.set_slot(1, 0)
+	check(int(Net.players[1]["slot"]) == 0 and int(Net.players[cid]["slot"]) == 2, "and back")
+	var ready := await wait_until(func() -> bool: return Net.players.has(cid) and Net.players[cid]["ready"])
+	check(ready and Net.can_start() and Net.start_game(), "it gets ready; the host starts")
+	var loaded := await wait_until(func() -> bool: return Net.game != null and Net.players[cid]["loaded"])
+	check(loaded, "the client loaded the level")
+	if not loaded:
+		return
+	var game := Net.game
+	check(game.villages.size() == 2 and game.villages[0].center == m.villages[0]["center"] and game.villages[1].center == m.villages[2]["center"], "two villages, on the map's villages 1 and 3")
+	check(game.map.abandoned.size() == 1 and game.map.abandoned[0]["center"] == m.villages[1]["center"], "village 2 is nobody's")
+	var ruins := game.world.buildings.filter(func(b: Building) -> bool: return b.has_meta("abandoned"))
+	check(ruins.size() == 25 and ruins.all(func(b: Building) -> bool: return b.village == null), "it stands as ruins")
+	await seconds(4.0)
+
+
+func _client_custom() -> void:
+	check(Net.discovery.start_listening() == "", "custom: listening")
+	var found := await wait_until(func() -> bool: return Net.discovery.games().any(func(g: Dictionary) -> bool: return g["name"] == HOST_NAME), 30.0)
+	check(found, "the host's game shows up")
+	if not found:
+		return
+	var g: Dictionary = Net.discovery.games().filter(func(x: Dictionary) -> bool: return x["name"] == HOST_NAME)[0]
+	check(g["max"] == 3, "it says 3 players at most (the map's villages)")
+	check(Net.join("%s:%d" % [g["address"], g["port"]], CLIENT_NAME, 0) == "", "joining it")
+	var got_map := await wait_until(func() -> bool: return Net.custom_map != null and Net.players.size() == 2)
+	check(got_map and MapJson.map_name(Net.custom_map) == "Net bot map" and Net.custom_map.villages.size() == 3, "the lobby shows us the host's map file (its name, three villages)")
+	var me := Net.my_id()
+	var mine_slot := await wait_until(func() -> bool: return int(Net.players[me].get("slot", -1)) == 2, 20.0)
+	check(mine_slot, "and that we play its village 3")
+	Net.set_ready(true)
+	var started := await wait_until(func() -> bool: return Net.game != null and Net.game.is_client)
+	check(started, "the host starts")
+	if not started:
+		return
+	var game := Net.game
+	var mine := game.player_village
+	var want := custom_map()
+	await wait_until(func() -> bool: return mine.buildings().size() >= 27)
+	check(mine.id == 1 and mine.center == want.villages[2]["center"], "we play village 3 of the map")
+	check(game.map.abandoned.size() == 1 and game.map.meta.get("name") == "Net bot map", "we got the host's map, village 2 abandoned")
+	var ruins := await wait_until(func() -> bool: return game.world.buildings.filter(func(b: Building) -> bool: return b.has_meta("abandoned")).size() == 25, 30.0)
+	check(ruins, "its ruins reach us, nobody's")
+	var huts := game.world.buildings.filter(func(b: Building) -> bool: return b.has_meta("abandoned") and b is Hut)
+	check(huts.size() == 9 and huts.all(func(h: Hut) -> bool: return h.village == null and not h.is_intact()), "every hut of it a ruin")
+	check(game.building_info(huts[0])["actions"].is_empty(), "and no actions on them")
 
 
 # --- client --------------------------------------------------------------------------------

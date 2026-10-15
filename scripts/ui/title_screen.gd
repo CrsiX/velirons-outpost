@@ -1,8 +1,11 @@
 class_name TitleScreen
 extends Control
+
+const EDITOR_SCENE := "res://scenes/map_editor.tscn"
 ## Title screen: a game playing itself behind (TitleBackdrop), game name and a menu in pages:
-##   main         - Singleplayer, Multiplayer, Tutorial, Library, Exit;
-##   Singleplayer - Play, Difficulty, Map, seed, Back;
+##   main         - Singleplayer, Multiplayer, Tutorial, Library, Map Editor, Exit;
+##   Singleplayer - Play, Difficulty, Map (a type, or a map file: Custom...),
+##                  the village (a map file with several), seed, Back;
 ##   Multiplayer  - village name and colour, host / join, lobby (MultiplayerMenu).
 
 var singleplayer_button: Button
@@ -15,7 +18,11 @@ var difficulty_button: Button
 var map_button: Button
 var seed_edit: LineEdit
 var library_button: Button
+var editor_button: Button
+var village_button: Button
 var back_button: Button
+## Picks a map file for Singleplayer (docs/map-editor-design.md §8).
+var picker: MapPicker
 var library: Library
 ## The game playing behind the menu (Config.TITLE_BACKDROP).
 var backdrop: TitleBackdrop
@@ -30,6 +37,9 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	get_tree().paused = false
 	Engine.time_scale = 1.0
+	if Settings.editor_play:  # (back from a game the map editor started: its map isn't the menu's)
+		Settings.editor_play = false
+		Settings.custom_map = null
 
 	var bg := ColorRect.new()
 	bg.color = Color.BLACK
@@ -66,16 +76,20 @@ func _ready() -> void:
 	tutorial_button.tooltip_text = "A guided first game: learn the basics step by step"
 	library_button = _menu_button(_main_page, "Library", func() -> void: library.open(), "icon_book")
 	library_button.tooltip_text = "Enemies, units, buildings, villagers, hero, places"
+	editor_button = _menu_button(_main_page, "Map Editor", func() -> void: get_tree().change_scene_to_file(EDITOR_SCENE), "icon_map_editor")
+	editor_button.tooltip_text = "Make, look into and change maps"
 	exit_button = _menu_button(_main_page, "Exit", func() -> void: get_tree().quit(), "icon_exit")
 	exit_button.visible = not OS.has_feature("web")  # browsers can't close the tab
 	_sp_page = _page()
 	play_button = _menu_button(_sp_page, "Play", _play)
 	UiTheme.style_primary(play_button)
 	difficulty_button = _menu_button(_sp_page, "", _cycle_difficulty)
-	map_button = _menu_button(_sp_page, "", func() -> void:
-		Settings.cycle_map_type()
+	map_button = _menu_button(_sp_page, "", _cycle_map)
+	map_button.tooltip_text = "The kind of land: Temperate, Highlands, Coast, Desert, Volcanic or Random; or Custom: a map file"
+	village_button = _menu_button(_sp_page, "", func() -> void:
+		Settings.custom_village = (Settings.custom_village + 1) % Settings.custom_map.villages.size()
 		_update_sp_buttons())
-	map_button.tooltip_text = "The kind of land: Temperate, Highlands, Coast, Desert, Volcanic or Random"
+	village_button.tooltip_text = "Which of the map's villages you play (the others stand empty)"
 	seed_edit = LineEdit.new()
 	seed_edit.placeholder_text = "Map seed (empty: random)"
 	seed_edit.custom_minimum_size = Vector2(0, 48)
@@ -97,6 +111,9 @@ func _ready() -> void:
 	_update_sp_buttons()
 	library = Library.new()
 	add_child(library)
+	picker = MapPicker.new()
+	add_child(picker)
+	mp_menu.picker = picker
 	get_viewport().size_changed.connect(_layout)
 	# Pages change height (Singleplayer, the multiplayer join page and lobby): fit again.
 	_menu.minimum_size_changed.connect(func() -> void: _layout.call_deferred())
@@ -180,9 +197,32 @@ func _cycle_difficulty() -> void:
 	_update_sp_buttons()
 
 
+## Map: the types in turn, then Random, then Custom... (a map file), then the first type again.
+func _cycle_map() -> void:
+	if Settings.custom_map:
+		Settings.custom_map = null
+		Settings.map_type = Config.MAP_TYPE_ORDER[0]
+	elif Settings.map_type == "random":
+		picker.choose(func(m: MapData, _p: String) -> void:
+			Settings.custom_map = m
+			Settings.custom_village = 0
+			_update_sp_buttons(),
+		func() -> void:
+			Settings.map_type = Config.MAP_TYPE_ORDER[0]
+			_update_sp_buttons())
+	else:
+		Settings.cycle_map_type()
+	_update_sp_buttons()
+
+
 func _update_sp_buttons() -> void:
 	difficulty_button.text = "Difficulty: %s" % Settings.difficulty_name()
-	map_button.text = "Map: %s" % Settings.map_type_name()
+	var custom := Settings.custom_map
+	map_button.text = "Map: %s" % (MapJson.map_name(custom) if custom else Settings.map_type_name())
+	village_button.visible = custom != null and custom.villages.size() > 1
+	if village_button.visible:
+		village_button.text = "Your village: %d of %d" % [Settings.custom_village + 1, custom.villages.size()]
+	seed_edit.visible = custom == null
 
 
 func _play() -> void:
@@ -199,13 +239,15 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_pressed() and not event.is_echo():
 		match (event as InputEventKey).keycode:
 			KEY_ENTER, KEY_KP_ENTER:
-				if mp_menu.visible:
+				if mp_menu.visible or picker.visible:
 					return
 				if in_singleplayer_page():
 					_play()
 				else:
 					show_page(_sp_page)
 			KEY_ESCAPE:
+				if picker.visible:
+					return
 				if mp_menu.visible and Net.is_online():
 					Net.leave()
 				else:

@@ -64,6 +64,15 @@ static func name_error(n: String) -> String:
 ## Map type for the next game (Config.MAP_TYPES, or "random") and seed (0: random).
 var map_type := "temperate"
 var map_seed := 0
+## A map from a file for the next single-player games instead of a generated
+## one (docs/map-editor-design.md §8), and which of its villages is played.
+var custom_map: MapData = null
+var custom_village := 0
+## The map editor's state while a game runs from its Play (or after leaving
+## it): {"map", "path", "dirty", ...}; the editor picks it up again. Empty: none.
+var editor_session: Dictionary = {}
+## The game was started by the editor's Play: its settings offer Back to editor.
+var editor_play := false
 
 
 func cycle_map_type() -> void:

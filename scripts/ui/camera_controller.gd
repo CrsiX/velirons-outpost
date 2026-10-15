@@ -14,6 +14,9 @@ const KEY_PAN_SPEED := 900.0
 const WHEEL_BUTTONS: Array[MouseButton] = [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]
 
 var bounds := Rect2()
+## Zoom limits (the map editor zooms out further than the game).
+var min_zoom := MIN_ZOOM
+var max_zoom := MAX_ZOOM
 ## Optional: called with the screen position of a left press on the map; if it
 ## returns true the press belongs to someone else (e.g. dragging a unit off a
 ## tower), so the camera neither pans nor reports a tap for it.
@@ -151,7 +154,7 @@ func _process(delta: float) -> void:
 
 func zoom_at(screen_pos: Vector2, factor: float) -> void:
 	var before := screen_to_world(screen_pos)
-	var z := clampf(zoom.x * factor, MIN_ZOOM, MAX_ZOOM)
+	var z := clampf(zoom.x * factor, min_zoom, max_zoom)
 	zoom = Vector2(z, z)
 	force_update_scroll()
 	var after := screen_to_world(screen_pos)

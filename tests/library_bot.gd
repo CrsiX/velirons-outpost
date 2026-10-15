@@ -198,7 +198,7 @@ func _title() -> void:
 	await frames(3)
 	var bb: Button = t.library_button
 	var order: Array = t.singleplayer_button.get_parent().get_children().map(func(n: Button) -> String: return n.text)
-	check(order == ["Singleplayer", "Multiplayer", "Tutorial", "Library", "Exit"], "the main menu: Singleplayer, Multiplayer, Tutorial, Library, Exit (no Help) %s" % [order])
+	check(order == ["Singleplayer", "Multiplayer", "Tutorial", "Library", "Map Editor", "Exit"], "the main menu: Singleplayer, Multiplayer, Tutorial, Library, Map Editor, Exit (no Help) %s" % [order])
 	check(t.singleplayer_button.get_theme_stylebox("normal") == t.multiplayer_button.get_theme_stylebox("normal"), "Singleplayer isn't highlighted: it looks like the others")
 	var icons := {t.tutorial_button: "icon_tutorial", t.singleplayer_button: "icon_singleplayer", t.multiplayer_button: "icon_multiplayer", bb: "icon_book", t.exit_button: "icon_exit"}
 	var wrong := []

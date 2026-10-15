@@ -20,6 +20,25 @@ static func map_size(players: int) -> int:
 	return MAP_SIZE + 25 * (ceili(clampi(players, 1, MAX_PLAYERS) / 2.0) - 1)
 
 
+## Map side lengths a map can have (docs/map-editor-design.md §3). Generated
+## games use map_size(players); the map editor makes and loads any of these.
+const MAP_SIZES: Array[int] = [50, 75, 100, 125, 150, 175, 200]
+## How many villages a map of each size may hold.
+const MAP_SIZE_SLOTS := {50: 1, 75: 2, 100: 4, 125: 6, 150: 8, 175: 8, 200: 8}
+
+
+## The generator's per-slice amounts (treasures, ruins, lairs, mines) are tuned
+## for the slices of map_size(players); a map of another size scales them by
+## its slices' area (1.0 at the usual size, so those maps stay as they were).
+static func gen_area_scale(size: int, players: int) -> float:
+	return pow(float(size) / map_size(players), 2.0)
+
+
+## The same for amounts that go with the map's width (edge spawns, rivers).
+static func gen_length_scale(size: int, players: int) -> float:
+	return float(size) / map_size(players)
+
+
 ## Tax on resources sent to another village: 10 % per extra player, at most 50 %.
 static func help_tax(players: int) -> float:
 	return minf(0.1 * (players - 1), 0.5)
@@ -871,6 +890,19 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 ## map) and the factor of one + / - key press (the mouse wheel uses its own).
 const CAMERA_MIN_ZOOM := 0.22
 const CAMERA_MAX_ZOOM := 1.6
+
+# --- the map editor (docs/map-editor-design.md) --------------------------------------------
+const EDITOR := {
+	"undo_steps": 100,  # edits kept for undo
+	"brush_sizes": [1, 3, 5, 9],  # brush widths (tiles)
+	"min_zoom": 0.05, "max_zoom": 1.6,  # isometric view (the game: CAMERA_MIN_ZOOM)
+	"plan_tile_px": 16.0,  # top-down view: pixels per tile at zoom 1
+	"plan_min_zoom": 0.15, "plan_max_zoom": 6.0,
+	"web_large_size": 150,  # web build: maps this big or bigger warn when opened
+	"name_max": 60, "author_max": 60, "description_max": 1000, "map_type_max": 40,  # file text limits
+	"library_dir": "user://maps",  # your maps
+	"builtin_dir": "res://data/maps",  # maps shipped with the game
+}
 const CAMERA_KEY_ZOOM := 1.12
 
 # --- enemies ------------------------------------------------------------------------

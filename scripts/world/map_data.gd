@@ -50,6 +50,13 @@ var slices: Array[Dictionary] = []
 var objects: Array[Dictionary] = []
 var map_type := "temperate"
 var seed_value := 0
+## A map from a file (docs/map-editor-design.md): {"name", "author",
+## "description", "origin": {"generator_seed", "edited", "game_version"}}.
+## Empty for a generated map.
+var meta: Dictionary = {}
+## Villages of the map that nobody plays (for_game): {"center", "rect",
+## "pieces": [{kind, tile, flip}]}. Built as ownerless ruins (§8.2).
+var abandoned: Array[Dictionary] = []
 
 
 func _init(p_size: int) -> void:
@@ -184,6 +191,10 @@ func to_bytes() -> PackedByteArray:
 		"zones": zones, "decor": decor, "crossings": crossings, "volcanoes": volcanoes, "beaches": beaches,
 		"slice_of": slice_of, "slices": slices, "objects": objects, "map_type": map_type, "seed": seed_value,
 	}
+	if not meta.is_empty():
+		d["meta"] = meta
+	if not abandoned.is_empty():
+		d["abandoned"] = abandoned
 	var raw := var_to_bytes(d)
 	var packed := raw.compress(FileAccess.COMPRESSION_ZSTD)
 	var out := PackedByteArray()
@@ -216,6 +227,137 @@ static func from_bytes(bytes: PackedByteArray) -> MapData:
 	m.objects.assign(d["objects"])
 	m.map_type = d["map_type"]
 	m.seed_value = d["seed"]
+	m.meta = d.get("meta", {})
+	m.abandoned.assign(d.get("abandoned", []))
+	return m
+
+
+## A deep copy (through the packed form).
+func copy() -> MapData:
+	return MapData.from_bytes(to_bytes())
+
+
+## The pieces (walls, gates, wall towers, huts) of village `i`: [{kind, tile, flip}].
+func village_pieces(i: int) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for p in village_layout:
+		if int(p.get("owner", 0)) == i:
+			out.append({"kind": p["kind"], "tile": p["tile"], "flip": p["flip"]})
+	return out
+
+
+## Rebuilds what follows from the villages' pieces, centres and spawns (a map
+## made or changed outside the generator): each village's rect (its pieces'
+## bounding box), gates and slice, `gates`, `edge_spawns`, `village_rect`, and
+## the slices' centres. Spawns and gates stay in row order, as the generator
+## makes them.
+func derive() -> void:
+	gates.clear()
+	var spawns: Array[Vector2i] = []
+	for i in villages.size():
+		var v := villages[i]
+		var rect := Rect2i()
+		var vg: Array[Vector2i] = []
+		var first := true
+		for p in village_pieces(i):
+			var t: Vector2i = p["tile"]
+			rect = Rect2i(t, Vector2i.ONE) if first else rect.merge(Rect2i(t, Vector2i.ONE))
+			first = false
+			if p["kind"] == "gate":
+				vg.append(t)
+		vg.sort_custom(MapData.row_order)
+		v["rect"] = rect
+		v["gates"] = vg
+		v["slice"] = int(slice_of[index(v["center"])]) if in_bounds(v["center"]) else 0
+		var hs: Array[Vector2i] = []
+		hs.assign(v.get("home_spawns", []))
+		hs.sort_custom(MapData.row_order)
+		v["home_spawns"] = hs
+		if not v.has("farm_plot"):
+			v["farm_plot"] = Vector2i(-1, -1)
+		gates.append_array(vg)
+		spawns.append_array(hs)
+	spawns.sort_custom(MapData.row_order)
+	edge_spawns = spawns
+	village_rect = villages[0]["rect"] if not villages.is_empty() else Rect2i()
+	derive_slices()
+
+
+## The slices' centres and tile counts from `slice_of` (as GenSlices makes them).
+func derive_slices() -> void:
+	var n := 1
+	for i in slice_of.size():
+		n = maxi(n, slice_of[i] + 1)
+	n = maxi(n, villages.size())
+	var sums: Array[Vector2] = []
+	var counts: Array[int] = []
+	for s in n:
+		sums.append(Vector2.ZERO)
+		counts.append(0)
+	for idx in slice_of.size():
+		var s := slice_of[idx]
+		sums[s] += Vector2(idx % size, idx / size)
+		counts[s] += 1
+	var mid := Vector2(size - 1, size - 1) / 2.0
+	slices.clear()
+	for s in n:
+		slices.append({"center": mid if n == 1 else sums[s] / maxf(counts[s], 1), "tiles": counts[s]})
+
+
+## Tiles in row order (y, then x): the order of lists in map files.
+static func row_order(a: Vector2i, b: Vector2i) -> bool:
+	return a.y < b.y or (a.y == b.y and a.x < b.x)
+
+
+## The map for a game in which villages `played` (indices into `villages`, in
+## player order) are played: a copy whose village i is played[i], with the
+## slices numbered to match (player i's slice is i, the others after them),
+## and every other village moved to `abandoned` (built as ownerless ruins;
+## their spawns send nothing). (docs/map-editor-design.md §8)
+func for_game(played: Array) -> MapData:
+	var m := copy()
+	var order: Array[int] = []
+	for k in played:
+		order.append(int(k))
+	# Slices: the played villages' first, in player order, then the rest.
+	var slice_map := {}
+	for k in order:
+		var s := int(villages[k].get("slice", 0))
+		if not slice_map.has(s):
+			slice_map[s] = slice_map.size()
+	var all_slices: Array = []
+	for i in slice_of.size():
+		if not all_slices.has(slice_of[i]):
+			all_slices.append(slice_of[i])
+	all_slices.sort()
+	for s in all_slices:
+		if not slice_map.has(s):
+			slice_map[s] = slice_map.size()
+	for i in m.slice_of.size():
+		m.slice_of[i] = slice_map[int(slice_of[i])]
+	for o in m.objects:
+		o["slice"] = slice_map.get(int(o.get("slice", 0)), 0)
+	var new_villages: Array[Dictionary] = []
+	var new_layout: Array[Dictionary] = []
+	for n in order.size():
+		var v: Dictionary = m.villages[order[n]]
+		new_villages.append(v)
+		for p in village_pieces(order[n]):
+			p["owner"] = n
+			new_layout.append(p)
+	m.abandoned.clear()
+	for k in villages.size():
+		if not order.has(k):
+			var v: Dictionary = villages[k]
+			m.abandoned.append({"center": v["center"], "rect": v["rect"], "pieces": village_pieces(k)})
+	m.villages = new_villages
+	m.village_layout = new_layout
+	var links: Array[Vector2i] = []
+	for l in village_links:
+		if order.has(l.x) and order.has(l.y):
+			links.append(Vector2i(order.find(l.x), order.find(l.y)))
+	m.village_links = links
+	m.derive()
 	return m
 
 

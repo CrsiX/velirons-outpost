@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tests/map_format_bot.gd" id="1_mapformat"]
+
+[node name="MapFormatBot" type="Node"]
+script = ExtResource("1_mapformat")

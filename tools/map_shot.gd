@@ -184,14 +184,8 @@ func _render(m: MapData) -> void:
 	_mark_spawns(m)
 
 
-const ZONE_COLORS := {
-	"meadow": Color("8fbf5a"), "oak": Color("6f9a48"), "pine": Color("4f7a3a"), "heath": Color("8a7a52"),
-	"steppe": Color("cdb27a"), "swamp": Color("5d6b3c"), "ash": Color("77736d"),
-}
-const OBJECT_COLORS := {
-	"treasure": Color("f2c230"), "camp": Color("b0381f"), "unlock": Color("b777ff"), "ruin": Color("f4f0e6"),
-	"lair": Color("1b1411"), "mine": Color("ff8a1f"),
-}
+const ZONE_COLORS := MapPlan.ZONE_COLORS
+const OBJECT_COLORS := MapPlan.OBJECT_COLORS
 
 
 ## Top-down plan, `px` pixels per tile: zones (trees darker), water, mountains,

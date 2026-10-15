@@ -23,7 +23,7 @@ const TERRAIN_NAMES: Array[String] = ["grass", "road", "forest", "desert", "moun
 ## Everything to_bytes()/from_bytes() carries (the co-op host sends it).
 const SAVED_FIELDS: Array[String] = ["size", "terrain", "props", "village_rect", "gates", "edge_spawns",
 	"villages", "village_links", "village_layout", "farm_plot", "zones", "decor", "crossings",
-	"volcanoes", "beaches", "slice_of", "slices", "objects", "map_type", "seed_value"]
+	"volcanoes", "beaches", "slice_of", "slices", "objects", "map_type", "seed_value", "meta", "abandoned"]
 ## ... and the fields that only ever exist in a running game.
 const RUNTIME_FIELDS: Array[String] = ["explored", "watched", "buildings"]
 
@@ -38,6 +38,7 @@ func _run() -> void:
 	_test_map_data()
 	_test_determinism()
 	_test_pathing()
+	_test_sizes()
 	_sweep()
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -242,6 +243,34 @@ func _test_pathing() -> void:
 # --- the sweep ----------------------------------------------------------------------------------
 
 ## Makes many maps, one attempt each, and collects what came out.
+## Every map size (Config.MAP_SIZES; the map editor makes any of them): every
+## map type at one village, and the most villages the size holds. Each map
+## passes the checks a map file must pass (MapChecks: no errors) and has
+## treasures and the unlock sites.
+func _test_sizes() -> void:
+	var t0 := Time.get_ticks_msec()
+	for n in Config.MAP_SIZES:
+		var specs: Array = []
+		for type in Config.MAP_TYPE_ORDER:
+			specs.append([type, 1])
+		var most := int(Config.MAP_SIZE_SLOTS[n])
+		if most > 1:
+			specs.append(["temperate", most])
+		var bad: Array[String] = []
+		for s in specs:
+			var m := MapGenerator.generate(1000 + n, int(s[1]), str(s[0]), n)
+			var errs := MapChecks.errors(MapChecks.run(m)).map(func(p: Dictionary) -> String: return p["text"])
+			var treasures := m.objects.filter(func(o: Dictionary) -> bool: return o["kind"] == "treasure").size()
+			var sites := {}
+			for o in m.objects:
+				if o["kind"] == "unlock":
+					sites[o["site"]] = true
+			if m.size != n or not errs.is_empty() or treasures < m.villages.size() or sites.size() < Config.UNLOCK_SITES.size():
+				bad.append("%s/%d: size %d, %d treasures, %d sites, %s" % [s[0], s[1], m.size, treasures, sites.size(), str(errs.slice(0, 2))])
+		check(bad.is_empty(), "%dx%d maps (every type at 1 village%s): playable, with treasures and every unlock site %s" % [n, n, (", and %d" % most) if most > 1 else "", "; ".join(bad)])
+	print("  (sizes: %.1f s)" % ((Time.get_ticks_msec() - t0) / 1000.0))
+
+
 func _sweep() -> void:
 	var seeds := maxi(1, int(_env("MAPGEN_SEEDS", "6")))
 	var budget := maxi(1000, int(_env("MAPGEN_BUDGET_MS", "240000")))
