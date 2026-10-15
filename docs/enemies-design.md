@@ -256,6 +256,8 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   mid-spell ends it.
 - While a fighter of any village is near (a melee defender within `raise_range`, or a manned
   tower that has it in range) it doesn't walk on: it stays and waits for its next raise.
+  Units that can't hurt it don't count (`MilitaryUnit.fights()`: not a Healing Mage or a
+  High Priest, on a tower or out of barracks), or it would wait by them for ever.
 - In a High Priest's aura (it or the corpse) the spell takes `necro_slow` (×2) as long.
 - A raised enemy killed pays `raise_gold` (half) of its kind's kill gold, rounded down; one
   that decayed pays nothing. Neither leaves a corpse. Raised enemies take ×2 holy damage.

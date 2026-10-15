@@ -371,6 +371,29 @@ func _test_necromancer() -> void:
 	hero.remove_from_group("melee_defenders")
 	await wait(2.0)
 	check(held and nec.grid_pos.distance_to(p0) > 0.5, "a fighter of ours near: the necromancer stands and waits; gone: it walks on")
+	# A post whose unit can't hurt it (a Healing Mage, a High Priest) doesn't hold it; an archer's does.
+	var tw: Tower = game.world.towers()[0]
+	var back := nec.grid_pos
+	nec.set_grid_pos(Vector2(tw.tile) + Vector2(1.5, 0.0))
+	var none_near := not NecromancerBehavior._fighter_near(nec)
+	var held_by := {}
+	for kind in ["healing_mage", "high_priest", "archer"]:
+		var u := MilitaryUnit.new(kind)
+		u.village = v
+		u.state = MilitaryUnit.State.STATIONED
+		tw.garrison = u
+		var on_tower := NecromancerBehavior._fighter_near(nec)
+		tw.garrison = null
+		var so: Soldier = preload("res://scripts/units/soldier.gd").new()
+		so.setup(game, u, Vector2i(nec.grid_pos.round()))
+		game.world.objects.add_child(so)
+		var outside := NecromancerBehavior._fighter_near(nec)
+		so.free()
+		held_by[kind] = [on_tower, outside]
+	nec.set_grid_pos(back)
+	check(none_near and str(held_by["healing_mage"]) == "[false, false]" and str(held_by["high_priest"]) == "[false, false]",
+		"a Healing Mage or a High Priest (on a tower or out) doesn't hold a necromancer: they can't hurt it (%s)" % str(held_by))
+	check(str(held_by["archer"]) == "[true, true]", "an archer (on a tower or out) does")
 	# Killed, it pays a lot; its corpse is worth nothing.
 	var gold2 := int(v.economy.amount("gold"))
 	nec.take_damage(1e9, game.hero)

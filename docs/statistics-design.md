@@ -123,7 +123,7 @@ hooks:
 `scripts/systems/stats.gd` (`class_name Stats`, one per game, `Game.stats`,
 under Game/Systems) holds samples and counters per village. It offers
 `count(village, key, amount := 1)`, `set_max` / `set_min`, `credit` (the
-award tables) and `on_kill` / `on_hut_burned` / `on_hero_down` /
+award tables) and `on_kill` / `on_hut_burned` / `on_village_fell` / `on_hero_down` /
 `on_hero_back`; the hooks call those. Earnings and spending come from the
 `Economy.earned` / `spent` signals. Counter keys are dotted strings
 (`kill.goblin`, `kill_by.tower`, `earn.gold.mines`, `spend.food.villagers`,
@@ -174,11 +174,16 @@ begins once the villages are set up (`Stats.start`) and stops at game over
   - "Busiest gatherer";
   - "Best explorer";
   - "Hero's finest wave" (most kills in one wave);
-  - "Closest call" (the lowest number of intact huts);
+  - "Closest call" (the lowest number of intact huts left after a burn, and
+    the wave; `Stats.closest_call` from `hut_waves`). The wave in which a
+    village fell doesn't count (`fell_waves`, `Stats.on_village_fell`): it
+    always ends at 0 huts or no villagers. A hut is counted as burned before
+    its resident dies, so the last one counts although that death ends the game;
   - in co-op, "Best neighbour" (most support sent: resources sent by
     caravan, plus `STATS.unit_sent_value` per unit sent).
   - An award nobody has earned yet isn't shown ("Closest call" without a
-    burned hut says "Not a single hut burned").
+    burned hut says "Not a single hut burned"; with huts burned only in the
+    wave the village fell in, there is no card).
 - Fits portrait and landscape like the other dialogs; scrolls.
 
 ## 7. Co-op

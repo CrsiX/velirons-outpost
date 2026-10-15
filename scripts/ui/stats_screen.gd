@@ -534,15 +534,20 @@ func awards() -> Array[Dictionary]:
 		out.append({"title": "Hero's finest wave", "art": "unit_hero",
 			"text": "Wave %d%s" % [hw_wave, _of(hw_v, coop)], "detail": "%d kills by the hero" % hw_best})
 	var cc_v := -1
+	var cc: Array = []
+	var burned := 0.0
 	for vid in st.villages.size():
-		if st.value(vid, "huts_burned") > 0.0 and (cc_v < 0 or st.value(vid, "min_huts") < st.value(cc_v, "min_huts")):
+		burned += st.value(vid, "huts_burned")
+		var c := st.closest_call(vid)
+		if not c.is_empty() and (cc.is_empty() or c[0] < cc[0]):
+			cc = c
 			cc_v = vid
 	if cc_v >= 0:
-		var left := int(st.value(cc_v, "min_huts"))
+		var left: int = cc[0]
 		out.append({"title": "Closest call", "art": "hut_ruin",
 			"text": "%d intact hut%s left%s" % [left, "" if left == 1 else "s", _of(cc_v, coop)],
-			"detail": "in wave %d" % int(st.value(cc_v, "min_huts_wave"))})
-	else:
+			"detail": "in wave %d" % cc[1]})
+	elif burned == 0.0:  # (huts burned only in a wave the village fell in: no card)
 		out.append({"title": "Closest call", "art": "hut", "text": "Not a single hut burned", "detail": ""})
 	if coop:
 		var nb_v := -1

@@ -117,7 +117,7 @@ func _single() -> void:
 	hut.destroy("goblin 99")
 	await frames(2)
 	check(st.value(0, "huts_burned") == 1.0 and st.value(0, "lost.hut") == 1.0, "a burned hut and its villager, lost to the fire")
-	check(st.value(0, "min_huts") == float(huts0 - 1), "the fewest intact huts so far")
+	check(st.closest_call(0) == [huts0 - 1, game.waves.wave], "Closest call: the fewest intact huts so far, and in which wave")
 	var th := game.waves.debug_spawn("thief", v)
 	var stolen := game.thief_steals(th)
 	check(stolen > 0 and st.value(0, "stolen") == float(stolen), "gold stolen by a thief")
@@ -199,12 +199,23 @@ func _single() -> void:
 	check((copy.villages[0]["towers"] as Dictionary).size() == 1, "the award tables too")
 	copy.queue_free()
 
-	# Game over.
+	# Game over: every hut burns in a later wave.
 	var n0 := st.times.size()
-	game.game_over = true
-	hud.show_game_over("The outpost has fallen", "test")
+	var cc0 := st.closest_call(0)
+	var burned0 := st.value(0, "huts_burned")
+	var left0 := v.intact_huts().size()
+	game.waves.wave += 1
+	var huts := v.intact_huts()
+	huts.sort_custom(func(a: Building, b: Building) -> bool: return (a as Hut).resident == null and (b as Hut).resident != null)
+	for h in huts:  # (the empty ones first: the last villager dies with the last hut)
+		(h as Hut).destroy("goblin 98")
 	await frames(3)
-	check(st.ended and st.times.size() == n0 + 1, "game over: one last sample, then it stops")
+	check(game.game_over and st.ended and st.times.size() == n0 + 1, "game over: one last sample, then it stops")
+	check(st.value(0, "huts_burned") == burned0 + left0, "the last hut counts too, though its villager's death ends the game")
+	check((st.villages[0]["fell_waves"] as Dictionary).has(game.waves.wave) and st.closest_call(0) == cc0,
+		"Closest call leaves out the wave the village fell in (%s, not 0 huts in wave %d)" % [str(st.closest_call(0)), game.waves.wave])
+	var cards := scr.awards().filter(func(a: Dictionary) -> bool: return a["title"] == "Closest call")
+	check(cards.size() == 1 and cards[0]["text"].begins_with("%d intact hut" % cc0[0]) and cards[0]["detail"] == "in wave %d" % cc0[1], "and its card says so")
 	var k0 := st.value(0, "kills")
 	kill(game.waves.debug_spawn("goblin", v), game.hero)
 	await frames(2)

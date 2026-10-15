@@ -70,6 +70,15 @@ func walk_to(tile: Vector2i) -> bool:
 	return true
 
 
+## Its unit became another kind (specialised while out or on the way): its
+## look and its walking speed follow.
+func refresh_kind() -> void:
+	speed = unit.spec()["speed"]
+	sprite.self_modulate = Color.WHITE  # (a berserker's red; _process sets it again for one)
+	UnitFx.show_unit(sprite, unit.kind)
+	queue_redraw()
+
+
 func start_sortie(b: Barracks, p_farm: Farm = null) -> void:
 	barracks = b
 	farm = p_farm

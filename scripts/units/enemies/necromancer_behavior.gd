@@ -7,7 +7,8 @@ extends EnemyBehavior
 ## and the necromancer walks on for at least cast_time before the next one.
 ## A corpse that is gone before the spell is done: the cast is lost.
 ## While one of the village's fighters is near (the hero, a soldier or an
-## elemental within raise_range, or a manned tower that has it in range), it
+## elemental within raise_range, or a manned tower that has it in range; a
+## Healing Mage or High Priest, who can't hurt it, doesn't count), it
 ## doesn't walk on: it stays and waits for its next raise. In a High
 ## Priest's aura (it or the corpse) the spell takes necro_slow x as long.
 
@@ -81,11 +82,12 @@ func _stop(enemy: Enemy) -> void:
 static func _fighter_near(enemy: Enemy) -> bool:
 	var r := float(enemy.spec()["raise_range"])
 	for node in enemy.get_tree().get_nodes_in_group("melee_defenders"):
-		if not node.dead and node.grid_pos.distance_to(enemy.grid_pos) <= r:
+		if not node.dead and not (node is Soldier and not node.unit.fights()) and node.grid_pos.distance_to(enemy.grid_pos) <= r:
 			return true
 	for b in enemy.game.world.towers():
 		var t := b as Tower
-		if t and t.garrison != null and t.garrison.state == MilitaryUnit.State.STATIONED and Vector2(t.tile).distance_to(enemy.grid_pos) <= t.range_tiles():
+		if t and t.garrison != null and t.garrison.state == MilitaryUnit.State.STATIONED and t.garrison.fights() \
+				and Vector2(t.tile).distance_to(enemy.grid_pos) <= t.range_tiles():
 			return true
 	return false
 

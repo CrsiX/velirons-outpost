@@ -135,6 +135,12 @@ func hits_flyers() -> bool:
 	return role() != "melee" or spec().get("hits_flyers", false)
 
 
+## Does it fight at all? Not a Healing Mage or a High Priest (no attack); a
+## summoner does (its elementals).
+func fights() -> bool:
+	return role() not in ["healer", "support"]
+
+
 ## Own range out in the field (ranged units; never upgraded; a melee unit's reach).
 func field_range() -> float:
 	return float(spec().get("range", Config.UNIT_MELEE_RANGE))

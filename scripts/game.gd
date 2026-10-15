@@ -659,7 +659,11 @@ func _check_defeat() -> void:
 	if game_over or backdrop:
 		return
 	for v in villages:
-		if v.update_fallen() and villages.size() > 1:
+		if not v.update_fallen():
+			continue
+		if v.fallen:
+			stats.on_village_fell(v)
+		if villages.size() > 1:
 			if v.fallen:
 				log_all(EventLog.Level.IMPORTANT, "%s has fallen" % v.village_name)
 				_reroute_from(v)

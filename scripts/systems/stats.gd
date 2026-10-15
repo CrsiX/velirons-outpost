@@ -29,7 +29,9 @@ var wave_marks: Array = []
 ## Per village id: {"name", "color", "c": counters (key -> number),
 ## "s": samples (SERIES key -> PackedFloat32Array, one value per `times`),
 ## "towers": nid -> [label, kills, tower level, unit], "gatherers" / "explorers":
-## label -> corpses / tiles, "hero_waves": wave -> the hero's kills}.
+## label -> corpses / tiles, "hero_waves": wave -> the hero's kills,
+## "hut_waves": wave -> the fewest intact huts after a burn in it, "fell_waves":
+## wave -> true for each wave in which the village fell (Closest call skips those)}.
 var villages: Array[Dictionary] = []
 ## A co-op client has had numbers from the host.
 var received := false
@@ -45,7 +47,8 @@ func setup(p_game: Game) -> void:
 	_can_count = game.backdrop == null and not game.is_client
 	for v in game.villages:
 		villages.append({"name": v.village_name, "color": v.color, "c": {}, "s": _empty_series(),
-			"towers": {}, "gatherers": {}, "explorers": {}, "hero_waves": {}})
+			"towers": {}, "gatherers": {}, "explorers": {}, "hero_waves": {},
+			"hut_waves": {}, "fell_waves": {}})
 		_hero_up_since.append(0.0)
 		v.economy.earned.connect(_on_earned.bind(v.id))
 		v.economy.spent.connect(_on_spent.bind(v.id))
@@ -65,8 +68,6 @@ func start() -> void:
 		return
 	game.waves.wave_started.connect(_on_wave_started)
 	game.waves.wave_finished.connect(_on_wave_finished)
-	for v in game.villages:
-		set_min(v, "min_huts", v.intact_huts().size())
 	_sample()
 	_next_sample = float(Config.STATS["sample_interval"])
 
@@ -189,15 +190,33 @@ func on_kill(e: Enemy) -> void:
 			count(v, "hero.support_kills")
 
 
-## A hut burned: one more, and the fewest intact huts so far (Closest call).
+## A hut burned: one more, and the fewest intact huts in this wave (Closest call).
 func on_hut_burned(v: Village) -> void:
 	if not enabled or ended or v == null:
 		return
 	count(v, "huts_burned")
 	var left := v.intact_huts().size()
-	if left < value(v.id, "min_huts"):
-		villages[v.id]["c"]["min_huts_wave"] = float(game.waves.wave)
-	set_min(v, "min_huts", left)
+	var hw: Dictionary = villages[v.id]["hut_waves"]
+	hw[game.waves.wave] = mini(int(hw.get(game.waves.wave, left)), left)
+
+
+## Village `v` fell (its last villager or hut lost): Closest call leaves this wave out.
+func on_village_fell(v: Village) -> void:
+	if not enabled or ended or v == null:
+		return
+	villages[v.id]["fell_waves"][game.waves.wave] = true
+
+
+## Closest call of village `vid`: [fewest intact huts, wave] over the waves
+## with a burned hut in which it didn't fall, or [] if there is none.
+func closest_call(vid: int) -> Array:
+	var best: Array = []
+	var fell: Dictionary = villages[vid].get("fell_waves", {})
+	var hw: Dictionary = villages[vid].get("hut_waves", {})
+	for w in hw:
+		if not fell.has(w) and (best.is_empty() or int(hw[w]) < best[0]):
+			best = [int(hw[w]), int(w)]
+	return best
 
 
 func on_hero_down(v: Village) -> void:

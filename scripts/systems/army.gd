@@ -403,6 +403,8 @@ func _set_level(unit: MilitaryUnit, kind: String, level: int) -> void:
 	if kind != unit.kind:
 		unit.behavior.on_leave(unit.walker if unit.out else unit.post, unit)
 		unit.set_kind(kind)
+		if is_instance_valid(unit.walker):
+			(unit.walker as Soldier).refresh_kind()
 	unit.level = level
 	unit.train_xp = 0.0  # training was towards the level just reached
 	unit.hp = unit.max_hp() * maxf(ratio, 0.0) if unit.is_downed() else unit.max_hp()

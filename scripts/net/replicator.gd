@@ -557,6 +557,8 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 			if so.unit.kind != st.get("k", so.unit.kind):
 				so.unit.set_kind(st["k"])
 			so.unit.level = st.get("l", 0)
+		if so.sprite.get_meta("unit_kind", so.unit.kind) != so.unit.kind:  # specialised while out
+			so.refresh_kind()
 		so.unit.hp = st.get("hp", so.unit.hp)
 		so.queue_redraw()
 	if o is Enemy or o is EarthElemental:

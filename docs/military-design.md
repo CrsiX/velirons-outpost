@@ -291,7 +291,9 @@ Their level 1 (85-90 HP, 5.2-7.2 DPS) is above the shield bearer's level 3
   "Crossbowman 1: 34 HP 50 damage every 2.25 s range 3.2".
 - Every upgrade resets the unit's training XP and refills its HP. Specialising
   keeps the unit where it is, unless its new kind can't serve on its post (an
-  Inquisitor on a tower): then it walks back into the reserve.
+  Inquisitor on a tower): then it walks back into the reserve. A unit
+  specialised while out (on a sortie, or walking) changes its look, glow and
+  walking speed at once (`Soldier.refresh_kind`; co-op clients too).
 - **Training grounds:** the hero can train a unit to its next level, up to 10,
   within its own kind only. Specialising always costs gold.
 - **Spatial Archmage** (spatial mage at level ≥ `ARCHMAGE_LEVEL`, 10):
