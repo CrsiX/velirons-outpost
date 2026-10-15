@@ -35,6 +35,44 @@ func _tower() -> Tower:
 
 
 ## Every control under `n` that has meta `key` (optionally equal to `value`).
+## The Timeline's metric picker: an icon button with the metric's name beside
+## it, opening a grid of small icons that fits on the screen (landscape and portrait).
+func _metric_picker(scr: StatsScreen) -> void:
+	var pick: Button = _with_meta(scr, "metric_pick")[0]
+	var name_label: Label = _with_meta(scr, "metric_name")[0]
+	check(pick.text == "" and name_label.text == StatsScreen.METRICS[StatsScreen._last_metric][0], "the picker shows only an icon, the metric's name beside it (%s)" % name_label.text)
+	var sizes := [get_window().size]
+	for sz in [Vector2i(400, 700), Vector2i(1280, 720)]:
+		get_window().size = sz
+		get_viewport().size = sz
+		await frames(4)
+		pick = _with_meta(scr, "metric_pick")[0]
+		pick.pressed.emit()
+		await frames(2)
+		var icons := _with_meta(scr._picker, "metric")
+		var vp := scr.get_viewport_rect()
+		var box := scr._picker_box.get_global_rect()
+		var small := icons.all(func(b: Button) -> bool: return b.size.x <= 80.0 and b.size.y <= 80.0 and b.text == "")
+		check(scr._picker.visible and icons.size() == StatsScreen.METRICS.size() and small, "%dx%d: the picker opens: every metric as a small icon, no text" % [sz.x, sz.y])
+		check(vp.encloses(box), "%dx%d: and the whole picker is on the screen (%s in %s)" % [sz.x, sz.y, box, vp])
+		if sz.x == 400:
+			(icons[1] as Button).pressed.emit()  # Food
+			await frames(2)
+			check(not scr._picker.visible and StatsScreen._last_metric == 1 and (_with_meta(scr, "metric_name")[0] as Label).text == "Food"
+				and (scr.find_children("*", "StatsGraph", true, false)[0] as StatsGraph).data["name"] == "Food", "a tap on an icon picks it: the name beside it and the graph follow")
+		else:
+			var tap := InputEventMouseButton.new()
+			tap.button_index = MOUSE_BUTTON_LEFT
+			tap.pressed = true
+			scr._picker.gui_input.emit(tap)
+			await frames(1)
+			check(not scr._picker.visible, "a tap outside the icons closes it")
+	get_window().size = sizes[0]
+	get_viewport().size = sizes[0]
+	StatsScreen._last_metric = 0
+	await frames(3)
+
+
 func _with_meta(n: Node, key: String, value: Variant = null) -> Array[Node]:
 	var out: Array[Node] = []
 	for c in n.get_children():
@@ -163,6 +201,7 @@ func _single() -> void:
 	var graph: StatsGraph = graphs[0]
 	graph.hover_at(graph.size.x - 20.0)
 	check(graph.hover == st.times.size() - 1, "hovering shows the newest sample at the right end")
+	await _metric_picker(scr)
 	scr.show_tab("awards")
 	await frames(2)
 	var titles := _with_meta(scr, "award").map(func(n: Node) -> String: return n.get_meta("award"))

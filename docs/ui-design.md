@@ -185,6 +185,12 @@ Big touch targets everywhere, so mouse and fingers work the same.
   specialisation with its cost. It is 420 px wide (less on narrow screens), centred and kept on screen.
 - **Confirmations** (`Hud` `_confirm_panel`): a title, a text, a confirm button (red when dangerous)
   and Cancel. They are used for the Spatial Archmage (shows its gold cost) and for retiring a villager.
+- **Buttons that cost something follow the resources while their popup is open:** what can't be
+  paid is greyed out, and turns on as soon as enough is earned (and off again when spent). The
+  upgrade dialog, the Archmage confirmation and the trade dialog (`Hud._refresh_dialogs`, on every
+  economy change), the Build / Village / Army entries and the send dialog (`Hud._refresh`), the
+  info panel's actions (every 0.25 s), the villager list's *Rebuild all huts* and the hero's
+  *Level up* (the HUD tick).
 - **Hero panel** (top-left): its title names the mode with the mode's icon ("Hero: defending"), then:
   - level, HP and XP;
   - one icon button per mode, the current one framed (Support only in co-op, with its village toggle);

@@ -1068,6 +1068,23 @@ func _run() -> void:
 		var el: Array = empty_tower.info()["actions"].map(func(x: Dictionary) -> String: return x["label"])
 		check(not el.any(func(l: String) -> bool: return "Send" in l or "Station" in l or "rcher" in l), "unmanned tower has no station button (%s)" % str(el))
 	check(watchtower.level == 1 and wall_towers.all(func(t: Tower) -> bool: return t.level == 1), "all towers start at level 1")
+	# Its panel open, short of material: Upgrade tower is greyed out, and turns on once enough comes in.
+	var tower_up := func() -> Button:
+		for b in buttons_in(hud._info_actions):
+			if Hud.button_text(b).begins_with("Upgrade tower"):
+				return b
+		return null
+	var tm: int = Config.TOWER_LEVELS[1]["cost"]["materials"]
+	game.economy.spend({"materials": maxf(game.economy.amount("materials") - (tm - 1), 0.0)})
+	game.select(watchtower)
+	await wait(0.6)
+	var up_b: Button = tower_up.call()
+	var greyed := up_b != null and up_b.disabled
+	game.economy.add("materials", 1, "foresters")
+	await wait(0.6)
+	up_b = tower_up.call()
+	check(greyed and up_b != null and not up_b.disabled, "the tower panel open: Upgrade tower is greyed out while too poor, and turns on once the material is there")
+	game.deselect()
 	game.economy.add("materials", 200)
 	var r1 := watchtower.range_tiles()
 	var m1 := game.economy.amount("materials")
@@ -1648,6 +1665,13 @@ func _test_hero(far: Vector2i) -> void:
 	await frames(2)
 	check(not hero.dead and hero.visible and is_equal_approx(hero.hp, hero.max_hp) and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1, "he revives in the village centre when the wave is over")
 	check(hero.mode == Hero.Mode.GATHER, "his mode survives being downed")
+	# Downed between waves: back when the next one begins, not only after it.
+	hero.take_damage(1e9)
+	await frames(2)
+	var between := not game.waves.in_progress() and "next wave begins" in hero.status()
+	game.waves.wave_started.emit(game.waves.wave + 1)
+	await frames(2)
+	check(hero.dead == false and between and hero.visible and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1, "downed between waves, he revives when the next one begins")
 	game.waves.countdown = 99999.0
 
 	# Gather: brings corpses home like a gatherer, a little fewer at a time.

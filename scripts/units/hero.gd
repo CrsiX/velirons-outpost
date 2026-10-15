@@ -18,7 +18,8 @@ extends Civilian
 ## Every action except training earns XP (Config.HERO_XP_PER_ACTION; the
 ## blow that kills an enemy earns a "kill" bonus on top). When his
 ## HP runs out he is downed: all XP is lost, he leaves no corpse, and he revives
-## in the village centre when the wave is over, still in the same mode.
+## in the village centre when the wave is over (downed between waves: when the
+## next one begins), still in the same mode.
 ## He has no hut, eats nothing and doesn't count as a villager.
 
 signal changed
@@ -81,9 +82,11 @@ func setup_hero(p_game: Game, p_village: Village) -> void:
 	jobs[Mode.GATHER] = GatherJob.new(spec["gather_capacity"])
 	for j in jobs.values():
 		j.bind(self)
-	game.waves.wave_finished.connect(func(_n: int) -> void:
-		if dead:
-			revive())
+	# Back when a wave is over, or (downed between waves) when the next one begins.
+	for sig: Signal in [game.waves.wave_finished, game.waves.wave_started]:
+		sig.connect(func(_n: int) -> void:
+			if dead:
+				revive())
 
 
 func display_name() -> String:
@@ -642,7 +645,7 @@ func revive() -> void:
 
 func status() -> String:
 	if dead:
-		return "downed - revives when the wave is over"
+		return "downed - revives when the wave is over" if game.waves.in_progress() else "downed - revives when the next wave begins"
 	if evading:
 		return "fleeing from enemies"
 	match effective_mode():

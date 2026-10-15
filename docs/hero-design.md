@@ -19,7 +19,7 @@ objects he claims and loots.
 - **XP** comes from fighting, building, exploring, looting and gathering. He spends it on his
   own levels, or passes it to a unit at the training grounds.
 - **Downed** at 0 HP: he loses his unspent XP (never his levels) and comes back when the wave is
-  over.
+  over, or, downed between waves, when the next one begins.
 
 ## 2. Base stats (`HERO`)
 
@@ -258,8 +258,10 @@ he can walk to.
   - all his unspent XP is gone; his level stays;
   - he drops any camp order and his mode's work. Loot he carries is left on the spot;
   - he leaves no corpse and vanishes.
-- **Revival:** when the current wave is finished (`Waves.wave_finished`) he is back in his own
-  village's centre with full HP, in the same mode. The log says so (Info) and "The hero returns!"
+- **Revival:** when the current wave is finished (`Waves.wave_finished`), or when the next one
+  begins (`Waves.wave_started`: downed between waves, say at a camp, he doesn't sit out a whole
+  wave), he is back in his own village's centre with full HP, in the same mode. His panel says
+  which ("revives when the wave is over" / "... when the next wave begins"). The log says so (Info) and "The hero returns!"
   floats up.
 - Commands that need him (attacking a camp) are refused while he is down.
 

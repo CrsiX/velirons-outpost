@@ -69,10 +69,14 @@ var _upgrade_panel: PanelContainer
 var _upgrade_title: Label
 var _upgrade_options: VBoxContainer
 var _upgrade_hint: Label
+## The unit the upgrade dialog is open for (its buttons follow the gold, _refresh_dialogs).
+var _upgrade_unit: MilitaryUnit
 var _confirm_panel: PanelContainer
 var _confirm_title: Label
 var _confirm_text: Label
 var _confirm_yes: Button
+## Whether the confirmation's OK can be pressed now (checked again as resources come and go); empty: always.
+var _confirm_ready := Callable()
 var _gray: ColorRect
 var _settings_note: Label
 var _paused_banner: Label
@@ -2214,6 +2218,7 @@ func _refresh_send() -> void:
 ## The upgrade dialog for `unit`: one button per option (MilitaryUnit.upgrade_options).
 func open_upgrade(unit: MilitaryUnit) -> void:
 	_confirm_panel.visible = false
+	_upgrade_unit = unit
 	_upgrade_title.text = "Upgrade %s (level %d)" % [unit.display_name(), unit.level + 1]
 	for c in _upgrade_options.get_children():
 		_upgrade_options.remove_child(c)
@@ -2223,6 +2228,7 @@ func open_upgrade(unit: MilitaryUnit) -> void:
 		var b := _button("%s   (%s)" % [MilitaryUnit.option_text(opt), Config.cost_icons(opt["cost"])], Vector2(_upgrade_width(), 52))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", 15)
+		b.set_meta("cost", opt["cost"])
 		b.disabled = not game.economy.can_afford(opt["cost"]) or not unit.is_available()
 		if opt["archmage"]:
 			b.add_theme_color_override("font_color", Color("d8c0ff"))
@@ -2270,7 +2276,8 @@ func _ask_archmage(unit: MilitaryUnit) -> void:
 			_confirm_panel.visible = false
 			_upgrade_panel.visible = false
 			_selected_unit = null
-			_queue_refresh())
+			_queue_refresh(),
+		func() -> bool: return game.economy.can_afford(Config.ARCHMAGE_COST))
 
 
 ## A villager leaves for good, freeing its hut: ask first.
@@ -2291,7 +2298,7 @@ func ask_retire(c: Civilian) -> void:
 
 ## Shows the confirmation dialog: `yes` runs on the confirm button (red when
 ## `danger`); Cancel just closes it.
-func _ask(title: String, color: Color, text: String, yes_text: String, danger: bool, yes: Callable) -> void:
+func _ask(title: String, color: Color, text: String, yes_text: String, danger: bool, yes: Callable, ready := Callable()) -> void:
 	_confirm_title.text = title
 	_confirm_title.add_theme_color_override("font_color", color)
 	_confirm_text.custom_minimum_size.x = _upgrade_width()
@@ -2304,6 +2311,8 @@ func _ask(title: String, color: Color, text: String, yes_text: String, danger: b
 	for c in _confirm_yes.pressed.get_connections():
 		_confirm_yes.pressed.disconnect(c["callable"])
 	_confirm_yes.pressed.connect(yes)
+	_confirm_ready = ready
+	_confirm_yes.disabled = ready.is_valid() and not ready.call()
 	_confirm_panel.visible = true
 	_fit_dialog(_confirm_panel)
 	_fit_dialog.call_deferred(_confirm_panel)
@@ -3017,6 +3026,20 @@ func _refresh() -> void:
 		(_military_panels[kind] as Control).visible = game.is_unlocked(kind)
 	_rebuild_reserve()
 	_refresh_send()
+	_refresh_dialogs()
+
+
+## Open dialogs whose buttons cost something follow the resources (and the
+## unit's availability): earned enough meanwhile, a greyed-out button turns on.
+func _refresh_dialogs() -> void:
+	if _upgrade_panel.visible and is_instance_valid(_upgrade_unit):
+		for b: Button in _upgrade_options.get_children():
+			if b.has_meta("cost"):
+				b.disabled = not game.economy.can_afford(b.get_meta("cost")) or not _upgrade_unit.is_available()
+	if _confirm_panel.visible and _confirm_ready.is_valid():
+		_confirm_yes.disabled = not _confirm_ready.call()
+	for i in _trade_buttons.size():
+		_trade_buttons[i].disabled = not game.economy.can_afford({"gold": Config.MATERIALS_TRADE["gold"] * [1, 5][i]})
 
 
 func _refresh_resources() -> void:

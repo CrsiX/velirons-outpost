@@ -47,6 +47,10 @@ var _tab_buttons := {}
 var _scroll: ScrollContainer
 var _list: VBoxContainer
 var _next_refresh := 0
+## The Timeline's metric picker: a grid of icons over everything, shown under
+## (or above) its button and kept on the screen; a tap outside closes it.
+var _picker: Control
+var _picker_box: PanelContainer
 
 
 func _init() -> void:
@@ -96,6 +100,17 @@ func _init() -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_list)
+	_picker = Control.new()
+	_picker.mouse_filter = Control.MOUSE_FILTER_STOP
+	_picker.visible = false
+	add_child(_picker)
+	_picker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_picker.gui_input.connect(func(e: InputEvent) -> void:
+		if (e is InputEventMouseButton or e is InputEventScreenTouch) and e.is_pressed():
+			close_picker())
+	_picker_box = PanelContainer.new()
+	_picker_box.add_theme_stylebox_override("panel", UiTheme.box(Color("2a1a14"), UiTheme.GOLD, 3, 10, 8))
+	_picker.add_child(_picker_box)
 	visible = false
 
 
@@ -124,6 +139,7 @@ func open(p_tab := "") -> void:
 func close() -> void:
 	if not visible:
 		return
+	close_picker()
 	visible = false
 	closed.emit()
 
@@ -181,7 +197,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key := (event as InputEventKey).keycode
 	if key == KEY_F11:
 		return  # (fullscreen still works)
-	if (key == KEY_ESCAPE or key == KEY_T) and not event.is_echo():
+	if key == KEY_ESCAPE and not event.is_echo() and _picker.visible:
+		close_picker()
+	elif (key == KEY_ESCAPE or key == KEY_T) and not event.is_echo():
 		close()
 	get_viewport().set_input_as_handled()  # (modal: no Space, Tab, Enter behind it)
 
@@ -446,31 +464,91 @@ static func format_time(seconds: float) -> String:
 # --- Timeline -----------------------------------------------------------------------------
 
 func _build_timeline() -> void:
-	var pick := OptionButton.new()
-	pick.focus_mode = Control.FOCUS_NONE
-	pick.custom_minimum_size = Vector2(240, 44)
-	pick.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	for i in METRICS.size():
-		var m: Array = METRICS[i]
-		pick.add_icon_item(Art.tex(m[2]) if ResourceLoader.exists("res://art/%s.svg" % m[2]) else null, m[0], i)
-	pick.select(_last_metric)
-	pick.get_popup().process_mode = Node.PROCESS_MODE_ALWAYS
-	_list.add_child(pick)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	_list.add_child(row)
+	var pick := _icon_button(METRICS[_last_metric][2], METRICS[_last_metric][0], true)
+	pick.set_meta("metric_pick", true)
+	pick.pressed.connect(func() -> void: open_picker(pick))
+	row.add_child(pick)
+	var name_label := _label(METRICS[_last_metric][0], 22)
+	name_label.set_meta("metric_name", true)
+	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(name_label)
 	var graph := StatsGraph.new()
 	graph.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	graph.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	graph.custom_minimum_size = Vector2(0, 300)
 	_list.add_child(graph)
 	graph.set_data(_timeline_data(_last_metric))
-	pick.item_selected.connect(func(i: int) -> void:
-		_last_metric = i
-		graph.set_data(_timeline_data(i)))
 	if game.stats.villages.size() > 1:
 		var legend := HFlowContainer.new()
 		legend.add_theme_constant_override("h_separation", 16)
 		for v in game.stats.villages:
 			legend.add_child(_label("■ " + str(v["name"]), 16, v["color"]))
 		_list.add_child(legend)
+
+
+## A button with just an icon (`art`), scaled to fit; `tip` on hover. With
+## `drop`, a small chevron says it opens a picker.
+func _icon_button(art: String, tip: String, drop := false) -> Button:
+	var b := _button("", Vector2(76 if drop else 56, 52))
+	b.tooltip_text = tip
+	var c := CenterContainer.new()
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(c)
+	c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var h := HBoxContainer.new()
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_theme_constant_override("separation", 4)
+	c.add_child(h)
+	h.add_child(_icon(art, 34))
+	if drop:
+		h.add_child(_icon("icon_sheet_down", 14))
+	return b
+
+
+## Opens the metric picker by `anchor`: every metric as an icon, in as many
+## columns as fit, so the whole grid is on the screen (no scrolling).
+func open_picker(anchor: Control) -> void:
+	for c in _picker_box.get_children():
+		_picker_box.remove_child(c)
+		c.queue_free()
+	var vp := get_viewport_rect().size
+	var grid := GridContainer.new()
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	grid.columns = clampi(int((vp.x - 40.0) / 62.0), 1, 7)
+	_picker_box.add_child(grid)
+	for i in METRICS.size():
+		var b := _icon_button(METRICS[i][2], METRICS[i][0])
+		b.set_meta("metric", i)
+		UiTheme.style_selected(b, i == _last_metric)
+		b.pressed.connect(func() -> void: select_metric(i))
+		grid.add_child(b)
+	_picker.visible = true
+	_picker_box.reset_size()
+	var s := _picker_box.get_combined_minimum_size()
+	_picker_box.size = s
+	var a := anchor.get_global_rect()
+	var pos := Vector2(a.position.x, a.end.y + 6.0)
+	if pos.y + s.y > vp.y - 8.0:  # (no room below: above it)
+		pos.y = a.position.y - 6.0 - s.y
+	pos.x = clampf(pos.x, 8.0, maxf(vp.x - 8.0 - s.x, 8.0))
+	pos.y = clampf(pos.y, 8.0, maxf(vp.y - 8.0 - s.y, 8.0))
+	_picker_box.position = pos.floor()
+
+
+func close_picker() -> void:
+	if _picker:
+		_picker.visible = false
+
+
+## The Timeline shows metric `i` (the picker closes).
+func select_metric(i: int) -> void:
+	_last_metric = i
+	close_picker()
+	_rebuild()
 
 
 ## What the graph shows for metric `i`: {"name", "times", "marks", "lines": [{"name", "color", "values"}]}.

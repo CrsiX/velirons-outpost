@@ -481,6 +481,23 @@ func _test_branching() -> void:
 		if "Ice Mage" in Hud.button_text(n as Button):
 			ice_btn = n
 	check(ice_btn != null, "with the ice mage among them")
+	# Too poor while it's open: greyed out; gold earned meanwhile turns it on (also the trade dialog's buttons).
+	var gold_had := game.economy.amount("gold")
+	var ice_cost := int(ap.upgrade_options().filter(func(o: Dictionary) -> bool: return o["to"] == "ice_mage")[0]["cost"]["gold"])
+	game.economy.spend({"gold": gold_had - (ice_cost - 1)})
+	await frames(2)
+	var poor := ice_btn != null and ice_btn.disabled
+	game.economy.add("gold", 1, "kills")
+	await frames(2)
+	check(poor and ice_btn != null and not ice_btn.disabled and hud._upgrade_panel.visible, "too little gold: the option is greyed out; gold earned while the dialog is open turns it on")
+	var five: int = Config.MATERIALS_TRADE["gold"] * 5
+	game.economy.spend({"gold": game.economy.amount("gold") - (five - 1)})
+	await frames(2)
+	var trade_off := not hud._trade_buttons[0].disabled and hud._trade_buttons[1].disabled
+	game.economy.add("gold", 1, "kills")
+	await frames(2)
+	check(trade_off and not hud._trade_buttons[1].disabled, "the trade dialog's buttons follow the gold too")
+	game.economy.add("gold", gold_had - game.economy.amount("gold"))
 	if ice_btn:
 		await tap(ice_btn)
 		await frames(2)
@@ -511,6 +528,13 @@ func _test_branching() -> void:
 		await tap(arch_btn)
 		await frames(2)
 	check(hud._confirm_panel.visible and "600" in Hud.button_text(hud._confirm_yes), "it asks for confirmation first (600 gold)")
+	var gold_kept := game.economy.amount("gold")
+	game.economy.spend({"gold": gold_kept - (Config.ARCHMAGE_COST["gold"] - 1)})
+	await frames(2)
+	var no_gold := hud._confirm_yes.disabled
+	game.economy.add("gold", gold_kept - game.economy.amount("gold"))
+	await frames(2)
+	check(no_gold and not hud._confirm_yes.disabled, "short of gold its OK is greyed out, and turns on once the gold is there")
 	var g0 := game.economy.amount("gold")
 	check(on_screen(hud._confirm_panel), "the confirmation fits on screen")
 	await tap(hud._confirm_yes)
