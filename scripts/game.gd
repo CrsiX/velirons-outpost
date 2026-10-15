@@ -21,9 +21,9 @@ const VILLAGE_SCRIPT := preload("res://scripts/systems/village.gd")
 ## Map type (Config.MAP_TYPES) and seed; 0 = random seed.
 @export var map_seed := 0  # 0 = random every game
 var map_type := "temperate"
-## Debug switches, defaulting to config.gd (tests may override before _ready).
-var reveal_map := Config.REVEAL_MAP
-var disable_fog := Config.DISABLE_FOG
+## No fog of war at all (every tile explored and watched): only for the
+## title backdrop and tests, set before _ready; never in a game anyone plays.
+var disable_fog := false
 ## Tests only: this many villages in one game without a network (co-op rules,
 ## played as village 0). Players get several villages only through LAN co-op.
 var test_villages := 1
@@ -137,8 +137,6 @@ func _ready() -> void:
 			colors.append(Config.VILLAGE_COLORS[int(pv["color"])])
 		s = int(Net.setup.get("seed", s))
 		map_type = str(Net.setup.get("map_type", map_type))
-		reveal_map = bool(Net.setup.get("reveal_map", reveal_map))
-		disable_fog = bool(Net.setup.get("disable_fog", disable_fog))
 	else:
 		for i in clampi(test_villages, 1, Config.MAX_PLAYERS):
 			names.append(Config.VILLAGE_NAMES[i])

@@ -114,8 +114,6 @@ func setup(p_game: Game, seed_value: int) -> void:
 			fog.explore_tiles(MapData.rect_tiles(a["rect"]), j)
 	if map.villages.size() > 1:
 		_spawn_village_labels()
-	if game.reveal_map:
-		fog.reveal_all()
 	if game.disable_fog:
 		fog.set_disabled(true)
 

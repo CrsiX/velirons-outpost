@@ -15,7 +15,6 @@ func _run() -> void:
 	_test_config()
 	game = load("res://scenes/main.tscn").instantiate()
 	game.map_seed = SEED
-	game.reveal_map = true
 	game.disable_fog = true
 	add_child(game)
 	for k in Config.LOCKED:

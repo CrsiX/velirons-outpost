@@ -110,7 +110,7 @@ var _settings_log_button: Button
 var _settings_lang_button: Button
 var _settings_title_button: Button
 var _settings_panel: Control
-## Config.DEBUG: the Debug page (instead of the settings) and its enemy list.
+## Debug builds (OS.is_debug_build): the Debug page (instead of the settings) and its enemy list.
 var _debug_panel: Control
 var _debug_main: Control
 var _debug_enemies: Control
@@ -2524,7 +2524,7 @@ func _build_settings() -> void:
 	_settings_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_settings_note.visible = false
 	v.add_child(_settings_note)
-	if Config.DEBUG:
+	if OS.is_debug_build():  # (a debug export, or run from the editor; never a release export)
 		var dbg := _button("Debug...", Vector2(0, 52))
 		dbg.pressed.connect(func() -> void: _show_debug(true))
 		v.add_child(dbg)
@@ -2540,7 +2540,7 @@ func _build_settings() -> void:
 	_settings.visible = false
 
 
-## The Debug page (Config.DEBUG): cheats as commands (Commands._debug), so
+## The Debug page (debug builds only, OS.is_debug_build): cheats as commands (Commands._debug), so
 ## they work for a co-op client too.
 func _build_debug(center: Control) -> void:
 	var panel := PanelContainer.new()

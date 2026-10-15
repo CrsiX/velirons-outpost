@@ -436,7 +436,8 @@ func _set_speed(v: Village, a: Dictionary) -> Dictionary:
 	return ok()
 
 
-## Config.DEBUG only (the settings dialog's Debug page). `what`: "gold",
+## Debug builds only (OS.is_debug_build: a debug export or the editor; the
+## host's build decides), from the settings dialog's Debug page. `what`: "gold",
 ## "food", "materials" (+DEBUG_AMOUNT), "xp" (the hero), "reveal" (the whole
 ## map explored, the fog of war stays), "unlock" (every locked unit and role),
 ## "spawn" (an enemy of `kind` at the edge, outside the waves' rules).
@@ -444,8 +445,8 @@ const DEBUG_AMOUNT := 1000
 
 
 func _debug(v: Village, a: Dictionary) -> Dictionary:
-	if not Config.DEBUG:
-		return fail("Debugging is off")
+	if not OS.is_debug_build():
+		return fail("Debugging is off (a release build)")
 	var what := str(a.get("what", ""))
 	match what:
 		"gold", "food", "materials":

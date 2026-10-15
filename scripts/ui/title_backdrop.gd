@@ -152,7 +152,6 @@ func _fade_to(c: Color, seconds: float) -> Tween:
 func prepare(g: Game) -> void:
 	g.map_seed = int(value("seed"))
 	g.map_type = str(value("map_type"))
-	g.reveal_map = true
 	g.disable_fog = true
 	g.test_villages = 1
 	g.start_resources = (value("resources") as Dictionary).duplicate()

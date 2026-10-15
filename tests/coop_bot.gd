@@ -122,7 +122,6 @@ func _test_villages() -> void:
 	game = load("res://scenes/main.tscn").instantiate()
 	game.map_seed = SEEDS[0]
 	game.test_villages = 3
-	game.reveal_map = false
 	game.disable_fog = false
 	add_child(game)
 	for k in Config.LOCKED:

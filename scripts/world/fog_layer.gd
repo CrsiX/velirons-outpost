@@ -31,7 +31,7 @@ var explored_of: Array[PackedByteArray] = []
 var watched_of: Array[PackedByteArray] = []
 ## The village whose fog is drawn (the local player's).
 var local := 0
-## No fog at all: every tile is explored and under surveillance (Config.DISABLE_FOG).
+## No fog at all: every tile is explored and under surveillance (Game.disable_fog: the title backdrop, tests).
 var disabled := false
 var _image: Image
 var _texture: ImageTexture
@@ -99,7 +99,7 @@ func explore_tiles(tiles: Array[Vector2i], vid: int = -1) -> Array[Vector2i]:
 	return fresh
 
 
-## Marks the whole map explored (Config.REVEAL_MAP) for every village.
+## Marks the whole map explored (the Debug page's Reveal) for every village.
 ## Surveillance still applies.
 func reveal_all() -> void:
 	var all: Array[Vector2i] = []

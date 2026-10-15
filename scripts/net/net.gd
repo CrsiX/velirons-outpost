@@ -48,12 +48,9 @@ var map_seed := 0
 ## name and preview). Each player then has a village of it ("slot" in
 ## `players`), assigned by the host.
 var custom_map: MapData = null
-## Host: fog options for the game (Config.REVEAL_MAP / DISABLE_FOG by default).
-var reveal_map := Config.REVEAL_MAP
-var disable_fog := Config.DISABLE_FOG
 var in_game := false
 ## Set for the level scene: {"seed", "villages": [{"name", "color", "peer"}], "difficulty",
-## "local", "map_type", "reveal_map", "disable_fog"}. (A client before the game: {"name", "color"}.)
+## "local", "map_type"}. (A client before the game: {"name", "color"}.)
 var setup: Dictionary = {}
 ## Client: the map the host sent (MapData), for the level scene.
 var map: MapData
@@ -462,7 +459,7 @@ func start_game() -> bool:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var s := map_seed if map_seed != 0 else rng.randi()
-	setup = {"seed": s, "map_type": Settings.resolve_map_type(map_type, s), "villages": villages, "difficulty": difficulty, "local": 0, "reveal_map": reveal_map, "disable_fog": disable_fog}
+	setup = {"seed": s, "map_type": Settings.resolve_map_type(map_type, s), "villages": villages, "difficulty": difficulty, "local": 0}
 	if custom_map:
 		setup["seed"] = custom_map.seed_value
 		setup["map_type"] = custom_map.map_type

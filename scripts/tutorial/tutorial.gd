@@ -61,7 +61,6 @@ func prepare(p_game: Game) -> void:
 	var td: Dictionary = Config.TUTORIAL
 	game.map_seed = int(td["seed"])
 	game.map_type = str(td["map_type"])
-	game.reveal_map = false
 	game.disable_fog = false
 	game.start_resources = (td["resources"] as Dictionary).duplicate()
 	game.start_civilians.assign(td["civilians"])

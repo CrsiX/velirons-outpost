@@ -80,7 +80,7 @@ in docs/multiplayer-design.md.
 ## 4. The start
 
 - **Villagers** (`START_CIVILIANS`): builder, farmer, forester, explorer. There is no explorer
-  when the whole map is known from the start (`REVEAL_MAP` / `DISABLE_FOG`).
+  without fog (`Game.disable_fog`: only the title backdrop and tests).
 - **Free buildings** (`START_BUILDINGS`): a farm and a worker camp, finished
   (`Construction.build_starting`).
   - The farm goes on the map's guaranteed farm plot next to the village (`Village.farm_plot`).

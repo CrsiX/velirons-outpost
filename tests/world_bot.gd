@@ -264,7 +264,6 @@ func _test_game() -> void:
 	var sd := _full_seed()
 	game = load("res://scenes/main.tscn").instantiate()
 	game.map_seed = sd
-	game.reveal_map = false
 	game.disable_fog = false
 	add_child(game)
 	await frames(3)

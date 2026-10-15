@@ -75,11 +75,11 @@ func _run() -> void:
 	_test_config()
 	game = load("res://scenes/main.tscn").instantiate()
 	game.map_seed = SEED
-	game.reveal_map = true
 	add_child(game)
 	for k in Config.LOCKED:
 		game.unlocks[k] = true  # (this test predates unit unlocks: tests/world_bot.gd)
 	await frames(3)
+	game.fog.reveal_all()  # (the whole map known, as the Debug page's Reveal does)
 	game.waves.countdown = 99999.0
 	game.waves.hold = true
 	far = game.map.edge_spawns[0]

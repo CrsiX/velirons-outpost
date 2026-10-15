@@ -87,8 +87,6 @@ func _client_id() -> int:
 
 func _host() -> void:
 	check(Net.host(HOST_NAME, 0) == "" and Net.is_host(), "hosting a lobby")
-	Net.disable_fog = false  # (whatever config.gd says: this test is about the fog)
-	Net.reveal_map = false
 	check(Net.join_decision(Net.PROTOCOL + 1, "Other") != "" and Net.join_decision(Net.PROTOCOL, HOST_NAME) != "", "the host turns away another version and a taken name")
 	var joined := await wait_until(func() -> bool: return _client_id() > 0)
 	check(joined, "a client joins the lobby")

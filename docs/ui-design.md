@@ -245,8 +245,9 @@ Big touch targets everywhere, so mouse and fingers work the same.
   - **Back to title:** red, no confirmation; "Leave game" in a networked game.
   - **Co-op client:** the dialog doesn't pause, and a note says so.
   - **Co-op host:** pausing greys everything below the top bar for all players ("Paused by the host").
-  - **Debug:** with `Config.DEBUG`, a *Debug...* page offers cheats and *Spawn enemy...*, all sent as
-    commands (`Commands._debug`).
+  - **Debug:** in a debug build (`OS.is_debug_build()`: a debug export, or run from the editor; never
+    a release export), a *Debug...* page offers cheats and *Spawn enemy...*, all sent as commands
+    (`Commands._debug`).
 - **Library** (`scripts/ui/library.gd`, the book icon left of the statistics icon and the gear; also on the title screen):
   - **Tabs:** Enemies, Units, Buildings, Villagers, Hero, Places. Each entry has its picture, a short
     text and its real numbers.

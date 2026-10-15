@@ -204,11 +204,6 @@ const STATS := {
 	"kill_kinds": ["goblin", "skeleton", "ork", "witch", "rat", "thief", "gargoyle", "necromancer"],
 }
 
-## Debug / sandbox switches.
-const DEBUG := false  # true: the settings dialog has a Debug page (resources, XP, reveal, unlocks, enemies)
-const REVEAL_MAP := false  # true: the whole map starts explored (terrain known)
-const DISABLE_FOG := false  # true: no fog of war at all; everything is visible
-
 ## World generation (docs/world-design.md). The map is cut into one equal-area
 ## slice per player around its centre; each village sits near its slice's
 ## centre. Zones come from height x moisture; ash land only around volcanoes.

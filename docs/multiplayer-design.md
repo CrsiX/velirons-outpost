@@ -453,7 +453,7 @@ refusal comes back to the client as a toast.
 | `call_wave` | waves |
 | `set_speed` | speed / pause (host only: "The host sets the speed") |
 | `attack_camp`, `restore_ruin`, `assign_miner`, `unassign_miner` | map objects |
-| `debug` | the Debug page (`Config.DEBUG` only) |
+| `debug` | the Debug page (debug builds only: `OS.is_debug_build()` on the host) |
 
 UI-only actions don't go to the host: selection, camera, dock, log level,
 panels. The debug log entries for them stay local.

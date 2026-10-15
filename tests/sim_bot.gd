@@ -225,8 +225,7 @@ func _run() -> void:
 	var scene: PackedScene = load("res://scenes/main.tscn")
 	game = scene.instantiate()
 	game.map_seed = SEED
-	game.reveal_map = false  # the test needs real fog, whatever config.gd says
-	game.disable_fog = false
+	game.disable_fog = false  # the test needs real fog
 	add_child(game)
 	for k in Config.LOCKED:
 		game.unlocks[k] = true  # (this test predates unit unlocks: tests/world_bot.gd)
@@ -1501,10 +1500,16 @@ func _run() -> void:
 	# --- the hero ------------------------------------------------------------------------------
 	await _test_hero(far_spot)
 
-	# --- fog switches (Config.REVEAL_MAP / DISABLE_FOG) ---------------------------------------
+	# --- the Debug page: debug builds only (the bots run one) --------------------------------
+	var dbg_buttons: Array = hud._settings.find_children("*", "Button", true, false).filter(func(b: Button) -> bool: return b.text == "Debug...")
+	check(OS.is_debug_build() and dbg_buttons.size() == 1, "a debug build: the settings dialog has a Debug... button")
+	var gold_d := game.economy.amount("gold")
+	check(game.command("debug", {"what": "gold"})["ok"] and game.economy.amount("gold") == gold_d + Commands.DEBUG_AMOUNT, "and its commands work (+%d gold)" % Commands.DEBUG_AMOUNT)
+
+	# --- revealing the map (the Debug page), no fog (Game.disable_fog: the title backdrop) ---
 	game.fog.reveal_all()
 	await wait(0.5)
-	check(game.fog.explored_count() == map.size * map.size and game.fog.watched_count() < map.size * map.size, "REVEAL_MAP explores everything but unwatched land stays dark")
+	check(game.fog.explored_count() == map.size * map.size and game.fog.watched_count() < map.size * map.size, "revealing the map explores everything but unwatched land stays dark")
 	game.fog.set_disabled(true)
 	await frames(2)
 	check(game.fog.explored_count() == map.size * map.size and game.fog.watched_count() == map.size * map.size, "without fog the whole map is explored and visible")
