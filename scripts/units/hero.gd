@@ -104,6 +104,9 @@ func set_mode(m: int) -> void:
 		return
 	_leave_mode()
 	mode = m as Mode
+	rest_timer = 0.0  # (no rest first: the new mode starts at once)
+	_think_timer = 0.0  # (Defend looks for an enemy at once; the blow's cooldown stays)
+	_stop_evading()
 	village.events.debug("hero mode: %s" % mode_name())
 	changed.emit()
 
@@ -156,6 +159,21 @@ func _leave_mode() -> void:
 		_set_home(false)  # standing in someone else's village: walk from there
 	_drop_work()
 	sprite.rotation = 0.0
+
+
+## A new order while he runs from enemies takes effect at once, wherever he
+## is: he stops running unless his new mode is a villager job and an enemy is
+## still close (then that job flees on, as it would anyway).
+func _stop_evading() -> void:
+	if not evading:
+		return
+	if wants_to_evade() and not inside_walls() and enemy_nearby():
+		_on_evade()
+		return
+	evading = false
+	path = PackedVector2Array()
+	path_index = 0
+	_set_moving(false)
 
 
 ## Lets go of whatever he was doing: his mode's job, training, a fight.
@@ -231,6 +249,10 @@ func _tick(delta: float) -> void:
 			_defend(delta)
 		Mode.BUILD, Mode.EXPLORE, Mode.GATHER:
 			jobs[mode].tick(delta)
+			if _job_idle() and not at_home:
+				_return_home(delta)  # switched to it out in the field, nothing to do yet: home
+			else:
+				_returning = false
 		Mode.TRAIN:
 			var g := ready_grounds()
 			if g != null:
@@ -244,6 +266,14 @@ func _tick(delta: float) -> void:
 		Mode.SUPPORT:
 			_defend(delta)  # relative to base(): the village he supports
 	_regen(delta)
+
+
+## His villager job waits for work (resting), with no task of its own.
+func _job_idle() -> bool:
+	var job = jobs[mode]
+	if job is HeroExploreJob and (job as HeroExploreJob).task != HeroExploreJob.Task.NONE:
+		return false
+	return job.state == 0
 
 
 ## Idle in the village centre: after a short while the HP slowly comes back.
@@ -263,7 +293,6 @@ func _regen(delta: float) -> void:
 # --- Defend -----------------------------------------------------------------------------------
 
 func _defend(delta: float) -> void:
-	_attack_timer -= delta * Combat.haste(game, self)
 	_think_timer -= delta
 	if _think_timer <= 0.0:
 		_think_timer = 0.3
@@ -338,14 +367,19 @@ func _pick_enemy() -> Enemy:
 	var best: Enemy = null
 	var best_key := Vector2(INF, INF)
 	var centre := Vector2(base().center)
+	# Beyond his leash (another mode took him out there): he still takes on
+	# what is within his sight on his way back.
+	var out_far := grid_pos.distance_to(centre) > Config.HERO["leash"]
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or e.flies() or e.grid_pos.distance_to(centre) > Config.HERO["leash"]:
+		if e.dead or e.flies():
 			continue  # (flyers: out of his sword's reach, he only hits back)
+		var near_me := not at_home and e.grid_pos.distance_to(grid_pos) <= Config.HERO["sight"]
+		if e.grid_pos.distance_to(centre) > Config.HERO["leash"] and not (out_far and near_me):
+			continue
 		var near_gate := false
 		for g in base().gates:
 			near_gate = near_gate or e.grid_pos.distance_to(Vector2(g)) <= Config.HERO["alert_radius"]
-		var near_me := not at_home and e.grid_pos.distance_to(grid_pos) <= Config.HERO["sight"]
 		if not (near_gate or near_me):
 			continue
 		var key := Vector2(floorf(e.grid_pos.distance_to(grid_pos)), -e.max_hp)
@@ -432,6 +466,10 @@ func level_up() -> bool:
 
 
 func _process(delta: float) -> void:
+	if not dead and not game.is_client:
+		# His blow's cooldown runs in every mode, also while he flees, and no
+		# mode change resets it: switching modes never gives him an extra blow.
+		_attack_timer -= delta * Combat.haste(game, self)
 	super(delta)
 	_snore(delta)
 
@@ -514,12 +552,12 @@ func attack_camp(camp: MonsterCamp) -> void:
 	camp_target = camp
 	target = null
 	_returning = false
+	_stop_evading()
 	village.events.info("The hero sets off to clear a %s" % camp.display_name().to_lower())
 	changed.emit()
 
 
 func _attack_camp(delta: float) -> void:
-	_attack_timer -= delta * Combat.haste(game, self)
 	_think_timer -= delta
 	if _think_timer <= 0.0 or not is_instance_valid(target) or target.dead:
 		_think_timer = 0.3

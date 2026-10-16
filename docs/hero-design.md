@@ -65,7 +65,16 @@ objects he claims and loots.
 ## 4. Modes
 
 Changing the mode drops whatever he was doing: the old mode's job, any training, any fight.
-Explore drops loot he is carrying (§4.3).
+Explore drops loot he is carrying (§4.3). The new mode starts at once, wherever he is, with no
+rest first:
+- **While he flees** (Build / Explore / Gather): he stops running and takes up the new mode out
+  there; Defend fights the enemy he ran from if it is in his sight, else he walks back to the
+  centre and takes on what comes his way (even beyond `leash`, §4.1). Only a switch to another of these three modes while an
+  enemy is still close keeps him running (`Hero._stop_evading`). A camp order stops the running too.
+- **His sword's cooldown** (`attack_cooldown`) runs in every mode, also while he flees, and no mode
+  change resets it, so switching modes back and forth never gives him an extra blow.
+- **Build / Explore / Gather out in the field** with nothing to do yet: he walks back to the centre
+  and starts work as soon as there is some (`Hero._job_idle`).
 
 ### 4.1 Defend (default)
 
@@ -74,6 +83,8 @@ Explore drops loot he is carrying (§4.3).
   centre count, and only those that are either
   - within `alert_radius` (6) of one of the village's gates, or
   - within his `sight` (4) of him while he is outside.
+- Beyond the leash himself (another mode took him out there), enemies within his sight count
+  wherever they are, so he fights his way back.
 - Of those, the nearest wins, measured in whole tiles. Between equals, the one with the most max
   HP wins.
 - **Last priority: rats on farms.** With nothing else to fight, he goes for rats sitting on his
@@ -288,7 +299,7 @@ he can walk to.
   - downing: `take_damage`, `_downed`, `revive`;
   - `status()` for the panel and the villager-style status line.
   - He reuses `Civilian`'s fleeing (`wants_to_evade` only in Build / Explore / Gather and never
-    during a camp order) and its path following.
+    during a camp order; `_stop_evading` ends it on a new order) and its path following.
 - `scripts/units/jobs/`: `BuildJob`, `GatherJob` and `ExploreJob`, shared with the villagers and
   built with his weaker numbers. `HeroExploreJob` (extends `ExploreJob`) adds claims, looting,
   carrying, paying and dropping.

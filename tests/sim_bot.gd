@@ -1668,7 +1668,7 @@ func _test_hero(far: Vector2i) -> void:
 	check(hud._hero_button.modulate != Color.WHITE and "downed" in hero.status(), "the HUD shows the hero is down")
 	game.waves.wave_finished.emit(game.waves.wave)
 	await frames(2)
-	check(not hero.dead and hero.visible and is_equal_approx(hero.hp, hero.max_hp) and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1, "he revives in the village centre when the wave is over")
+	check(not hero.dead and hero.visible and is_equal_approx(hero.hp, hero.max_hp) and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1, "he revives in the village centre when the wave is over (dead %s, visible %s, HP %.0f/%.0f, %.2f from the centre, %s)" % [hero.dead, hero.visible, hero.hp, hero.max_hp, hero.grid_pos.distance_to(Vector2(game.player_village.center)), hero.status()])
 	check(hero.mode == Hero.Mode.GATHER, "his mode survives being downed")
 	# Downed between waves: back when the next one begins, not only after it.
 	hero.take_damage(1e9)
@@ -1712,6 +1712,48 @@ func _test_hero(far: Vector2i) -> void:
 	var explored := await wait_until(func() -> bool: return game.fog.explored_count() > ex0 + 10 and hero.xp > xp_e, 90.0)
 	check(explored, "Explore: the hero uncovers fog and earns XP (+%d tiles)" % (game.fog.explored_count() - ex0))
 	check(not civs("explorer").any(func(e: Explorer) -> bool: return e.target != Vector2i(-1, -1) and Vector2(e.target).distance_to(Vector2(hero.exploring_target())) < 1.0), "explorers don't head for the hero's patch of fog")
+	# A new mode while he flees takes effect at once, out where he is.
+	await wait_until(func() -> bool: return not hero.at_home and hero.grid_pos.distance_to(Vector2(game.player_village.center)) > 5.0, 60.0)
+	# A tile next to him he can walk to (not a tree or water).
+	var by: Vector2i = hero.current_tile()
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
+		if game.world.pathing.find_path(hero.current_tile(), hero.current_tile() + d).size() > 0:
+			by = hero.current_tile() + d
+			break
+	var chaser := spawn_dummy("goblin", Vector2(by), 50.0, far)
+	var fled_e := await wait_until(func() -> bool: return hero.evading, 3.0)
+	hero.set_mode(Hero.Mode.GATHER)
+	await frames(2)
+	check(fled_e and hero.evading, "fleeing in Explore, switched to Gather with the enemy still near: he flees on")
+	hero.set_mode(Hero.Mode.DEFEND)
+	await frames(2)
+	var away := hero.grid_pos.distance_to(Vector2(game.player_village.center))
+	check(not hero.evading and not hero.at_home and away > 3.0, "switched to Defend while fleeing: he stops at once, out in the field (%.1f tiles out)" % away)
+	var hit := await wait_until(func() -> bool: return chaser.hp < chaser.max_hp, 10.0)
+	check(hit and hero.target == chaser, "and fights the enemy right there")
+	# Switching modes back and forth while he fights (Defend -> Explore ->
+	# Defend every few frames): his blows never come faster than the cooldown.
+	var blow_times: Array[float] = []
+	var hp_was := chaser.hp
+	var t_sw := 0.0
+	var n_frame := 0
+	while t_sw < 8.0:
+		n_frame += 1
+		if n_frame % 3 == 0:
+			hero.set_mode(Hero.Mode.EXPLORE)
+			hero.set_mode(Hero.Mode.DEFEND)
+		await get_tree().process_frame
+		t_sw += get_process_delta_time()
+		if chaser.hp < hp_was:
+			blow_times.append(t_sw)
+		hp_was = chaser.hp
+	var gap := INF
+	for k in range(1, blow_times.size()):
+		gap = minf(gap, blow_times[k] - blow_times[k - 1])
+	check(blow_times.size() >= 3 and gap >= Config.HERO["attack_cooldown"] - 0.02, "switching modes while he fights gives no faster blows (%d blows in 8 s, the closest %.2f s apart, cooldown %.1f s)" % [blow_times.size(), gap, Config.HERO["attack_cooldown"]])
+	hero.set_mode(Hero.Mode.DEFEND)
+	chaser.take_damage(1e9)
+	hero.set_mode(Hero.Mode.EXPLORE)
 
 	# Build: works on sites like a builder (at half speed) even with no builder left.
 	for b in civs("builder"):
