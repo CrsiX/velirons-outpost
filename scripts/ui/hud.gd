@@ -242,6 +242,7 @@ func setup(p_game: Game) -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.theme = UiTheme.build()
 	add_child(_root)
+	Layout.inset(_root)  # (clear of a phone's camera cutout; the map still fills the screen)
 	_build_topbar()
 	await game.build_step()  # (the title backdrop makes it over several frames)
 	_build_hero_panel()
@@ -283,11 +284,13 @@ func setup(p_game: Game) -> void:
 	stats_screen.add_child(_stats_gray)
 	stats_screen.move_child(_stats_gray, 0)
 	_stats_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Layout.bleed(_stats_gray)
 	_lib_gray = _grayscale_rect()
 	_lib_gray.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	library.add_child(_lib_gray)
 	library.move_child(_lib_gray, 0)
 	_lib_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Layout.bleed(_lib_gray)
 	_refresh_stats_button()
 	_register_popups()
 
@@ -297,6 +300,7 @@ func setup(p_game: Game) -> void:
 	_select_tab("build")
 	get_viewport().size_changed.connect(_queue_relayout)
 	Layout.changed.connect(func(_p: bool) -> void: _queue_relayout())
+	Layout.safe_area_changed.connect(_queue_relayout)
 	_relayout()
 	_refresh()
 	process_mode = Node.PROCESS_MODE_ALWAYS  # (only once it's made)
@@ -471,6 +475,11 @@ func _build_topbar() -> void:
 	_topbar = PanelContainer.new()
 	_root.add_child(_topbar)
 	_topbar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	# Its buttons' texts change (the wave countdown, Call now's bonus): squeeze
+	# it again as soon as it would run off the screen.
+	_topbar.minimum_size_changed.connect(func() -> void:
+		if _topbar.get_combined_minimum_size().x > _root.size.x + 0.5:
+			_fit_topbar())
 	_topbar.custom_minimum_size.y = TOPBAR_H
 	# Resources and the hero on the left, wave controls on the right: side by
 	# side in landscape; stacked in portrait, the wave controls (wave, speed,
@@ -587,7 +596,7 @@ func _spacer() -> Control:
 ## Keeps the top bar inside the screen on narrow windows by dropping spacing
 ## and then the (redundant) wave text, rather than running off the edge.
 func _fit_topbar() -> void:
-	var width := _root.get_viewport_rect().size.x
+	var width := _root.size.x
 	for r in [_top_left, _top_right]:
 		r.add_theme_constant_override("separation", 16)
 	_wave_label.visible = true
@@ -1300,7 +1309,7 @@ func _fit_sheet() -> void:
 
 
 func _sheet_open_height() -> float:
-	var vp := _root.get_viewport_rect().size
+	var vp := _root.size
 	var folded := _handle_and_tabs_height()
 	var content: float = _sheet_scroll.get_child(0).get_combined_minimum_size().y + 8.0
 	return folded + minf(content, maxf(vp.y * SHEET_MAX - folded, SHEET_MIN_CONTENT))
@@ -1321,7 +1330,7 @@ func _queue_relayout() -> void:
 func _relayout() -> void:
 	_relayout_queued = false
 	_portrait = Layout.portrait
-	var vp := _root.get_viewport_rect().size
+	var vp := _root.size
 
 	_topbar_box.vertical = _portrait
 	_topbar_box.move_child(_top_right, 0 if _portrait else 1)
@@ -1379,7 +1388,7 @@ func _relayout() -> void:
 
 	_hero_panel.offset_top = _top_h + 6.0
 	_people_panel.offset_top = _top_h + 6.0
-	_people_scroll.custom_minimum_size.y = clampf(_root.get_viewport_rect().size.y - _top_h - (_sheet_h if _portrait else 0.0) - 110.0, 120.0, 460.0)
+	_people_scroll.custom_minimum_size.y = clampf(_root.size.y - _top_h - (_sheet_h if _portrait else 0.0) - 110.0, 120.0, 460.0)
 	_trade_panel.offset_top = _top_h + 6.0
 	_trade_panel.offset_left = 10.0 if _portrait else 330.0
 	for p in [_send_panel, _send_unit_panel]:
@@ -1874,16 +1883,16 @@ func hide_place_confirm() -> void:
 func _place_place_bar() -> void:
 	if not _place_bar.visible or game.pending_tile == Game.NO_TILE:
 		return
-	var vp := _root.get_viewport_rect().size
+	var vp := _root.size
 	var s := _place_bar.get_combined_minimum_size()
-	var at := game.pending_screen_pos() + Vector2(-s.x / 2.0, 34.0)
+	var at := to_ui(game.pending_screen_pos()) + Vector2(-s.x / 2.0, 34.0)
 	var low := vp.y - s.y - 10.0 - (_sheet_h if _portrait else 0.0)
 	_place_bar.size = s
 	_place_bar.position = Vector2(clampf(at.x, 10.0, vp.x - s.x - 10.0), clampf(at.y, _top_h + 10.0, maxf(_top_h + 10.0, low)))
 
 
 func _place_cancel_button() -> void:
-	var vp := _root.get_viewport_rect().size
+	var vp := _root.size
 	var s := _cancel_button.get_combined_minimum_size()
 	var right := vp.x - 16.0 - (SIDEBAR_W if not _portrait and _side_open else 0.0)
 	var bottom := vp.y - 16.0 - (_sheet_h if _portrait else 0.0)
@@ -2253,13 +2262,13 @@ func open_upgrade(unit: MilitaryUnit) -> void:
 
 ## Width of the upgrade dialog's content: 420 px, less on narrow screens.
 func _upgrade_width() -> float:
-	return minf(420.0, get_viewport().get_visible_rect().size.x - 64.0)
+	return minf(420.0, _root.size.x - 64.0)
 
 
 ## Shrinks a centred dialog to its content and keeps it on screen.
 func _fit_dialog(p: Control) -> void:
 	p.reset_size()
-	var vp := get_viewport().get_visible_rect().size
+	var vp := _root.size
 	p.position = ((vp - p.size) / 2.0).max(Vector2(8, 8))
 
 
@@ -2388,7 +2397,7 @@ func _build_log() -> void:
 func _place_log() -> void:
 	if _log_box == null:
 		return
-	var vp := _root.get_viewport_rect().size
+	var vp := _root.size
 	var bottom := -10.0 - (_sheet_h if _portrait else 0.0)
 	if _info_panel.visible:
 		bottom = _info_panel.offset_top - 6.0
@@ -2399,7 +2408,7 @@ func _place_log() -> void:
 	var top := bottom - LOG_LINE_H * EventLog.MAX_SHOWN
 	for p in [_hero_panel, _people_panel]:
 		if p.visible:  # stay below the hero panel or the villager list (they open top left)
-			top = maxf(top, p.get_global_rect().end.y + 6.0 - vp.y)
+			top = maxf(top, to_ui(p.get_global_rect().end).y + 6.0 - vp.y)
 	_log_box.offset_top = minf(top, bottom)
 
 
@@ -2466,6 +2475,7 @@ func _build_settings() -> void:
 	_pause_gray = _grayscale_rect()
 	_root.add_child(_pause_gray)
 	_pause_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Layout.bleed(_pause_gray)
 	_pause_gray.visible = false
 	_settings = Control.new()
 	_settings.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -2476,6 +2486,7 @@ func _build_settings() -> void:
 	_gray = gray
 	_settings.add_child(gray)
 	gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Layout.bleed(gray)
 	var center := CenterContainer.new()
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_settings.add_child(center)
@@ -2733,7 +2744,7 @@ func is_over_dock(screen_pos: Vector2) -> bool:
 func show_drag_feedback(tex: Texture2D, screen_pos: Vector2, state: String) -> void:
 	_drag_ghost.texture = tex
 	_drag_ghost.visible = true
-	_drag_ghost.position = screen_pos - _drag_ghost.size / 2.0 - Vector2(0, 30)
+	_drag_ghost.position = to_ui(screen_pos) - _drag_ghost.size / 2.0 - Vector2(0, 30)
 	match state:
 		"move":
 			_drag_ghost.modulate = Color(0.75, 1.25, 0.75, 0.95)
@@ -2745,7 +2756,7 @@ func show_drag_feedback(tex: Texture2D, screen_pos: Vector2, state: String) -> v
 	_sidebar.modulate = Color(0.8, 1.2, 0.8) if withdraw else Color.WHITE
 	_dock_hint.visible = withdraw
 	if withdraw:
-		var r := _sidebar.get_global_rect()
+		var r := _sidebar.get_rect()
 		_dock_hint.size = Vector2(r.size.x, 30)
 		_dock_hint.position = Vector2(r.position.x, r.position.y - 36 if _portrait else r.position.y + 60)
 
@@ -2765,9 +2776,11 @@ func _build_overlay() -> void:
 	_root.add_child(_overlay)
 	# Anchors AND offsets: anchors alone left a zero-size box in the top-left corner.
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Layout.bleed(_overlay)
 	var center := CenterContainer.new()
 	_overlay.add_child(center)
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Layout.inset(center)  # (its dim covers the screen, its box stays in the safe area)
 	var panel := PanelContainer.new()
 	center.add_child(panel)
 	var v := VBoxContainer.new()
@@ -2825,7 +2838,7 @@ func _update_pause_gray() -> void:
 	var on := game.networked and not _overlay.visible and (_host_paused if game.is_client else get_tree().paused)
 	_pause_gray.visible = on
 	if on:
-		_pause_gray.offset_top = _topbar.get_global_rect().end.y
+		_pause_gray.offset_top = to_ui(_topbar.get_global_rect().end).y
 		# What's drawn after the veil keeps its colour: it sits over the map, the
 		# sidebar and the panels, under toasts, dialogs and the paused banner.
 		var at := _toasts.get_index()
@@ -2954,8 +2967,8 @@ func corner_panel_rect() -> Rect2:
 ## The part of the screen where the map shows: below the top bar, above the
 ## bottom sheet (portrait) or left of the open sidebar (landscape).
 func map_rect() -> Rect2:
-	var vp := get_viewport().get_visible_rect()
-	var r := Rect2(vp.position.x, _top_h, vp.size.x, vp.size.y - _top_h)
+	var vp := _root.get_global_rect()
+	var r := Rect2(vp.position.x, vp.position.y + _top_h, vp.size.x, vp.size.y - _top_h)
 	if _sidebar.visible:
 		var side := _sidebar.get_global_rect()
 		if _portrait:
@@ -2975,6 +2988,17 @@ func is_portrait() -> bool:
 
 ## Adds a tutorial control: `on_top` (the highlight) over all of the HUD but
 ## the settings dialog; else (the card) under the dialogs.
+## A point on the screen in the HUD's own coordinates (its root sits inside
+## the safe area, see Layout.insets).
+func to_ui(screen_pos: Vector2) -> Vector2:
+	return screen_pos - _root.get_global_rect().position
+
+
+## The HUD's usable size (the screen less a phone's camera cutout).
+func ui_size() -> Vector2:
+	return _root.size
+
+
 func add_layer(c: Control, on_top: bool) -> void:
 	_root.add_child(c)
 	_root.move_child(c, _pause_gray.get_index() if on_top else _upgrade_panel.get_index())

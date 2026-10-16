@@ -881,6 +881,10 @@ const SUMMON := {
 
 const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 
+## Phones: how often (seconds) the screen's safe area (a camera cutout or
+## notch the UI keeps clear of, see Layout.insets) is read again.
+const SAFE_AREA_POLL := 0.5
+
 ## The map view: zoom limits (1 = the art's own size; smaller sees more of the
 ## map) and the factor of one + / - key press (the mouse wheel uses its own).
 const CAMERA_MIN_ZOOM := 0.22

@@ -64,6 +64,7 @@ func _init() -> void:
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Layout.bleed(dim)  # (in a game it sits in the HUD's safe area: dim the whole screen)
 	_panel = PanelContainer.new()
 	_panel.add_theme_stylebox_override("panel", UiTheme.box(Color("2a1a14"), UiTheme.GOLD, 4, 14, 16))
 	add_child(_panel)
@@ -185,7 +186,7 @@ func _rebuild() -> void:
 
 
 func _fit() -> void:
-	var vp := get_viewport_rect().size
+	var vp := size if size.x > 0.0 else get_viewport_rect().size  # (in a game: the safe area)
 	var s := Vector2(minf(vp.x - 24.0, 960.0), minf(vp.y - 24.0, 780.0))
 	_panel.size = s
 	_panel.position = ((vp - s) / 2.0).floor()
@@ -514,7 +515,7 @@ func open_picker(anchor: Control) -> void:
 	for c in _picker_box.get_children():
 		_picker_box.remove_child(c)
 		c.queue_free()
-	var vp := get_viewport_rect().size
+	var vp := size if size.x > 0.0 else get_viewport_rect().size
 	var grid := GridContainer.new()
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)

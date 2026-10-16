@@ -90,6 +90,7 @@ func start() -> void:
 	highlight = TutorialHighlight.new(game)
 	highlight.name = "TutorialHighlight"
 	game.hud.add_layer(highlight, true)  # (before the card: the skip dialog goes over it)
+	Layout.bleed(highlight)  # (it draws at screen positions: the whole screen)
 	_build_card()
 	game.hud.set_dock_open(false)  # (the first thing to tap: open it)
 	game.events.debug("tutorial: tower %s, farm %s, barracks %s, waves from %s" % [tower_tile, farm_tile, barracks_tile, spawn_tile])
@@ -541,18 +542,19 @@ func _build_card() -> void:
 ## placing hint in portrait.
 func _place_card() -> void:
 	var hud := game.hud
-	var vp := card.get_viewport_rect().size
+	var vp := hud.ui_size()
 	var portrait := hud.is_portrait()
 	var w := minf(vp.x - 20.0, 520.0) if portrait else 360.0
 	var pos := Vector2(10.0, hud.top_height() + 6.0)
 	var corner := hud.corner_panel_rect()
+	corner.position = hud.to_ui(corner.position)
 	if corner.has_area():
 		if portrait:
 			pos.y = corner.end.y + 6.0
 		else:
 			pos.x = corner.end.x + 10.0
 	if portrait and hud._mode_panel.visible:
-		pos.y = maxf(pos.y, hud._mode_panel.get_global_rect().end.y + 6.0)
+		pos.y = maxf(pos.y, hud.to_ui(hud._mode_panel.get_global_rect().end).y + 6.0)
 	card.custom_minimum_size.x = w
 	card.size = Vector2(w, 0.0)
 	card.position = pos

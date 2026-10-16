@@ -9,12 +9,18 @@ extends Node
 ## `--max`: the window maximised (the display's size) instead of 1280x720 for
 ## the landscape pictures; portrait is always 540x960.
 ##
+## `--cutout=l,t,r,b`: pretend the screen has a camera cutout (unusable edges
+## in canvas units, Layout.force_insets), drawn black like the real thing;
+## the game then also shows the library and a portrait picture (cutout on top).
+##
 ## (A scene, not a --script: config.gd needs the autoloads.) Each picture is
 ## <out>/<nn>_<name>.png.
 
 var out := ""
 var only := ""
 var maximize := false
+var cutout := Vector4.ZERO
+var _cut_layer: CanvasLayer
 var _n := 0
 
 
@@ -26,12 +32,39 @@ func _ready() -> void:
 			only = a.trim_prefix("--only=")
 		if a == "--max":
 			maximize = true
+		if a.begins_with("--cutout="):
+			var v := a.trim_prefix("--cutout=").split_floats(",")
+			if v.size() == 4:
+				cutout = Vector4(v[0], v[1], v[2], v[3])
 	if out == "":
 		printerr("usage: -- --out=<dir>")
 		get_tree().quit(2)
 		return
 	DirAccess.make_dir_recursive_absolute(out)
+	if cutout != Vector4.ZERO:
+		_show_cutout(cutout)
 	_run.call_deferred()
+
+
+## The fake cutout: Layout keeps the UI clear of it, a black bar shows where.
+func _show_cutout(v: Vector4) -> void:
+	Layout.force_insets(v)
+	if _cut_layer == null:
+		_cut_layer = CanvasLayer.new()
+		_cut_layer.layer = 128
+		add_child(_cut_layer)
+		var c := Control.new()
+		c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.draw.connect(func() -> void:
+			var r := c.get_rect()
+			var ins := Layout.insets
+			for b in [Rect2(0, 0, ins.x, r.size.y), Rect2(0, 0, r.size.x, ins.y), Rect2(r.size.x - ins.z, 0, ins.z, r.size.y), Rect2(0, r.size.y - ins.w, r.size.x, ins.w)]:
+				if b.has_area():
+					c.draw_rect(b, Color(0, 0, 0, 0.85)))
+		c.resized.connect(c.queue_redraw)
+		_cut_layer.add_child(c)
+	_cut_layer.get_child(0).queue_redraw()
 
 
 func _run() -> void:
@@ -242,6 +275,17 @@ func _game() -> void:
 	await _frames(5)
 	await shot("game_settings_back_to_editor")
 	g.hud.close_settings()
+	if cutout != Vector4.ZERO:
+		g.hud.open_library()
+		await _frames(5)
+		await shot("game_cutout_library")
+		g.hud.library.close()
+		await _size(Vector2i(540, 960))
+		_show_cutout(Vector4(0, cutout.x + cutout.z, 0, 0))  # (turned upright: the camera on top)
+		await _frames(10)
+		await shot("game_cutout_portrait")
+		_show_cutout(cutout)
+		await _landscape()
 	Settings.editor_play = false
 	Settings.custom_map = null
 	g.queue_free()

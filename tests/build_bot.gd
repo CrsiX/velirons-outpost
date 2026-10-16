@@ -7,6 +7,7 @@ extends "res://tests/bot_base.gd"
 ##   godot --headless --fixed-fps 60 --path . res://tests/build_bot.tscn
 ## Also the portrait bottom sheet: at most half the screen, its entries
 ## scroll by finger from anywhere (a scroll is no tap), and its handle drags.
+## And a phone's camera cutout: the HUD keeps clear of it (Layout.insets).
 ## Exits 0 when every check passes.
 
 var hud: Hud
@@ -31,6 +32,7 @@ func _run() -> void:
 	await frames(12)
 	await _wheel_over_dock("landscape")
 	await _sheet()
+	await _cutout()
 	Layout.touch = false
 	print("CHECKS %d  FAILURES %d" % [checks, failures.size()])
 	for f in failures:
@@ -447,3 +449,49 @@ func _wheel_over_dock(where: String) -> void:
 	check(cam.zoom.x > 1.0, "%s: beside it, the wheel zooms (%.2f)" % [where, cam.zoom.x])
 	cam.zoom = Vector2.ONE
 	await use_touch(was_touch)
+
+
+# --- a phone's camera cutout ----------------------------------------------------------------------
+
+## The screen less the faked cutout, in canvas units.
+func safe_rect() -> Rect2:
+	var vp := get_viewport().get_visible_rect().size
+	var ins := Layout.insets
+	return Rect2(ins.x, ins.y, vp.x - ins.x - ins.z, vp.y - ins.y - ins.w).grow(0.5)
+
+
+## Visible buttons of `n` on the screen (not scrolled out of it) that reach
+## into the cutout.
+func outside_safe(n: Node) -> Array[String]:
+	var out: Array[String] = []
+	var safe := safe_rect()
+	var screen := get_viewport().get_visible_rect()
+	for c in n.find_children("*", "BaseButton", true, false):
+		var b := c as Control
+		if b.is_visible_in_tree() and b.get_global_rect().intersects(screen) and not safe.encloses(b.get_global_rect().intersection(screen)):
+			out.append("%s %s" % [b.name, b.get_global_rect()])
+	return out
+
+
+func _cutout() -> void:
+	print("-- a camera cutout")
+	for case in [[Vector2i(1280, 720), Vector4(90, 0, 0, 0), "landscape, cutout left"], [Vector2i(1280, 720), Vector4(0, 0, 90, 0), "landscape, cutout right"], [Vector2i(720, 1280), Vector4(0, 90, 0, 0), "portrait, cutout on top"]]:
+		get_window().size = case[0]
+		get_viewport().size = case[0]
+		Layout.force_insets(case[1])
+		await frames(4)
+		hud.set_dock_open(true)
+		await frames(4)
+		var bad := outside_safe(hud._topbar) + outside_safe(hud._sidebar)
+		check(bad.is_empty() and safe_rect().encloses(hud._topbar.get_global_rect()), "%s: the top bar and the dock stay clear of it %s" % [case[2], bad])
+		hud.open_settings()
+		await frames(3)
+		var full := get_viewport().get_visible_rect()
+		check(hud._gray.get_global_rect().encloses(full) and safe_rect().encloses(hud._settings_panel.get_global_rect()), "%s: the settings grey the whole screen, their box stays clear" % case[2])
+		hud.close_settings()
+		await frames(2)
+	Layout.clear_forced_insets()
+	get_window().size = Vector2i(1280, 720)
+	get_viewport().size = Vector2i(1280, 720)
+	await frames(4)
+	check(Layout.insets == Vector4.ZERO and hud._root.get_global_rect().size == get_viewport().get_visible_rect().size, "no cutout: the HUD has the whole screen again")

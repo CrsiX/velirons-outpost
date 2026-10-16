@@ -326,6 +326,23 @@ Big touch targets everywhere, so mouse and fingers work the same.
   answer to a gesture). iOS Safari has no full screen for pages. It happens once per turn to
   landscape, so leaving full screen sticks until the next turn. F11 toggles full screen in the game
   (`Hud._unhandled_key_input`; also while the library or statistics are open), not on the title screen.
+- **Camera cutouts and notches:** on a phone (Android, iOS) the parts of the screen a front camera
+  or notch takes away (Godot's safe area, `DisplayServer.get_display_safe_area`) stay free of
+  controls. `Layout.insets` holds them in canvas units (left, top, right, bottom). It is read again
+  on every resize and every `SAFE_AREA_POLL` (0.5 s), since Android may report the new one a moment
+  after a turn, and a change emits `Layout.safe_area_changed`.
+  - `Layout.inset(c)` keeps a full-rect control inside the safe area: the HUD's root (so the top bar,
+    the dock, panels, dialogs, the log, the tutorial card) and the map editor's root.
+  - `Layout.bleed(c)` spreads a background inside such a control over the whole screen again: the
+    greys of the settings, library, statistics and co-op pause, the dims of the library and the
+    statistics, the game-over veil, and the tutorial's highlight layer (it draws at screen positions).
+  - The map itself always fills the screen, cutout included.
+  - HUD code that mixes screen positions with its own uses `Hud.to_ui` and `Hud.ui_size`, and
+    `Hud.map_rect` is the safe area's map part.
+  - The title screen and the lobby are centred with margins and need nothing. In the browser the page
+    has no `viewport-fit=cover`, so the browser keeps it out of a cutout itself.
+  - The top bar fits itself again (`_fit_topbar`: less spacing, then no wave text) whenever its content
+    grows wider than the room it has, not only on a resize.
 
 ## 12. Event log and floating texts
 
@@ -348,7 +365,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
 | Part | Bot |
 |---|---|
 | Title menu, portrait title, map drag (Firefox rule), wheel zoom, portrait top bar / sheet basics, trade dialog, log placement and levels, settings pause and dialog, dragging stationed units (ghost, highlights, arrow, withdraw on the sidebar) | tests/sim_bot.gd |
-| One building per pick, Cancel, touch preview with Build / ✕, dragging from the Build tab, Android's back button; the portrait sheet (height cap, finger scrolling, dragging by handle / tabs / chevron, flicks) | tests/build_bot.gd |
+| One building per pick, Cancel, touch preview with Build / ✕, dragging from the Build tab, Android's back button; the portrait sheet (height cap, finger scrolling, dragging by handle / tabs / chevron, flicks); a faked camera cutout (left, right, on top in portrait: top bar, dock and settings box clear of it, the grey over the whole screen) | tests/build_bot.gd |
 | Space and the speed button, the hotkeys (1 / 2 / 3, P, + / -, H, the Esc stack), the villager list, icons in texts, the no-builder and food-shortage warnings | tests/rat_bot.gd |
 | The library: an entry for every kind in Config with its numbers, pausing (not in co-op), the book icon, the title button and icons, fitting the screen | tests/library_bot.gd |
 | The statistics: counters, samples in game time, the button from wave 2, T, pausing, the tabs, folding, the game-over button, a column per village, the client copy | tests/stats_bot.gd |

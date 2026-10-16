@@ -56,6 +56,7 @@ func setup(p_editor: MapEditor) -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Layout.inset(root)  # (clear of a phone's camera cutout)
 	_build_top()
 	_left = _panel()
 	var ls := _scroll(_left)
@@ -112,8 +113,9 @@ func setup(p_editor: MapEditor) -> void:
 	picker.picked.connect(_on_opened)
 	editor.changed.connect(refresh)
 	editor.selection_changed.connect(_show_inspector)
-	root.get_viewport().size_changed.connect(_fit)
-	Layout.changed.connect(func(_p: bool) -> void: _fit())
+	root.get_viewport().size_changed.connect(_fit, CONNECT_DEFERRED)  # (once the root has its new size)
+	Layout.changed.connect(func(_p: bool) -> void: _fit(), CONNECT_DEFERRED)
+	Layout.safe_area_changed.connect(_fit)
 	_fit()
 	refresh()
 
@@ -624,7 +626,7 @@ func _process(_delta: float) -> void:
 func _fit() -> void:
 	if root == null:
 		return
-	var vp := root.get_viewport_rect().size
+	var vp := root.size
 	var portrait := Layout.portrait or vp.x < 760.0
 	_top.position = Vector2(6, 6)
 	_top.size = Vector2(vp.x - 12, 0)
@@ -666,7 +668,7 @@ func _fit() -> void:
 func _place_dialog() -> void:
 	if not _dialog.visible:
 		return
-	var vp := root.get_viewport_rect().size
+	var vp := root.size
 	_dialog.size = _dialog.get_combined_minimum_size()
 	_dialog.position = ((vp - _dialog.size) / 2.0).max(Vector2(8, 8))
 
@@ -689,7 +691,7 @@ func _open_dialog(title: String) -> VBoxContainer:
 	_clear(_dialog_box)
 	_dialog_box.add_child(_label(title, 22, UiTheme.GOLD))
 	_dialog.visible = true
-	var vp := root.get_viewport_rect().size
+	var vp := root.size
 	_dialog_box.custom_minimum_size = Vector2(minf(420.0, vp.x - 60.0), 0)
 	_place_dialog.call_deferred()
 	return _dialog_box
