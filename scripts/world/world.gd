@@ -3,6 +3,9 @@ extends Node2D
 ## Owns the map data, navigation and all layers; spawns terrain objects and the
 ## starting village; keeps the tile -> building registry in sync with pathing.
 
+## A tree fell (the tile is meadow now); the co-op host sends it to the clients.
+signal tree_felled(t: Vector2i)
+
 const PIECE_SCRIPTS := {
 	"hut": preload("res://scripts/buildings/hut.gd"),
 	"wall": preload("res://scripts/buildings/static_piece.gd"),
@@ -604,6 +607,7 @@ func remove_tree(t: Vector2i) -> void:
 	pathing.set_solid(t, false)
 	_village_dist_dirty = true
 	ground.redraw_tile(t)
+	tree_felled.emit(t)
 
 
 ## A short text rising from `at` (world position) and fading. Icon tokens

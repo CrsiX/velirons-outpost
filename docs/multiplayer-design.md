@@ -479,6 +479,8 @@ panels. The debug log entries for them stay local.
   - newly explored tiles (everything on the first snapshot) and the warning
     lights;
   - map objects' states, global unlocks, relics, dropped loot;
+  - trees felled since the game began (to everyone, as the map is shared;
+    all of them on the first snapshot, new ones after);
   - public data: every village standing / fallen, wave number and
     countdown, enemies left, whether a wave can be called, game speed and
     pause, game over;

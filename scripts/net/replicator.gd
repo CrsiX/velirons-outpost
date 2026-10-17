@@ -11,7 +11,8 @@ extends Node
 ##   - their village: economy, army, and everyone's standing / fallen,
 ##   - the wave, the game speed, game over,
 ##   - their log lines, toasts, floating texts and arrows they can see,
-##     newly explored tiles and warning lights.
+##     newly explored tiles and warning lights,
+##   - trees felled since the game began (to everyone: the map is shared).
 ## Only changes since the last snapshot are sent.
 ## Client: creates, updates and removes the matching entities, which don't
 ## simulate (Game.is_client); units glide to their new positions.
@@ -29,6 +30,9 @@ var _timer := 0.0
 ## Host, per peer id: {"known": {nid: state}, "ev": [], "to": [], "ft": [], "fx": [],
 ## "ex": PackedInt32Array, "full": bool, "vd": last village data}
 var _peers: Dictionary = {}
+## Host: every tree felled since the game began (map indices). A client that
+## (re)loads gets them all (its map may be older); after that only new ones.
+var _felled := PackedInt32Array()
 ## Client: dummy units standing on others' towers, per "building nid:slot".
 var _foreign_units: Dictionary = {}
 
@@ -41,13 +45,14 @@ func setup(p_game: Game, p_hosting: bool) -> void:
 		for v in game.villages:
 			v.events.logged.connect(_on_logged.bind(v.id))
 		game.fog.explored_changed.connect(_on_explored)
+		game.world.tree_felled.connect(_on_tree_felled)
 
 
 # --- host ------------------------------------------------------------------------------
 
 ## A client just (re)loaded the level: send it everything next time.
 func reset_peer(id: int) -> void:
-	_peers[id] = {"known": {}, "ev": [], "to": [], "ft": [], "fx": [], "ex": PackedInt32Array(), "full": true, "vd": {}}
+	_peers[id] = {"known": {}, "ev": [], "to": [], "ft": [], "fx": [], "ex": PackedInt32Array(), "full": true, "vd": {}, "tf": _felled.duplicate()}
 
 
 func _peers_of(vid: int) -> Array[int]:
@@ -70,6 +75,15 @@ func _on_explored(vid: int, tiles: Array[Vector2i]) -> void:
 		for t in tiles:
 			ex.append(game.map.index(t))
 		_peers[id]["ex"] = ex
+
+
+func _on_tree_felled(t: Vector2i) -> void:
+	var i := game.map.index(t)
+	_felled.append(i)
+	for id in _peers:
+		var tf: PackedInt32Array = _peers[id]["tf"]
+		tf.append(i)
+		_peers[id]["tf"] = tf
 
 
 ## A toast for village `vid`'s player (Village.toast on the host).
@@ -188,6 +202,9 @@ func _snapshot_for(id: int, all: Array) -> Dictionary:
 	elif not p["ex"].is_empty():
 		out["ex"] = p["ex"]
 		p["ex"] = PackedInt32Array()
+	if not p["tf"].is_empty():
+		out["tf"] = p["tf"]
+		p["tf"] = PackedInt32Array()
 	out["wl"] = game.world.warnings.compute_spots(vid) if game.world.warnings.enabled() else []
 	return out
 
@@ -325,6 +342,10 @@ func _apply(d: Dictionary) -> void:
 		for i in (d["ex"] as PackedInt32Array):
 			tiles.append(Vector2i(i % game.map.size, i / game.map.size))
 		game.fog.explore_tiles(tiles, game.player_village.id)
+	for i in (d.get("tf", PackedInt32Array()) as PackedInt32Array):
+		var t := Vector2i(i % game.map.size, i / game.map.size)
+		if game.world.is_tree(t):
+			game.world.remove_tree(t)
 	# Buildings first: units refer to them (huts, posts).
 	var sp: Array = d.get("sp", [])
 	for s in sp:

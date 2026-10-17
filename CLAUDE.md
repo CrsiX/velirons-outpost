@@ -41,7 +41,7 @@
 - sim_bot: 3 (the two training-pause checks "during the pause ... no XP goes on" and "changing his mode then keeps his XP"; the log check misses "Debug: cancel construction", a message nothing logs). "Explore: the hero uncovers fog" is flaky on top.
 - title_bot: 1 without `CI` set ("made over N frames in ... ms, the longest ... ms": the frame-time limit, too tight for this slow sandbox); with `CI` set it passes.
 
-Anything else failing is new. Last counts (with `CI=true`): stats 67, library 54, tutorial 104, sim 376-377 (one check needs an empty hut left over), military 153, coop 69, build 85, title 124, enemy 111, rat 139, world 77, mapgen 64, map_format 151, editor 86, save 55, net 19 + 27, (`--custom`) 12 + 12 and (`--resume`) 16 + 10. Lint (`tests/lint.sh`) is clean.
+Anything else failing is new. Last counts (with `CI=true`): stats 67, library 54, tutorial 104, sim 376-377 (one check needs an empty hut left over), military 153, coop 69, build 85, title 124, enemy 111, rat 139, world 77, mapgen 64, map_format 151, editor 86, save 55, net 19 + 28, (`--custom`) 12 + 12 and (`--resume`) 16 + 10. Lint (`tests/lint.sh`) is clean.
 
 **Gotchas learned the hard way:**
 - Game speed is `Engine.time_scale` (speed 0 pauses the tree instead and leaves `time_scale` as it was). Code that must run in real time (UI, `train_pause`, the title backdrop's clock and tweens) divides delta by `maxf(Engine.time_scale, 0.001)` or uses `set_ignore_time_scale(true)`. Anything that changes `time_scale` must reset it to 1 on exit.

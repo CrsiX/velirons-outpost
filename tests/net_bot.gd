@@ -144,6 +144,7 @@ func _host() -> void:
 	game.unlock("summoner", v0, v0.hero)
 	ruin.claim(v0)
 	loot.mark_looted()
+	game.world.remove_tree(_tree_near(game.map, v1.center))  # (as a forester does: the client should see it gone)
 	v1.hero.max_hp = 5000.0
 	v1.hero.hp = 5000.0
 	var ordered := await wait_until(func() -> bool: return v1.hero.camp_target == camp, 60.0)
@@ -327,6 +328,19 @@ func _client_resume() -> void:
 	check(game.camera.position.distance_to(Iso.tile_to_world(mine.center)) < 1.0, "our view starts on our village")
 
 
+## The tree nearest `c` on `map` (the same tile on host and client: the
+## host's map at the start, the client's generated again).
+func _tree_near(map: MapData, c: Vector2i) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for t: Vector2i in map.props:
+		var d := Vector2(t).distance_squared_to(Vector2(c)) + map.index(t) * 1e-6
+		if map.is_forest(t) and d < best_d:
+			best_d = d
+			best = t
+	return best
+
+
 # --- client --------------------------------------------------------------------------------
 
 func _client() -> void:
@@ -364,7 +378,10 @@ func _client() -> void:
 	check(mine.id == 1 and mine.village_name == CLIENT_NAME and game.villages[0].village_name == HOST_NAME, "we play the second village")
 	# The world: the host's map exactly, its objects' states, the unlocks.
 	var same := MapGenerator.generate(MAP_SEED, 2, MAP_TYPE)
-	check(game.map.map_type == MAP_TYPE and game.map.terrain == same.terrain and game.map.zones == same.zones and game.map.objects.size() == same.objects.size() and game.world.map_objects.size() == same.objects.size(), "we get the host's map: %s, seed %d, the same terrain, zones and %d objects" % [game.map.map_type, game.map.seed_value, game.world.map_objects.size()])
+	var felled := _tree_near(same, mine.center)
+	var expect := same.terrain.duplicate()
+	expect[game.map.index(felled)] = game.map.terrain[game.map.index(felled)]  # (the host fells it: checked below)
+	check(game.map.map_type == MAP_TYPE and game.map.terrain == expect and game.map.zones == same.zones and game.map.objects.size() == same.objects.size() and game.world.map_objects.size() == same.objects.size(), "we get the host's map: %s, seed %d, the same terrain, zones and %d objects" % [game.map.map_type, game.map.seed_value, game.world.map_objects.size()])
 	var unl := await wait_until(func() -> bool: return game.is_unlocked("summoner"), 30.0)
 	check(unl, "an unlock on the host reaches us (the summoner)")
 	var states := await wait_until(func() -> bool:
@@ -377,6 +394,8 @@ func _client() -> void:
 			break
 	var found_camp := await wait_until(func() -> bool: return camp != null and game.fog.is_explored_by(mine.id, camp.tile), 30.0)
 	check(found_camp and camp.info()["actions"].any(func(a: Dictionary) -> bool: return a["label"] == "Attack with the hero"), "a camp we found offers Attack with the hero")
+	var gone := await wait_until(func() -> bool: return not game.world.is_tree(felled) and not game.world._props.has(felled), 30.0)
+	check(gone and game.world.pathing.is_walkable(felled), "a tree the host fells is gone for us too (%s)" % felled)
 	game.command("attack_camp", {"camp": camp.nid})
 	check(is_equal_approx(mine.economy.amount("gold"), Config.START_RESOURCES["gold"]), "with our own starting gold")
 	var host_huts := game.villages[0].huts()
