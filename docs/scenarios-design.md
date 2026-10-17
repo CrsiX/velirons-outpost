@@ -1,28 +1,29 @@
 # Scenarios design
 
-Status: **planned, nothing of it is built yet.** This page outlines the campaign: ten scenarios that tell the story in `story-design.md` (read
+Status: **planned, nothing of it is built yet.** This page outlines the campaign: eleven scenarios that tell the story in `story-design.md` (read
 that first; names, places and the cause of the war are explained there). Everything here is a draft. Numbers marked *target* are starting points
 to tune, and when built they go into `config.gd` like every other tunable. *Open* means not decided.
 
 ## 1. Structure
 
-- The campaign is **ten scenarios played in order**. Each one has its own scripted baseline (map, village, units, resources, hero level, what is
+- The campaign is **eleven scenarios played in order**. Each one has its own scripted baseline (map, village, units, resources, hero level, what is
   unlocked). **Nothing carries over** between scenarios, so any scenario can be replayed alone. Only the story carries over.
 - Every scenario has an **intro cutscene** (at the start) and an **outro cutscene** (when the objective is fulfilled). Between them the game plays
   as usual, with the story told through the library, treasures, the event log and a few scripted events.
 - The hero is **Brenna Hale**. Her being downed is a **defeat** in every scenario except 1 to 3 (home, she revives as in the normal game).
-  Scenario 9 is at home but has no revive.
+  Scenario 10 is at home but has no revive.
 - Scenario 1 has a rule of its own: it is also a **defeat if any villager dies**. No other scenario has it.
 - The **tutorial is merged into scenarios 1 to 3**, piece by piece (section 4).
 - **Any building can start ruined** in a baseline: huts, walls, gates, wall towers, farms, camps, towers. Repairing a ruin is **cheaper than
   building new**.
-- Scenarios 1 to 3 and 9 are at the **home village**, the others are **away**: Pell asks Brenna to come with him, and each away scenario has its
+- Scenarios 1 to 3 and 10 are at the **home village**, the others are **away**: Pell asks Brenna to come with him, and each away scenario has its
   own place. Home bookends the campaign: she rebuilds it, leaves, and defends it at the end.
 - **Pell's market** is present from scenario 2 on. At home it grows (peddler, stall, guild market, see `story-design.md` section 6). Away it is
   his wagon, a smaller stall (in the guild's town of scenario 4 it is the full market).
 - **Monsters arrive by category** (`story-design.md` section 5), so the campaign also introduces the library's categories one after another:
-  Wilderness (1, 2), with its sea monsters (4), Renegades (3, 4), the Fallen Host (first patrol in 5), Arcane (5, *open*), Undead (6), Evil (8).
-The Fallen Host is Rhodri's organised army (`story-design.md` section 5) and leads scenarios 9 and 10. All the others join it there.
+  Wilderness (1, 2), with its sea monsters (crabs in 4, the octopus and the leviathan in 9), Renegades (3, 4), the Dread Legion (first patrol in
+5), Arcane (5, *open*), Undead (6), Evil (8).
+The Dread Legion is Rhodri's organised army (`story-design.md` section 5) and leads scenarios 10 and 11. All the others join it there.
 
 ## 2. Overview
 
@@ -32,15 +33,16 @@ The Fallen Host is Rhodri's organised army (`story-design.md` section 5) and lea
 | 2 | The Old Friend | Home | Highlands | Yes | none new | Barracks, shield bearer | Survive N waves, trade |
 | 3 | The Wardline | Home | Highlands | Yes | Renegades | Specialisations, training grounds | Restore the ruined towers |
 | 4 | The Split | The guild's trading town | Coast | No | more Renegades, giant crabs, at most one siren (Arcane) | none | Hold until the convoy leaves |
-| 5 | The Betrayal | Brenna's old fort | Highlands | No | Arcane (*open*), a Fallen Host patrol | none | Find the evidence, hold the fort |
+| 5 | The Betrayal | Brenna's old fort | Highlands | No | Arcane (*open*), a Dread Legion patrol | none | Find the evidence, hold the fort |
 | 6 | The Dead | A battlefield village | Desert | No | Undead, the first necromancers | Acolyte (chapel) | Bury the dead |
 | 7 | The Exile | Fiona's refuge | Temperate | No | none new | Apprentice (mage's tower), Summoner (stone circle) | Hold the refuge |
-| 8 | The Pale Court | The capital's outskirts | Volcanic | No | Evil, Fallen Host camps | none | Clear the crypts |
-| 9 | The Last Wardline | Home | Highlands | No | all, led by the Fallen Host | none | Survive the host |
-| 10 | The Crown | The capital | Volcanic | No | all, the Fallen Host in force | none | End Rhodri |
+| 8 | The Pale Court | The capital's outskirts | Volcanic | No | Evil, Dread Legion camps | none | Clear the crypts |
+| 9 | The Drowned Abbey | A drowned abbey on a delta shore | Coast | No | giant octopus, leviathan, Dread Legion forces | none | Retrieve the relic, hold 10 waves |
+| 10 | The Last Wardline | Home | Highlands | No | all, led by the Dread Legion | none | Survive the host |
+| 11 | The Crown | The capital | Volcanic | No | all, the Dread Legion in force | none | End Rhodri |
 
 Hero level and the units the village starts with are part of each baseline (*target*: the hero from level 1 in scenario 1, rising by about two
-levels per scenario to about 16 in the last; units match). Whether a scenario's units are unlocked from the start, or must be found on the map as
+levels per scenario to about 18 in the last; units match). Whether a scenario's units are unlocked from the start, or must be found on the map as
 in the normal game, is stated per scenario.
 
 ## 3. Scenarios
@@ -219,7 +221,7 @@ The market is Pell's wagon. Hero level about 7. **No revive.**
 **Objective:** find **three pieces of evidence** around the pass (treasures, some guarded by monster camps) *and* hold the fort for 10 waves.
 Neither Brenna nor Pell may die.
 
-**Monsters:** Wilderness, Renegades and the first **Arcane** (*open*: witches, gargoyles). In the last wave the first **Fallen Host** patrol
+**Monsters:** Wilderness, Renegades and the first **Arcane** (*open*: witches, gargoyles). In the last wave the first **Dread Legion** patrol
 arrives: Rhodri's soldiers, sent to finish what the pass began. Brenna knows their armour.
 
 **Problems:** the evidence lies far away, so the hero must leave the fort, with no revive. Monster camps guard the farthest pieces (the hero
@@ -316,7 +318,7 @@ bearers, mages, acolytes, summoners (all unlocked by now, a baseline). Hero leve
 
 **Objective:** clear **the three crypt lairs** under the court. The hero does this on the player's order, while the camp holds.
 
-**Monsters:** **Evil**: vampires and necromancers. Undead. Gargoyles (the palace's stone guardians). Witches. The **Fallen Host** holds the
+**Monsters:** **Evil**: vampires and necromancers. Undead. Gargoyles (the palace's stone guardians). Witches. The **Dread Legion** holds the
 court's gates in camps of soldiers, captains and banner-bearers (*open*).
 
 **Problems:** the lairs wake one by one (the game's existing lair rule), so the pressure rises. Vampires heal from the hits they land. Flyers need
@@ -332,10 +334,55 @@ the gift that corrupted him was given as a circlet or crown (*open*, proposed). 
 
 **Intro cutscene:** the capital by night, the palace dark against a red sky. A vampire courtier bows to Brenna.
 
-**Outro cutscene:** the throne hall's gate stands open. Rhodri's host marches out of the city, not toward the palace, but toward Brenna's home. He
-knows where she came from.
+**Outro cutscene:** the throne hall's gate stands open. Brenna sees the crown on Rhodri's head from the doorway and understands that it is not a
+gift but something that feeds on him. A church survivor says the church hid something that can break such a thing: a relic in the abbey that sank
+in the delta. Fiona's messenger confirms it. Rhodri's herald hears her refuse the offer.
 
-### 9. The Last Wardline
+### 9. The Drowned Abbey
+
+**Where:** a pilgrims' ferry village on a drowned shore, with the church's old abbey half-sunk in the delta beyond it, reached by a causeway.
+Map: Coast, a river delta with an island (*target*).
+
+**Starting point:** a small village of ferrymen and the church's last survivors (a few acolytes). A short causeway to the abbey island, water on
+several sides. Pell's wagon, and his guild's boats at the quay. The army Brenna has gathered from scenario 8, a baseline: archers, shield
+bearers, mages, acolytes and summoners, all unlocked. Hero level about 14. **No revive.**
+
+**Objective:** retrieve **the relic** from the abbey's flooded crypt *and* hold the village for 10 waves (*target*). The hero goes to the abbey
+on the player's order, as with a monster camp, fights what guards it, takes the relic and carries it home. If she is downed, it is lost
+(defeat anyway). Neither Brenna nor Pell may die.
+
+**Monsters:**
+- **Wilderness, aquatic:** **giant crabs** from the shore, **giant octopuses** that grab and hold at the quay, and in the last wave the
+  **leviathan**, a boss that rises when the relic leaves the abbey. All need water routes (section 6, later engine work).
+- **Evil and Undead:** necromancers raise the abbey's drowned dead (skeletons, and the drowned soldiers of an old battle) and vampires hold the
+  crypt.
+- **The Dread Legion:** from the middle waves a force arrives by the causeway. It has learned where the relic lies. Captains and banner-bearers,
+  with no marshal yet (he leads in scenario 10).
+- Wilderness leftovers (goblins, rats).
+
+**Problems:** three fronts at once: the water, the causeway and the abbey. The hero has to leave the village with no revive, while a Legion
+force is on the causeway, so the player must decide **when** to send her. Towers cover the water less well than the road. The octopus holds
+units at the shore and pulls the line apart. Flyers (vampire bats, gargoyles) need ranged units. Taking the relic wakes the leviathan, so the
+last wave is the hardest.
+
+**Events:**
+- Waves 1 to 3: crabs and the first octopus, to teach the water side. Pell's guild boats ferry in a few supplies at fixed waves.
+- At wave 4 the acolytes tell what the abbey hides: the relic and how to reach the crypt.
+- At wave 6 the first Legion force arrives on the causeway. Its captain wants the relic and offers terms (a line from Rhodri).
+- The hero's trip is on the player's order. The relic can be taken from wave 7 on (earlier: the crypt is still sealed).
+- When the relic is taken, the leviathan rises. The last wave is its attack, with the Legion's rest on the causeway at the same time.
+
+**Story covered:** what the **crown** is and what can break it: the church hid a relic of the first king, who founded the Wardline, and sank
+its abbey to keep it from Rhodri. Only someone of House Aldmoor, with the relic, can free him (Fiona's line from scenario 7). The Legion
+does not hunt Brenna: it hunts the relic. The church's choice to stay neutral at the end.
+
+**Intro cutscene:** Brenna and Pell arrive by ferry in mist. The abbey's spires stand out of the water, and a bell rings under it.
+
+**Outro cutscene:** the leviathan sinks. The relic glows in Brenna's hands. A rider from the Legion's captain, who has fallen back, hands her a
+last message: the Legion is not here to take the relic. The main host has gone for her **home village**, to draw her out. She turns to Pell:
+they must go back.
+
+### 10. The Last Wardline
 
 **Where:** the home village, at its strongest. The same map as scenarios 1 to 3.
 
@@ -344,8 +391,8 @@ towers, a good economy, high-level units, Pell's guild market with caravans brin
 
 **Objective:** survive *N* waves (*target* 15), ending with a **mid-boss wave** (Rhodri's marshal).
 
-**Monsters:** everything: Wilderness, Renegades, Undead, Evil, Arcane, flyers, rats on the farms, thieves. The core of the host is the **Fallen
-Host**: Rhodri's soldiers, in ranks, with captains and banner-bearers, marching in on the home village by every road.
+**Monsters:** everything: Wilderness, Renegades, Undead, Evil, Arcane, flyers, rats on the farms, thieves. The core of the host is the **Dread
+Legion**: Rhodri's soldiers, in ranks, with captains and banner-bearers, marching in on the home village by every road.
 
 **Problems:** enemies arrive from every road at once, the economy is stretched, and the hero is the only one who cannot be revived. Brenna cannot
 leave her post.
@@ -363,17 +410,18 @@ choice to stay and defend rather than chase Rhodri.
 **Outro cutscene:** the host breaks. The marshal, dying, hands Brenna a sealed letter from Rhodri: *"You were the only one who said no."* Fiona's
 message: she and the mages ride for the capital.
 
-### 10. The Crown
+### 11. The Crown
 
 **Where:** the capital's throne hall district, a ruined palace city on ash land.
 
 **Starting point:** Brenna's and Fiona's forces together in a final camp. Fiona is present but not under the player's control. Everything
 unlocked. Hero level about 18. **No revive.**
 
-**Objective:** hold the camp for *N* waves (*target* 12) while Fiona and the mages work to break the crown's hold, then **defeat Rhodri**, the
+**Objective:** hold the camp for *N* waves (*target* 12) while Fiona and the mages use the relic from the Drowned Abbey to break the crown's hold,
+then **defeat Rhodri**, the
 final boss.
 
-**Monsters:** everything, with Rhodri's court at its strongest and the **Fallen Host** at full strength, the army of the final struggle.
+**Monsters:** everything, with Rhodri's court at its strongest and the **Dread Legion** at full strength, the army of the final struggle.
 
 **Problems:** the last waves are the hardest, the hero cannot be revived, and Rhodri attacks in phases (*open*, with the mid-boss design).
 
@@ -410,20 +458,21 @@ the gatherer step is done). When the scenario's steps are over the normal countd
   starts scenario 1).
 - Scenario 1's numbers: starting resources, enemy strength, repair cost share, economy goal, how much wall must be repaired, whether the farm and
   camp start damaged.
-- Brenna's father's name, and whether he returns later (scenario 9, for example).
+- Brenna's father's name, and whether he returns later (scenario 10, for example).
 - Each other scenario's exact *N* and *target* numbers.
 - Hero level and the units per baseline.
 - Whether the warehouse (4) and Fiona's house (7) are defeat conditions.
 - Whether bandits are a new Renegade kind, and whether the rival guild hires Renegades.
-- The Fallen Host: unit kinds and names, how its camps, ranks and banners work (a banner-bearer could buff like the war cry), and its place in the
+- The Dread Legion: unit kinds and names, how its camps, ranks and banners work (a banner-bearer could buff like the war cry), and its place in the
   mid-boss design (the marshal).
-- Which other sea monsters exist (siren, giant octopus, leviathan) and where else than the Coast they appear. Scenario 4 has only giant crabs and
+- Which other sea monsters exist besides the crab, octopus and leviathan (the siren, others) and where else than the Coast they appear. Scenario 4
+  has only giant crabs and
   one siren at most.
 - The Arcane category and where witches, gargoyles and the siren first appear (5 or 8; the siren is rare and shows up once at most in 4).
 - What the gift was (proposed: a circlet or crown) and who the guilds' foreign coins and seals belonged to (never settled).
-- The mid-boss design: Rhodri's marshal (9), the court champion (8), Rhodri (10).
+- The mid-boss design: Rhodri's marshal (10), the court champion (8), the leviathan (9), Rhodri (11).
 - The ending cutscene and whether it branches.
-- The home state of scenario 9 versus 1 to 3.
+- The home state of scenario 10 versus 1 to 3.
 
 ## 6. What the engine needs
 

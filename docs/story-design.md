@@ -72,7 +72,7 @@ manpower and stone, not magic.
 4. The wilderness walks in: goblins and orks first.
 5. Renegades (deserters, unpaid soldiers, ruined merchants) prey on the roads.
 6. Heir 2's corruption grows. To keep winning he sacrifices his own towns and soldiers for power, and that becomes part of the corruption. The
-   hero is betrayed in this step. The soldiers he sacrifices become the **Fallen Host**, his army.
+   hero is betrayed in this step. The soldiers he sacrifices become the **Dread Legion**, his army.
 7. The war's unburied dead rise. The evil is drawn by a kingdom full of death and gathers around heir 2. He does not create it: monsters still
    have no single source.
 8. Heir 1 flees into exile, with what is left of the court mages and the church. The capital burns.
@@ -106,7 +106,7 @@ not people who were changed.
 | **Renegades** (*Abtrünnige*) | thief | bandit, deserter, assassin | People who turned on their own side: the order collapsed. |
 | **Undead** | skeleton | ghost, wraith, zombie | The war's dead, unburied. |
 | **Evil** | vampire, necromancer | demon | Intelligent and malicious, drawn by the death. |
-| **Fallen Host** | none | footman, archer, captain, banner-bearer, the marshal (a mid-boss); names *open* | Rhodri's own army, hollowed by the corruption. See below. |
+| **Dread Legion** | none | footman, archer, captain, banner-bearer, the marshal (a mid-boss); names *open* | Rhodri's own army, hollowed by the corruption. See below. |
 | **Arcane** (*open*) | witch, gargoyle | siren (aquatic but magic: its song), wisp, golem | Magic-made or magic-using. Goes with neither Wilderness nor Evil. |
 
 Library and log text should use the category name ("a Renegade", "the Undead"), not a person's backstory.
@@ -115,14 +115,14 @@ Library and log text should use the category name ("a Renegade", "the Undead"), 
 not Wilderness (its song is magic), and used sparingly: a ranged
 amphibian whose song stops a tower's unit, like the witch's bewitching (a siren is an animal here, not a person); the **giant octopus** grabs and
 holds at the shore and may hit several targets; the **leviathan** is the rare giant. **Scenario 4 uses only crabs, and one siren at most**; the
-octopus and the leviathan are kept for later. They are not a category of
+octopus and the leviathan are used in scenario 9 (the Drowned Abbey). They are not a category of
 their own: they are the aquatic part of the Wilderness, as old as the sea. They follow rivers and coasts,
 which the game's enemies cannot do yet (engine work for later, see `scenarios-design.md` section 6).
 
-**The Fallen Host** is the one category made of people, and the story says so openly. It is not a monster category with no source: it is Rhodri's
+**The Dread Legion** is the one category made of people, and the story says so openly. It is not a monster category with no source: it is Rhodri's
 **organised battle force**, the soldiers of the military that backed him, ranked and led, hollowed by the corruption that he fed with their lives
-(section 4, step 6). It is Evil in spirit but not in kind: Evil monsters are individuals drawn by the death, while the Host marches in ranks under
-a command. It is the army of the final struggle, and it is what marches on the home village (scenarios 5, 8, 9 and 10).
+(section 4, step 6). It is Evil in spirit but not in kind: Evil monsters are individuals drawn by the death, while the Legion marches in ranks under
+a command. It is the army of the final struggle, and it is what marches on the home village (scenarios 5, 8, 9, 10 and 11).
 
 ## 6. Trade: the merchant guilds
 
@@ -160,18 +160,19 @@ table below is the older, shorter draft. Where they differ, `scenarios-design.md
 | 2 | The Old Friend | The merchant arrives, the first outsider in months, with news of the world and the guild. | Wilderness | Peddler, then a stall |
 | 3 | The Wardline | Restore the broken watchtowers. Each makes the road safer. | Renegades | Neutral guild caravans |
 | 4 | The Split | The rival guilds. Caravans are raided, and the rival guilds are hostile. The merchant tells how the guild broke apart. | Renegades (more), giant crabs, at most one siren (Arcane) | Full, with a rival threat |
-| 5 | The Betrayal | The hero's old company. Journals and relics tell what really happened to her. | Arcane (*open*), first Fallen Host patrol | Full |
+| 5 | The Betrayal | The hero's old company. Journals and relics tell what really happened to her. | Arcane (*open*), first Dread Legion patrol | Full |
 | 6 | The Dead | The war's battlefields. Corpses matter more because they get raised. | Undead | Full |
 | 7 | The Exile | Traces of the fled claimant: a messenger, a camp, a request. Help or refuse. | Wilderness and Undead | Full |
-| 8 | The Pale Court | The evil claimant's court appears. | Evil, Fallen Host camps | Full |
-| 9 | The Last Wardline | The enemy host comes. The 25-wave mid-bosses (roadmap) belong here. | All, led by the Fallen Host | Full |
-| 10 | The Crown | The ending. The choice of what to do with the crown and the exile (*open*). | All, the Fallen Host at full strength | Full |
+| 8 | The Pale Court | The evil claimant's court appears. | Evil, Dread Legion camps | Full |
+| 9 | The Drowned Abbey | The church's hidden relic, the only thing that can break the crown. The Legion hunts it too. | Giant octopus, leviathan, Dread Legion forces | Full |
+| 10 | The Last Wardline | The enemy host comes. The 25-wave mid-bosses (roadmap) belong here. | All, led by the Dread Legion | Full |
+| 11 | The Crown | The ending. The choice of what to do with the crown and the exile (*open*). | All, the Dread Legion at full strength | Full |
 
 **Nothing carries over between scenarios** (no units, relics, hero levels or market stage). Every scenario starts from its own scripted baseline,
 so any one of them can be replayed on its own. The story carries over, not the game state.
 
 **The hero's death.** In scenarios 1 to 3, at the home village, she revives as in the normal game (her people bring her back). In **all other
-scenarios her being downed is a defeat**, and the player can try again. This includes scenario 9, although it is at home: there is no one left to
+scenarios her being downed is a defeat**, and the player can try again. This includes scenario 10, although it is at home: there is no one left to
 bring her back. Away from home nobody can bring her back. This is a per-scenario setting (to go into `config.gd` when built), so a scenario can
 change it, and a message on entering the first away scenario should say so.
 
@@ -207,8 +208,8 @@ Draft intro:
 - How exactly the hero was betrayed.
 - Whether the rival guilds hire Renegades.
 - Whether witch and gargoyle form an Arcane category.
-- The Fallen Host's units and names, and how it looks (armour, banners; no people-faces, hollow helmets?).
-- How the sea monsters (crab, siren, giant octopus, leviathan) move on water (engine work, later).
+- The Dread Legion's units and names, and how it looks (armour, banners; no people-faces, hollow helmets?).
+- How the sea monsters (crab, giant octopus, leviathan) move on water (engine work, later).
 - Whether scenario 1 is the tutorial.
 - Each scenario's objective (what ends it and triggers the outro cutscene).
 - The cutscene format, and whether cutscenes can be skipped or watched again.
