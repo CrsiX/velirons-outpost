@@ -11,6 +11,11 @@ extends Node2D
 ## (its draw list is cached). When a tile changes (a tree falls) only its
 ## chunks are redrawn. Tiles are drawn back to front within a chunk, and the
 ## chunks back to front, so overlapping rims stay consistent.
+##
+## Under its tiles the base pass lays each tile's exact diamond in the average
+## colour of its art (`_underlay`). Zoomed far out, the mipmaps blur the
+## tiles' transparent edges wider than their overlap; the underlay then shows
+## through instead of the black under the map (grid lines).
 
 const CHUNK := 16
 
@@ -18,6 +23,8 @@ var map: MapData
 ## The top layer: fords, bridges and shore foam (over the water).
 var top := false
 var _tex_cache: Dictionary = {}
+## Art name -> its average colour (the underlay).
+var _avg_cache: Dictionary = {}
 ## Per pass, per tile index: the texture to draw ("" = nothing), cached.
 var _art: Array[PackedStringArray] = []
 ## Chunk nodes per pass: Vector2i(chunk x, chunk y) -> Chunk.
@@ -165,6 +172,8 @@ func _draw_chunk(c: Chunk) -> void:
 	var arts := _art[c.pass_i]
 	var x1 := mini(c.origin.x + CHUNK, map.size)
 	var y1 := mini(c.origin.y + CHUNK, map.size)
+	if not top and c.pass_i == 0:
+		_underlay(c, arts, x1, y1)
 	# (the top layer: the chunk's foam in one go, under its fords and bridges)
 	var foam := PackedVector2Array()
 	var crossings: Array[Vector2i] = []
@@ -187,6 +196,49 @@ func _draw_chunk(c: Chunk) -> void:
 		c.draw_multiline(foam, FOAM, 2.4, true)
 	for t in crossings:
 		_draw_crossing(c, t, arts[t.y * map.size + t.x])
+
+
+## Every tile of the chunk as its plain diamond in its art's average colour,
+## in one go. (Untextured, so no mipmap thins it: neighbours meet exactly.)
+func _underlay(c: Chunk, arts: PackedStringArray, x1: int, y1: int) -> void:
+	var points := PackedVector2Array()
+	var colors := PackedColorArray()
+	var indices := PackedInt32Array()
+	for y in range(c.origin.y, y1):
+		for x in range(c.origin.x, x1):
+			var art := arts[y * map.size + x]
+			if art == "":
+				continue
+			var col := _avg(art)
+			var g := Vector2(x, y)
+			var k := points.size()
+			for corner in [Vector2(-0.5, -0.5), Vector2(0.5, -0.5), Vector2(0.5, 0.5), Vector2(-0.5, 0.5)]:
+				points.append(Iso.to_world(g + corner))
+				colors.append(col)
+			indices.append_array([k, k + 1, k + 2, k, k + 2, k + 3])
+	if not indices.is_empty():
+		RenderingServer.canvas_item_add_triangle_array(c.get_canvas_item(), indices, points, colors)
+
+
+## The average colour of a tile's art, weighted by alpha (from a small copy).
+func _avg(art_name: String) -> Color:
+	if _avg_cache.has(art_name):
+		return _avg_cache[art_name]
+	var img := _tex(art_name).get_image()
+	if img.is_compressed():
+		img.decompress()
+	img.clear_mipmaps()
+	img.resize(32, 16, Image.INTERPOLATE_BILINEAR)
+	var sum := Color(0, 0, 0, 0)
+	var weight := 0.0
+	for y in img.get_height():
+		for x in img.get_width():
+			var p := img.get_pixel(x, y)
+			sum += Color(p.r * p.a, p.g * p.a, p.b * p.a, 0.0)
+			weight += p.a
+	var col := Color(sum.r / weight, sum.g / weight, sum.b / weight) if weight > 0.0 else Color.BLACK
+	_avg_cache[art_name] = col
+	return col
 
 
 ## Fords and bridges over the water layer.

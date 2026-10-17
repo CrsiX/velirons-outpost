@@ -788,7 +788,9 @@ Everything is in `scripts/core/config.gd`, in two blocks:
   `near_crater()`; all in `to_bytes` / `from_bytes` (`Net.PROTOCOL` 2).
 - Drawing: `GroundLayer` (zone ground, forest floors, rock under mountains,
   sand, roads and rocky passes; as the top layer: fords, bridges, shore foam
-  along the edges that touch water), `WaterLayer` (water and lava, each with
+  along the edges that touch water; under the tiles, each tile's plain
+  diamond in its art's average colour, so the mipmaps' thinned tile edges
+  show no black grid lines when zoomed far out), `WaterLayer` (water and lava, each with
   a shimmer shader). Decoration and volcanoes (with rising smoke) are sprites
   in World.
 - `Pathing`: deep water and lava solid; shallow water and swamp weighted.
