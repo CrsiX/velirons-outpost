@@ -105,8 +105,13 @@ func _draw_grid(m: MapData) -> void:
 		draw_line(pt(Vector2(a, -0.5)), pt(Vector2(a, m.size - 0.5)), col, 1.0)
 
 
+## Every slice tinted in its colour (the lobby's village colours, as the
+## Slice tool's buttons), white lines between them, their numbers (1-8).
 func _draw_slices(m: MapData) -> void:
 	var w := 3.0
+	for y in m.size:
+		for x in m.size:
+			draw_colored_polygon(tile_poly(Vector2i(x, y)), Color(EditorUi.slice_color(m.slice_of[y * m.size + x]), 0.28))
 	for y in m.size:
 		for x in m.size:
 			var s := m.slice_of[y * m.size + x]
@@ -119,7 +124,7 @@ func _draw_slices(m: MapData) -> void:
 		if m.villages.any(func(v: Dictionary) -> bool: return int(v.get("slice", -1)) == i) and editor.layers.get("villages", true):
 			continue
 		var c: Vector2 = m.slices[i]["center"]
-		_label(pt(c), "Slice %d" % i, Config.VILLAGE_COLORS[i % Config.VILLAGE_COLORS.size()], 17)
+		_label(pt(c), "Slice %d" % (i + 1), EditorUi.slice_color(i), 17)
 
 
 func _draw_flow(m: MapData, vi: int) -> void:
@@ -179,7 +184,7 @@ func _draw_villages(m: MapData) -> void:
 		draw_circle(c, _sz(7), col, false, _sz(2))
 		var text := "Village %d" % (i + 1)
 		if editor.layers.get("slices", false):
-			text += " · slice %d" % int(v.get("slice", 0))
+			text += " · slice %d" % (int(v.get("slice", 0)) + 1)
 		_label(c - Vector2(0, _sz(22)), text, col, 18)
 
 

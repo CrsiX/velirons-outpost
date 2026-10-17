@@ -196,12 +196,21 @@ func _editor() -> void:
 	ed._redraw_pointer()
 	await _frames(5)
 	await shot("editor_terrain_tool")
+	ed.ui.set_tool("slice")
+	await _frames(3)
+	await shot("editor_slice_tool")
+	ed.ui.set_panel_open(true, false)
+	ed.ui.set_panel_open(false, false)
+	await _frames(3)
+	await shot("editor_panels_folded")
+	ed.ui.set_panel_open(true, true)
+	ed.ui.set_panel_open(false, true)
 	var oi := -1
 	for i in ed.map.objects.size():
 		if ed.map.objects[i]["kind"] == "treasure":
 			oi = i
 			break
-	ed.ui.set_tool("look")
+	ed.ui.set_tool("file")
 	ed.select({"type": "object", "index": oi})
 	ed.view_tile(ed.map.objects[oi]["tile"])
 	await _frames(5)
@@ -232,12 +241,18 @@ func _editor() -> void:
 	await _size(Vector2i(540, 960))
 	await _frames(10)
 	ed.ui.set_tool("terrain")
+	await _frames(3)
+	await shot("editor_portrait_folded")
+	ed.ui._on_tab_pressed("tools")
 	await _frames(5)
 	await shot("editor_portrait_tools")
-	ed.ui._tab = "info"
-	ed.ui._fit()
+	ed.ui.set_tool("file")
+	await _frames(5)
+	await shot("editor_portrait_file")
+	ed.ui._on_tab_pressed("info")
 	await _frames(5)
 	await shot("editor_portrait_info")
+	ed.ui._on_tab_pressed("info")
 	await _landscape()
 	ed.queue_free()
 	await _frames(3)

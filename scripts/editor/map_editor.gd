@@ -9,17 +9,19 @@ extends Node2D
 signal changed
 signal selection_changed
 
-## The tools, in the order of the tool panel.
-const TOOLS: Array[String] = ["look", "terrain", "zone", "props", "decor", "beach", "road", "volcano", "village", "piece", "spawn", "slice", "object"]
+## The tools, in the order of the tool panel. "file" (the File tab) edits
+## nothing: a click selects, a drag pans.
+const TOOLS: Array[String] = ["file", "terrain", "zone", "props", "decor", "beach", "road", "volcano", "village", "piece", "spawn", "slice", "object"]
 ## Tools that paint along a drag.
 const STROKE_TOOLS: Array[String] = ["terrain", "zone", "props", "decor", "beach", "slice", "road"]
 const NO_TILE := Vector2i(-1, -1)
+const NO_POS := Vector2(-1e9, -1e9)
 
 var map: MapData
 ## The file it came from / is saved to ("" = not saved yet; a built-in map: saved as a copy).
 var path := ""
 var dirty := false
-var tool := "look"
+var tool := "file"
 var opts := {
 	"terrain": MapData.Terrain.FOREST, "zone": "meadow", "brush": 3, "round": true, "fill": false,
 	"prop": "auto", "decor": "auto", "beach": true, "road": "free", "volcano": "add", "ash": true,
@@ -52,6 +54,10 @@ var _drag: Dictionary = {}
 var _road_start := NO_TILE
 var _checks_in := -1.0
 var _middle_pan := false
+## A right press on the map (screen position; NO_POS: none): let go where it
+## was, it erases; dragged, it pans.
+var _right_from := NO_POS
+var _right_panned := false
 ## The zoom the layers were last drawn at (their labels keep their size on screen).
 var _drawn_zoom := 1.0
 var _pan_last := Vector2.ZERO
@@ -96,13 +102,15 @@ func _restore(s: Dictionary) -> void:
 		toggle_view()
 	camera.position = _to_world(s.get("view", Vector2(map.size, map.size) / 2.0))
 	camera.zoom = s.get("zoom", camera.zoom)
-	ui.refresh()
+	tool = str(s.get("tool", tool))
+	ui.set_panel_state(s.get("panels", {}))
+	ui.set_tool(tool)
 
 
 ## What Play leaves behind for coming back (Settings.editor_session).
 func session() -> Dictionary:
 	return {"map": map, "path": path, "dirty": dirty, "undo": _undo, "redo": _redo, "plan": plan_mode,
-		"view": _to_grid(camera.position), "zoom": camera.zoom}
+		"view": _to_grid(camera.position), "zoom": camera.zoom, "tool": tool, "panels": ui.panel_state()}
 
 
 # --- the map ---------------------------------------------------------------------------------
@@ -204,11 +212,12 @@ func view_tile(t: Vector2i) -> void:
 # --- input -----------------------------------------------------------------------------------
 
 ## A left press on the map at `screen_pos` belongs to the tool (not panning):
-## with a mouse for every tool but Look; with a finger only with "Paint" on.
+## with a mouse for every tool (not the File tab); with a finger only with
+## "Paint" on.
 func _claims(screen_pos: Vector2) -> bool:
 	if ui.is_over_panel(screen_pos) or ui.has_popup():
 		return false
-	if tool == "look":
+	if tool == "file":
 		return false
 	return not Layout.touch or bool(opts["paint"])
 
@@ -219,6 +228,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		if mb.button_index == MOUSE_BUTTON_MIDDLE:
 			_middle_pan = mb.pressed
 			_pan_last = mb.position
+		elif mb.button_index == MOUSE_BUTTON_RIGHT:
+			if mb.pressed:
+				var free := not ui.is_over_panel(mb.position) and not ui.has_popup()
+				_right_from = mb.position if free else NO_POS
+				_right_panned = false
+				_pan_last = mb.position
+			elif _right_from != NO_POS:
+				if not _right_panned:
+					_erase(tile_at(camera.screen_to_world(mb.position)))
+				_right_from = NO_POS
 		elif mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed and _claims(mb.position):
 				_press(tile_at(camera.screen_to_world(mb.position)))
@@ -226,8 +245,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_release(tile_at(camera.screen_to_world(mb.position)))
 	elif event is InputEventMouseMotion:
 		var mm := event as InputEventMouseMotion
-		if _middle_pan:
-			camera.position -= (mm.position - _pan_last) / camera.zoom
+		if _right_from != NO_POS and not _right_panned and mm.position.distance_to(_right_from) > CameraController.DRAG_THRESHOLD:
+			_right_panned = true
+		if _middle_pan or (_right_from != NO_POS and _right_panned):
+			camera.focus(camera.position - (mm.position - _pan_last) / camera.zoom)
 			_pan_last = mm.position
 		elif not _drag.is_empty():
 			_drag_to(tile_at(camera.screen_to_world(mm.position)))
@@ -284,16 +305,19 @@ func _on_hovered(w: Vector2) -> void:
 	ui.show_hover(t)
 
 
-## A tap the camera didn't treat as a pan: the Look tool selects; with a finger
-## (Paint off) every tool acts once where it was tapped.
+## A tap the camera didn't treat as a pan: with the File tab open it selects;
+## with a finger (Paint off) every tool acts once where it was tapped.
 func _on_tapped(w: Vector2) -> void:
 	if ui.has_popup():
 		return  # (a dialog is open: the map waits)
 	var t := tile_at(w)
+	if Layout.touch:
+		hover = t  # (no hover with a finger: the inspector shows the tile tapped)
+		ui.show_hover(t)
 	if not pick_mode.is_empty():
 		_picked(t)
 		return
-	if tool == "look":
+	if tool == "file":
 		_pick(t)
 		return
 	_press(t)
@@ -303,7 +327,7 @@ func _on_tapped(w: Vector2) -> void:
 
 ## The tiles the brush covers under the pointer (for the pointer overlay).
 func brush_tiles() -> Array[Vector2i]:
-	if hover == NO_TILE or not map.in_bounds(hover) or tool in ["look", "village", "object", "spawn"]:
+	if hover == NO_TILE or not map.in_bounds(hover) or tool in ["file", "village", "object", "spawn"]:
 		return [] as Array[Vector2i]
 	if tool in ["piece", "volcano"] or (tool == "road" and opts["road"] == "path") or (tool == "terrain" and opts["fill"]):
 		return [hover] as Array[Vector2i]
@@ -317,7 +341,7 @@ func _press(t: Vector2i) -> void:
 		_picked(t)
 		return
 	match tool:
-		"look":
+		"file":
 			_pick(t)
 		"terrain":
 			if opts["fill"]:
@@ -380,6 +404,71 @@ func _press(t: Vector2i) -> void:
 					select({"type": "object", "index": int(r[0])})
 
 
+## A right-click (no drag) at `t`: the tool's opposite there, once: erase
+## what it puts (terrain: back to grass); Zone and Slice take the tile's (they
+## have no "nothing"), Trees / peaks does nothing. First it cancels a pick or
+## a road being laid, as Esc does.
+func _erase(t: Vector2i) -> void:
+	if not pick_mode.is_empty():
+		pick_mode = {}
+		ui.status("")
+		return
+	if _road_start != NO_TILE:
+		_road_start = NO_TILE
+		path_preview.clear()
+		_redraw_pointer()
+		return
+	if not map.in_bounds(t) or not _drag.is_empty():
+		return
+	match tool:
+		"terrain":
+			if opts["fill"]:
+				edit(func() -> Variant: return EditorTools.fill_terrain(map, t, MapData.Terrain.GRASS))
+			else:
+				_stamp(t)
+		"decor", "beach":
+			_stamp(t)
+		"road":
+			if opts["road"] == "path":
+				edit(func() -> Variant: return EditorTools.paint_road(map, [t], true))
+			else:
+				_stamp(t)
+		"zone":
+			ui.set_option("zone", map.zone(t))
+			ui.status("Zone: %s" % Config.ZONES[map.zone(t)]["name"])
+		"slice":
+			ui.set_option("slice", int(map.slice_of[map.index(t)]))
+			ui.status("Slice %d" % (map.slice_of[map.index(t)] + 1))
+		"volcano":
+			if MapTidy.in_volcano(map, t):
+				edit(func() -> Variant: return EditorTools.remove_volcano(map, t), true)
+			else:
+				ui.status("No volcano there", true)
+		"piece":
+			edit(func() -> Variant: return EditorTools.set_piece(map, t, "erase", -1), true)
+		"spawn":
+			if map.villages.any(func(v: Dictionary) -> bool: return (v["home_spawns"] as Array).has(t)):
+				edit(func() -> Variant: return EditorTools.toggle_spawn(map, t, -1))
+			else:
+				ui.status("No spawn there", true)
+		"village":
+			var vi := village_at(t)
+			if vi >= 0:
+				select({"type": "village", "index": vi})
+				delete_selected()
+		"object":
+			var oi := object_at(t)
+			if oi >= 0:
+				select({"type": "object", "index": oi})
+				delete_selected()
+
+
+## One brush stamp of the tool's erase at `t` (one undo step).
+func _stamp(t: Vector2i) -> void:
+	_begin_stroke(t, true)
+	_release(t)
+
+
 func _drag_to(t: Vector2i) -> void:
 	if t == _drag.get("last", NO_TILE):
 		return
@@ -416,29 +505,31 @@ func _release(t: Vector2i) -> void:
 				edit(func() -> Variant: return EditorTools.move_object(map, i, t), true)
 
 
-func _begin_stroke(t: Vector2i) -> void:
-	_drag = {"kind": "stroke", "before": map.to_bytes(), "last": t, "changed": {}}
+## `erase`: the tool's erase (a right-click) instead of its paint.
+func _begin_stroke(t: Vector2i, erase: bool = false) -> void:
+	_drag = {"kind": "stroke", "before": map.to_bytes(), "last": t, "changed": {}, "erase": erase}
 	_stroke_apply(EditorTools.brush(t, int(opts["brush"]), bool(opts["round"])))
 
 
 ## One step of a stroke: the tool on `tiles`, shown at once (undo comes at its end).
 func _stroke_apply(tiles: Array[Vector2i]) -> void:
 	var done: Array[Vector2i] = []
+	var erase := bool(_drag.get("erase", false))
 	match tool:
 		"terrain":
-			done = EditorTools.paint_terrain(map, tiles, int(opts["terrain"]))
+			done = EditorTools.paint_terrain(map, tiles, MapData.Terrain.GRASS if erase else int(opts["terrain"]))
 		"zone":
 			done = EditorTools.paint_zone(map, tiles, str(opts["zone"]))
 		"props":
 			done = EditorTools.paint_prop(map, tiles, str(opts["prop"]))
 		"decor":
-			done = EditorTools.paint_decor(map, tiles, str(opts["decor"]))
+			done = EditorTools.paint_decor(map, tiles, "" if erase else str(opts["decor"]))
 		"beach":
-			done = EditorTools.paint_beach(map, tiles, bool(opts["beach"]))
+			done = EditorTools.paint_beach(map, tiles, bool(opts["beach"]) and not erase)
 		"slice":
 			done = EditorTools.paint_slice(map, tiles, int(opts["slice"]))
 		"road":
-			done = EditorTools.paint_road(map, tiles, opts["road"] == "erase")
+			done = EditorTools.paint_road(map, tiles, erase or opts["road"] == "erase")
 	if done.is_empty():
 		return
 	for t in done:
@@ -584,7 +675,7 @@ func select(sel: Dictionary) -> void:
 	selection_changed.emit()
 
 
-## Look: the object, village or tile at `t`.
+## The File tab's click: the object, village or tile at `t`.
 func _pick(t: Vector2i) -> void:
 	if not map.in_bounds(t):
 		select({})

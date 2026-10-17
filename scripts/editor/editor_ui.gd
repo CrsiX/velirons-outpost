@@ -1,37 +1,59 @@
 class_name EditorUi
 extends CanvasLayer
-## The map editor's panels (docs/map-editor-design.md §4.1): the top bar
-## (files, undo / redo, the view, properties, Play, Back), the tools with the
-## current tool's options (left), the inspector, layer switches and problems
-## (right), a status line, and the dialogs (New, properties, Play, confirm,
-## messages; the map picker). In portrait the side panels share one bottom
-## panel with two tabs.
+## The map editor's panels (docs/map-editor-design.md §4.1): the tools (left:
+## undo / redo and the view under the heading, the File tab (files, the map's
+## properties, Play, Exit) and the tools, then the current one's options), the
+## inspector (right: the selection, the tile under the pointer, layer switches
+## and problems), a status line, and the dialogs (New, properties, Play,
+## confirm, messages; the map picker). In landscape each side panel folds to
+## its edge (its heading stays, at the top); in portrait the two share a bottom
+## sheet with two tabs that slides up and down as the game's dock does.
 
 const TOOL_NAMES := {
-	"look": "Look", "terrain": "Terrain", "zone": "Zone", "props": "Trees, peaks", "decor": "Decor",
+	"file": "File", "terrain": "Terrain", "zone": "Zone", "props": "Trees, peaks", "decor": "Decor",
 	"beach": "Beach", "road": "Road", "volcano": "Volcano", "village": "Village", "piece": "Pieces",
 	"spawn": "Spawn", "slice": "Slice", "object": "Objects",
 }
 const TOOL_HINTS := {
-	"look": "Click a tile, object or village to see it (and edit it here).",
+	"file": "While this tab is open the map isn't edited: click a tile, object or village to see it in the inspector, drag to pan.",
 	"village": "Click open land: a new village (the standard layout). Drag a village to move it. Delete removes the selected one.",
 	"piece": "Click a tile: the piece below goes there (for the selected or nearest village). Flip turns a wall; Erase removes a piece.",
 	"spawn": "Click a road tile at the map's edge: a spawn (for the selected village, or the one of its slice). Click one again to remove it.",
 	"object": "Click open land: a new object. Click one to select it, drag it to move it. Delete removes it.",
 	"volcano": "Click: a volcano (3x3) there, or remove the one there.",
 }
+## What a right-click does with each tool (with a mouse; a right drag pans).
+const RIGHT_HINTS := {
+	"terrain": "Right-click: grass.", "zone": "Right-click: take the tile's zone.", "props": "", "decor": "Right-click: erase decor.",
+	"beach": "Right-click: erase beach.", "road": "Right-click: erase road.", "volcano": "Right-click: remove a volcano.",
+	"village": "Right-click: delete a village.", "piece": "Right-click: remove a piece.", "spawn": "Right-click: remove a spawn.",
+	"slice": "Right-click: take the tile's slice.", "object": "Right-click: delete an object.",
+}
 const TERRAIN_NAMES := ["Grass", "Road", "Forest", "Desert", "Mountain", "Deep water", "Shallow water", "Lava"]
+const LEFT_W := 330.0
+const RIGHT_W := 310.0
+## Narrower than this (or in portrait) the side panels share the bottom sheet.
+const NARROW := 760.0
+const STATUS_H := 26.0
+## A grid's cells in the wide bottom sheet are at least this wide (more columns fit).
+const SHEET_CELL := 150.0
+const NO_POS := Vector2(-1e9, -1e9)
 
 var editor: MapEditor
 var root: Control
-var _top: PanelContainer
-var _top_flow: HFlowContainer
 var _left: PanelContainer
 var _right: PanelContainer
+var _left_head: Button
+var _right_head: Button
+var _left_scroll: ScrollContainer
+var _right_scroll: ScrollContainer
+var _left_open := true
+var _right_open := true
 var _tools_box: VBoxContainer
 var _options: VBoxContainer
 var _inspect: VBoxContainer
-var _layers_box: VBoxContainer
+var _tile_box: VBoxContainer
+var _layers_box: GridContainer
 var _problems_box: VBoxContainer
 var _problems_title: Label
 var _status: Label
@@ -42,8 +64,28 @@ var _undo_button: Button
 var _redo_button: Button
 var _view_button: Button
 var _save_button: Button
+## The road steps from every tile to each village's gates (built when needed, dropped on a change).
+var _road_fields: Array[PackedInt32Array] = []
+var _portrait := false
+## The content width the grids were last built for (their columns follow it).
+var _built_w := -1.0
+# The portrait bottom sheet: a handle and the two tabs; the open tab's panel under them.
+var _sheet: PanelContainer
+var _handle: Control
 var _tabs: HBoxContainer
 var _tab := "tools"
+var _sheet_open := false
+var _sheet_h := 0.0
+var _sheet_dragging := false
+var _drag_from_y := 0.0
+var _drag_start_h := 0.0
+var _drag_last := Vector2.ZERO  # (y, time in s) of the last move, for the speed
+var _drag_speed := 0.0  # px/s, + downwards
+var _slide: Tween
+var _refit_queued := false
+## A press in a panel's list that turned into a scroll fires no button.
+var _scroll_from := NO_POS
+var _scrolled := false
 var _dialog: PanelContainer
 var _dialog_box: VBoxContainer
 var picker: MapPicker
@@ -57,44 +99,49 @@ func setup(p_editor: MapEditor) -> void:
 	add_child(root)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	Layout.inset(root)  # (clear of a phone's camera cutout)
-	_build_top()
 	_left = _panel()
-	var ls := _scroll(_left)
+	var lv := _side(_left)
+	_left_head = _heading("Tools", true)
+	lv.add_child(_left_head)
+	_left_scroll = _scroll(lv)
 	_tools_box = VBoxContainer.new()
 	_tools_box.add_theme_constant_override("separation", 6)
 	_tools_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ls.add_child(_tools_box)
-	_build_tools()
+	_left_scroll.add_child(_tools_box)
 	_right = _panel()
-	var rs := _scroll(_right)
+	var rside := _side(_right)
+	_right_head = _heading("Inspector", false)
+	rside.add_child(_right_head)
+	_right_scroll = _scroll(rside)
 	var rv := VBoxContainer.new()
 	rv.add_theme_constant_override("separation", 8)
 	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rs.add_child(rv)
-	rv.add_child(_label("Inspector", 18, UiTheme.GOLD))
+	_right_scroll.add_child(rv)
 	_inspect = VBoxContainer.new()
 	_inspect.add_theme_constant_override("separation", 4)
 	rv.add_child(_inspect)
+	_tile_box = VBoxContainer.new()
+	_tile_box.add_theme_constant_override("separation", 2)
+	rv.add_child(_tile_box)
 	rv.add_child(_label("Layers", 18, UiTheme.GOLD))
-	_layers_box = VBoxContainer.new()
+	_layers_box = GridContainer.new()
+	_layers_box.add_theme_constant_override("h_separation", 6)
 	rv.add_child(_layers_box)
 	_problems_title = _label("Problems", 18, UiTheme.GOLD)
 	rv.add_child(_problems_title)
 	_problems_box = VBoxContainer.new()
 	_problems_box.add_theme_constant_override("separation", 2)
 	rv.add_child(_problems_box)
+	_build_sheet()
+	for content in [_tools_box, rv]:
+		(content as Control).minimum_size_changed.connect(_queue_refit)
+	# A finger scrolls a panel from anywhere on it (as in the game's dock):
+	# its boxes let the touch through, its buttons pass it on.
+	root.get_tree().node_added.connect(func(n: Node) -> void:
+		if n is Control and (_left_scroll.is_ancestor_of(n) or _right_scroll.is_ancestor_of(n)):
+			_touch_scrollable.call_deferred(n))
+	_build_tools()
 	_build_layers()
-	_tabs = HBoxContainer.new()
-	root.add_child(_tabs)
-	for t in [["tools", "Tools"], ["info", "Inspector"]]:
-		var b := _button(t[1], Vector2(0, 40))
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var key: String = t[0]
-		b.pressed.connect(func() -> void:
-			_tab = key
-			_fit())
-		b.set_meta("tab", key)
-		_tabs.add_child(b)
 	_status = _label("", 15, UiTheme.TEXT)
 	_status.add_theme_color_override("font_outline_color", Color.BLACK)
 	_status.add_theme_constant_override("outline_size", 6)
@@ -111,6 +158,7 @@ func setup(p_editor: MapEditor) -> void:
 	picker = MapPicker.new()
 	root.add_child(picker)
 	picker.picked.connect(_on_opened)
+	editor.changed.connect(func() -> void: _road_fields.clear())  # (before refresh: it may show road steps)
 	editor.changed.connect(refresh)
 	editor.selection_changed.connect(_show_inspector)
 	root.get_viewport().size_changed.connect(_fit, CONNECT_DEFERRED)  # (once the root has its new size)
@@ -130,9 +178,35 @@ func _panel() -> PanelContainer:
 	return p
 
 
+func _side(p: PanelContainer) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	p.add_child(v)
+	return v
+
+
+## A side panel's heading: its name and a chevron towards the map; a tap
+## folds the panel to its edge (`left`: the tools) or opens it again.
+func _heading(text: String, left: bool) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT if left else HORIZONTAL_ALIGNMENT_LEFT
+	b.add_theme_constant_override("icon_max_width", 18)
+	b.add_theme_font_size_override("font_size", 18)
+	for c in ["font_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(c, UiTheme.GOLD)
+	b.add_theme_color_override("font_hover_color", UiTheme.TEXT)
+	b.pressed.connect(func() -> void: set_panel_open(left, not (_left_open if left else _right_open)))
+	return b
+
+
 func _scroll(parent: Control) -> ScrollContainer:
 	var s := ScrollContainer.new()
 	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	s.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	parent.add_child(s)
 	return s
 
@@ -155,13 +229,42 @@ func _button(text: String, min_size: Vector2 = Vector2(0, 36)) -> Button:
 	return b
 
 
-## A row of choice buttons; `current` is framed. `pick` gets the chosen value.
-func _choices(parent: Control, items: Array, current: Variant, pick: Callable, columns: int = 2) -> GridContainer:
+func _icon_button(icon: String, tip: String, cb: Callable) -> Button:
+	var b := _button("", Vector2(48, 36))
+	b.icon = Art.tex(icon)
+	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.add_theme_constant_override("icon_max_width", 24)
+	b.tooltip_text = tip
+	b.pressed.connect(cb)
+	return b
+
+
+## How many columns a grid of `n` cells gets: `base` in the side panels; in
+## the wide bottom sheet as many as fit at `cell` px each (at most `n`).
+func _cols(base: int, n: int, cell: float = SHEET_CELL) -> int:
+	if not _portrait:
+		return base
+	return clampi(floori(_content_width() / cell), base, maxi(base, n))
+
+
+## The width a panel's entries get.
+func _content_width() -> float:
+	var w := (root.size.x - 12.0) if _portrait else LEFT_W
+	return w - 30.0  # (the panel's padding and its scroll bar)
+
+
+func _grid(parent: Control, columns: int) -> GridContainer:
 	var g := GridContainer.new()
 	g.columns = columns
 	g.add_theme_constant_override("h_separation", 4)
 	g.add_theme_constant_override("v_separation", 4)
 	parent.add_child(g)
+	return g
+
+
+## A row of choice buttons; `current` is framed. `pick` gets the chosen value.
+func _choices(parent: Control, items: Array, current: Variant, pick: Callable, columns: int = 2) -> GridContainer:
+	var g := _grid(parent, _cols(columns, items.size()))
 	for it in items:
 		var value = it[0]
 		var b := _button(str(it[1]))
@@ -190,46 +293,23 @@ func _clear(box: Control) -> void:
 		c.queue_free()
 
 
-# --- top bar ---------------------------------------------------------------------------------
-
-func _build_top() -> void:
-	_top = _panel()
-	_top_flow = HFlowContainer.new()
-	_top_flow.add_theme_constant_override("h_separation", 4)
-	_top_flow.add_theme_constant_override("v_separation", 4)
-	_top.add_child(_top_flow)
-	var add := func(text: String, cb: Callable, tip: String = "") -> Button:
-		var b := _button(text, Vector2(0, 36))
-		b.tooltip_text = tip
-		b.pressed.connect(cb)
-		_top_flow.add_child(b)
-		return b
-	add.call("New", show_new, "Generate a map, or start a blank one")
-	add.call("Open", func() -> void: picker.open(false, "Open a map", "Open"), "Your maps and the built-in ones")
-	_save_button = add.call("Save", save, "Save to your maps (Ctrl+S)")
-	add.call("Save as", func() -> void: show_properties(true), "Save under another name")
-	add.call("Import", import_file, "Read a map file from anywhere")
-	add.call("Export", export_file, "Write the map as a file anywhere (a download in the browser)")
-	_undo_button = add.call("Undo", func() -> void: editor.undo(), "Ctrl+Z")
-	_redo_button = add.call("Redo", func() -> void: editor.redo(), "Ctrl+Y")
-	_view_button = add.call("2D", func() -> void: editor.toggle_view(), "Isometric or top-down view (Tab)")
-	add.call("Properties", func() -> void: show_properties(false), "Name, author, description, map type")
-	var play: Button = add.call("Play", show_play, "Try the map in a game")
-	UiTheme.style_good(play)
-	var back: Button = add.call("Back", ask_leave, "Back to the title screen")
-	UiTheme.style_danger(back)
-
-
 # --- tools -----------------------------------------------------------------------------------
 
 func _build_tools() -> void:
 	_clear(_tools_box)
-	_tools_box.add_child(_label("Tools", 18, UiTheme.GOLD))
-	var g := GridContainer.new()
-	g.columns = 2
-	g.add_theme_constant_override("h_separation", 4)
-	g.add_theme_constant_override("v_separation", 4)
-	_tools_box.add_child(g)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	_tools_box.add_child(row)
+	_undo_button = _icon_button("icon_undo", "Undo (Ctrl+Z)", func() -> void: editor.undo())
+	row.add_child(_undo_button)
+	_redo_button = _icon_button("icon_redo", "Redo (Ctrl+Y)", func() -> void: editor.redo())
+	row.add_child(_redo_button)
+	_view_button = _button("2D")
+	_view_button.tooltip_text = "Isometric or top-down view (Tab)"
+	_view_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_view_button.pressed.connect(func() -> void: editor.toggle_view())
+	row.add_child(_view_button)
+	var g := _grid(_tools_box, _cols(2, MapEditor.TOOLS.size()))
 	_tool_buttons.clear()
 	for t in MapEditor.TOOLS:
 		var b := _button(TOOL_NAMES[t])
@@ -253,7 +333,8 @@ func set_tool(t: String) -> void:
 	refresh()
 
 
-func _opt(key: String, value: Variant) -> void:
+## Sets option `key` of the tools (a choice, or a right-click's pick) and shows it.
+func set_option(key: String, value: Variant) -> void:
 	editor.opts[key] = value
 	_build_options()
 	editor._redraw_pointer()
@@ -261,50 +342,52 @@ func _opt(key: String, value: Variant) -> void:
 
 func _build_options() -> void:
 	_clear(_options)
+	_save_button = null
 	var t := editor.tool
 	for k in _tool_buttons:
 		UiTheme.style_selected(_tool_buttons[k], k == t)
 	_options.add_child(_label(TOOL_NAMES[t], 17, UiTheme.GOLD))
 	if TOOL_HINTS.has(t):
 		_options.add_child(_label(TOOL_HINTS[t], 14, UiTheme.MUTED))
+	if not Layout.touch and t != "file":
+		_options.add_child(_label((str(RIGHT_HINTS[t]) + " A right drag pans.").strip_edges(), 14, UiTheme.MUTED))
 	var o := editor.opts
 	match t:
+		"file":
+			_file_actions()
 		"terrain":
 			var items := []
 			for k in TERRAIN_NAMES.size():
 				items.append([k, TERRAIN_NAMES[k]])
-			_choices(_options, items, int(o["terrain"]), func(v: Variant) -> void: _opt("terrain", v))
-			_toggle(_options, "Fill an area", bool(o["fill"]), func(on: bool) -> void: _opt("fill", on))
+			_choices(_options, items, int(o["terrain"]), func(v: Variant) -> void: set_option("terrain", v))
+			_toggle(_options, "Fill an area", bool(o["fill"]), func(on: bool) -> void: set_option("fill", on))
 		"zone":
 			var items := []
 			for z in Config.ZONE_ORDER:
 				items.append([z, Config.ZONES[z]["name"]])
-			_choices(_options, items, o["zone"], func(v: Variant) -> void: _opt("zone", v))
+			_choices(_options, items, o["zone"], func(v: Variant) -> void: set_option("zone", v))
 		"props":
 			var items := [["auto", "Auto (the zone's)"]]
 			for a in _tree_arts() + MapTidy.PEAK_ARTS:
 				items.append([a, a.replace("_", " ").capitalize()])
-			_choices(_options, items, o["prop"], func(v: Variant) -> void: _opt("prop", v), 1)
+			_choices(_options, items, o["prop"], func(v: Variant) -> void: set_option("prop", v), 1)
 			_options.add_child(_label("Trees grow on forest, peaks on mountains.", 14, UiTheme.MUTED))
 		"decor":
 			var items := [["auto", "Auto (the zone's)"], ["", "Erase"]]
 			for a in _decor_arts():
 				items.append([a, a.replace("_", " ").capitalize()])
-			_choices(_options, items, o["decor"], func(v: Variant) -> void: _opt("decor", v), 1)
+			_choices(_options, items, o["decor"], func(v: Variant) -> void: set_option("decor", v), 1)
 		"beach":
-			_choices(_options, [[true, "Beach"], [false, "Erase"]], o["beach"], func(v: Variant) -> void: _opt("beach", v))
+			_choices(_options, [[true, "Beach"], [false, "Erase"]], o["beach"], func(v: Variant) -> void: set_option("beach", v))
 		"road":
-			_choices(_options, [["free", "Paint"], ["path", "Path (2 clicks)"], ["erase", "Erase"]], o["road"], func(v: Variant) -> void: _opt("road", v), 1)
+			_choices(_options, [["free", "Paint"], ["path", "Path (2 clicks)"], ["erase", "Erase"]], o["road"], func(v: Variant) -> void: set_option("road", v), 1)
 		"volcano":
-			_choices(_options, [["add", "Add"], ["remove", "Remove"]], o["volcano"], func(v: Variant) -> void: _opt("volcano", v))
-			_toggle(_options, "Ash land around it", bool(o["ash"]), func(on: bool) -> void: _opt("ash", on))
+			_choices(_options, [["add", "Add"], ["remove", "Remove"]], o["volcano"], func(v: Variant) -> void: set_option("volcano", v))
+			_toggle(_options, "Ash land around it", bool(o["ash"]), func(on: bool) -> void: set_option("ash", on))
 		"piece":
-			_choices(_options, [["wall", "Wall"], ["gate", "Gate"], ["wall_tower", "Wall tower"], ["hut", "Hut"], ["flip", "Flip"], ["erase", "Erase"]], o["piece"], func(v: Variant) -> void: _opt("piece", v))
+			_choices(_options, [["wall", "Wall"], ["gate", "Gate"], ["wall_tower", "Wall tower"], ["hut", "Hut"], ["flip", "Flip"], ["erase", "Erase"]], o["piece"], func(v: Variant) -> void: set_option("piece", v))
 		"slice":
-			var items := []
-			for s in Config.MAX_PLAYERS:
-				items.append([s, "Slice %d" % s])
-			_choices(_options, items, int(o["slice"]), func(v: Variant) -> void: _opt("slice", v), 4)
+			_slice_choices(int(o["slice"]))
 			var b := _button("Recompute from the villages")
 			b.pressed.connect(func() -> void: editor.recompute_slices())
 			_options.add_child(b)
@@ -312,17 +395,78 @@ func _build_options() -> void:
 			var items := []
 			for k in MapJson.OBJECT_KINDS:
 				items.append([k, k.capitalize()])
-			_choices(_options, items, o["object"], func(v: Variant) -> void: _opt("object", v))
-			_choices(_options, [[1, "1x1"], [2, "2x2"]], int(o["object_size"]), func(v: Variant) -> void: _opt("object_size", v))
+			_choices(_options, items, o["object"], func(v: Variant) -> void: set_option("object", v))
+			_choices(_options, [[1, "1x1"], [2, "2x2"]], int(o["object_size"]), func(v: Variant) -> void: set_option("object_size", v))
 	if t in MapEditor.STROKE_TOOLS and not (t == "road" and o["road"] == "path") and not (t == "terrain" and o["fill"]):
 		_options.add_child(_label("Brush", 15, UiTheme.MUTED))
 		var sizes := []
 		for n in Config.EDITOR["brush_sizes"]:
 			sizes.append([n, str(n)])
-		_choices(_options, sizes, int(o["brush"]), func(v: Variant) -> void: _opt("brush", v), 4)
-		_toggle(_options, "Round", bool(o["round"]), func(on: bool) -> void: _opt("round", on))
-	if Layout.touch and t != "look":
-		_toggle(_options, "Paint by dragging (else a drag pans)", bool(o["paint"]), func(on: bool) -> void: _opt("paint", on))
+		_choices(_options, sizes, int(o["brush"]), func(v: Variant) -> void: set_option("brush", v), 4)
+		_toggle(_options, "Round", bool(o["round"]), func(on: bool) -> void: set_option("round", on))
+	if Layout.touch and t != "file":
+		_toggle(_options, "Paint by dragging (else a drag pans)", bool(o["paint"]), func(on: bool) -> void: set_option("paint", on))
+
+
+## The File tab: the map's files, its properties, Play and Exit.
+func _file_actions() -> void:
+	var acts := [
+		["New", show_new, "Generate a map, or start a blank one"],
+		["Open", func() -> void: picker.open(false, "Open a map", "Open"), "Your maps and the built-in ones"],
+		["Save", save, "Save to your maps (Ctrl+S)"],
+		["Save as", func() -> void: show_properties(true), "Save under another name"],
+		["Import", import_file, "Read a map file from anywhere"],
+		["Export", export_file, "Write the map as a file anywhere (a download in the browser)"],
+		["Properties", func() -> void: show_properties(false), "Name, author, description, map type"],
+		["Play", show_play, "Try the map in a game"],
+		["Exit", ask_leave, "Leave the map editor, back to the title screen"],
+	]
+	var g := _grid(_options, _cols(2, acts.size()))
+	for a in acts:
+		var b := _button(a[0])
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.clip_text = true
+		b.tooltip_text = a[2]
+		b.pressed.connect(a[1])
+		g.add_child(b)
+		match str(a[0]):
+			"Save":
+				_save_button = b
+				b.text = "Save*" if editor.dirty else "Save"
+			"Play":
+				UiTheme.style_good(b)
+			"Exit":
+				UiTheme.style_danger(b)
+
+
+## The Slice tool's slices, 1-8 (stored 0-7), each in its colour (the lobby's
+## village colours, as the Slices layer draws them).
+func _slice_choices(current: int) -> void:
+	var g := _grid(_options, _cols(4, Config.MAX_PLAYERS, 100.0))
+	var font := root.get_theme_font("font", "Button")
+	var cell := (_content_width() - 4.0 * (g.columns - 1)) / g.columns
+	var long := font.get_string_size("Slice 8", HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x + 18.0 <= cell
+	for s in Config.MAX_PLAYERS:
+		var b := _button(("Slice %d" if long else "S%d") % (s + 1))
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.clip_text = true
+		var vi := -1
+		for i in editor.map.villages.size():
+			if int(editor.map.villages[i].get("slice", -1)) == s:
+				vi = i
+		b.tooltip_text = "Slice %d%s" % [s + 1, (": village %d's area" % (vi + 1)) if vi >= 0 else ""]
+		var col := slice_color(s)
+		var on := s == current
+		b.add_theme_stylebox_override("normal", UiTheme.box(col.darkened(0.35 if on else 0.62), UiTheme.GOLD if on else col.darkened(0.15), 3 if on else 2, 8, 8))
+		b.add_theme_stylebox_override("hover", UiTheme.box(col.darkened(0.45), col, 2, 8, 8))
+		b.add_theme_color_override("font_color", Color.WHITE if on else col.lightened(0.45))
+		b.pressed.connect(func() -> void: set_option("slice", s))
+		g.add_child(b)
+
+
+## Slice `s`'s colour (the village colours of the co-op lobby).
+static func slice_color(s: int) -> Color:
+	return Config.VILLAGE_COLORS[s % Config.VILLAGE_COLORS.size()]
 
 
 func _tree_arts() -> Array:
@@ -350,13 +494,16 @@ func _build_layers() -> void:
 	var names := [["zones", "Zones (isometric)"], ["slices", "Slices"], ["grid", "Grid"], ["passable", "Blocked / shallow"],
 		["buildable", "Buildable land"], ["spawns", "Spawns"], ["villages", "Villages"], ["objects", "Objects"],
 		["rings", "Camp rings, fronts"], ["problems", "Problem marks"]]
+	_layers_box.columns = _cols(1, names.size() + 1, 210.0)
 	for n in names:
 		var key: String = n[0]
-		_toggle(_layers_box, n[1], bool(editor.layers.get(key, false)), func(on: bool) -> void:
+		var c := _toggle(_layers_box, n[1], bool(editor.layers.get(key, false)), func(on: bool) -> void:
 			editor.layers[key] = on
 			editor.redraw_layers())
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var flow := int(editor.layers["flow"])
 	var b := _button("Road steps: %s" % ("off" if flow < 0 else "village %d" % (flow + 1)))
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.tooltip_text = "How many road tiles from each road tile to a village's gates"
 	b.pressed.connect(func() -> void:
 		var n := editor.map.villages.size()
@@ -405,18 +552,36 @@ func _show_inspector() -> void:
 		_:
 			_inspect.add_child(_label("%s\n%dx%d · %s · %d %s · %d objects" % [MapJson.map_name(m), m.size, m.size, Settings.map_type_name(m.map_type),
 				m.villages.size(), "village" if m.villages.size() == 1 else "villages", m.objects.size()], 14))
-			_inspect.add_child(_label("Look: click something to see it here.", 14, UiTheme.MUTED))
+			_inspect.add_child(_label("Nothing selected: open the File tab and click a tile, object or village.", 14, UiTheme.MUTED))
 
 
 func _tile_info(t: Vector2i) -> void:
-	_inspect.add_child(_label(tile_text(t), 14))
+	_tile_details(_inspect, t)
+
+
+## Tile `t` in words, and its road steps to each village's gates, into `box`.
+func _tile_details(box: Control, t: Vector2i) -> void:
+	box.add_child(_label(tile_text(t), 14))
 	var m := editor.map
+	if _road_fields.size() != m.villages.size():
+		_road_fields.clear()
+		for v in m.villages:
+			_road_fields.append(GenChecks.road_field(m, v["gates"]) if not (v["gates"] as Array).is_empty() else PackedInt32Array())
 	for i in m.villages.size():
-		if (m.villages[i]["gates"] as Array).is_empty():
+		if _road_fields[i].is_empty():
 			continue
-		var d := GenChecks.road_field(m, m.villages[i]["gates"])[m.index(t)]
+		var d := _road_fields[i][m.index(t)]
 		if d < 1 << 29:
-			_inspect.add_child(_label("Road steps to village %d: %d" % [i + 1, d], 14, UiTheme.MUTED))
+			box.add_child(_label("Road steps to village %d: %d" % [i + 1, d], 14, UiTheme.MUTED))
+
+
+## The inspector's tile under the pointer (with a finger: the last one tapped).
+func _show_tile(t: Vector2i) -> void:
+	_clear(_tile_box)
+	if editor.map == null or not editor.map.in_bounds(t):
+		return
+	_tile_box.add_child(_label("Last tapped" if Layout.touch else "Under the pointer", 15, UiTheme.GOLD))
+	_tile_details(_tile_box, t)
 
 
 ## What tile `t` is, in words (the inspector, the status line).
@@ -424,7 +589,7 @@ func tile_text(t: Vector2i) -> String:
 	var m := editor.map
 	if not m.in_bounds(t):
 		return ""
-	var parts := ["Tile %d, %d" % [t.x, t.y], TERRAIN_NAMES[m.get_terrain(t)], Config.ZONES[m.zone(t)]["name"], "slice %d" % m.slice_of[m.index(t)]]
+	var parts := ["Tile %d, %d" % [t.x, t.y], TERRAIN_NAMES[m.get_terrain(t)], Config.ZONES[m.zone(t)]["name"], "slice %d" % (m.slice_of[m.index(t)] + 1)]
 	if m.props.has(t):
 		parts.append(str(m.props[t]))
 	if m.decor.has(t):
@@ -445,7 +610,7 @@ func _object_info(i: int) -> void:
 		return
 	var o := m.objects[i]
 	var t: Vector2i = o["tile"]
-	_inspect.add_child(_label("%s %d at %d, %d (%dx%d, slice %d)" % [str(o["kind"]).capitalize(), i + 1, t.x, t.y, int(o.get("size", 1)), int(o.get("size", 1)), int(o.get("slice", 0))], 15))
+	_inspect.add_child(_label("%s %d at %d, %d (%dx%d, slice %d)" % [str(o["kind"]).capitalize(), i + 1, t.x, t.y, int(o.get("size", 1)), int(o.get("size", 1)), int(o.get("slice", 0)) + 1], 15))
 	var set_field := func(key: String, value: Variant) -> void: editor.set_object_field(key, value)
 	match str(o["kind"]):
 		"treasure":
@@ -557,7 +722,7 @@ func _village_info(i: int) -> void:
 	var pieces := m.village_pieces(i)
 	var huts := pieces.filter(func(p: Dictionary) -> bool: return p["kind"] == "hut").size()
 	_inspect.add_child(_label("%d pieces (%d huts), %d gates, %d spawns, slice\u00a0%d%s" % [pieces.size(), huts, (v["gates"] as Array).size(),
-		(v["home_spawns"] as Array).size(), int(v.get("slice", 0)), "" if MapChecks.standard_layout(m, i) else "\nNot the standard layout"], 14))
+		(v["home_spawns"] as Array).size(), int(v.get("slice", 0)) + 1, "" if MapChecks.standard_layout(m, i) else "\nNot the standard layout"], 14))
 	var row := HBoxContainer.new()
 	_inspect.add_child(row)
 	for d in [[-1, "Number -1"], [1, "Number +1"]]:
@@ -578,6 +743,7 @@ func _village_info(i: int) -> void:
 func show_hover(t: Vector2i) -> void:
 	_hover_text = tile_text(t)
 	_refresh_status()
+	_show_tile(t)
 
 
 # --- status ----------------------------------------------------------------------------------
@@ -588,9 +754,11 @@ func refresh() -> void:
 	_undo_button.disabled = not editor.can_undo()
 	_redo_button.disabled = not editor.can_redo()
 	_view_button.text = "Isometric" if editor.plan_mode else "2D"
-	_save_button.text = "Save*" if editor.dirty else "Save"
+	if _save_button:
+		_save_button.text = "Save*" if editor.dirty else "Save"
 	_build_layers()
 	_show_inspector()
+	_show_tile(editor.hover)
 	_refresh_status()
 
 
@@ -627,42 +795,261 @@ func _fit() -> void:
 	if root == null:
 		return
 	var vp := root.size
-	var portrait := Layout.portrait or vp.x < 760.0
-	_top.position = Vector2(6, 6)
-	_top.size = Vector2(vp.x - 12, 0)
-	# (the top bar's buttons wrap with its width: its height is known after a layout)
-	await root.get_tree().process_frame
-	_top.reset_size()
-	_top.size.x = vp.x - 12
-	var top_h := _top.size.y + 12.0
-	var status_h := 26.0
-	_tabs.visible = portrait
-	if portrait:
-		var h := floorf(vp.y * 0.38)
-		var tabs_h := 42.0
-		_tabs.position = Vector2(6, vp.y - h - tabs_h - status_h)
-		_tabs.size = Vector2(vp.x - 12, tabs_h - 4)
-		for p in [_left, _right]:
-			p.position = Vector2(6, vp.y - h - status_h)
-			p.size = Vector2(vp.x - 12, h - 6)
-		_left.visible = _tab == "tools"
-		_right.visible = _tab == "info"
+	_portrait = Layout.portrait or vp.x < NARROW
+	if not is_equal_approx(_content_width(), _built_w):
+		# (the grids' columns follow the width)
+		_built_w = _content_width()
+		_build_tools()
+		_build_layers()
+		_show_inspector()
+		refresh()
+	if _slide:
+		_slide.kill()
+		_slide = null
+	_left_head.visible = not _portrait
+	_right_head.visible = not _portrait
+	_sheet.visible = _portrait
+	if _portrait:
+		_left_scroll.visible = true
+		_right_scroll.visible = true
 		for b in _tabs.get_children():
-			UiTheme.style_selected(b, b.get_meta("tab") == _tab)
+			UiTheme.style_selected(b, _sheet_open and b.get_meta("tab") == _tab)
+		if not _sheet_dragging:
+			_place_sheet(_open_h() if _sheet_open else _folded_h())
 	else:
-		var w := 270.0
-		var rw := 300.0
+		var h := vp.y - STATUS_H - 12.0
 		_left.visible = true
 		_right.visible = true
-		_left.position = Vector2(6, top_h)
-		_left.size = Vector2(w, vp.y - top_h - status_h - 6)
-		_right.position = Vector2(vp.x - rw - 6, top_h)
-		_right.size = Vector2(rw, vp.y - top_h - status_h - 6)
-	_status.position = Vector2(10, vp.y - status_h)
-	_status.size = Vector2(vp.x - 20, status_h)
+		_left_scroll.visible = _left_open
+		_right_scroll.visible = _right_open
+		_left_head.icon = Art.tex("icon_expand" if _left_open else "icon_collapse")
+		_right_head.icon = Art.tex("icon_collapse" if _right_open else "icon_expand")
+		_left_head.tooltip_text = "Fold the tools away" if _left_open else "Show the tools"
+		_right_head.tooltip_text = "Fold the inspector away" if _right_open else "Show the inspector"
+		_left.size = Vector2(LEFT_W, h) if _left_open else _folded_size(_left, _left_head)
+		_left.position = Vector2(6, 6)
+		_right.size = Vector2(RIGHT_W, h) if _right_open else _folded_size(_right, _right_head)
+		_right.position = Vector2(vp.x - _right.size.x - 6.0, 6)
+	_status.position = Vector2(10, vp.y - STATUS_H)
+	_status.size = Vector2(vp.x - 20, STATUS_H)
 	_status.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_status.clip_text = true
 	_place_dialog()
+
+
+## A folded side panel: just its heading.
+func _folded_size(p: PanelContainer, head: Button) -> Vector2:
+	return head.get_combined_minimum_size() + p.get_theme_stylebox("panel").get_minimum_size()
+
+
+## Opens or folds a side panel (landscape; `left`: the tools, else the inspector).
+func set_panel_open(left: bool, open: bool) -> void:
+	if left:
+		_left_open = open
+	else:
+		_right_open = open
+	_fit()
+
+
+## What Play keeps of the panels for coming back (the editor's session).
+func panel_state() -> Dictionary:
+	return {"left": _left_open, "right": _right_open, "tab": _tab, "sheet": _sheet_open}
+
+
+func set_panel_state(st: Dictionary) -> void:
+	_left_open = bool(st.get("left", true))
+	_right_open = bool(st.get("right", true))
+	_tab = str(st.get("tab", "tools"))
+	_sheet_open = bool(st.get("sheet", false))
+	_fit()
+
+
+func _queue_refit() -> void:
+	if not _refit_queued:
+		_refit_queued = true
+		_refit.call_deferred()
+
+
+## A page's content changed size: the open sheet fits it again.
+func _refit() -> void:
+	_refit_queued = false
+	if _portrait and _sheet_open and not _sheet_dragging and _slide == null:
+		_place_sheet(_open_h())
+
+
+# --- the portrait bottom sheet ---------------------------------------------------------------
+
+func _build_sheet() -> void:
+	_sheet = PanelContainer.new()
+	_sheet.add_theme_stylebox_override("panel", UiTheme.box(Color(0.12, 0.08, 0.06, 0.92), UiTheme.GOLD, 2, 8, 6))
+	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(_sheet)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	_sheet.add_child(v)
+	# The grab handle over the tabs: tap it, or drag it up / down.
+	_handle = Control.new()
+	_handle.custom_minimum_size = Vector2(0, 24)  # (room for a finger)
+	_handle.mouse_filter = Control.MOUSE_FILTER_STOP
+	_handle.mouse_default_cursor_shape = Control.CURSOR_VSIZE
+	_handle.tooltip_text = "Drag up to open, down to close"
+	_handle.draw.connect(func() -> void:
+		var w := 72.0
+		var r := Rect2((_handle.size.x - w) / 2.0, (_handle.size.y - 7.0) / 2.0, w, 7.0)
+		_handle.draw_style_box(UiTheme.box(UiTheme.MUTED, UiTheme.MUTED, 0, 4, 0), r))
+	_handle.gui_input.connect(_on_sheet_drag.bind(_handle))
+	v.add_child(_handle)
+	_tabs = HBoxContainer.new()
+	_tabs.add_theme_constant_override("separation", 6)
+	_tabs.mouse_filter = Control.MOUSE_FILTER_STOP  # (the gap between the tabs drags the sheet too)
+	_tabs.gui_input.connect(_on_sheet_drag.bind(_tabs))
+	v.add_child(_tabs)
+	for t in [["tools", "Tools"], ["info", "Inspector"]]:
+		var b := _button(t[1], Vector2(0, 40))
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.set_meta("tab", t[0])
+		b.pressed.connect(_on_tab_pressed.bind(t[0]))
+		b.gui_input.connect(_on_sheet_drag.bind(b))  # (a tap switches the tab, a drag moves the sheet)
+		_tabs.add_child(b)
+
+
+## A tab: opens the sheet on it; the open tab folds the sheet.
+func _on_tab_pressed(tab: String) -> void:
+	if _sheet_open and tab == _tab:
+		_sheet_open = false
+	else:
+		_sheet_open = true
+		_tab = tab
+	_fit()
+
+
+## The sheet's top at `h` above the status line: the handle and tabs there,
+## the open tab's panel under them (hidden while folded).
+func _place_sheet(h: float) -> void:
+	_sheet_h = h
+	var vp := root.size
+	var top := vp.y - STATUS_H - h
+	var folded := _folded_h()
+	_sheet.position = Vector2(6, top)
+	_sheet.size = Vector2(vp.x - 12, folded)
+	var page := _left if _tab == "tools" else _right
+	(_right if _tab == "tools" else _left).visible = false
+	page.visible = h - folded > 4.0
+	page.position = Vector2(6, top + folded)
+	page.size = Vector2(vp.x - 12, maxf(h - folded, 0.0))
+
+
+func _folded_h() -> float:
+	return _sheet.get_combined_minimum_size().y
+
+
+## The open sheet's height: its page's entries, at most Hud.SHEET_MAX of the
+## screen (but at least Hud.SHEET_MIN_CONTENT px of entries); the rest scrolls.
+func _open_h() -> float:
+	var page := _left if _tab == "tools" else _right
+	var scroll := _left_scroll if _tab == "tools" else _right_scroll
+	var content: float = (scroll.get_child(0) as Control).get_combined_minimum_size().y + page.get_theme_stylebox("panel").get_minimum_size().y + 4.0
+	var folded := _folded_h()
+	return folded + minf(content, maxf(root.size.y * Hud.SHEET_MAX - folded, Hud.SHEET_MIN_CONTENT))
+
+
+## Dragging the sheet by its handle, a tab or the gap between them: it follows
+## the finger, and on letting go a flick (Hud.SHEET_FLICK) or else the nearer
+## end decides. A tap does what it always did (the handle opens / folds, a tab
+## switches).
+func _on_sheet_drag(event: InputEvent, source: Control) -> void:
+	if not _portrait:
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		var y: float = event.global_position.y
+		if event.pressed:
+			_drag_from_y = y
+			_drag_start_h = _sheet_h
+			_sheet_dragging = false
+			_drag_speed = 0.0
+			_drag_last = Vector2(y, now)
+		elif _sheet_dragging:
+			_sheet_dragging = false
+			var open := _sheet_h > (_folded_h() + _open_h()) / 2.0
+			if absf(_drag_speed) > Hud.SHEET_FLICK:
+				open = _drag_speed < 0.0
+			var from := _sheet_h
+			_sheet_open = open
+			_fit()
+			_slide_sheet(from)
+			source.accept_event()  # (a drag is no tap)
+		elif source == _handle:
+			_sheet_open = not _sheet_open
+			_fit()
+		if source == _handle:
+			source.accept_event()
+	elif event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+		var y: float = event.global_position.y
+		if not _sheet_dragging and absf(y - _drag_from_y) > CameraController.DRAG_THRESHOLD:
+			_sheet_dragging = true
+			if source is BaseButton:
+				source.disabled = true  # (drops its press: letting go won't tap it)
+				source.disabled = false
+		if _sheet_dragging:
+			var dt := now - _drag_last.y
+			if dt > 0.0:
+				_drag_speed = lerpf(_drag_speed, (y - _drag_last.x) / dt, 0.6)
+			_drag_last = Vector2(y, now)
+			_place_sheet(clampf(_drag_start_h - (y - _drag_from_y), _folded_h(), _open_h()))
+			source.accept_event()
+
+
+## After a drag: the sheet glides from height `from` to where it settled.
+func _slide_sheet(from: float) -> void:
+	var to := _sheet_h
+	if is_equal_approx(from, to):
+		return
+	_place_sheet(from)
+	_slide = create_tween()
+	_slide.tween_method(_place_sheet, from, to, 0.15).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_slide.finished.connect(func() -> void: _slide = null)
+
+
+func _touch_scrollable(n: Node) -> void:
+	if not is_instance_valid(n) or not n is Control:
+		return
+	var c := n as Control
+	if c is Range or c is LineEdit or c is TextEdit or c is ScrollContainer:
+		pass  # (they need the drag themselves)
+	elif c is BaseButton or c.tooltip_text != "":
+		c.mouse_filter = Control.MOUSE_FILTER_PASS
+	else:
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for k in c.get_children():
+		_touch_scrollable(k)
+
+
+## A press in a panel's entries that turns into a scroll is no tap: its
+## button doesn't fire on release.
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			var inside := [_left_scroll, _right_scroll].any(func(s: ScrollContainer) -> bool: return s.is_visible_in_tree() and s.get_global_rect().has_point(event.position))
+			_scroll_from = event.position if inside else NO_POS
+			_scrolled = false
+		else:
+			if _scrolled:
+				_cancel_presses(_left_scroll)
+				_cancel_presses(_right_scroll)
+			_scroll_from = NO_POS
+			_scrolled = false
+	elif event is InputEventMouseMotion and _scroll_from != NO_POS and not _scrolled:
+		if absf(event.position.y - _scroll_from.y) > CameraController.DRAG_THRESHOLD:
+			_scrolled = true
+
+
+func _cancel_presses(n: Node) -> void:
+	for k in n.get_children():
+		if k is BaseButton and not k.toggle_mode and k.is_pressed() and not k.disabled:
+			k.disabled = true  # (resets the press)
+			k.disabled = false
+		_cancel_presses(k)
 
 
 func _place_dialog() -> void:
@@ -675,7 +1062,7 @@ func _place_dialog() -> void:
 
 ## Whether the pointer at `pos` is over a panel (the map doesn't get it).
 func is_over_panel(pos: Vector2) -> bool:
-	for c in [_top, _left, _right, _tabs, _dialog]:
+	for c in [_left, _right, _sheet, _dialog]:
 		if c.visible and c.get_global_rect().has_point(pos):
 			return true
 	return picker.visible

@@ -183,9 +183,9 @@ static func _warnings(out: Array[Dictionary], m: MapData) -> void:
 				_add(out, "warning", "%s land differs by %d points between slices" % [Config.ZONES[z]["name"], roundi((hi - lo) * 100)], NO_TILE)
 	for s in n:
 		if not m.objects.any(func(o: Dictionary) -> bool: return o["kind"] == "treasure" and int(o.get("slice", -1)) == s):
-			_add(out, "warning", "Slice %d has no treasure" % s, NO_TILE)
+			_add(out, "warning", "Slice %d has no treasure" % (s + 1), NO_TILE)
 		if not m.objects.any(func(o: Dictionary) -> bool: return o["kind"] == "camp" and int(o.get("slice", -1)) == s):
-			_add(out, "warning", "Slice %d has no monster camp" % s, NO_TILE)
+			_add(out, "warning", "Slice %d has no monster camp" % (s + 1), NO_TILE)
 	for site in Config.UNLOCK_SITES:
 		if not m.objects.any(func(o: Dictionary) -> bool: return o["kind"] == "unlock" and o["site"] == site):
 			_add(out, "warning", "No %s: the %s can never be unlocked" % [Config.UNLOCK_SITES[site]["name"].to_lower(), Config.UNLOCK_SITES[site]["unlocks"]], NO_TILE)

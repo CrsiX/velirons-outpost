@@ -55,34 +55,47 @@ scope (§12).
 ### 4.1 Layout (desktop)
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ New  Open  Save  Save as  Import  Export │ Undo Redo │ Iso/2D │ Play │ ✕  │  top bar
-├────────┬───────────────────────────────────────────────────┬─────────────┤
-│ Tools  │                                                   │ Inspector   │
-│ ▢ Look │                                                   │  tile 41,17 │
-│ ▢ Terr │             the map (isometric or                 │  meadow     │
-│ ▢ Zone │             top-down 2D)                          │  grass      │
-│ ▢ Tree │                                                   │  slice 0    │
-│ ▢ Road │                                                   ├─────────────┤
-│ ▢ Obj  │                                                   │ Layers ☑☐   │
-│ ▢ Vill │                                                   ├─────────────┤
-│ ▢ Spawn│                                                   │ Problems (2)│
-│ brush  │                                                   │  ⚠ ...      │
-│ 1 3 5 9│                                                   │  ✕ ...      │
-└────────┴───────────────────────────────────────────────────┴─────────────┘
- status: map name · 75×75 · temperate (seed 38) · 2 villages · saved
+┌──────────────┬─────────────────────────────────────────────┬──────────────┐
+│ Tools      ‹ │                                             │ › Inspector  │
+│ ↶ ↷  [ 2D ]  │                                             │  selection   │
+│ File  Terrain│          the map (isometric or              │ Under the    │
+│ Zone  Trees  │          top-down 2D)                       │  pointer:    │
+│ Decor Beach  │                                             │  tile 41,17  │
+│ ...   Slice  │                                             │  grass ...   │
+│ Objects      │                                             │ Layers ☑☐    │
+│ (options of  │                                             │ Problems (2) │
+│  the tool)   │                                             │  ⚠ ...       │
+└──────────────┴─────────────────────────────────────────────┴──────────────┘
+ status: map name · 75×75 · temperate (seed 38) · 2 villages · saved | tile
 ```
 
-- Camera as in the game (`camera_controller.gd`): WASD / arrows, the middle
-  mouse button or (with Look) a left drag to pan; wheel / pinch to zoom (out
-  further than the game, `EDITOR.min_zoom`, so a 200×200 map fits; the
-  camera's `min_zoom` / `max_zoom` are per scene).
-- With a mouse every tool but Look acts on a left press and drags paint;
-  Look selects with a click. Keys: Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) undo / redo,
+- No top bar: the tools panel (left, `EditorUi.LEFT_W`) starts with undo and
+  redo (the usual curved-arrow icons) and the view toggle (2D / Isometric),
+  then the tools. The first, **File**, holds New, Open, Save, Save as,
+  Import, Export, Properties, Play and Exit (back to the title screen).
+- **Folding** (landscape): each side panel's heading (*Tools* with a ‹,
+  *Inspector* with a ›, the chevron on the map's side) folds it to its edge:
+  only the heading stays, at the top (*Tools ›*, *‹ Inspector*); a tap opens
+  it again. Play and back keep the panels as they were (the session).
+- Camera as in the game (`camera_controller.gd`): WASD / arrows, a right or
+  middle mouse drag (any tool) or, with the File tab open, a left drag to pan;
+  wheel / pinch to zoom (out further than the game, `EDITOR.min_zoom`, so a
+  200×200 map fits; the camera's `min_zoom` / `max_zoom` are per scene).
+- With a mouse every tool acts on a left press (*place this*) and drags
+  paint. A **right-click** (let go where it was pressed) is the tool's
+  opposite, once (one brush stamp, one undo step), and only of that tool's
+  kind: Terrain puts grass back (Fill: fills with grass), Decor, Beach and Road
+  erase theirs, Volcano, Pieces, Spawn, Village and Objects remove the one
+  there; Zone and Slice have no "nothing", so a right-click takes the tile's
+  zone or slice as the current one; Trees, peaks does nothing. A right-click
+  first cancels a pick or a road being laid (as Esc). Erasing along a drag is
+  the tools' *Erase* options (with a finger the only way). With the File tab
+  open the map isn't edited: a click selects the tile, object or village
+  (the inspector shows it). Keys: Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) undo / redo,
   Ctrl+S save, Tab switches the view, Delete removes the selected object or
   village, Esc closes a dialog, then cancels a pick or a road being drawn,
   then clears the selection, then asks to leave.
-- **Views** (top bar toggle, or Tab), both fully editable:
+- **Views** (the toggle under the tools' heading, or Tab), both fully editable:
   - *Isometric:* the game's renderers (ground, water, props, decor, village
     pieces, objects), with the overlays drawn on top.
   - *Top-down 2D:* one square per tile, coloured by terrain and tinted by
@@ -92,11 +105,17 @@ scope (§12).
     even at 200×200.
   - Switching keeps the tile under the view's centre and the zoom level
     (as far as the views allow).
-- **Mobile / portrait** (or narrower than 760 px): the two side panels share
-  one bottom panel (38 % of the height) with two tabs, Tools and Inspector
-  (the inspector, layers and problems). With a finger a tap acts once where
-  it lands and a drag pans; the tool options offer "Paint by dragging" so a
-  drag paints instead. Good effort, not polished.
+- **Mobile / portrait** (or narrower than 760 px, `EditorUi.NARROW`): the two
+  side panels are the pages of a bottom sheet, as the game's dock: a handle
+  over two tabs, Tools and Inspector, always along the bottom. A tab opens
+  the sheet on its page (at most `Hud.SHEET_MAX` of the screen, the rest
+  scrolls by finger from anywhere on it), the open tab or the handle folds
+  it; the handle, the tabs and the gap between them drag it (a flick,
+  `Hud.SHEET_FLICK`, or else the nearer end decides). The grids take as many
+  columns as fit (`SHEET_CELL` px a cell): tools, options, the File tab's
+  buttons, the layer switches. With a finger a tap acts once where it lands
+  and a drag pans; the tool options offer "Paint by dragging" so a drag
+  paints instead. The inspector's tile is the last one tapped.
 - Esc closes the newest popup, as in the game (`register_popup`); with none
   open it asks to leave if there are unsaved changes.
 
@@ -116,9 +135,12 @@ scope (§12).
   treasure) and lair / mine fronts, and the problems (a red or yellow cross).
   The layers are drawn again only when the map or a switch changes; the
   pointer's marks (brush, selection, a road being drawn) in a second overlay.
-- **Inspector:** hover (desktop) or tap a tile: coordinates, terrain, zone,
+- **Inspector:** the selection (picked with the File tab open, by the
+  Village and Objects tools, or from the problems list): an object with all
+  its fields (§6.7), a village, or a tile. Under it always the tile under the
+  pointer (with a finger: the last tapped): coordinates, terrain, zone,
   slice, prop / decor art, crossing, beach, village piece, road steps to each
-  gate. Tap an object: all its fields (§6.7).
+  village's gates (the road fields are kept until the next edit).
 - **Map properties:** name, author, description, map type (any string,
   §6.2), shown and edited in a dialog.
 - **Problems:** the checks of §5.4, each an error or a warning, run 0.3 s after
@@ -158,8 +180,11 @@ stroke (a drag counts as one).
 - **Spawns:** mark edge road tiles as spawns, each assigned to a village
   (default: the village of its slice).
 - **Slices:** recomputed from the villages (every tile to the nearest village
-  in steps, ties to the lower number), or painted by hand (the Slice brush,
-  slices 0-7); every tile belongs to one slice.
+  in steps, ties to the lower number), or painted by hand (the Slice brush);
+  every tile belongs to one slice. The editor numbers them 1-8 (buttons,
+  inspector, layer, checks; the file stores 0-7), each in the colour of the
+  co-op lobby's village colours (`Config.VILLAGE_COLORS`): the Slice tool's
+  buttons and the Slices layer's tint and numbers.
 - **Objects:** place, move, delete treasures, monster camps, unlock sites,
   ruined watchtowers, lairs, mines; edit their fields in the inspector (§6.7).
   A camp is linked to the treasure it guards by picking it.
@@ -171,7 +196,7 @@ stroke (a drag counts as one).
 - A stack of the map's packed bytes (`MapData.to_bytes`, compressed) from
   before each edit (a whole stroke is one); undo / redo swap them in and only
   the tiles that differ are drawn again. Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) and
-  the top bar buttons. Limit: `EDITOR.undo_steps` (100). Undo survives Play
+  the undo / redo buttons. Limit: `EDITOR.undo_steps` (100). Undo survives Play
   and back (the session, §8.1).
 
 ## 5. Rules the editor keeps
@@ -727,8 +752,14 @@ tool's edit with its tidy-up, undo and redo (terrain, fill, zone, decor,
 peaks, beach, road over water and erased, a road path, volcano, village
 placed / moved / pieces / spawns / renumbered / deleted, objects placed /
 changed / linked / moved / deleted, slices painted / recomputed); a real
-mouse drag painting one undo step and Look panning; the inspector, every
-layer in both views, the problems, every tool's options; save, the map list,
+mouse drag painting one undo step and the File tab panning and selecting;
+the right button (a right-click erasing with each tool, Zone and Slice
+picking, Trees doing nothing, a right drag panning); the inspector (the
+selection, the tile under the pointer with its road steps), every layer in
+both views, the problems, every tool's options; the panels (no top bar, the
+File tab's buttons, undo / redo as icons, folding both sides, the slices'
+names and colours) and the portrait sheet (tabs, columns, the handle dragged
+and tapped); save, the map list,
 reading back, the picker (also a broken file), Play's game with Back to
 editor, the session coming back; the web's big-map warning
 (`MapPicker.pretend_web`).

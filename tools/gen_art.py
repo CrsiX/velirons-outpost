@@ -1994,6 +1994,16 @@ def icons():
   <path d="M12 40 L32 20 L52 40" fill="none" stroke="#efe3c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>''')
     icon_svg("icon_sheet_down", f'''
   <path d="M12 24 L32 44 L52 24" fill="none" stroke="#efe3c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>''')
+    # Undo / redo (the map editor): the usual curved arrows, back to the left / on to the right.
+    for name, flip in (("icon_undo", False), ("icon_redo", True)):
+        tr = ' transform="translate(64 0) scale(-1 1)"' if flip else ''
+        icon_svg(name, f'''
+  <g{tr}>
+  <path d="M20 24 H38 A14 14 0 0 1 38 52 H24" fill="none" stroke="{INK}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M6 24 L22 10 L22 38 Z" fill="{INK}" stroke="{INK}" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M20 24 H38 A14 14 0 0 1 38 52 H24" fill="none" stroke="#efe3c8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M6 24 L22 10 L22 38 Z" fill="#efe3c8" stroke="#efe3c8" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>''')
 
 
 def flags():

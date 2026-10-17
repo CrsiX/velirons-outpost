@@ -27,7 +27,10 @@ func _run() -> void:
 	_objects()
 	_slices()
 	await _pointer()
+	await _mouse_buttons()
 	await _inspector_and_layers()
+	await _panels()
+	await _portrait_sheet()
 	await _files()
 	await _session()
 	await _play_flow()
@@ -320,20 +323,119 @@ func _pointer() -> void:
 	check(all_desert, "a drag paints every tile along it")
 	check(ed._undo.size() == undo0 + 1, "one undo step for the whole stroke")
 	var cam := ed.camera.position
-	ed.tool = "look"
+	ed.tool = "file"
 	await _mouse(a + Vector2i(0, 3), true)
 	await _move(a + Vector2i(6, 6))
 	await _mouse(a + Vector2i(6, 6), false)
-	check(ed.camera.position != cam, "with Look a drag pans the map")
+	check(ed.camera.position != cam, "with the File tab open a drag pans the map")
+	ed.view_tile(a)
+	await frames(2)
+	ed.select({})
+	await _mouse(a, true)
+	await _mouse(a, false)
+	check(ed.selected.get("type") == "tile" and ed.selected.get("tile") == a and ed._undo.size() == undo0 + 1, "and a click selects the tile, editing nothing")
+
+
+## The right button: let go where it was pressed, it's the tool's opposite
+## there (erase; Zone and Slice take the tile's); dragged, it pans.
+func _mouse_buttons() -> void:
+	Layout.touch = false
+	var m := ed.map
+	ed.tool = "terrain"
+	ed.opts["terrain"] = MapData.Terrain.DESERT
+	ed.opts["brush"] = 1
+	ed.opts["fill"] = false
+	var a := _open_spot(m.villages[0]["center"], 1, 8)
+	ed.view_tile(a)
+	await frames(2)
+	await _mouse(a, true)
+	await _mouse(a, false)
+	check(m.get_terrain(a) == MapData.Terrain.DESERT, "Terrain: a left click paints")
+	var undo0 := ed._undo.size()
+	await _mouse(a, true, MOUSE_BUTTON_RIGHT)
+	await _mouse(a, false, MOUSE_BUTTON_RIGHT)
+	check(m.get_terrain(a) == MapData.Terrain.GRASS and ed._undo.size() == undo0 + 1, "a right-click puts grass back (one undo step)")
+	var cam := ed.camera.position
+	var before := m.to_bytes()
+	await _mouse(a, true, MOUSE_BUTTON_RIGHT)
+	await _move(a + Vector2i(4, 4), MOUSE_BUTTON_MASK_RIGHT)
+	await _move(a + Vector2i(8, 8), MOUSE_BUTTON_MASK_RIGHT)
+	await _mouse(a + Vector2i(8, 8), false, MOUSE_BUTTON_RIGHT)
+	check(ed.camera.position != cam and m.to_bytes() == before and ed._undo.size() == undo0 + 1, "a right drag pans and edits nothing")
+	ed.tool = "decor"
+	ed.opts["decor"] = "auto"
+	ed._press(a)
+	ed._release(a)
+	var had := m.decor.has(a)
+	ed._erase(a)
+	check(had and not m.decor.has(a), "Decor: a right-click erases it")
+	ed.tool = "road"
+	ed.opts["road"] = "free"
+	ed._press(a)
+	ed._release(a)
+	had = m.is_road(a)
+	ed._erase(a)
+	check(had and not m.is_road(a), "Road: a right-click erases it")
+	ed.opts["road"] = "path"
+	ed._press(a)
+	ed._erase(a + Vector2i(3, 0))
+	check(ed._road_start == MapEditor.NO_TILE and ed.path_preview.is_empty() and not m.is_road(a), "a road being laid: a right-click cancels it")
+	ed.opts["road"] = "free"
+	ed.tool = "zone"
+	ed.opts["zone"] = "meadow"
+	m.set_zone(a, "swamp")
+	ed._erase(a)
+	check(ed.opts["zone"] == "swamp", "Zone: a right-click takes the tile's zone")
+	ed.tool = "slice"
+	ed.opts["slice"] = 5
+	ed._erase(a)
+	check(int(ed.opts["slice"]) == int(m.slice_of[m.index(a)]), "Slice: and its slice")
+	var forest := -1
+	for i in m.terrain.size():
+		if m.terrain[i] == MapData.Terrain.FOREST:
+			forest = i
+			break
+	ed.tool = "props"
+	var n := ed._undo.size()
+	ed._erase(Vector2i(forest % m.size, forest / m.size))
+	check(ed._undo.size() == n and m.terrain[forest] == MapData.Terrain.FOREST, "Trees, peaks: a right-click does nothing")
+	ed.tool = "volcano"
+	ed._erase(a)
+	check(ed._undo.size() == n and ed.ui._status.text == "No volcano there", "Volcano: nothing to remove, it says so")
+	ed.tool = "spawn"
+	ed._erase(a)
+	check(ed._undo.size() == n and ed.ui._status.text == "No spawn there", "Spawn: nothing to remove, it says so")
+	var spawns: Array = m.villages[0]["home_spawns"]
+	var sp: Vector2i = spawns[0]
+	var count := spawns.size()
+	ed._erase(sp)
+	check((ed.map.villages[0]["home_spawns"] as Array).size() == count - 1, "and a spawn goes")
+	ed.undo()
+	m = ed.map
+	ed.tool = "piece"
+	var wall: Vector2i = m.village_pieces(0).filter(func(p: Dictionary) -> bool: return p["kind"] == "wall")[0]["tile"]
+	ed._erase(wall)
+	check(not MapTidy.piece_tiles(ed.map).has(wall), "Pieces: a right-click removes one")
+	ed.undo()
+	ed.tool = "object"
+	ed.opts["object"] = "treasure"
+	ed.opts["object_size"] = 1
+	var objects := ed.map.objects.size()
+	ed._press(a)
+	ed._release(a)
+	ed._erase(a)
+	check(ed.map.objects.size() == objects and ed.selected.is_empty(), "Objects: a right-click deletes the one there")
+	ed.tool = "terrain"
+	ed.opts["terrain"] = MapData.Terrain.FOREST
 
 
 func _screen(t: Vector2i) -> Vector2:
 	return ed.camera.world_to_screen(ed._to_world(Vector2(t)))
 
 
-func _mouse(t: Vector2i, pressed: bool) -> void:
+func _mouse(t: Vector2i, pressed: bool, button: MouseButton = MOUSE_BUTTON_LEFT) -> void:
 	var e := InputEventMouseButton.new()
-	e.button_index = MOUSE_BUTTON_LEFT
+	e.button_index = button
 	e.pressed = pressed
 	e.position = _screen(t)
 	e.global_position = e.position
@@ -341,11 +443,11 @@ func _mouse(t: Vector2i, pressed: bool) -> void:
 	await frames(1)
 
 
-func _move(t: Vector2i) -> void:
+func _move(t: Vector2i, mask: MouseButtonMask = MOUSE_BUTTON_MASK_LEFT) -> void:
 	var e := InputEventMouseMotion.new()
 	e.position = _screen(t)
 	e.global_position = e.position
-	e.button_mask = MOUSE_BUTTON_MASK_LEFT
+	e.button_mask = mask
 	get_viewport().push_input(e, true)
 	await frames(1)
 
@@ -380,7 +482,129 @@ func _inspector_and_layers() -> void:
 		ui.set_tool(t)
 		await frames(1)
 	check(ed.tool == MapEditor.TOOLS[-1] and ui._options.get_child_count() > 1, "every tool has its options")
-	ui.set_tool("look")
+	ui.set_tool("file")
+	ed.select({})
+	ed.hover = Vector2i(5, 6)
+	ui.show_hover(ed.hover)
+	await frames(1)
+	check(ui._tile_box.get_child_count() >= 2 and (ui._tile_box.get_child(1) as Label).text.begins_with("Tile 5, 6"), "the inspector shows the tile under the pointer")
+	var v0: Vector2i = ed.map.villages[0]["center"]
+	ui.show_hover(v0 + Vector2i(0, 4))
+	check(_texts(ui._tile_box).any(func(t: String) -> bool: return t.begins_with("Road steps to village 1")), "with its road steps to each village")
+
+
+func _texts(n: Node) -> Array[String]:
+	var out: Array[String] = []
+	for k in n.get_children():
+		if k is Label or k is Button:
+			out.append(str(k.text))
+		out.append_array(_texts(k))
+	return out
+
+
+func _buttons(n: Node) -> Array[Button]:
+	var out: Array[Button] = []
+	for k in n.get_children():
+		if k is Button:
+			out.append(k)
+		out.append_array(_buttons(k))
+	return out
+
+
+## Landscape: no top bar; the File tab; undo / redo as icons; each side panel
+## folds to its edge (its heading left at the top); the slices in their colours.
+func _panels() -> void:
+	var ui := ed.ui
+	await frames(2)
+	var vw := ui.root.size.x
+	check(ui._left.position.y <= 8.0 and ui._right.position.y <= 8.0 and absf(ui._left.size.x - EditorUi.LEFT_W) < 1.0, "landscape: the tools and the inspector reach the top (no top bar)")
+	check(not MapEditor.TOOLS.has("look") and MapEditor.TOOLS[0] == "file", "no Look tool; the File tab comes first")
+	ui.set_tool("file")
+	await frames(1)
+	var names := _texts(ui._options)
+	check(["New", "Open", "Save", "Save as", "Import", "Export", "Properties", "Play", "Exit"].all(func(t: String) -> bool: return names.has(t) or names.has(t + "*")) and not names.has("Back"), "the File tab: New, Open, Save, Save as, Import, Export, Properties, Play, Exit")
+	check(ui._undo_button.text == "" and ui._undo_button.icon != null and ui._redo_button.icon != null and ui._view_button.text in ["2D", "Isometric"], "undo and redo are icons, by the view toggle")
+	ui._left_head.pressed.emit()
+	await frames(2)
+	check(not ui._left_open and not ui._left_scroll.visible and ui._left.size.x < 160.0 and ui._left.position == Vector2(6, 6) and ui._left_head.visible, "Tools folded: only its heading, at the top left (%.0f x %.0f px)" % [ui._left.size.x, ui._left.size.y])
+	check(not ui.is_over_panel(Vector2(150, 300)), "the map gets the room")
+	ui.set_panel_open(false, false)
+	await frames(2)
+	check(not ui._right_scroll.visible and ui._right.size.x < 200.0 and absf(ui._right.position.x + ui._right.size.x - (vw - 6.0)) < 1.5 and ui._right.position.y <= 8.0, "the inspector folds to the right edge, at the top")
+	check(ui._left_head.icon != ui._right_head.icon, "each with the chevron the other way")
+	ui._left_head.pressed.emit()
+	ui._right_head.pressed.emit()
+	await frames(2)
+	check(ui._left_open and ui._right_open and absf(ui._left.size.x - EditorUi.LEFT_W) < 1.0 and absf(ui._right.size.x - EditorUi.RIGHT_W) < 1.0, "and both open again")
+	ed.tool = "slice"
+	ui.set_tool("slice")
+	await frames(2)
+	var sb: Array[Button] = []
+	sb.assign(_buttons(ui._options).filter(func(b: Button) -> bool: return b.tooltip_text.begins_with("Slice")))
+	check(sb.size() == Config.MAX_PLAYERS and sb[0].text == "Slice 1" and sb[7].text == "Slice 8", "Slice: 8 buttons, Slice 1 to Slice 8 (%s)" % ", ".join(sb.map(func(b: Button) -> String: return b.text)))
+	var font := sb[0].get_theme_font("font")
+	check(font.get_string_size("Slice 8", HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x <= sb[7].size.x - 8.0, "the whole name fits (%.0f px wide buttons)" % sb[7].size.x)
+	var c0 := (sb[0].get_theme_stylebox("normal") as StyleBoxFlat).bg_color
+	var c1 := (sb[1].get_theme_stylebox("normal") as StyleBoxFlat).bg_color
+	check(c0 != c1 and sb[2].get_theme_color("font_color").is_equal_approx(EditorUi.slice_color(2).lightened(0.45)), "each in its village colour")
+	ui.set_tool("file")
+
+
+## Portrait: a bottom sheet with a handle over the two tabs; a tab opens it,
+## the open tab folds it, the handle drags it; the grids get more columns.
+func _portrait_sheet() -> void:
+	var ui := ed.ui
+	get_window().size = Vector2i(720, 1280)
+	get_viewport().size = Vector2i(720, 1280)
+	await frames(4)
+	check(ui._portrait and ui._sheet.visible and not ui._left_head.visible and not ui._left.visible and not ui._right.visible, "portrait: a folded bottom sheet, the handle over the two tabs")
+	var vh := ui.root.size.y
+	ui._on_tab_pressed("tools")
+	await frames(3)
+	check(ui._sheet_open and ui._left.visible and not ui._right.visible and ui._sheet_h <= vh * Hud.SHEET_MAX + 0.5, "Tools opens it, at most half the screen (%.0f of %.0f px)" % [ui._sheet_h, vh])
+	var grid := ui._tools_box.get_child(1) as GridContainer
+	check(grid.columns >= 4, "the tools sit in %d columns" % grid.columns)
+	ui._on_tab_pressed("info")
+	await frames(3)
+	check(ui._right.visible and not ui._left.visible and ui._layers_box.columns >= 2, "Inspector: its page, the layers in %d columns" % ui._layers_box.columns)
+	ui._on_tab_pressed("info")
+	await frames(3)
+	check(not ui._sheet_open and not ui._right.visible, "the open tab folds it")
+	var from := ui._handle.get_global_rect().get_center()
+	_gui_mouse(from, true)
+	await frames(1)
+	for i in range(1, 7):
+		_gui_motion(from - Vector2(0, 60 * i))
+		await frames(1)
+	_gui_mouse(from - Vector2(0, 360), false)
+	await frames(15)
+	check(ui._sheet_open and ui._right.visible and absf(ui._sheet_h - ui._open_h()) < 1.0, "dragging the handle up opens it")
+	_gui_mouse(ui._handle.get_global_rect().get_center(), true)
+	_gui_mouse(ui._handle.get_global_rect().get_center(), false)
+	await frames(3)
+	check(not ui._sheet_open, "a tap on the handle folds it")
+	get_window().size = Vector2i(1280, 720)
+	get_viewport().size = Vector2i(1280, 720)
+	await frames(4)
+	check(not ui._portrait and ui._left.visible and ui._right.visible and not ui._sheet.visible, "back to landscape: the side panels")
+
+
+func _gui_mouse(pos: Vector2, pressed: bool) -> void:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = pressed
+	e.position = pos
+	e.global_position = pos
+	e.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+	get_viewport().push_input(e, true)
+
+
+func _gui_motion(pos: Vector2) -> void:
+	var e := InputEventMouseMotion.new()
+	e.position = pos
+	e.global_position = pos
+	e.button_mask = MOUSE_BUTTON_MASK_LEFT
+	get_viewport().push_input(e, true)
 
 
 func _files() -> void:
