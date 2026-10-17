@@ -205,6 +205,12 @@ func _deliver() -> void:
 	_sack.visible = false
 
 
+## Out in the field after a load: more corpses (or dropped loot) if there
+## is room and something safe to fetch, else home with what it carries.
+func resume() -> void:
+	_next_or_home()
+
+
 func on_evade() -> void:
 	_release_target()
 	state = State.RETURNING  # keeps what is already in the sack

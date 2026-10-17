@@ -173,6 +173,16 @@ func _drop_task() -> void:
 		task = Task.NONE
 
 
+## Out in the field after a load: loot is carried home; else the next claim
+## or treasure, else the fog as the explorer does.
+func resume() -> void:
+	if task == Task.CARRYING:
+		w.head_home()
+		return
+	if not _pick_task():
+		super.resume()
+
+
 func on_evade() -> void:
 	if task == Task.CARRYING:
 		return  # (running home is where he was going anyway)

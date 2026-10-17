@@ -125,6 +125,14 @@ func _place_done(kind: String, near: Vector2i) -> Building:
 	return b
 
 
+## A tree with a free tile next to it that can be walked to from the village.
+func _reachable_tree(t: Vector2i) -> bool:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if game.world.pathing.is_walkable(t + d) and not game.world.pathing.find_path(game.player_village.center, t + d).is_empty():
+			return true
+	return false
+
+
 func _single() -> void:
 	print("-- single player: everything saved and loaded")
 	await _new_game()
@@ -205,7 +213,7 @@ func _single() -> void:
 	gath.job.carried_gold = 3
 	gath.set_grid_pos(Vector2(c + Vector2i(3, -4)))
 	gath._set_home(false)
-	game.corpses.spawn("ork", 0, Vector2(c + Vector2i(6, -3)))
+	game.corpses.spawn("ork", 0, Vector2(tower.work_tile()))
 	var guard: Enemy = null
 	for o in w.map_objects:
 		if o is MonsterCamp and not (o as MonsterCamp).alive().is_empty():
@@ -214,14 +222,32 @@ func _single() -> void:
 			break
 	var trees: Array[Vector2i] = []
 	for t: Vector2i in game.map.props:
-		if w.is_tree(t) and Vector2(t).distance_to(Vector2(c)) < 14.0 and trees.size() < 2:
+		if w.is_tree(t) and Vector2(t).distance_to(Vector2(c)) < 14.0 and trees.size() < 2 and _reachable_tree(t):
 			trees.append(t)
 	w.remove_tree(trees[0])
 	w.chop_tree(trees[1], 2.5)
 	game.fog.reveal(Vector2(c + Vector2i(12, 0)), 4.0, v.id)
 	v.relics.append(Config.RELICS.keys()[0])
 	await frames(10)
-
+	# Right before saving (no frame in between): a forester at his tree, a builder out in the field.
+	var forester: Forester = null
+	var builder: Builder = null
+	for civ in v.population.civilians:
+		if civ is Forester:
+			forester = civ
+		elif civ is Builder:
+			builder = civ
+	forester._release_tree()
+	forester.tree = trees[1]
+	w.claim_tree(trees[1], forester)
+	forester.carrying = 0
+	forester.state = Forester.State.CHOPPING
+	forester.set_grid_pos(Vector2(forester._stand_tile()))
+	forester._set_home(false)
+	builder.job.release()
+	builder.job.state = BuildJob.State.RESTING
+	builder.set_grid_pos(Vector2(barracks.work_tile()))
+	builder._set_home(false)
 	get_tree().paused = true
 	var err := game.save_named("Bot game")
 	check(err == "", "Save: written (%s)" % err)
@@ -239,7 +265,8 @@ func _single() -> void:
 	var id := game.game_id
 	var site_progress := site.progress
 	var ids := {"site": site.nid, "tower": tower.nid, "barracks": barracks.nid, "archer": archer.nid, "wall0": walls[0].nid,
-		"marching": marching.nid, "spare": spare.nid, "downed": downed.nid, "summoner": summoner.nid, "gath": gath.nid, "guard": guard.nid}
+		"marching": marching.nid, "spare": spare.nid, "downed": downed.nid, "summoner": summoner.nid, "gath": gath.nid, "guard": guard.nid,
+		"forester": forester.nid, "builder": builder.nid}
 	var guard_hp := guard.hp
 	var stats_time := game.stats.time
 	var nid_before := game._next_nid
@@ -270,11 +297,18 @@ func _single() -> void:
 	var summons: Array = (summ2.behavior as SummonerBehavior).summons
 	check(summons.size() == 1 and absf((summons[0] as EarthElemental).hp - 17.0) < 0.01, "the summoner's elemental is back, as hurt as it was")
 	h = game.hero
-	check(h.level == 1 and h.xp == 33 and not h.at_home and (h.jobs[Hero.Mode.EXPLORE] as HeroExploreJob).task == HeroExploreJob.Task.CARRYING,
+	check(h.level == 1 and h.xp == 33 and not h.at_home and (h.jobs[Hero.Mode.EXPLORE] as HeroExploreJob).task == HeroExploreJob.Task.CARRYING and not h.path.is_empty(),
 		"the hero: level 2, his XP, out in the field carrying his loot home (%d, %d, %s, %d)" % [h.level, h.xp, h.at_home, (h.jobs[Hero.Mode.EXPLORE] as HeroExploreJob).task])
 	var gath2 := game.entity(ids["gath"]) as Gatherer
-	check(gath2 != null and gath2.job.carried.size() == 2 and gath2.evading and gath2.hut != null and gath2.hut.resident == gath2,
-		"the gatherer walks home with his corpses (and has his hut)")
+	check(gath2 != null and gath2.job.carried.size() == 2 and not gath2.evading and gath2.job.state == GatherJob.State.TO_CORPSE
+		and gath2.job.target == game.corpses.corpses[0] and gath2.hut != null and gath2.hut.resident == gath2,
+		"the gatherer goes on from where he was: room for more, so to the corpse, with his load (state %d)" % gath2.job.state)
+	var for2 := game.entity(ids["forester"]) as Forester
+	check(for2 != null and for2.tree == trees[1] and for2.state == Forester.State.TO_TREE and not for2.evading and for2.camp != null,
+		"the forester at his tree goes on with that tree (state %d), not home first" % for2.state)
+	var bui2 := game.entity(ids["builder"]) as Builder
+	check(bui2 != null and bui2.job.state == BuildJob.State.TO_SITE and bui2.job.site != null and bui2.job.site.builder == bui2 and not bui2.evading,
+		"the builder out in the field walks from there to a site (state %d)" % bui2.job.state)
 	check(game.corpses.corpses.size() == 1 and game.corpses.corpses[0].kind == "ork", "the corpse lies there")
 	var guard2 := game.entity(ids["guard"]) as Enemy
 	check(guard2 != null and absf(guard2.hp - guard_hp) < 0.01 and guard2.behavior is CampBehavior, "the hurt camp guard is still hurt")
@@ -367,8 +401,33 @@ func _files() -> void:
 		"the Singleplayer page offers Continue, with what it is (%s)" % title.continue_label.text)
 	check(not title.singleplayer_button.get_parent().get_children().any(func(n: Node) -> bool: return n is Button and (n as Button).text == "Continue"),
 		"the main page has no Continue")
+	# The save list's map: only the land the save had explored (its fog), nothing else.
+	title.save_list.choose(false, func(_p: String) -> void: pass)
+	await frames(2)
+	var shown := SaveGame.read(title.save_list.selected_path())
+	var fog: PackedByteArray = shown["body"]["fog"][0]
+	var m := SaveGame.saved_map(shown["body"])
+	var img: Image = title.save_list._preview._tex.get_image()
+	var hidden := 0
+	var leaked := 0
+	for i in fog.size():
+		var black := _is_fog(img.get_pixel(i % m.size, i / m.size))
+		if fog[i] == 0:
+			hidden += 1
+			leaked += 0 if black else 1
+		elif black:
+			leaked += 1
+	check(hidden > 0 and leaked == 0, "the save list's map shows only the explored land (%d tiles hidden, %d wrong)" % [hidden, leaked])
+	var objs := m.objects.filter(func(o: Dictionary) -> bool: return fog[m.index(o["tile"])] == 0)
+	check(not objs.is_empty() and objs.all(func(o: Dictionary) -> bool: return _is_fog(img.get_pixelv(o["tile"]))), "and no object hidden in the fog is marked (%d of them)" % objs.size())
+	title.save_list.close()
 	title.queue_free()
 	await frames(2)
+
+
+## A preview pixel in the fog colour (8 bits per channel: not exact).
+func _is_fog(c: Color) -> bool:
+	return absf(c.r - MapPlan.FOG.r) < 0.01 and absf(c.g - MapPlan.FOG.g) < 0.01 and absf(c.b - MapPlan.FOG.b) < 0.01
 
 
 func _tutorial() -> void:
@@ -410,6 +469,15 @@ func _villages() -> void:
 	var body := SaveGame.capture(game)
 	var hd := SaveGame.header(game, "Two", false)
 	check(hd["coop"] and (hd["villages"] as Array).size() == 2, "a game of two villages is a co-op save")
+	var seen := SaveGame.seen(body)
+	var f0: PackedByteArray = body["fog"][0]
+	var f1: PackedByteArray = body["fog"][1]
+	var union_ok := true
+	for i in seen.size():
+		if seen[i] != maxi(f0[i], f1[i]):
+			union_ok = false
+	check(union_ok and seen.count(1) > f0.count(1) and seen.count(1) > f1.count(1) and seen.count(0) > 0,
+		"its preview shows the land every village explored together (%d tiles, %d and %d alone)" % [seen.count(1), f0.count(1), f1.count(1)])
 	await _end_game()
 	await _load_game(body)
 	check(game.villages.size() == 2 and game.villages[1].fallen, "both villages are back, the fallen one fallen")

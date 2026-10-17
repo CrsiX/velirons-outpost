@@ -223,6 +223,13 @@ func exploring_target() -> Vector2i:
 	return jobs[Mode.EXPLORE].exploring_target() if mode == Mode.EXPLORE else Vector2i(-1, -1)
 
 
+## After a load: his mode's villager job asks what to do from where he
+## stands; the other modes (and a camp to clear) decide that every frame anyway.
+func resume_work() -> void:
+	if camp_target == null and jobs.has(mode):
+		jobs[mode].resume()
+
+
 func _on_evade() -> void:
 	if jobs.has(mode):
 		jobs[mode].on_evade()

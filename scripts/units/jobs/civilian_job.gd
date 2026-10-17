@@ -26,6 +26,13 @@ func after_evade() -> void:
 	pass
 
 
+## A loaded game (docs/save-design.md): the worker stands out in the field
+## with its job's state as it was saved (what it carries, its claims) and
+## asks once what to do from here.
+func resume() -> void:
+	pass
+
+
 ## Drop any claims (the worker died or switched jobs).
 func release() -> void:
 	pass

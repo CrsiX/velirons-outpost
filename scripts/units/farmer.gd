@@ -67,6 +67,14 @@ func _tick(delta: float) -> void:
 	_sack.visible = carrying > 0 and not at_home
 
 
+## After a load: food in hand goes home; else back to the farm.
+func resume_work() -> void:
+	if carrying <= 0 and is_instance_valid(farm) and head_out(farm.work_tile()):
+		state = State.TO_FARM
+	else:
+		_go_home()
+
+
 func _on_evade() -> void:
 	state = State.RETURNING  # keeps whatever food is being carried
 

@@ -91,11 +91,10 @@ func _evade() -> void:
 	head_home()
 
 
-## A loaded game (docs/save-design.md): out in the field, it walks home
-## first (with whatever it carries, delivered there), rests, and goes back to
-## work, as after fleeing from enemies.
-func resume_outside() -> void:
-	_set_home(false)
+## A loaded game (docs/save-design.md): out in the field (state, carried
+## loads and claims as saved), it asks once what to do from here and does it.
+## Roles override this; by default it walks home and starts again from there.
+func resume_work() -> void:
 	evading = true
 	_on_evade()
 	head_home()

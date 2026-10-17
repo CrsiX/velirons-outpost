@@ -55,6 +55,8 @@ var custom_map: MapData = null
 ## many players as it has villages.
 var resume: Dictionary = {}
 var resume_map: MapData = null
+## Its explored land (every village's fog together): all its preview shows.
+var resume_seen := PackedByteArray()
 ## Host: the save's body, for the level scene (Game takes it).
 var resume_body: Dictionary = {}
 var _resume_path := ""
@@ -164,6 +166,7 @@ func leave() -> void:
 	custom_map = null
 	resume = {}
 	resume_map = null
+	resume_seen = PackedByteArray()
 	resume_body = {}
 	_resume_path = ""
 	lobby_changed.emit()
@@ -305,7 +308,7 @@ func _hello(proto: int, p_name: String, color: int) -> void:
 	if custom_map:
 		_lobby_map.rpc_id(id, custom_map.to_bytes())
 	if not resume.is_empty():
-		_lobby_resume.rpc_id(id, resume, resume_map.to_bytes())
+		_lobby_resume.rpc_id(id, resume, resume_map.to_bytes(), resume_seen)
 	_broadcast_lobby()
 
 
@@ -415,8 +418,9 @@ func set_resume(path: String) -> String:
 	if path == "":
 		resume = {}
 		resume_map = null
+		resume_seen = PackedByteArray()
 		_resume_path = ""
-		_lobby_resume.rpc({}, PackedByteArray())
+		_lobby_resume.rpc({}, PackedByteArray(), PackedByteArray())
 		_broadcast_lobby()
 		return ""
 	var r := SaveGame.read(path)
@@ -433,6 +437,7 @@ func set_resume(path: String) -> String:
 		_lobby_map.rpc(PackedByteArray())
 	resume = h
 	resume_map = SaveGame.saved_map(r["body"])
+	resume_seen = SaveGame.seen(r["body"])
 	_resume_path = path
 	difficulty = int(h.get("difficulty", difficulty))
 	Settings.difficulty = difficulty as Settings.Difficulty
@@ -448,15 +453,16 @@ func set_resume(path: String) -> String:
 	for id in ids:
 		if int(players[id]["slot"]) < 0:
 			players[id]["slot"] = _free_slot()
-	_lobby_resume.rpc(resume, resume_map.to_bytes())
+	_lobby_resume.rpc(resume, resume_map.to_bytes(), resume_seen)
 	_broadcast_lobby()
 	return ""
 
 
 @rpc("authority", "reliable")
-func _lobby_resume(header: Dictionary, map_bytes: PackedByteArray) -> void:
+func _lobby_resume(header: Dictionary, map_bytes: PackedByteArray, seen_bytes: PackedByteArray) -> void:
 	resume = header
 	resume_map = MapData.from_bytes(map_bytes) if not map_bytes.is_empty() else null
+	resume_seen = seen_bytes
 	lobby_changed.emit()
 
 

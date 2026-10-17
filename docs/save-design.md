@@ -116,8 +116,12 @@ saved.
 A dialog like the map picker (`MapPicker`): the saves, newest first, each a
 row with its name, *Autosave* or *Saved*, wave, map, difficulty, villages
 (co-op: their names), play time and date. The selected one shows the map's
-preview (`MapPreview` of the saved map: the plan as it is now, felled trees
-included) with the villages marked. Buttons: **Load** (or *Use* in the
+preview (`MapPreview` of the saved map, felled trees included) with the
+villages marked, **only as far as it was explored** (`SaveGame.seen`): the
+rest is black and no object or spawn hidden there is marked, so a save never
+gives the map away. Single player: the village's fog; co-op: the fog of every
+village together, so the players can tell the villages apart (it shows each
+player what the others had explored; fine for a co-op game). Buttons: **Load** (or *Use* in the
 lobby), **Delete** (after a confirmation), **Cancel** / Esc. Saves that can't
 be loaded (another version, broken file) are listed greyed out with the
 reason, so they can still be deleted. The single-player list shows
@@ -171,8 +175,9 @@ single-player saves; the lobby's shows co-op saves (§6).
    saved village's name gets that village, the others the free ones in join
    order; a late joiner gets the first free one. The host can play any of
    them, not only the first.
-5. Everyone sees the save's preview: the map, each village with its saved
-   name and colour and the player assigned to it, the wave.
+5. Everyone sees the save's preview: the map through every village's fog
+   together (`Net.resume_seen`, sent with the save's header), each village
+   with its saved name and colour and the player assigned to it, the wave.
 6. *Start*: the host builds the game from the save (§8.4), then sends every
    client the setup and the **saved map** as for a new game
    (`Net._start`); each client builds its world and gets a full snapshot,
@@ -213,10 +218,10 @@ the saved position and loads.
 | **Corpses** | kind, wave, tile, time left, stolen gold, `hp_scale`, uid / nid | who claimed it |
 | **Village** | name, colour, `fallen`, relics, `corpses_delivered`, resources, the log level shown | the log's lines (a loaded game starts with "Game loaded: wave N") |
 | **Buildings** | kind, tile, uid / nid, `complete`, progress, `paid_share`, level, upgrade (and its progress), tear-down (and its progress); hut `ruined` and resident; workplace worker; farm `stored`; post slots; the build queue in order | builders' claims |
-| **Villagers** | role, uid / nid, hut, HP, position, at home; the farmer's farm and food carried, the forester's camp, tree and load, the gatherer's corpses, gold and loot carried, the miner's mine and whether inside | job state: a villager out in the field walks home first (delivering what it carries there), rests and goes back to work, as after fleeing from enemies (`Civilian.resume_outside`); a miner inside his mine stays there |
+| **Villagers** | role, uid / nid, hut, HP, position, at home; the farmer's farm and food carried, the forester's camp, tree and load, the gatherer's corpses, gold and loot carried, the miner's mine and whether inside | job state. Once everything is back, a villager out in the field asks once what to do from where it stands and does it (`Civilian.resume_work`, `CivilianJob.resume`): a farmer with food goes home, else to his farm; a forester with wood to his camp, else on to his tree (or the next one); a builder to the next site; an explorer to the next fog; a gatherer to the next safe corpse or sack if he has room, else home with his load; a miner on to his mine. With nothing to do there, home. A miner inside his mine stays there |
 | **Military units** | kind (the specialisation), level, HP, state, post and slot, `revive_left`, `revive_at_post`, `train_xp`, uid / nid, `original_owner`, `travel_to`, war-cry haste (`cry_bonus`, `cry_until`), the body's position for units on the way (`Army.resume_walk`) | cooldowns, targets, the body's path (re-pathed to where its state says); a unit out of its barracks against camp guards is back on its bench (the barracks turn it out again if they're still in range) |
 | **Earth elementals** | of summoners on duty: summon kind, HP, max HP, damage, home, position, summoner, war-cry haste (those of a summoner out on a sortie crumble, as when it goes back to its bench) | target, timers |
-| **Hero** | mode, level, XP, HP, downed, position, support target, camp target, carried loot or corpses (Explore / Gather jobs), war-cry haste | target, training link, idle and snore timers, `train_pause` |
+| **Hero** | mode, level, XP, HP, downed, position, support target, camp target, carried loot or corpses (Explore / Gather jobs), war-cry haste | target, training link, idle and snore timers, `train_pause`. Out in the field his Build / Explore / Gather job asks what to do like a villager's (loot is carried home); his other modes and a camp to clear decide from where he stands anyway |
 | **Caravans** | from, to, cargo, tax, uid / nid, position | path (re-pathed) |
 | **Statistics** | all of `Stats` (counters, samples, wave marks, towers, awards' data, its timers) | |
 
@@ -298,8 +303,9 @@ only in the lobby.
    other buildings are built anew with theirs (`register_as`), then the
    build queues, villagers (into their huts and workplaces), heroes, units
    (onto their posts' slots, or walking on), elementals (into their
-   summoners' lists), caravans, corpses, camp guards, the waves' counter,
-   and last the label counters (`_ids`).
+   summoners' lists), caravans, corpses, camp guards, the waves' counter;
+   then everyone out in the field asks once what to do (`resume_work`), and
+   last the label counters (`_ids`) are set.
 4. Statistics are restored instead of `Stats.start()`, the waves' `wave` and
    `countdown` set, `unlocks` set directly (no "unlocked" log), the camera
    centred on the player's village, and in co-op the renamed villages
@@ -308,7 +314,7 @@ only in the lobby.
 `SaveGame` holds capturing and restoring for every part, in one place: a
 new piece of durable state needs a line in `capture` and one in the
 matching `_restore_*`. The classes got small helpers for it
-(`Village.setup_restored`, `Civilian.resume_outside`, `Army.resume_walk`,
+(`Village.setup_restored`, `Civilian.resume_work` and `CivilianJob.resume`, `Army.resume_walk`,
 `World.restore_chopped`, `MonsterCamp.restore_guard`, `Stats.save_state` /
 `load_state`). Restoring never goes through the gameplay mutators
 (`recruit`, `place`, `kill`, `level_up`, `unlock`, `Economy.add`...), which
@@ -343,14 +349,18 @@ scripts/ui/multiplayer_menu.gd Saved game... next to Map, the Village buttons fo
   rebuilt, barracks at level 2 with a unit on its bench, units on towers,
   in the reserve, downed, marching, specialised, a summoner with an
   elemental, the hero out in the field carrying loot, a gatherer out with
-  corpses, a corpse, a hurt camp guard, a felled and a half-chopped tree,
+  corpses, a forester at his tree, a builder in the field, a corpse, a hurt camp guard, a felled and a half-chopped tree,
   explored land, a relic); saved (Save...), loaded paused into a new scene;
   **saving again gives the same body** (except the id counter: walking units
   get new bodies). Plus targeted checks on the loaded game, the log (only
-  "Game loaded") and the view on the village.
+  "Game loaded") and the view on the village; out in the field, the
+  forester goes on with his tree, the builder walks to a site, the gatherer
+  (room for more) to the corpse, the hero carries his loot home.
 - The loaded game runs on: a wave comes, can't be saved meanwhile, and is
   fought; the autosave follows (one file, marked, wave 1, now what Continue
   takes); a builder finishes the saved site.
+- The save list's map: black wherever the save's fog is, no hidden object
+  marked; a co-op save's shows every village's explored land together.
 - Files: no temporary file left, header-only listing, wrong magic, another
   format and an unknown kind refused (listed with why), delete, a newer
   co-op save ignored by Continue, autosaves pruned to `keep_autosaves`, safe

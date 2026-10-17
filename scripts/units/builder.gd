@@ -25,6 +25,10 @@ func status() -> String:
 	return job.status()
 
 
+func resume_work() -> void:
+	job.resume()
+
+
 func _on_evade() -> void:
 	job.on_evade()
 

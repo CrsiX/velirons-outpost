@@ -207,7 +207,7 @@ func select(i: int) -> void:
 		_ok.disabled = true
 		return
 	var h: Dictionary = r["header"]
-	_preview.show_map(SaveGame.saved_map(r["body"]))
+	_preview.show_map(SaveGame.saved_map(r["body"]), SaveGame.seen(r["body"]))
 	_preview.labels.clear()
 	var names := PackedStringArray()
 	var vs: Array = h.get("villages", [])

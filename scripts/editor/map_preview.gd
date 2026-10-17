@@ -2,7 +2,8 @@ class_name MapPreview
 extends Control
 ## A small top-down picture of a map (MapPlan.preview) with every village's
 ## number on it, and optionally a label per village ("1: Rivermoor"): the map
-## picker and the co-op lobby.
+## picker, the co-op lobby and the save list. A saved game's map is shown
+## through its fog (only explored land), so a save can't give the map away.
 
 var map: MapData
 ## Village index -> text drawn by it (e.g. the player who has it).
@@ -16,9 +17,10 @@ func _init() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 
-func show_map(m: MapData) -> void:
+## `explored`: only these tiles are shown (MapPlan.preview); empty: all of it.
+func show_map(m: MapData, explored: PackedByteArray = PackedByteArray()) -> void:
 	map = m
-	_tex = ImageTexture.create_from_image(MapPlan.preview(m, 1)) if m else null
+	_tex = ImageTexture.create_from_image(MapPlan.preview(m, 1, explored)) if m else null
 	queue_redraw()
 
 

@@ -74,6 +74,14 @@ func _go_home() -> void:
 	head_home()
 
 
+## After a load: on to his mine if he has one, else home.
+func resume_work() -> void:
+	if is_instance_valid(mine) and state == State.TO_MINE:
+		assign(mine)
+	else:
+		_go_home()
+
+
 ## Safe inside the mine.
 func wants_to_evade() -> bool:
 	return state != State.WORKING and state != State.IDLE

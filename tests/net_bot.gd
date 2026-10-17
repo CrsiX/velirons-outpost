@@ -309,6 +309,8 @@ func _client_resume() -> void:
 	check(Net.join("%s:%d" % [g["address"], g["port"]], CLIENT_NAME, 0) == "", "joining it")
 	var got := await wait_until(func() -> bool: return not Net.resume.is_empty() and Net.resume_map != null and Net.players.size() == 2)
 	check(got and Net.resume_villages() == 2 and str(Net.resume.get("name", "")) == "Net bot co-op", "the lobby shows us the saved game")
+	var seen := Net.resume_seen
+	check(seen.size() == Net.resume_map.size * Net.resume_map.size and seen.count(1) > 0 and seen.count(0) > 0, "its preview's map only shows explored land (%d of %d tiles)" % [seen.count(1), seen.size()])
 	var saved: Array = Net.resume.get("villages", [])
 	var me := Net.my_id()
 	var mine_slot := await wait_until(func() -> bool: return int(Net.players[me].get("slot", -1)) == 0, 20.0)

@@ -69,17 +69,30 @@ static func image(m: MapData) -> Image:
 	return img
 
 
+## Tiles nobody has explored, in a preview with fog (a saved game's).
+const FOG := Color(0.03, 0.03, 0.03)
+
+
 ## A small preview: the plan with objects, spawns and each village's number
-## marked, scaled to `px` pixels per tile.
-static func preview(m: MapData, px: int) -> Image:
+## marked, scaled to `px` pixels per tile. With `explored` (1 per explored
+## tile, MapData.index order: a saved game's fog), the rest is black and
+## nothing hidden there is marked.
+static func preview(m: MapData, px: int, explored: PackedByteArray = PackedByteArray()) -> Image:
 	var img := image(m)
+	var fog := explored.size() == m.size * m.size
+	var seen := func(t: Vector2i) -> bool: return not fog or explored[m.index(t)] == 1
 	for o in m.objects:
 		for t in Building.footprint(o["tile"], int(o.get("size", 1))):
-			if m.in_bounds(t):
+			if m.in_bounds(t) and seen.call(t):
 				img.set_pixelv(t, OBJECT_COLORS.get(o["kind"], Color.MAGENTA))
 	for v in m.villages:
 		for s: Vector2i in v.get("home_spawns", []):
-			img.set_pixelv(s, SPAWN)
+			if seen.call(s):
+				img.set_pixelv(s, SPAWN)
+	if fog:
+		for i in explored.size():
+			if explored[i] == 0:
+				img.set_pixel(i % m.size, i / m.size, FOG)
 	if px > 1:
 		img.resize(m.size * px, m.size * px, Image.INTERPOLATE_NEAREST)
 	return img

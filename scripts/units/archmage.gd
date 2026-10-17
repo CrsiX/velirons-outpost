@@ -30,6 +30,11 @@ func _wander() -> void:
 			return
 
 
+## After a load: strolls on from where he is.
+func resume_work() -> void:
+	_wander()
+
+
 func _after_evade() -> void:
 	_wait = Config.EVADE_REST
 

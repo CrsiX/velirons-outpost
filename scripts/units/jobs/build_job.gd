@@ -77,6 +77,18 @@ func status() -> String:
 	return "resting"
 
 
+## Out in the field after a load: the next site from here, else home.
+func resume() -> void:
+	var s := w.village.construction.claim(w)
+	if s != null and w.head_out(s.work_tile()):
+		site = s
+		state = State.TO_SITE
+		return
+	if s != null:
+		w.village.construction.release(s, true)
+	_go_home()
+
+
 func on_evade() -> void:
 	# The site keeps its progress; any builder can pick it up again later.
 	release()

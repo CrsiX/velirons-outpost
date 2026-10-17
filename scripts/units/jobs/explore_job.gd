@@ -57,6 +57,14 @@ func tick(delta: float) -> void:
 				w.rest_timer = 5.0
 
 
+## Out in the field after a load: the next fog from here, else home.
+func resume() -> void:
+	if _pick_target():
+		state = State.EXPLORING
+	else:
+		_go_home_idle()
+
+
 func on_evade() -> void:
 	state = State.RESTING
 	target = Vector2i(-1, -1)

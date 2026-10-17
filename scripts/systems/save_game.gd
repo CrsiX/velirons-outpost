@@ -397,6 +397,21 @@ static func _elementals(game: Game) -> Array:
 
 # --- restore ---------------------------------------------------------------------------
 
+## What the save list's and the lobby's preview may show of the map: the
+## explored land, of all villages together (single player: its fog; co-op:
+## every player's, so they can tell the villages apart).
+static func seen(b: Dictionary) -> PackedByteArray:
+	var out := PackedByteArray()
+	for e: PackedByteArray in b.get("fog", []):
+		if out.is_empty():
+			out = e.duplicate()
+		elif e.size() == out.size():
+			for i in e.size():
+				if e[i] == 1:
+					out[i] = 1
+	return out
+
+
 ## The map the game is built on (Game.preset_map).
 static func saved_map(b: Dictionary) -> MapData:
 	return MapData.from_bytes(b["map"])
@@ -453,10 +468,11 @@ static func restore_entities(game: Game, b: Dictionary) -> void:
 			var site := game.entity(nid) as Building
 			if site and site.has_work() and not v.construction.queue.has(site):
 				v.construction.queue.append(site)
+	var field: Array[Civilian] = []  # (out in the field: they ask what to do once everything is back)
 	for d: Dictionary in b["civilians"]:
-		_restore_civilian(game, d)
+		_restore_civilian(game, d, field)
 	for i in mini(game.villages.size(), (b["villages"] as Array).size()):
-		_restore_hero(game, game.villages[i].hero, b["villages"][i]["hero"])
+		_restore_hero(game, game.villages[i].hero, b["villages"][i]["hero"], field)
 	for d: Dictionary in b["units"]:
 		_restore_unit(game, d)
 	for d: Dictionary in b["elementals"]:
@@ -472,6 +488,10 @@ static func restore_entities(game: Game, b: Dictionary) -> void:
 	var w: Dictionary = b["waves"]
 	game.waves.wave = int(w["wave"])
 	game.waves.countdown = float(w["countdown"])
+	# Everything is back (sites, corpses, sacks, guards): whoever stands out in
+	# the field asks once what to do from there.
+	for c in field:
+		c.resume_work()
 	game._ids = (g["ids"] as Dictionary).duplicate()  # (last: restoring some of the above counted)
 	for v in game.villages:
 		v.population.changed.emit()
@@ -540,7 +560,7 @@ static func _apply_building(bd: Building, d: Dictionary) -> void:
 	bd.game.world.refresh_building(bd)
 
 
-static func _restore_civilian(game: Game, d: Dictionary) -> void:
+static func _restore_civilian(game: Game, d: Dictionary, field: Array[Civilian]) -> void:
 	var v := game.villages[int(d["v"])]
 	var role: String = d["r"]
 	var civ: Civilian = Population.ROLE_SCRIPTS[role].new()
@@ -598,7 +618,8 @@ static func _restore_civilian(game: Game, d: Dictionary) -> void:
 				return
 	if not home:
 		civ.set_grid_pos(pos)
-		civ.resume_outside()
+		civ._set_home(false)
+		field.append(civ)
 
 
 static func _apply_gather(job: GatherJob, d: Dictionary) -> void:
@@ -607,7 +628,7 @@ static func _apply_gather(job: GatherJob, d: Dictionary) -> void:
 	job.loot = (d["loot"] as Dictionary).duplicate()
 
 
-static func _restore_hero(game: Game, h: Hero, d: Dictionary) -> void:
+static func _restore_hero(game: Game, h: Hero, d: Dictionary, field: Array[Civilian]) -> void:
 	h.nid = int(d["n"])
 	game.register_as(h, h.nid)
 	h.level = int(d["lvl"])
@@ -629,18 +650,15 @@ static func _restore_hero(game: Game, h: Hero, d: Dictionary) -> void:
 	h.hp = clampf(float(d["hp"]), 1.0, h.max_hp)
 	h.set_grid_pos(d["pos"])
 	h._set_home(bool(d["home"]))
-	var gather := h.jobs[Hero.Mode.GATHER] as GatherJob
-	_apply_gather(gather, d["gather"])
-	if not gather.carried.is_empty() or not gather.loot.is_empty():
-		gather.state = GatherJob.State.RETURNING
-		h.head_home()
+	_apply_gather(h.jobs[Hero.Mode.GATHER] as GatherJob, d["gather"])
 	var carry: Dictionary = d["carry"]
 	if not carry.is_empty():
 		var ex := h.jobs[Hero.Mode.EXPLORE] as HeroExploreJob
 		ex.carrying = carry.duplicate()
 		ex.carrying_from = str(d["from"])
 		ex.task = HeroExploreJob.Task.CARRYING
-		h.head_home()
+	if not h.at_home:
+		field.append(h)
 	h.changed.emit()
 
 

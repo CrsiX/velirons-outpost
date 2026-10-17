@@ -146,6 +146,23 @@ func _go_village() -> void:
 	head_home()
 
 
+## After a load: wood in hand goes to the camp; else on to his tree (or the
+## next one, or the camp to look for one).
+func resume_work() -> void:
+	if not _camp_ok():
+		_go_village()
+		return
+	visible = true
+	if carrying <= 0:
+		_head_to_tree()
+		if state == State.TO_TREE:
+			return
+	if head_out(camp.tile):
+		state = State.BACK_TO_CAMP if carrying > 0 else State.TO_CAMP
+	else:
+		_go_village()
+
+
 func _on_evade() -> void:
 	visible = true
 	sprite.rotation = 0.0

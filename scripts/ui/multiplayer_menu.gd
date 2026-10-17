@@ -390,7 +390,7 @@ func refresh() -> void:
 	preview.visible = in_lobby and shown != null
 	if preview.visible:
 		if preview.map != shown:
-			preview.show_map(shown)
+			preview.show_map(shown, Net.resume_seen if resuming else PackedByteArray())
 		preview.labels.clear()
 		for id in Net.players:
 			var s := int(Net.players[id].get("slot", -1))
