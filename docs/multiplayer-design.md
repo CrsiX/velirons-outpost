@@ -42,7 +42,7 @@ map 75×75, the rules unchanged.
   that out.
 - Joining a running game (§8.6).
 - PvP, trading between players, chat. Chat is a candidate for later.
-- Host migration, save/load of multiplayer games.
+- Host migration. (Saving and resuming a co-op game: docs/save-design.md.)
 
 ## 3. Player flow
 
@@ -88,6 +88,13 @@ The title screen has a **Multiplayer** button. The multiplayer screen has:
   cap the players ("The game is full"; LAN discovery shows that maximum).
   Villages nobody plays stand as ownerless ruins: huts ruined for good, no
   owner, no waves from their spawns, enemies never go there.
+- **A saved co-op game** (docs/save-design.md §6): *Saved game...*
+  next to the host's Map button picks one of the host's co-op saves. The lobby
+  then needs exactly as many players as it has villages (no more can join;
+  Start waits for the rest), every player gets one of its villages (a
+  *Village* button showing the saved village's name in its colour; the host
+  assigns them, as with a map file), and each village takes its new
+  player's name and keeps its colour. Difficulty and map come from the save.
 - A player can leave. Nobody can be removed.
 - Joining is refused with a reason: "Different game version (host 2, you 1)"
   (the protocol numbers), "The game is full" (8 players), "The game has

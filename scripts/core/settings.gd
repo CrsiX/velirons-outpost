@@ -73,6 +73,16 @@ var custom_village := 0
 var editor_session: Dictionary = {}
 ## The game was started by the editor's Play: its settings offer Back to editor.
 var editor_play := false
+## A saved game to load as the next game (SaveGame's body; docs/save-design.md),
+## taken by Game.
+var pending_save: Dictionary = {}
+
+
+## The save the next game loads (then it's cleared); empty: a new game.
+func take_pending_save() -> Dictionary:
+	var d := pending_save
+	pending_save = {}
+	return d
 
 
 func cycle_map_type() -> void:

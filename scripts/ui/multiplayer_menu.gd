@@ -9,7 +9,10 @@ extends VBoxContainer
 ##               difficulty, map type and seed, or a map file: Custom...)
 ##               and Ready / Start / Leave. With a map file the players pane
 ##               shows its preview and which village each player has; the
-##               host assigns them (docs/map-editor-design.md §8).
+##               host assigns them (docs/map-editor-design.md §8). Or a
+##               saved co-op game (Saved game...): exactly as many players as
+##               it has villages, each on one of them, assigned by the host
+##               (docs/save-design.md §6).
 ##               In portrait the panes are stacked.
 
 signal back_pressed
@@ -32,6 +35,8 @@ var ready_button: Button
 var start_button: Button
 var difficulty_button: Button
 var map_button: Button
+## Host: Saved game... / New game (next to the Map button).
+var resume_button: Button
 var seed_edit: LineEdit
 var leave_button: Button
 var apply_button: Button
@@ -40,6 +45,8 @@ var _join_page: VBoxContainer
 var _color := 0
 ## The title screen's map picker (Custom...).
 var picker: MapPicker
+## The title screen's save list (Saved game...).
+var save_list: SaveList
 var preview: MapPreview
 
 
@@ -186,7 +193,18 @@ func _build_lobby() -> void:
 	settings_pane.add_child(difficulty_button)
 	map_button = _btn("", 48)
 	map_button.pressed.connect(_cycle_map)
-	settings_pane.add_child(map_button)
+	map_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	map_button.clip_text = true
+	map_button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	var map_row := HBoxContainer.new()
+	map_row.add_theme_constant_override("separation", 8)
+	map_row.add_child(map_button)
+	resume_button = _btn("", 48)
+	resume_button.custom_minimum_size.x = 0
+	resume_button.tooltip_text = "Go on with a co-op game the host saved: it needs as many players as it has villages"
+	resume_button.pressed.connect(_toggle_resume)
+	map_row.add_child(resume_button)
+	settings_pane.add_child(map_row)
 	seed_edit = LineEdit.new()
 	seed_edit.placeholder_text = "Map seed (empty: random)"
 	seed_edit.custom_minimum_size = Vector2(0, 44)
@@ -221,9 +239,26 @@ func _fit_panes() -> void:
 	panes.vertical = Layout.portrait
 
 
+## Host: a saved co-op game instead of a new one (docs/save-design.md §6.2),
+## or (while one is picked) a new game again.
+func _toggle_resume() -> void:
+	if not Net.resume.is_empty():
+		Net.set_resume("")
+		return
+	if save_list == null:
+		return
+	save_list.choose(true, func(path: String) -> void:
+		var err := Net.set_resume(path)
+		lobby_status.text = err,
+		Callable(), "Resume a co-op game", "Use this game")
+
+
 ## The types in turn, then Random, then Custom... (a map file), then the first type again.
 func _cycle_map() -> void:
-	if Net.custom_map:
+	if not Net.resume.is_empty():
+		Settings.map_type = Config.MAP_TYPE_ORDER[0]
+		Net.set_map(Settings.map_type, Net.map_seed)
+	elif Net.custom_map:
 		Settings.map_type = Config.MAP_TYPE_ORDER[0]
 		Net.set_map(Settings.map_type, Net.map_seed)
 	elif Net.map_type == "random" and picker:
@@ -308,14 +343,20 @@ func refresh() -> void:
 		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(l)
-		if Net.custom_map:
+		if Net.slot_count() > 0:
 			var slot := int(p.get("slot", -1))
 			var vb := _btn("Village %d" % (slot + 1) if slot >= 0 else "No village", 36)
 			vb.add_theme_font_size_override("font_size", 16)
 			vb.tooltip_text = "The host picks who plays which village of the map"
+			if not Net.resume.is_empty() and slot >= 0:
+				var sv: Dictionary = Net.resume["villages"][slot]
+				vb.text = str(sv["name"])
+				vb.add_theme_color_override("font_color", Color(str(sv["color"])))
+				vb.add_theme_color_override("font_disabled_color", Color(str(sv["color"])))
+				vb.tooltip_text = "The saved village this player plays (under the player's name, in this colour). The host picks."
 			vb.disabled = not Net.is_host()
 			var pid: int = id
-			vb.pressed.connect(func() -> void: Net.set_slot(pid, (slot + 1) % Net.custom_map.villages.size()))
+			vb.pressed.connect(func() -> void: Net.set_slot(pid, (slot + 1) % Net.slot_count()))
 			row.add_child(vb)
 		var state := _panel_label("host" if id == 1 else ("ready" if p["ready"] else "not ready"), 16, UiTheme.GOOD if (id == 1 or p["ready"]) else UiTheme.MUTED)
 		state.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -328,21 +369,28 @@ func refresh() -> void:
 	ready_button.visible = Net.is_client()
 	ready_button.set_pressed_no_signal(ready_now)
 	_show_ready(ready_now)
+	var resuming := not Net.resume.is_empty()
 	difficulty_button.visible = Net.is_host()
+	difficulty_button.disabled = resuming  # (the save's)
 	difficulty_button.text = "Difficulty: %s" % Settings.NAMES[Net.difficulty]
 	# Everyone sees the map settings; only the host changes them.
 	map_button.disabled = not Net.is_host()
 	var custom := Net.custom_map
-	if custom:
+	if resuming:
+		map_button.text = "Saved: %s · %s" % [str(Net.resume.get("name", "")), SaveGame.wave_text(int(Net.resume.get("wave", 0))).to_lower()] + ("" if Net.is_host() else "  (host)")
+	elif custom:
 		map_button.text = "Map: %s (%d villages)" % [MapJson.map_name(custom), custom.villages.size()] + ("" if Net.is_host() else "  (host)")
 	else:
 		map_button.text = "Map: %s" % Settings.map_type_name(Net.map_type) + ("" if Net.is_host() else "  (host)")
 	map_button.visible = in_lobby
-	seed_edit.visible = in_lobby and Net.is_host() and custom == null
-	preview.visible = in_lobby and custom != null
+	seed_edit.visible = in_lobby and Net.is_host() and custom == null and not resuming
+	resume_button.visible = in_lobby and Net.is_host()
+	resume_button.text = "New game" if resuming else "Saved game..."
+	var shown: MapData = Net.resume_map if resuming else custom
+	preview.visible = in_lobby and shown != null
 	if preview.visible:
-		if preview.map != custom:
-			preview.show_map(custom)
+		if preview.map != shown:
+			preview.show_map(shown)
 		preview.labels.clear()
 		for id in Net.players:
 			var s := int(Net.players[id].get("slot", -1))
@@ -354,6 +402,8 @@ func refresh() -> void:
 	start_button.visible = Net.is_host()
 	start_button.disabled = not Net.can_start()
 	start_button.text = "Start" if Net.can_start() else "Start (waiting for everyone to be ready)"
+	if resuming and Net.players.size() != Net.resume_villages():
+		start_button.text = "This save needs %d players; %d are here" % [Net.resume_villages(), Net.players.size()]
 	if not mine.is_empty():
 		_color = int(mine["color"])
 	_refresh_swatches()

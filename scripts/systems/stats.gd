@@ -350,6 +350,39 @@ func to_net() -> Dictionary:
 	return {"time": time, "times": times, "marks": wave_marks, "villages": villages, "ended": ended}
 
 
+## Everything, for a save (docs/save-design.md).
+func save_state() -> Dictionary:
+	var d := to_net()
+	d["villages"] = villages.duplicate(true)
+	d["next"] = _next_sample
+	d["wave_at"] = _wave_started_at
+	d["hero_up"] = Array(_hero_up_since)
+	return d
+
+
+## A loaded game: the numbers as saved, and counting goes on (instead of start()).
+## Village names and colours are the game's now (a co-op village may have a new player).
+func load_state(d: Dictionary) -> void:
+	time = float(d.get("time", 0.0))
+	times = d.get("times", PackedFloat32Array())
+	wave_marks = d.get("marks", [])
+	var saved: Array = d.get("villages", [])
+	for i in mini(saved.size(), villages.size()):
+		var row: Dictionary = saved[i]
+		row["name"] = villages[i]["name"]
+		row["color"] = villages[i]["color"]
+		villages[i] = row
+	_next_sample = float(d.get("next", time + float(Config.STATS["sample_interval"])))
+	_wave_started_at = float(d.get("wave_at", -1.0))
+	var up: Array = d.get("hero_up", [])
+	for i in mini(up.size(), _hero_up_since.size()):
+		_hero_up_since[i] = float(up[i])
+	enabled = _can_count
+	if enabled:
+		game.waves.wave_started.connect(_on_wave_started)
+		game.waves.wave_finished.connect(_on_wave_finished)
+
+
 ## Co-op client: the host's numbers.
 func from_net(d: Dictionary) -> void:
 	time = float(d.get("time", 0.0))

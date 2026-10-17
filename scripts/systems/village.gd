@@ -93,6 +93,18 @@ func setup() -> void:
 	game.world.objects.add_child(hero)
 
 
+## A loaded game (docs/save-design.md): the systems empty and the hero made;
+## SaveGame.restore_entities fills them in (and gives the hero his id).
+func setup_restored() -> void:
+	economy.setup({})
+	construction.setup(self)
+	population.setup(self, false)
+	army.setup(self)
+	hero = HERO_SCRIPT.new()
+	hero.setup_hero(game, self)
+	game.world.objects.add_child(hero)
+
+
 ## Co-op client: the same systems, but empty: villagers, buildings and the
 ## hero's state all come from the host (Replicator).
 func setup_client() -> void:

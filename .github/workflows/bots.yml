@@ -112,7 +112,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        bot: [build, library, stats, map_format, editor, world, title, coop, net, tutorial, military, enemy, rat, sim]
+        bot: [build, library, stats, save, map_format, editor, world, title, coop, net, tutorial, military, enemy, rat, sim]
     steps:
       - uses: actions/checkout@v4
         with:

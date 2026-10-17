@@ -153,7 +153,7 @@ func _spawn_props() -> void:
 func _spawn_map_objects() -> void:
 	for i in map.objects.size():
 		_add_map_object(i, map.objects[i])
-	if not game.is_client:
+	if not game.is_client and game.restoring.is_empty():  # (a loaded game brings its own guards)
 		for o in map_objects:
 			if o is MonsterCamp:
 				(o as MonsterCamp).spawn_monsters()
@@ -575,6 +575,18 @@ func chop_tree(t: Vector2i, seconds: float) -> bool:
 		remove_tree(t)
 		return true
 	return false
+
+
+## A loaded game: how far each tree was chopped (tile -> seconds), its tint too.
+func restore_chopped(d: Dictionary) -> void:
+	_chopped.clear()
+	for t: Vector2i in d:
+		if not is_tree(t):
+			continue
+		_chopped[t] = float(d[t])
+		var s: Sprite2D = _props.get(t)
+		if s:
+			s.modulate = Color.WHITE.lerp(Color(0.75, 0.65, 0.55), tree_progress(t))
 
 
 func remove_tree(t: Vector2i) -> void:

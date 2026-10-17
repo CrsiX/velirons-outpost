@@ -55,6 +55,28 @@ func _spawn_guards(kinds: Array, hp_scale: float) -> void:
 		monsters.append(e)
 
 
+## A loaded game (docs/save-design.md): one guard as it was saved
+## (SaveGame: kind, HP, position, home spot, ids).
+func restore_guard(d: Dictionary) -> void:
+	var home: Vector2 = d["home"]
+	var e: Enemy = ENEMY_SCRIPT.new()
+	var route: Array[Vector2i] = [Vector2i(home.round())]
+	e.setup(game, route, float(d["hs"]), str(d["k"]))
+	e.set_color(str(d.get("c", "")))
+	e.wave = int(d["w"])
+	e.hp = clampf(float(d["hp"]), 1.0, e.max_hp)
+	e.set_grid_pos(d["pos"])
+	e.behavior = CAMP_BEHAVIOR.new()
+	(e.behavior as CampBehavior).setup(self, home)
+	e.uid = int(d["u"])
+	e.nid = int(d["n"])
+	game.register_as(e, e.nid)
+	e.killed.connect(_on_killed)
+	game.world.objects.add_child(e)
+	monsters.append(e)
+	left = monsters.size()
+
+
 func _on_killed(e: Enemy) -> void:
 	monsters.erase(e)
 	left = monsters.size()

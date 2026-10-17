@@ -2,9 +2,11 @@ extends Node
 ## Screenshots of the UI on a real display, for looking at the layout (headless
 ## runs can't render): the title screen, the map editor (both views, layers,
 ## tools, inspector, dialogs, the picker, portrait), the co-op lobby with a map
-## file, a game on a map with an abandoned village, and (`--only=swap`)
+## file, a game on a map with an abandoned village, (`--only=swap`)
 ## dragging stationed units onto each other to swap them (mouse in landscape,
-## real touch events in portrait).
+## real touch events in portrait), and (`--only=saves`) saving and loading:
+## the settings with Save / Load, the save page, Continue, the save list (in
+## landscape and portrait).
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -81,6 +83,8 @@ func _run() -> void:
 		await _game()
 	if only in ["", "swap"]:
 		await _swap()
+	if only in ["", "saves"]:
+		await _saves()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -294,6 +298,45 @@ func _game() -> void:
 	Settings.custom_map = null
 	g.queue_free()
 	await _frames(3)
+
+
+# --- saving and loading ---------------------------------------------------------------
+
+func _saves() -> void:
+	SaveGame.dir_override = "user://ui_shots_saves"
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	add_child(g)
+	await _frames(60)
+	g.save_named("Shot village")
+	g.hud.open_settings()
+	await _frames(5)
+	await shot("saves_settings")
+	g.hud._show_save(true)
+	await _frames(5)
+	await shot("saves_save_page")
+	g.hud.close_settings()
+	g.queue_free()
+	await _frames(3)
+	for portrait in [false, true]:
+		if portrait:
+			await _size(Vector2i(540, 960))
+		var t: TitleScreen = load("res://scenes/title.tscn").instantiate()
+		add_child(t)
+		await _frames(30)
+		t.show_page(t._sp_page)
+		t._update_sp_buttons()
+		await _frames(10)
+		await shot("saves_title_singleplayer" + ("_portrait" if portrait else ""))
+		t.save_list.choose(false, func(_p: String) -> void: pass)
+		await _frames(10)
+		await shot("saves_list" + ("_portrait" if portrait else ""))
+		t.save_list.close()
+		t.queue_free()
+		await _frames(3)
+	await _landscape()
+	for f in DirAccess.get_files_at(SaveGame.dir()):
+		DirAccess.remove_absolute(SaveGame.dir().path_join(f))
+	SaveGame.dir_override = ""
 
 
 # --- swapping stationed units --------------------------------------------------------

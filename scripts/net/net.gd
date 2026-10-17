@@ -48,6 +48,16 @@ var map_seed := 0
 ## name and preview). Each player then has a village of it ("slot" in
 ## `players`), assigned by the host.
 var custom_map: MapData = null
+## A co-op save to resume instead (docs/save-design.md §6): the host's pick.
+## Everyone has its header (the villages' names and colours, the wave) and
+## map (`resume_map`, for the preview); each player has one of its villages
+## ("slot" in `players`), assigned by the host. The lobby needs exactly as
+## many players as it has villages.
+var resume: Dictionary = {}
+var resume_map: MapData = null
+## Host: the save's body, for the level scene (Game takes it).
+var resume_body: Dictionary = {}
+var _resume_path := ""
 var in_game := false
 ## Set for the level scene: {"seed", "villages": [{"name", "color", "peer"}], "difficulty",
 ## "local", "map_type"}. (A client before the game: {"name", "color"}.)
@@ -152,6 +162,10 @@ func leave() -> void:
 	in_game = false
 	game = null
 	custom_map = null
+	resume = {}
+	resume_map = null
+	resume_body = {}
+	_resume_path = ""
 	lobby_changed.emit()
 
 
@@ -225,9 +239,23 @@ func join_decision(proto: int, p_name: String) -> String:
 	return ""
 
 
-## How many can play: Config.MAX_PLAYERS, or a custom map's villages.
+## How many can play: Config.MAX_PLAYERS, a custom map's villages, or a save's.
 func max_players() -> int:
+	if not resume.is_empty():
+		return resume_villages()
 	return custom_map.villages.size() if custom_map else Config.MAX_PLAYERS
+
+
+## The villages of the save to resume (0: none).
+func resume_villages() -> int:
+	return (resume.get("villages", []) as Array).size()
+
+
+## Villages players are assigned to (a map file's, or a save's; 0: none: a generated map).
+func slot_count() -> int:
+	if not resume.is_empty():
+		return resume_villages()
+	return custom_map.villages.size() if custom_map else 0
 
 
 func _player_named(p_name: String) -> int:
@@ -276,6 +304,8 @@ func _hello(proto: int, p_name: String, color: int) -> void:
 		_message.rpc_id(id, "That colour was taken: you got another one")
 	if custom_map:
 		_lobby_map.rpc_id(id, custom_map.to_bytes())
+	if not resume.is_empty():
+		_lobby_resume.rpc_id(id, resume, resume_map.to_bytes())
 	_broadcast_lobby()
 
 
@@ -340,6 +370,8 @@ func set_difficulty(d: int) -> void:
 
 func set_map(p_type: String, p_seed: int) -> void:
 	if is_host() and not in_game:
+		if not resume.is_empty():
+			set_resume("")
 		if custom_map:
 			set_custom_map(null)
 		map_type = p_type
@@ -357,6 +389,8 @@ func set_custom_map(m: MapData) -> void:
 	if m != null and players.size() > m.villages.size():
 		_tell(1, "That map has room for %d players, the lobby has %d" % [m.villages.size(), players.size()])
 		return
+	if m != null and not resume.is_empty():
+		set_resume("")
 	custom_map = m
 	var ids := players.keys()
 	ids.sort()
@@ -372,10 +406,64 @@ func _lobby_map(bytes: PackedByteArray) -> void:
 	lobby_changed.emit()
 
 
-## Host: player `id` plays village `slot` of the custom map (whoever had it
-## swaps with them).
+## Host: resume the co-op save at `path` ("": none, a new game again). Each
+## player gets one of its villages: the one with their name if there is one,
+## else the free ones in join order. Returns "" or why not.
+func set_resume(path: String) -> String:
+	if not is_host() or in_game:
+		return "Only the host picks the game"
+	if path == "":
+		resume = {}
+		resume_map = null
+		_resume_path = ""
+		_lobby_resume.rpc({}, PackedByteArray())
+		_broadcast_lobby()
+		return ""
+	var r := SaveGame.read(path)
+	if r["error"] != "":
+		return str(r["error"])
+	var h: Dictionary = r["header"]
+	var n := (h.get("villages", []) as Array).size()
+	if n < 2:
+		return "That isn't a co-op save"
+	if players.size() > n:
+		return "That save has %d villages, the lobby has %d players" % [n, players.size()]
+	if custom_map:
+		custom_map = null
+		_lobby_map.rpc(PackedByteArray())
+	resume = h
+	resume_map = SaveGame.saved_map(r["body"])
+	_resume_path = path
+	difficulty = int(h.get("difficulty", difficulty))
+	Settings.difficulty = difficulty as Settings.Difficulty
+	# Villages by name first (the same players as before), then in join order.
+	var ids := players.keys()
+	ids.sort()
+	for id in ids:
+		players[id]["slot"] = -1
+	for id in ids:
+		for s in n:
+			if str(h["villages"][s]["name"]).to_lower() == str(players[id]["name"]).to_lower():
+				players[id]["slot"] = s
+	for id in ids:
+		if int(players[id]["slot"]) < 0:
+			players[id]["slot"] = _free_slot()
+	_lobby_resume.rpc(resume, resume_map.to_bytes())
+	_broadcast_lobby()
+	return ""
+
+
+@rpc("authority", "reliable")
+func _lobby_resume(header: Dictionary, map_bytes: PackedByteArray) -> void:
+	resume = header
+	resume_map = MapData.from_bytes(map_bytes) if not map_bytes.is_empty() else null
+	lobby_changed.emit()
+
+
+## Host: player `id` plays village `slot` of the custom map or the save
+## (whoever had it swaps with them).
 func set_slot(id: int, slot: int) -> void:
-	if not is_host() or in_game or custom_map == null or not players.has(id) or slot < 0 or slot >= custom_map.villages.size():
+	if not is_host() or in_game or slot_count() == 0 or not players.has(id) or slot < 0 or slot >= slot_count():
 		return
 	var old := int(players[id].get("slot", -1))
 	for other in players:
@@ -387,9 +475,7 @@ func set_slot(id: int, slot: int) -> void:
 
 ## The first village of the custom map nobody has yet (-1: none, or no custom map).
 func _free_slot() -> int:
-	if custom_map == null:
-		return -1
-	for s in custom_map.villages.size():
+	for s in slot_count():
 		if not players.values().any(func(p: Dictionary) -> bool: return int(p.get("slot", -1)) == s):
 			return s
 	return -1
@@ -398,11 +484,13 @@ func _free_slot() -> int:
 func can_start() -> bool:
 	if not is_host() or in_game or not players.values().all(func(p: Dictionary) -> bool: return p["ready"]):
 		return false
-	if custom_map:
+	if not resume.is_empty() and players.size() != resume_villages():
+		return false
+	if slot_count() > 0:
 		var slots := {}
 		for p in players.values():
 			var s := int(p.get("slot", -1))
-			if s < 0 or s >= custom_map.villages.size() or slots.has(s):
+			if s < 0 or s >= slot_count() or slots.has(s):
 				return false
 			slots[s] = true
 	return true
@@ -448,6 +536,8 @@ func _refused(reason: String) -> void:
 func start_game() -> bool:
 	if not can_start():
 		return false
+	if not resume.is_empty():
+		return _start_resumed()
 	in_game = true
 	discovery.stop_announcing()
 	var ids := players.keys()
@@ -465,6 +555,35 @@ func start_game() -> bool:
 		setup["map_type"] = custom_map.map_type
 		setup["map_name"] = MapJson.map_name(custom_map)
 	Settings.difficulty = difficulty
+	get_tree().change_scene_to_file(GAME_SCENE)
+	return true
+
+
+## Host: the save goes on with these players (docs/save-design.md §6.2):
+## village i of the save is played by whoever has slot i, under their name,
+## in the save's colour.
+func _start_resumed() -> bool:
+	var r := SaveGame.read(_resume_path)
+	if r["error"] != "":
+		_tell(1, str(r["error"]))
+		return false
+	in_game = true
+	discovery.stop_announcing()
+	resume_body = r["body"]
+	var saved: Array = resume["villages"]
+	var villages: Array = []
+	for s in saved.size():
+		for id in players:
+			if int(players[id]["slot"]) == s:
+				players[id]["village"] = s
+				var col := Config.VILLAGE_COLORS.find(Color(str(saved[s]["color"])))
+				villages.append({"name": players[id]["name"], "color": col if col >= 0 else s % Config.VILLAGE_COLORS.size(), "peer": id, "slot": s})
+	var mine := int(players[1]["village"])
+	setup = {"seed": int(resume.get("seed", 0)), "map_type": str(resume.get("map_type", "temperate")), "villages": villages,
+		"difficulty": difficulty, "local": mine, "host": mine, "resumed": true}
+	if resume.has("map_name"):
+		setup["map_name"] = resume["map_name"]
+	Settings.difficulty = difficulty as Settings.Difficulty
 	get_tree().change_scene_to_file(GAME_SCENE)
 	return true
 

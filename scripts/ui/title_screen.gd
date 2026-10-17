@@ -4,7 +4,8 @@ extends Control
 const EDITOR_SCENE := "res://scenes/map_editor.tscn"
 ## Title screen: a game playing itself behind (TitleBackdrop), game name and a menu in pages:
 ##   main         - Singleplayer, Multiplayer, Tutorial, Library, Map Editor, Exit;
-##   Singleplayer - Play, Difficulty, Map (a type, or a map file: Custom...),
+##   Singleplayer - Continue (the newest single-player save, when there is one),
+##                  Play, Load..., Difficulty, Map (a type, or a map file: Custom...),
 ##                  the village (a map file with several), seed, Back;
 ##   Multiplayer  - village name and colour, host / join, lobby (MultiplayerMenu).
 
@@ -13,6 +14,12 @@ var multiplayer_button: Button
 var exit_button: Button
 var mp_menu: MultiplayerMenu
 var play_button: Button
+## The newest single-player save (docs/save-design.md §4.1), and what it is.
+var continue_button: Button
+var continue_label: Label
+var load_button: Button
+var save_list: SaveList
+var _continue_path := ""
 var tutorial_button: Button
 var difficulty_button: Button
 var map_button: Button
@@ -81,8 +88,17 @@ func _ready() -> void:
 	exit_button = _menu_button(_main_page, "Exit", func() -> void: get_tree().quit(), "icon_exit")
 	exit_button.visible = not OS.has_feature("web")  # browsers can't close the tab
 	_sp_page = _page()
+	continue_button = _menu_button(_sp_page, "Continue", continue_game)
+	UiTheme.style_primary(continue_button)
+	continue_label = Label.new()
+	continue_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	continue_label.add_theme_font_size_override("font_size", 16)
+	continue_label.add_theme_color_override("font_color", UiTheme.MUTED)
+	_sp_page.add_child(continue_label)
 	play_button = _menu_button(_sp_page, "Play", _play)
-	UiTheme.style_primary(play_button)
+	load_button = _menu_button(_sp_page, "Load...", func() -> void:
+		save_list.choose(false, func(path: String) -> void: _start_save(path)))
+	load_button.tooltip_text = "Your saved games (also each game's autosave after every wave)"
 	difficulty_button = _menu_button(_sp_page, "", _cycle_difficulty)
 	map_button = _menu_button(_sp_page, "", _cycle_map)
 	map_button.tooltip_text = "The kind of land: Temperate, Highlands, Coast, Desert, Volcanic or Random; or Custom: a map file"
@@ -114,6 +130,10 @@ func _ready() -> void:
 	picker = MapPicker.new()
 	add_child(picker)
 	mp_menu.picker = picker
+	save_list = SaveList.new()
+	add_child(save_list)
+	save_list.closed.connect(_update_sp_buttons)
+	mp_menu.save_list = save_list
 	get_viewport().size_changed.connect(_layout)
 	# Pages change height (Singleplayer, the multiplayer join page and lobby): fit again.
 	_menu.minimum_size_changed.connect(func() -> void: _layout.call_deferred())
@@ -216,6 +236,16 @@ func _cycle_map() -> void:
 
 
 func _update_sp_buttons() -> void:
+	_continue_path = SaveGame.newest_single()
+	continue_button.visible = _continue_path != ""
+	continue_label.visible = continue_button.visible
+	if continue_button.visible:
+		continue_label.text = SaveGame.summary(SaveGame.read(_continue_path, false)["header"])
+		play_button.remove_theme_stylebox_override("normal")
+		play_button.remove_theme_stylebox_override("hover")
+		play_button.remove_theme_stylebox_override("pressed")
+	else:
+		UiTheme.style_primary(play_button)
 	difficulty_button.text = "Difficulty: %s" % Settings.difficulty_name()
 	var custom := Settings.custom_map
 	map_button.text = "Map: %s" % (MapJson.map_name(custom) if custom else Settings.map_type_name())
@@ -229,6 +259,20 @@ func _play() -> void:
 	get_tree().change_scene_to_file(Net.GAME_SCENE)
 
 
+## The newest single-player save, autosave or manual (never a co-op save).
+func continue_game() -> void:
+	if _continue_path != "":
+		_start_save(_continue_path)
+
+
+func _start_save(path: String) -> void:
+	var err := SaveGame.start(path, get_tree())
+	if err != "":
+		continue_label.visible = true
+		continue_label.text = err
+		continue_label.add_theme_color_override("font_color", UiTheme.BAD)
+
+
 ## The guided tutorial (docs/tutorial-design.md): its own map and village.
 func play_tutorial() -> void:
 	Settings.tutorial_next = true
@@ -239,14 +283,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_pressed() and not event.is_echo():
 		match (event as InputEventKey).keycode:
 			KEY_ENTER, KEY_KP_ENTER:
-				if mp_menu.visible or picker.visible:
+				if mp_menu.visible or picker.visible or save_list.visible:
 					return
 				if in_singleplayer_page():
-					_play()
+					if _continue_path != "":
+						continue_game()
+					else:
+						_play()
 				else:
 					show_page(_sp_page)
 			KEY_ESCAPE:
-				if picker.visible:
+				if picker.visible or save_list.visible:
 					return
 				if mp_menu.visible and Net.is_online():
 					Net.leave()

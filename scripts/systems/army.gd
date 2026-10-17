@@ -507,6 +507,14 @@ func promote_archmage(unit: MilitaryUnit) -> Civilian:
 
 # --- bodies --------------------------------------------------------------------------------
 
+## A loaded game (docs/save-design.md): a unit that was on its way (state
+## and post set already) walks on from `at` to `to`.
+func resume_walk(unit: MilitaryUnit, at: Vector2, to: Vector2i) -> void:
+	var s := _spawn_walker(unit, Vector2i(at.round()))
+	s.set_grid_pos(at)
+	if not s.walk_to(to):
+		_on_arrived(s)  # stranded: count it as there
+
 func _spawn_walker(unit: MilitaryUnit, from: Vector2i) -> Soldier:
 	var s: Soldier = SOLDIER_SCRIPT.new()
 	s.setup(game, unit, from)

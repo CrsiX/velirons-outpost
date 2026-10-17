@@ -204,6 +204,15 @@ const STATS := {
 	"kill_kinds": ["goblin", "skeleton", "ork", "witch", "rat", "thief", "gargoyle", "necromancer"],
 }
 
+## Saving and loading games (docs/save-design.md): where the save files go,
+## how many games keep their autosave (older ones are deleted; manual saves
+## never are), and the longest name a save can have.
+const SAVE := {
+	"dir": "user://saves",
+	"keep_autosaves": 5,
+	"name_max": 30,
+}
+
 ## World generation (docs/world-design.md). The map is cut into one equal-area
 ## slice per player around its centre; each village sits near its slice's
 ## centre. Zones come from height x moisture; ash land only around volcanoes.

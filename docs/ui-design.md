@@ -29,7 +29,10 @@ Big touch targets everywhere, so mouse and fingers work the same.
 - **Main page:** Singleplayer, Multiplayer, Tutorial, Library, Map Editor and Exit, each with its own
   icon at the same size. Exit is hidden in the browser (`OS.has_feature("web")`), since a page can't
   close its tab. **Map Editor** opens `scenes/map_editor.tscn` (docs/map-editor-design.md).
-- **Singleplayer page:** Play (primary style), Difficulty (cycles Normal → Hard → Easy), Map (the map
+- **Singleplayer page:** Continue (only with a single-player save: the newest one, autosave or
+  manual, with a line under it saying what it is, "Wave 7 · Highlands · Normal"; then it is the
+  primary button and Enter's), Play (primary style without a save), Load... (the save list,
+  `SaveList`; docs/save-design.md), Difficulty (cycles Normal → Hard → Easy), Map (the map
   type: Temperate, Highlands, Coast, Desert, Volcanic, Random, then Custom...: a map file from the
   map picker, shown by its name; the next press goes back to Temperate), *Your village: n of m* (a map
   file with several villages), a seed field (empty: random; `Settings.parse_seed`; hidden for a map
@@ -40,8 +43,8 @@ Big touch targets everywhere, so mouse and fingers work the same.
   when a LAN session is still open (coming back from a game).
 - **Tutorial** sets `Settings.tutorial_next` and starts the game scene (docs/tutorial-design.md).
 - **Library** opens the same `Library` control the game uses (§9). There is no game to pause here.
-- **Keys:** Enter opens the Singleplayer page, and on it starts the game (not on the multiplayer
-  pages). Esc goes back to the main page, or leaves the online session from the multiplayer pages.
+- **Keys:** Enter opens the Singleplayer page, and on it continues the newest save (or, without
+  one, starts a new game; not on the multiplayer pages). Esc goes back to the main page, or leaves the online session from the multiplayer pages.
   F11 does nothing here (it only works in the game, §11).
 - **Layout:** in landscape the title is on top and the menu sits on the left over the backdrop. In
   portrait the title is smaller and the menu is centred lower down. The lobby (two panes) is centred
@@ -247,6 +250,11 @@ Big touch targets everywhere, so mouse and fingers work the same.
 - **Settings** (gear): pauses the game (single player, or the co-op host) and greys the game out
   behind the dialog. The grey is a full-size rect that turns everything drawn before it grey.
   - **Continue:** goes back to the speed it had before. Esc does the same.
+  - **Save... / Load...** (docs/save-design.md §4.2): Save opens a page with the save's name
+    (prefilled "<map> · wave N"; a name in use asks first: *Save over it*), only between waves (else
+    "Save... (between waves)", greyed out); Load opens the save list and asks before leaving the
+    game. Neither in the tutorial; a co-op client has neither, the host only Save; a game from the
+    map editor's Play only Save.
   - **Log level:** cycles Info / Important / Debug.
   - **Language:** built (shows the flag) but hidden (`visible = false`): there is no other language yet.
   - **Map type and seed:** shown so the map can be played again; for a map from a file its name and
@@ -272,7 +280,8 @@ Big touch targets everywhere, so mouse and fingers work the same.
   book, or T; docs/statistics-design.md): Summary, Timeline and Awards tabs, built from `Game.stats`.
   - Greyed out before wave 2 (`Config.STATS["from_wave"]`; the tooltip says so, a tap only toasts).
   - The game-over screen stacks *Try again* (or *Try the tutorial again*; networked: *Main menu*),
-    *Main menu* (not networked) and *Statistics* under each other.
+    *Load last save* (single player, when this game has a save), *Main menu* (not networked) and
+    *Statistics* under each other.
   - Pauses like the library and the settings (single player; not networked co-op, not after game
     over), and then shows the game in grayscale behind it (`_stats_gray`). Closing it goes back to
     the earlier speed; paused before, it stays paused.

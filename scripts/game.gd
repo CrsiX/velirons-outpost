@@ -45,6 +45,13 @@ var tutorial: Tutorial = null
 var backdrop: TitleBackdrop = null
 ## A map made beforehand (the backdrop's baked maps): used instead of generating one.
 var preset_map: MapData = null
+## This game's id (docs/save-design.md): kept through saves and loads, it
+## names the game's autosave.
+var game_id := ""
+## While a loaded game is being built: the save's body (SaveGame). Empty otherwise.
+var restoring: Dictionary = {}
+## This game was loaded from a save (or resumed in the lobby).
+var loaded := false
 var _slice_from := 0
 ## How the villages start (Config.START_*; the tutorial's: Config.TUTORIAL).
 var start_resources: Dictionary = Config.START_RESOURCES.duplicate()
@@ -129,14 +136,31 @@ func _ready() -> void:
 	# Co-op over the network: the lobby decided the villages (Net.setup).
 	networked = Net.in_game and Net.is_online() and backdrop == null
 	is_client = networked and Net.is_client()
+	game_id = "%08x%08x" % [randi(), randi()]
+	if backdrop == null and not tutorial_mode and not is_client:
+		restoring = Net.resume_body if networked else Settings.take_pending_save()
+	if not restoring.is_empty():
+		loaded = true
+		var g: Dictionary = restoring["game"]
+		game_id = str(g["game_id"])
+		Settings.difficulty = int(g["difficulty"]) as Settings.Difficulty
+		preset_map = SaveGame.saved_map(restoring)
+		map_type = preset_map.map_type
+		map_seed = preset_map.seed_value
+		s = map_seed
 	var names: Array = []
 	var colors: Array = []
-	if networked:
+	if not restoring.is_empty() and not networked:
+		for sv: Dictionary in restoring["villages"]:
+			names.append(sv["name"])
+			colors.append(Color(str(sv["color"])))
+	elif networked:
 		for pv in Net.setup["villages"]:
 			names.append(pv["name"])
 			colors.append(Config.VILLAGE_COLORS[int(pv["color"])])
-		s = int(Net.setup.get("seed", s))
-		map_type = str(Net.setup.get("map_type", map_type))
+		if restoring.is_empty():
+			s = int(Net.setup.get("seed", s))
+			map_type = str(Net.setup.get("map_type", map_type))
 	else:
 		for i in clampi(test_villages, 1, Config.MAX_PLAYERS):
 			names.append(Config.VILLAGE_NAMES[i])
@@ -157,6 +181,8 @@ func _ready() -> void:
 	if backdrop:
 		hud.visible = false
 	await world.setup(self, s)
+	if not restoring.is_empty():
+		SaveGame.restore_world(self, restoring)
 	# What world.setup explored for this village (co-op client: not village 0)
 	# becomes the drawn fog, and the trees and objects follow it.
 	fog.set_local(player_village.id)
@@ -169,10 +195,22 @@ func _ready() -> void:
 	for village in villages:
 		if is_client:
 			village.setup_client()
+			continue
+		if loaded:
+			village.setup_restored()
 		else:
 			village.setup()
-			village.population.civilian_lost.connect(func(_c: Civilian) -> void: _check_defeat())
-	stats.start()
+		village.population.civilian_lost.connect(func(_c: Civilian) -> void: _check_defeat())
+	if loaded:
+		SaveGame.restore_entities(self, restoring)
+		stats.load_state(restoring["stats"])
+		_log_loaded(restoring["villages"], waves.wave)
+		restoring = {}
+	elif is_client and bool(Net.setup.get("resumed", false)) and not Net.resume.is_empty():  # (not when rejoining later)
+		_log_loaded(Net.resume.get("villages", []), int(Net.resume.get("wave", 0)))
+	else:
+		stats.start()
+	waves.wave_finished.connect(func(_n: int) -> void: _autosave.call_deferred())
 	await build_step()
 	await hud.setup(self)
 	if networked:
@@ -837,7 +875,7 @@ func id_of(o) -> int:
 
 ## The village that controls the game speed (the host; single player: the only one).
 func host_village() -> Village:
-	return villages[0]
+	return villages[clampi(int(Net.setup.get("host", 0)), 0, villages.size() - 1)] if networked else villages[0]
 
 
 ## Sets game speed SPEEDS[i] (0 = paused). Use the "set_speed" command.
@@ -978,3 +1016,66 @@ func restart(again_tutorial := false) -> void:
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	get_tree().reload_current_scene()
+
+
+# --- saving and loading (docs/save-design.md) ----------------------------------------------
+
+## A loaded game says so in the log; a resumed co-op village that has a new
+## player says that too (it takes the player's name and keeps its colour).
+## (A co-op client says it too, from the save's header.)
+func _log_loaded(saved: Array, wave: int) -> void:
+	for v in villages:
+		var old := str(saved[v.id]["name"]) if v.id < saved.size() else v.village_name
+		if old != v.village_name:
+			log_all(EventLog.Level.INFO, "Village %s is now played as %s" % [old, v.village_name])
+	log_all(EventLog.Level.INFO, "Game loaded: wave %d" % wave)
+
+
+## "" if the game can be saved now, else why not: only between waves, never
+## in the tutorial, the title backdrop or on a co-op client.
+func save_error() -> String:
+	if backdrop != null or tutorial_mode or is_client:
+		return "This game can't be saved"
+	if game_over:
+		return "The game is over"
+	if waves.in_progress():
+		return "You can save between waves"
+	return ""
+
+
+## Saves the game under `save_name` (Save... in the settings); "" or why not.
+func save_named(save_name: String) -> String:
+	var err := save_error()
+	if err == "":
+		err = SaveGame.save_named(self, save_name)
+	if err == "":
+		events.debug("game saved as '%s'" % save_name)
+		_tell_clients_saved()
+	return err
+
+
+## After each wave (on the next frame: the wave's last enemy is still going):
+## the game's autosave. Not in the map editor's test game.
+func _autosave() -> void:
+	if save_error() != "" or Settings.editor_play or not is_inside_tree():
+		return
+	var err := SaveGame.autosave(self)
+	if err != "":
+		hud.toast("Couldn't autosave: %s" % err, UiTheme.BAD)
+		return
+	hud.toast("Autosaved", UiTheme.MUTED)
+	_tell_clients_saved()
+
+
+func _tell_clients_saved() -> void:
+	if networked:
+		for v in villages:
+			if v != player_village:
+				v.toast("The host saved the game", UiTheme.MUTED)
+
+
+## Leaves this game and loads the save at `path` (single player); "" or why not.
+func load_save(path: String) -> String:
+	if networked:
+		return "A co-op game is resumed from the lobby"
+	return SaveGame.start(path, get_tree())

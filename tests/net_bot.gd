@@ -8,6 +8,9 @@ extends Node
 ## the lobby, gets ready; the host starts; then both check the replicated game.
 ## With `--custom` the host picks a map file instead (three villages; the
 ## client gets village 3, village 2 stands empty: docs/map-editor-design.md §8).
+## With `--resume` the host resumes a saved co-op game of two villages
+## (docs/save-design.md §6): exactly two players, who swap villages; each
+## plays its village under their own name in the saved colour.
 
 const HOST_NAME := "Hostwatch"
 const CLIENT_NAME := "Clientvale"
@@ -18,6 +21,8 @@ const MAP_SEED := 4240
 
 var role := ""
 var custom := false
+var resume := false
+const SAVE_DIR := "user://net_bot_saves"
 var failures: Array[String] = []
 var checks := 0
 
@@ -28,6 +33,8 @@ func _ready() -> void:
 			role = a.trim_prefix("--role=")
 		if a == "--custom":
 			custom = true
+		if a == "--resume":
+			resume = true
 	# Survive the switch into the level: another node becomes the "current scene".
 	var stand_in := Node.new()
 	stand_in.name = "StandIn"
@@ -35,7 +42,11 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	get_tree().current_scene = stand_in
-	if role == "host" and custom:
+	if role == "host" and resume:
+		await _host_resume()
+	elif role == "client" and resume:
+		await _client_resume()
+	elif role == "host" and custom:
 		await _host_custom()
 	elif role == "host":
 		await _host()
@@ -220,6 +231,100 @@ func _client_custom() -> void:
 	var huts := game.world.buildings.filter(func(b: Building) -> bool: return b.has_meta("abandoned") and b is Hut)
 	check(huts.size() == 9 and huts.all(func(h: Hut) -> bool: return h.village == null and not h.is_intact()), "every hut of it a ruin")
 	check(game.building_info(huts[0])["actions"].is_empty(), "and no actions on them")
+
+
+# --- resuming a saved co-op game ---------------------------------------------------------------
+
+## A game of two villages made here (no network) and saved: village 1 has an
+## extra watchtower, village 2 a farm more. Returns the save's path.
+func _make_save() -> String:
+	SaveGame.dir_override = SAVE_DIR
+	var game: Game = load("res://scenes/main.tscn").instantiate()
+	game.map_seed = 5
+	game.test_villages = 2
+	get_tree().root.add_child(game)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for v in game.villages:
+		v.economy.add("materials", 500)
+		var kind := "tower" if v.id == 0 else "farm"
+		for r in range(4, 12):
+			var t := v.center + Vector2i(r, r % 3)
+			if v.construction.placement_error(kind, t) == "":
+				v.construction.complete(v.construction.place(kind, t))
+				break
+	var h := SaveGame.header(game, "Net bot co-op", false)
+	var path := SaveGame.path_for("Net bot co-op")
+	var err := SaveGame.write(path, h, SaveGame.capture(game))
+	check(err == "" and h["coop"], "a co-op game of two villages is saved (%s)" % err)
+	game.queue_free()
+	await get_tree().process_frame
+	return path
+
+
+func _host_resume() -> void:
+	var path := await _make_save()
+	var saved: Array = SaveGame.read(path, false)["header"]["villages"]
+	check(Net.host(HOST_NAME, 0) == "" and Net.is_host(), "resume: hosting a lobby")
+	check(Net.set_resume(path) == "" and Net.resume_villages() == 2 and Net.max_players() == 2, "the host picks the save: two villages, two players at most")
+	check(not Net.can_start(), "alone it can't start: the save needs two players")
+	var joined := await wait_until(func() -> bool: return _client_id() > 0)
+	check(joined, "a client joins")
+	if not joined:
+		return
+	var cid := _client_id()
+	check(int(Net.players[1]["slot"]) == 0 and int(Net.players[cid]["slot"]) == 1, "the players get the saved villages in join order")
+	check(Net.join_decision(Net.PROTOCOL, "Thirdhold") == "The game is full", "a third player is turned away")
+	Net.set_slot(cid, 0)
+	check(int(Net.players[cid]["slot"]) == 0 and int(Net.players[1]["slot"]) == 1, "the host gives the client village 1: they swap")
+	var ready := await wait_until(func() -> bool: return Net.players.has(cid) and Net.players[cid]["ready"])
+	check(ready and Net.can_start() and Net.start_game(), "it gets ready; the host starts")
+	var loaded := await wait_until(func() -> bool: return Net.game != null and Net.players[cid]["loaded"])
+	check(loaded, "the client loaded the level")
+	if not loaded:
+		return
+	var game := Net.game
+	var mine := game.player_village
+	check(game.loaded and mine.id == 1 and game.host_village() == mine and game.is_host_player(), "the host plays saved village 2 and runs the game")
+	check(mine.village_name == HOST_NAME and game.villages[0].village_name == CLIENT_NAME, "each village takes its new player's name")
+	check(mine.color == Color(str(saved[1]["color"])) and game.villages[0].color == Color(str(saved[0]["color"])), "and keeps its saved colour")
+	check(mine.buildings().any(func(b: Building) -> bool: return b is Farm and b.complete) and game.villages[0].buildings().filter(func(b: Building) -> bool: return b.kind == "tower").size() == 1,
+		"the saved buildings stand in their villages")
+	var lines: Array = mine.events.entries.map(func(e: Dictionary) -> String: return str(e["text"]))
+	check(lines.has("Village %s is now played as %s" % [saved[1]["name"], HOST_NAME]), "the log says who plays which village now")
+	check(game.camera.position.distance_to(Iso.tile_to_world(mine.center)) < 1.0, "the host's view starts on its village")
+	await seconds(4.0)
+	SaveGame.delete(path)
+	SaveGame.dir_override = ""
+
+
+func _client_resume() -> void:
+	check(Net.discovery.start_listening() == "", "resume: listening")
+	var found := await wait_until(func() -> bool: return Net.discovery.games().any(func(g: Dictionary) -> bool: return g["name"] == HOST_NAME and g["max"] == 2), 60.0)
+	check(found, "the host's game shows up, for two players")
+	if not found:
+		return
+	var g: Dictionary = Net.discovery.games().filter(func(x: Dictionary) -> bool: return x["name"] == HOST_NAME)[0]
+	check(Net.join("%s:%d" % [g["address"], g["port"]], CLIENT_NAME, 0) == "", "joining it")
+	var got := await wait_until(func() -> bool: return not Net.resume.is_empty() and Net.resume_map != null and Net.players.size() == 2)
+	check(got and Net.resume_villages() == 2 and str(Net.resume.get("name", "")) == "Net bot co-op", "the lobby shows us the saved game")
+	var saved: Array = Net.resume.get("villages", [])
+	var me := Net.my_id()
+	var mine_slot := await wait_until(func() -> bool: return int(Net.players[me].get("slot", -1)) == 0, 20.0)
+	check(mine_slot, "the host gives us the save's village 1")
+	Net.set_ready(true)
+	var started := await wait_until(func() -> bool: return Net.game != null and Net.game.is_client)
+	check(started, "the host starts")
+	if not started:
+		return
+	var game := Net.game
+	var mine := game.player_village
+	check(mine.id == 0 and mine.village_name == CLIENT_NAME and mine.color == Color(str(saved[0]["color"])), "we play village 1 under our name, in its saved colour")
+	var tower := await wait_until(func() -> bool: return mine.buildings().filter(func(b: Building) -> bool: return b.kind == "tower").size() == 1, 30.0)
+	check(tower, "with its saved watchtower")
+	var lines: Array = mine.events.entries.map(func(e: Dictionary) -> String: return str(e["text"]))
+	check(lines.has("Village %s is now played as %s" % [saved[0]["name"], CLIENT_NAME]), "the log says who plays which village now")
+	check(game.camera.position.distance_to(Iso.tile_to_world(mine.center)) < 1.0, "our view starts on our village")
 
 
 # --- client --------------------------------------------------------------------------------

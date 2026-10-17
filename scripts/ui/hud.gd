@@ -112,6 +112,17 @@ var _settings_title_button: Button
 var _settings_panel: Control
 ## Debug builds (OS.is_debug_build): the Debug page (instead of the settings) and its enemy list.
 var _debug_panel: Control
+## Saving and loading (docs/save-design.md §4.2): the settings' Save... and
+## Load..., the save-name page, the save list, and the defeat screen's Load last save.
+var _settings_save_button: Button
+var _settings_load_button: Button
+var _save_panel: Control
+var _save_edit: LineEdit
+var _save_hint: Label
+var _save_ok: Button
+var _save_overwrite := false
+var save_list: SaveList
+var _overlay_load_button: Button
 var _debug_main: Control
 var _debug_enemies: Control
 var _speed_before := 0
@@ -740,6 +751,7 @@ func _register_popups() -> void:
 	register_popup(_upgrade_panel, func() -> void: _upgrade_panel.visible = false)
 	register_popup(_confirm_panel, func() -> void: _confirm_panel.visible = false)
 	register_popup(_settings, close_settings)
+	register_popup(_save_panel, func() -> void: _show_save(false))
 	if _debug_panel:
 		register_popup(_debug_panel, func() -> void: _show_debug(false))
 
@@ -2510,6 +2522,18 @@ func _build_settings() -> void:
 	UiTheme.style_good(_settings_continue)
 	_settings_continue.pressed.connect(close_settings)
 	v.add_child(_settings_continue)
+	_settings_save_button = _button("Save...", Vector2(0, 52))
+	_settings_save_button.pressed.connect(func() -> void: _show_save(true))
+	v.add_child(_settings_save_button)
+	_settings_load_button = _button("Load...", Vector2(0, 52))
+	_settings_load_button.tooltip_text = "Your saved games (also each game's autosave after every wave)"
+	_settings_load_button.pressed.connect(func() -> void:
+		save_list.choose(false, func(path: String) -> void:
+			var err := game.load_save(path)
+			if err != "":
+				toast(err, UiTheme.BAD),
+		Callable(), "Load a game", "Load", "Leave this game? Progress since the last save is lost."))
+	v.add_child(_settings_load_button)
 	_settings_log_button = _button("", Vector2(0, 56))
 	_settings_log_button.tooltip_text = "Which game events the log shows"
 	_settings_log_button.pressed.connect(func() -> void:
@@ -2548,7 +2572,82 @@ func _build_settings() -> void:
 	UiTheme.style_danger(_settings_title_button)
 	_settings_title_button.pressed.connect(func() -> void: game.go_to_title())
 	v.add_child(_settings_title_button)
+	_build_save_page(center)
+	save_list = SaveList.new()
+	_root.add_child(save_list)
 	_settings.visible = false
+
+
+## Save...: a name (prefilled "<map> · wave N"), and Save; a name in use asks first.
+func _build_save_page(center: Control) -> void:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UiTheme.box(Color("2a1a14"), UiTheme.GOLD, 4, 14, 22))
+	panel.visible = false
+	center.add_child(panel)
+	_save_panel = panel
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	v.custom_minimum_size = Vector2(380, 0)
+	panel.add_child(v)
+	var title := _label("Save the game", 30, UiTheme.GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title)
+	_save_edit = LineEdit.new()
+	_save_edit.max_length = int(Config.SAVE["name_max"])
+	_save_edit.custom_minimum_size = Vector2(0, 48)
+	_save_edit.add_theme_font_size_override("font_size", 20)
+	_save_edit.text_changed.connect(func(_t: String) -> void:
+		_save_overwrite = false
+		_refresh_save_page())
+	_save_edit.text_submitted.connect(func(_t: String) -> void: _save_now())
+	v.add_child(_save_edit)
+	_save_hint = _label("", 16, UiTheme.MUTED)
+	_save_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_save_hint.custom_minimum_size = Vector2(380, 0)
+	v.add_child(_save_hint)
+	_save_ok = _button("Save", Vector2(0, 56))
+	UiTheme.style_good(_save_ok)
+	_save_ok.pressed.connect(_save_now)
+	v.add_child(_save_ok)
+	var back := _button("Back", Vector2(0, 52))
+	back.pressed.connect(func() -> void: _show_save(false))
+	v.add_child(back)
+
+
+func _show_save(on: bool) -> void:
+	_save_panel.visible = on
+	_settings_panel.visible = not on
+	if on:
+		var map_text := MapJson.map_name(game.map) if not game.map.meta.is_empty() else Settings.map_type_name(game.map.map_type)
+		_save_edit.text = ("%s · %s" % [map_text, SaveGame.wave_text(game.waves.wave).to_lower()]).left(int(Config.SAVE["name_max"]))
+		_save_overwrite = false
+		_refresh_save_page()
+
+
+func _refresh_save_page() -> void:
+	var exists := SaveGame.exists(_save_edit.text)
+	_save_ok.text = "Save over it" if _save_overwrite else "Save"
+	_save_hint.text = "A save named \"%s\" exists already. Save over it?" % _save_edit.text.strip_edges() if _save_overwrite else (
+		"Saves only between waves. Every game also saves itself after each wave." if not exists else "A save with this name exists already.")
+	_save_hint.add_theme_color_override("font_color", UiTheme.BAD if _save_overwrite else UiTheme.MUTED)
+	_save_ok.disabled = _save_edit.text.strip_edges() == ""
+
+
+func _save_now() -> void:
+	var n := _save_edit.text.strip_edges()
+	if n == "":
+		return
+	if SaveGame.exists(n) and not _save_overwrite:
+		_save_overwrite = true
+		_refresh_save_page()
+		return
+	var err := game.save_named(n)
+	if err != "":
+		_save_hint.text = "Couldn't save: %s" % err
+		_save_hint.add_theme_color_override("font_color", UiTheme.BAD)
+		return
+	_show_save(false)
+	toast("Game saved", UiTheme.GOOD)
 
 
 ## The Debug page (debug builds only, OS.is_debug_build): cheats as commands (Commands._debug), so
@@ -2656,6 +2755,7 @@ func close_settings() -> void:
 		return
 	_settings.visible = false
 	_show_debug(false)
+	_show_save(false)
 	game.events.debug("close settings")
 	if game.is_host_player():
 		set_speed_index(_speed_before)
@@ -2729,6 +2829,13 @@ func _refresh_settings() -> void:
 	else:
 		_settings_map_label.text = "Map: %s  ·  seed %d" % [Settings.map_type_name(game.map.map_type), game.map.seed_value]
 	_settings_editor_button.visible = Settings.editor_play and not game.networked
+	var savable := game.backdrop == null and not game.tutorial_mode and not game.is_client
+	_settings_save_button.visible = savable
+	var why := game.save_error()
+	_settings_save_button.disabled = why != ""
+	_settings_save_button.tooltip_text = why if why != "" else "Save the game on this device"
+	_settings_save_button.text = "Save... (between waves)" if why == "You can save between waves" else "Save..."
+	_settings_load_button.visible = savable and not game.networked and not Settings.editor_play
 	_settings_lang_button.icon = Art.tex(Settings.language_flag())
 	_settings_lang_button.tooltip_text = "Language: %s" % Settings.language_name()
 
@@ -2799,6 +2906,14 @@ func _build_overlay() -> void:
 	_overlay_button.add_theme_font_size_override("font_size", 24)
 	UiTheme.style_primary(_overlay_button)
 	v.add_child(_overlay_button)
+	_overlay_load_button = _button("Load last save", Vector2(0, 56))
+	_overlay_load_button.tooltip_text = "Go on from this game's newest save"
+	_overlay_load_button.pressed.connect(func() -> void:
+		var err := game.load_save(SaveGame.newest_of(game.game_id))
+		if err != "":
+			toast(err, UiTheme.BAD))
+	_overlay_load_button.visible = false
+	v.add_child(_overlay_load_button)
 	_overlay_menu_button = _button("Main menu", Vector2(0, 56))
 	_overlay_menu_button.pressed.connect(func() -> void: game.go_to_title())
 	v.add_child(_overlay_menu_button)
@@ -2854,6 +2969,7 @@ func show_session_ended(reason: String) -> void:
 	_overlay_sub.text = "The game can't go on without the host."
 	_overlay_button.text = "Main menu"
 	_overlay_menu_button.visible = false  # (the main button already goes there)
+	_overlay_load_button.visible = false
 	_overlay.visible = true
 	_info_panel.visible = false
 	_paused_banner_off()
@@ -2868,6 +2984,7 @@ func show_game_over(title: String, subtitle: String) -> void:
 	var again_tutorial := game.tutorial != null and game.tutorial.active
 	_overlay_button.text = "Main menu" if game.networked else ("Try the tutorial again" if again_tutorial else "Try again")
 	_overlay_menu_button.visible = not game.networked  # (networked: the main button is the way out)
+	_overlay_load_button.visible = not game.networked and not game.tutorial_mode and game.backdrop == null and SaveGame.newest_of(game.game_id) != ""
 	_stats_overlay_button.visible = game.backdrop == null
 	_overlay.visible = true
 	_refresh_stats_button()
