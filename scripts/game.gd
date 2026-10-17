@@ -482,7 +482,7 @@ func unit_info(unit: MilitaryUnit) -> Dictionary:
 	if not (unit.post is Tower):
 		lines.append("{hp} %d / %d" % [ceili(unit.hp), ceili(unit.max_hp())])
 	lines.append_array(unit.behavior.info_lines(unit))
-	lines.append("Drag it onto another tower or barracks to move it there, or onto the %s to withdraw it." % ("panel below" if Layout.portrait else "sidebar"))
+	lines.append("Drag it onto another tower or barracks to move it there, onto another unit to swap places, or onto the %s to withdraw it." % ("panel below" if Layout.portrait else "sidebar"))
 	var actions: Array[Dictionary] = []
 	if not unit.upgrade_options().is_empty():
 		actions.append({"label": "Upgrade...", "action": func() -> void: hud.open_upgrade(unit)})
@@ -543,13 +543,21 @@ func _end_unit_drag() -> void:
 
 
 ## Moves the dragged unit if it was dropped on a free post (or the dock, to
-## withdraw it). Anywhere else nothing happens.
+## withdraw it), or swaps it with the unit it was dropped on. Anywhere else
+## nothing happens.
 func _drop_stationed(unit: MilitaryUnit, screen_pos: Vector2) -> void:
 	var from: MilitaryPost = _udrag["from"]
 	if hud.is_over_dock(screen_pos):
 		events.debug("drag %s from %s to the reserve (withdraw)" % [unit.label(), from.label()])
 		command("withdraw_unit", {"unit": unit.nid})
 		deselect()
+		return
+	var partner := swap_partner(unit, screen_pos)
+	if partner != null:
+		events.debug("drag %s from %s onto %s on %s (swap)" % [unit.label(), from.label(), partner.label(), partner.post.label()])
+		command("swap_units", {"unit": unit.nid, "other": partner.nid})
+		deselect()
+		hud.toast("The %s and the %s swap places" % [unit.display_name().to_lower(), partner.display_name().to_lower()], Color("c9a24a"))
 		return
 	var target := drop_target(unit, screen_pos)
 	if target != null:
@@ -576,22 +584,60 @@ func _drop_error(unit: MilitaryUnit, p: MilitaryPost) -> String:
 	return army.transfer_error(unit, p) if unit.state == MilitaryUnit.State.STATIONED else army.station_error(unit, p)
 
 
-## While dragging `unit`: mark every post it could go to, the one under the
-## pointer, and (for a stationed unit) an arrow from its post to the pointer.
+## The stationed unit that the stationed `unit`, dropped at `screen_pos`,
+## would swap posts with, or null: the one whose figure is under the pointer;
+## else, on a post under the pointer with no free slot for `unit`, the one
+## there whose figure is nearest the pointer.
+func swap_partner(unit: MilitaryUnit, screen_pos: Vector2) -> MilitaryUnit:
+	if unit.state != MilitaryUnit.State.STATIONED or hud.is_over_ui(screen_pos):
+		return null
+	var wp := camera.screen_to_world(screen_pos)
+	var b := world.pick_unit(wp)
+	if b != null and b != unit and army.swap_error(unit, b) == "":
+		return b
+	var p := world.pick_building(wp) as MilitaryPost
+	if p == null or p == unit.post or drop_target(unit, screen_pos) != null:
+		return null
+	var best: MilitaryUnit = null
+	var best_d := INF
+	for o in p.units():
+		var r := p.unit_rect(o)
+		if r.has_area() and army.swap_error(unit, o) == "":
+			var d := (p.position + r.get_center()).distance_to(wp)
+			if d < best_d:
+				best = o
+				best_d = d
+	return best
+
+
+## Where a stationed unit's figure is, in world coordinates.
+func _figure_pos(unit: MilitaryUnit) -> Vector2:
+	var r := unit.post.unit_rect(unit)
+	return unit.post.position + (r.get_center() if r.has_area() else Vector2(0, -40))
+
+
+## While dragging `unit`: mark every post it could go to (or swap with a unit
+## on), the one under the pointer, and (for a stationed unit) an arrow from
+## its post to the pointer, or two curved arrows back and forth when dropping
+## it would swap it with the unit there.
 func preview_drag(unit: MilitaryUnit, screen_pos: Vector2) -> void:
+	var stationed := unit.state == MilitaryUnit.State.STATIONED
 	var targets: Array[Vector2i] = []
 	for p in world.military_posts():
-		if _drop_error(unit, p) == "":
+		if _drop_error(unit, p) == "" or (stationed and p.units().any(func(o: MilitaryUnit) -> bool: return army.swap_error(unit, o) == "")):
 			targets.append_array(p.tiles())
 	var hover: Array[Vector2i] = []
-	var t := drop_target(unit, screen_pos)
-	if t:
+	var partner := swap_partner(unit, screen_pos)
+	var t := drop_target(unit, screen_pos) if partner == null else null
+	if partner:
+		hover = partner.post.tiles()
+	elif t:
 		hover = t.tiles()
-	var stationed := unit.state == MilitaryUnit.State.STATIONED
-	var from := unit.post.position + Vector2(0, -40) if stationed else Vector2.ZERO
-	world.overlay.show_drag(targets, hover, from, camera.screen_to_world(screen_pos), stationed)
+	var from := _figure_pos(unit) if stationed else Vector2.ZERO
+	var to := _figure_pos(partner) if partner else camera.screen_to_world(screen_pos)
+	world.overlay.show_drag(targets, hover, from, to, stationed, partner != null)
 	var tex := Art.tex("unit_" + unit.kind)
-	var state := "move" if t else ("withdraw" if stationed and hud.is_over_dock(screen_pos) else "none")
+	var state := "swap" if partner else ("move" if t else ("withdraw" if stationed and hud.is_over_dock(screen_pos) else "none"))
 	hud.show_drag_feedback(tex, screen_pos, state)
 
 

@@ -165,9 +165,20 @@ Big touch targets everywhere, so mouse and fingers work the same.
   with Upgrade and Withdraw). The camera's `press_filter` (`Game._claim_press`) gives such a press to
   the unit, so the map doesn't pan.
 - **Dragging a unit off its post:** past the drag threshold, the figure on the old post is ghosted.
-  A copy follows the pointer, 30 px above it. Every free post the unit could go to lights up, the one
-  under the pointer turns green, and a dashed arrow runs from the old post.
+  A copy follows the pointer, 30 px above it. Every free post the unit could go to (or swap with a
+  unit on) lights up, the one under the pointer turns green, and a dashed arrow runs from the old post.
   - **Dropped on a free post:** the unit walks straight over (`move_unit`).
+  - **Dropped on another unit:** the two swap posts (`swap_units`, `Army.swap`), if each fits the
+    other's post (an archer on a tower and an acolyte in barracks can; a shield bearer in barracks
+    and a healing mage on a tower can't), they are on different posts, neither is out on a sortie
+    (its figure isn't on the bench then, so it can't be grabbed or dropped on either) and a path
+    joins them. Each
+    walks over and takes the other's slot. The partner (`Game.swap_partner`) is the unit whose figure
+    is under the pointer; on a post with no free slot for the dragged unit, the pointer anywhere on
+    it picks the nearest figure there. While a drop would swap, the single arrow becomes two curved
+    arrows between the two figures, one each way, bowed apart like a recycling sign
+    (`WorldOverlay._curved_arrow`). Both kinds of arrow are drawn over the buildings, with a dark
+    rim so they read on stone.
   - **Dropped on the dock:** it is withdrawn. While the drag is over the dock, the dock turns green
     and a hint says so.
   - **Dropped anywhere else:** nothing happens.

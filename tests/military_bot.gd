@@ -236,6 +236,24 @@ func _test_barracks() -> void:
 	check(killed, "they kill it (hp %.0f, sb %s at %s, ar %s, foe at %s)" % [foe.hp, sb.state_text(), sb.walker.grid_pos if is_instance_valid(sb.walker) else Vector2.ZERO, ar.state_text(), foe.grid_pos])
 	var back := await wait_until(func() -> bool: return not sb.out and not ar.out, 60.0)
 	check(back and sb.state == MilitaryUnit.State.STATIONED and barracks._bench_sprites[0].visible, "no enemy left: they walk back to their benches")
+	# Swapping posts (one unit dragged onto another): only when each fits the other's post.
+	var tw_ar: MilitaryUnit = tower.garrison
+	if tw_ar == null:
+		tw_ar = game.army.recruit("archer")
+		game.army.station(tw_ar, tower)
+		await wait_until(func() -> bool: return tower.garrison == tw_ar, 60.0)
+	check(game.army.swap_error(sb, tw_ar) == "A shield bearer can't serve on towers", "a shield bearer in barracks and an archer on a tower can't swap")
+	check(game.army.swap_error(ar, sb) == "They're on the same post" and not game.command("swap_units", {"unit": sb.nid, "other": tw_ar.nid})["ok"], "nor can two units on the same post, and the command refuses what doesn't fit")
+	ar.out = true
+	check(game.army.swap_error(tw_ar, ar) == "It's out fighting: wait until it's back on its bench", "a unit out on a sortie can't swap")
+	ar.out = false
+	check(game.command("swap_units", {"unit": tw_ar.nid, "other": ar.nid})["ok"], "an archer on a tower and one in the barracks swap posts")
+	check(tw_ar.state == MilitaryUnit.State.MARCHING and ar.state == MilitaryUnit.State.MARCHING and tower.garrison == null and barracks.slots[1] == null, "both leave their posts at once")
+	check(tower.incoming == ar and barracks.incoming_slots[1] == tw_ar and tw_ar.slot == 1 and ar.slot == 0, "each heads for the other's slot")
+	var swapped := await wait_until(func() -> bool: return tower.garrison == ar and barracks.slots[1] == tw_ar, 60.0)
+	check(swapped and ar.state == MilitaryUnit.State.STATIONED and tw_ar.state == MilitaryUnit.State.STATIONED and barracks.slots[0] == sb, "they take up each other's posts")
+	check(game.army.swap(ar, tw_ar), "and swap back")
+	await wait_until(func() -> bool: return tower.garrison == tw_ar and barracks.slots[1] == ar, 60.0)
 	# Out of range: nobody moves.
 	var distant := spawn_dummy("goblin", c + Vector2(out_dir) * (barracks.activation_range() + Config.SORTIE_LEASH + 3.0), 1.0)
 	await wait(2.0)

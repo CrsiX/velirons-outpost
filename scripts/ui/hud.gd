@@ -2740,13 +2740,14 @@ func is_over_dock(screen_pos: Vector2) -> bool:
 
 
 ## The unit's image under the pointer while it is dragged. `state`: "move" (over
-## a free post), "withdraw" (over the dock), "none" (nothing would happen here).
+## a free post), "swap" (over a unit it would swap posts with), "withdraw" (over
+## the dock), "none" (nothing would happen here).
 func show_drag_feedback(tex: Texture2D, screen_pos: Vector2, state: String) -> void:
 	_drag_ghost.texture = tex
 	_drag_ghost.visible = true
 	_drag_ghost.position = to_ui(screen_pos) - _drag_ghost.size / 2.0 - Vector2(0, 30)
 	match state:
-		"move":
+		"move", "swap":
 			_drag_ghost.modulate = Color(0.75, 1.25, 0.75, 0.95)
 		"withdraw":
 			_drag_ghost.modulate = Color(1, 1, 1, 0.95)

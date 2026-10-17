@@ -2,7 +2,9 @@ extends Node
 ## Screenshots of the UI on a real display, for looking at the layout (headless
 ## runs can't render): the title screen, the map editor (both views, layers,
 ## tools, inspector, dialogs, the picker, portrait), the co-op lobby with a map
-## file, and a game on a map with an abandoned village.
+## file, a game on a map with an abandoned village, and (`--only=swap`)
+## dragging stationed units onto each other to swap them (mouse in landscape,
+## real touch events in portrait).
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -77,6 +79,8 @@ func _run() -> void:
 		await _lobby()
 	if only in ["", "game"]:
 		await _game()
+	if only in ["", "swap"]:
+		await _swap()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -290,3 +294,187 @@ func _game() -> void:
 	Settings.custom_map = null
 	g.queue_free()
 	await _frames(3)
+
+
+# --- swapping stationed units --------------------------------------------------------
+
+var _sg: Game
+
+
+func _swap() -> void:
+	_sg = load("res://scenes/main.tscn").instantiate()
+	_sg.map_seed = 4242
+	add_child(_sg)
+	await _frames(30)
+	for k in Config.LOCKED:
+		_sg.unlocks[k] = true
+	_sg.fog.reveal_all()
+	_sg.waves.countdown = 99999.0
+	_sg.waves.hold = true
+	var v := _sg.player_village
+	var towers: Array = _sg.world.buildings.filter(func(b: Building) -> bool: return b is Tower and b.complete and b.village == v)
+	towers.sort_custom(func(a: Tower, b: Tower) -> bool: return a.tile.y < b.tile.y or (a.tile.y == b.tile.y and a.tile.x < b.tile.x))
+	var t1: Tower = towers[0]  # the two top wall towers
+	var t2: Tower = towers[1]
+	var t3: Tower = towers[2]
+	_sg.economy.add("gold", 5000)
+	_sg.economy.add("materials", 2000)
+	var gate: Vector2i = v.gates.filter(func(g: Vector2i) -> bool: return g.y < v.center.y)[0]
+	var bar := _sg.construction.place("barracks", _free_spot("barracks", gate + Vector2i(0, -4)))
+	bar.progress = 1.0
+	bar.finish()
+	var mage := _sg.army.recruit("apprentice")
+	_sg.army.upgrade(mage)
+	_sg.army.upgrade(mage)
+	_sg.army.upgrade(mage, "healing_mage")
+	var a1 := _sg.army.recruit("archer")
+	var a2 := _sg.army.recruit("archer")
+	var aco := _sg.army.recruit("acolyte")
+	var sb := _sg.army.recruit("shield_bearer")
+	_sg.army.station(a1, t1)
+	_sg.army.station(a2, t2)
+	_sg.army.station(mage, t3)
+	_sg.army.station(aco, bar)
+	Engine.time_scale = 8.0
+	for i in 600:
+		await get_tree().process_frame
+		if t1.garrison and t2.garrison and t3.garrison and bar.slots[0] != null:
+			break
+	Engine.time_scale = 1.0
+	_sg.camera.focus((t1.position + t2.position + bar.position) / 3.0)
+	_sg.camera.zoom = Vector2(0.9, 0.9)
+	await _frames(10)
+	await shot("swap_start")
+	# Archer onto archer (tower to tower): two curved arrows.
+	await _mdrag(_fig(a1), _fig(a2))
+	await shot("swap_tower_tower")
+	_mouse(_fig(a2), false)
+	await _frames(3)
+	Engine.time_scale = 8.0
+	for i in 600:
+		await get_tree().process_frame
+		if t1.garrison == a2 and t2.garrison == a1:
+			break
+	Engine.time_scale = 1.0
+	await _frames(5)
+	# Archer onto the acolyte in the (full) barracks, pointer on the yard, not the figure.
+	await _mdrag(_fig(a2), _win(_sg.camera.world_to_screen(bar.position)))
+	await shot("swap_tower_barracks")
+	_mouse(_win(_sg.camera.world_to_screen(bar.position)), false)
+	await _frames(3)
+	Engine.time_scale = 8.0
+	for i in 600:
+		await get_tree().process_frame
+		if t1.garrison == aco and bar.slots[0] == a2:
+			break
+	Engine.time_scale = 1.0
+	print("after: t1 %s t2 %s bar %s" % [t1.garrison.label() if t1.garrison else "-", t2.garrison.label() if t2.garrison else "-", bar.slots[0].label() if bar.slots[0] else "-"])
+	await _frames(5)
+	await shot("swap_done")
+	# Shield bearer in barracks onto the healing mage on a tower: no swap.
+	_sg.army.unstation(bar.slots[0])
+	for i in 600:
+		await get_tree().process_frame
+		if bar.free_slot() >= 0:
+			break
+	_sg.army.station(sb, bar)
+	Engine.time_scale = 8.0
+	for i in 600:
+		await get_tree().process_frame
+		if bar.slots[0] == sb:
+			break
+	Engine.time_scale = 1.0
+	_sg.camera.focus((t3.position + bar.position) / 2.0)
+	await _frames(5)
+	await _mdrag(_fig(sb), _fig(mage))
+	await shot("swap_refused_shield_on_mage")
+	_mouse(_fig(mage), false)
+	await _frames(3)
+	print("refused: sb on %s, mage on %s" % [sb.post.label(), mage.post.label()])
+	# Portrait phone, real touch events.
+	await _size(Vector2i(540, 960))
+	_sg.camera.focus((t1.position + t2.position) / 2.0)
+	await _frames(10)
+	var tower_a: MilitaryUnit = t1.garrison
+	var tower_b: MilitaryUnit = t2.garrison if t2.garrison else t3.garrison
+	await _tdrag(_fig(tower_a), _fig(tower_b))
+	await shot("swap_portrait_touch")
+	_touch(_fig(tower_b), false)
+	await _frames(3)
+	print("touch: %s -> %s, %s -> %s" % [tower_a.label(), tower_a.post.label(), tower_b.label(), tower_b.post.label()])
+	Engine.time_scale = 8.0
+	for i in 600:
+		await get_tree().process_frame
+		if tower_a.state == MilitaryUnit.State.STATIONED and tower_b.state == MilitaryUnit.State.STATIONED:
+			break
+	Engine.time_scale = 1.0
+	await _frames(5)
+	await shot("swap_portrait_after")
+	await _landscape()
+	_sg.queue_free()
+	await _frames(3)
+
+
+func _free_spot(kind: String, near: Vector2i) -> Vector2i:
+	for r in 12:
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				var t := near + Vector2i(dx, dy)
+				if _sg.construction.placement_error(kind, t) == "":
+					return t
+	return near
+
+
+## Where `u`'s figure is, in window pixels (what Input events carry; the
+## viewport is scaled in portrait).
+func _fig(u: MilitaryUnit) -> Vector2:
+	return _win(_sg.camera.world_to_screen(_sg._figure_pos(u)))
+
+
+func _win(vp: Vector2) -> Vector2:
+	return get_viewport().get_final_transform() * vp
+
+
+func _mouse(pos: Vector2, pressed: bool) -> void:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = pressed
+	e.position = pos
+	e.global_position = pos
+	Input.parse_input_event(e)
+
+
+func _mdrag(from: Vector2, to: Vector2) -> void:
+	_mouse(from, true)
+	await _frames(2)
+	for i in range(1, 13):
+		var e := InputEventMouseMotion.new()
+		e.position = from.lerp(to, i / 12.0)
+		e.global_position = e.position
+		e.button_mask = MOUSE_BUTTON_MASK_LEFT
+		Input.parse_input_event(e)
+		await _frames(2)
+	await _frames(4)
+
+
+func _touch(pos: Vector2, pressed: bool) -> void:
+	var e := InputEventScreenTouch.new()
+	e.index = 0
+	e.pressed = pressed
+	e.position = pos
+	Input.parse_input_event(e)
+
+
+func _tdrag(from: Vector2, to: Vector2) -> void:
+	_touch(from, true)
+	await _frames(2)
+	var last := from
+	for i in range(1, 13):
+		var e := InputEventScreenDrag.new()
+		e.index = 0
+		e.position = from.lerp(to, i / 12.0)
+		e.relative = e.position - last
+		last = e.position
+		Input.parse_input_event(e)
+		await _frames(2)
+	await _frames(4)

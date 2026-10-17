@@ -792,9 +792,21 @@ func _run() -> void:
 	await wait_until(func() -> bool: return t2.garrison == wa, 60.0)
 	check(t2.garrison == wa and wa.state == MilitaryUnit.State.STATIONED, "it takes up the new post")
 	check(logged("drag %s from %s to %s" % [wa.label(), wt.label(), t2.label()], EventLog.Level.DEBUG), "debug log: the drag & drop move")
-	# Onto a manned tower, or bare ground: nothing happens.
-	await drag(unit_on(t2), screen(watchtower.position + Vector2(0, -40)))
-	check(wa.post == t2 and t2.garrison == wa and watchtower.garrison == unit, "dropped on a manned tower: nothing happens")
+	# Onto a unit on another post that fits both: they swap, two curved arrows back and forth.
+	var wto := screen(watchtower.position + Vector2(0, -40))
+	await drag(unit_on(t2), wto, false)
+	var ov := game.world.overlay
+	check(ov._arrow and ov._swap and ov._hover == watchtower.tiles() and ov._arrow_to.distance_to(game._figure_pos(unit)) < 1.0, "dragging onto a unit it can swap with: two arrows between the two units")
+	mouse(wto, false)
+	await frames(2)
+	check(wa.state == MilitaryUnit.State.MARCHING and wa.post == watchtower and unit.state == MilitaryUnit.State.MARCHING and unit.post == t2, "dropped on a manned tower: the two units swap posts")
+	check(not ov._swap and not ov._arrow, "the swap arrows are gone after the drop")
+	await wait_until(func() -> bool: return t2.garrison == unit and watchtower.garrison == wa, 60.0)
+	check(t2.garrison == unit and watchtower.garrison == wa, "each takes up the other's post")
+	check(logged("drag %s from %s onto %s on %s (swap)" % [wa.label(), t2.label(), unit.label(), watchtower.label()], EventLog.Level.DEBUG), "debug log: the drag & drop swap")
+	game.command("swap_units", {"unit": wa.nid, "other": unit.nid})
+	await wait_until(func() -> bool: return t2.garrison == wa and watchtower.garrison == unit, 60.0)
+	# Onto bare ground: nothing happens.
 	var bare := Vector2i(-1, -1)
 	for dy in range(-4, 5):
 		for dx in range(-4, 5):
@@ -1520,7 +1532,7 @@ func _run() -> void:
 	for c in cmd_log:
 		if c[2]:
 			seen_cmds[c[0]] = true
-	var want_cmds := ["place_building", "buy_materials", "recruit_unit", "station_unit", "move_unit", "withdraw_unit", "call_wave", "set_speed", "hero_mode"]
+	var want_cmds := ["place_building", "buy_materials", "recruit_unit", "station_unit", "move_unit", "swap_units", "withdraw_unit", "call_wave", "set_speed", "hero_mode"]
 	check(want_cmds.all(func(t: String) -> bool: return seen_cmds.has(t)), "taps and drags in the UI were applied as commands (missing: %s)" % str(want_cmds.filter(func(t: String) -> bool: return not seen_cmds.has(t))))
 	check(pvil.update_fallen() == false and pvil.is_standing(), "the village still stands before the defeat test")
 

@@ -152,6 +152,61 @@ func transfer(unit: MilitaryUnit, post: MilitaryPost) -> bool:
 	return true
 
 
+## "" if the stationed units `a` and `b` can swap posts (each fits the
+## other's post, on different posts of this village, neither out on a sortie,
+## a path between), else why not.
+func swap_error(a: MilitaryUnit, b: MilitaryUnit) -> String:
+	if a == null or b == null or a == b or a.state != MilitaryUnit.State.STATIONED or b.state != MilitaryUnit.State.STATIONED:
+		return "Both units must be on duty"
+	if a.village != village or b.village != village:
+		return "That isn't your unit"
+	if a.out or b.out:
+		return "It's out fighting: wait until it's back on its bench"
+	var pa := a.post
+	var pb := b.post
+	if not is_instance_valid(pa) or not is_instance_valid(pb) or pa == pb:
+		return "They're on the same post"
+	if not pa.can_garrison() or not pb.can_garrison():
+		return "Pick a finished tower, barracks or training grounds"
+	for pair in [[a, pb], [b, pa]]:
+		var u: MilitaryUnit = pair[0]
+		var p: MilitaryPost = pair[1]
+		if not u.fits(p.post_kind()):
+			return "A %s can't serve %s" % [u.display_name().to_lower(), "on towers" if p.post_kind() == "tower" else "in barracks"]
+	if game.world.pathing.find_path(pa.work_tile(), pb.work_tile()).is_empty():
+		return "No path there"
+	return ""
+
+
+## Two stationed units swap posts (drag & drop of one onto the other): each
+## walks over and takes up the other's slot on arrival.
+func swap(a: MilitaryUnit, b: MilitaryUnit) -> bool:
+	if swap_error(a, b) != "":
+		return false
+	var pa := a.post
+	var pb := b.post
+	var sa := a.slot
+	var sb := b.slot
+	village.events.debug("swap %s on %s with %s on %s" % [a.label(), pa.label(), b.label(), pb.label()])
+	var start_a := _leave_post(a)
+	var start_b := _leave_post(b)
+	_body(a, start_a).walk_to(pb.work_tile())
+	_body(b, start_b).walk_to(pa.work_tile())
+	_reserve_at(a, pb, sb)
+	_reserve_at(b, pa, sa)
+	Sfx.play("place")
+	changed.emit()
+	return true
+
+
+func _reserve_at(unit: MilitaryUnit, post: MilitaryPost, slot: int) -> void:
+	unit.state = MilitaryUnit.State.MARCHING
+	unit.post = post
+	unit.slot = slot
+	post.incoming_slots[slot] = unit
+	post.refresh()
+
+
 ## Takes `unit` off its post's slot; returns where its body starts walking.
 func _leave_post(unit: MilitaryUnit) -> Vector2i:
 	var post := unit.post

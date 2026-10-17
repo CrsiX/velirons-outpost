@@ -31,6 +31,7 @@ const HANDLERS := {
 	"station_unit": "_station_unit",
 	"withdraw_unit": "_withdraw_unit",
 	"move_unit": "_move_unit",
+	"swap_units": "_swap_units",
 	"buy_materials": "_buy_materials",
 	"hero_mode": "_hero_mode",
 	"hero_level_up": "_hero_level_up",
@@ -310,6 +311,18 @@ func _move_unit(v: Village, a: Dictionary) -> Dictionary:
 	if err != "":
 		return fail(err)
 	v.army.transfer(u, p)
+	return ok()
+
+
+func _swap_units(v: Village, a: Dictionary) -> Dictionary:
+	var u := _unit(v, a)
+	var o := _unit(v, a, "other")
+	if u == null or o == null:
+		return fail("That isn't your unit")
+	var err := v.army.swap_error(u, o)
+	if err != "":
+		return fail(err)
+	v.army.swap(u, o)
 	return ok()
 
 

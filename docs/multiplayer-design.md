@@ -446,7 +446,7 @@ refusal comes back to the client as a toast.
 |---|---|
 | `place_building`, `cancel_site`, `tear_down`, `stop_tear_down`, `rebuild_hut`, `rebuild_all_huts`, `upgrade_tower` | building |
 | `recruit_villager`, `retire_villager`, `assign_worker`, `unassign_worker` | villagers |
-| `recruit_unit`, `upgrade_unit`, `station_unit`, `withdraw_unit`, `move_unit`, `promote_archmage` | the army |
+| `recruit_unit`, `upgrade_unit`, `station_unit`, `withdraw_unit`, `move_unit`, `swap_units`, `promote_archmage` | the army |
 | `buy_materials` | trade |
 | `hero_mode`, `hero_level_up`, `hero_support` | the hero |
 | `send_caravan`, `send_unit` | help |
