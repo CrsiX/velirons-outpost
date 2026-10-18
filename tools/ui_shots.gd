@@ -6,7 +6,9 @@ extends Node
 ## dragging stationed units onto each other to swap them (mouse in landscape,
 ## real touch events in portrait), and (`--only=saves`) saving and loading:
 ## the settings with Save / Load, the save page, Continue, the save list (in
-## landscape and portrait).
+## landscape and portrait), and (`--only=siege`) building HP: hurt, devastated
+## and upgraded walls, gates and buildings, their panels, a repair under way,
+## goblins hitting a gate, the library's gate entry and the statistics.
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -85,6 +87,8 @@ func _run() -> void:
 		await _swap()
 	if only in ["", "saves"]:
 		await _saves()
+	if only in ["", "siege"]:
+		await _siege()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -536,3 +540,150 @@ func _tdrag(from: Vector2, to: Vector2) -> void:
 		Input.parse_input_event(e)
 		await _frames(2)
 	await _frames(4)
+
+
+# --- building HP and sieges (docs/siege-design.md) ----------------------------------------
+
+func _siege() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	g.economy.add("materials", 2000)
+	g.economy.add("gold", 2000)
+	for t in g.world.towers():
+		if t.garrison:
+			g.army.unstation(t.garrison)
+	var gates: Array[Vector2i] = v.gates.duplicate()
+	gates.sort_custom(MapData.row_order)
+	var pieces := func(at: Vector2i) -> Building: return g.map.building_at(at) as Building
+	# The top gate hurt, the left gate at level 3, a wall at level 2, a wall
+	# beside the right gate broken, a corner tower broken.
+	var top: Building = pieces.call(gates[0])
+	top.take_damage(45.0)
+	var left: Building = pieces.call(gates[1])
+	left.level = 3
+	left.hp = left.max_hp()
+	left.refresh()
+	var right: Building = pieces.call(gates[2])
+	for d in [Vector2i(0, 1), Vector2i(0, -1)]:
+		var w: Building = pieces.call(right.tile + d)
+		if w and w.kind == "wall":
+			w.take_damage(1e6)
+			break
+	for d in [Vector2i(0, 1), Vector2i(0, -1)]:
+		var w: Building = pieces.call(left.tile + d)
+		if w and w.kind == "wall":
+			w.level = 2
+			w.hp = w.max_hp()
+			w.refresh()
+			break
+	var corners: Array = v.buildings().filter(func(b: Building) -> bool: return b.kind == "wall_tower")
+	corners.sort_custom(func(a: Building, b: Building) -> bool: return MapData.row_order(a.tile, b.tile))
+	(corners[3] as Building).take_damage(1e6)
+	(corners[0] as Building).take_damage(120.0)
+	# Outside: the farm and a new watchtower devastated, a camp hurt.
+	var tower := g.construction.place("tower", _free_spot_in(g, "tower", v.center + Vector2i(5, -1)))
+	tower.progress = tower.build_time
+	g.construction.complete(tower)
+	tower.take_damage(1e6)
+	for b in v.buildings():
+		if b is Farm:
+			b.take_damage(1e6)
+		elif b is WorkerCamp:
+			b.take_damage(20.0)
+	await _frames(5)
+	g.camera.focus(Iso.tile_to_world(v.center))
+	g.camera.zoom = Vector2(0.85, 0.85)
+	await _frames(10)
+	await shot("siege_village")
+	g.select(top)
+	await _frames(5)
+	await shot("siege_gate_hurt_panel")
+	g.command("repair", {"building": top.nid})
+	await _frames(70)
+	g.select(top)
+	await _frames(5)
+	await shot("siege_gate_repairing")
+	g.select(corners[3])
+	await _frames(5)
+	await shot("siege_corner_devastated_panel")
+	g.select(left)
+	await _frames(5)
+	await shot("siege_gate_level3_panel")
+	g.select(tower)
+	await _frames(5)
+	await shot("siege_watchtower_devastated_panel")
+	g.deselect()
+	# Goblins at the top gate (at level 3 now: they hit it a long while).
+	await _frames(400)
+	top.level = 3
+	top.hp = top.max_hp()
+	top.refresh()
+	for b in v.buildings():  # (no other way in: they have to break the gate)
+		if (b is StaticPiece or b.kind == "wall_tower") and b.devastated:
+			b.set_devastated(false)
+			b.hp = b.max_hp()
+	var road := gates[0]
+	var seen := {road: true}
+	for i in 7:
+		for n in MapData.neighbors4(road):
+			if g.map.is_road(n) and not seen.has(n) and not g.map.in_village(n):
+				seen[n] = true
+				road = n
+				break
+	for k in 4:
+		g.waves._spawn({"kind": "goblin" if k < 3 else "ork", "spawn": g.map.edge_spawns[0], "hp_scale": 50.0, "village": v})
+		var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+		var at := Vector2(road) + Vector2(randf_range(-0.3, 0.3), randf_range(-0.3, 0.3))
+		e.set_grid_pos(at)
+		var route := g.world.pathing.enemy_route(road, RandomNumberGenerator.new(), -1)
+		var pts := PackedVector2Array([at])
+		for t in route:
+			pts.append(Vector2(t))
+		e.follow(pts)
+	Engine.time_scale = 3.0
+	await _frames(110)
+	Engine.time_scale = 1.0
+	g.camera.focus(Iso.tile_to_world(gates[0]))
+	g.camera.zoom = Vector2(1.2, 1.2)
+	await _frames(10)
+	await shot("siege_goblins_at_gate")
+	g.select(top)
+	await _frames(5)
+	await shot("siege_gate_under_attack_panel")
+	g.deselect()
+	g.hud.open_library("buildings")
+	await _frames(10)
+	await shot("siege_library_buildings")
+	g.hud.library.close()
+	g.waves.wave = 3
+	g.hud.open_stats("summary")
+	await _frames(10)
+	await shot("siege_stats_summary")
+	g.hud.stats_screen.close()
+	# Portrait, with a panel.
+	await _size(Vector2i(540, 960))
+	g.camera.focus(Iso.tile_to_world(v.center))
+	g.camera.zoom = Vector2(0.7, 0.7)
+	g.select(corners[0])
+	await _frames(15)
+	await shot("siege_portrait_panel")
+	g.deselect()
+	await _landscape()
+	g.queue_free()
+	await _frames(3)
+
+
+func _free_spot_in(g: Game, kind: String, near: Vector2i) -> Vector2i:
+	for r in 12:
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				var t := near + Vector2i(dx, dy)
+				if g.construction.placement_error(kind, t) == "":
+					return t
+	return near

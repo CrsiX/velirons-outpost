@@ -456,17 +456,18 @@ func info() -> Dictionary:
 
 
 ## The HP line and the repair (or its progress) for a finished building's
-## panel; a devastated one says it does nothing. Subclasses call it.
+## panel, at the top of its lines; a devastated one says it does nothing.
 func add_hp_info(lines: Array[String], actions: Array[Dictionary]) -> void:
 	if not complete or village == null:
 		return
+	var top: Array[String] = []
 	if devastated:
-		lines.append("Devastated: it does nothing until it is repaired.")
+		top.append("Devastated: it does nothing until it is repaired.")
 	else:
-		lines.append("{hp} %d / %d" % [ceili(hp), roundi(max_hp())])
+		top.append("{hp} %d / %d" % [ceili(hp), roundi(max_hp())])
 	if repairing:
-		lines.append("Repairing: %d%% (%s)" % [int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
-		add_cancel_action(lines, actions, "Cancel repair")
+		top.append("Repairing: %d%% (%s)" % [int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
+		add_cancel_action(top, actions, "Cancel repair")
 	elif can_repair() and not tearing_down:
 		var cost := repair_cost()
 		actions.append({
@@ -474,6 +475,8 @@ func add_hp_info(lines: Array[String], actions: Array[Dictionary]) -> void:
 			"disabled": not village.economy.can_afford(cost),
 			"action": func() -> void: game.command("repair", {"building": nid}),
 		})
+	for i in top.size():
+		lines.insert(i, top[i])
 
 
 ## Calling off the work under way (a site, or an ordered upgrade: `what` names

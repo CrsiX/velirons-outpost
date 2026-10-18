@@ -28,7 +28,7 @@
   Here `$SCRATCH` stands for the absolute scratchpad path.
 - After adding a new `class_name`, run `gd --headless --path . --import` once, or other scripts won't find it.
 - Run a test: `timeout 2700 gd --headless --path . --fixed-fps 60 res://tests/<bot>.tscn 2>&1 | grep -E "FAIL|CHECKS|SCRIPT ERROR|Parse Error"`. Net: `tests/run_net_test.sh <path to gd>`. Bots take minutes each; run several in one background shell. Game creation takes about 5-8 s headless (map generation about 4 s). This sandbox runs GDScript roughly 10x slower than a normal PC (a million-step loop: ~0.5 s), so judge timings relatively.
-- Headless runs can't render, but X display `:0` exists (software OpenGL): `tools/ui_shots.tscn` opens the UI there and saves screenshots to look at (`DISPLAY=:0 gd --path . --display-driver x11 --rendering-driver opengl3 res://tools/ui_shots.tscn -- --out=<dir> [--only=title|editor|lobby|game|swap|saves] [--max]` (`--max`: the window maximised for the landscape pictures; the display has been Full HD and 4K; `--cutout=l,t,r,b` fakes a phone's camera cutout, drawn black); it needs the sandbox off, which the user allowed for this). Windows show on that display while it runs.
+- Headless runs can't render, but an X display exists (software OpenGL; it has been `:0` and `:1`: see `/tmp/.X11-unix`): `tools/ui_shots.tscn` opens the UI there and saves screenshots to look at (`DISPLAY=:1 gd --path . --display-driver x11 --rendering-driver opengl3 res://tools/ui_shots.tscn -- --out=<dir> [--only=title|editor|lobby|game|swap|saves|siege] [--max]` (`--max`: the window maximised for the landscape pictures; the display has been Full HD and 4K; `--cutout=l,t,r,b` fakes a phone's camera cutout, drawn black); it needs the sandbox off, which the user allowed for this). Windows show on that display while it runs.
 - Art is SVG made by `tools/gen_art.py`. Never hand-edit `art/*.svg` or `scripts/core/art_manifest.gd`; edit the generator and rerun it.
 - The title backdrop's maps are baked into `data/title_maps/` (`BakedMap`). After changing the map generator or the scenes' map type / seed, rebake: `gd --headless --path . res://tools/bake_title_maps.tscn` (title_bot fails while they are stale). Tools that need autoloads must be run as a scene, not with `-s`.
 - A lambda can't assign the caller's local variables (they are captured by value): let it fill an Array or Dictionary the caller holds.
@@ -277,7 +277,7 @@ tools/gen_art.py   generates every SVG in art/ plus scripts/core/art_manifest.gd
 fastlane/metadata/android/en-US/  store listing (title, descriptions, changelogs/<version code>.txt, images: icon from icon.svg, feature graphic); .gdignore keeps Godot out
 tools/map_shot.sh  pictures of generated maps in maps/ (a plan, or the isometric view; runs map_shot.tscn)
 tools/bake_title_maps.*  bakes the title backdrop's maps into data/title_maps/ (run as a scene)
-tools/ui_shots.*   screenshots of the title screen, the map editor, the lobby, a game, swapping units (mouse, and real touch events in portrait) and saving / loading on a real display
+tools/ui_shots.*   screenshots of the title screen, the map editor, the lobby, a game, swapping units (mouse, and real touch events in portrait), saving / loading and building HP / sieges on a real display
 tests/sim_bot.*    headless end-to-end test of single player (~360 checks)
 tests/rat_bot.*    rats, villager HP, farm defence, loot, icons, tear-down, the no-builder and food-shortage warnings
 tests/enemy_bot.*  thief, gargoyle, necromancer, vampire, slimes
