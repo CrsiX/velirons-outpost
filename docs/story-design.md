@@ -143,7 +143,7 @@ the library marks them as such.
 
 | Category | Members now | Planned or open | Why they came |
 |---|---|---|---|
-| **Wilderness** | goblin, ork, rat, slime | spider (coming soon); **sea monsters**: giant crab (4), giant octopus and leviathan (9), which walk rivers and coasts | Always lived around the kingdom. The Wardline held them back. |
+| **Wilderness** | goblin, ork, rat, slime | spider (coming soon); **sea monsters**: giant crab (4), giant octopus and leviathan (9), which swim rivers, lakes and the sea (built: `aquatic-design.md`) | Always lived around the kingdom. The Wardline held them back. |
 | **Renegades** (*Abtrünnige*) | thief | bandit, deserter, assassin | **Fully human**, ordinary criminals who saw the chance when the order collapsed: bad people, but not evil. |
 | **Undead** | skeleton | ghost, wraith, zombie | The war's dead, unburied. |
 | **Evil** | vampire, necromancer | demon | Intelligent and malicious, drawn by the death. |
@@ -152,14 +152,15 @@ the library marks them as such.
 
 Library and log text should use the category name ("a Renegade", "the Undead"), not a person's backstory.
 
-**Sea monsters** are not a category of their own: they are the aquatic part of the Wilderness, as old as the sea. They follow rivers and coasts,
-which the game's enemies cannot do yet (engine work for later, see `scenarios-design.md` section 6).
+**Sea monsters** are not a category of their own: they are the aquatic part of the Wilderness, as old as the sea. They follow rivers, lakes and
+the sea (built, see `aquatic-design.md`).
 - The **giant crab** is the basic shore attacker (tough, slow, hard-shelled). Scenario 4 uses only crabs, and one siren at most.
-- The **siren** is **Arcane**, not Wilderness (its song is magic), and used sparingly: a ranged amphibian whose song stops a tower's unit, like
-  the witch's bewitching (an animal here, not a person).
-- The **giant octopus** grabs and holds. It is a **guard** of the abbey in scenario 9 and does not come in waves. In the parallel monster design
+- The **siren** is **Arcane**, not Wilderness (its song is magic), and used sparingly: an amphibian support monster whose song pulls our units
+  towards her and slows them, and whom melee cannot hit while she is in the water (an animal here, not a person).
+- The **giant octopus** grabs with eight arms and can drown whoever it holds. It is a **guard** of the abbey in scenario 9 and does not come in
+  waves. In the parallel monster design
   it is the strongest mob in the game (this can change).
-- The **leviathan** is the rare giant, the wave boss of scenario 9.
+- The **leviathan** is a water-bound serpent that blasts from the water. It is a scripted boss in scenario 9.
 
 **The Dread Legion** is Rhodri's **organised battle force**, and it is made of **people**: the soldiers of the military that backed him, ranked
 and led. They are not monsters, not Evil and not dead. The corruption that he fed with their lives (section 4, step 6) bends their will, like

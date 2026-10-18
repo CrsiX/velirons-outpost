@@ -40,7 +40,7 @@ The Dread Legion is Rhodri's organised army (`story-design.md` section 5) and le
 | 6 | The Dead | A battlefield village | Desert | No | Undead, the first necromancers (Evil) | Acolyte (chapel) | Bury the dead |
 | 7 | The Exile | Fiona's refuge | Temperate | No | none new | Apprentice (mage's tower), Summoner (stone circle) | Hold the refuge |
 | 8 | The Pale Court | The capital's outskirts | Volcanic | No | vampires (Evil), Dread Legion camps | none | Clear the crypts |
-| 9 | The Drowned Abbey | A drowned abbey on a delta shore | Coast | No | leviathan (wave boss), giant octopus (guard), Dread Legion forces | none | Retrieve the First King's Hand, hold 10 waves |
+| 9 | The Drowned Abbey | A drowned abbey on a delta shore | Coast | No | leviathan (scripted boss), giant octopus (guard), Dread Legion forces | none | Retrieve the First King's Hand, hold 10 waves |
 | 10 | The Last Wardline | Home | Highlands | No | all, led by the Dread Legion | none | Survive the Legion |
 | 11 | The Crown | The capital | Capital city (new, section 6) | No | all, the Dread Legion in force | none | Defeat Rhodri, survive the last wave |
 
@@ -195,8 +195,9 @@ units, level about 5. **No revive.**
 falls). The guild master, Wenna, must not die.
 
 **Monsters:** Wilderness and **Renegades** in numbers: thieves, and possibly bandits hired by a rival guild (*open*). The harbour adds the first
-**crabs** (Wilderness, aquatic) and, at most, **one siren** (Arcane, used sparingly): they come up the river and the coast. They need water
-routes, which the game does not have yet (section 6).
+**crabs** (Wilderness, aquatic) and, at most, **one siren** (Arcane, used sparingly): they come up the river and the coast. Both are built
+(`aquatic-design.md`): the crab is a goblin that swims, the siren a support monster whose song pulls and slows our units and whom melee cannot hit
+while she is in the water. The map needs a water body big enough for them (6 deep tiles) and water spawns, made in the map editor.
 
 **Problems:** two threats. Raids from the wilderness and Renegades on the roads, and a rival guild whose caravans block the south road and whose
 hired fighters raid the warehouse. Thieves go for the stock. The town is small and cannot grow far. Brenna is exposed and cannot be revived.
@@ -368,7 +369,9 @@ carries it home. If she is downed, it is lost
 
 **Monsters:**
 - **Wilderness, aquatic:** **giant crabs** from the shore, and in the last wave the
-  **leviathan**, a boss-like mob that rises when the relic leaves the abbey. All need water routes (section 6, later engine work).
+  **leviathan**, a boss-like mob that rises when the relic leaves the abbey. The leviathan is built (`aquatic-design.md`: a water-bound serpent
+that blasts from the water and always comes up), but only as an ordinary wave member. Here it is a **scripted spawn**: stronger (scripted HP and
+damage), spawned when the relic leaves the abbey, and the wave ends only when it is dead.
 - **Evil and Undead:** necromancers raise the abbey's drowned dead (skeletons, and the drowned soldiers of an old battle) and vampires hold the
   crypt.
 - **The Dread Legion:** from the middle waves a force arrives by the causeway. It has learned where the relic lies. Captains and banner-bearers,
@@ -376,7 +379,9 @@ carries it home. If she is downed, it is lost
 - Wilderness leftovers (goblins, rats).
 - **Guard (not a wave monster):** a **giant octopus** guards the abbey. It does not count for the waves and need not be defeated, but killing it
   first makes retrieving the sword much easier. In the parallel monster design it is **insanely strong, the strongest mob in the game** (this can
-  change). It grabs and holds whoever comes near.
+  change). It never leaves its deep water beside the abbey, and its eight arms grab whoever comes within reach and can drown them. It can drown
+the hero (downed: a defeat here), so killing it first from towers by the water, or keeping out of its reach, matters. The built octopus is a wave
+member from wave 20 (`aquatic-design.md`): here the scenario places it as a guard instead.
 
 **Problems:** three fronts at once: the water, the causeway and the abbey. The hero has to leave the village with no revive, while a Legion
 force is on the causeway, so the player must decide **when** to send her. Towers cover the water less well than the road. The octopus guarding the
@@ -508,8 +513,8 @@ the gatherer step is done). When the scenario's steps are over the normal countd
 - Whether bandits are a new Renegade kind, and whether the rival guild hires Renegades.
 - The Dread Legion: unit kinds and names, how its camps, ranks and banners work (a banner-bearer could buff like the war cry), and its place in the
   mid-boss design (the marshal).
-- Which other sea monsters exist besides the crab, octopus and leviathan (the siren, others) and where else than the Coast they appear. Scenario 4
-  has only giant crabs and one siren at most.
+- Where else than the Coast the water monsters appear. Scenario 4 has only crabs and one siren at most. The stats of the scripted leviathan and
+  the guard octopus are *open*.
 - The Arcane category and where witches, gargoyles and the siren first appear (5 or 8; the siren is rare and shows up once at most in 4).
 - Who the guilds' foreign coins and seals belonged to, and who the "goldsmith" was (never settled).
 - The mid-boss design: Rhodri's marshal (10), the court champion (8), the leviathan (9), Rhodri (11).
@@ -531,14 +536,14 @@ The game has none of this yet, except where noted:
   until the gate breaks. So walls and gates are real defences, not decoration. This replaces the rule that enemies never get in and the inside is
   always safe. How it works (pathing, how long a gate holds, who attacks what, what it means for villagers inside, the normal game) is its own
   design, to be written as a doc of its own before it is built. This outline only assumes that buildings can be broken and circumvented.
-- **Water routes for sea monsters (later):** enemies only walk the roads today. Sea monsters need to travel rivers, lakes and coasts, attack from
-  the water and perhaps be limited to the shore. This is later engine work and no scenario before 4 needs it.
+- **Water monsters are built** (`aquatic-design.md`: crab, siren, leviathan, octopus). The scenarios need only: maps with a water body big enough
+  and water spawns (the map editor), the leviathan as a scripted, stronger spawn, and the octopus as a non-wave guard (below).
 - **A capital-city map (scenario 11):** cobblestone and buildings in place of the generated wilderness, a few steppe spots with trees, no meadow.
   A new map type or a hand-made map, with its own art.
 - **Choices:** a decision the player makes in a dialog (scenarios 4 and 8: accept an offer and lose the scenario). The existing confirmation
   dialogs are the closest piece.
 - **Guard mobs:** a strong monster that guards a place and does not count for the waves (scenario 9's octopus). The monster camps' guards are the
-  closest piece.
+  closest piece. The built octopus is a normal wave member, but its arm entity is already an enemy that is not counted for the wave.
 - **A boss that is downed and flees:** scripted HP and damage, a down at 0 HP instead of a death, then a flee (Rhodri in scenario 11).
 - **Scripted caravans:** food arrives at fixed moments where there are no farms (scenario 11).
 - **A death effect for the Legion:** when a Legion unit dies, the pale colour fades, a human face shows for a moment and a breath goes out
