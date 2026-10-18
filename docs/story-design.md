@@ -18,7 +18,11 @@ and why it still stands.
 ## 2. The characters
 
 Named so far: the hero (Brenna Hale), the merchant (Pell Dunmore), heir 1 (Fiona Aldmoor), the old king (Orsin Aldmoor), the old queen (Aislyn
-Aldmoor) and heir 2 (Rhodri Aldmoor). The royal family is **House Aldmoor**. **Brenna's father** is the village's lumberjack (name *open*).
+Aldmoor) and heir 2 (Rhodri Aldmoor). The royal family is **House Aldmoor**. **Brenna's father** is the village's lumberjack, **Einar** (who
+returns in scenario 10). The veteran at her old fort is **Sigmund**. Named for the story so far (the rival guild master and the druid elder stay
+unnamed): the priest **Anselm** (scenario 6),  the neutral guild's master **Wenna** (4), the Pale Court's herald **Lothar** (8, again in 10 and
+11), marshal
+**Halvard**, its champion **Rurik** and the Legion's captain **Lysa** (a woman, Brenna's old captain and now the Legion's captain).
 Everyone else (villagers, units, traders) may have names for flavour, but nothing in the story depends on them. More named characters come later:
 the royal knights on the other side and the rulers of the other countries.
 
@@ -26,7 +30,7 @@ Text always refers to a person by first name. Last names show only in places lik
 characters will need last names when they are added.
 
 **The hero** (**Brenna**) is a **woman**. One of the royal knights. She was in the military, so she served heir 2, who later became **evil**. She
-was **betrayed by that side** (how: *open*; likely she was among the troops sacrificed for the corruption's power, see section 4). She left and
+was **betrayed by that side** (scenario 5: her company was given to Rhodri's ritual and bound, and she escaped it, see section 4). She left and
 went back to her home town, the outpost. The game's hero (see `hero-design.md`) is this character. Her mode-based behaviour stays as it is; the
 story gives it a face. (The game's texts and `hero-design.md` still say "he" and would change with it.)
 
@@ -66,16 +70,41 @@ manpower and stone, not magic.
 
 1. The king dies without having confirmed an heir. The military backs heir 2, the court mages and the church back heir 1. The two sides are not
    aligned, and the war begins.
-2. **Spies from the neighbouring countries** (below) offer heir 2 help, in some form, and that help slowly corrupts him. The story makes clear
+2. **Spies from the neighbouring countries** (below) offer heir 2 help, in some form, and that help slowly corrupts him. One of them, posing as a
+   **goldsmith**, is a very powerful mage: he works on the old king's crown for Rhodri (see the crown, below). The story makes clear
    that the spies were the reason. It stays **unclear whom they belonged to**.
 3. Both sides pull knights off the Wardline and the towers empty.
 4. The wilderness walks in: goblins and orks first.
 5. Renegades (deserters, unpaid soldiers, ruined merchants) prey on the roads.
 6. Heir 2's corruption grows. To keep winning he sacrifices his own towns and soldiers for power, and that becomes part of the corruption. The
-   hero is betrayed in this step. The soldiers he sacrifices become the **Dread Legion**, his army.
+   hero is betrayed in this step. The soldiers he gives to the ritual are not killed but **bound** by it, a will-bending like brainwashing, and
+become the **Dread Legion**, his army.
 7. The war's unburied dead rise. The evil is drawn by a kingdom full of death and gathers around heir 2. He does not create it: monsters still
    have no single source.
-8. Heir 1 flees into exile, with what is left of the court mages and the church. The capital burns.
+8. Heir 1 flees into exile, with what is left of the court mages and the church. The capital burns, but the palace stands: Rhodri holds court in
+   it (the Pale Court, below).
+
+**The Pale Court**
+
+The royal court was the whole government of Veliron: nobles, officers, mages and clergy. The succession **split** it. Fiona took the court mages and
+the church into exile. Rhodri kept the military and the nobles who sided with him. The capital burned in the war (step 8), but the palace stood,
+and Rhodri holds court in its ruins. This is the **Pale Court**: his inner circle and seat of power, formed *after* the old king's death and the
+split, and it is on **Rhodri's side**. It is "pale" because the corruption drains colour from those near it and from its bearer.
+- **The human members.** Only they speak. The **herald**, **Lothar**, carries Rhodri's words and offers to Brenna and to the player. He returns in
+  later scenarios and is not killed until he is last needed. The
+  **marshal** commands the Legion. A few loyal **nobles**, **unnamed**: they are only a look in the court's crowd and in its enemy units, not
+characters. And the **court champion**, **Rurik**, his strongest sworn fighter.
+- **The Dread Legion:** the soldiers, in camps at the gates (see section 5).
+- **The Evil** (vampires, necromancers): **not** former courtiers. They gathered in the crypts because of the death and the corruption, and Rhodri
+  tolerates them as his court. They are monsters and never speak.
+- **Its function:** the seat of the corruption and the voice of his offers. It shows the player what Rhodri has become before the final fight.
+
+**The crown and the First King's Hand**
+- **The crown** is the old king's own, a typical crown. Rhodri had a foreign "goldsmith" (really one of the spies, a very powerful mage) work on
+  it, and it now glows and sends out malice. It is clearly an artifact. What exactly the goldsmith did is unclear: he cursed it.
+- **The First King's Hand** is a sword, the church's relic, of the first king, who founded the Wardline. It is ornate and clearly a relic, not a
+  weapon for battle. It is said to "cleanse the blood" and to "rule with righteousness", so the story assumes it helps against Rhodri. **Nobody
+  actually knows if it does.** In the end it is used to behead Rhodri (scenario 11).
 
 **The unlock sites**
 - The **mage's tower** (apprentice) and the **ruined chapel** (acolyte) belong to heir 1's supporters, the court mages and the church. Unlocking a
@@ -97,32 +126,37 @@ Any of them, or several, could have sent the spies. The story never settles it. 
 
 ## 5. Monster categories
 
-There is **no single source** of monsters. Categories exist because each arrived for its own reason, and the library can group by them. They are
-not people who were changed.
+There is **no single source** of monsters. Categories exist because each arrived for its own reason, and the library can group by them. The
+**monster** categories (Wilderness, Undead, Evil, Arcane) are not people who were changed. **Renegades** and the **Dread Legion** are people, and
+the library marks them as such.
 
 | Category | Members now | Planned or open | Why they came |
 |---|---|---|---|
 | **Wilderness** | goblin, ork, rat, slime | spider (coming soon); **sea monsters** (giant crab, giant octopus, leviathan; roles below, all *open*), the aquatic part of the Wilderness, which walk rivers and coasts | Always lived around the kingdom. The Wardline held them back. |
-| **Renegades** (*Abtrünnige*) | thief | bandit, deserter, assassin | People who turned on their own side: the order collapsed. |
+| **Renegades** (*Abtrünnige*) | thief | bandit, deserter, assassin | **Fully human**, ordinary criminals who saw the chance when the order collapsed: bad people, but not evil. |
 | **Undead** | skeleton | ghost, wraith, zombie | The war's dead, unburied. |
 | **Evil** | vampire, necromancer | demon | Intelligent and malicious, drawn by the death. |
-| **Dread Legion** | none | footman, archer, captain, banner-bearer, the marshal (a mid-boss); names *open* | Rhodri's own army, hollowed by the corruption. See below. |
+| **Dread Legion** | none | footman, archer, captain, banner-bearer, the marshal (a mid-boss); names *open* | Rhodri's own army: human soldiers under the corruption's influence, like brainwashing. See below. |
 | **Arcane** (*open*) | witch, gargoyle | siren (aquatic but magic: its song), wisp, golem | Magic-made or magic-using. Goes with neither Wilderness nor Evil. |
 
 Library and log text should use the category name ("a Renegade", "the Undead"), not a person's backstory.
 
 **Sea monsters** (ideas, none decided): the **giant crab** is the basic shore attacker (tough, slow, hard-shelled); the **siren** is **Arcane**,
-not Wilderness (its song is magic), and used sparingly: a ranged
-amphibian whose song stops a tower's unit, like the witch's bewitching (a siren is an animal here, not a person); the **giant octopus** grabs and
-holds at the shore and may hit several targets; the **leviathan** is the rare giant. **Scenario 4 uses only crabs, and one siren at most**; the
+not Wilderness (its song is magic), and used sparingly: a ranged amphibian whose song stops a tower's unit, like the witch's bewitching (a siren
+is an animal here, not a person); the **giant octopus** grabs and holds and is a **guard** that does not come in waves (scenario 9): in the
+parallel monster design it is the strongest mob in the game; the **leviathan** is the rare giant. **Scenario 4 uses only crabs, and one siren at
+most**; the
 octopus and the leviathan are used in scenario 9 (the Drowned Abbey). They are not a category of
 their own: they are the aquatic part of the Wilderness, as old as the sea. They follow rivers and coasts,
 which the game's enemies cannot do yet (engine work for later, see `scenarios-design.md` section 6).
 
-**The Dread Legion** is the one category made of people, and the story says so openly. It is not a monster category with no source: it is Rhodri's
-**organised battle force**, the soldiers of the military that backed him, ranked and led, hollowed by the corruption that he fed with their lives
-(section 4, step 6). It is Evil in spirit but not in kind: Evil monsters are individuals drawn by the death, while the Legion marches in ranks under
-a command. It is the army of the final struggle, and it is what marches on the home village (scenarios 5, 8, 9, 10 and 11).
+**The Dread Legion** is Rhodri's **organised battle force**, and it is made of **people**: the soldiers of the military that backed him, ranked
+and led. They are not monsters, not Evil and not dead. The corruption that he fed with their lives (section 4, step 6) bends their will, like
+**brainwashing**: they follow orders without question, say little and look empty-eyed, but they are still human and still have a name and a past.
+Its core is **Brenna's own old company**, whom the ritual at the pass bound (scenario 5). Two of them are named: its captain **Lysa** and her
+comrade **Torben**. When a Legion soldier falls, the game shows a release: the pale colour fades, a human face shows for a moment and a breath
+goes out. It is the army of the final struggle, and it is what
+marches on the home village (scenarios 5, 8, 9, 10 and 11). The difference from the Renegades: they chose to be criminals, the Legion never chose.
 
 ## 6. Trade: the merchant guilds
 
@@ -156,17 +190,17 @@ table below is the older, shorter draft. Where they differ, `scenarios-design.md
 
 | # | Name | Story | New monsters | Market |
 |---|---|---|---|---|
-| 1 | Homecoming | The hero wakes in a destroyed hut (opening cutscene). The village is ruined and the hero has to hold it. The war is a rumour. | Wilderness | None |
+| 1 | Homecoming | The hero wakes in a tent on the road home (opening cutscene). The village is ruined and the hero has to hold it. The war is a rumour. | Wilderness | None |
 | 2 | The Old Friend | The merchant arrives, the first outsider in months, with news of the world and the guild. | Wilderness | Peddler, then a stall |
 | 3 | The Wardline | Restore the broken watchtowers. Each makes the road safer. | Renegades | Neutral guild caravans |
 | 4 | The Split | The rival guilds. Caravans are raided, and the rival guilds are hostile. The merchant tells how the guild broke apart. | Renegades (more), giant crabs, at most one siren (Arcane) | Full, with a rival threat |
 | 5 | The Betrayal | The hero's old company. Journals and relics tell what really happened to her. | Arcane (*open*), first Dread Legion patrol | Full |
-| 6 | The Dead | The war's battlefields. Corpses matter more because they get raised. | Undead | Full |
+| 6 | The Dead | The war's battlefields. Corpses matter more because they get raised. | Undead, the first necromancers (Evil) | Full |
 | 7 | The Exile | Traces of the fled claimant: a messenger, a camp, a request. Help or refuse. | Wilderness and Undead | Full |
-| 8 | The Pale Court | The evil claimant's court appears. | Evil, Dread Legion camps | Full |
-| 9 | The Drowned Abbey | The church's hidden relic, the only thing that can break the crown. The Legion hunts it too. | Giant octopus, leviathan, Dread Legion forces | Full |
-| 10 | The Last Wardline | The enemy host comes. The 25-wave mid-bosses (roadmap) belong here. | All, led by the Dread Legion | Full |
-| 11 | The Crown | The ending. The choice of what to do with the crown and the exile (*open*). | All, the Dread Legion at full strength | Full |
+| 8 | The Pale Court | The evil claimant's court appears. | Vampires (Evil), Dread Legion camps | Full |
+| 9 | The Drowned Abbey | The church's hidden relic, the First King's Hand, which may break the crown. The Legion hunts it too. | Leviathan (boss), giant octopus (a guard), Dread Legion forces | Full |
+| 10 | The Last Wardline | The Dread Legion comes. The 25-wave mid-bosses (roadmap) belong here. | All, led by the Dread Legion | Full |
+| 11 | The Crown | The ending: Fiona beheads Rhodri with the First King's Hand, the crown breaks and the curse passes to her. An open end. | All, the Dread Legion at full strength | Full |
 
 **Nothing carries over between scenarios** (no units, relics, hero levels or market stage). Every scenario starts from its own scripted baseline,
 so any one of them can be replayed on its own. The story carries over, not the game state.
@@ -177,9 +211,9 @@ bring her back. Away from home nobody can bring her back. This is a per-scenario
 change it, and a message on entering the first away scenario should say so.
 
 Each scenario opens and closes with a cutscene (section 8). The outro plays when the scenario's **objective** is fulfilled, so every scenario
-needs one (*open*: what each objective is; the table above names the story, not the win condition).
+needs one (the objectives are in `scenarios-design.md`; the table above names the story, not the win condition).
 
-*Open:* whether scenario 1 doubles as the tutorial.
+The tutorial is merged into scenarios 1 to 3 (see `scenarios-design.md` section 4).
 
 ## 8. Where the story shows
 
@@ -187,9 +221,9 @@ The story is told through **two cutscenes per scenario** and through places the 
 screen).
 
 - **Intro cutscene (every scenario):** plays at the start and introduces the part of the story the scenario covers. The one for scenario 1 has the
-  hero wake in a destroyed hut and look around the village (exact content *open*).
+  hero wake in a tent on the road home and see the ruined village in the distance (exact content *open*).
 - **Outro cutscene (every scenario):** plays when the scenario's objective is fulfilled and gives further information that closes the scenario and
-  leads to the next. The campaign's last one is the story's ending (*open*).
+  leads to the next. The campaign's last one is the story's ending, an open end (scenario 11).
 - **Format of the cutscenes:** *open* (for example still pictures with text, or a short scene in the game's engine). Whether they can be skipped,
   and whether they can be seen again from the title screen or the library, is also *open*.
 - **Title screen:** a one-line intro (draft below).
@@ -205,12 +239,13 @@ Draft intro:
 
 ## 9. Open questions
 
-- How exactly the hero was betrayed.
+- How exactly the hero was betrayed (scenario 5 proposes: held a pass with no relief so that her company would die, a ritual fed on the deaths).
 - Whether the rival guilds hire Renegades.
 - Whether witch and gargoyle form an Arcane category.
-- The Dread Legion's units and names, and how it looks (armour, banners; no people-faces, hollow helmets?).
+- Whether the Dread Legion can be freed, for example when the crown breaks (the ending is open).
+- The Dread Legion's unit names. Its **look and behaviour** are set: soldiers in different poses and with different skills, paler than human,
+  behaving a bit robotically, like soldiers following orders. The court's nobles look like nobles, each with their own clothes and design.
 - How the sea monsters (crab, giant octopus, leviathan) move on water (engine work, later).
-- Whether scenario 1 is the tutorial.
-- Each scenario's objective (what ends it and triggers the outro cutscene).
+- Rhodri himself is a captain-like melee boss with commanding abilities in the last wave of scenario 11.
 - The cutscene format, and whether cutscenes can be skipped or watched again.
 - The scenario system itself (menu, saved progress, per-scenario settings) is a separate piece of work. See the README roadmap ("Scenarios").
