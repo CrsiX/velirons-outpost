@@ -134,6 +134,8 @@ static func _far_tile(game: Game, b: int, dist: PackedInt32Array, shore: float) 
 	var best_d := -1
 	var good: Array[Vector2i] = []
 	for t: Vector2i in game.world.pathing.bodies[b]["tiles"]:
+		if not game.map.is_deep(t):
+			continue  # (not under a bridge)
 		var d := dist[game.map.index(t)]
 		if d >= ceili(shore):
 			good.append(t)

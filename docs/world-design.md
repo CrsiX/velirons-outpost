@@ -733,8 +733,8 @@ docs/aquatic-design.md (crab, leviathan, siren, octopus) needs deep water near v
 the older maps didn't have (rivers one deep tile wide, lakes kept away from villages, villages
 `VILLAGE_SEA_DIST` from the sea). Built (`GenWater.near_villages`, `landings`, `water_spawns`):
 
-- **Water bodies:** `Pathing.label_water` labels every body of deep water (4-connected; bridges
-  split them) with its deep tile count and width (a one-tile river is 1). The checks, the editor
+- **Water bodies:** `Pathing.label_water` labels every body of deep water (4-connected; a bridge
+  over deep water joins both sides) with its deep tile count and width (a one-tile river is 1). The checks, the editor
   and the game use it.
 - **Coast maps** (stage 6b, right after the villages, before the roads): every village whose sea
   isn't close already gets an **inlet**: from the tile on the ring `2 + COAST_INLET_DIST (8) + 2`

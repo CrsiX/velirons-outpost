@@ -42,6 +42,8 @@ func tick(enemy: Enemy, delta: float) -> bool:
 		_dive_left -= delta
 		if _dive_left <= 0.0:
 			enemy.surface()
+	elif enemy.dive == Enemy.Dive.DOWN and not enemy.must_be_under():
+		enemy.surface()  # (through under a bridge: up again)
 	_plan -= delta
 	if _plan <= 0.0 or _goal.x < 0:
 		_plan = 2.0
@@ -100,6 +102,9 @@ func _tick_arms(enemy: Enemy, delta: float) -> void:
 					t.held_by = a["node"]
 					enemy.game.log_for(t, EventLog.Level.DEBUG, "%s grabs %s" % [enemy.label(), enemy.game.who(t)])
 			Arm.HOLD:
+				if not up:
+					_retract(a, enemy.stat("arm_cooldown") * 0.5)  # (under a bridge: it lets go)
+					continue
 				_hold(enemy, a, delta)
 		if a["state"] == Arm.REACH or a["state"] == Arm.HOLD:
 			tips.append(a["tip"])

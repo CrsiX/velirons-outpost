@@ -273,9 +273,12 @@ func _test_bodies() -> void:
 	check(lb >= 0 and int(p.bodies[lb]["deep"]) == lake.size() and int(p.bodies[lb]["width"]) >= 9, "the lake is a body of %d deep tiles, %d wide" % [int(p.bodies[lb]["deep"]) if lb >= 0 else 0, int(p.bodies[lb]["width"]) if lb >= 0 else 0])
 	var ra := p.body_of(river_a[0])
 	var rb := p.body_of(river_b[0])
-	check(ra >= 0 and rb >= 0 and ra != rb and int(p.bodies[ra]["width"]) == 1, "a one-tile river is 1 wide; its bridge splits it in two")
+	check(ra >= 0 and ra == rb and p.body_of(bridge) == ra and int(p.bodies[ra]["width"]) == 1 and int(p.bodies[ra]["deep"]) == river_a.size() + river_b.size(), "a one-tile river is 1 wide; its bridge is part of it (the deep water under it joins both sides; the bridge isn't counted as deep)")
 	check(p.body_fits(lb, "octopus") and p.body_fits(lb, "leviathan") and not p.body_fits(ra, "leviathan") and p.body_fits(ra, "crab"), "the lake fits every kind, the river only crabs and sirens")
 	check(not p.water_path(lake_mid, lake_near).is_empty() and p.water_path(lake_mid, river_a[0]).is_empty(), "deep-water paths within a body, none between bodies")
+	var under := p.water_path(river_a[0], river_b[0])
+	check(not under.is_empty() and Array(under).any(func(q: Vector2) -> bool: return Vector2i(q.round()) == bridge), "a water-bound monster's way goes under the bridge")
+	check(p.nearest_deep(ra, Vector2(bridge)) != bridge, "but never comes up there (no spot under a bridge)")
 	check(p.enemy_distance(lake_mid, -1, true) < Pathing.UNREACHABLE and p.enemy_distance(lake_mid) >= Pathing.UNREACHABLE, "an amphibian gets from the lake to the gates over water and road; a land enemy can't")
 	var route := p.enemy_route(lake_mid, RandomNumberGenerator.new(), -1, true)
 	var g := game.map.gates
@@ -321,6 +324,49 @@ func _test_dive() -> void:
 	check(raised_up and not crab.can_submerge(), "a raised crab never dives")
 	kill(crab)
 	kill(dummy)
+	await clear_enemies()
+	await _test_bridge()
+
+
+## Through under the bridge: down on its tile, never targetable there; the
+## crab comes up again past it; one walking along the road stays up.
+func _test_bridge() -> void:
+	var a := river_a[river_a.size() - 1]  # (the deep tiles next to the bridge)
+	var b := river_b[0]
+	for kind in ["leviathan", "crab"]:
+		var e := spawn(kind, a)
+		e.behavior = EnemyBehavior.new()  # (just follows its path)
+		e._set_dive(Enemy.Dive.UP)
+		e.set_grid_pos(Vector2(a))
+		e.follow(PackedVector2Array([Vector2(a), Vector2(bridge) + e._jitter, Vector2(b) + e._jitter, Vector2(river_b[1]) + e._jitter, Vector2(river_b[2]) + e._jitter]))
+		var seen := {"on": false, "up_on_bridge": false}
+		var through := await wait_until(func() -> bool:
+			if not is_instance_valid(e) or e.dead:
+				return true
+			if e.current_tile() == bridge:
+				seen["on"] = true
+				seen["up_on_bridge"] = seen["up_on_bridge"] or e.targetable() or e.dive == Enemy.Dive.SURFACING
+			return e.current_tile() == b, 10.0)
+		check(through and seen["on"] and not seen["up_on_bridge"], "a %s swims through under the bridge, under water on its tile" % kind)
+		e.surface()
+		check(e.dive == Enemy.Dive.SURFACING or e.dive == Enemy.Dive.UP or kind == "crab", "past it it may come up again")
+		kill(e)
+	var road := bridge + Vector2i.LEFT
+	var walker := spawn("crab", road)
+	walker.behavior = EnemyBehavior.new()
+	walker._set_dive(Enemy.Dive.UP)
+	walker.set_grid_pos(Vector2(road))
+	walker.follow(PackedVector2Array([Vector2(road), Vector2(bridge) + walker._jitter, Vector2(bridge + Vector2i.RIGHT) + walker._jitter, Vector2(bridge + Vector2i.RIGHT * 2) + walker._jitter]))
+	var stayed := {"up": true}
+	await wait_until(func() -> bool:
+		if not is_instance_valid(walker) or walker.dead:
+			return true
+		if walker.current_tile() == bridge:
+			stayed["up"] = stayed["up"] and walker.dive == Enemy.Dive.UP
+		return walker.current_tile() == bridge + Vector2i.RIGHT, 8.0)
+	check(stayed["up"], "a crab walking along the road over the bridge stays up")
+	if is_instance_valid(walker):
+		kill(walker)
 	await clear_enemies()
 
 

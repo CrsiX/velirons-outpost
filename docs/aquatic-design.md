@@ -308,8 +308,16 @@ eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`)
 
 - *Width* of a body: 2 x the most Chebyshev steps from a tile that isn't deep water, minus 1
   (a one-tile river is 1, a 3-tile channel 3). Beyond the map's edge counts as water (the sea
-  goes on). Bodies are 4-connected deep tiles; **a bridge splits a body** (water-bound monsters
-  don't swim under bridges: they would have to be under water there, and bridges never allow it).
+  goes on). Bodies are 4-connected deep tiles; **a bridge over deep water is part of the body**
+  (`MapData.is_deep_water`), joining the water on both sides; its "deep" count leaves bridges out.
+- *Bridges* are road and water at once. Every water monster may pass under one, but must be
+  under water on its tile (`Enemy.must_be_under`): it dives on the way in (also over shallow
+  water, the one exception to "only on deep water"), can't come up there (`surface()` refuses)
+  and comes up again past it if it wants (the octopus does, letting go of whatever its arms
+  held). Water-bound monsters swim under bridges over deep water; amphibians under any bridge,
+  when they swim across beneath it (water before and after on their way); one walking along the
+  road over the bridge stays up. No spot, home tile or water spawn is ever under a bridge, and a
+  corpse there lies on the bridge.
 - *Body sizes:* crab and siren 6 deep tiles (a one-tile pond is no home), width 1 (rivers do);
   leviathan 30 and 2; octopus 80 and 3.
 - *Reach* (`"reach"` in each entry) for eligibility: crab 2, siren 5.5, leviathan 5.6, octopus
@@ -352,5 +360,9 @@ eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`)
 - *The generator* (docs/world-design.md §9.8): Coast maps carve an inlet per village, other map
   types a lagoon with the type's chance; each gets a landing road; water spawns per fitting body
   near a village.
+- *How they move in water* (`Enemy._wade`): no walking sway. Up in the water they rise and fall
+  slowly, and while moving they throw a splash now and then round their body (on each machine
+  by itself). The leviathan and the octopus always; the crab and the siren while in water (deep,
+  shallow or a ford); on roads and land they walk like anyone.
 - *Replication:* the dive state and `fx` travel with every enemy's state; arms are enemies, so
   they reach clients like any other.

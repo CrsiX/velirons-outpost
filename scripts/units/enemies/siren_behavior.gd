@@ -71,8 +71,8 @@ func _look(enemy: Enemy, radius: float) -> void:
 func _tick_dive(enemy: Enemy, delta: float) -> void:
 	if _dive_left > 0.0:
 		_dive_left -= delta
-	if not enemy.can_submerge():
-		return
+	if not enemy.can_submerge() or enemy.must_be_under():
+		return  # (under a bridge she stays under: Enemy sees to it)
 	if not enemy.on_deep():
 		if enemy.dive == Enemy.Dive.DOWN or enemy.dive == Enemy.Dive.DIVING:
 			enemy.surface()  # (shallow water and land: never under)

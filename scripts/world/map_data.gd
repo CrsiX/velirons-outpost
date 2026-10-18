@@ -116,6 +116,18 @@ func is_deep(t: Vector2i) -> bool:
 	return in_bounds(t) and terrain[index(t)] == Terrain.WATER
 
 
+## A bridge (a road tile over deep or shallow water; not a ford): water
+## monsters pass under it, staying under water there.
+func is_bridge(t: Vector2i) -> bool:
+	return crossings.has(t) and int(crossings[t][1]) != Terrain.LAVA and str(crossings[t][0]).begins_with("bridge_")
+
+
+## Deep water, or a bridge over deep water: what water-bound monsters swim
+## through (under a bridge they stay under; is_deep is where they may come up).
+func is_deep_water(t: Vector2i) -> bool:
+	return is_deep(t) or (crossings.has(t) and int(crossings[t][1]) == Terrain.WATER and str(crossings[t][0]).begins_with("bridge_"))
+
+
 ## Water an amphibian swims through: deep or shallow water, or a bridge or
 ## ford over it.
 func is_wet(t: Vector2i) -> bool:

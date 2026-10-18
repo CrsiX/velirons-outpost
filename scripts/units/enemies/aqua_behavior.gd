@@ -70,7 +70,7 @@ func _cache(enemy: Enemy) -> void:
 	_home = pathing.nearest_deep(enemy.body, c)
 	var r := float(Config.AQUA["threat_radius"]) + float(enemy.spec().get("reach", 5.0))
 	for t: Vector2i in pathing.bodies[enemy.body]["tiles"]:
-		if Vector2(t).distance_to(c) <= r:
+		if enemy.game.map.is_deep(t) and Vector2(t).distance_to(c) <= r:  # (never a spot under a bridge)
 			_near.append(t)
 
 

@@ -71,6 +71,7 @@ var color := ""
 var _sack: Sprite2D
 var dive := Dive.UP
 var _dive_t := 0.0
+var _splash_in := 0.0
 ## What a behavior shows besides the sprite (co-op clients get it too):
 ## "song" (a siren's ring: its radius), "jet" (a leviathan's water column:
 ## the target's grid position) with "wind" (0..1 while it winds up), "arms"
@@ -210,6 +211,38 @@ func on_deep() -> bool:
 	return game.map.is_deep(current_tile())
 
 
+## Passing under a bridge at path waypoint `i`: a water-bound monster under
+## any bridge on its way; an amphibian when it swims across under it (water
+## before and after, not the road along it).
+func _under_bridge_at(i: int) -> bool:
+	if i < 0 or i >= path.size():
+		return false
+	var t := Vector2i((path[i] - _jitter).round())
+	if not game.map.is_bridge(t):
+		return false
+	if habitat() == "water":
+		return true
+	var a := Vector2i((path[i - 1] - _jitter).round()) if i > 0 else t
+	var b := Vector2i((path[i + 1] - _jitter).round()) if i + 1 < path.size() else t
+	return a != t and b != t and not game.map.is_road(a) and not game.map.is_road(b)
+
+
+## Under a bridge, or about to go under one: it must be under water there (it
+## can't come up beneath a bridge, nor get out of the water onto it).
+func must_be_under() -> bool:
+	if habitat() == "land":
+		return false
+	var t := current_tile()
+	if game.map.is_bridge(t):
+		if habitat() == "water":
+			return true
+		for i in [path_index - 1, path_index]:
+			if i >= 0 and i < path.size() and Vector2i((path[i] - _jitter).round()) == t and _under_bridge_at(i):
+				return true
+		return false
+	return _under_bridge_at(path_index)
+
+
 ## The one test every targeting site uses: alive and up (not diving, down or
 ## surfacing).
 func targetable() -> bool:
@@ -221,18 +254,19 @@ func submerged() -> bool:
 	return dive != Dive.UP
 
 
-## Starts diving (only on deep water). Returns whether it does.
+## Starts diving (only on deep water, or to pass under a bridge). Returns
+## whether it does.
 func dive_down() -> bool:
-	if dive == Dive.DOWN or dive == Dive.DIVING or not can_submerge() or not on_deep():
+	if dive == Dive.DOWN or dive == Dive.DIVING or not can_submerge() or not (on_deep() or must_be_under()):
 		return false
 	_set_dive(Dive.DIVING)
 	Combat.local_burst(game, "splash", position, 0.6)
 	return true
 
 
-## Starts coming up.
+## Starts coming up (never under a bridge).
 func surface() -> void:
-	if dive == Dive.UP or dive == Dive.SURFACING:
+	if dive == Dive.UP or dive == Dive.SURFACING or must_be_under():
 		return
 	_set_dive(Dive.SURFACING)
 
@@ -249,10 +283,12 @@ func _set_dive(d: Dive) -> void:
 
 
 ## Diving and surfacing take their time (AQUA); a crab dives and surfaces by
-## itself on deep water and off it.
+## itself on deep water and off it; every kind dives to pass under a bridge.
 func _tick_dive(delta: float) -> void:
+	if can_submerge() and must_be_under() and (dive == Dive.UP or dive == Dive.SURFACING):
+		dive_down()
 	if spec().get("auto_submerge", false) and can_submerge():
-		if on_deep():
+		if on_deep() or must_be_under():
 			if dive == Dive.UP or dive == Dive.SURFACING:
 				dive_down()
 		elif dive == Dive.DOWN or dive == Dive.DIVING:
@@ -281,6 +317,30 @@ func _show_dive() -> void:
 	sprite.visible = k > 0.01
 	sprite.modulate.a = k
 	sprite.offset.y = (1.0 - k) * 24.0
+
+
+## In the water it rides it instead of walking (see _wade): a water-bound
+## monster (leviathan, octopus; not an arm) always, an amphibian (crab, siren)
+## while in water (deep, shallow or a ford; on roads and land it walks).
+func _wades() -> bool:
+	if habitat() == "water":
+		return spec()["behavior"] != "arm"
+	return habitat() == "amphibian" and game.map != null and game.map.in_water(current_tile())
+
+
+## Up in the water: a slow rise and fall (no walking sway), and while it
+## moves, splashes now and then round its body (this machine only: a co-op
+## client plays its own).
+func _wade(delta: float) -> void:
+	_bob += delta * (1.6 if moving else 1.0)
+	sprite.rotation = 0.0
+	sprite.position.y = (-3.0 - 3.0 * sin(_bob)) if habitat() == "water" else (-1.5 - 1.5 * sin(_bob))
+	_splash_in -= delta
+	if moving and dive == Dive.UP and _splash_in <= 0.0:
+		_splash_in = randf_range(0.7, 1.3)
+		var big := habitat() == "water"
+		var side := Vector2(randf_range(-1.0, 1.0), randf_range(0.0, 0.5)).normalized() * (26.0 if big else 10.0)
+		Combat.local_burst(game, "splash", position + Vector2(side.x, side.y * 0.5), 0.45 if big else 0.25)
 
 
 ## Co-op client: the host's dive state.
@@ -337,6 +397,8 @@ func pop_in() -> void:
 
 
 func _animate(delta: float) -> void:
+	if _wades():
+		return  # (see _wade: no walking sway in the water)
 	if not is_jelly():
 		super._animate(delta)
 		return
@@ -488,6 +550,8 @@ func _process(delta: float) -> void:
 		_fly(delta)
 	if channel_to != Vector2.INF or submerged() or not fx.is_empty():
 		queue_redraw()
+	if _wades():
+		_wade(delta)
 	if game.is_client:
 		if dive == Dive.DIVING or dive == Dive.SURFACING:
 			_dive_t += delta

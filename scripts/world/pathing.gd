@@ -359,16 +359,17 @@ func _build_water() -> void:
 	water_astar.update()
 	for y in n:
 		for x in n:
-			water_astar.set_point_solid(Vector2i(x, y), not map.is_deep(Vector2i(x, y)))
+			water_astar.set_point_solid(Vector2i(x, y), not map.is_deep_water(Vector2i(x, y)))
 	amphibian_dist = _amphibian_field(map.gates)
 	amphibian_fields.clear()
 	for v in map.villages:
 		amphibian_fields.append(_amphibian_field(v["gates"]))
 
 
-## The map's bodies of deep water (4-connected; bridges split them):
+## The map's bodies of deep water (4-connected; a bridge over deep water
+## joins the water on either side, Mapdata.is_deep_water):
 ## {"of": PackedInt32Array (per tile: its body, -1: not deep water),
-## "bodies": [{"deep": tile count, "width": its widest point in tiles (2 x
+## "bodies": [{"deep": count of its deep tiles (bridges not counted), "width": its widest point in tiles (2 x
 ## the most Chebyshev steps from a tile that isn't deep water, minus 1: a
 ## one-tile river is 1), "tiles": Array[Vector2i]}]}. Beyond the map's edge
 ## counts as water (the sea goes on there). The map editor uses it too.
@@ -385,11 +386,11 @@ static func label_water(map: MapData) -> Dictionary:
 	for y in n:
 		for x in n:
 			var t := Vector2i(x, y)
-			if not map.is_deep(t):
+			if not map.is_deep_water(t):
 				continue
 			for k in 8:
 				var nb := t + Vector2i([-1, 1, 0, 0, -1, 1, -1, 1][k], [0, 0, -1, 1, -1, -1, 1, 1][k])
-				if map.in_bounds(nb) and not map.is_deep(nb):
+				if map.in_bounds(nb) and not map.is_deep_water(nb):
 					depth[y * n + x] = 1
 					queue.append(t)
 					break
@@ -400,13 +401,13 @@ static func label_water(map: MapData) -> Dictionary:
 		var d := depth[map.index(t)] + 1
 		for k in 8:
 			var nb := t + Vector2i([-1, 1, 0, 0, -1, 1, -1, 1][k], [0, 0, -1, 1, -1, -1, 1, 1][k])
-			if map.in_bounds(nb) and map.is_deep(nb) and depth[map.index(nb)] == 0:
+			if map.in_bounds(nb) and map.is_deep_water(nb) and depth[map.index(nb)] == 0:
 				depth[map.index(nb)] = d
 				queue.append(nb)
 	for y in n:
 		for x in n:
 			var start := Vector2i(x, y)
-			if not map.is_deep(start) or of[map.index(start)] >= 0:
+			if not map.is_deep_water(start) or of[map.index(start)] >= 0:
 				continue
 			var id := out.size()
 			var tiles: Array[Vector2i] = [start]
@@ -419,10 +420,11 @@ static func label_water(map: MapData) -> Dictionary:
 				var dt := depth[map.index(t)]
 				deepest = maxi(deepest, dt if dt > 0 else n)
 				for nb in MapData.neighbors4(t):
-					if map.is_deep(nb) and of[map.index(nb)] < 0:
+					if map.is_deep_water(nb) and of[map.index(nb)] < 0:
 						of[map.index(nb)] = id
 						tiles.append(nb)
-			out.append({"deep": tiles.size(), "width": 2 * mini(deepest, n) - 1, "tiles": tiles})
+			var deep := tiles.filter(func(t: Vector2i) -> bool: return map.is_deep(t)).size()
+			out.append({"deep": deep, "width": 2 * mini(deepest, n) - 1, "tiles": tiles})
 	return {"of": of, "bodies": out}
 
 
@@ -474,18 +476,20 @@ func body_fits(b: int, kind: String) -> bool:
 
 ## Grid waypoints over deep water from `from` to `to` (same body; empty if none).
 func water_path(from: Vector2i, to: Vector2i) -> PackedVector2Array:
-	if not map.is_deep(from) or not map.is_deep(to) or body_of(from) != body_of(to):
+	if not map.is_deep_water(from) or not map.is_deep_water(to) or body_of(from) != body_of(to):
 		return PackedVector2Array()
 	return water_astar.get_point_path(from, to)
 
 
-## The deep tile of body `b` nearest to `p` (grid), or (-1, -1).
+## The deep tile of body `b` nearest to `p` (grid; not a bridge), or (-1, -1).
 func nearest_deep(b: int, p: Vector2) -> Vector2i:
 	var best := Vector2i(-1, -1)
 	var best_d := INF
 	if b < 0 or b >= bodies.size():
 		return best
 	for t: Vector2i in bodies[b]["tiles"]:
+		if not map.is_deep(t):
+			continue
 		var d := Vector2(t).distance_squared_to(p)
 		if d < best_d:
 			best_d = d

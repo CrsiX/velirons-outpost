@@ -543,6 +543,8 @@ static func water_spawns(c: GenContext) -> void:
 			var best := Vector2i(-1, -1)
 			var best_s := -INF
 			for t: Vector2i in body["tiles"]:
+				if not m.is_deep(t):
+					continue  # (not under a bridge)
 				var s := float(land_dist[m.index(t)]) + (20.0 if m.is_edge(t) else 0.0) + rng.randf() * 0.5
 				var far_ok := true
 				for v in m.villages:
