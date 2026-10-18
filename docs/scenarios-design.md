@@ -8,7 +8,8 @@ to tune, and when built they go into `config.gd` like every other tunable. *Open
 
 - The campaign is **eleven scenarios played in order**. Each one has its own scripted baseline (map, village, units, resources, hero level, what is
   unlocked). **Nothing carries over** between scenarios, so any scenario can be replayed alone. Only the story carries over.
-- Every scenario has an **intro cutscene** (at the start) and an **outro cutscene** (when the objective is fulfilled). Between them the game plays
+- Every scenario has an **intro cutscene** (at the start) and an **outro cutscene** (when the objective is fulfilled). The player can **skip** any
+  cutscene. Between them the game plays
   as usual, with the story told through the library, treasures, the event log and a few scripted events.
 - The hero is **Brenna Hale**. Her being downed is a **defeat** in every scenario except 1 to 3 (home, she revives as in the normal game).
   Scenario 10 is at home but has no revive.
@@ -547,6 +548,6 @@ The game has none of this yet, except where noted:
 - **Objectives:** survive N waves, rebuild the village, restore ruined towers, find treasures, bury corpses, clear lairs, defeat a boss. Several
   map onto existing mechanics (waves, ruined towers, treasures, gatherers, lairs).
 - **Scripted events:** a scripted walk for the hero, things that happen at a given wave or moment.
-- **Cutscenes:** the format is *open* (`story-design.md` section 8).
+- **Cutscenes:** skippable by the player. The format is *open* (`story-design.md` section 8).
 - **Pell's market** and **mid-bosses**, both on the README's roadmap.
 - **Scenario text:** library lore, journal fragments, log lines.
