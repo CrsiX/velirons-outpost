@@ -190,11 +190,14 @@ func is_exposed() -> bool:
 	return not at_home and not dead and visible and not inside_walls()
 
 
-## Within the village walls: always safe. Enemies never get in (at a gate
-## they burn a hut, or a rat eats food, and are gone), so villagers working
-## there (a builder on a hut) carry on through an attack.
+## Within the village walls: safe while no enemy is in there too
+## (docs/siege-design.md §5.3), so villagers working there (a builder on a
+## hut) carry on through an attack until the walls are broken.
 func inside_walls() -> bool:
-	return game.map.in_village(current_tile())
+	var vid := game.map.village_at(current_tile())
+	if vid < 0:
+		return game.map.in_village(current_tile())  # (a ruin nobody plays)
+	return not game.siege.breached(vid)
 
 
 ## Hurt by an enemy (a blow, a bite, a spell): at 0 HP the villager dies.

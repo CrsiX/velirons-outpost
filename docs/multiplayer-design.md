@@ -558,7 +558,9 @@ panels. The debug log entries for them stay local.
 5. **Fog:**
    - one fog state per village in `FogLayer`, on the host;
    - each client only draws its own;
-   - public hut tiles are sent with the building states.
+   - public hut tiles are sent with the building states;
+   - building states carry level, HP, devastation and repair progress (`l`, `hp`, `dv`,
+     `rp`); others' buildings out of sight only their look (`c`, `l`, `dv`).
 6. **Networking** (`scripts/net/`):
    - `Net` (`net.gd`, autoload): host / client, lobby, setup and map
      transfer, commands up, snapshots down. It only sees a `MultiplayerPeer`

@@ -27,7 +27,7 @@ in docs/multiplayer-design.md.
 |---|---|---|---|
 | Gold | 150 | kills (`gold_on_kill`, at once), corpses brought home (`gold_on_collect`), calling a wave early, treasures and lairs, mines | military units and upgrades, barracks / training grounds, buying material, the Spatial Archmage |
 | Food | 120 | farms (carried home by farmers), corpses (`food_on_collect`), shipwreck treasures | recruiting villagers, upkeep |
-| Material | 70 | foresters, buying it, tear-down and cancel refunds, treasures and lairs | buildings, tower / barracks upgrades, rebuilding huts |
+| Material | 70 | foresters, buying it, tear-down and cancel refunds, treasures and lairs | buildings, tower / barracks / gate / wall upgrades, repairs, rebuilding huts |
 
 - **Upkeep:** `FOOD_UPKEEP` 0.05 food per villager per second (3 per minute). Every villager
   eats, the miner and the Spatial Archmage too; the hero and soldiers eat nothing.
@@ -54,21 +54,25 @@ in docs/multiplayer-design.md.
   ```
   - That gives 9 huts, 4 gates and 4 corner wall towers.
   - Wall towers take units like watchtowers, with range 4.8 (`TOWER_RANGE.wall_tower`).
-- **Inside the walls is safe.** Enemies never get in. Villagers there don't flee and can't be
-  hurt (`Civilian.inside_walls`), so builders rebuild huts during an attack.
+  - Walls, gates and wall towers have HP and hold enemies back until they are broken; gates
+    and walls level up to 3 for more HP (docs/siege-design.md).
+- **Inside the walls is safe** while no enemy is in there. Villagers there don't flee and
+  can't be hurt (`Civilian.inside_walls`), so builders rebuild huts during an attack. Once an
+  enemy has broken in, villagers walking inside are exposed until it is gone
+  (`Siege.breached`); those at home stay safe.
 - **Huts:**
   - Every villager lives in exactly one intact hut (`Hut.resident`).
   - Recruiting needs a free hut ("No free hut (n/m)"). The cap is
     `Population.cap() = intact huts`.
-- **Raids:** an enemy that gets through a gate burns one random intact hut
-  (`Game.on_enemy_reached_gate`), on every difficulty. Only that hut's resident dies; an
-  empty hut costs no life. The exceptions belong to the enemies:
+- **Raids:** an enemy that breaks in walks to the nearest intact hut and burns it (huts have
+  1 HP; `Game.on_enemy_reached_gate`, docs/siege-design.md §5), on every difficulty. Only
+  that hut's resident dies; an empty hut costs no life. The exceptions belong to the enemies:
   - rats eat food instead;
   - thieves steal gold;
   - small slimes burn one only with their `raid_chance`;
   - a vampire bat does nothing.
-- **Rebuilding:** a ruined hut can be rebuilt on its lot for the hut's cost (40 material,
-  10 s; `Construction.order_rebuild`). Builders take it from the queue like any site.
+- **Rebuilding:** a ruined hut can be rebuilt on its lot for `REPAIR_SHARE` of the hut's
+  price (80 → 40 material, 10 s; `Hut.rebuild_cost`, `Construction.order_rebuild`). Builders take hut rebuilds before any other job in the queue (§5).
   Cancelling the rebuild (§7) turns it back into a ruin and refunds the unbuilt share.
   - The villager list has **Rebuild all huts (n)**. It queues as many ruined huts as the
     material pays for, nearest the centre first, and says how many are left over.
@@ -112,7 +116,9 @@ in docs/multiplayer-design.md.
     `EVADE_RADIUS` 4.5 tiles. If there is one, they shout "Enemies!", drop or pause the job,
     run home and then rest `EVADE_REST` 6 s.
 - **Builder** (`BuildJob`, shared with the hero at half speed):
-  - claims the oldest site in the queue (FIFO), walks there and builds;
+  - claims the oldest hut rebuild in the queue, else the oldest other job (FIFO;
+    `Construction.claim`), walks there and builds. Only picking a new job looks at this (also
+    after fleeing, which gives the job back); work under way is never taken away;
   - one second of work is one second of the building's `build_time`;
   - walks home and rests. A site left halfway keeps its progress.
   - The same job does tower and barracks upgrades, ruined-tower restorations, hut rebuilds and
@@ -188,6 +194,10 @@ in docs/multiplayer-design.md.
 
 ## 7. Buildings outside the walls
 
+Every building has HP (`BUILDING_HP`). Enemies can wear it down; at 0 it is devastated and
+does nothing until a builder repairs it, for building material (docs/siege-design.md). No
+enemy goes for the buildings outside the walls yet, except the octopus's arms.
+
 | Building | Size | Cost | Build time | What it does |
 |---|---|---|---|---|
 | Watchtower (`tower`) | 1×1 | 30 material | 8 s | holds one military unit; range 3.6 (+ level) |
@@ -239,10 +249,11 @@ in docs/multiplayer-design.md.
   The player can't place a building for free; only the start's buildings and ruin
   restorations skip the checks.
 - **Cancelling** (command `cancel_site`, `Construction.cancel`): a construction site's panel has
-  *Cancel*, a tower's or barracks' panel *Cancel upgrade* while an upgrade is ordered.
+  *Cancel*, a tower's, barracks', gate's or wall's panel *Cancel upgrade* while an upgrade is
+  ordered, any building's *Cancel repair* while a repair is.
   - The refund is the price paid × (1 − the work done), rounded down per resource
     (`Building.cancel_refund`, `refund_share`): all of it before a builder starts, nothing near
-    the end. A restored ruin paid half price, so it refunds from that.
+    the end. A hut rebuild paid half price, so it refunds from that.
   - The panel says what comes back ("... back if you cancel now"), or "Too far along to get
     anything back".
   - A cancelled site disappears; a cancelled hut rebuild turns back into a ruin; a cancelled
@@ -255,7 +266,7 @@ in docs/multiplayer-design.md.
   - `MilitaryPost` → `Tower`, `Barracks`, `TrainingGrounds`;
   - `LightStone`, `Hut`, `StaticPiece` (walls, gates), all in scripts/buildings/;
   - `Construction` (scripts/systems/construction.gd) validates, places, keeps the FIFO job
-    queue, handles upgrades, rebuilds and tear-downs.
+    queue, handles upgrades, repairs, devastation, rebuilds and tear-downs.
 
 ## 8. Tear-down
 
@@ -268,12 +279,15 @@ in docs/multiplayer-design.md.
   - its worker is freed and takes another vacant workplace of its kind;
   - an ordered upgrade is cancelled and refunded like a cancel (§7): its cost × (1 − the
     upgrade work done), rounded down.
+  - so is an ordered repair.
 - **The work:** a builder (or the hero in Build mode) comes as to a site and works
   `TEARDOWN_TIME_SHARE` (0.5) of the build time. The bar counts down and the building shows
   see-through.
-- **The refund:** `TEARDOWN_REFUND` (0.33) of the material spent, rounded down. That is the
-  price plus paid tower or barracks upgrades (`materials_spent`); gold is never refunded.
-  - Examples: a watchtower gives 9 material; a level 3 watchtower 37 ((30+30+55) × 0.33); a
+- **The refund:** `TEARDOWN_REFUND` (0.33) of the material spent × the building's HP share,
+  rounded down. The material spent is the price plus paid tower or barracks upgrades
+  (`materials_spent`); gold is never refunded. A damaged building gives back less, a
+  devastated one nothing (docs/siege-design.md §3).
+  - Examples at full HP: a watchtower gives 9 material; a level 3 watchtower 37 ((30+30+55) × 0.33); a
     farm 16.
   - The free starting buildings also refund a third of their list price.
   - So does a restored ruined watchtower: `materials_spent` uses the full list price, so it

@@ -67,7 +67,7 @@ Counters add up from the start of the game. They are grouped as in the table.
 - Enemies killed, total and by kind (goblin, skeleton, ork, witch, rat,
   thief, gargoyle, necromancer, raised dead and all others), and by whom: towers, barracks
   units, summons, the hero.
-- Enemies that got through a gate; huts burned.
+- Enemies that got into the village; huts burned.
 - Waves survived; the biggest wave; the fastest wave cleared.
 - Units recruited, levels bought, specialised, levels trained at the
   training grounds; times a unit was downed.
@@ -78,7 +78,7 @@ Counters add up from the start of the game. They are grouped as in the table.
 - Food earned, by source: farms, corpses, treasure, caravans.
 - Material earned, by source: foresters, trade, tear-down refunds,
   treasure, caravans.
-- Spent, by what: buildings, units, upgrades, villagers, trade, caravans.
+- Spent, by what: buildings, units, upgrades, repairs, villagers, trade, caravans.
 - Only income with a source counts as earned: the starting stock and the
   debug buttons don't.
 - Losses: gold stolen by thieves, food eaten by rats at the gates and on
@@ -87,8 +87,9 @@ Counters add up from the start of the game. They are grouped as in the table.
 **Village**
 - Villagers recruited, by role.
 - Villagers lost, by cause: killed by enemies, starved, hut burned.
-- Buildings built, torn down and lost; huts rebuilt. Only huts can be lost
-  (enemies burn nothing else), so "lost" is the huts burned.
+- Buildings built, torn down and lost; huts rebuilt. "Lost" is the huts burned.
+- Damage taken by buildings (HP), buildings devastated, repairs done
+  (docs/siege-design.md).
 - Tiles explored; special objects found (treasures, ruined watchtowers,
   mines, camps, lairs, unlock sites; dropped loot doesn't count).
 - What comes with the start (starting villagers, farm, camp) isn't counted.

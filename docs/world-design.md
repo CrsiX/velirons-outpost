@@ -622,9 +622,11 @@ unlocked).
   **claim** it: in Explore mode he goes there before exploring new land
   (§9.1). Claiming takes 5 s (`RUIN_CLAIM_TIME`).
 - A claimed ruin belongs to the claiming village, but it's still a ruin.
-  **Restoring** is an explicit order: its panel has "Restore (cost)". It
-  costs half a watchtower's price (`RUIN_RESTORE_SHARE`), and a **builder**
-  does it like any building site. Then it's a normal watchtower.
+  **Restoring** is an explicit order: its panel has "Restore (cost)". The
+  ruin becomes a devastated watchtower of that village, and its repair is
+  ordered at once: half a watchtower's price (`REPAIR_SHARE`), done by a
+  **builder** like any repair (docs/siege-design.md §4). Then it's a normal
+  watchtower.
 - First come, first served: once claimed, it's gone for everyone else. A
   village may claim a ruin in **any** slice, including another player's; it
   then owns a tower in their land. Restoring it is up to its owner.

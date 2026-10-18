@@ -116,6 +116,8 @@ var _ids: Dictionary = {}
 @onready var hud: Hud = $HUD
 ## The in-game statistics (docs/statistics-design.md).
 var stats: Stats
+## Enemies breaking into villages (docs/siege-design.md).
+var siege: Siege
 
 
 func _ready() -> void:
@@ -176,6 +178,10 @@ func _ready() -> void:
 	stats.name = "Stats"
 	stats.setup(self)
 	$Systems.add_child(stats)
+	siege = Siege.new()
+	siege.name = "Siege"
+	siege.setup(self)
+	$Systems.add_child(siege)
 	_slice_from = Time.get_ticks_usec()
 	_use_custom_map()
 	if backdrop:
@@ -190,6 +196,7 @@ func _ready() -> void:
 	for village in villages:
 		village.apply_map(map.villages[village.id])
 	waves.setup(self)
+	waves.wave_started.connect(func(_n: int) -> void: siege.on_wave_started())
 	corpses.setup(self)
 	await build_step()
 	for village in villages:
@@ -729,7 +736,7 @@ func raid_roll(g: Enemy) -> bool:
 func on_enemy_reached_gate(g: Enemy) -> void:
 	if game_over or backdrop:
 		return
-	# Exactly one random hut of the village it attacked, on every difficulty.
+	# Exactly one hut of the village it attacked, on every difficulty.
 	# Only a villager who happens to live in that hut dies; nobody else is killed.
 	var v: Village = g.target_village if is_instance_valid(g.target_village) else player_village
 	stats.count(v, "gate")
@@ -746,10 +753,15 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 	if not raid_roll(g):
 		v.events.debug("%s got into the village and melted away" % g.label().capitalize())
 		return
-	v.events.debug("%s broke through the gate" % g.label())
-	var intact := v.intact_huts()
-	if not intact.is_empty():
-		(intact.pick_random() as Hut).destroy(g.label())
+	v.events.debug("%s broke into the village" % g.label())
+	# The hut it got to (docs/siege-design.md §5.3); one at random if it came
+	# in some other way.
+	var hut := g.raid_hut
+	if not is_instance_valid(hut) or not hut.is_intact() or hut.village != v:
+		var intact := v.intact_huts()
+		hut = null if intact.is_empty() else intact.pick_random() as Hut
+	if hut != null:
+		hut.destroy(g.label())
 	if v.is_local():
 		Sfx.play("raid")
 	v.toast("Enemies broke into the village!", Color("ff7a6a"))
@@ -894,6 +906,10 @@ func building_info(b: Building) -> Dictionary:
 		var title := "Ruined Hut" if b is Hut else b.display_name()
 		return {"title": title, "lines": ["An abandoned village: nobody lives here,", "and its ruins can't be rebuilt."], "actions": [] as Array[Dictionary]}
 	var d := b.info()
+	if not (b is Hut) and not b.tearing_down:
+		var lines: Array[String] = d["lines"]
+		var actions: Array[Dictionary] = d["actions"]
+		b.add_hp_info(lines, actions)
 	b.add_tear_down_action(d)
 	if b.village and b.village != player_village:
 		d["actions"] = [] as Array[Dictionary]

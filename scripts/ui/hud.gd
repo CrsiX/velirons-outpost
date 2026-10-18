@@ -973,7 +973,7 @@ func _refresh_people() -> void:
 	var ruined := game.construction.ruined_huts()
 	_rebuild_huts_button.visible = not ruined.is_empty()
 	if not ruined.is_empty():
-		var each: Dictionary = Config.BUILDINGS["hut"]["cost"]
+		var each: Dictionary = Hut.rebuild_cost()
 		var all := {}
 		for k in each:
 			all[k] = int(each[k]) * ruined.size()

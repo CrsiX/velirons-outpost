@@ -31,7 +31,7 @@ objects he claims and loots.
 | `attack_cooldown` | 0.9 s | between sword blows |
 | `attack_range` | 0.8 tiles | close combat |
 | `sight` | 4 tiles | surveillance around him while outside; also how far he notices enemies in a fight |
-| `alert_radius` | 6 tiles | Defend: enemies this close to a gate draw him out |
+| `alert_radius` | 6 tiles | Defend: enemies this close to the village's walls draw him out |
 | `leash` | 14 tiles | Defend: he never goes for enemies farther than this from the centre |
 | `build_efficiency` | 0.5 | Build: half a builder's speed |
 | `explore_reveal` | 1.8 tiles | Explore: his reveal radius (an explorer's is 2.6) |
@@ -81,12 +81,13 @@ rest first:
 - He waits in the village centre.
 - **Choosing an enemy** (rethought every 0.3 s): only ground enemies within `leash` (14) of the
   centre count, and only those that are either
-  - within `alert_radius` (6) of one of the village's gates, or
+  - inside the walls, or within `alert_radius` (6) of the village's walls (any piece of its
+    5×5; docs/siege-design.md §6), or
   - within his `sight` (4) of him while he is outside.
 - Beyond the leash himself (another mode took him out there), enemies within his sight count
   wherever they are, so he fights his way back.
-- Of those, the nearest wins, measured in whole tiles. Between equals, the one with the most max
-  HP wins.
+- Of those, enemies inside the walls come first; then the nearest wins, measured in whole
+  tiles. Between equals, the one with the most max HP wins.
 - **Last priority: rats on farms.** With nothing else to fight, he goes for rats sitting on his
   village's farms, however far out (no leash), the nearest first.
 - **Flyers** (gargoyles, vampire bats) are never chosen: his sword can't reach them. When one

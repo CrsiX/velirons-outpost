@@ -195,6 +195,11 @@ Big touch targets everywhere, so mouse and fingers work the same.
   - **Overlay:** towers and barracks also draw their range (barracks: the activation range) on the map.
   - **Closing:** tapping the selected building again deselects it.
   - **Other villages:** their buildings can be looked at but not ordered.
+  - **HP and repairs:** every building's panel (not huts) has an HP line ("{hp} 60 / 80") and,
+    when hurt, *Repair (cost)*; while it is repaired, the progress and *Cancel repair*. A
+    devastated building's title starts with "Devastated". Gates and walls have panels of their
+    own: level, HP, *Upgrade gate / wall*. A hurt building shows a thin HP bar on the map (green,
+    yellow below 50 %, red below 25 %) under its work bar (docs/siege-design.md §7).
   - **Map objects** have their own lines, e.g. a mine's gold rate with two decimals ("Gold: 0.25 per
     second while a miner works it").
 - **Upgrade dialog** (`Hud.open_upgrade`, from the Army tab, a tower's panel or a bench's line): one

@@ -11,7 +11,7 @@ extends RefCounted
 ## length (u32) and the body (var_to_bytes, zstd). Plain values only: entities
 ## refer to each other by nid, villages by index, map objects by index.
 
-const FORMAT := 2
+const FORMAT := 3
 const MAGIC := "VOSV"
 const EXT := "vsave"
 const AUTO_PREFIX := "auto-"
@@ -324,13 +324,12 @@ static func capture(game: Game) -> Dictionary:
 static func _building_state(bd: Building) -> Dictionary:
 	var d := {"k": bd.kind, "t": bd.tile, "v": bd.village.id if bd.village else -1, "u": bd.uid, "n": bd.nid,
 		"c": bd.complete, "p": bd.progress, "ps": bd.paid_share, "up": bd.upgrading, "upp": bd.upgrade_progress,
-		"upt": bd.upgrade_time, "td": bd.tearing_down, "tdp": bd.teardown_progress}
+		"upt": bd.upgrade_time, "td": bd.tearing_down, "tdp": bd.teardown_progress,
+		"lvl": bd.level, "hp": bd.hp, "dv": bd.devastated}
+	if bd.repairing:
+		d["rp"] = {"p": bd.repair_progress, "t": bd.repair_time, "h": bd.repair_hp, "c": bd.repair_paid}
 	if bd is Hut:
 		d["ru"] = (bd as Hut).ruined
-	if bd is Tower:
-		d["lvl"] = (bd as Tower).level
-	if bd is Barracks:
-		d["lvl"] = (bd as Barracks).level
 	if bd is Farm:
 		d["st"] = (bd as Farm).stored
 	return d
@@ -547,10 +546,17 @@ static func _apply_building(bd: Building, d: Dictionary) -> void:
 	bd.upgrade_time = float(d["upt"])
 	if bd is Hut:
 		(bd as Hut).ruined = bool(d.get("ru", false))
-	if bd is Tower:
-		(bd as Tower).level = int(d.get("lvl", 1))
-	if bd is Barracks:
-		(bd as Barracks).level = int(d.get("lvl", 1))
+	bd.level = int(d.get("lvl", 1))
+	bd.hp = float(d.get("hp", bd.max_hp()))
+	if bool(d.get("dv", false)):
+		bd.set_devastated(true)
+	var rp: Dictionary = d.get("rp", {})
+	if not rp.is_empty():
+		bd.repairing = true
+		bd.repair_progress = float(rp["p"])
+		bd.repair_time = float(rp["t"])
+		bd.repair_hp = float(rp["h"])
+		bd.repair_paid = (rp["c"] as Dictionary).duplicate()
 	if bd is Farm:
 		(bd as Farm).stored = float(d.get("st", 0.0))
 	if bool(d["td"]):

@@ -49,7 +49,7 @@ func _process(delta: float) -> void:
 
 
 func is_solid() -> bool:
-	return complete
+	return complete and not devastated
 
 
 func is_solid_when_complete() -> bool:
@@ -57,6 +57,8 @@ func is_solid_when_complete() -> bool:
 
 
 func sight_radius() -> float:
+	if devastated:
+		return 0.0
 	if tearing_down:
 		return super.sight_radius()
 	return Config.LIGHTSTONE_SIGHT if complete else 0.0

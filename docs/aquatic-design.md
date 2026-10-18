@@ -188,8 +188,10 @@ now and then (`chance`, `max_count` 1).
 - **Targets.** Humans and units: villagers outside, the hero, soldiers on a sortie, elementals.
   One arm per target, **never two on the same one**, so with fewer targets than arms some stay
   idle. It ignores every enemy, aquatic or land *(decided)*: food-dropping land enemies as prey
-  is a maybe idea only (§13), not to be built. Buildings: nothing yet; it attacks them once they
-  have HP (§12).
+  is a maybe idea only (§13), not to be built. **Buildings:** an idle arm with nobody in reach
+  smashes a building of ours within `arm_range` (not huts): `arm_smash` (8) HP every
+  `smash_cooldown` (2 s), the arm slamming down on it (docs/siege-design.md §5.5). Anyone in
+  reach still comes first.
 - **Grapple.** A hit arm hooks its target and sets forced movement towards the octopus. The
   hooked unit takes 3 damage/s and fights the arm to get free: its normal attacks go at the arm
   (an entity with HP, targetable by anyone in range, so towers and soldiers can cut an arm that

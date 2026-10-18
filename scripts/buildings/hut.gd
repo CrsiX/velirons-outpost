@@ -33,6 +33,26 @@ func sight_radius() -> float:
 	return Config.HUT_SIGHT if is_intact() else Config.BUILDING_SIGHT
 
 
+## 1 HP: any blow burns it (docs/siege-design.md).
+func take_damage(amount: float, source: Node = null) -> void:
+	if amount > 0.0 and is_intact() and can_be_hurt():
+		destroy(game.who(source) if source else "")
+
+
+## Rebuilt all or nothing (never "repaired"): see rebuild_cost.
+func can_repair() -> bool:
+	return false
+
+
+## A ruined hut is rebuilt for REPAIR_SHARE of a hut's price.
+static func rebuild_cost() -> Dictionary:
+	var out := {}
+	var full: Dictionary = Config.BUILDINGS["hut"]["cost"]
+	for k in full:
+		out[k] = ceili(full[k] * Config.REPAIR_SHARE)
+	return out
+
+
 ## Burns the hut down; whoever lived here dies with it.
 ## `cause` names who did it ("goblin 4"), for the log.
 func destroy(cause: String = "") -> void:
@@ -45,6 +65,7 @@ func destroy(cause: String = "") -> void:
 	refresh()
 	# Counted before its resident dies: the last villager's death ends the game (and the counting).
 	game.stats.on_hut_burned(village)
+	game.siege.mark_stale(village, true)
 	if is_instance_valid(victim):
 		village.population.kill(victim, "when %s burned their home" % (cause if cause != "" else "enemies"), "hut")
 	resident = null
@@ -70,6 +91,7 @@ func cancel_rebuild() -> void:
 func finish() -> void:
 	ruined = false
 	super.finish()
+	game.siege.mark_stale(village, true)
 
 
 func info() -> Dictionary:
@@ -80,11 +102,11 @@ func info() -> Dictionary:
 	elif ruined:
 		d["title"] = "Ruined Hut"
 		lines.append("Destroyed by enemies.")
-		lines.append("Rebuild for %s." % Config.cost_icons(Config.BUILDINGS["hut"]["cost"]))
+		lines.append("Rebuild for %s." % Config.cost_icons(Hut.rebuild_cost()))
 		var actions: Array[Dictionary] = d["actions"]
 		actions.append({
 			"label": "Rebuild",
-			"disabled": not village.economy.can_afford(Config.BUILDINGS["hut"]["cost"]),
+			"disabled": not village.economy.can_afford(Hut.rebuild_cost()),
 			"action": func() -> void: game.command("rebuild_hut", {"building": nid}),
 		})
 	else:

@@ -80,15 +80,17 @@ func _reachable_side(footprint: Array[Vector2i]) -> bool:
 	return false
 
 
-## A claimed ruined watchtower becomes a watchtower site at `cost` (half
-## price); a builder builds it like any site.
+## A claimed ruined watchtower becomes a devastated watchtower of ours, and
+## its repair is ordered at once (`cost`: half a watchtower's price, as for
+## any devastated one; docs/siege-design.md §4).
 func restore_ruin(ruin: RuinedTower, cost: Dictionary) -> Building:
-	if not village.economy.spend(cost, "buildings"):
+	if not village.economy.spend(cost, "repairs"):
 		return null
 	var tile := ruin.tile
 	game.world.remove_map_object(ruin)
-	var b := _new_building("tower", tile, false)
-	b.paid_share = Config.RUIN_RESTORE_SHARE
+	var b := _new_building("tower", tile, true)
+	b.set_devastated(true)
+	b.start_repair(cost)
 	queue.append(b)
 	village.events.info("A builder will restore the ruined watchtower (%s)" % Config.cost_text(cost))
 	Sfx.play("place")
@@ -118,8 +120,9 @@ func place(kind: String, tile: Vector2i) -> Building:
 
 
 func order_rebuild(hut: Hut) -> bool:
-	if not hut.ruined or not hut.complete or not village.economy.spend(Config.BUILDINGS["hut"]["cost"], "buildings"):
+	if not hut.ruined or not hut.complete or not village.economy.spend(Hut.rebuild_cost(), "buildings"):
 		return false
+	hut.paid_share = Config.REPAIR_SHARE  # (a cancel refunds from what was paid)
 	hut.start_rebuild()
 	queue.append(hut)
 	village.events.debug("order rebuilding %s" % hut.label())
@@ -152,10 +155,15 @@ func rebuild_all_huts() -> int:
 	return n
 
 
-## Next unclaimed site in order, or null.
+## Next unclaimed site, or null: huts being rebuilt first (in order), then
+## everything else in order. Only a builder (or the hero) picking a new job
+## asks, also after fleeing; work under way is never taken away.
 func claim(builder: Node) -> Building:
-	for site in queue:
-		if site.builder == null and not site.get_meta("unreachable_until", 0.0) > Time.get_ticks_msec() / 1000.0:
+	var now := Time.get_ticks_msec() / 1000.0
+	for huts_first in [true, false]:
+		for site in queue:
+			if (site is Hut) != huts_first or site.builder != null or site.get_meta("unreachable_until", 0.0) > now:
+				continue
 			site.builder = builder
 			village.events.debug("%s starts work on %s" % [builder.label(), site.label()])
 			changed.emit()
@@ -182,13 +190,57 @@ func order_upgrade(tower: Building) -> bool:
 	return true
 
 
+## A repair: building material for the missing HP (Building.repair_cost),
+## and a builder's time.
+func order_repair(b: Building) -> bool:
+	if not b.can_repair():
+		return false
+	var cost := b.repair_cost()
+	if not village.economy.spend(cost, "repairs"):
+		return false
+	village.events.debug("order repair of %s for %s" % [b.label(), Config.cost_text(cost)])
+	b.start_repair(cost)
+	queue.append(b)
+	Sfx.play("place")
+	changed.emit()
+	return true
+
+
+## A building of ours at 0 HP (docs/siege-design.md §3): it stops working at
+## once. Units walk home, its worker is freed, rats leave a farm, an ordered
+## upgrade is refunded. A repair under way goes on; so does a tear-down.
+func on_devastated(b: Building, source: Node) -> void:
+	if b.devastated:
+		return
+	if b.upgrading:
+		var back := b.cancel_refund()
+		queue.erase(b)
+		village.economy.refund(back, "upgrades")
+		b.builder = null
+		b.cancel_upgrade()
+	b.set_devastated(true)
+	village.army.eject(b)
+	if b is Workplace:
+		village.population.free_workplace(b)
+	if b is Farm:
+		(b as Farm).rats.clear()
+	game.stats.count(village, "devastated")
+	game.siege.on_devastated(b)
+	var by := game.who(source) if source != null else "enemies"
+	village.events.important("%s devastated by %s" % [b.label().capitalize(), by])
+	village.toast("%s devastated!" % b.display_name(), Color("ff9a6a"))
+	if village.is_local() and game.selected == b:
+		game.select(b)  # (its panel changes)
+	changed.emit()
+
+
 ## Marks a finished building for tear-down: it stops working at once (its
 ## units walk home, its worker is freed, a pending upgrade is refunded) and a
 ## builder comes to take it apart. Stoppable until then (stop_tear_down).
 func order_tear_down(b: Building) -> bool:
 	if not b.can_tear_down():
 		return false
-	if b.upgrading:
+	if b.upgrading or b.repairing:
 		cancel(b)
 	village.events.debug("order tear-down of %s" % b.label())
 	b.set_tearing_down(true)
@@ -234,6 +286,17 @@ func complete(site: Building) -> void:
 	site.builder = null
 	if site.complete and site.tearing_down:
 		_torn_down(site)
+		return
+	if site.complete and site.repairing:
+		var was_down := site.devastated
+		site.finish_repair()
+		game.stats.count(village, "repairs")
+		game.siege.on_repaired(site)
+		village.events.info("%s repaired" % site.label().capitalize())
+		if was_down and site is Workplace:
+			village.population.assign_worker(site, true)  # an idle farmer / forester takes it
+		Sfx.play("build")
+		changed.emit()
 		return
 	if site.complete and site.upgrading:
 		site.finish_upgrade()
@@ -334,6 +397,15 @@ func _trees_near(t: Vector2i, r: int) -> int:
 func cancel(site: Building) -> void:
 	if site.tearing_down:
 		stop_tear_down(site)
+		return
+	if site.complete and site.repairing:
+		var repair_back := site.cancel_refund()  # (before cancel_repair clears the progress)
+		queue.erase(site)
+		village.economy.refund(repair_back, "repairs")
+		site.builder = null
+		site.cancel_repair()
+		village.events.info("Repair of %s called off: %s" % [site.label(), _back_text(repair_back)])
+		changed.emit()
 		return
 	if site.complete and site.upgrading:
 		var upgrade_back := site.cancel_refund()  # (before cancel_upgrade clears the progress)

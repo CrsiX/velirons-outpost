@@ -366,7 +366,6 @@ const UNLOCK_SITE_SHARE := 0.5
 const RUINED_TOWERS := Vector2i(0, 2)  # per slice
 const RUIN_DISTANCE := Vector2(12.0, 40.0)
 const RUIN_CLAIM_TIME := 5.0
-const RUIN_RESTORE_SHARE := 0.5  # of a watchtower's cost
 ## Monster lairs: their look by zone (1x1 or 2x2).
 const LAIRS := {"mountain": "lair_cave", "pine": "lair_tree", "swamp": "lair_ruin", "ash": "lair_pit", "steppe": "lair_crypt"}
 const LAIRS_PER_SLICE := Vector2i(0, 2)
@@ -432,7 +431,8 @@ const BUILDINGS := {
 		"desc": "3x3, outside the walls. Produces food while a farmer works it.",
 	},
 	"hut": {
-		"name": "Village Hut", "cost": {"materials": 40}, "build_time": 10.0, "size": 1, "art": "hut",
+		# (Never built new: a ruined hut is rebuilt for REPAIR_SHARE of this, i.e. 40.)
+		"name": "Village Hut", "cost": {"materials": 80}, "build_time": 10.0, "size": 1, "art": "hut",
 		"desc": "Houses one civilian. Can only be rebuilt on a ruined lot.",
 	},
 	"camp": {
@@ -463,6 +463,53 @@ const TOWER_LEVELS: Array[Dictionary] = [
 	{"range_bonus": 0.8, "cost": {"materials": 30}, "work_time": 8.0},
 	{"range_bonus": 1.6, "cost": {"materials": 55}, "work_time": 12.0},
 ]
+
+## Building HP (docs/siege-design.md §2): max HP per kind and level (index =
+## level - 1; kinds without levels have one entry). Huts have 1: any enemy
+## that reaches one burns it. Upgrades add the difference to the current HP.
+const BUILDING_HP := {
+	"gate": [80.0, 160.0, 320.0],
+	"wall": [100.0, 200.0, 400.0],
+	"wall_tower": [200.0, 400.0, 800.0],
+	"tower": [100.0, 200.0, 400.0],
+	"barracks": [150.0, 250.0, 400.0],
+	"farm": [100.0],
+	"camp": [50.0],
+	"lightstone": [80.0],
+	"training": [150.0],
+	"hut": [1.0],
+}
+## The village's pieces were never bought: their price and build time count
+## for repairs (and tear-down shares, should they ever be torn down).
+const PIECE_PRICES := {
+	"gate": {"cost": {"materials": 40}, "build_time": 10.0},
+	"wall": {"cost": {"materials": 30}, "build_time": 10.0},
+	"wall_tower": {"cost": {"materials": 60}, "build_time": 14.0},
+}
+## Gate and wall levels (all start at 1): only more HP (BUILDING_HP) and a
+## look. Like tower upgrades: building material and a builder's time.
+const PIECE_LEVELS := {
+	"gate": [{}, {"cost": {"materials": 30}, "work_time": 8.0}, {"cost": {"materials": 60}, "work_time": 12.0}],
+	"wall": [{}, {"cost": {"materials": 35}, "work_time": 8.0}, {"cost": {"materials": 70}, "work_time": 12.0}],
+}
+## Repairs (docs/siege-design.md §4): building material only, REPAIR_SHARE of
+## the material spent on the building (price plus paid upgrades) times the
+## missing share of its HP (rounded up); a builder's REPAIR_TIME_SHARE of its
+## build time times that share. A devastated building costs half of what went
+## into it; a ruined watchtower is restored the same way, a ruined hut rebuilt.
+const REPAIR_SHARE := 0.5
+const REPAIR_TIME_SHARE := 1.0
+## Enemies at the village (docs/siege-design.md §5).
+const SIEGE := {
+	"approach": 3,  # tiles around the village's pieces where enemies leave their road
+	"hp_per_step": 10.0,  # an intact barrier counts one step's detour per this much HP
+	"switch_margin": 3.0,  # steps cheaper before an enemy leaves the barrier it hits
+	"rescan": 0.5,  # s between an enemy's second thoughts at a barrier
+	"rebuild_interval": 0.4,  # s: a stale field is rebuilt at most this often
+	"slip_time": 4.0,  # s an intact gate holds a rat or thief ("entry": "slip")
+	"stuck_slip": 45.0,  # s before an enemy that can't hurt a barrier slips past it
+	"slow_cost": 20,  # field cost of a step on shallow water or swamp (ground: 10)
+}
 
 const CIVILIANS := {
 	"builder": {
@@ -948,16 +995,21 @@ const CAMERA_KEY_ZOOM := 1.12
 ## unholy (true: the Inquisitor hunts it; everything a necromancer raises counts too),
 ## library (false: no library entry of its own), library_name (its name there),
 ## habitat, submerges and the other water keys (see "crab" and AQUA),
-## revivable (false: a necromancer can't raise its corpse).
-## Any enemy that gets through a gate destroys exactly one random hut, on every
+## revivable (false: a necromancer can't raise its corpse),
+## entry ("siege", the default: breaks into the village; "slip": held a while
+## by an intact gate, then through it; docs/siege-design.md §5.1),
+## siege (damage factor against walls, gates and wall towers; 0 or missing:
+## it can't hurt them, waits, and slips past after SIEGE.stuck_slip).
+## Any enemy that gets into the village burns the nearest intact hut, on every
 ## difficulty (the villager living there, if any, dies with it). Except
 ## rats (they eat food), thieves (they steal gold), vampire bats (they turn
-## back), and kinds with a raid_chance roll for it.
+## back at the gate), and kinds with a raid_chance roll for it.
 ## The pastel colours a slime can roll (equal chances), see "slime3".
 const SLIME_COLORS: Array[String] = ["red", "blue", "yellow", "green", "pink"]
 const ENEMIES := {
 	"goblin": {
 		"name": "Goblin", "art": "goblin", "behavior": "melee",
+		"siege": 1.0,
 		"desc": "The most common foe: walks the road to a gate and fights whatever blocks its way.",
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
@@ -967,6 +1019,7 @@ const ENEMIES := {
 	# Same as goblins, but bones give no food.
 	"skeleton": {
 		"name": "Skeleton", "art": "skeleton", "behavior": "melee",
+		"siege": 1.0,
 		"desc": "A goblin's strength in bones. Its corpse gives gold, but no food.",
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
@@ -976,6 +1029,7 @@ const ENEMIES := {
 	# Slower and much tougher; hits hard. Gold only on kill, lots of food as a corpse.
 	"ork": {
 		"name": "Ork", "art": "ork", "behavior": "melee",
+		"siege": 1.0,
 		"desc": "Slow and very tough, and it hits hard. A good meal as a corpse.",
 		"hp": 55.0, "speed": 0.8,
 		"damage": 11.0, "attack_cooldown": 1.2,
@@ -991,6 +1045,7 @@ const ENEMIES := {
 	# smaller ones only with `raid_chance`, else they just melt away.
 	"slime3": {
 		"name": "Big slime", "art": "slime3", "behavior": "melee", "corpse": false, "level": 3,
+		"siege": 1.0,
 		"desc": "Slain, it splits into two smaller slimes, and each of those into two more.",
 		"library_name": "Slime",
 		"hp": 40.0, "speed": 0.8,
@@ -1001,6 +1056,7 @@ const ENEMIES := {
 	},
 	"slime2": {
 		"name": "Slime", "art": "slime2", "behavior": "melee", "corpse": false, "level": 2, "raid_chance": 0.5, "library": false,
+		"siege": 1.0,
 		"desc": "Half of a big slime. Slain, it splits into two small slimes. In the village, it burns a hut only half of the time.",
 		"hp": 20.0, "speed": 1.1,
 		"damage": 5.5, "attack_cooldown": 1.2,
@@ -1010,6 +1066,7 @@ const ENEMIES := {
 	},
 	"slime1": {
 		"name": "Small slime", "art": "slime1", "behavior": "melee", "corpse": false, "level": 1, "raid_chance": 0.25, "library": false,
+		"siege": 1.0,
 		"desc": "The smallest and quickest slime. It just dies. In the village, it burns a hut only a quarter of the time.",
 		"hp": 10.0, "speed": 1.4,
 		"damage": 2.75, "attack_cooldown": 1.2,
@@ -1021,6 +1078,7 @@ const ENEMIES := {
 	# earth elementals. Whoever attacks her becomes her first target.
 	"witch": {
 		"name": "Witch", "art": "witch", "behavior": "witch", "attack_category": "magical",
+		"siege": 1.0,
 		"desc": "No close combat: she stops at manned towers in range and bewitches their unit, which then stops shooting for a moment.",
 		"hp": 12.0, "speed": 1.0,
 		"damage": 0.0, "attack_cooldown": 1.0,
@@ -1046,6 +1104,7 @@ const ENEMIES := {
 	# vanish within RAT_WAVE_LINGER seconds. Killed: a little gold, no corpse.
 	"rat": {
 		"name": "Rat", "art": "rat", "behavior": "rat", "corpse": false,
+		"entry": "slip",
 		"desc": "Comes in fast packs and goes for the farms, eating their food. Rats that get through a gate eat from the stores.",
 		"hp": 7.0, "speed": 2.4,
 		"damage": 0.6, "attack_cooldown": 0.8,
@@ -1063,6 +1122,7 @@ const ENEMIES := {
 	# from. Killed with the loot, its corpse holds the stolen gold as well.
 	"thief": {
 		"name": "Thief", "art": "thief", "behavior": "thief",
+		"entry": "slip",
 		"desc": "Quick on its feet. At a gate it burns nothing: it steals gold and runs back. Kill it to get the gold back.",
 		"hp": 20.0, "speed": 1.5,
 		"damage": 4.0, "attack_cooldown": 1.0,
@@ -1077,6 +1137,7 @@ const ENEMIES := {
 	# hits them and their own blow is ready (a counter-strike).
 	"gargoyle": {
 		"name": "Gargoyle", "art": "gargoyle", "behavior": "melee", "flying": true,
+		"siege": 1.0,
 		"desc": "Flies along the roads: only ranged attacks and fire elementals can go for it.",
 		"hp": 40.0, "speed": 0.8,
 		"damage": 7.0, "attack_cooldown": 1.2,
@@ -1092,6 +1153,7 @@ const ENEMIES := {
 	# corpse, and a necromancer's own, can never be raised.
 	"necromancer": {
 		"name": "Necromancer", "art": "necromancer", "behavior": "necromancer", "revivable": false,
+		"siege": 0.0,
 		"desc": "No attack: it stops by the corpses of other enemies and raises them again for a while.",
 		"hp": 20.0, "speed": 0.95,
 		"damage": 0.0, "attack_cooldown": 1.0,
@@ -1113,6 +1175,7 @@ const ENEMIES := {
 	# would be the bat's to fight.)
 	"vampire": {
 		"name": "Vampire", "art": "vampire", "behavior": "vampire",
+		"siege": 1.0,
 		"desc": "Drains life with its bites. Almost beaten, it turns into a bat once and flies away to heal.",
 		"hp": 40.0, "speed": 0.9,
 		"damage": 4.0, "attack_cooldown": 1.0,
@@ -1133,6 +1196,7 @@ const ENEMIES := {
 	# everywhere else (never by choice). Fights like a goblin.
 	"crab": {
 		"name": "Crab", "art": "crab", "behavior": "melee",
+		"siege": 1.0,
 		"desc": "A goblin that swims: it comes up rivers and lakes, out of sight under deep water, and climbs out onto the roads.",
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
@@ -1178,6 +1242,7 @@ const ENEMIES := {
 	# her max HP within dive_window s.
 	"siren": {
 		"name": "Siren", "art": "siren", "behavior": "siren",
+		"siege": 0.0,
 		"desc": "She sings from the water: our people are drawn towards her and fight slower. Melee can't reach her in the water, unless a High Priest blesses them.",
 		"hp": 24.0, "speed": 0.9,
 		"damage": 0.0, "attack_cooldown": 1.0,
@@ -1214,6 +1279,9 @@ const ENEMIES := {
 		"arms": 8, "arm_range": 4.5, "arm_cooldown": 6.0, "arm_stagger": 0.75,
 		"arm_reach_speed": 8.0,  # tiles per second of a reaching arm's tip
 		"spell_damage": 3.0, "arm_pull": 0.6, "arm_respawn": 30.0,
+		# With nobody in reach, an arm smashes a building of ours within
+		# arm_range instead: arm_smash HP every smash_cooldown s (docs/siege-design.md §5.5).
+		"arm_smash": 8.0, "smash_cooldown": 2.0,
 		"dive_loss": 0.15, "dive_window": 6.0, "dive_time": 6.0, "dive_lockout": 20.0,
 	},
 	# One of the octopus's arms while it reaches or holds: a target like any

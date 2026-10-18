@@ -49,6 +49,9 @@ func _turn_bat(enemy: Enemy) -> void:
 	enemy.base_speed = enemy.speed
 	enemy.set_airborne(true)
 	enemy.game.log_all(EventLog.Level.DEBUG, "%s turns into a bat" % enemy.label())
+	if enemy.sieging:  # (a bat breaks nothing: back on the road, to the gate and away)
+		enemy.leave_siege()
+		_to_village(enemy)
 
 
 func _land(enemy: Enemy) -> void:

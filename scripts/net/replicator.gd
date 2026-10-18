@@ -167,7 +167,12 @@ func _snapshot_for(id: int, all: Array) -> Dictionary:
 			if not own and not game.fog.is_explored_by(vid, tile):
 				continue
 			if not own and not e[6] and not game.fog.is_watched_by(vid, tile):
-				state = {"c": state["c"]}  # others' buildings: only what they looked like
+				# Others' buildings: only what they looked like.
+				var look := {"c": state["c"]}
+				for k in ["l", "dv"]:
+					if state.has(k):
+						look[k] = state[k]
+				state = look
 		elif not own and not game.fog.is_watched_by(vid, tile):
 			continue
 		seen[nid] = true
@@ -250,11 +255,17 @@ func _building_state(b: Building) -> Dictionary:
 		st["u"] = snappedf(b.upgrade_progress, 0.1)
 	if b.tearing_down:
 		st["td"] = snappedf(b.teardown_progress, 0.1)
+	if b.repairing:
+		st["rp"] = snappedf(b.repair_progress, 0.1)
+		st["rpt"] = b.repair_time
+	if b.level != 1:
+		st["l"] = b.level
+	if b.hp < b.max_hp():
+		st["hp"] = ceilf(b.hp)
+	if b.devastated:
+		st["dv"] = true
 	if b is Tower:
-		st["l"] = b.level
 		st["en"] = b.enchanted > 0.0
-	if b is Barracks:
-		st["l"] = b.level
 	if b is MilitaryPost:
 		# Every slot: [unit id, kind, level, train xp, out, downed]; and who's marching in.
 		var sl := []
@@ -613,8 +624,13 @@ func _apply_building(b: Building, st: Dictionary) -> void:
 	if st.has("td") != b.tearing_down:
 		b.set_tearing_down(st.has("td"))
 	b.teardown_progress = st.get("td", 0.0)
-	if (b is Tower or b is Barracks) and st.has("l") and b.level != st["l"]:
-		b.level = st["l"]
+	b.level = st.get("l", 1)
+	b.hp = st.get("hp", b.max_hp())
+	b.repairing = st.has("rp")
+	b.repair_progress = st.get("rp", 0.0)
+	b.repair_time = st.get("rpt", 1.0)
+	if st.get("dv", false) != b.devastated:
+		b.set_devastated(st.get("dv", false))
 	if b is Tower:
 		b.enchanted = 1.0 if st.get("en", false) else 0.0
 	if b is MilitaryPost:

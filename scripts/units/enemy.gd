@@ -79,6 +79,19 @@ var _splash_in := 0.0
 var fx := {}
 ## The deep-water body a water-bound monster lives in (Pathing.bodies).
 var body := -1
+## Breaking into its village (docs/siege-design.md §5): off the road, tile by
+## tile along the siege field (Siege), hitting the barrier in its way.
+var sieging := false
+var breach: Building = null
+## A barrier it couldn't hurt and walks through after SIEGE.stuck_slip.
+var _passing: Building = null
+var _siege_cd := 0.0
+var _siege_scan := 0.0
+var _stuck := 0.0
+## Seconds an intact gate has held it ("entry": "slip").
+var _slip := 0.0
+## The hut it got to: Game.on_enemy_reached_gate burns this one.
+var raid_hut: Hut = null
 
 
 func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: String) -> void:
@@ -125,6 +138,7 @@ func retarget(v: Village, rng: RandomNumberGenerator) -> void:
 	var route := game.world.pathing.enemy_route(from, rng, field, amph)
 	var old := target_village
 	target_village = v
+	leave_siege()
 	var pts := PackedVector2Array([grid_pos])
 	for t in route:
 		pts.append(Vector2(t) + _jitter)
@@ -151,6 +165,10 @@ func is_slowed() -> bool:
 ## Spatial magic: thrown `tiles` back along its road (away from the village),
 ## at most once every `immunity` seconds. Returns whether it moved.
 func push_back(tiles: float, immunity: float) -> bool:
+	if sieging and _push_immune <= 0.0:
+		_push_immune = immunity
+		_siege_push(tiles)
+		return true
 	if _push_immune > 0.0 or path.size() < 2 or habitat() == "water":
 		return false  # (water-bound monsters have no road to be thrown back along)
 	_push_immune = immunity
@@ -499,8 +517,11 @@ func stat(key: String) -> float:
 	return Config.enemy_stat(kind, key)
 
 
-## Tiles left until the gate (lower = more dangerous).
+## Tiles left until the gate (lower = more dangerous); breaking in: tiles to
+## the village's walls (0 at or inside them).
 func remaining() -> int:
+	if sieging and is_instance_valid(target_village):
+		return floori(Hero.rect_distance(target_village.rect, grid_pos))
 	return path.size() - path_index
 
 
@@ -584,17 +605,190 @@ func _process(delta: float) -> void:
 			return
 		if not self_moved:
 			_set_moving(false)
+	elif _siege_tick(delta):
+		if dead:
+			return
 	elif step_path(delta):
+		if _held_at_gate(delta):
+			_set_moving(false)
+			_update_visibility()
+			return
 		if behavior.on_path_end(self):
 			return  # (a thief turning back, or escaping)
-		dead = true
-		remove_from_group("enemies")
-		reached_gate.emit(self)
-		var tw := create_tween()
-		tw.tween_property(self, "modulate:a", 0.0, 0.25)
-		tw.tween_callback(queue_free)
+		if entry() == "siege" and _start_siege_at_end():
+			_update_visibility()
+			return
+		_get_in()
 		return
 	_update_visibility()
+
+
+## Through: it burns a hut (raid_hut, or one at random), eats food or steals
+## (Game.on_enemy_reached_gate), and is gone.
+func _get_in() -> void:
+	dead = true
+	remove_from_group("enemies")
+	reached_gate.emit(self)
+	var tw := create_tween()
+	tw.tween_property(self, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(queue_free)
+
+
+# --- at the village (docs/siege-design.md §5) -------------------------------------------------
+
+## How it gets into a village: "siege" (break in) or "slip" (held by a gate).
+func entry() -> String:
+	return str(spec().get("entry", "siege"))
+
+
+## May break into its village by the siege field now?
+func _may_siege() -> bool:
+	return entry() == "siege" and habitat() != "water" and not airborne and not game.is_client \
+		and is_instance_valid(target_village) and not target_village.fallen and not (behavior is CampBehavior)
+
+
+## A "slip" enemy at the end of its road on an intact gate: held for SIEGE.slip_time.
+func _held_at_gate(delta: float) -> bool:
+	if entry() != "slip":
+		return false
+	var b = game.map.building_at(current_tile())
+	if not (b is StaticPiece and b.kind == "gate" and b.complete and not b.devastated):
+		return false
+	if _slip == 0.0 and b.village:
+		b.village.events.debug("%s is held up at %s" % [label(), b.label()])
+	_slip += delta
+	return _slip < float(Config.SIEGE["slip_time"])
+
+
+## The road ended (it never got near enough to switch, e.g. raised at the
+## gate): break in from here, if it is at a village. Returns whether it does.
+func _start_siege_at_end() -> bool:
+	var vid := game.map.village_at(current_tile())
+	if vid < 0 or vid >= game.villages.size() or airborne or habitat() == "water":
+		return false
+	if not is_instance_valid(target_village) or target_village.id != vid:
+		target_village = game.villages[vid]
+	if not _may_siege():
+		return false
+	sieging = true
+	return true
+
+
+## Leaves the siege (a new target village, or a vampire turning into a bat).
+func leave_siege() -> void:
+	sieging = false
+	breach = null
+	_passing = null
+	_stuck = 0.0
+
+
+## Breaking in: returns true while the siege moves (or holds) it this frame.
+func _siege_tick(delta: float) -> bool:
+	var v := target_village
+	if not sieging:
+		if not _may_siege() or not game.siege.in_zone(v, current_tile()):
+			return false
+		if game.siege.value(v, current_tile(), flies()) >= Siege.BLOCKED:
+			return false
+		sieging = true
+		path = PackedVector2Array()
+		path_index = 0
+		v.events.debug("%s leaves the road to break into %s" % [label(), v.village_name])
+	elif not _may_siege():
+		leave_siege()
+		return false
+	var air := flies()
+	_siege_cd -= delta
+	_siege_scan -= delta
+	if air:
+		breach = null
+	if is_instance_valid(breach) and breach.complete and not breach.devastated and breach != _passing:
+		_at_barrier(v, delta)
+		return true
+	breach = null
+	if path_index < path.size():
+		step_path(delta)
+		return true
+	var here := current_tile()
+	var hut := game.siege.hut_at(v, here)
+	if hut != null:
+		raid_hut = hut
+		_get_in()
+		return true
+	if not air:
+		var under := game.siege.barrier_at(v, here)
+		if under != null and under != _passing:
+			breach = under  # (standing on it: a gate it walked onto)
+			return true
+	var n := game.siege.next_step(v, here, air, _passing)
+	if n == here:
+		_set_moving(false)  # (no way in from here: wait)
+		return true
+	var b := game.siege.barrier_at(v, n) if not air else null
+	if b != null and b != _passing:
+		breach = b
+		_stuck = 0.0
+		face(Vector2(n))
+		return true
+	follow(PackedVector2Array([grid_pos, Vector2(n) + _jitter]))
+	step_path(delta)
+	return true
+
+
+## In front of a barrier: hits it (EnemyBehavior.siege_attack), now and then
+## checks for a clearly cheaper way, and slips past one it can't hurt.
+func _at_barrier(v: Village, delta: float) -> void:
+	_set_moving(false)
+	face(Vector2(breach.tile))
+	if _siege_scan <= 0.0:
+		_siege_scan = float(Config.SIEGE["rescan"])
+		var here := current_tile()
+		var now := game.siege.way_cost(v, breach.tile, false)
+		var best := game.siege.best_way(v, here, false)
+		if best < Siege.BLOCKED and best + float(Config.SIEGE["switch_margin"]) * Siege.STEP < now:
+			breach = null
+			return
+	if _siege_cd > 0.0:
+		return
+	var cd := behavior.siege_attack(self, breach)
+	if cd > 0.0:
+		_siege_cd = cd
+		_stuck = 0.0
+		return
+	_stuck += delta
+	if _stuck >= float(Config.SIEGE["stuck_slip"]):
+		v.events.debug("%s slips past %s" % [label(), breach.label()])
+		_passing = breach
+		breach = null
+
+
+## Spatial magic on an enemy breaking in: thrown back up the field, tile by
+## tile, over ground it can walk.
+func _siege_push(tiles: float) -> void:
+	var v := target_village
+	var air := flies()
+	var t := current_tile()
+	for i in maxi(1, roundi(tiles)):
+		var best := t
+		var here := game.siege.value(v, t, air)
+		var best_k := -INF
+		for n in MapData.neighbors4(t):
+			var val := game.siege.value(v, n, air)
+			if val >= Siege.BLOCKED or val <= here or game.siege.enter_cost(v, n, air) > int(Config.SIEGE["slow_cost"]) or (not air and game.siege.barrier_at(v, n) != null):
+				continue
+			# Farther from the huts; between equals, farther from the walls.
+			var k := val * 100.0 + Hero.rect_distance(v.rect, Vector2(n))
+			if k > best_k:
+				best_k = k
+				best = n
+		if best == t:
+			break
+		t = best
+	breach = null
+	path = PackedVector2Array()
+	path_index = 0
+	set_grid_pos(Vector2(t) + _jitter)
+	Combat.burst(game, "warp", position + Vector2(0, -16), 0.8)
 
 
 ## Only seen while under surveillance (near villagers, soldiers or manned towers).

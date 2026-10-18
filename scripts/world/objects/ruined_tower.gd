@@ -3,8 +3,9 @@ extends MapObject
 ## A ruined watchtower (docs/world-design.md §9.5). The explorer (or anyone)
 ## can find it; only a hero can claim it (Explore mode goes for it before new
 ## land), first come first served, in any slice. The claiming village then
-## owns the ruin; restoring it is an explicit order ("Restore (half cost)")
-## that a builder carries out like any building site. Then it's a watchtower.
+## owns the ruin; restoring it is an explicit order ("Restore (half cost)"):
+## it becomes a devastated watchtower of that village, and a builder repairs
+## it like any other (docs/siege-design.md §4).
 
 ## The hero on his way to claim it.
 var claimed_by: Node = null
@@ -22,12 +23,13 @@ func claimable() -> bool:
 	return village == null and (claimed_by == null or not is_instance_valid(claimed_by))
 
 
-## Half a watchtower's price (rounded up).
+## Half a watchtower's price (rounded up): the repair of a devastated one
+## (docs/siege-design.md §4).
 static func restore_cost() -> Dictionary:
 	var out := {}
 	var full: Dictionary = Config.BUILDINGS["tower"]["cost"]
 	for k in full:
-		out[k] = ceili(full[k] * Config.RUIN_RESTORE_SHARE)
+		out[k] = ceili(full[k] * Config.REPAIR_SHARE)
 	return out
 
 

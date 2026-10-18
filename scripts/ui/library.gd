@@ -433,7 +433,11 @@ static func _buildings() -> Array[Dictionary]:
 	for kind: String in Config.BUILDINGS:
 		var b: Dictionary = Config.BUILDINGS[kind]
 		var f := PackedStringArray()
-		f.append("Cost: %s · built in %s s · %dx%d" % [Config.cost_text(b["cost"]), _n(b["build_time"]), b["size"], b["size"]])
+		if kind == "hut":
+			f.append("Rebuild: %s · %s s" % [Config.cost_text(Hut.rebuild_cost()), _n(b["build_time"])])
+		else:
+			f.append("Cost: %s · built in %s s · %dx%d" % [Config.cost_text(b["cost"]), _n(b["build_time"]), b["size"], b["size"]])
+		f.append(_hp_fact(kind))
 		match kind:
 			"tower":
 				f.append_array(_tower_facts("tower"))
@@ -455,9 +459,32 @@ static func _buildings() -> Array[Dictionary]:
 	out.append({
 		"name": "Wall Tower", "art": "wall_tower",
 		"text": "The towers at the corners of the village walls. They come with the village; station a unit on them and upgrade them like watchtowers.",
-		"facts": _tower_facts("wall_tower"),
+		"facts": PackedStringArray([_hp_fact("wall_tower")]) + _tower_facts("wall_tower"),
 	})
+	for kind: String in Config.PIECE_LEVELS:
+		var f := PackedStringArray([_hp_fact(kind)])
+		var levels: Array = Config.PIECE_LEVELS[kind]
+		for i in range(1, levels.size()):
+			f.append("Level %d: %s" % [i + 1, Config.cost_text(levels[i]["cost"])])
+		f.append("Repairs count it as %s" % Config.cost_text(Config.PIECE_PRICES[kind]["cost"]))
+		out.append({
+			"name": "Village Gate" if kind == "gate" else "Village Wall", "art": kind,
+			"text": "Holds enemies back until they break it; the cheapest way in is the gate unless a wall is weaker. Upgrade it for more HP."
+				if kind == "gate" else "Holds enemies back. Enemies break through where it's weakest; a broken wall lets them in past the gate.",
+			"facts": f,
+		})
 	return out
+
+
+## "HP 100 / 200 / 400" (per level) and what a repair costs.
+static func _hp_fact(kind: String) -> String:
+	var hp: Array = Config.BUILDING_HP.get(kind, [1.0])
+	var parts := PackedStringArray()
+	for v in hp:
+		parts.append(_n(v))
+	if kind == "hut":
+		return "HP 1: any enemy that gets to it burns it"
+	return "HP %s · repairs cost up to %s %% of the material spent on it" % [" / ".join(parts), _n(Config.REPAIR_SHARE * 100.0)]
 
 
 static func _tower_facts(kind: String) -> PackedStringArray:
@@ -570,7 +597,7 @@ static func _places() -> Array[Dictionary]:
 	var tower_cost: Dictionary = Config.BUILDINGS["tower"]["cost"]
 	var restore := {}
 	for res: String in tower_cost:
-		restore[res] = roundi(tower_cost[res] * Config.RUIN_RESTORE_SHARE)
+		restore[res] = roundi(tower_cost[res] * Config.REPAIR_SHARE)
 	out.append({"name": "Ruined watchtower", "art": "watchtower_ruin",
 		"text": "An old watchtower, fallen apart. Only the hero can claim it (Explore mode); then a builder restores it, and it's yours.",
 		"facts": PackedStringArray(["Claiming takes %s s" % _n(Config.RUIN_CLAIM_TIME), "Restoring costs %s (half a watchtower)" % Config.cost_text(restore)])})

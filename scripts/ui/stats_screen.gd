@@ -25,7 +25,7 @@ const SOURCE_NAMES := {
 }
 const SPENT_NAMES := {
 	"buildings": "buildings", "units": "units", "upgrades": "upgrades", "villagers": "villagers",
-	"trade": "trade", "caravans": "caravans sent",
+	"trade": "trade", "caravans": "caravans sent", "repairs": "repairs",
 }
 const RES_ICONS := {"gold": "icon_gold", "food": "icon_food", "materials": "icon_materials"}
 const RES_NAMES := {"gold": "Gold", "food": "Food", "materials": "Material"}
@@ -263,6 +263,9 @@ func summary_sections() -> Array[Dictionary]:
 	vil.append(_row("Buildings torn down", "torn_down", ""))
 	vil.append(_row("Buildings lost (huts burned)", "huts_burned", "low", "hut_ruin"))
 	vil.append(_row("Huts rebuilt", "huts_rebuilt", "", "hut"))
+	vil.append(_row("Damage taken by buildings", "building_damage", "low"))
+	vil.append(_row("Buildings devastated", "devastated", "low", "wall_ruin"))
+	vil.append(_row("Repairs done", "repairs", ""))
 	vil.append(_row("Tiles explored", "explored", "high", "mode_explore"))
 	vil.append(_row("Special objects found", "_found", "high"))
 	vil[-1]["get"] = func(vid: int) -> float: return _sum_prefix(vid, "found.")

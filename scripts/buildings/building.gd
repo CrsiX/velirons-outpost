@@ -20,8 +20,23 @@ var build_time := 1.0
 ## Builder currently assigned to this site (if any).
 var builder: Node = null
 ## Share of the kind's listed price that was really paid for the construction
-## under way (a restored ruin is cheaper, see Config.RUIN_RESTORE_SHARE).
+## under way.
 var paid_share := 1.0
+## Level (towers, barracks, gates and walls level up; the rest stay at 1).
+var level := 1
+## HP (docs/siege-design.md): enemies wear it down, it never heals by itself;
+## at 0 the building is devastated and does nothing until it is repaired.
+var hp := 1.0
+var devastated := false
+## A repair ordered (a builder's job, like an upgrade): the HP it gives back
+## and what it cost (refunded in part when cancelled).
+var repairing := false
+var repair_progress := 0.0
+var repair_time := 1.0
+var repair_hp := 0.0
+var repair_paid := {}
+## Heaps of rubble over a devastated building without ruin art of its own.
+var _rubble: Sprite2D
 ## Builder work on a finished building (e.g. a tower upgrade). The building
 ## keeps working normally meanwhile.
 var upgrading := false
@@ -44,7 +59,8 @@ func setup(p_game: Game, p_kind: String, p_tile: Vector2i, p_complete: bool) -> 
 	complete = p_complete
 	if Config.BUILDINGS.has(kind):
 		size = Config.BUILDINGS[kind]["size"]
-		build_time = Config.BUILDINGS[kind]["build_time"]
+	build_time = float(Building.price(kind).get("build_time", 1.0))
+	hp = max_hp()
 	position = Building.anchor_world(tile, size)
 	add_to_group("observers")
 	_build_visuals()
@@ -69,6 +85,14 @@ static func footprint(anchor: Vector2i, p_size: int) -> Array[Vector2i]:
 static func anchor_world(anchor: Vector2i, p_size: int) -> Vector2:
 	var half := 0.5 if p_size % 2 == 0 else 0.0
 	return Iso.to_world(Vector2(anchor) + Vector2(half, half))
+
+
+## A kind's price and build time: Config.BUILDINGS, or for the village's
+## pieces Config.PIECE_PRICES (never bought; it counts for repairs).
+static func price(p_kind: String) -> Dictionary:
+	if Config.BUILDINGS.has(p_kind):
+		return Config.BUILDINGS[p_kind]
+	return Config.PIECE_PRICES.get(p_kind, {})
 
 
 func display_name() -> String:
@@ -130,21 +154,20 @@ func is_solid_when_complete() -> bool:
 
 ## Finished buildings watch BUILDING_SIGHT + size / 2 (whole tiles) around their anchor tile.
 func sight_radius() -> float:
-	return Config.BUILDING_SIGHT + size / 2 if complete else 0.0
+	return Config.BUILDING_SIGHT + size / 2 if complete and not devastated else 0.0
 
 
 func sight_center() -> Vector2:
 	return Vector2(tile)
 
 
-## Does a builder have anything to do here (construction, an upgrade or a tear-down)?
-func has_work() -> bool:
-	return not complete or upgrading or tearing_down
-
-
-## Finished and not being torn down: the building does its job.
+## Finished, standing and not being torn down: the building does its job.
 func working() -> bool:
-	return complete and not tearing_down
+	return complete and not tearing_down and not devastated
+
+
+func has_work() -> bool:
+	return not complete or upgrading or tearing_down or repairing
 
 
 func work_fraction() -> float:
@@ -152,10 +175,12 @@ func work_fraction() -> float:
 		return clampf(progress / build_time, 0.0, 1.0)
 	if tearing_down:
 		return clampf(teardown_progress / teardown_time(), 0.0, 1.0)
+	if repairing:
+		return clampf(repair_progress / repair_time, 0.0, 1.0)
 	return clampf(upgrade_progress / upgrade_time, 0.0, 1.0)
 
 
-## Advance construction (or an upgrade, or a tear-down). Returns true once done.
+## Advance construction (or a tear-down, a repair or an upgrade). Returns true once done.
 func add_progress(dt: float) -> bool:
 	queue_redraw()
 	if not complete:
@@ -164,8 +189,143 @@ func add_progress(dt: float) -> bool:
 	if tearing_down:
 		teardown_progress += dt
 		return teardown_progress >= teardown_time()
+	if repairing:
+		repair_progress += dt
+		return repair_progress >= repair_time
 	upgrade_progress += dt
 	return upgrade_progress >= upgrade_time
+
+
+# --- HP, devastation and repairs (docs/siege-design.md) -------------------------------------
+
+## Max HP at its level (Config.BUILDING_HP).
+func max_hp() -> float:
+	var list: Array = Config.BUILDING_HP.get(kind, [1.0])
+	return float(list[clampi(level - 1, 0, list.size() - 1)])
+
+
+func hp_share() -> float:
+	return clampf(hp / max_hp(), 0.0, 1.0)
+
+
+## Can enemies hurt it now? Finished, standing, owned (not a ruin nobody
+## plays), and not in the title backdrop; the co-op host decides.
+func can_be_hurt() -> bool:
+	return complete and not devastated and village != null and not game.backdrop and not game.is_client
+
+
+## Damage from an enemy (`source`); every category counts the same. At 0 HP
+## the building is devastated (Construction.on_devastated).
+func take_damage(amount: float, source: Node = null) -> void:
+	if amount <= 0.0 or not can_be_hurt():
+		return
+	var before := hp
+	hp = maxf(hp - amount, 0.0)
+	game.siege.on_damaged(self, source, before - hp)
+	queue_redraw()
+	if sprite:
+		sprite.self_modulate = Color(1.0, 0.55, 0.5)
+		create_tween().tween_property(sprite, "self_modulate", Color.WHITE, 0.2)
+	if hp <= 0.0:
+		village.construction.on_devastated(self, source)
+
+
+## Devastated or standing again: its look, its solidity, and the siege field.
+func set_devastated(on: bool) -> void:
+	devastated = on
+	if on:
+		hp = 0.0
+	refresh()
+	_update_ruin_look()
+	if game.world:
+		game.world.refresh_building(self)
+
+
+## Kinds with ruin art of their own (towers, walls, gates) show it in refresh();
+## the rest are darkened, with rubble on top.
+func has_ruin_art() -> bool:
+	return false
+
+
+func _update_ruin_look() -> void:
+	var show := devastated and not has_ruin_art()
+	if show and _rubble == null:
+		_rubble = Art.sprite("rubble")
+		_rubble.scale *= 0.7 + 0.45 * (size - 1)
+		add_child(_rubble)
+	if _rubble:
+		_rubble.visible = show
+	_update_tint()
+
+
+## Dimmed while torn down, darkened while devastated (without ruin art).
+func _update_tint() -> void:
+	var c := Color.WHITE
+	if devastated and not has_ruin_art():
+		c = Color(0.5, 0.46, 0.43)
+	if tearing_down:
+		c.a = 0.6
+	modulate = c
+
+
+## Missing share of its HP (0: whole).
+func missing_share() -> float:
+	return 1.0 - hp_share()
+
+
+## Can a repair be ordered? Finished, hurt, nothing else under way.
+func can_repair() -> bool:
+	return complete and village != null and not repairing and not upgrading and not tearing_down and missing_share() > 0.0
+
+
+## Building material for a repair: REPAIR_SHARE of what was spent on it,
+## times the missing share of its HP (rounded up, at least 1).
+func repair_cost() -> Dictionary:
+	if missing_share() <= 0.0:
+		return {}
+	return {"materials": maxi(1, ceili(materials_spent() * Config.REPAIR_SHARE * missing_share() - 0.0001))}
+
+
+func start_repair(cost: Dictionary) -> void:
+	repairing = true
+	repair_progress = 0.0
+	repair_hp = max_hp() - hp
+	repair_time = maxf(build_time * Config.REPAIR_TIME_SHARE * missing_share(), 0.5)
+	repair_paid = cost.duplicate()
+	queue_redraw()
+
+
+## The repair is done: back the HP that was paid for; standing again.
+func finish_repair() -> void:
+	repairing = false
+	hp = minf(max_hp(), hp + repair_hp)
+	repair_hp = 0.0
+	repair_paid = {}
+	if devastated and hp > 0.0:
+		set_devastated(false)
+	refresh()
+	queue_redraw()
+
+
+func cancel_repair() -> void:
+	repairing = false
+	repair_progress = 0.0
+	repair_hp = 0.0
+	repair_paid = {}
+	queue_redraw()
+
+
+## One level up (an upgrade finished): the max HP grows, and so does its HP.
+func gain_level() -> void:
+	var before := max_hp()
+	level += 1
+	if not devastated:
+		hp += max_hp() - before
+
+
+## Nothing else under way: an upgrade can be ordered (with levels left).
+func free_for_work() -> bool:
+	return working() and not upgrading and not repairing
 
 
 # --- cancelling a site or an ordered upgrade ----------------------------------------------
@@ -175,7 +335,7 @@ func paid_cost() -> Dictionary:
 	var out := {}
 	if not Config.BUILDINGS.has(kind):
 		return out
-	var cost: Dictionary = Config.BUILDINGS[kind]["cost"]
+	var cost: Dictionary = Building.price(kind)["cost"]
 	for res in cost:
 		out[res] = ceili(cost[res] * paid_share)
 	return out
@@ -185,7 +345,7 @@ func paid_cost() -> Dictionary:
 ## ordered upgrade alike: all of it while no builder has worked on it, falling
 ## off evenly with the work done, and none of it by the time it is finished.
 func refund_share() -> float:
-	if tearing_down or (complete and not upgrading):
+	if tearing_down or (complete and not upgrading and not repairing):
 		return 0.0
 	return 1.0 - work_fraction()
 
@@ -195,7 +355,9 @@ func refund_share() -> float:
 func cancel_refund() -> Dictionary:
 	var out := {}
 	var share := refund_share()
-	var paid := pending_upgrade_cost() if complete else paid_cost()
+	var paid := paid_cost()
+	if complete:
+		paid = repair_paid if repairing else pending_upgrade_cost()
 	for res in paid:
 		var n := floori(paid[res] * share)
 		if n > 0:
@@ -216,13 +378,15 @@ func teardown_time() -> float:
 
 
 ## Building material spent on it: its price plus paid upgrades (override).
+## The village's pieces count their Config.PIECE_PRICES.
 func materials_spent() -> int:
-	return int(Config.BUILDINGS[kind]["cost"].get("materials", 0)) if Config.BUILDINGS.has(kind) else 0
+	return int(Building.price(kind).get("cost", {}).get("materials", 0))
 
 
-## What a finished tear-down gives back.
+## What a finished tear-down gives back: a share of the material spent on
+## it, scaled by its HP (a devastated building gives nothing back).
 func teardown_refund() -> int:
-	return floori(materials_spent() * Config.TEARDOWN_REFUND)
+	return floori(materials_spent() * Config.TEARDOWN_REFUND * hp_share() + 0.0001)
 
 
 ## Marked for / spared from tear-down: subclasses stop their work here (the
@@ -230,7 +394,7 @@ func teardown_refund() -> int:
 func set_tearing_down(on: bool) -> void:
 	tearing_down = on
 	teardown_progress = 0.0
-	modulate = Color(1, 1, 1, 0.6) if on else Color.WHITE
+	_update_tint()
 	refresh()
 
 
@@ -255,6 +419,7 @@ func pending_upgrade_cost() -> Dictionary:
 func finish() -> void:
 	complete = true
 	progress = build_time
+	hp = max_hp()
 	refresh()
 	var tw := create_tween()
 	scale = Vector2(1.08, 0.92)
@@ -284,7 +449,31 @@ func info() -> Dictionary:
 		lines.append("Builder at work" if builder != null else "Waiting for a builder")
 		lines.append(Config.cost_icons({"materials": teardown_refund()}) + " back when it's done")
 		actions.append({"label": "Stop tear-down", "action": func() -> void: game.command("stop_tear_down", {"building": nid})})
-	return {"title": display_name(), "lines": lines, "actions": actions}
+	var title := display_name()
+	if complete and devastated:
+		title = "Devastated %s" % display_name()
+	return {"title": title, "lines": lines, "actions": actions}
+
+
+## The HP line and the repair (or its progress) for a finished building's
+## panel; a devastated one says it does nothing. Subclasses call it.
+func add_hp_info(lines: Array[String], actions: Array[Dictionary]) -> void:
+	if not complete or village == null:
+		return
+	if devastated:
+		lines.append("Devastated: it does nothing until it is repaired.")
+	else:
+		lines.append("{hp} %d / %d" % [ceili(hp), roundi(max_hp())])
+	if repairing:
+		lines.append("Repairing: %d%% (%s)" % [int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
+		add_cancel_action(lines, actions, "Cancel repair")
+	elif can_repair() and not tearing_down:
+		var cost := repair_cost()
+		actions.append({
+			"label": "Repair (%s)" % Config.cost_icons(cost),
+			"disabled": not village.economy.can_afford(cost),
+			"action": func() -> void: game.command("repair", {"building": nid}),
+		})
 
 
 ## Calling off the work under way (a site, or an ordered upgrade: `what` names
@@ -316,9 +505,16 @@ func pick_rect() -> Rect2:
 
 
 func _draw() -> void:
+	var w := 60.0
+	if complete and not devastated and hp < max_hp() and village != null:
+		var share := hp_share()
+		var col := Color("5fbf4a") if share >= 0.5 else (Color("e0c040") if share >= 0.25 else Color("d04a3a"))
+		var hr := Rect2(-w / 2.0, _bar_y() + (11.0 if has_work() else 0.0), w, 5.0)
+		draw_rect(hr.grow(2.0), Color("15110d"))
+		draw_rect(hr, Color("3a2e22"))
+		draw_rect(Rect2(hr.position, Vector2(w * share, hr.size.y)), col)
 	if not has_work():
 		return
-	var w := 60.0
 	var r := Rect2(-w / 2.0, _bar_y(), w, 7.0)
 	draw_rect(r.grow(2.0), Color("15110d"))
 	draw_rect(r, Color("3a2e22"))
@@ -334,6 +530,8 @@ func bar_fraction() -> float:
 func work_color() -> Color:
 	if not complete:
 		return Color("c9a24a")
+	if repairing and not tearing_down:
+		return Color("6fc2a8")
 	return TEARDOWN_COLOR if tearing_down else Color("8fb8e0")
 
 

@@ -15,6 +15,18 @@ func tick(_enemy: Enemy, _delta: float) -> bool:
 	return false
 
 
+## Breaking in (docs/siege-design.md §5.3): one blow at the barrier `b` in
+## its way, `damage` x the kind's `siege`. Returns the seconds until the next
+## (0: it can't hurt it, and waits).
+func siege_attack(enemy: Enemy, b: Building) -> float:
+	var dmg := enemy.stat("damage") * float(enemy.spec().get("siege", 0.0))
+	if dmg <= 0.0:
+		return 0.0
+	enemy.swing(Vector2(b.tile))
+	b.take_damage(dmg, enemy)
+	return enemy.stat("attack_cooldown")
+
+
 ## Called when the enemy is hurt by `source` (a Tower, or a melee defender).
 func on_damaged(_enemy: Enemy, _source: Node) -> void:
 	pass

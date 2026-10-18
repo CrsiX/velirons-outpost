@@ -468,6 +468,7 @@ func _test_teardown() -> void:
 	# A barracks, upgraded once: the upgrade counts; a pending upgrade is refunded; stoppable.
 	var b := built("barracks") as Barracks
 	b.level = 2
+	b.hp = b.max_hp()
 	b.fit_slots()
 	var spent: int = Config.BUILDINGS["barracks"]["cost"]["materials"] + Config.BARRACKS_LEVELS[1]["cost"]["materials"]
 	check(b.teardown_refund() == floori(spent * Config.TEARDOWN_REFUND), "paid upgrades count towards the refund (%d)" % b.teardown_refund())
@@ -618,7 +619,7 @@ func _test_people() -> void:
 	hud._refresh_people()
 	var ruined := game.construction.ruined_huts().size()
 	check(ruined == 3 and hud._rebuild_huts_button.visible and Hud.button_text(hud._rebuild_huts_button).begins_with("Rebuild all huts (3)") and hud._rebuild_huts_button.get_index() < hud._people_scroll.get_index(), "3 destroyed huts: \"%s\" at the top of the list" % Hud.button_text(hud._rebuild_huts_button))
-	var per := int(Config.BUILDINGS["hut"]["cost"]["materials"])
+	var per := int(Hut.rebuild_cost()["materials"])
 	game.economy.add("materials", per * 2 - game.economy.amount("materials"))
 	hud._rebuild_huts_button.pressed.emit()
 	check(game.construction.ruined_huts().size() == 1 and game.construction.queue.filter(func(x: Building) -> bool: return x is Hut).size() == 2, "it queues as many as the material pays for (2 of 3)")

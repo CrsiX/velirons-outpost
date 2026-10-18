@@ -22,6 +22,7 @@ const HANDLERS := {
 	"rebuild_hut": "_rebuild_hut",
 	"rebuild_all_huts": "_rebuild_all_huts",
 	"upgrade_tower": "_upgrade_tower",
+	"repair": "_repair",
 	"recruit_villager": "_recruit_villager",
 	"retire_villager": "_retire_villager",
 	"assign_worker": "_assign_worker",
@@ -195,9 +196,22 @@ func _rebuild_all_huts(v: Village, _a: Dictionary) -> Dictionary:
 
 func _upgrade_tower(v: Village, a: Dictionary) -> Dictionary:
 	var t := _building(v, a)
-	if not (t is Tower or t is Barracks):
+	if not (t is Tower or t is Barracks or t is StaticPiece):
 		return fail("That isn't your tower")
 	return ok() if v.construction.order_upgrade(t) else fail("Can't upgrade that now")
+
+
+func _repair(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if b == null:
+		return fail("That isn't yours")
+	if b is Hut:
+		return fail("Huts are rebuilt, not repaired")
+	if not b.can_repair():
+		return fail("Nothing to repair there now")
+	if not v.economy.can_afford(b.repair_cost()):
+		return fail("Not enough building material")
+	return ok() if v.construction.order_repair(b) else fail("Can't repair that now")
 
 
 # --- villagers -------------------------------------------------------------------------

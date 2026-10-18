@@ -323,7 +323,7 @@ def hut(ruin=False):
     a.save("hut")
 
 
-def wall():
+def wall(level=1):
     a = Art()
     x0, x1, y0, y1, h = -0.5, 0.5, -0.14, 0.14, 34
     a.box(x0, x1, y0, y1, 0, h, STONE_T, STONE_L, STONE_R)
@@ -331,12 +331,46 @@ def wall():
         a.line([P(x0, y1, z), P(x1, y1, z)], STONE_D, 1)
     for gx, z0 in [(-0.25, 0), (0.15, 0), (-0.05, 11), (0.35, 11), (-0.35, 22), (0.05, 22)]:
         a.line([P(gx, y1, z0), P(gx, y1, z0 + 11)], STONE_D, 1)
+    if level >= 2:  # iron bands and a crimson pennon
+        for z in (5, h - 3):
+            a.line([P(x0, y1, z), P(x1, y1, z)], "#3a3632", 2.6)
+        for gx in (-0.3, 0.1):
+            for z in (5, h - 3):
+                x, y = P(gx, y1, z)
+                a.ellipse(x, y, 1.3, 1.3, "#8a8a8a")
+        a.poly([P(-0.08, y1, h - 2), P(0.08, y1, h - 2), P(0.08, y1, 12), P(0.0, y1, 16), P(-0.08, y1, 12)], CRIMSON, INK, 1.1)
     for gx in (-0.42, -0.08, 0.26):
         a.box(gx, gx + 0.16, y0, y1, h, h + 8, STONE_T, STONE_L, STONE_R)
-    a.save("wall")
+        if level >= 3:  # gilded merlon caps
+            a.line([P(gx, y1, h + 8), P(gx + 0.16, y1, h + 8), P(gx + 0.16, y0, h + 8)], GOLD, 1.6)
+    if level >= 3:
+        a.line([P(x0, y1, h), P(x1, y1, h)], GOLD, 1.8)
+    a.save("wall" if level == 1 else "wall_%d" % level)
 
 
-def gate():
+def _block(a, rng, x, y, w):
+    a.poly([(x - w, y), (x - w * 0.4, y - w * 0.7), (x + w * 0.6, y - w * 0.6), (x + w, y)], rng.choice([STONE_L, STONE_R, "#6b665e"]), INK, 1)
+
+
+def wall_ruin():
+    rng = random.Random(701)
+    a = Art()
+    y0, y1 = -0.14, 0.14
+    a.poly(diamond(0.75, 0.4), "#2d2a26", stroke=None, opacity=0.45)
+    for (u0, u1, h) in [(-0.5, -0.22, 16), (-0.22, 0.05, 6), (0.05, 0.3, 21), (0.3, 0.5, 9)]:  # broken stubs
+        a.box(u0, u1, y0, y1, 0, h, STONE_T, STONE_L, STONE_R)
+        x, y = P(u1 - 0.04, y1, h)
+        a.poly([(x - 5, y), (x - 2, y - 4), (x + 2, y + 1)], "#2a2622", stroke=None)  # chipped edge
+    for _ in range(9):  # fallen blocks in front
+        x, y = P(rng.uniform(-0.45, 0.45), rng.uniform(0.18, 0.42))
+        _block(a, rng, x, y, rng.uniform(3.5, 6))
+    for _ in range(3):
+        x, y = P(rng.uniform(-0.4, 0.4), rng.uniform(-0.3, 0.3))
+        _tuft(a, x, y, "#3c5226")
+    a.save("wall_ruin")
+
+
+def gate(level=1):
     a = Art()
     x0, x1, y0, y1 = -0.5, 0.5, -0.16, 0.16
     a.box(x0, -0.22, y0, y1, 0, 46, STONE_T, STONE_L, STONE_R)
@@ -347,8 +381,16 @@ def gate():
     for gx in (-0.11, 0.0, 0.11):
         a.line([P(gx, y1 - 0.04, 0), P(gx, y1 - 0.04, 30)], "#2b1e14", 1.4)
     a.line([P(-0.22, y1 - 0.04, 14), P(0.22, y1 - 0.04, 14)], "#8a8a8a", 1.6)
+    if level >= 2:  # iron straps and studs on the doors
+        for z in (6, 23):
+            a.line([P(-0.22, y1 - 0.04, z), P(0.22, y1 - 0.04, z)], "#3a3632", 2.6)
+            for gx in (-0.17, -0.06, 0.06, 0.17):
+                x, y = P(gx, y1 - 0.04, z)
+                a.ellipse(x, y, 1.2, 1.2, "#9a9a9a")
     for gx in (-0.5, -0.36, 0.22, 0.36):
         a.box(gx, gx + 0.14, y0, y1, 46, 54, STONE_T, STONE_L, STONE_R)
+        if level >= 3:
+            a.line([P(gx, y1, 54), P(gx + 0.14, y1, 54), P(gx + 0.14, y0, 54)], GOLD, 1.6)
     # Veliron banner
     a.poly([P(-0.36, y1, 44), P(-0.26, y1, 44), P(-0.26, y1, 18), P(-0.31, y1, 23), P(-0.36, y1, 18)], CRIMSON)
     a.poly([P(0.26, y1, 44), P(0.36, y1, 44), P(0.36, y1, 18), P(0.31, y1, 23), P(0.26, y1, 18)], CRIMSON)
@@ -356,7 +398,87 @@ def gate():
     a.ellipse(x, y, 2.2, 2.2, GOLD)
     x, y = P(0.31, y1, 34)
     a.ellipse(x, y, 2.2, 2.2, GOLD)
-    a.save("gate")
+    if level >= 3:  # gold trim over the arch and two lanterns
+        a.line([P(-0.22, y1, 42), P(0.22, y1, 42)], GOLD, 2)
+        for gx in (-0.2, 0.2):
+            x, y = P(gx, y1 + 0.02, 28)
+            a.ellipse(x, y, 7, 7, GLOW, opacity=0.3)
+            a.poly([(x - 2.5, y - 3.5), (x + 2.5, y - 3.5), (x + 2.5, y + 3.5), (x - 2.5, y + 3.5)], GLOW, INK, 0.9)
+    a.save("gate" if level == 1 else "gate_%d" % level)
+
+
+def gate_ruin():
+    rng = random.Random(702)
+    a = Art()
+    y0, y1 = -0.16, 0.16
+    a.poly(diamond(0.75, 0.42), "#2d2a26", stroke=None, opacity=0.45)
+    a.box(-0.5, -0.22, y0, y1, 0, 26, STONE_T, STONE_L, STONE_R)
+    a.box(0.22, 0.5, y0, y1, 0, 15, STONE_T, STONE_L, STONE_R)
+    for (gx, h) in [(-0.24, 26), (0.48, 15)]:
+        x, y = P(gx, y1, h)
+        a.poly([(x - 6, y), (x - 2, y - 5), (x + 3, y + 1)], "#2a2622", stroke=None)
+    # the doors torn out, lying in the opening
+    a.poly([P(-0.2, y1 + 0.02, 0), P(0.12, y1 + 0.05, 0), P(0.16, y1 + 0.32, 0), P(-0.16, y1 + 0.28, 0)], WOOD_D, INK, 1.2)
+    for t in (0.33, 0.66):
+        a.line([P(-0.2 + 0.32 * t, y1 + 0.02, 0), P(-0.16 + 0.32 * t, y1 + 0.29, 0)], "#2b1e14", 1.2)
+    a.line([P(0.0, y1, 0), P(0.24, y1 + 0.2, 10)], WOOD, 3)  # a splintered plank
+    a.line([P(-0.12, y1 + 0.1, 1), P(-0.12, y1 + 0.28, 1)], "#6a6a6a", 1.6)  # a bent strap
+    for _ in range(7):
+        x, y = P(rng.uniform(-0.45, 0.45), rng.uniform(0.2, 0.45))
+        _block(a, rng, x, y, rng.uniform(3, 5.5))
+    a.poly([P(-0.36, y1, 24), P(-0.26, y1, 24), P(-0.27, y1, 10), P(-0.32, y1, 15), P(-0.35, y1, 8)], CRIMSON_D, INK, 0.9)  # the torn banner
+    a.save("gate_ruin")
+
+
+def wall_tower_ruin():
+    rng = random.Random(703)
+    a = Art()
+    s, h = 0.36, 30
+    a.shadow(52, 26, cy=4)
+    a.box(-s, s, -s, s, 0, h, STONE_T, STONE_L, STONE_R)
+    # a jagged broken top: the back corner still stands higher
+    a.box(-s, -s + 0.22, -s, -s + 0.22, h, h + 26, STONE_T, STONE_L, STONE_R)
+    a.box(-s, s - 0.3, -s, -s + 0.14, h, h + 12, STONE_T, STONE_L, STONE_R)
+    for z in (10, 20):
+        a.line([P(-s, s, z), P(s, s, z)], STONE_D, 1)
+        a.line([P(s, s, z), P(s, -s, z)], STONE_D, 1)
+    for gx in (-0.2, 0.05, 0.25):
+        x, y = P(gx, s, h)
+        a.poly([(x - 6, y), (x - 2, y + 6), (x + 3, y - 1)], "#2a2622", stroke=None)
+    x, y = P(0.0, s, 16)
+    a.poly([(x - 4, y - 7), (x + 4, y - 7), (x + 4, y + 2), (x - 4, y + 2)], "#1a1612")  # the dark doorway
+    a.line([P(-s + 0.06, -s + 0.06, h + 26), P(-s + 0.2, -s + 0.02, h + 44)], INK, 3)  # the broken banner pole
+    x, y = P(-s + 0.2, -s + 0.02, h + 44)
+    a.poly([(x, y), (x + 10, y + 5), (x + 3, y + 10)], CRIMSON_D, INK, 0.9)
+    for _ in range(10):
+        gx, gy = rng.uniform(-0.5, 0.5), rng.uniform(0.38, 0.55)
+        if rng.random() < 0.5:
+            gx, gy = rng.uniform(0.38, 0.55), rng.uniform(-0.5, 0.5)
+        x, y = P(gx, gy)
+        _block(a, rng, x, y, rng.uniform(3.5, 6.5))
+    for _ in range(3):
+        x, y = P(rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), h)
+        _tuft(a, x, y, "#3c5226")
+    a.save("wall_tower_ruin")
+
+
+def rubble():
+    """Heaps of stones and charred beams over a devastated building (scaled to its size)."""
+    rng = random.Random(704)
+    a = Art()
+    a.poly(diamond(0.7, 0.36), "#221e1a", stroke=None, opacity=0.4)
+    for (gx, gy, ln) in [(-0.3, 0.05, 0.5), (0.0, -0.25, 0.45), (0.15, 0.2, 0.4)]:
+        a.line([P(gx, gy, 2), P(gx + ln * 0.8, gy + ln * 0.3, 9)], INK, 6)
+        a.line([P(gx, gy, 2), P(gx + ln * 0.8, gy + ln * 0.3, 9)], "#2a1e15", 4)
+        x, y = P(gx + ln * 0.8, gy + ln * 0.3, 9)
+        a.ellipse(x, y, 2.4, 1.6, "#c04a1e", opacity=0.8)  # embers
+    for _ in range(14):
+        x, y = rand_in_diamond(rng, 0.7)
+        _block(a, rng, x, y, rng.uniform(3, 6.5))
+    for _ in range(3):
+        x, y = rand_in_diamond(rng, 0.6)
+        a.ellipse(x, y - 14, 6, 9, "#8a8580", opacity=0.25)  # smoke
+    a.save("rubble")
 
 
 def merlons(a, s, z, front):
@@ -3875,8 +3997,13 @@ def main():
     tree_dead()
     hut()
     hut(ruin=True)
-    wall()
-    gate()
+    for lvl in (1, 2, 3):
+        wall(lvl)
+        gate(lvl)
+    wall_ruin()
+    gate_ruin()
+    wall_tower_ruin()
+    rubble()
     # Tower levels 1-3 share one canvas so sprites line up when a tower levels up.
     for lvl in (1, 2, 3):
         suffix = "" if lvl == 1 else "_%d" % lvl

@@ -404,6 +404,8 @@ func remove_building(b: Building) -> void:
 			map.buildings.erase(t)
 			pathing.set_solid(t, false)
 	_village_dist_dirty = true
+	if game.siege:
+		game.siege.tiles_changed(b.tiles())
 	b.queue_free()
 
 
@@ -412,6 +414,8 @@ func refresh_building(b: Building) -> void:
 	for t in b.tiles():
 		pathing.set_solid(t, b.is_solid())
 	_village_dist_dirty = true
+	if game.siege:
+		game.siege.tiles_changed(b.tiles())
 
 
 func huts() -> Array[Building]:

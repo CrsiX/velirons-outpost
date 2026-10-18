@@ -47,6 +47,20 @@ func tick(enemy: Enemy, delta: float) -> bool:
 	return true
 
 
+## At a barrier with nothing better in range: a bolt at it, spell_damage x
+## her `siege`, every spell_cooldown.
+func siege_attack(enemy: Enemy, b: Building) -> float:
+	var dmg := enemy.stat("spell_damage") * float(enemy.spec().get("siege", 0.0))
+	if dmg <= 0.0:
+		return 0.0
+	var bolt: SpellBolt = BOLT_SCRIPT.new()
+	enemy.game.world.effects.add_child(bolt)
+	bolt.launch(enemy, b)
+	bolt.damage = dmg
+	bolt.at_building = true
+	return enemy.stat("spell_cooldown")
+
+
 ## How many spells she has cast at `n` since it last attacked her.
 func casts_at(n: Node) -> int:
 	return _casts.get(n.get_instance_id(), 0)

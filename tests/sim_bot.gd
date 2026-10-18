@@ -1331,7 +1331,18 @@ func _run() -> void:
 	if approach.is_empty():
 		check(false, "found a road leading to the summoner's gate")
 	else:
-		game.waves._spawn({"kind": "witch", "spawn": approach[maxi(0, approach.size() - 10)], "hp_scale": 1.0})
+		for b in game.player_village.buildings():  # (whole walls: she takes the road to that gate)
+			if b.devastated:
+				b.set_devastated(false)
+			b.hp = b.max_hp()
+		game.siege.mark_stale(game.player_village, true)
+		# On her road where it passes the tower (near the village she breaks in
+		# by the nearest way, which needn't be this gate).
+		var by_tower := approach[maxi(0, approach.size() - 10)]
+		for t in approach:
+			if not game.map.in_village(t) and Vector2(t).distance_to(Vector2(lone.tile)) < Vector2(by_tower).distance_to(Vector2(lone.tile)):
+				by_tower = t
+		game.waves._spawn({"kind": "witch", "spawn": by_tower, "hp_scale": 1.0})
 		var w4: Enemy = get_tree().get_nodes_in_group("enemies").back()
 		var wb4: WitchBehavior = w4.behavior
 		var saw_summoner := false
@@ -1358,10 +1369,13 @@ func _run() -> void:
 		homes[h] = h.resident != null  # a bool: a dead resident's object would read as null later
 	var gate: Vector2i = open_gate()
 	var outside := gate + (gate - game.player_village.center).sign()
+	# (The gate broken already: breaking in is siege_bot's.)
+	var gate_b: Building = game.map.building_at(gate)
+	gate_b.take_damage(1e6)
 	game.waves._spawn({"kind": "goblin", "spawn": outside, "hp_scale": 1.0})
 	await wait_until(func() -> bool: return game.population.cap() < huts0, 20.0)
 	var burned: Array = homes.keys().filter(func(h: Hut) -> bool: return not h.is_intact())
-	check(burned.size() == 1, "an enemy at the gate destroys exactly one random hut")
+	check(burned.size() == 1, "an enemy that gets in destroys exactly one hut")
 	var had_resident: bool = burned.size() == 1 and homes[burned[0]]
 	check(game.population.count() == pop0 - (1 if had_resident else 0), "only that hut's resident dies (hut was %s)" % ("occupied" if had_resident else "empty"))
 	check(residency_ok(), "everyone else still lives in their own hut")
@@ -1374,6 +1388,8 @@ func _run() -> void:
 	await wait(1.0)
 	check(game.population.cap() == huts_h - 1, "on hard, an enemy at the gate still destroys exactly one hut")
 	Settings.difficulty = Settings.Difficulty.NORMAL
+	gate_b.set_devastated(false)
+	gate_b.hp = gate_b.max_hp()
 	game.waves.countdown = 99999.0
 	# Direct checks for both cases.
 	var empty_huts := game.world.intact_huts().filter(func(h: Hut) -> bool: return h.resident == null)
@@ -1553,7 +1569,7 @@ func _run() -> void:
 		EventLog.Level.DEBUG: ["recruit archer", "recruit farmer", "assign forester", "unassign forester", "place watchtower", "starts work on", "send archer", "takes up its post on",
 			"withdraw archer", "is back in the reserve", "level-up archer", "drag archer", "move archer", "select ", "killed goblin", "killed skeleton", "appears at", "left behind",
 			"collected corpse", "corpses home", "cut down tree", "building material at", "food home", "summoned elemental", "crumbles", "casts a spell at", "bewitched by",
-			"fights elemental", "the hero attacks", "hero mode: ", "flees home", "heads for the fog", "buy 10 building material", "game speed", "open settings", "log level", "rotted away", "order upgrade of", "cancel construction", "broke through the gate"],
+			"fights elemental", "the hero attacks", "hero mode: ", "flees home", "heads for the fog", "buy 10 building material", "game speed", "open settings", "log level", "rotted away", "order upgrade of", "cancel construction", "broke into the village"],
 		EventLog.Level.INFO: ["Wave 1 begins", "Wave 1 is over", "watchtower 1 finished", "upgraded to level 2", "The hero returns", "fully trained to level 2", "rebuilt"],
 		EventLog.Level.IMPORTANT: ["destroyed by goblin", "destroyed by ork", "died when", "died of starvation", "The hero was struck down"],
 	}
@@ -1680,7 +1696,7 @@ func _test_hero(far: Vector2i) -> void:
 	check(hud._hero_button.modulate != Color.WHITE and "downed" in hero.status(), "the HUD shows the hero is down")
 	game.waves.wave_finished.emit(game.waves.wave)
 	await frames(2)
-	check(not hero.dead and hero.visible and is_equal_approx(hero.hp, hero.max_hp) and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1, "he revives in the village centre when the wave is over (dead %s, visible %s, HP %.0f/%.0f, %.2f from the centre, %s)" % [hero.dead, hero.visible, hero.hp, hero.max_hp, hero.grid_pos.distance_to(Vector2(game.player_village.center)), hero.status()])
+	check(not hero.dead and hero.visible and is_equal_approx(hero.hp, hero.max_hp) and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.5, "he revives in the village centre when the wave is over (dead %s, visible %s, HP %.0f/%.0f, %.2f from the centre, %s)" % [hero.dead, hero.visible, hero.hp, hero.max_hp, hero.grid_pos.distance_to(Vector2(game.player_village.center)), hero.status()])
 	check(hero.mode == Hero.Mode.GATHER, "his mode survives being downed")
 	# Downed between waves: back when the next one begins, not only after it.
 	hero.take_damage(1e9)

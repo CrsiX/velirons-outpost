@@ -8,7 +8,8 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 
 ## 1. Code
 
-- `scripts/units/enemy.gd` (`Enemy`): walks the road flow field to a gate, takes damage
+- `scripts/units/enemy.gd` (`Enemy`): walks the road flow field to a gate (near the village it
+  breaks in along the siege field, `Siege`, docs/siege-design.md), takes damage
   (applying `resist`), dies, flies, gets slowed or pushed back. It reads every number through
   `stat()` (`Config.enemy_stat`, difficulty-scaled).
 - `scripts/units/enemies/`: one behavior per `"behavior"` key (`Enemy.BEHAVIORS`):
@@ -19,7 +20,8 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 - `scripts/systems/waves.gd` (`Waves`): countdown, wave make-up, spawning, rat packs, lair
   themes, the co-op extra, raising corpses, slime splits, kill gold.
 - `scripts/systems/corpses.gd` (`Corpses`) + `scripts/units/corpse.gd`: corpses, rotting, clearing.
-- `Game.on_enemy_reached_gate`, `Game.thief_steals`, `Game.raid_roll`: what happens at a gate.
+- `Game.on_enemy_reached_gate`, `Game.thief_steals`, `Game.raid_roll`: what happens once an
+  enemy gets in (the hut it reached burns: `Enemy.raid_hut`).
 - `scripts/world/warning_lights.gd`: the red warning lights for hidden enemies.
 
 ## 2. Wave flow
@@ -130,17 +132,28 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   is finished. In the tutorial they don't rot.
 - Necromancers can raise corpses (§14), except a necromancer's own (`"revivable": false`).
 
-## 7. At the gate (raids)
+## 7. At the village (raids)
 
-- Any enemy that reaches a gate destroys exactly one random intact hut of the village it
-  attacked, on every difficulty. Only the villager living there dies.
+- Walls, gates and wall towers hold enemies back (docs/siege-design.md §5). Each kind's
+  `"entry"` says how it gets in:
+  - `"siege"` (the default): near the village it leaves its road and follows the siege field
+    to the cheapest way in, hitting the gate, wall or wall tower in its way (`damage` ×
+    `siege`; a witch casts at it) until it breaks. Melee foes still come first. Kinds with
+    `siege` 0 (necromancer, siren) wait, and slip past after `SIEGE.stuck_slip` (45 s).
+  - `"slip"` (rats, thieves): an intact gate holds them `SIEGE.slip_time` (4 s), then they
+    get through unharmed.
+  - Flyers (gargoyles) fly over walls and gates to the nearest hut.
+- Inside, an enemy walks to the nearest intact hut and burns it (huts have 1 HP), on every
+  difficulty. Only the villager living there dies.
 - Exceptions:
   - kinds with `raid_chance` roll for it (small slimes); failed, they melt away;
   - rats eat food instead (§10);
   - thieves steal gold and run back (§11);
-  - a vampire bat heals and turns back (§15).
+  - a vampire bat heals at a gate and turns back (§15); a vampire that turns into a bat
+    while breaking in goes back to its road.
 - Then the defeat check runs: a village falls with no villagers or no intact huts.
-- Enemies never get inside the walls otherwise; they are only visible on watched tiles.
+- While an enemy is inside a village's walls, villagers walking in there are exposed.
+- Enemies are only visible on watched tiles.
 
 ## 8. Melee kinds: goblin, skeleton, ork
 

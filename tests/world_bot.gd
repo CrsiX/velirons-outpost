@@ -333,7 +333,7 @@ func _test_game() -> void:
 	var mat0 := game.economy.amount("materials")
 	var rr := game.command("restore_ruin", {"ruin": ruin.nid})
 	var site = game.entity(int(rr.get("site", 0)))
-	check(rr["ok"] and site is Tower and not site.complete and site.village == v and mat0 - game.economy.amount("materials") == RuinedTower.restore_cost().get("materials", 0), "restoring is an order: a watchtower site for half the cost, for a builder")
+	check(rr["ok"] and site is Tower and site.devastated and site.repairing and site.village == v and mat0 - game.economy.amount("materials") == RuinedTower.restore_cost().get("materials", 0), "restoring is an order: a devastated watchtower repaired for half the cost, by a builder")
 
 	# Guarded treasures wait for their camp; the camp needs an explicit order.
 	var camp: MonsterCamp = w.map_objects.filter(func(o: MapObject) -> bool: return o is MonsterCamp)[0]

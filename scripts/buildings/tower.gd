@@ -6,7 +6,6 @@ extends MilitaryPost
 ## tower's range. Towers level up (for building material and a builder's
 ## time) to extend that range; they keep working while being upgraded.
 
-var level := 1
 var _spell_glow: Sprite2D
 ## Seconds the stationed unit stays enchanted by a witch (does nothing meanwhile).
 var enchanted := 0.0
@@ -18,6 +17,17 @@ var _site_sprite: Sprite2D
 func _art() -> String:
 	var base := "wall_tower" if kind == "wall_tower" else "watchtower"
 	return base if level == 1 else "%s_%d" % [base, level]
+
+
+## What it looks like now: its ruin while devastated.
+func _look() -> String:
+	if devastated:
+		return "wall_tower_ruin" if kind == "wall_tower" else "watchtower_ruin"
+	return _art()
+
+
+func has_ruin_art() -> bool:
+	return true
 
 
 func _front_art() -> String:
@@ -40,7 +50,7 @@ func range_tiles() -> float:
 
 
 func can_upgrade() -> bool:
-	return working() and not upgrading and level < max_level()
+	return free_for_work() and level < max_level()
 
 
 ## Its price plus the upgrades paid for (tear-down refund).
@@ -68,7 +78,7 @@ func pending_upgrade_cost() -> Dictionary:
 
 func finish_upgrade() -> void:
 	super.finish_upgrade()
-	level += 1
+	gain_level()
 	refresh()
 	var tw := create_tween()
 	scale = Vector2(1.06, 0.94)
@@ -97,12 +107,12 @@ func _build_visuals() -> void:
 
 
 func refresh() -> void:
-	Art.apply(sprite, _art())
+	Art.apply(sprite, _look())
 	Art.apply(_front, _front_art())
 	sprite.visible = complete
-	_front.visible = complete
+	_front.visible = complete and not devastated
 	_site_sprite.visible = not complete
-	_unit_sprite.visible = complete and garrison != null
+	_unit_sprite.visible = complete and garrison != null and not devastated
 	if garrison:
 		UnitFx.show_unit(_unit_sprite, garrison.kind)
 		_unit_sprite.position = _unit_spot()
@@ -110,7 +120,7 @@ func refresh() -> void:
 
 
 func is_solid() -> bool:
-	return complete
+	return complete and not devastated
 
 
 func is_solid_when_complete() -> bool:
@@ -119,6 +129,8 @@ func is_solid_when_complete() -> bool:
 
 ## Every finished tower watches like a building; manned ones watch their range.
 func sight_radius() -> float:
+	if devastated:
+		return 0.0
 	var r := super.sight_radius()
 	if complete and garrison != null:
 		r = maxf(r, range_tiles() + Config.TOWER_SIGHT_BONUS)
@@ -159,7 +171,7 @@ func _process(delta: float) -> void:
 		_spell_glow.modulate.a = 0.6 + 0.3 * sin(_glow_t * 10.0)
 		_spell_glow.visible = enchanted > 0.0 and garrison != null
 		return  # an enchanted unit neither shoots nor summons
-	if complete and garrison != null:
+	if working() and garrison != null:
 		garrison.behavior.tick(self, garrison, delta)
 
 
@@ -224,23 +236,23 @@ func recoil() -> void:
 
 func info() -> Dictionary:
 	var d := super.info()
+	var lines: Array[String] = d["lines"]
+	var actions: Array[Dictionary] = d["actions"]
 	if not working():
 		return d
 	d["title"] = "%s  ·  Level %d/%d" % [display_name(), level, max_level()]
-	var lines: Array[String] = d["lines"]
-	var actions: Array[Dictionary] = d["actions"]
 	lines.append("Tower level %d of %d: range %.1f tiles" % [level, max_level(), range_tiles()])
 	if upgrading:
 		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
 		add_cancel_action(lines, actions, "Cancel upgrade")
-	elif level < max_level():
+	elif level < max_level() and not repairing:
 		var bonus: float = Config.TOWER_LEVELS[level]["range_bonus"] - Config.TOWER_LEVELS[level - 1]["range_bonus"]
 		actions.append({
 			"label": "Upgrade tower (%s)" % Config.cost_icons(upgrade_cost()),
 			"disabled": not village.economy.can_afford(upgrade_cost()),
 			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
 		})
-		lines.append("Next level: +%.1f range" % bonus)
+		lines.append("Next level: +%.1f range, {hp} %d" % [bonus, roundi(Config.BUILDING_HP[kind][level])])
 	if garrison:
 		lines.append("%s, level %d%s" % [garrison.display_name(), garrison.level + 1, "  (bewitched!)" if is_enchanted() else ""])
 		lines.append_array(garrison.behavior.info_lines(garrison))

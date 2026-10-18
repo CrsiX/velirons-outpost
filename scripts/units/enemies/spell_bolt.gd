@@ -9,6 +9,8 @@ var witch = null
 var damage := 0.0
 var enchant := 0.0
 var speed_px := 400.0
+## Cast at a wall, gate or wall tower in her way: it takes `damage`.
+var at_building := false
 var _sprite: Sprite2D
 var _t := 0.0
 
@@ -26,6 +28,8 @@ func launch(p_witch: Enemy, p_target: Node) -> void:
 
 
 func _aim() -> Vector2:
+	if at_building:
+		return target.global_position + Vector2(0, -30)
 	if target is Tower:
 		return (target as Tower).muzzle_position()
 	return target.global_position + Vector2(0, -18)
@@ -48,7 +52,9 @@ func _process(delta: float) -> void:
 
 func _hit() -> void:
 	var source: Node = witch if is_instance_valid(witch) else null
-	if target is Tower:
+	if at_building:
+		(target as Building).take_damage(damage, source)
+	elif target is Tower:
 		var t := target as Tower
 		if t.garrison:
 			t.game.log_for(t, EventLog.Level.DEBUG, "%s bewitched by %s" % [t.game.who(t), t.game.who(source)])

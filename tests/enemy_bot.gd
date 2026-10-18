@@ -541,7 +541,7 @@ func _test_vampire() -> void:
 	if down and not near.path.is_empty():
 		for gt in v.gates:
 			to_gate = to_gate or near.path[near.path.size() - 1].distance_to(Vector2(gt)) < 1.5
-	check(down and not nb2.fled and to_gate and near.speed < enemies["vampire"]["bat_speed"], "landed, the vampire walks to the village again")
+	check(down and not nb2.fled and (to_gate or near.sieging) and near.speed < enemies["vampire"]["bat_speed"], "landed, the vampire walks to the village again")
 	kill(near)
 	# Holy damage: a necromancer 1.5 x, a goblin 0.75 x, a raised goblin 2 x that (docs/acolyte-design.md).
 	var nk := spawn("necromancer", at, 10.0)
@@ -737,6 +737,7 @@ func _test_slimes() -> void:
 		var huts := game.player_village.intact_huts().size()
 		var n_logs := logs.size()
 		var e := spawn(kind, Vector2(road_out(2)), 1.0, true)
+		(game.map.building_at(game.player_village.gates[0]) as Building).take_damage(1e6)  # (an open gate: breaking in is siege_bot's)
 		var t := 0.0
 		while is_instance_valid(e) and not e.dead and t < 20.0:
 			await wait(0.25)

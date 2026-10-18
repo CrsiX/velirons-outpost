@@ -36,7 +36,7 @@ Goals:
 - A game can be stopped and continued later, also after closing the app or
   the browser tab, and after a crash (the last autosave).
 - A loaded game plays on as if it had never stopped: same map, fog, villages,
-  buildings and their progress, villagers, army, hero, corpses, monster
+  buildings and their progress, HP, devastation, levels and repairs, villagers, army, hero, corpses, monster
   camps, waves, statistics.
 - Small, quick files (tens of KB in single player), quick to write: no frame
   hitch worth noticing on the autosave.
@@ -217,7 +217,7 @@ the saved position and loads.
 | **Waves** | `wave`, `countdown` | the waves' RNG |
 | **Corpses** | kind, wave, tile, time left, stolen gold, `hp_scale`, uid / nid | who claimed it |
 | **Village** | name, colour, `fallen`, relics, `corpses_delivered`, resources, the log level shown | the log's lines (a loaded game starts with "Game loaded: wave N") |
-| **Buildings** | kind, tile, uid / nid, `complete`, progress, `paid_share`, level, upgrade (and its progress), tear-down (and its progress); hut `ruined` and resident; workplace worker; farm `stored`; post slots; the build queue in order | builders' claims |
+| **Buildings** | kind, tile, uid / nid, `complete`, progress, `paid_share`, level (gates and walls too), HP, `devastated`, upgrade (and its progress), repair (progress, time, HP, what it cost), tear-down (and its progress); hut `ruined` and resident; workplace worker; farm `stored`; post slots; the build queue in order | builders' claims |
 | **Villagers** | role, uid / nid, hut, HP, position, at home; the farmer's farm and food carried, the forester's camp, tree and load, the gatherer's corpses, gold and loot carried, the miner's mine and whether inside | job state. Once everything is back, a villager out in the field asks once what to do from where it stands and does it (`Civilian.resume_work`, `CivilianJob.resume`): a farmer with food goes home, else to his farm; a forester with wood to his camp, else on to his tree (or the next one); a builder to the next site; an explorer to the next fog; a gatherer to the next safe corpse or sack if he has room, else home with his load; a miner on to his mine. With nothing to do there, home. A miner inside his mine stays there |
 | **Military units** | kind (the specialisation), level, HP, state, post and slot, `revive_left`, `revive_at_post`, `train_xp`, uid / nid, `original_owner`, `travel_to`, war-cry haste (`cry_bonus`, `cry_until`), the body's position for units on the way (`Army.resume_walk`) | cooldowns, targets, the body's path (re-pathed to where its state says); a unit out of its barracks against camp guards is back on its bench (the barracks turn it out again if they're still in range) |
 | **Earth elementals** | of summoners on duty: summon kind, HP, max HP, damage, home, position, summoner, war-cry haste (those of a summoner out on a sortie crumble, as when it goes back to its bench) | target, timers |
@@ -243,7 +243,7 @@ session).
 Each file:
 ```
 "VOSV"            4 bytes, magic
-format            u32, SaveGame.FORMAT (2: the map holds water spawns)
+format            u32, SaveGame.FORMAT (3: buildings hold HP, devastation and repairs)
 header length     u32
 header            var_to_bytes(Dictionary), uncompressed
 body              zstd(var_to_bytes(Dictionary)), its raw size first (as MapData.to_bytes)

@@ -11,7 +11,6 @@ extends MilitaryPost
 ## Where the benches' sitters are drawn (per bench, local coordinates).
 const BENCH_SPOTS: Array[Vector2] = [Vector2(-0.35, 0.45), Vector2(0.45, 0.35), Vector2(0.1, -0.25)]
 
-var level := 1
 var _bench_sprites: Array[Sprite2D] = []
 var _site_sprite: Sprite2D
 var _scan := 0.0
@@ -64,7 +63,7 @@ func refresh() -> void:
 	for i in _bench_sprites.size():
 		var u: MilitaryUnit = slots[i] if i < slots.size() else null
 		var s := _bench_sprites[i]
-		s.visible = complete and u != null and not u.out
+		s.visible = complete and u != null and not u.out and not devastated
 		if s.visible:
 			UnitFx.show_unit(s, u.kind)
 			s.modulate = Color(1, 1, 1, 0.35) if u.is_downed() else Color.WHITE
@@ -120,7 +119,7 @@ func enemy_near() -> bool:
 # --- upgrades (like towers: building material and a builder's time) --------------------
 
 func can_upgrade() -> bool:
-	return working() and not upgrading and level < max_level()
+	return free_for_work() and level < max_level()
 
 
 ## Its price plus the upgrades paid for (tear-down refund).
@@ -148,7 +147,7 @@ func pending_upgrade_cost() -> Dictionary:
 
 func finish_upgrade() -> void:
 	super.finish_upgrade()
-	level += 1
+	gain_level()
 	refresh()
 
 
@@ -183,11 +182,11 @@ func set_unit_ghosted(on: bool, unit: MilitaryUnit = null) -> void:
 
 func info() -> Dictionary:
 	var d := super.info()
+	var lines: Array[String] = d["lines"]
+	var actions: Array[Dictionary] = d["actions"]
 	if not working():
 		return d
 	d["title"] = "%s  ·  Level %d/%d" % [display_name(), level, max_level()]
-	var lines: Array[String] = d["lines"]
-	var actions: Array[Dictionary] = d["actions"]
 	lines.append("%d bench%s; turns out for enemies within %.1f tiles." % [capacity(), "" if capacity() == 1 else "es", activation_range()])
 	for i in capacity():
 		var u: MilitaryUnit = slots[i]
@@ -205,9 +204,9 @@ func info() -> Dictionary:
 	if upgrading:
 		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
 		add_cancel_action(lines, actions, "Cancel upgrade")
-	elif level < max_level():
+	elif level < max_level() and not repairing:
 		var nxt: Dictionary = Config.BARRACKS_LEVELS[level]
-		lines.append("Next level: %d benches, range %.1f." % [nxt["slots"], nxt["range"]])
+		lines.append("Next level: %d benches, range %.1f, {hp} %d." % [nxt["slots"], nxt["range"], roundi(Config.BUILDING_HP[kind][level])])
 		actions.append({
 			"label": "Upgrade barracks (%s)" % Config.cost_icons(upgrade_cost()),
 			"disabled": not village.economy.can_afford(upgrade_cost()),

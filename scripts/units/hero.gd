@@ -2,8 +2,8 @@ class_name Hero
 extends Civilian
 ## The hero: part villager, part soldier, with a sword for close combat.
 ## Starts in the village centre; the player picks what he does (his mode):
-##   Defend  - waits in the centre; when enemies come near a gate he goes out
-##             and fights them (nearest first, then the strongest).
+##   Defend  - waits in the centre; when enemies come near the walls he goes out
+##             and fights them (inside the walls first, then the nearest, then the strongest).
 ##   Build / Explore / Gather - the villager jobs, done a little less well.
 ##   Train   - at training grounds with a unit ready, passes his XP on to it;
 ##             without such grounds he defends instead, but drops any fight as
@@ -372,7 +372,15 @@ func _walk_home() -> void:
 	follow(p)
 
 
-## Enemies near a gate (or near him, within his leash), nearest first, then strongest.
+## Distance from `p` (grid) to the nearest tile of `r` (0 inside).
+static func rect_distance(r: Rect2i, p: Vector2) -> float:
+	var cx := clampf(p.x, r.position.x, r.end.x - 1)
+	var cy := clampf(p.y, r.position.y, r.end.y - 1)
+	return p.distance_to(Vector2(cx, cy))
+
+
+## Enemies near the walls (or near him, within his leash): inside the walls
+## first, then the nearest, then the strongest.
 func _pick_enemy() -> Enemy:
 	var best: Enemy = null
 	var best_key := Vector2(INF, INF)
@@ -387,12 +395,12 @@ func _pick_enemy() -> Enemy:
 		var near_me := not at_home and e.grid_pos.distance_to(grid_pos) <= Config.HERO["sight"]
 		if e.grid_pos.distance_to(centre) > Config.HERO["leash"] and not (out_far and near_me):
 			continue
-		var near_gate := false
-		for g in base().gates:
-			near_gate = near_gate or e.grid_pos.distance_to(Vector2(g)) <= Config.HERO["alert_radius"]
-		if not (near_gate or near_me):
+		# Near the wall ring (docs/siege-design.md §6); inside the walls first.
+		var inside := base().rect.has_point(e.current_tile())
+		var near_walls := inside or Hero.rect_distance(base().rect, e.grid_pos) <= Config.HERO["alert_radius"]
+		if not (near_walls or near_me):
 			continue
-		var key := Vector2(floorf(e.grid_pos.distance_to(grid_pos)), -e.max_hp)
+		var key := Vector2(floorf(e.grid_pos.distance_to(grid_pos)) - (1000.0 if inside else 0.0), -e.max_hp)
 		if key.x < best_key.x or (key.x == best_key.x and key.y < best_key.y):
 			best_key = key
 			best = e
