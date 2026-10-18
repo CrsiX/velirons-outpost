@@ -298,7 +298,7 @@ func _test_defence() -> void:
 	var r := spawn("rat", Vector2(road), 30.0)
 	await wait_until(func() -> bool: return farm.has_rats(), 20.0)
 	var goes := await wait_until(func() -> bool: return hero.target == r, 10.0)
-	check(goes, "Defend: with nothing near the gates, the hero goes for rats on his farm")
+	check(goes, "Defend: with nothing near the gates, the hero goes for rats on her farm")
 	# A real threat at a gate comes first.
 	var g: Vector2i = v.gates[0]
 	var gob := spawn("goblin", Vector2(game.world.pathing.nearest_road(g + (g - v.center).sign() * 3)), 50.0)
@@ -370,7 +370,7 @@ func _test_loot() -> void:
 	hero.set_mode(Hero.Mode.REST)
 	await frames(2)
 	var sack: Treasure = game.world.map_objects.back() if game.world.map_objects.size() > n0 else null
-	check(sack != null and sack.data.get("sack", false) and sack.reward().get("gold", 0) == 40, "changing his mode while carrying loot drops it")
+	check(sack != null and sack.data.get("sack", false) and sack.reward().get("gold", 0) == 40, "changing her mode while carrying loot drops it")
 	_bench_hero(true)
 	# A gatherer picks it up and brings it home.
 	game.economy.add("food", 200)
@@ -398,7 +398,7 @@ func _test_ui() -> void:
 	check(hud._hero_button.get_node_or_null("Rich") != null and "icon_xp.svg" in (hud._hero_button.get_node("Rich") as RichTextLabel).text and Hud.button_text(hud._hero_button).begins_with("XP "), "the hero's XP shows the XP icon")
 	hud._hero_panel.visible = true
 	hud._refresh_hero()
-	check("icon_hp.svg" in hud._hero_stats.text and not "HP" in hud._hero_stats.text, "the hero panel shows his HP with a heart")
+	check("icon_hp.svg" in hud._hero_stats.text and not "HP" in hud._hero_stats.text, "the hero panel shows her HP with a heart")
 	hud._hero_panel.visible = false
 	var hurt := game.army.recruit("archer")
 	hurt.hp = hurt.max_hp() * 0.5
@@ -508,7 +508,7 @@ func _test_hero_bar() -> void:
 	check(hud.hero_hp_color(1.0) == hud.hero_hp_color(0.5) and hud.hero_hp_color(0.49) == hud.hero_hp_color(0.2) and hud.hero_hp_color(0.19) != hud.hero_hp_color(0.2) and hud.hero_hp_color(0.5) != hud.hero_hp_color(0.49), "green from 50 %, yellow from 20 %, red below")
 	var h := game.hero
 	h.hp = h.max_hp * 0.3
-	check(is_equal_approx(hud.hero_hp_share(), 0.3), "it shows his share of HP")
+	check(is_equal_approx(hud.hero_hp_share(), 0.3), "it shows her share of HP")
 	h.hp = h.max_hp
 
 
@@ -655,13 +655,13 @@ func _test_fog() -> void:
 	var v := game.player_village
 	var vid := v.id
 	await clear_enemies()
-	# The hero building (not exploring) uncovers the fog around him, and learns.
+	# The hero building (not exploring) uncovers the fog around her, and learns.
 	game.fog.disabled = false  # (this bot plays without fog)
 	var hero := game.hero
 	_bench_hero(false)
 	hero.set_mode(Hero.Mode.BUILD)
 	await frames(2)
-	hero.set_process(false)  # (stands still where we put him)
+	hero.set_process(false)  # (stands still where we put her)
 	var spot := game.world.pathing.nearest_walkable(v.center + Vector2i(9, -3))
 	hero.at_home = false
 	hero.visible = true
@@ -670,7 +670,7 @@ func _test_fog() -> void:
 	unexplore(patch)
 	var xp0 := hero.xp
 	await wait(0.6)
-	check(patch.all(func(t: Vector2i) -> bool: return game.fog.is_explored_by(vid, t)) and hero.xp > xp0, "the hero in Build mode uncovers the fog around him and earns XP (+%d)" % (hero.xp - xp0))
+	check(patch.all(func(t: Vector2i) -> bool: return game.fog.is_explored_by(vid, t)) and hero.xp > xp0, "the hero in Build mode uncovers the fog around her and earns XP (+%d)" % (hero.xp - xp0))
 	hero.set_process(true)
 	hero.set_mode(Hero.Mode.REST)
 	_bench_hero(true)

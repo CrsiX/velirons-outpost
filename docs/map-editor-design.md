@@ -586,8 +586,10 @@ Size: a 200×200 map is about 6 layers × 200 rows × ~205 bytes ≈ 250 KB, fin
   web: the browser's storage for the site; Android: the app's storage).
   *Open* lists them with name, size, villages, map type and date.
 - **Built-in maps:** `res://data/maps/*.json`, shipped with the game,
-  read-only, listed under "Built-in" (none yet). Opened in the editor, one is
-  saved as a new file under your maps. (If loading JSON turns out too slow for
+  read-only, listed under "Built-in": so far the campaign's scenario maps
+  (`homecoming.json`, scenario 1; docs/scenarios-design.md §7.3). Opened in
+  the editor, one is saved as a new file under your maps; to change a
+  scenario's map, Export it over its file in `data/maps/`. (If loading JSON turns out too slow for
   big maps, they can be baked into `.res` files like the title maps; not
   planned until measured.)
 - **The map picker** (`MapPicker`; the editor's Open, Singleplayer's and the

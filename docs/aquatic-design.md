@@ -204,7 +204,7 @@ now and then (`chance`, `max_count` 1).
   of the body); damage to an arm never hurts the octopus's own HP, and arms don't count as
   enemies for the wave.
 - **Drowning.** A grappled unit whose tile becomes deep water dies; the hero is downed instead
-  (loses his XP as always) and revives at the village centre *(decided)*. Fliers and amphibians
+  (loses her XP as always) and revives at the village centre *(decided)*. Fliers and amphibians
   (a fire elemental) can be pulled but don't drown.
 - **Diving.** It dives when it loses 15 % of its max HP within 6 s: all arms retract, hooks
   release (a unit released over deep water has drowned already; the others just stand free), it stays under 6 s, and can't dive again for 20 s.
@@ -355,7 +355,7 @@ eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`)
   pays nothing, leaves no corpse); a hooked unit's `held_by` is the arm, and the hero, soldiers
   and elementals fight it first. The grapple's damage is melee.
 - *Drowning:* a villager dies ("drowned, dragged under by ..."), a soldier is downed, the hero is
-  downed (his XP lost), an elemental crumbles; a fire elemental (a flyer) doesn't drown.
+  downed (her XP lost), an elemental crumbles; a fire elemental (a flyer) doesn't drown.
 - *The log:* the first of each kind per game (`AQUA_FIRST`): Info, the octopus Important.
 - *Saves:* `SaveGame.FORMAT` 2 (the map holds the water spawns). Map files: format 2, key
   `"water_spawns"` after `"volcanoes"`; a format 1 file still reads (no water spawns).

@@ -843,6 +843,121 @@ def worker_camp():
     a.save("worker_camp")
 
 
+def tent_small():
+    """Brenna's travel tent by the road (scenario 1): a small canvas A-frame,
+    a bedroll in front and the cold ring of a campfire."""
+    a = Art()
+    a.shadow(30, 14, cy=2)
+    x0, x1, y0, y1, ridge = -0.22, 0.2, -0.2, 0.1, 28
+    ym = (y0 + y1) / 2
+    a.poly([P(x0, y0, 0), P(x1, y0, 0), P(x1, ym, ridge), P(x0, ym, ridge)], "#7a6a4e")
+    a.poly([P(x1, y0, 0), P(x1, ym, ridge), P(x1, y1, 0)], "#5e523c")
+    a.poly([P(x1, ym - 0.04, 0), P(x1, ym, ridge * 0.6), P(x1, ym + 0.04, 0)], "#221c14", stroke=None)  # opening
+    a.poly([P(x0, ym, ridge), P(x1, ym, ridge), P(x1, y1, 0), P(x0, y1, 0)], "#968660")
+    a.line([P(x0, ym, ridge), P(x1, ym, ridge)], "#4a4030", 1.8)
+    a.line([P(x0 - 0.04, ym, ridge + 4), P(x0 - 0.04, ym, 0)], WOOD_D, 2)
+    a.line([P(x1 + 0.04, ym, ridge + 4), P(x1 + 0.04, ym, 0)], WOOD_D, 2)
+    a.line([P(x1 + 0.04, ym, ridge + 4), P(x1 + 0.2, ym + 0.02, 0)], "#5a5040", 0.8)  # guy line
+    # bedroll, rolled up
+    bx, by = P(0.3, 0.06)
+    a.ellipse(bx, by - 3, 9, 3.6, CRIMSON_D, INK, 1.1)
+    a.ellipse(bx + 8, by - 3, 2.6, 3.4, "#a03040", INK, 1)
+    a.line([(bx - 3, by - 6.4), (bx - 3, by + 0.4)], "#3a2a1a", 1.4)
+    # the cold campfire: a ring of stones, charred sticks, a wisp of smoke
+    fx, fy = P(0.08, 0.36)
+    for k in range(7):
+        ang = k / 7 * math.tau
+        a.ellipse(fx + math.cos(ang) * 8, fy + math.sin(ang) * 4, 2.4, 1.6, "#77736c", INK, 0.8)
+    a.line([(fx - 5, fy + 1), (fx + 4, fy - 1)], "#2a2018", 2.2)
+    a.line([(fx - 3, fy - 2), (fx + 5, fy + 2)], "#2a2018", 2.2)
+    a.line([(fx, fy - 4), (fx - 2, fy - 12), (fx + 2, fy - 19)], "#9a9690", 1.6, opacity=0.5)
+    # her pack against the pole
+    px, py = P(x0 - 0.1, ym + 0.06)
+    a.poly([(px - 4, py), (px + 4, py), (px + 3, py - 10), (px - 3, py - 10)], "#5a4630", INK, 1)
+    a.line([(px - 3, py - 6), (px + 3, py - 6)], "#3a2a1a", 1)
+    a.save("tent_small")
+
+
+def portrait_svg(name, body, bg="#2a3240"):
+    """A dialogue portrait (cutscenes): a bust in a round-cornered frame, 64x64 units."""
+    with open(os.path.join(ART, name + ".svg"), "w") as f:
+        f.write('<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64">\n'
+                '  <clipPath id="c"><rect x="3" y="3" width="58" height="58" rx="6"/></clipPath>\n'
+                '  <rect x="1.5" y="1.5" width="61" height="61" rx="7" fill="%s" stroke="%s" stroke-width="3"/>\n'
+                '  <g clip-path="url(#c)">%s\n  </g>\n'
+                '  <rect x="3" y="3" width="58" height="58" rx="6" fill="none" stroke="%s" stroke-width="1.6"/>\n'
+                '</svg>\n' % (bg, INK, body, GOLD_D))
+
+
+def portraits():
+    """The speakers of the scenarios' cutscenes (docs/story-design.md section 2)."""
+    # Brenna Hale: a royal knight come home; dark hair tied back, a scar, a worn
+    # blue-steel cuirass with a crimson cloak.
+    portrait_svg("portrait_brenna", f'''
+  <path d="M6 66 Q6 46 20 42 L44 42 Q58 46 58 66Z" fill="{CRIMSON}" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M14 66 Q14 48 24 45 L40 45 Q50 48 50 66Z" fill="#6a7a8e" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M32 46 L32 66" stroke="#4a5666" stroke-width="1.6"/>
+  <path d="M16 50 Q12 44 20 42 L24 46 Z" fill="#8a96a6" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M48 50 Q52 44 44 42 L40 46 Z" fill="#8a96a6" stroke="{INK}" stroke-width="1.6"/>
+  <rect x="27" y="35" width="10" height="9" fill="#c9a07c" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 24 Q19 10 32 9 Q45 10 44 24 Q44 36 32 39 Q20 36 20 24Z" fill="#d6ad86" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M19 25 Q16 8 32 6 Q48 7 45 24 Q44 15 36 13 Q28 15 21 14 Q20 19 19 25Z" fill="#3a2a20" stroke="{INK}" stroke-width="2"/>
+  <path d="M44 16 Q52 22 49 34 Q47 28 44 26Z" fill="#3a2a20" stroke="{INK}" stroke-width="1.8"/>
+  <circle cx="49" cy="25" r="1.6" fill="{CRIMSON}"/>
+  <path d="M24 23 L29 22.5 M35 22.5 L40 23" stroke="#2a1e16" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="27" cy="26" r="1.5" fill="{INK}"/><circle cx="37" cy="26" r="1.5" fill="{INK}"/>
+  <path d="M31.5 27 L30.5 31 L33 31" fill="none" stroke="#9a7458" stroke-width="1.2"/>
+  <path d="M28.5 34 Q32 35.4 35.5 34" fill="none" stroke="#7a4a3a" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M39 20 L42 29" stroke="#b07a6a" stroke-width="1.1"/>''', bg="#28323e")
+    # Einar: Brenna's father, the village's lumberjack; grey beard, green cap,
+    # red check shirt, the axe haft over his shoulder.
+    portrait_svg("portrait_einar", f'''
+  <path d="M50 66 L60 8" stroke="{INK}" stroke-width="5"/>
+  <path d="M50 66 L60 8" stroke="{WOOD_L}" stroke-width="3"/>
+  <path d="M54 8 L66 6 L66 18 L57 16Z" fill="#9a9a9a" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#7a3a2a" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M14 50 L50 50 M12 57 L52 57 M24 44 L22 66 M40 44 L42 66" stroke="#5a2a1e" stroke-width="1.6"/>
+  <rect x="27" y="35" width="10" height="9" fill="#c99a78" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 24 Q19 11 32 10 Q45 11 44 24 Q44 35 32 38 Q20 35 20 24Z" fill="#d0a07c" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M20 26 Q21 44 32 46 Q43 44 44 26 Q40 32 32 32 Q24 32 20 26Z" fill="#b8b2a6" stroke="{INK}" stroke-width="2"/>
+  <path d="M27 31 Q32 29 37 31" fill="none" stroke="#8a847a" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M17 18 Q18 5 32 5 Q46 5 47 18Z" fill="#3a4a2a" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M15 18 L49 18" stroke="{INK}" stroke-width="3"/>
+  <path d="M24 22 L29 23 M35 23 L40 22" stroke="#9a948a" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="27" cy="25.5" r="1.4" fill="{INK}"/><circle cx="37" cy="25.5" r="1.4" fill="{INK}"/>
+  <path d="M24 28 Q27 29 29 28 M35 28 Q37 29 40 28" fill="none" stroke="#a87858" stroke-width="0.9"/>''', bg="#2c3428")
+    # Pell Dunmore: a travelling merchant; a wide-brimmed hat, a brown coat with
+    # a gold-trimmed collar, a short beard and a lantern's warm light.
+    portrait_svg("portrait_pell", f'''
+  <circle cx="54" cy="44" r="16" fill="{GLOW}" opacity="0.25"/>
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#5a4630" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M22 43 L32 56 L42 43" fill="none" stroke="{GOLD}" stroke-width="2.4"/>
+  <path d="M32 56 L32 66" stroke="#3a2c1e" stroke-width="1.6"/>
+  <circle cx="32" cy="60" r="1.4" fill="{GOLD}"/>
+  <rect x="27" y="35" width="10" height="9" fill="#c99a78" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 25 Q19 12 32 11 Q45 12 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#cfa07c" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M22 29 Q24 39 32 40 Q40 39 42 29 Q38 34 32 34 Q26 34 22 29Z" fill="#6a4a30" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M27 31.5 Q32 30 37 31.5" fill="none" stroke="#4a3220" stroke-width="2" stroke-linecap="round"/>
+  <path d="M8 18 Q32 10 56 18 Q44 21 32 21 Q20 21 8 18Z" fill="#3a2e22" stroke="{INK}" stroke-width="2"/>
+  <path d="M20 17 Q21 4 32 4 Q43 4 44 17Z" fill="#4a3a2a" stroke="{INK}" stroke-width="2"/>
+  <path d="M20.5 14 L43.5 14" stroke="{CRIMSON}" stroke-width="2.4"/>
+  <circle cx="27" cy="25.5" r="1.4" fill="{INK}"/><circle cx="37" cy="25.5" r="1.4" fill="{INK}"/>
+  <path d="M24 22.5 L29 22 M35 22 L40 22.5" stroke="#3a2a1a" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M50 46 L58 46 L57 58 L51 58Z" fill="{GOLD}" stroke="{INK}" stroke-width="1.6" opacity="0.95"/>
+  <circle cx="54" cy="52" r="2.6" fill="#fff4c0"/>''', bg="#33291f")
+
+
+def campaign_icon():
+    """The title screen's Campaign button: a crimson banner on a pole with a gold tower."""
+    icon_svg("icon_campaign", f'''
+  <path d="M14 4 L14 62" stroke="{INK}" stroke-width="6" stroke-linecap="round"/>
+  <path d="M14 4 L14 62" stroke="{WOOD_L}" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="14" cy="5" r="4" fill="{GOLD}" stroke="{INK}" stroke-width="2"/>
+  <path d="M16 10 L56 10 L56 44 L36 36 L16 44Z" fill="{CRIMSON}" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M28 32 L28 20 L31 20 L31 23 L34 23 L34 20 L38 20 L38 23 L41 23 L41 20 L44 20 L44 32Z" fill="{GOLD}" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M34.5 32 L34.5 28 Q36 26 37.5 28 L37.5 32Z" fill="{INK}"/>''')
+
+
 def light_stone(glow_only=False):
     """Carved pillar on a plinth; runes glow dim yellow. Glow is a separate
     layer (same canvas) so the game can pulse it."""
@@ -2120,7 +2235,7 @@ def icons():
   <defs><radialGradient id="g"><stop offset="0" stop-color="#eaffb0" stop-opacity="0.95"/><stop offset="0.45" stop-color="#8cf06a" stop-opacity="0.45"/><stop offset="1" stop-color="#4ac04a" stop-opacity="0"/></radialGradient></defs>
   <circle cx="32" cy="32" r="32" fill="url(#g)"/>""")
 
-    # Hero modes (the icon row in his panel).
+    # Hero modes (the icon row in her panel).
     icon_svg("mode_defend", f"""
   <path d="M32 5 L54 12 L54 30 C54 44 44 54 32 59 C20 54 10 44 10 30 L10 12 Z" fill="#6a7fa0" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M32 11 L48 16 L48 30 C48 41 41 49 32 53 Z" fill="#8ea3c4"/>
@@ -4094,6 +4209,9 @@ def main():
     title_icons()
     flags()
     app_icon()
+    tent_small()
+    portraits()
+    campaign_icon()
     write_manifest()
     print("generated %d sprites" % len(manifest))
 

@@ -25,8 +25,15 @@ var countdown := -1.0
 var hold := false
 ## The tutorial: the player can't call a wave (the tutorial starts it).
 var call_locked := false
-## The tutorial's waves, used up first: [{"kinds": {kind: count}, "spawn": tile}].
+## Scripted waves (the tutorial's, a scenario's), used up first:
+## [{"kinds": {kind: count}, "spawn": tile}] (all from that road tile), or
+## without "spawn": spread over "spawns" edge spawns (default: as many as a
+## normal wave n uses), with "rat_packs": [sizes] (a pack from one spawn each).
 var scripted: Array[Dictionary] = []
+## Seconds from a wave's end to the next one (a scenario may set its own).
+var buffer := Config.WAVE_BUFFER
+## The last wave (a scenario's): after it no more waves come. 0: endless.
+var last_wave := 0
 ## Co-op client: [wave, countdown, in progress, enemies left, can call].
 var _net: Array = [0, 0.0, false, 0, true]
 var _queue: Array[Dictionary] = []
@@ -64,7 +71,12 @@ func in_progress() -> bool:
 func can_call() -> bool:
 	if game and game.is_client:
 		return _net[4]
-	return not in_progress() and not call_locked
+	return not in_progress() and not call_locked and not all_done()
+
+
+## A scenario's last wave is over: no more come.
+func all_done() -> bool:
+	return last_wave > 0 and wave >= last_wave and not in_progress()
 
 
 ## Enemies alive plus those of the current wave still to come.
@@ -123,10 +135,7 @@ func _start_wave() -> void:
 	var hp_scale := pow(Config.WAVE_HP_GROWTH, n - 1)
 	game.world.wake_lairs(n)
 	if not scripted.is_empty():
-		var sw: Dictionary = scripted.pop_front()
-		for kind in sw["kinds"]:
-			for i in int(sw["kinds"][kind]):
-				_queue.append(_spec(kind, sw["spawn"], hp_scale, game.villages[0]))
+		_queue.append_array(_scripted_wave(scripted.pop_front(), n, hp_scale))
 	elif game.villages.size() == 1:
 		_queue.append_array(_share(n, hp_scale, game.map.edge_spawns, game.villages[0]))
 	else:
@@ -174,19 +183,48 @@ func _share(n: int, hp_scale: float, spawns: Array[Vector2i], target: Village) -
 	if n >= int(rp["from_wave"]) and _rng.randf() < float(rp["chance"]):
 		var packs := _rng.randi_range(int(rp["packs"][0]), int(rp["packs"][1])) + (n - int(rp["from_wave"])) / int(rp["more_every"])
 		for p in packs:
-			var at = rat_pool[_rng.randi() % rat_pool.size()]
-			var pack := []
-			for k in _rng.randi_range(int(rp["size"][0]), int(rp["size"][1])):
-				var spec := _spec("rat", at, hp_scale, target)
-				if k > 0:
-					spec["gap"] = float(rp["gap"])
-				pack.append(spec)
-			var pos := _rng.randi_range(0, out.size())
-			while pos < out.size() and out[pos].has("gap"):
-				pos += 1  # (never into the middle of another pack)
-			for k in pack.size():
-				out.insert(pos + k, pack[k])
+			_insert_pack(out, rat_pool[_rng.randi() % rat_pool.size()], _rng.randi_range(int(rp["size"][0]), int(rp["size"][1])), hp_scale, target)
 	return out
+
+
+## A scripted wave's queue (see `scripted`), for village 0.
+func _scripted_wave(sw: Dictionary, n: int, hp_scale: float) -> Array:
+	var target := game.villages[0]
+	var out := []
+	if sw.has("spawn"):
+		for kind in sw["kinds"]:
+			for i in int(sw["kinds"][kind]):
+				out.append(_spec(kind, sw["spawn"], hp_scale, target))
+		return out
+	var points: Array = game.map.edge_spawns.duplicate()
+	points.shuffle()
+	points = points.slice(0, clampi(int(sw.get("spawns", Config.wave_spawn_points(n))), 1, maxi(points.size(), 1)))
+	var kinds: Array[String] = []
+	for kind in sw.get("kinds", {}):
+		for i in int(sw["kinds"][kind]):
+			kinds.append(kind)
+	kinds.shuffle()
+	for i in kinds.size():
+		out.append(_spec(kinds[i], points[i % points.size()], hp_scale, target))
+	for size in sw.get("rat_packs", []):
+		_insert_pack(out, points[_rng.randi() % points.size()], int(size), hp_scale, target)
+	return out
+
+
+## A pack of `size` rats from `at` into `out`, at a random place (never into
+## the middle of another pack), the rats a moment apart.
+func _insert_pack(out: Array, at, size: int, hp_scale: float, target: Village) -> void:
+	var pack := []
+	for k in size:
+		var spec := _spec("rat", at, hp_scale, target)
+		if k > 0:
+			spec["gap"] = float(Config.RAT_PACKS["gap"])
+		pack.append(spec)
+	var pos := _rng.randi_range(0, out.size())
+	while pos < out.size() and out[pos].has("gap"):
+		pos += 1
+	for k in pack.size():
+		out.insert(pos + k, pack[k])
 
 
 ## A queue entry: `at` is a spawn tile or a lair (its door).
@@ -570,7 +608,7 @@ func _enemy_gone(g: Enemy = null) -> void:
 	if not in_progress() and wave > 0:
 		rat_deadline = -1.0
 		rats_leave = false
-		countdown = Config.WAVE_BUFFER
+		countdown = buffer if last_wave <= 0 or wave < last_wave else -1.0
 		game.log_all(EventLog.Level.INFO, "Wave %d is over" % wave)
 		wave_finished.emit(wave)
 	changed.emit()

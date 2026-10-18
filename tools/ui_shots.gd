@@ -8,7 +8,10 @@ extends Node
 ## the settings with Save / Load, the save page, Continue, the save list (in
 ## landscape and portrait), and (`--only=siege`) building HP: hurt, devastated
 ## and upgraded walls, gates and buildings, their panels, a repair under way,
-## goblins hitting a gate, the library's gate entry and the statistics.
+## goblins hitting a gate, the library's gate entry and the statistics, and
+## (`--only=scenario`) scenario 1: the campaign page, the intro cutscene, the
+## walk home, the arrival, the cards and objectives, the outro and the end
+## (landscape, and the intro and a card in portrait).
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -89,6 +92,8 @@ func _run() -> void:
 		await _saves()
 	if only in ["", "siege"]:
 		await _siege()
+	if only in ["", "scenario"]:
+		await _scenario()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -687,3 +692,123 @@ func _free_spot_in(g: Game, kind: String, near: Vector2i) -> Vector2i:
 				if g.construction.placement_error(kind, t) == "":
 					return t
 	return near
+
+
+# --- a scenario (docs/scenarios-design.md) -------------------------------------------------
+
+func _scenario() -> void:
+	var t: TitleScreen = load("res://scenes/title.tscn").instantiate()
+	add_child(t)
+	await _frames(30)
+	t.show_page(t._campaign_page)
+	await _frames(10)
+	await shot("scenario_campaign_page")
+	t.queue_free()
+	await _frames(3)
+	Settings.scenario_next = 1
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	add_child(g)
+	var sc: ScenarioRunner = null
+	for i in 600:
+		await _frames(1)
+		sc = g.scenario
+		if sc and sc.cutscene and sc.cutscene.index >= 3:
+			break
+	await _frames(70)
+	await shot("scenario_intro_title")
+	await _cut_to_line(sc, "brenna")
+	await shot("scenario_intro_brenna")
+	await _cut_to_line(sc, "brenna", "Smoke")
+	await _frames(20)
+	await shot("scenario_intro_smoke")
+	await _size(Vector2i(540, 960))
+	await _frames(10)
+	await shot("scenario_intro_portrait")
+	await _landscape()
+	sc.cutscene.skip()
+	await _frames(90)
+	await shot("scenario_walk_home")
+	g.hero.set_grid_pos(Vector2(g.player_village.center))
+	g.hero.arrive_home()
+	for i in 120:
+		await _frames(1)
+		if sc.cutscene and sc.cutscene.line != "":
+			break
+	await _frames(40)
+	await shot("scenario_arrival_einar")
+	sc.cutscene.skip()
+	await _frames(40)
+	await shot("scenario_card_huts")
+	g.command("rebuild_hut", {"building": g.player_village.huts().filter(func(h: Hut) -> bool: return h.ruined)[0].nid})
+	await _frames(120)
+	await shot("scenario_card_tower")
+	await _size(Vector2i(540, 960))
+	await _frames(20)
+	await shot("scenario_card_portrait")
+	await _landscape()
+	g.hud.show_tab("army")
+	await _frames(10)
+	await shot("scenario_army_tab")
+	sc._hints_shown["hurt"] = true
+	sc.card.show_hint(str(sc.hints[1]["text"]))
+	await _frames(5)
+	await shot("scenario_hint")
+	sc.card.show_hint("")
+	# Straight to the end: the objectives met, the outro.
+	var v := g.player_village
+	for h: Hut in v.huts():
+		if h.ruined:
+			h.ruined = false
+			h.refresh()
+	for b: Building in sc.pieces("gate") + sc.pieces("wall_tower"):
+		if b.devastated:
+			b.set_devastated(false)
+		b.hp = b.max_hp()
+	v.population.spawn("gatherer")
+	g.waves.wave = 5
+	g.waves.hold = true
+	for i in 300:
+		await _frames(1)
+		if sc.cutscene and sc.cutscene.line != "":
+			break
+	await _frames(30)
+	await shot("scenario_outro")
+	await _cut_to_line(sc, "pell")
+	await _frames(120)
+	await shot("scenario_outro_pell")
+	sc.cutscene.skip()
+	await _frames(30)
+	await shot("scenario_complete")
+	g.queue_free()
+	await _frames(3)
+	Settings.scenario_next = 1
+	g = load("res://scenes/main.tscn").instantiate()
+	add_child(g)
+	for i in 600:
+		await _frames(1)
+		if g.scenario and g.scenario.cutscene:
+			break
+	g.scenario.cutscene.skip()
+	await _frames(10)
+	var einar: Civilian = g.population.civilians.filter(func(c: Civilian) -> bool: return c.given_name == "Einar")[0]
+	g.population.kill(einar, "from the attack of goblin 2", "enemies")
+	await _frames(10)
+	await shot("scenario_failed")
+	g.queue_free()
+	await _frames(3)
+
+
+## On through the cutscene until `who` says a line (containing `part`).
+func _cut_to_line(sc: ScenarioRunner, who: String, part := "") -> void:
+	for i in 2000:
+		var c := sc.cutscene
+		if c == null or not c.running:
+			return
+		if c.line != "":
+			var s: Dictionary = c.steps[c.index]
+			if str(s["say"]) == who and (part == "" or c.line.contains(part)):
+				await _frames(60)
+				return
+			c.advance()
+			c.advance()
+		await _frames(1)

@@ -90,6 +90,7 @@ const SPRITES := {
 	"stone_circle_awake": {"ax": 61, "ay": 69, "w": 122, "h": 101},
 	"stump_charred": {"ax": 21, "ay": 29, "w": 42, "h": 39},
 	"swift_arrow": {"ax": 18, "ay": 5.5, "w": 35, "h": 11},
+	"tent_small": {"ax": 33, "ay": 44.92, "w": 66, "h": 67.5},
 	"tile_ash_0": {"ax": 66, "ay": 34, "w": 132, "h": 68},
 	"tile_ash_1": {"ax": 66, "ay": 34, "w": 132, "h": 68},
 	"tile_desert_0": {"ax": 74, "ay": 37, "w": 148, "h": 74},

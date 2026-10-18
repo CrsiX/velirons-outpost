@@ -528,11 +528,11 @@ static func _hero() -> Array[Dictionary]:
 	var f := PackedStringArray()
 	f.append("HP %s · sword damage %s (level 1 to %d)" % [_span(Config.hero_stat("hp", 0), Config.hero_stat("hp", top)), _span(Config.hero_stat("damage", 0), Config.hero_stat("damage", top)), Config.HERO_MAX_LEVEL])
 	f.append("A blow every %s s · speed %s tiles/s" % [_n(h["attack_cooldown"]), _n(h["speed"])])
-	f.append("Levels are bought with his own XP: %d XP for level 2, up to %d for level %d" % [Config.hero_level_cost(0), Config.hero_level_cost(top - 1), Config.HERO_MAX_LEVEL])
-	f.append("In the village centre he heals %s HP per second" % _n(h["rest_regen"]))
-	f.append("Downed: he loses his unspent XP (never his levels) and is back when the wave is over")
+	f.append("Levels are bought with her own XP: %d XP for level 2, up to %d for level %d" % [Config.hero_level_cost(0), Config.hero_level_cost(top - 1), Config.HERO_MAX_LEVEL])
+	f.append("In the village centre she heals %s HP per second" % _n(h["rest_regen"]))
+	f.append("Downed: she loses her unspent XP (never her levels) and is back when the wave is over")
 	out.append({"name": h["name"], "art": "unit_hero",
-		"text": "Your champion: he fights with a sword and can do a little of every villager's job. He eats nothing and needs no hut. Tap him in the top bar to give him orders.",
+		"text": "Your champion: she fights with a sword and can do a little of every villager's job. She eats nothing and needs no hut. Tap her in the top bar to give her orders.",
 		"facts": f})
 	for i in Hero.MODE_NAMES.size():
 		var name := "Mode: %s" % Hero.MODE_NAMES[i]
@@ -543,7 +543,7 @@ static func _hero() -> Array[Dictionary]:
 	for k: String in Config.HERO_XP_PER_ACTION:
 		xp.append("%d XP %s" % [Config.HERO_XP_PER_ACTION[k], XP_WORDS.get(k, k)])
 	xp.append("A shrine's blessing: %s XP" % _range(Config.TREASURES["shrine"]["reward"]["hero_xp"]))
-	xp.append("Training a unit earns nothing: he passes his XP on")
+	xp.append("Training a unit earns nothing: she passes her XP on")
 	out.append({"name": "Earning XP", "art": "icon_xp", "text": "Everything the hero does earns XP, except training.", "facts": xp})
 	return out
 
@@ -561,7 +561,7 @@ static func _places() -> Array[Dictionary]:
 		f.append("Holds %s (farther from the village: up to x%s)" % [", ".join(r), _n(scale_top)])
 		if t.get("relic", false):
 			f.append("May hold a relic instead")
-		f.append("The hero loots it in Explore mode: %s s, and the reward is paid when he's home" % _n(t["loot_time"]))
+		f.append("The hero loots it in Explore mode: %s s, and the reward is paid when she's home" % _n(t["loot_time"]))
 		out.append({"name": t["name"], "art": kind, "text": TREASURE_TEXT.get(kind, ""), "facts": f})
 	var relics := PackedStringArray()
 	for k: String in Config.RELICS:

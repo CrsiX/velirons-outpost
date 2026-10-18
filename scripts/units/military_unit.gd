@@ -188,7 +188,7 @@ func upgrade_options() -> Array[Dictionary]:
 	var out_opts: Array[Dictionary] = []
 	if can_upgrade():
 		out_opts.append({"to": kind, "level": level + 1, "cost": upgrade_cost(), "archmage": false})
-	if level + 1 >= Config.BRANCH_MIN_LEVEL:
+	if level + 1 >= Config.BRANCH_MIN_LEVEL and (village == null or village.game.allows_branches()):
 		for b in spec().get("branches", []):
 			out_opts.append({"to": b, "level": 0, "cost": Config.MILITARY[b]["branch_cost"], "archmage": false})
 	if spec().get("archmage", false) and level + 1 >= Config.ARCHMAGE_LEVEL:

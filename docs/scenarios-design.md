@@ -1,8 +1,9 @@
 # Scenarios design
 
-Status: **planned, nothing of it is built yet.** This page outlines the campaign: eleven scenarios that tell the story in `story-design.md` (read
-that first; names, places and the cause of the war are explained there). Everything here is a draft. Numbers marked *target* are starting points
-to tune, and when built they go into `config.gd` like every other tunable. *Open* means not decided.
+Status: **scenario 1 and the scenario system are built** (§7 says how, and what was decided for scenario 1); scenarios 2 to 11 are planned. This
+page outlines the campaign: eleven scenarios that tell the story in `story-design.md` (read that first; names, places and the cause of the war are
+explained there). Everything about the scenarios not yet built is a draft. Numbers marked *target* are starting points to tune; a scenario's own
+numbers and texts go into its own file (`scripts/scenarios/scenario_<n>.gd`), not into `config.gd`. *Open* means not decided.
 
 ## 1. Structure
 
@@ -504,8 +505,7 @@ the gatherer step is done). When the scenario's steps are over the normal countd
 
 - Whether the tutorial cards can be switched off for replays (proposed: yes) and what the title screen's *Tutorial* button does (proposed: it
   starts scenario 1).
-- Scenario 1's numbers: starting resources, enemy strength, repair cost share, economy goal, how much wall must be repaired, whether the farm and
-  camp start damaged.
+- ~~Scenario 1's numbers~~: decided and built (§7.3).
 
 - Each other scenario's exact *N* and *target* numbers.
 - Hero level and the units per baseline.
@@ -525,7 +525,7 @@ the gatherer step is done). When the scenario's steps are over the normal countd
 
 The game has none of this yet, except where noted:
 
-- **A scenario system:** a list of scenarios, a menu, a scripted baseline per scenario (map type and seed, starting village, units, resources,
+- **A scenario system** (built, §7): a list of scenarios, a menu, a scripted baseline per scenario (map type and seed, starting village, units, resources,
   hero level, unlocks), a way to start one, and objectives with a win and an outro. The tutorial already shows scripted waves, a fixed map and
   cards (`tutorial-design.md`), which is the closest existing piece. That doc, which says "no cutscenes", has to be updated when the tutorial is
   merged.
@@ -553,6 +553,66 @@ The game has none of this yet, except where noted:
 - **Objectives:** survive N waves, rebuild the village, restore ruined towers, find treasures, bury corpses, clear lairs, defeat a boss. Several
   map onto existing mechanics (waves, ruined towers, treasures, gatherers, lairs).
 - **Scripted events:** a scripted walk for the hero, things that happen at a given wave or moment.
-- **Cutscenes:** skippable by the player. The format is *open* (`story-design.md` section 8).
+- **Cutscenes:** skippable by the player. Built: in the engine, with dialogue boxes (§7.2).
 - **Pell's market** and **mid-bosses**, both on the README's roadmap.
 - **Scenario text:** library lore, journal fragments, log lines.
+
+## 7. As built
+
+### 7.1 The scenario system
+
+- **One file per scenario:** `scripts/scenarios/scenario_<n>.gd` extends `Scenario` (`scenario.gd`) and holds everything that scenario is: in
+  `_init` its data (title, the map file, difficulty and enemy strength, resources, villagers and their names, how much of the village stands, the
+  hero's name, level and start, what may be built and recruited, specialising, revive and death rules, the exact waves, the speakers), and in
+  overridden functions its content (the intro, the arrival and the outro cutscenes, the teaching cards, the one-time hints, the objectives, events
+  per wave). `Campaign.SCENARIOS` (`campaign.gd`) lists them in order. A scenario's numbers live in its file, not in `config.gd`.
+- **The runner** (`ScenarioRunner`, a child of `Game` while a scenario runs; `Game.scenario`) plays it: before the world is made it loads the map
+  file (`MapData.for_game`), sets the difficulty and the enemy scale (`Settings.enemy_scale`, values that replace the difficulty's multiplier,
+  below Easy if need be) and the starting village; once the world stands it ruins the huts and pieces (`apply_baseline`: huts nearest the centre
+  stand, of each piece kind the first ones in row order stand, at `pieces_hp`, the rest are devastated); then the intro, the hero's walk, the
+  arrival, the cards, the hints and the objectives (polled every 0.25 s), and the outro once every objective holds at once and no wave runs.
+- **Rules** it enforces: `Commands.submit` asks `ScenarioRunner.command_error` (buildings, unit kinds, specialising, no hero orders or wave calls
+  during the story parts); the HUD hides what isn't allowed (`Game.available`, `Game.allows_building`; `MilitaryUnit.upgrade_options` leaves out
+  the branches when `Game.allows_branches` is false). A villager's death (`Population.civilian_died`) or the hero being downed (`Hero.downed`) end
+  the scenario when its rules say so; the usual defeat does too. The defeat screen names the cause and offers *Try again* (the scenario starts
+  over) and *Main menu*; the win screen *Main menu* and *Play again* (`Game.end_game`, `Hud.show_game_over(..., won)`).
+- **Waves:** a scenario's waves are `Waves.scripted` entries without a fixed `spawn`: `kinds`, spread over `spawns` edge spawns, plus `rat_packs`
+  (each pack from one spawn). `Waves.last_wave` stops the waves after the last one (the top bar says "All N waves survived"); `Waves.buffer` is
+  the gap between waves; wave 1 can wait to be called (`first_wave_waits`).
+- **Not built yet:** saving a scenario (`Game.save_error` refuses it, there is no autosave), Pell's market, guard mobs, bosses, scripted caravans,
+  choices, the Legion's death effect, anything carried between scenarios (by design: nothing carries over).
+
+### 7.2 Cutscenes
+
+- **In the engine, with dialogue** (`Cutscene`, `cutscene.gd`): the game runs on at 1x behind black bars, the HUD hidden and the map's input off;
+  the camera moves between spots; people speak in a box at the bottom (portrait, name in their colour, the line typed out); the narrator's lines
+  have no portrait and are centred. A tap, click, Space or Enter shows the whole line, then the next; *Skip* (top right) or Esc ends it.
+- A scenario writes a cutscene as a list of steps: `say` (speaker id, text), `camera` (a world position, zoom, time), `wait`, `fade` (in / out),
+  `title` (a title card), `do` (a scripted action: a cart on the road, dusk), `until` (wait for a condition). The runner has helpers for them:
+  `at(tile)`, `actor(art, tile)`, `move_actor`, `road_in`, `dusk`.
+- The speakers' portraits are generated art (`portrait_brenna`, `portrait_einar`, `portrait_pell` in `tools/gen_art.py`).
+- Whether they can be watched again (title screen, library) is still *open*.
+
+### 7.3 Scenario 1 as built (`scenario_1.gd`)
+
+- **Map:** `data/maps/homecoming.json`, made by `tools/make_scenario_map.gd` from the generator's Highlands seed 1337 (the old tutorial's map)
+  without unlock sites and lairs, with one ruined watchtower (the one nearest the village, by the west road). It is a normal map file: open it in
+  the map editor (it is listed with the built-in maps), change it, and Export it over the same file. The tool never overwrites it without `--force`.
+  The hero's start (41, 19) and her tent (42, 18) by the north road are set in `scenario_1.gd`; move them there if the map changes.
+- **Baseline:** Easy, with enemy HP, damage and spell damage at 0.5 (speed and loot as on Easy); 150 gold, 120 food, 180 material; a builder, a
+  farmer and Einar the forester; the farm and the camp stand (not damaged); 4 of 9 huts stand; 1 gate, 3 walls and 1 wall tower stand at 60 % HP,
+  the rest are devastated; smoke rises over some ruined huts until they are rebuilt. Brenna is level 1.
+- **Rules:** archers only, no specialising; watchtowers, farms, camps and light stones (no barracks, no training grounds); she revives as usual;
+  any villager's death is a defeat ("Einar, Brenna's father, died from the attack of goblin 4. No villager may die in this scenario.").
+- **Waves:** 1: 3 goblins, called by the player, down the cards' road; 2: 4 goblins and a pack of 4 rats; 3: 4 goblins, an ork and 4 rats; 4: 6
+  goblins, an ork and 5 rats; 5: 5 goblins, 2 orks, 2 big slimes and 5 rats. 40 s between waves. Corpses don't rot until the gatherers' card is done.
+- **Story:** the intro (a title card; the narrator: the old king is dead, they say, a rumour out here; Brenna wakes by her tent, the camera pans to
+  the ruined village and its smoke); the walk home (no orders for her meanwhile; the camera follows her); the arrival (Einar greets her and
+  tells what happened; the rule that nobody may die); the outro (dusk, a cart with a lantern on the north road: Pell).
+- **Cards** (the tutorial's steps 1-7 and 11, and the rebuilding): rebuild a hut, a watchtower on the marked spot, the builder at work, an archer
+  on the tower, a second farm (food), call wave 1, a gatherer, promote the archer, repair a gate or wall tower.
+- **Hints** (once each, on the card and in the log): a villager fleeing an enemy, a villager hurt, food falling below 60, enemies inside the walls.
+- **Objectives:** survive the 5 waves; every hut rebuilt; every gate and every wall tower whole (walls are not required); more villagers than at
+  the start; food not falling. All at once win it.
+- **The old tutorial stays** as it is for now (title screen *Tutorial*); it can be retired once scenarios 2 and 3 cover its other steps.
+

@@ -211,7 +211,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   - A rat on a farm that isn't attacked for `vanish_after` (30 s) vanishes (no corpse, no gold).
 - At a gate it burns nothing: it eats max(`gate_eat` 5, `gate_eat_share` 5 % of the food), at
   most what there is, and is gone.
-- Defence: the hero in Defend mode goes for rats on his village's farms when nothing is near a
+- Defence: the hero in Defend mode goes for rats on her village's farms when nothing is near a
   gate. Barracks go for farms within `BARRACKS_FARM_RANGE_FACTOR` (2) × their range when nothing
   else is in range; their units stay within `FARM_DEFENSE_LEASH` (4) of the farm.
 

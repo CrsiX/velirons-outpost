@@ -138,7 +138,7 @@ func residency_ok() -> bool:
 
 
 ## Takes the hero out of play (or back in) so the older, deterministic checks
-## aren't disturbed by him fighting or taking jobs; his own section tests him.
+## aren't disturbed by her fighting or taking jobs; her own section tests her.
 func bench_hero(benched: bool) -> void:
 	var h := game.hero
 	h.process_mode = Node.PROCESS_MODE_DISABLED if benched else Node.PROCESS_MODE_INHERIT
@@ -503,9 +503,9 @@ func _run() -> void:
 	check(hero != null and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1 and hero.visible, "the hero starts in the village centre")
 	check(hero.mode == Hero.Mode.DEFEND and hero.xp == 0 and is_equal_approx(hero.hp, Config.HERO["hp"]), "the hero starts in Defend mode with 0 XP and full HP")
 	check(not game.population.civilians.has(hero) and game.population.count() == 4, "the hero doesn't count as a villager")
-	check(hud._hero_button.is_visible_in_tree() and Hud.button_text(hud._hero_button) == "XP 0" and hud._hero_button.icon == Art.tex("icon_hero"), "top bar shows the hero button with his XP")
+	check(hud._hero_button.is_visible_in_tree() and Hud.button_text(hud._hero_button) == "XP 0" and hud._hero_button.icon == Art.tex("icon_hero"), "top bar shows the hero button with her XP")
 	await tap(center(hud._hero_button))
-	check(hud._hero_panel.visible and hud._hero_mode_word.text == "defending" and hud._hero_mode_icon.texture == Art.tex("mode_defend"), "tapping the hero button opens his panel: \"Hero: defending\" with the shield")
+	check(hud._hero_panel.visible and hud._hero_mode_word.text == "defending" and hud._hero_mode_icon.texture == Art.tex("mode_defend"), "tapping the hero button opens her panel: \"Hero: defending\" with the shield")
 	var shown := hud._hero_mode_buttons.filter(func(b: Button) -> bool: return b.visible)
 	check(shown.size() == Hero.MODE_NAMES.size() - 1 and not hud._hero_mode_buttons[Hero.Mode.SUPPORT].visible and shown.all(func(b: Button) -> bool: return b.text == "" and b.icon != null), "one icon button per mode (no Support in single player)")
 	var seen_modes: Array[String] = []
@@ -524,7 +524,7 @@ func _run() -> void:
 	hero.set_mode(Hero.Mode.DEFEND)
 	game.camera.focus(game.camera.position + Vector2(900, 400))
 	await tap(center(hud._hero_goto_button))
-	check(game.camera.position.distance_to(hero.position) < 2.0, "'Go to hero' centres the camera on him")
+	check(game.camera.position.distance_to(hero.position) < 2.0, "'Go to hero' centres the camera on her")
 	var head: Control = hud._hero_panel.get_child(0).get_child(0)
 	await tap(center(head.get_child(head.get_child_count() - 1)))  # (X, at the end of the title row)
 	check(not hud._hero_panel.visible, "the hero panel closes")
@@ -1624,7 +1624,7 @@ func _test_hero(far: Vector2i) -> void:
 	check(went_out, "Defend: the hero goes out to an enemy approaching a gate")
 	var hp_b := brute.hp
 	var fought := await wait_until(func() -> bool: return brute.hp < hp_b and hero.hp < hero.max_hp, 40.0)
-	check(fought, "the hero fights it with his sword, and it fights back")
+	check(fought, "the hero fights it with her sword, and it fights back")
 	check(hero.xp > 0 and Hud.button_text(hud._hero_button) == "XP %d" % hero.xp, "each hit earns the hero XP, shown in the top bar (XP %d)" % hero.xp)
 	var xp_fight := hero.xp
 	# Re-targeting: nearest first, then the strongest.
@@ -1632,12 +1632,12 @@ func _test_hero(far: Vector2i) -> void:
 	var strong := spawn_dummy("ork", hero.grid_pos + Vector2(0.0, 1.5), 1.0, far)
 	brute.take_damage(1e9)
 	await wait(0.8)
-	check(hero.target == strong or (is_instance_valid(weak) and weak.dead), "after a kill he picks the nearest enemy, the strongest among equals")
+	check(hero.target == strong or (is_instance_valid(weak) and weak.dead), "after a kill she picks the nearest enemy, the strongest among equals")
 	for e in [weak, strong]:
 		if is_instance_valid(e):
 			e.take_damage(1e9)
 	game.waves.countdown = 99999.0
-	# He walks back (no teleport), and picks up a new threat on the way.
+	# She walks back (no teleport), and picks up a new threat on the way.
 	var after_fight := hero.grid_pos
 	await frames(3)
 	check(not hero.at_home and hero.grid_pos.distance_to(after_fight) < 0.5 and hero.grid_pos.distance_to(Vector2(game.player_village.center)) > 1.0, "after the last kill the hero walks back instead of teleporting")
@@ -1646,7 +1646,7 @@ func _test_hero(far: Vector2i) -> void:
 	check(not hero.at_home and on_way.distance_to(Vector2(game.player_village.center)) < after_fight.distance_to(Vector2(game.player_village.center)), "...heading for the village centre")
 	var late := spawn_dummy("goblin", hero.grid_pos + Vector2(1.5, 0.5), 50.0, far)
 	var retargeted := await wait_until(func() -> bool: return hero.target == late, 3.0)
-	check(retargeted, "on the way home he turns on a new threat nearby")
+	check(retargeted, "on the way home she turns on a new threat nearby")
 	late.take_damage(1e9)
 	game.waves.countdown = 99999.0
 	var walk := {"ok": true, "last": hero.grid_pos}  # (lambdas capture locals by value)
@@ -1655,17 +1655,17 @@ func _test_hero(far: Vector2i) -> void:
 		walk["last"] = hero.grid_pos
 		return hero.at_home, 40.0)
 	check(walk["ok"], "the whole way back is walked, never jumped")
-	# Resting in the centre brings his HP back, slowly and only up to the max.
+	# Resting in the centre brings her HP back, slowly and only up to the max.
 	hero.hp = hero.max_hp * 0.5
 	var hp_low := hero.hp
 	await wait(Config.HERO["rest_delay"] * 0.5)
 	check(is_equal_approx(hero.hp, hp_low), "no healing in the first %.0f s of idling" % Config.HERO["rest_delay"])
 	await wait(Config.HERO["rest_delay"] + 4.0)
 	var gained := hero.hp - hp_low
-	check(gained > 0.0 and gained <= Config.HERO["rest_regen"] * (Config.HERO["rest_delay"] + 4.5), "idle in the village centre he slowly gets HP back (+%.1f)" % gained)
+	check(gained > 0.0 and gained <= Config.HERO["rest_regen"] * (Config.HERO["rest_delay"] + 4.5), "idle in the village centre she slowly gets HP back (+%.1f)" % gained)
 	hero.hp = hero.max_hp - 0.3
 	await wait(2.0)
-	check(is_equal_approx(hero.hp, hero.max_hp) and logged("the hero is fully rested", EventLog.Level.DEBUG), "healing stops at his max HP")
+	check(is_equal_approx(hero.hp, hero.max_hp) and logged("the hero is fully rested", EventLog.Level.DEBUG), "healing stops at her max HP")
 	# Rest mode: back to the centre, no fighting, heals there.
 	hero.set_mode(Hero.Mode.EXPLORE)
 	await wait_until(func() -> bool: return not hero.at_home and hero.grid_pos.distance_to(Vector2(game.player_village.center)) > 4.0, 60.0)
@@ -1676,17 +1676,17 @@ func _test_hero(far: Vector2i) -> void:
 		rest_walk["ok"] = rest_walk["ok"] and hero.grid_pos.distance_to(rest_walk["last"]) < 1.0
 		rest_walk["last"] = hero.grid_pos
 		return hero.at_home, 60.0)
-	check(rested and rest_walk["ok"] and hero.jobs[Hero.Mode.EXPLORE].target == Vector2i(-1, -1), "Rest: the hero drops his job and walks back to the centre")
+	check(rested and rest_walk["ok"] and hero.jobs[Hero.Mode.EXPLORE].target == Vector2i(-1, -1), "Rest: the hero drops her job and walks back to the centre")
 	var near := spawn_dummy("goblin", Vector2(outside_gate(gate, 2)), 50.0, far)
 	await wait(2.0)
-	check(hero.target == null and hero.at_home and near.hp == near.max_hp, "Rest: he ignores enemies near the gate")
+	check(hero.target == null and hero.at_home and near.hp == near.max_hp, "Rest: she ignores enemies near the gate")
 	near.take_damage(1e9)
 	game.waves.countdown = 99999.0
 	var hp_r := hero.hp
 	await wait(Config.HERO["rest_delay"] + 2.0)
-	check(hero.hp > hp_r and "resting" in hero.status(), "Rest: he heals in the centre (%s)" % hero.status())
+	check(hero.hp > hp_r and "resting" in hero.status(), "Rest: she heals in the centre (%s)" % hero.status())
 	hero.set_mode(Hero.Mode.DEFEND)
-	check(home and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.2, "with no enemy about he returns to the centre")
+	check(home and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.2, "with no enemy about she returns to the centre")
 
 	# Downed: XP lost, no corpse, back at the end of the wave, same mode.
 	hero.set_mode(Hero.Mode.GATHER)
@@ -1698,15 +1698,15 @@ func _test_hero(far: Vector2i) -> void:
 	check(hud._hero_button.modulate != Color.WHITE and "downed" in hero.status(), "the HUD shows the hero is down")
 	game.waves.wave_finished.emit(game.waves.wave)
 	await frames(2)
-	check(not hero.dead and hero.visible and is_equal_approx(hero.hp, hero.max_hp) and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.5, "he revives in the village centre when the wave is over (dead %s, visible %s, HP %.0f/%.0f, %.2f from the centre, %s)" % [hero.dead, hero.visible, hero.hp, hero.max_hp, hero.grid_pos.distance_to(Vector2(game.player_village.center)), hero.status()])
-	check(hero.mode == Hero.Mode.GATHER, "his mode survives being downed")
+	check(not hero.dead and hero.visible and is_equal_approx(hero.hp, hero.max_hp) and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.5, "she revives in the village centre when the wave is over (dead %s, visible %s, HP %.0f/%.0f, %.2f from the centre, %s)" % [hero.dead, hero.visible, hero.hp, hero.max_hp, hero.grid_pos.distance_to(Vector2(game.player_village.center)), hero.status()])
+	check(hero.mode == Hero.Mode.GATHER, "her mode survives being downed")
 	# Downed between waves: back when the next one begins, not only after it.
 	hero.take_damage(1e9)
 	await frames(2)
 	var between := not game.waves.in_progress() and "next wave begins" in hero.status()
 	game.waves.wave_started.emit(game.waves.wave + 1)
 	await frames(2)
-	check(hero.dead == false and between and hero.visible and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1, "downed between waves, he revives when the next one begins")
+	check(hero.dead == false and between and hero.visible and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.1, "downed between waves, she revives when the next one begins")
 	game.waves.countdown = 99999.0
 
 	# Gather: brings corpses home like a gatherer, a little fewer at a time.
@@ -1724,7 +1724,7 @@ func _test_hero(far: Vector2i) -> void:
 		t_run += get_process_delta_time()
 		max_carried = maxi(max_carried, gj.carried.size())
 	check(max_carried == Config.HERO["gather_capacity"] and game.economy.amount("gold") > gold_g, "Gather: the hero brings %d corpses home for gold" % max_carried)
-	check(hero.xp >= max_carried, "each corpse earns him XP (XP %d)" % hero.xp)
+	check(hero.xp >= max_carried, "each corpse earns her XP (XP %d)" % hero.xp)
 	cs.clear_wave(99)
 
 	# Explore: reveals fog, each step that uncovers land earns XP. (Here without
@@ -1742,9 +1742,9 @@ func _test_hero(far: Vector2i) -> void:
 	var explored := await wait_until(func() -> bool: return game.fog.explored_count() > ex0 + 10 and hero.xp > xp_e, 90.0)
 	check(explored, "Explore: the hero uncovers fog and earns XP (+%d tiles)" % (game.fog.explored_count() - ex0))
 	check(not civs("explorer").any(func(e: Explorer) -> bool: return e.target != Vector2i(-1, -1) and Vector2(e.target).distance_to(Vector2(hero.exploring_target())) < 1.0), "explorers don't head for the hero's patch of fog")
-	# A new mode while he flees takes effect at once, out where he is.
+	# A new mode while she flees takes effect at once, out where she is.
 	await wait_until(func() -> bool: return not hero.at_home and hero.grid_pos.distance_to(Vector2(game.player_village.center)) > 5.0, 60.0)
-	# A tile next to him he can walk to (not a tree or water).
+	# A tile next to her she can walk to (not a tree or water).
 	var by: Vector2i = hero.current_tile()
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
 		if game.world.pathing.find_path(hero.current_tile(), hero.current_tile() + d).size() > 0:
@@ -1754,15 +1754,15 @@ func _test_hero(far: Vector2i) -> void:
 	var fled_e := await wait_until(func() -> bool: return hero.evading, 3.0)
 	hero.set_mode(Hero.Mode.GATHER)
 	await frames(2)
-	check(fled_e and hero.evading, "fleeing in Explore, switched to Gather with the enemy still near: he flees on")
+	check(fled_e and hero.evading, "fleeing in Explore, switched to Gather with the enemy still near: she flees on")
 	hero.set_mode(Hero.Mode.DEFEND)
 	await frames(2)
 	var away := hero.grid_pos.distance_to(Vector2(game.player_village.center))
-	check(not hero.evading and not hero.at_home and away > 3.0, "switched to Defend while fleeing: he stops at once, out in the field (%.1f tiles out)" % away)
+	check(not hero.evading and not hero.at_home and away > 3.0, "switched to Defend while fleeing: she stops at once, out in the field (%.1f tiles out)" % away)
 	var hit := await wait_until(func() -> bool: return chaser.hp < chaser.max_hp, 10.0)
 	check(hit and hero.target == chaser, "and fights the enemy right there")
-	# Switching modes back and forth while he fights (Defend -> Explore ->
-	# Defend every few frames): his blows never come faster than the cooldown.
+	# Switching modes back and forth while she fights (Defend -> Explore ->
+	# Defend every few frames): her blows never come faster than the cooldown.
 	var blow_times: Array[float] = []
 	var hp_was := chaser.hp
 	var t_sw := 0.0
@@ -1780,7 +1780,7 @@ func _test_hero(far: Vector2i) -> void:
 	var gap := INF
 	for k in range(1, blow_times.size()):
 		gap = minf(gap, blow_times[k] - blow_times[k - 1])
-	check(blow_times.size() >= 3 and gap >= Config.HERO["attack_cooldown"] - 0.02, "switching modes while he fights gives no faster blows (%d blows in 8 s, the closest %.2f s apart, cooldown %.1f s)" % [blow_times.size(), gap, Config.HERO["attack_cooldown"]])
+	check(blow_times.size() >= 3 and gap >= Config.HERO["attack_cooldown"] - 0.02, "switching modes while she fights gives no faster blows (%d blows in 8 s, the closest %.2f s apart, cooldown %.1f s)" % [blow_times.size(), gap, Config.HERO["attack_cooldown"]])
 	hero.set_mode(Hero.Mode.DEFEND)
 	chaser.take_damage(1e9)
 	hero.set_mode(Hero.Mode.EXPLORE)
@@ -1805,9 +1805,9 @@ func _test_hero(far: Vector2i) -> void:
 	var building := await wait_until(func() -> bool: return hero.jobs[Hero.Mode.BUILD].site == grounds and grounds.progress > 0.0, 60.0)
 	check(building, "Build: the hero builds with no builder around")
 	var built := await wait_until(func() -> bool: return grounds.complete, 120.0)
-	check(built and hero.xp > xp_b, "he finishes the training grounds and earns XP while building (+%d)" % (hero.xp - xp_b))
+	check(built and hero.xp > xp_b, "she finishes the training grounds and earns XP while building (+%d)" % (hero.xp - xp_b))
 
-	# Train without a unit there: he defends instead, and drops the fight once a unit is ready.
+	# Train without a unit there: she defends instead, and drops the fight once a unit is ready.
 	hero.set_mode(Hero.Mode.TRAIN)
 	await frames(2)
 	check(hero.effective_mode() == Hero.Mode.DEFEND and "defending" in hero.status(), "Train with no unit at the grounds: the hero defends")
@@ -1821,7 +1821,7 @@ func _test_hero(far: Vector2i) -> void:
 	var arrived := await wait_until(func() -> bool: return grounds.garrison == archer and archer.state == MilitaryUnit.State.STATIONED, 60.0)
 	check(arrived and grounds.is_ready_for_training(), "the archer takes the grounds' unit slot")
 	var dropped := await wait_until(func() -> bool: return hero.target == null and hero.training_at == grounds, 3.0)
-	check(dropped, "as soon as a unit is ready he abandons the fight and heads for the grounds")
+	check(dropped, "as soon as a unit is ready she abandons the fight and heads for the grounds")
 	foe.take_damage(1e9)
 	game.waves.countdown = 99999.0
 
@@ -1834,22 +1834,22 @@ func _test_hero(far: Vector2i) -> void:
 	check(at, "the hero walks to the training grounds")
 	var partial := await wait_until(func() -> bool: return archer.train_xp > 0.0, 10.0)
 	hud._refresh_hero()
-	check(partial and "XP needed" in hud._hero_train_label.text and hud._hero_train_bar.visible and hud._hero_train_bar.value > 0.0, "the panel shows XP needed, XP he has and the progress (%s)" % hud._hero_train_label.text)
+	check(partial and "XP needed" in hud._hero_train_label.text and hud._hero_train_bar.visible and hud._hero_train_bar.value > 0.0, "the panel shows XP needed, XP she has and the progress (%s)" % hud._hero_train_label.text)
 	check("Training to level 2" in " ".join(grounds.info()["lines"]), "the grounds' panel shows the unit's training progress")
 	var leveled := await wait_until(func() -> bool: return archer.level == 1, 60.0)
 	check(leveled and game.economy.amount("gold") == gold_t, "the archer reaches level 2 by training, without gold")
 	check(hero.xp == 25 and archer.train_xp == 0.0, "exactly the XP needed was passed on (hero has %d left)" % hero.xp)
-	# After a level-up he pauses (real seconds), so his mode can be changed and his XP kept.
+	# After a level-up she pauses (real seconds), so her mode can be changed and her XP kept.
 	check(hero.train_pause > 0.0 and "pausing after a level-up" in hero.status() and logged("reached level 2. The hero pauses", EventLog.Level.INFO), "after the level-up the hero pauses, and says so (%s)" % hero.status())
 	hud._refresh_hero()
-	check("change his mode now to keep his XP" in hud._hero_train_label.text, "the hero panel shows the pause")
+	check("change her mode now to keep her XP" in hud._hero_train_label.text, "the hero panel shows the pause")
 	var t_pause := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - t_pause < 1500:
 		await get_tree().process_frame
 	check(hero.xp == 25 and archer.train_xp == 0.0, "during the pause (%.0f s, even at %.0fx speed) no XP goes on" % [Config.HERO["train_pause"], Engine.time_scale])
 	hero.set_mode(Hero.Mode.DEFEND)
 	await frames(2)
-	check(hero.xp == 25 and hero.train_pause == 0.0, "changing his mode then keeps his XP")
+	check(hero.xp == 25 and hero.train_pause == 0.0, "changing her mode then keeps her XP")
 	hero.set_mode(Hero.Mode.TRAIN)
 	check(archer.train_xp_needed() > need0, "the next level needs more XP (%d > %d)" % [int(archer.train_xp_needed()), int(need0)])
 	Settings.difficulty = Settings.Difficulty.HARD
@@ -1860,7 +1860,7 @@ func _test_hero(far: Vector2i) -> void:
 	check(need_hard > archer.train_xp_needed() and need_easy < archer.train_xp_needed(), "XP needed grows with difficulty (easy %d, normal %d, hard %d)" % [int(need_easy), int(archer.train_xp_needed()), int(need_hard)])
 	hero.xp = 0
 	await wait(1.0)
-	check("no XP left" in hero.status() and hero.training_at == grounds, "with no XP left he waits at the grounds")
+	check("no XP left" in hero.status() and hero.training_at == grounds, "with no XP left she waits at the grounds")
 	while archer.can_train():
 		archer.level += 1
 	await wait(0.5)

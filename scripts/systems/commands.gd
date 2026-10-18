@@ -65,6 +65,8 @@ func submit(village: Village, type: String, args: Dictionary = {}) -> Dictionary
 		result = fail("Unknown command '%s'" % type)
 	elif game.game_over and type != "set_speed":
 		result = fail("The game is over")
+	elif game.scenario and game.scenario.command_error(type, args) != "":
+		result = fail(game.scenario.command_error(type, args))
 	else:
 		result = call(HANDLERS[type], village, args)
 	applied.emit(village, type, args, result)
@@ -355,7 +357,7 @@ func _buy_materials(v: Village, a: Dictionary) -> Dictionary:
 func _hero_level_up(v: Village, _a: Dictionary) -> Dictionary:
 	var h := v.hero
 	if h.level >= Config.HERO_MAX_LEVEL - 1:
-		return fail("The hero is at his highest level")
+		return fail("The hero is at her highest level")
 	if not h.can_level_up():
 		return fail("Not enough XP (%d / %d)" % [h.xp, h.level_up_cost()])
 	h.level_up()

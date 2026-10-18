@@ -206,10 +206,10 @@ func _play_through() -> void:
 	game.hud._hero_button.pressed.emit()
 	await frames(2)
 	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
-	check(await at_step(8, 120.0), "step 9 once he has earned XP")
+	check(await at_step(8, 120.0), "step 9 once she has earned XP")
 
 	print("-- step 9: a hero level")
-	check(game.hero.xp >= game.hero.level_up_cost(), "he has the XP for it (%d)" % game.hero.xp)
+	check(game.hero.xp >= game.hero.level_up_cost(), "she has the XP for it (%d)" % game.hero.xp)
 	cmd("hero_level_up")
 	check(await at_step(9, 5.0), "step 10 at level 2")
 

@@ -9,6 +9,8 @@ extends Node
 
 signal changed
 signal civilian_lost(civ: Civilian)
+## A villager died (not retired): `reason` as in kill(), `cause` for the statistics.
+signal civilian_died(civ: Civilian, reason: String, cause: String)
 
 const ROLE_SCRIPTS := {
 	"builder": preload("res://scripts/units/builder.gd"),
@@ -129,6 +131,7 @@ func kill(civ: Civilian, reason: String = "of unknown causes", cause: String = "
 		civ.hut.resident = null
 	civ.kill()
 	Sfx.play("death")
+	civilian_died.emit(civ, reason, cause)
 	civilian_lost.emit(civ)
 	changed.emit()
 

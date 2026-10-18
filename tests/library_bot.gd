@@ -54,7 +54,7 @@ func _pages() -> void:
 	var modes: Array = []
 	for m in Hero.MODE_NAMES:
 		modes.append("Mode: %s" % m + (" (co-op)" if m == "Support" else ""))
-	_all_in(_names("hero"), ["Hero", "Earning XP"] + modes, "the hero and his modes")
+	_all_in(_names("hero"), ["Hero", "Earning XP"] + modes, "the hero and her modes")
 	_all_in(_names("places"), Config.TREASURES.values().map(func(t: Dictionary) -> String: return t["name"]) + ["Relics", "Monster camp", "Monster lair", "Mine", "Ruined watchtower"], "treasures and places")
 	_all_in(_names("places"), Config.UNLOCK_SITES.values().map(func(s: Dictionary) -> String: return s["name"]), "unit-unlock sites")
 	# The numbers are Config's.
@@ -198,7 +198,7 @@ func _title() -> void:
 	await frames(3)
 	var bb: Button = t.library_button
 	var order: Array = t.singleplayer_button.get_parent().get_children().map(func(n: Button) -> String: return n.text)
-	check(order == ["Singleplayer", "Multiplayer", "Tutorial", "Library", "Map Editor", "Exit"], "the main menu: Singleplayer, Multiplayer, Tutorial, Library, Map Editor, Exit (no Help) %s" % [order])
+	check(order == ["Campaign", "Singleplayer", "Multiplayer", "Tutorial", "Library", "Map Editor", "Exit"], "the main menu: Campaign, Singleplayer, Multiplayer, Tutorial, Library, Map Editor, Exit (no Help) %s" % [order])
 	check(t.singleplayer_button.get_theme_stylebox("normal") == t.multiplayer_button.get_theme_stylebox("normal"), "Singleplayer isn't highlighted: it looks like the others")
 	var icons := {t.tutorial_button: "icon_tutorial", t.singleplayer_button: "icon_singleplayer", t.multiplayer_button: "icon_multiplayer", bb: "icon_book", t.exit_button: "icon_exit"}
 	var wrong := []

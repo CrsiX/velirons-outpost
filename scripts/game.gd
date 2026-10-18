@@ -40,6 +40,11 @@ var networked := false
 ## before _ready, the title screen asks via Settings.tutorial_next).
 var tutorial_mode := false
 var tutorial: Tutorial = null
+## The campaign's scenario this game plays (Campaign; 0: none). Tests may set
+## it before _ready, the title screen asks via Settings.scenario_next.
+var scenario_number := 0
+## Plays that scenario (docs/scenarios-design.md), or null.
+var scenario: ScenarioRunner = null
 ## The title screen's background game plays in this game (set before _ready):
 ## its scene's map and setup, no input, no HUD, no sound, no raids, no defeat.
 var backdrop: TitleBackdrop = null
@@ -126,6 +131,17 @@ func _ready() -> void:
 		tutorial = Tutorial.new()
 		tutorial.name = "Tutorial"
 		tutorial.prepare(self)  # (the map, the difficulty and the small village)
+	var asked := Settings.take_scenario()
+	if backdrop == null and not tutorial_mode and not (Net.in_game and Net.is_online()) and test_villages <= 1:
+		scenario_number = asked if asked > 0 else scenario_number
+		var spec := Campaign.scenario(scenario_number)
+		if spec:
+			scenario = ScenarioRunner.new()
+			scenario.name = "Scenario"
+			scenario.prepare(self, spec)  # (its map, village and enemy strength)
+			add_child(scenario)
+	if scenario == null:
+		scenario_number = 0
 	if backdrop:
 		backdrop.prepare(self)  # (its scene's map and village)
 	var s := map_seed if map_seed != 0 else (Settings.map_seed if Settings.map_seed != 0 else randi())
@@ -139,7 +155,7 @@ func _ready() -> void:
 	networked = Net.in_game and Net.is_online() and backdrop == null
 	is_client = networked and Net.is_client()
 	game_id = "%08x%08x" % [randi(), randi()]
-	if backdrop == null and not tutorial_mode and not is_client:
+	if backdrop == null and not tutorial_mode and scenario == null and not is_client:
 		restoring = Net.resume_body if networked else Settings.take_pending_save()
 	if not restoring.is_empty():
 		loaded = true
@@ -199,6 +215,8 @@ func _ready() -> void:
 	waves.wave_started.connect(func(_n: int) -> void: siege.on_wave_started())
 	corpses.setup(self)
 	await build_step()
+	if scenario:
+		scenario.apply_baseline()  # (ruins, before the villagers move in)
 	for village in villages:
 		if is_client:
 			village.setup_client()
@@ -235,6 +253,8 @@ func _ready() -> void:
 	if tutorial:
 		add_child(tutorial)
 		tutorial.start()
+	if scenario:
+		scenario.start()
 
 	camera.process_mode = Node.PROCESS_MODE_ALWAYS  # pan and zoom while paused
 	camera.bounds = world.world_rect().grow(-200.0)
@@ -255,7 +275,7 @@ func _ready() -> void:
 ## lobby, each player on the village assigned to them (clients get the host's
 ## map). The other villages are built as ownerless ruins.
 func _use_custom_map() -> void:
-	if backdrop or tutorial_mode or is_client or preset_map != null:
+	if backdrop or tutorial_mode or scenario or is_client or preset_map != null:
 		return
 	if networked:
 		if Net.custom_map == null:
@@ -789,14 +809,25 @@ func _check_defeat() -> void:
 	if not villages.all(func(v: Village) -> bool: return v.fallen):
 		return
 	var no_people := population.count() == 0
+	var why := "No villagers are left." if no_people else "Every hut lies in ruins."
+	events.important("Veliron's Outpost has fallen: %s" % why.to_lower().trim_suffix("."))
+	if scenario:
+		scenario.lose(why.trim_suffix("."))
+		return
+	end_game("Veliron's Outpost has fallen", "%s\nYou held out for %d wave%s." % [why, maxi(waves.wave - 1, 0), "" if waves.wave == 2 else "s"])
+
+
+## The game is over: lost, or (a scenario) `won`. The overlay says `title`
+## and `sub` and offers what comes next.
+func end_game(title: String, sub: String, won := false) -> void:
+	if game_over:
+		return
 	game_over = true
 	cancel_mode()
 	Engine.time_scale = 1.0
-	Sfx.play("lose", 0.0)
-	var why := "No villagers are left." if no_people else "Every hut lies in ruins."
-	events.important("Veliron's Outpost has fallen: %s" % why.to_lower().trim_suffix("."))
+	Sfx.play("win" if won else "lose", 0.0)
 	stats.finish()
-	hud.show_game_over("Veliron's Outpost has fallen", "%s\nYou held out for %d wave%s." % [why, maxi(waves.wave - 1, 0), "" if waves.wave == 2 else "s"])
+	hud.show_game_over(title, sub, won)
 
 
 ## Back to the map editor whose Play started this game (its map and state wait in Settings.editor_session).
@@ -927,6 +958,22 @@ func is_unlocked(key: String) -> bool:
 	return not Config.LOCKED.has(key) or unlocks.has(key)
 
 
+## Can the village have `key` (a unit kind or villager role) now: unlocked,
+## and a scenario's rules allow it.
+func available(key: String) -> bool:
+	return is_unlocked(key) and (scenario == null or scenario.allows(key))
+
+
+## Can `kind` be built (a scenario may allow only some buildings)?
+func allows_building(kind: String) -> bool:
+	return scenario == null or scenario.allows_building(kind)
+
+
+## Can units specialise (a scenario may forbid it)?
+func allows_branches() -> bool:
+	return scenario == null or scenario.allows_branches()
+
+
 ## Unlocks `key` for everyone; `v` / `who` did it (for the log).
 func unlock(key: String, v: Village = null, who: Node = null) -> void:
 	if is_unlocked(key):
@@ -1026,9 +1073,10 @@ func log_for(about, level: EventLog.Level, text: String) -> void:
 		log_all(level, text)
 
 
-## `again_tutorial`: start the guided tutorial again.
+## `again_tutorial`: start the guided tutorial again. A scenario starts over.
 func restart(again_tutorial := false) -> void:
 	Settings.tutorial_next = again_tutorial
+	Settings.scenario_next = scenario_number if scenario else 0
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	get_tree().reload_current_scene()
@@ -1048,9 +1096,9 @@ func _log_loaded(saved: Array, wave: int) -> void:
 
 
 ## "" if the game can be saved now, else why not: only between waves, never
-## in the tutorial, the title backdrop or on a co-op client.
+## in the tutorial, a scenario, the title backdrop or on a co-op client.
 func save_error() -> String:
-	if backdrop != null or tutorial_mode or is_client:
+	if backdrop != null or tutorial_mode or scenario != null or is_client:
 		return "This game can't be saved"
 	if game_over:
 		return "The game is over"

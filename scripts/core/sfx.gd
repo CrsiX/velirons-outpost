@@ -50,6 +50,10 @@ func _ready() -> void:
 		var f := 784.0 if t < 0.14 else 1175.0
 		var k := t if t < 0.14 else t - 0.14
 		return (sin(TAU * f * t) + 0.3 * sin(TAU * 2.0 * f * t)) * 0.25 * exp(-k * 6.0))
+	_streams["win"] = _synth(1.5, func(t: float) -> float:  # (a scenario won)
+		var notes := [262.0, 330.0, 392.0, 523.0]
+		var f: float = notes[mini(int(t / 0.2), 3)]
+		return (sin(TAU * f * t) + 0.3 * sin(TAU * 2.0 * f * t)) * 0.22 * clampf((1.5 - t) * 2.0, 0.0, 1.0))
 	_streams["lose"] = _synth(1.2, func(t: float) -> float:
 		var notes := [294.0, 247.0, 220.0, 147.0]
 		var f: float = notes[mini(int(t / 0.28), 3)]

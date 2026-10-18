@@ -22,16 +22,13 @@ var active := false
 ## Index into `steps` (0-based; the card says "Step index + 1 of N").
 var step := -1
 var steps: Array[Dictionary] = []
-## How far (tiles) a taken spot looks for a free one.
-const SPOT_SEARCH := 6
-## The spots the steps point at (picked by the road the waves take).
+## The spots the steps point at (picked by the road the waves take, RoadSpots).
+var spots: RoadSpots
 var tower_tile := Vector2i(-1, -1)
 var farm_tile := Vector2i(-1, -1)
 var barracks_tile := Vector2i(-1, -1)
 ## Where the tutorial waves appear (a road tile), and their road to the gate.
 var spawn_tile := Vector2i(-1, -1)
-## kind + picked spot -> the spot shown now, when the picked one got taken (see _spot).
-var _moved := {}
 var route: Array[Vector2i] = []
 
 var _poll := 0.0
@@ -105,114 +102,23 @@ func start() -> void:
 ## nearest free spot by the village.
 func _pick_spots() -> void:
 	var td: Dictionary = Config.TUTORIAL
-	var pathing := game.world.pathing
-	var best := Vector2i(-1, -1)
-	var best_d := Pathing.UNREACHABLE
-	for sp in game.map.edge_spawns:
-		var d := pathing.enemy_distance(sp)
-		if d < best_d:
-			best_d = d
-			best = sp
-	if best == Vector2i(-1, -1):
+	spots = RoadSpots.new(game)
+	if not spots.pick_route(int(td["spawn_distance"]), int(td["seed"])):
 		return
-	var rng := RandomNumberGenerator.new()
-	rng.seed = int(td["seed"])
-	var full := pathing.enemy_route(best, rng)
-	var keep := mini(full.size(), int(td["spawn_distance"]) + 1)
-	route = full.slice(full.size() - keep)
-	spawn_tile = route[0]
-	tower_tile = td["tower_tile"] if td["tower_tile"] != Vector2i(-1, -1) else _by_road("tower", 3, 7, [])
+	route = spots.route
+	spawn_tile = spots.spawn_tile
+	tower_tile = td["tower_tile"] if td["tower_tile"] != Vector2i(-1, -1) else spots.by_road("tower", 3, 7, [])
 	var taken: Array[Vector2i] = [tower_tile]
 	farm_tile = td["farm_tile"]
 	if farm_tile == Vector2i(-1, -1):
-		farm_tile = _near_village("farm", taken)
+		farm_tile = spots.near_village("farm", taken)
 	taken.append_array(Building.footprint(farm_tile, 3))
-	barracks_tile = td["barracks_tile"] if td["barracks_tile"] != Vector2i(-1, -1) else _by_road("barracks", 8, 13, taken)
+	barracks_tile = td["barracks_tile"] if td["barracks_tile"] != Vector2i(-1, -1) else spots.by_road("barracks", 8, 13, taken)
 
 
-## A free spot for `kind` right next to the route, `lo` to `hi` road tiles
-## before the gate (nearest to the middle of that stretch), clear of `taken`.
-func _by_road(kind: String, lo: int, hi: int, taken: Array[Vector2i]) -> Vector2i:
-	var size: int = Config.BUILDINGS[kind]["size"]
-	var best := Vector2i(-1, -1)
-	var best_score := INF
-	var n := route.size()
-	for i in n:
-		var before_gate := n - 1 - i
-		if before_gate < lo or before_gate > hi:
-			continue
-		var r := route[i]
-		for dy in range(-size, size + 1):
-			for dx in range(-size, size + 1):
-				var t := r + Vector2i(dx, dy)
-				if not _fits(kind, t, taken) or not _touches_road(t, size):
-					continue
-				var score := absf(before_gate - (lo + hi) / 2.0) + 0.1 * Vector2(t).distance_to(Vector2(game.player_village.center))
-				if score < best_score:
-					best_score = score
-					best = t
-	return best if best != Vector2i(-1, -1) else _near_village(kind, taken)
-
-
-## The spot to mark for `kind`: `picked` while it's still free, else the
-## nearest free spot to it (kept while it stays free, so the mark doesn't
-## wander), else `picked` all the same.
+## The spot to mark for `kind` (RoadSpots.spot).
 func _spot(kind: String, picked: Vector2i) -> Vector2i:
-	var key := "%s %s" % [kind, picked]
-	if picked == Vector2i(-1, -1) or game.construction.placement_error(kind, picked, true) == "":
-		_moved.erase(key)
-		return picked
-	var last: Vector2i = _moved.get(key, Vector2i(-1, -1))
-	if last != Vector2i(-1, -1) and game.construction.placement_error(kind, last, true) == "":
-		return last
-	var best := Vector2i(-1, -1)
-	var best_d := INF
-	for dy in range(-SPOT_SEARCH, SPOT_SEARCH + 1):
-		for dx in range(-SPOT_SEARCH, SPOT_SEARCH + 1):
-			var t := picked + Vector2i(dx, dy)
-			var d := Vector2(dx, dy).length()
-			if d < best_d and game.map.in_bounds(t) and game.construction.placement_error(kind, t, true) == "":
-				best_d = d
-				best = t
-	if best == Vector2i(-1, -1):
-		_moved.erase(key)
-		return picked
-	_moved[key] = best
-	game.events.debug("tutorial: %s spot %s is taken, marking %s" % [kind, picked, best])
-	return best
-
-
-func _touches_road(t: Vector2i, size: int) -> bool:
-	for f in Building.footprint(t, size):
-		for n in MapData.neighbors4(f):
-			if route.has(n):
-				return true
-	return false
-
-
-## Free for `kind` (ignoring fog and cost), not on or right next to `taken`.
-func _fits(kind: String, t: Vector2i, taken: Array[Vector2i]) -> bool:
-	if game.construction.placement_error(kind, t, true) != "":
-		return false
-	for f in Building.footprint(t, Config.BUILDINGS[kind]["size"]):
-		for k in taken:
-			if maxi(absi(f.x - k.x), absi(f.y - k.y)) <= 1:
-				return false
-	return true
-
-
-func _near_village(kind: String, taken: Array[Vector2i]) -> Vector2i:
-	var c := game.player_village.center
-	var best := Vector2i(-1, -1)
-	var best_d := INF
-	for dy in range(-9, 10):
-		for dx in range(-9, 10):
-			var t := c + Vector2i(dx, dy)
-			var d := Vector2(t).distance_to(Vector2(c))
-			if d < best_d and _fits(kind, t, taken):
-				best_d = d
-				best = t
-	return best
+	return spots.spot(kind, picked) if spots else picked
 
 
 # --- the steps ----------------------------------------------------------------------
@@ -255,12 +161,12 @@ func _build_steps() -> void:
 			"done": func() -> bool: return game.population.count("gatherer") > 0 and game.player_village.corpses_delivered > 0,
 			"point": func() -> Dictionary: return {} if game.population.count("gatherer") > 0 else {"hud": ["village:gatherer", "tab:village", "dock"], "tab": "village"}},
 		{"title": "Your hero",
-			"text": "This is your hero. Tap him in the top bar and send him exploring: he uncovers the fog and earns XP.",
+			"text": "This is your hero. Tap her in the top bar and send her exploring: she uncovers the fog and earns XP.",
 			"start": func() -> void: _mark = {"xp": game.hero.xp, "level": game.hero.level},
 			"done": func() -> bool: return game.hero.mode == Hero.Mode.EXPLORE and (game.hero.xp > int(_mark["xp"]) or game.hero.level > int(_mark["level"])),
 			"point": func() -> Dictionary: return {} if game.hero.mode == Hero.Mode.EXPLORE else {"hud": ["hero_mode:%d" % Hero.Mode.EXPLORE, "hero"]}},
 		{"title": "Hero levels",
-			"text": "He has enough XP for a level: more HP and a harder sword. Level him up.",
+			"text": "She has enough XP for a level: more HP and a harder sword. Level her up.",
 			"start": _top_up_xp,
 			"done": func() -> bool: return game.hero.level >= 1,
 			"point": _level_point},
@@ -269,7 +175,7 @@ func _build_steps() -> void:
 			"done": func() -> bool: return game.army.units.any(func(u: MilitaryUnit) -> bool: return u.post is Barracks and u.state == MilitaryUnit.State.STATIONED),
 			"point": _barracks_point},
 		{"title": "Unit levels",
-			"text": "Units get better with levels. Tap one and promote it with gold. (Later, training grounds let the hero pass on his XP to a unit instead.)",
+			"text": "Units get better with levels. Tap one and promote it with gold. (Later, training grounds let the hero pass on her XP to a unit instead.)",
 			"start": _mark_units,
 			"done": _unit_promoted,
 			"point": _promote_point},
@@ -366,7 +272,7 @@ func _first_tiles(list: Array) -> Array[Vector2i]:
 	return (list[0] as Building).tiles() if not list.is_empty() else [] as Array[Vector2i]
 
 
-## Step 9: the hero gets the XP his next level costs, if he has less.
+## Step 9: the hero gets the XP her next level costs, if she has less.
 func _top_up_xp() -> void:
 	var h := game.hero
 	if h.level == 0 and not h.dead and h.xp < h.level_up_cost():

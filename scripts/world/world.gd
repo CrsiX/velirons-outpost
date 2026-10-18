@@ -243,7 +243,7 @@ func remove_map_object(o: MapObject) -> void:
 	o.queue_free()
 
 
-## A downed looter's loot, where he fell: anyone can pick it up (the hero or
+## A downed looter's loot, where she fell: anyone can pick it up (the hero or
 ## a gatherer). The host makes it; co-op clients get it through the snapshots
 ## (add_net_sack).
 func add_dropped_loot(t: Vector2i, reward: Dictionary, index: int = -1) -> Treasure:

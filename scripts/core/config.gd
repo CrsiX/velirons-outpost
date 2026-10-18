@@ -120,7 +120,7 @@ const TITLE_BACKDROP := {
 	"resources": {"gold": 0, "food": 5000, "materials": 0},
 	"civilians": ["builder", "farmer", "forester", "gatherer"],
 	"buildings": ["farm", "camp"],
-	"hero": "defend",  # his mode (Hero.MODE_NAMES, lower case)
+	"hero": "defend",  # her mode (Hero.MODE_NAMES, lower case)
 	"scenes": [
 		{
 			"name": "Archers hold the gate", "road": 1,
@@ -288,9 +288,9 @@ const BALANCE_BOT := {
 ##                      (BRANCH_MIN_LEVEL); a kind not listed keeps levelling;
 ##   "upgrade_order":  which units get gold first: "lowest" level first, or
 ##                      "kinds" (the order of the unit lists, then lowest);
-##   "hero":           "explore_waves": until this wave he explores between
-##                      waves (then he trains, or defends); "attack_camps":
-##                      from this hero level he is sent against known camps;
+##   "hero":           "explore_waves": until this wave she explores between
+##                      waves (then she trains, or defends); "attack_camps":
+##                      from this hero level she is sent against known camps;
 ##   "call_early":     calls the next wave as soon as everything is bought and
 ##                      manned (for the bonus gold; faster games);
 ##   "buy_materials":  trades gold for building material when that is all
@@ -616,7 +616,7 @@ const BUILDINGS := {
 	},
 	"training": {
 		"name": "Training Grounds", "cost": {"materials": 40, "gold": 40}, "build_time": 14.0, "size": 2, "art": "training_grounds",
-		"desc": "2x2. Station a military unit here; the hero (in Train mode) passes on his XP to level it up for free.",
+		"desc": "2x2. Station a military unit here; the hero (in Train mode) passes on her XP to level it up for free.",
 	},
 	"lightstone": {
 		"name": "Light Stone", "cost": {"materials": 20}, "build_time": 10.0, "size": 1, "art": "light_stone",
@@ -1062,16 +1062,16 @@ static func _curve(first: float, last: float, i: int, n: int, curve: float) -> f
 const TRAIN_XP_DIFFICULTY := {"easy": 0.8, "normal": 1.0, "hard": 1.5}
 
 ## The hero: a fighter who can also do a little of every villager job.
-## He has no hut, eats nothing and doesn't count as a villager.
+## She has no hut, eats nothing and doesn't count as a villager.
 const HERO := {
 	"name": "Hero", "hp": 60.0, "speed": 1.8,
-	# Train: after a unit levels up he waits this many real seconds (whatever the
-	# game speed) before training on, so his mode can be changed to keep his XP.
+	# Train: after a unit levels up she waits this many real seconds (whatever the
+	# game speed) before training on, so her mode can be changed to keep her XP.
 	"train_pause": 4.0,
 	"damage": 8.0, "attack_cooldown": 0.9, "attack_range": 0.8,
 	"sight": 4.0,  # surveillance while outside
-	"alert_radius": 6.0,  # Defend: enemies this close to a gate draw him out
-	"leash": 14.0,  # Defend: he won't chase farther than this from the centre
+	"alert_radius": 6.0,  # Defend: enemies this close to a gate draw her out
+	"leash": 14.0,  # Defend: she won't chase farther than this from the centre
 	"build_efficiency": 0.5,  # "a little" of each job: half a builder's speed
 	"explore_reveal": 1.8,  # explorers see 2.6
 	"gather_capacity": 2,  # gatherers carry 6
@@ -1080,10 +1080,10 @@ const HERO := {
 	"rest_delay": 3.0,  # seconds of idling there before the HP starts coming back
 }
 ## XP the hero earns per action (training earns none).
-## The hero spends his own XP on levels (the level-up button in his panel).
+## The hero spends her own XP on levels (the level-up button in her panel).
 ## HP and sword damage run from level 1 (HERO "hp" / "damage") to
 ## HERO_MAX_LEVEL; "xp_cost" is the XP from level 1 to 2 ... up to the last
-## level. Being downed loses his unspent XP, never his levels.
+## level. Being downed loses her unspent XP, never her levels.
 const HERO_MAX_LEVEL := 20
 const HERO_LEVELS := {"hp": [60.0, 320.0], "damage": [8.0, 64.0], "xp_cost": [50.0, 400.0]}
 
@@ -1566,12 +1566,12 @@ static func wave_composition(n: int, water := false, only: Array = []) -> Dictio
 ## Warning lights (easy/normal only) show where hidden enemies will emerge.
 const WARNING_LIGHT_WAVES := 5  # only during the first N waves
 ## An enemy value, scaled by the chosen difficulty if it is in DIFFICULTY_SCALED
-## (see Settings). Whole-number
+## (see Settings; a scenario may set its own scale per value). Whole-number
 ## values (loot) are rounded and never drop below 1, except values
 ## that are 0 to begin with (e.g. skeletons give no food).
 static func enemy_stat(kind: String, key: String) -> float:
 	var base: float = ENEMIES[kind][key]
-	return base * Settings.enemy_multiplier() if key in DIFFICULTY_SCALED else base
+	return base * Settings.enemy_multiplier(key) if key in DIFFICULTY_SCALED else base
 
 
 static func enemy_stat_int(kind: String, key: String) -> int:

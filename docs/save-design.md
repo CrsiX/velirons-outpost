@@ -221,7 +221,7 @@ the saved position and loads.
 | **Villagers** | role, uid / nid, hut, HP, position, at home; the farmer's farm and food carried, the forester's camp, tree and load, the gatherer's corpses, gold and loot carried, the miner's mine and whether inside | job state. Once everything is back, a villager out in the field asks once what to do from where it stands and does it (`Civilian.resume_work`, `CivilianJob.resume`): a farmer with food goes home, else to his farm; a forester with wood to his camp, else on to his tree (or the next one); a builder to the next site; an explorer to the next fog; a gatherer to the next safe corpse or sack if he has room, else home with his load; a miner on to his mine. With nothing to do there, home. A miner inside his mine stays there |
 | **Military units** | kind (the specialisation), level, HP, state, post and slot, `revive_left`, `revive_at_post`, `train_xp`, uid / nid, `original_owner`, `travel_to`, war-cry haste (`cry_bonus`, `cry_until`), the body's position for units on the way (`Army.resume_walk`) | cooldowns, targets, the body's path (re-pathed to where its state says); a unit out of its barracks against camp guards is back on its bench (the barracks turn it out again if they're still in range) |
 | **Earth elementals** | of summoners on duty: summon kind, HP, max HP, damage, home, position, summoner, war-cry haste (those of a summoner out on a sortie crumble, as when it goes back to its bench) | target, timers |
-| **Hero** | mode, level, XP, HP, downed, position, support target, camp target, carried loot or corpses (Explore / Gather jobs), war-cry haste | target, training link, idle and snore timers, `train_pause`. Out in the field his Build / Explore / Gather job asks what to do like a villager's (loot is carried home); his other modes and a camp to clear decide from where he stands anyway |
+| **Hero** | mode, level, XP, HP, downed, position, support target, camp target, carried loot or corpses (Explore / Gather jobs), war-cry haste | target, training link, idle and snore timers, `train_pause`. Out in the field her Build / Explore / Gather job asks what to do like a villager's (loot is carried home); her other modes and a camp to clear decide from where she stands anyway |
 | **Caravans** | from, to, cargo, tax, uid / nid, position | path (re-pathed) |
 | **Statistics** | all of `Stats` (counters, samples, wave marks, towers, awards' data, its timers) | |
 
@@ -355,7 +355,7 @@ scripts/ui/multiplayer_menu.gd Saved game... next to Map, the Village buttons fo
   get new bodies). Plus targeted checks on the loaded game, the log (only
   "Game loaded") and the view on the village; out in the field, the
   forester goes on with his tree, the builder walks to a site, the gatherer
-  (room for more) to the corpse, the hero carries his loot home.
+  (room for more) to the corpse, the hero carries her loot home.
 - The loaded game runs on: a wave comes, can't be saved meanwhile, and is
   fought; the autosave follows (one file, marked, wave 1, now what Continue
   takes); a builder finishes the saved site.

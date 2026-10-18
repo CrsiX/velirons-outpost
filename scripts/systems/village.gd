@@ -92,7 +92,7 @@ func setup() -> void:
 
 
 ## A loaded game (docs/save-design.md): the systems empty and the hero made;
-## SaveGame.restore_entities fills them in (and gives the hero his id).
+## SaveGame.restore_entities fills them in (and gives the hero her id).
 func setup_restored() -> void:
 	economy.setup({})
 	construction.setup(self)

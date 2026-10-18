@@ -3,12 +3,16 @@ extends Control
 
 const EDITOR_SCENE := "res://scenes/map_editor.tscn"
 ## Title screen: a game playing itself behind (TitleBackdrop), game name and a menu in pages:
-##   main         - Singleplayer, Multiplayer, Tutorial, Library, Map Editor, Exit;
+##   main         - Campaign, Singleplayer, Multiplayer, Tutorial, Library, Map Editor, Exit;
+##   Campaign     - the campaign's scenarios (Campaign), each with a line about it, Back;
 ##   Singleplayer - Continue (the newest single-player save, when there is one),
 ##                  Play, Load..., Difficulty, Map (a type, or a map file: Custom...),
 ##                  the village (a map file with several), seed, Back;
 ##   Multiplayer  - village name and colour, host / join, lobby (MultiplayerMenu).
 
+var campaign_button: Button
+## The campaign page's button per scenario (index 0: scenario 1).
+var scenario_buttons: Array[Button] = []
 var singleplayer_button: Button
 var multiplayer_button: Button
 var exit_button: Button
@@ -36,6 +40,7 @@ var backdrop: TitleBackdrop
 var _menu: VBoxContainer
 var _main_page: VBoxContainer
 var _sp_page: VBoxContainer
+var _campaign_page: VBoxContainer
 var _title: Label
 
 
@@ -77,6 +82,8 @@ func _ready() -> void:
 	add_child(_menu)
 
 	_main_page = _page()
+	campaign_button = _menu_button(_main_page, "Campaign", func() -> void: show_page(_campaign_page), "icon_campaign")
+	campaign_button.tooltip_text = "The story of Veliron's last outpost, scenario by scenario"
 	singleplayer_button = _menu_button(_main_page, "Singleplayer", func() -> void: show_page(_sp_page), "icon_singleplayer")
 	multiplayer_button = _menu_button(_main_page, "Multiplayer", func() -> void: show_page(mp_menu), "icon_multiplayer")
 	tutorial_button = _menu_button(_main_page, "Tutorial", play_tutorial, "icon_tutorial")
@@ -115,6 +122,7 @@ func _ready() -> void:
 	_sp_page.add_child(seed_edit)
 	_sp_page.move_child(seed_edit, map_button.get_index() + 1)
 	back_button = _menu_button(_sp_page, "Back", func() -> void: show_page(_main_page))
+	_build_campaign_page()
 	mp_menu = MultiplayerMenu.new()
 	_menu.add_child(mp_menu)
 	mp_menu.back_pressed.connect(func() -> void: show_page(_main_page))
@@ -163,7 +171,7 @@ func _layout() -> void:
 	var want := ((0.28 if mp else 0.5) if portrait else (0.22 if mp else 0.42)) * vp.y
 	var title_bottom := _title.anchor_top * vp.y + (64.0 if portrait else 84.0) * 1.35
 	# Short screens: the main and Singleplayer pages' buttons get lower, so they fit under the title.
-	for page in [_main_page, _sp_page]:
+	for page in [_main_page, _sp_page, _campaign_page]:
 		var tall: bool = page.get_child_count() * (64.0 + 14.0) + title_bottom + 20.0 <= vp.y
 		page.add_theme_constant_override("separation", 14 if tall else 8)
 		for c in page.get_children():
@@ -188,6 +196,7 @@ func _page() -> VBoxContainer:
 func show_page(page: VBoxContainer) -> void:
 	_main_page.visible = page == _main_page
 	_sp_page.visible = page == _sp_page
+	_campaign_page.visible = page == _campaign_page
 	if mp_menu:
 		mp_menu.visible = page == mp_menu
 	_layout.call_deferred()
@@ -271,6 +280,38 @@ func _start_save(path: String) -> void:
 		continue_label.visible = true
 		continue_label.text = err
 		continue_label.add_theme_color_override("font_color", UiTheme.BAD)
+
+
+## The campaign page: one button per scenario, with its line, and how many are still to come.
+func _build_campaign_page() -> void:
+	_campaign_page = _page()
+	for n in range(1, Campaign.count() + 1):
+		var spec := Campaign.scenario(n)
+		var b := _menu_button(_campaign_page, "%d. %s" % [n, spec.title], play_scenario.bind(n))
+		b.tooltip_text = spec.blurb
+		if n == 1:
+			UiTheme.style_primary(b)
+		scenario_buttons.append(b)
+		var l := Label.new()
+		l.text = spec.blurb
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(320, 0)
+		l.add_theme_font_size_override("font_size", 16)
+		l.add_theme_color_override("font_color", UiTheme.MUTED)
+		_campaign_page.add_child(l)
+	var more := Label.new()
+	more.text = "Scenarios %d to %d are still to come." % [Campaign.count() + 1, Campaign.PLANNED]
+	more.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	more.add_theme_font_size_override("font_size", 16)
+	more.add_theme_color_override("font_color", UiTheme.MUTED)
+	_campaign_page.add_child(more)
+	_menu_button(_campaign_page, "Back", func() -> void: show_page(_main_page))
+
+
+## Scenario `n` of the campaign (docs/scenarios-design.md): its own map, village and story.
+func play_scenario(n: int) -> void:
+	Settings.scenario_next = n
+	_play()
 
 
 ## The guided tutorial (docs/tutorial-design.md): its own map and village.

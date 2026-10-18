@@ -235,7 +235,7 @@ func _test_gargoyle() -> void:
 	check(tw != null and shot, "an archer on a tower shoots it")
 	game.army.unstation(ar)
 	await clear_enemies()
-	# Counter-strikes: it hits the hero; his blow is ready, so he hits back.
+	# Counter-strikes: it hits the hero; her blow is ready, so she hits back.
 	var hero := game.hero
 	hero.max_hp = 5000.0
 	hero.hp = 5000.0
@@ -243,7 +243,7 @@ func _test_gargoyle() -> void:
 	hero.at_home = false
 	var hp3 := g3.hp
 	var hit_back := await wait_until(func() -> bool: return g3.hp < hp3, 20.0)
-	check(hit_back and hero.target != g3 and hero.hp < 5000.0, "hit by a gargoyle, the hero strikes back (it loses %.0f HP), though he never goes for it" % (hp3 - g3.hp))
+	check(hit_back and hero.target != g3 and hero.hp < 5000.0, "hit by a gargoyle, the hero strikes back (it loses %.0f HP), though she never goes for it" % (hp3 - g3.hp))
 	hero.set_mode(Hero.Mode.REST)
 	_bench_hero(true)
 	await clear_enemies()
@@ -361,7 +361,7 @@ func _test_necromancer() -> void:
 		pts.append(Vector2(t))
 	nec.follow(pts)
 	var hero := game.hero
-	hero.add_to_group("melee_defenders")  # (benched: he stands there, it doesn't fight)
+	hero.add_to_group("melee_defenders")  # (benched: she stands there, it doesn't fight)
 	hero.set_grid_pos(nec.grid_pos + Vector2(1.5, 0.0))
 	var p0 := nec.grid_pos
 	await wait(2.0)

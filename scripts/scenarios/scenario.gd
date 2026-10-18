@@ -1,0 +1,149 @@
+class_name Scenario
+extends RefCounted
+## One scenario of the campaign (docs/scenarios-design.md): its whole content,
+## set by a subclass, one file per scenario (scenario_1.gd, scenario_2.gd, ...;
+## the list is Campaign.SCENARIOS). ScenarioRunner plays it.
+##
+## Data (set in the subclass's _init): what the map, the village and the
+## rules are, the waves, who speaks. Content (overridden functions, called with
+## the runner, so they can look at the game): the cutscenes, the teaching
+## cards, the hints, the objectives and scripted events. Numbers that belong to
+## one scenario live in its file, not in config.gd.
+
+# --- what it is ---------------------------------------------------------------------------
+
+var number := 0
+var title := ""
+## One or two sentences for the campaign menu.
+var blurb := ""
+## The map file (made by tools/make_scenario_map.gd, edited by hand since).
+var map_path := ""
+## Which of the map's villages is played.
+var village := 0
+
+# --- the baseline (docs/scenarios-design.md §1: nothing carries over) -----------------------
+
+## "easy", "normal" or "hard": scales what `enemy_scale` doesn't (Config.DIFFICULTY_SCALED).
+var difficulty := "normal"
+## Enemy values scaled by these instead of by the difficulty: {"hp": 0.5, ...}
+## (keys of Config.DIFFICULTY_SCALED). Below Easy is fine.
+var enemy_scale := {}
+var resources := {"gold": 0, "food": 0, "materials": 0}
+## The villagers at the start, by role (Config.CIVILIANS keys).
+var civilians: Array[String] = []
+## Names for villagers: role -> name, given to the first of that role.
+var names := {}
+## Built for free at the start (Config.START_BUILDINGS' rules).
+var buildings: Array[String] = []
+## How many of the village's 9 huts stand (the ones nearest the centre); the
+## rest are ruins.
+var huts_standing := 9
+## How many of each village piece stand ("gate", "wall", "wall_tower"); the
+## others are devastated. A kind left out stands complete.
+var pieces_standing := {}
+## The HP share the standing pieces have left.
+var pieces_hp := 1.0
+## The hero: a name, the level (1 = the first), and where she starts (a tile;
+## (-1, -1): the village centre; from there she walks to the village after
+## the intro). A tent stands on `tent_tile` ((-1, -1): none).
+var hero_name := ""
+var hero_level := 1
+var hero_start := Vector2i(-1, -1)
+var tent_tile := Vector2i(-1, -1)
+## The card while she walks from her start to the village.
+var walk_title := "On the way"
+var walk_text := ""
+
+# --- rules --------------------------------------------------------------------------------
+
+## Military kinds that can be recruited ([]: all, as unlocked on the map).
+var units: Array[String] = []
+## Buildings that can be placed ([]: all).
+var build: Array[String] = []
+## Units may specialise (from Config.BRANCH_MIN_LEVEL).
+var specialise := true
+## The hero comes back after being downed (home); false: downed is a defeat.
+var hero_revives := true
+## Any villager's death is a defeat (scenario 1).
+var fail_on_villager_death := false
+## Corpses rot as usual (false: they lie until gathered or the next wave ends).
+var corpses_rot := true
+
+# --- waves --------------------------------------------------------------------------------
+
+## The scenario's waves, in order: {"kinds": {kind: count}, "spawns": how many
+## edge spawns they come from (spread over them), "rat_packs": [pack sizes]
+## (each pack from one spawn)}. After the last one no more waves come.
+var waves: Array[Dictionary] = []
+## Wave 1 comes only when the player calls it (no countdown).
+var first_wave_waits := true
+## Seconds between a wave's end and the next (the countdown).
+var wave_gap := 30.0
+
+# --- who speaks ---------------------------------------------------------------------------
+
+## Speaker id -> {"name", "portrait" (art), "color"}; "" is the narrator.
+var speakers := {}
+
+
+# --- content: override in the scenario's file ----------------------------------------------
+
+## The intro cutscene: Cutscene steps (see Cutscene).
+func intro(_r: ScenarioRunner) -> Array[Dictionary]:
+	return []
+
+
+## The outro cutscene, once every objective is met.
+func outro(_r: ScenarioRunner) -> Array[Dictionary]:
+	return []
+
+
+## Played when the hero has walked from her start to the village (hero_start
+## set), before the cards begin.
+func arrival(_r: ScenarioRunner) -> Array[Dictionary]:
+	return []
+
+
+## The teaching cards, in order. Each: "title", "text", "done" (Callable ->
+## bool, polled), optional "point" (Callable -> Dictionary, as the tutorial's:
+## "hud", "tab", "tiles", "units"), "start" (Callable), "ready" + "wait_text"
+## (the card waits for it), "id".
+func steps(_r: ScenarioRunner) -> Array[Dictionary]:
+	return []
+
+
+## One-time hints: {"id", "when": Callable -> bool (polled), "text" (a String,
+## or a Callable -> String)}; shown on the card and logged the first time
+## "when" holds.
+func hints(_r: ScenarioRunner) -> Array[Dictionary]:
+	return []
+
+
+## The objectives, shown under the card: {"id", "text", "done": Callable ->
+## bool, "detail": optional Callable -> String (progress, e.g. "3 / 5")}. All
+## done (at once) wins the scenario.
+func objectives(_r: ScenarioRunner) -> Array[Dictionary]:
+	return []
+
+
+## Once everything is set up, before the intro.
+func on_start(_r: ScenarioRunner) -> void:
+	pass
+
+
+## A teaching card is done (its "id", "" if it has none).
+func on_card_done(_r: ScenarioRunner, _id: String) -> void:
+	pass
+
+
+func on_wave_started(_r: ScenarioRunner, _n: int) -> void:
+	pass
+
+
+func on_wave_finished(_r: ScenarioRunner, _n: int) -> void:
+	pass
+
+
+## The defeat screen's line for a villager's death ("a goblin killed Einar").
+func death_text(civ: Civilian, reason: String) -> String:
+	return "%s died %s." % [civ.label().capitalize(), reason]

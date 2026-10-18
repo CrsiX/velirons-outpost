@@ -7,7 +7,7 @@ extends MapObject
 ## it becomes a devastated watchtower of that village, and a builder repairs
 ## it like any other (docs/siege-design.md §4).
 
-## The hero on his way to claim it.
+## The hero on her way to claim it.
 var claimed_by: Node = null
 
 

@@ -305,8 +305,8 @@ their player may see (§8.4), so there is nothing hidden on the client to cheat 
 | Enemies | Only under the viewer's own surveillance |
 
 - Own units watch for their owner wherever they are. A hero supporting
-  another village gives his owner vision there.
-- The receiving village also sees him, through its own surveillance.
+  another village gives her owner vision there.
+- The receiving village also sees her, through its own surveillance.
 - Other villages' buildings show once explored, as they looked when last
   watched: whether a tower is manned, upgraded or bewitched is **not**
   public.
@@ -385,22 +385,22 @@ The tax applies to **resources only**. Units and heroes arrive whole.
   It is only visible in Support mode. Switching to Support first picks the
   nearest standing village.
 - **Behaviour:**
-  1. He walks from wherever he is to the selected village's centre. On the way
-     he behaves like Defend mode on the move: he re-targets threats near him.
-  2. There he runs **Defend** relative to that village: its gates for the alert
+  1. She walks from wherever she is to the selected village's centre. On the way
+     she behaves like Defend mode on the move: she re-targets threats near her.
+  2. There she runs **Defend** relative to that village: its gates for the alert
      radius, its centre for the leash and for coming back.
-  3. Idling at that centre he heals (passive resting), and every hit earns XP
+  3. Idling at that centre she heals (passive resting), and every hit earns XP
      as usual.
-- **Changing the target village** sends him on to the new one.
-- **Any other mode** makes him walk home first. Build, Explore, Gather and Train
-  always work for his own village.
-- **When downed,** he revives at the end of the wave **in his own village
+- **Changing the target village** sends her on to the new one.
+- **Any other mode** makes her walk home first. Build, Explore, Gather and Train
+  always work for her own village.
+- **When downed,** she revives at the end of the wave **in her own village
   centre**, still in Support mode with the same target, and walks back there.
-- **The receiver can't interact with him in any way:**
+- **The receiver can't interact with her in any way:**
   - no selection panel, no mode changes, no orders, no drag & drop;
-  - tapping him does nothing.
+  - tapping her does nothing.
 
-  He is simply a friendly figure. His owner always controls him.
+  She is simply a friendly figure. Her owner always controls her.
 
 ## 8. Networking
 

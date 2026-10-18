@@ -1,39 +1,41 @@
 class_name Hero
 extends Civilian
 ## The hero: part villager, part soldier, with a sword for close combat.
-## Starts in the village centre; the player picks what he does (his mode):
-##   Defend  - waits in the centre; when enemies come near the walls he goes out
+## Starts in the village centre; the player picks what she does (her mode):
+##   Defend  - waits in the centre; when enemies come near the walls she goes out
 ##             and fights them (inside the walls first, then the nearest, then the strongest).
 ##   Build / Explore / Gather - the villager jobs, done a little less well.
-##   Train   - at training grounds with a unit ready, passes his XP on to it;
-##             without such grounds he defends instead, but drops any fight as
+##   Train   - at training grounds with a unit ready, passes her XP on to it;
+##             without such grounds she defends instead, but drops any fight as
 ##             soon as a unit is ready to train.
 ##   Rest    - walks back to the village centre and stays there, fighting nobody.
 ##   Support - (co-op) walks to another village (`support_target`) and defends
-##             it as in Defend mode: its gates, its centre. He keeps his XP,
+##             it as in Defend mode: its gates, its centre. She keeps her XP,
 ##             heals idling in its centre, and when downed revives at home and
-##             walks back. The village he helps can't give him orders.
-## Whenever he idles in the village centre (any mode) he slowly gets his HP
+##             walks back. The village she helps can't give her orders.
+## Whenever she idles in the village centre (any mode) she slowly gets her HP
 ## back: Config.HERO "rest_regen" per second after "rest_delay" seconds.
 ## Every action except training earns XP (Config.HERO_XP_PER_ACTION; the
-## blow that kills an enemy earns a "kill" bonus on top). When his
-## HP runs out he is downed: all XP is lost, he leaves no corpse, and he revives
+## blow that kills an enemy earns a "kill" bonus on top). When her
+## HP runs out she is downed: all XP is lost, she leaves no corpse, and she revives
 ## in the village centre when the wave is over (downed between waves: when the
 ## next one begins), still in the same mode.
-## He has no hut, eats nothing and doesn't count as a villager.
+## She has no hut, eats nothing and doesn't count as a villager.
 
 signal changed
+## Struck down (0 HP).
+signal downed
 
 enum Mode { DEFEND, BUILD, EXPLORE, GATHER, TRAIN, REST, SUPPORT }
 const MODE_NAMES: Array[String] = ["Defend", "Build", "Explore", "Gather", "Train", "Rest", "Support"]
-## The mode as a word for his panel's title ("Hero: defending").
+## The mode as a word for her panel's title ("Hero: defending").
 const MODE_WORDS: Array[String] = ["defending", "building", "exploring", "gathering", "training", "resting", "supporting"]
 ## Icon per mode (art/mode_*.svg).
 const MODE_ICONS: Array[String] = ["mode_defend", "mode_build", "mode_explore", "mode_gather", "mode_train", "mode_rest", "mode_support"]
 
 var mode := Mode.DEFEND
 var xp := 0
-## 0-based: level 1 ... Config.HERO_MAX_LEVEL. Bought with his own XP; kept when downed.
+## 0-based: level 1 ... Config.HERO_MAX_LEVEL. Bought with her own XP; kept when downed.
 var level := 0
 var target: Enemy = null
 var training_at: TrainingGrounds = null
@@ -45,18 +47,18 @@ var _chase_tile := Vector2i(-9999, -9999)
 var _train_acc := 0.0
 ## Walking back to the village centre after a fight (Defend).
 var _returning := false
-## Support mode: the village he goes to defend.
+## Support mode: the village she goes to defend.
 var support_target: Village = null
-## Seconds he has been idling in the village centre (see _regen).
+## Seconds she has been idling in the village centre (see _regen).
 var _idle_time := 0.0
 ## Resting: the next snore's Z in ... s.
 var _snore_in := 0.0
 var _snores := 0
-## Real seconds left of his pause after a unit levelled up (Train).
+## Real seconds left of her pause after a unit levelled up (Train).
 var train_pause := 0.0
-## The monster camp he was ordered to clear (docs/world-design.md §9.3).
+## The monster camp she was ordered to clear (docs/world-design.md §9.3).
 var camp_target: MonsterCamp = null
-## A warrior's war cry (Combat.war_cry): his sword is faster until Game.clock reaches cry_until.
+## A warrior's war cry (Combat.war_cry): her sword is faster until Game.clock reaches cry_until.
 var cry_bonus := 0.0
 var cry_until := -1.0
 
@@ -90,11 +92,12 @@ func setup_hero(p_game: Game, p_village: Village) -> void:
 
 
 func display_name() -> String:
-	return Config.HERO["name"]
+	return given_name if given_name != "" else Config.HERO["name"]
 
 
+## "the hero"; in a scenario her name ("Brenna").
 func label() -> String:
-	return "the hero"
+	return given_name if given_name != "" else "the hero"
 
 
 # --- modes ---------------------------------------------------------------------------
@@ -115,7 +118,7 @@ func mode_name() -> String:
 	return MODE_NAMES[mode]
 
 
-## Training grounds where a unit is ready to learn from him, or null.
+## Training grounds where a unit is ready to learn from her, or null.
 func ready_grounds() -> TrainingGrounds:
 	var best: TrainingGrounds = null
 	var best_d := INF
@@ -128,15 +131,15 @@ func ready_grounds() -> TrainingGrounds:
 	return best
 
 
-## What he is actually doing: Train falls back to Defend without ready grounds.
+## What she is actually doing: Train falls back to Defend without ready grounds.
 func effective_mode() -> Mode:
 	if mode == Mode.TRAIN and ready_grounds() == null:
 		return Mode.DEFEND
 	return mode
 
 
-## Where he stands guard and rests: the supported village in Support mode,
-## else his own.
+## Where she stands guard and rests: the supported village in Support mode,
+## else her own.
 func base() -> Village:
 	if mode == Mode.SUPPORT and support_target != null and support_target != village:
 		return support_target
@@ -161,8 +164,8 @@ func _leave_mode() -> void:
 	sprite.rotation = 0.0
 
 
-## A new order while he runs from enemies takes effect at once, wherever he
-## is: he stops running unless his new mode is a villager job and an enemy is
+## A new order while she runs from enemies takes effect at once, wherever she
+## is: she stops running unless her new mode is a villager job and an enemy is
 ## still close (then that job flees on, as it would anyway).
 func _stop_evading() -> void:
 	if not evading:
@@ -176,7 +179,7 @@ func _stop_evading() -> void:
 	_set_moving(false)
 
 
-## Lets go of whatever he was doing: his mode's job, training, a fight.
+## Lets go of whatever she was doing: her mode's job, training, a fight.
 func _drop_work() -> void:
 	if jobs.has(mode):
 		jobs[mode].release()
@@ -195,8 +198,8 @@ func _stop_training() -> void:
 
 # --- Civilian hooks ------------------------------------------------------------------------
 
-## He stays visible in the village centre (villagers vanish into their huts).
-## Back at his post: his own village centre, or the one he supports.
+## She stays visible in the village centre (villagers vanish into their huts).
+## Back at her post: her own village centre, or the one she supports.
 func arrive_home() -> void:
 	set_grid_pos(Vector2(base().center))
 	_set_home(true)
@@ -223,7 +226,7 @@ func exploring_target() -> Vector2i:
 	return jobs[Mode.EXPLORE].exploring_target() if mode == Mode.EXPLORE else Vector2i(-1, -1)
 
 
-## After a load: his mode's villager job asks what to do from where he
+## After a load: her mode's villager job asks what to do from where she
 ## stands; the other modes (and a camp to clear) decide that every frame anyway.
 func resume_work() -> void:
 	if camp_target == null and jobs.has(mode):
@@ -271,11 +274,11 @@ func _tick(delta: float) -> void:
 			target = null
 			_return_home(delta)
 		Mode.SUPPORT:
-			_defend(delta)  # relative to base(): the village he supports
+			_defend(delta)  # relative to base(): the village she supports
 	_regen(delta)
 
 
-## His villager job waits for work (resting), with no task of its own.
+## Her villager job waits for work (resting), with no task of its own.
 func _job_idle() -> bool:
 	var job = jobs[mode]
 	if job is HeroExploreJob and (job as HeroExploreJob).task != HeroExploreJob.Task.NONE:
@@ -340,7 +343,7 @@ func _fight(delta: float) -> void:
 ## _pick_enemy). Never teleports: a chase path may still be half walked.
 func _return_home(delta: float) -> void:
 	if at_home and grid_pos.distance_to(Vector2(base().center)) > 0.2:
-		_set_home(false)  # his post moved (Support): set off
+		_set_home(false)  # her post moved (Support): set off
 	if not at_home:
 		if not _returning:
 			_returning = true
@@ -379,19 +382,19 @@ static func rect_distance(r: Rect2i, p: Vector2) -> float:
 	return p.distance_to(Vector2(cx, cy))
 
 
-## Enemies near the walls (or near him, within his leash): inside the walls
+## Enemies near the walls (or near her, within her leash): inside the walls
 ## first, then the nearest, then the strongest.
 func _pick_enemy() -> Enemy:
 	var best: Enemy = null
 	var best_key := Vector2(INF, INF)
 	var centre := Vector2(base().center)
-	# Beyond his leash (another mode took him out there): he still takes on
-	# what is within his sight on his way back.
+	# Beyond her leash (another mode took her out there): she still takes on
+	# what is within her sight on her way back.
 	var out_far := grid_pos.distance_to(centre) > Config.HERO["leash"]
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
 		if e.flies() or not e.melee_ok(grid_pos):
-			continue  # (flyers: out of his sword's reach, he only hits back; under water or out at sea: none)
+			continue  # (flyers: out of her sword's reach, she only hits back; under water or out at sea: none)
 		var near_me := not at_home and e.grid_pos.distance_to(grid_pos) <= Config.HERO["sight"]
 		if e.grid_pos.distance_to(centre) > Config.HERO["leash"] and not (out_far and near_me):
 			continue
@@ -406,7 +409,7 @@ func _pick_enemy() -> Enemy:
 			best = e
 	if best != null:
 		return best
-	# Last priority: rats on his village's farms, however far out (no leash).
+	# Last priority: rats on her village's farms, however far out (no leash).
 	var best_d := INF
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
@@ -434,7 +437,7 @@ func _chase() -> void:
 	follow(p)
 
 
-## A flyer hit him: if his blow is ready he strikes back at once.
+## A flyer hit her: if her blow is ready she strikes back at once.
 func counter_strike(e: Enemy) -> void:
 	if dead or _attack_timer > 0.0 or e.dead:
 		return
@@ -443,7 +446,7 @@ func counter_strike(e: Enemy) -> void:
 
 
 func _strike(foe: Enemy) -> void:
-	foe.take_damage(Config.hero_stat("damage", level) * (1.0 + Combat.holy_bonus(game, grid_pos)), self, "melee")  # (a High Priest blesses him)
+	foe.take_damage(Config.hero_stat("damage", level) * (1.0 + Combat.holy_bonus(game, grid_pos)), self, "melee")  # (a High Priest blesses her)
 	on_action("hit")
 	if foe.dead:  # the last hit: a bonus
 		on_action("kill")
@@ -464,7 +467,7 @@ func can_level_up() -> bool:
 	return level < Config.HERO_MAX_LEVEL - 1 and xp >= level_up_cost()
 
 
-## Spends his XP on the next level: more HP (he gains the difference now) and
+## Spends her XP on the next level: more HP (she gains the difference now) and
 ## a harder sword.
 func level_up() -> bool:
 	if not can_level_up():
@@ -486,11 +489,11 @@ func level_up() -> bool:
 
 func _process(delta: float) -> void:
 	if not dead and not game.is_client:
-		# His blow's cooldown runs in every mode, also while he flees, and no
-		# mode change resets it: switching modes never gives him an extra blow.
+		# Her blow's cooldown runs in every mode, also while she flees, and no
+		# mode change resets it: switching modes never gives her an extra blow.
 		_attack_timer -= delta * Combat.haste(game, self, grid_pos)
 		if is_instance_valid(held_by) and not held_by.dead:
-			# An octopus's arm holds him: he fights it, whatever his mode, even fleeing.
+			# An octopus's arm holds her: she fights it, whatever her mode, even fleeing.
 			target = held_by as Enemy
 			_fight(delta)
 			return
@@ -498,8 +501,8 @@ func _process(delta: float) -> void:
 	_snore(delta)
 
 
-## Resting in the village: Z's keep rising from his head and fade away, small
-## to big ("Zzz" in motion). Co-op clients too: they know his mode.
+## Resting in the village: Z's keep rising from her head and fade away, small
+## to big ("Zzz" in motion). Co-op clients too: they know her mode.
 func _snore(delta: float) -> void:
 	if dead or mode != Mode.REST or grid_pos.distance_to(Vector2(base().center)) > 0.3:
 		_snore_in = 0.0
@@ -528,8 +531,8 @@ func _snore(delta: float) -> void:
 	tw.chain().tween_callback(z.queue_free)
 
 
-## Three glowing chevrons rise over his head (co-op clients play it too,
-## when the host says his level went up).
+## Three glowing chevrons rise over her head (co-op clients play it too,
+## when the host says her level went up).
 func play_level_up_fx() -> void:
 	var fx := Node2D.new()
 	fx.name = "LevelUpFx"
@@ -559,7 +562,7 @@ func play_level_up_fx() -> void:
 	tw.tween_property(shine, "modulate:a", 0.25, 0.4).set_delay(0.25)
 	tw.chain().tween_property(fx, "modulate:a", 0.0, 0.5)
 	tw.chain().tween_callback(fx.queue_free)
-	# He lights up for a moment as well.
+	# She lights up for a moment as well.
 	sprite.modulate = Color(1.6, 1.6, 1.2)
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.6)
 
@@ -572,7 +575,7 @@ func attack_camp(camp: MonsterCamp) -> void:
 		return
 	var job = jobs.get(mode)
 	if job is HeroExploreJob:
-		(job as HeroExploreJob)._drop_task()  # (keeps any loot he's carrying)
+		(job as HeroExploreJob)._drop_task()  # (keeps any loot she's carrying)
 	camp_target = camp
 	target = null
 	_returning = false
@@ -606,7 +609,7 @@ func _end_camp() -> void:
 	if job is HeroExploreJob and (job as HeroExploreJob).task == HeroExploreJob.Task.CARRYING:
 		head_home()
 	elif job != null:
-		job.state = 0  # (the job picks up from where he stands)
+		job.state = 0  # (the job picks up from where she stands)
 	changed.emit()
 
 
@@ -628,7 +631,7 @@ func _train(g: TrainingGrounds, delta: float) -> void:
 		return
 	_set_moving(false)
 	if train_pause > 0.0:
-		# A unit just levelled up: a moment to change his mode and keep the XP.
+		# A unit just levelled up: a moment to change her mode and keep the XP.
 		train_pause -= delta / maxf(Engine.time_scale, 0.001)
 		sprite.rotation = 0.0
 		if train_pause <= 0.0:
@@ -650,13 +653,13 @@ func _train(g: TrainingGrounds, delta: float) -> void:
 			train_pause = Config.HERO["train_pause"]
 			_train_acc = 0.0
 			sprite.rotation = 0.0
-			village.events.info("%s reached level %d. The hero pauses %d s: change his mode now to keep his %d XP." % [unit.label().capitalize(), unit.level + 1, int(Config.HERO["train_pause"]), xp])
+			village.events.info("%s reached level %d. The hero pauses %d s: change her mode now to keep her %d XP." % [unit.label().capitalize(), unit.level + 1, int(Config.HERO["train_pause"]), xp])
 		changed.emit()
 
 
 # --- health -----------------------------------------------------------------------------------
 
-## (The hero heals his own way: see _regen.)
+## (The hero heals her own way: see _regen.)
 func _home_regen(_delta: float) -> void:
 	pass
 
@@ -689,6 +692,7 @@ func _downed(source = null) -> void:
 	path = PackedVector2Array()
 	Sfx.play("death")
 	changed.emit()
+	downed.emit()
 
 
 func revive() -> void:
@@ -730,7 +734,7 @@ func status() -> String:
 			if xp <= 0:
 				return "at the training grounds: no XP left to pass on"
 			if train_pause > 0.0:
-				return "pausing after a level-up (%d s): change his mode to keep his XP" % ceili(train_pause)
+				return "pausing after a level-up (%d s): change her mode to keep her XP" % ceili(train_pause)
 			return "training a %s" % training_at.garrison.display_name().to_lower() if is_instance_valid(training_at) and training_at.garrison else "walking to the training grounds"
 	return jobs[mode].status()
 

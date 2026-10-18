@@ -1,0 +1,641 @@
+class_name ScenarioRunner
+extends Node
+## Plays one Scenario (docs/scenarios-design.md) in a game (a child of Game,
+## as the tutorial is). It sets up the scenario's baseline (map file,
+## village, villagers, hero, resources), applies its rules (what can be built
+## and recruited, enemy strength, its waves, its defeats), and runs its story:
+## the intro cutscene, the hero's walk to the village, her arrival, the
+## teaching cards, one-time hints, the objectives, and the outro once every
+## objective is met.
+##
+## The content comes from the Scenario (scenario_<n>.gd); the helpers below
+## (spots, towers(), farms(), ...) are for its cards and objectives.
+
+signal won
+
+enum Phase { INTRO, WALK, ARRIVAL, PLAY, OUTRO, OVER }
+
+const POLL := 0.25
+## Seconds between a done card and the next one.
+const STEP_PAUSE := 1.2
+## Seconds a hint stays on the card.
+const HINT_TIME := 14.0
+## Tiles revealed around the tent, and along the hero's way to the village.
+const TENT_REVEAL := 3.5
+const WAY_REVEAL := 2.2
+
+var game: Game
+var spec: Scenario
+var phase := Phase.INTRO
+## Why the map file couldn't be used ("" if it could): the game then runs on a
+## generated map, and the scenario says so.
+var error := ""
+var spots: RoadSpots
+var highlight: TutorialHighlight
+var card: ScenarioCard
+## The cutscene playing now, or null.
+var cutscene: Cutscene
+var tent_node: Node2D
+## The hero's way from her start to the village centre (tiles).
+var way: Array[Vector2i] = []
+var steps: Array[Dictionary] = []
+## Index into steps (-1 before the first; steps.size() when they're all done).
+var step := -1
+var hints: Array[Dictionary] = []
+var objectives: Array[Dictionary] = []
+## Whatever a card needs to remember (unit levels when it began, ...).
+var mark := {}
+var start_villagers := 0
+## Each objective's last state (id -> done), so a change is logged once.
+var _goal_state := {}
+var _hints_shown := {}
+var _hint_left := 0.0
+var _poll := 0.0
+var _next_in := -1.0
+var _tab := ""
+var _old_difficulty = null  # (Settings.Difficulty)
+## Smoke over ruined huts (hut -> particles), gone once rebuilt.
+var _smoke := {}
+var _outro_started := false
+
+
+## Before the world is made: the map from its file, the difficulty and the
+## enemy strength, the starting village.
+func prepare(p_game: Game, p_spec: Scenario) -> void:
+	game = p_game
+	spec = p_spec
+	var r := MapLibrary.load_file(spec.map_path)
+	if r["map"] == null:
+		error = "The scenario's map couldn't be read: %s" % "; ".join(r["errors"])
+		push_error(error)
+	else:
+		var m: MapData = r["map"]
+		game.preset_map = m.for_game([clampi(spec.village, 0, m.villages.size() - 1)])
+	game.disable_fog = false
+	game.start_resources = spec.resources.duplicate()
+	game.start_civilians.assign(spec.civilians)
+	game.start_buildings.assign(spec.buildings)
+	_old_difficulty = Settings.difficulty
+	Settings.difficulty = Settings.difficulty_of(spec.difficulty)
+	Settings.enemy_scale = spec.enemy_scale.duplicate()
+
+
+func _exit_tree() -> void:
+	if _old_difficulty != null:
+		Settings.difficulty = _old_difficulty
+	Settings.enemy_scale = {}
+
+
+## The world is made, the villagers aren't yet: the village as the scenario
+## has it (ruined huts, broken walls, gates and towers).
+func apply_baseline() -> void:
+	var v := game.player_village
+	var c := Vector2(v.center)
+	var huts := v.huts()
+	huts.sort_custom(func(a: Building, b: Building) -> bool: return Vector2(a.tile).distance_to(c) < Vector2(b.tile).distance_to(c))
+	for i in huts.size():
+		if i >= spec.huts_standing:
+			var h := huts[i] as Hut
+			h.ruined = true
+			h.refresh()
+	for kind: String in spec.pieces_standing:
+		var list := v.buildings().filter(func(b: Building) -> bool: return b.kind == kind)
+		list.sort_custom(func(a: Building, b: Building) -> bool: return MapData.row_order(a.tile, b.tile))
+		for i in list.size():
+			var b: Building = list[i]
+			if i < int(spec.pieces_standing[kind]):
+				b.hp = maxf(1.0, roundf(b.max_hp() * spec.pieces_hp))
+				b.queue_redraw()
+			else:
+				b.set_devastated(true)
+	game.siege.mark_stale(v, true)
+
+
+## Once the game is set up (villages, HUD): the rules, the hero at her start,
+## the card, and the intro.
+func start() -> void:
+	var v := game.player_village
+	var h := game.hero
+	start_villagers = game.population.count()
+	_name_villagers()
+	if spec.hero_name != "":
+		h.given_name = spec.hero_name
+	if spec.hero_level > 1:
+		h.level = spec.hero_level - 1
+		h.max_hp = Config.hero_stat("hp", h.level)
+		h.hp = h.max_hp
+	h.downed.connect(_on_hero_downed)
+	game.population.civilian_died.connect(_on_villager_died)
+	var w := game.waves
+	w.hold = spec.first_wave_waits
+	w.buffer = spec.wave_gap
+	w.last_wave = spec.waves.size()
+	for wave in spec.waves:
+		w.scripted.append(wave.duplicate(true))
+	w.wave_started.connect(_on_wave_started)
+	w.wave_finished.connect(_on_wave_finished)
+	game.corpses.rot = spec.corpses_rot
+	spots = RoadSpots.new(game)
+	spots.pick_route(18, spec.number)
+	if spec.hero_start != Vector2i(-1, -1) and game.map.in_bounds(spec.hero_start):
+		_place_hero_at_start()
+	_smoke_ruins()
+	highlight = TutorialHighlight.new(game)
+	highlight.name = "ScenarioHighlight"
+	game.hud.add_layer(highlight, true)
+	Layout.bleed(highlight)
+	card = ScenarioCard.new()
+	card.build(game.hud, "Scenario %d: %s" % [spec.number, spec.title])
+	card.set_folded(false)
+	game.hud.add_layer(card, false)
+	steps = spec.steps(self)
+	hints = spec.hints(self)
+	objectives = spec.objectives(self)
+	card.set_objectives(objectives)
+	spec.on_start(self)
+	game.events.debug("scenario %d (%s): %d waves, the hero starts at %s" % [spec.number, spec.title, spec.waves.size(), spec.hero_start])
+	if error != "":
+		v.toast(error, UiTheme.BAD)
+	_play(spec.intro(self), _after_intro)
+
+
+# --- the start: the hero's tent, her walk, the ruins' smoke ----------------------------------
+
+func _name_villagers() -> void:
+	var named := {}
+	for c in game.population.civilians:
+		if spec.names.has(c.role) and not named.has(c.role):
+			named[c.role] = true
+			c.given_name = str(spec.names[c.role])
+
+
+## She stands by her tent (it is uncovered, and so is the road she came by
+## and the way home); she waits there until the intro is over.
+func _place_hero_at_start() -> void:
+	var h := game.hero
+	var from := spec.hero_start
+	h.set_grid_pos(Vector2(from))
+	h.at_home = true
+	h.set_process(false)
+	var vid := game.player_village.id
+	game.fog.reveal(Vector2(from), TENT_REVEAL, vid)
+	var p := game.world.pathing.find_path(from, game.player_village.center)
+	way.clear()
+	for q in p:
+		way.append(Vector2i(q.round()))
+	for i in range(0, way.size(), 2):
+		game.fog.reveal(Vector2(way[i]), WAY_REVEAL, vid)
+	if spec.tent_tile != Vector2i(-1, -1):
+		tent_node = Node2D.new()
+		tent_node.name = "Tent"
+		tent_node.position = Iso.tile_to_world(spec.tent_tile)
+		tent_node.add_child(Art.sprite("tent_small"))
+		game.world.objects.add_child(tent_node)
+		game.fog.reveal(Vector2(spec.tent_tile), TENT_REVEAL, vid)
+	game.camera.focus(Iso.to_world(Vector2(from)))
+
+
+## A column of smoke over a few ruined huts (gone once rebuilt).
+func _smoke_ruins() -> void:
+	var n := 0
+	for h in game.player_village.huts():
+		if (h as Hut).ruined and n < 3:
+			var p := CPUParticles2D.new()
+			p.texture = _puff()
+			p.amount = 18
+			p.lifetime = 4.5
+			p.preprocess = 4.5
+			p.direction = Vector2(0.3, -1)
+			p.spread = 12.0
+			p.gravity = Vector2(6, -12)
+			p.initial_velocity_min = 16.0
+			p.initial_velocity_max = 26.0
+			p.scale_amount_min = 0.7
+			p.scale_amount_max = 1.1
+			var grow := Curve.new()
+			grow.add_point(Vector2(0, 0.4))
+			grow.add_point(Vector2(1, 1.6))
+			p.scale_amount_curve = grow
+			var ramp := Gradient.new()
+			ramp.set_color(0, Color(0.22, 0.2, 0.19, 0.85))
+			ramp.set_color(1, Color(0.5, 0.48, 0.46, 0.0))
+			p.color_ramp = ramp
+			game.world.effects.add_child(p)
+			p.global_position = h.global_position + Vector2(0, -20)
+			_smoke[h] = p
+			n += 1
+
+
+## A soft round puff for the smoke.
+static func _puff() -> Texture2D:
+	var g := Gradient.new()
+	g.set_color(0, Color.WHITE)
+	g.set_color(1, Color(1, 1, 1, 0))
+	var t := GradientTexture2D.new()
+	t.gradient = g
+	t.fill = GradientTexture2D.FILL_RADIAL
+	t.fill_from = Vector2(0.5, 0.5)
+	t.fill_to = Vector2(1.0, 0.5)
+	t.width = 48
+	t.height = 48
+	return t
+
+
+func _after_intro(_skipped: bool) -> void:
+	if spec.hero_start == Vector2i(-1, -1):
+		_begin_play()
+		return
+	phase = Phase.WALK
+	var h := game.hero
+	h.set_process(true)
+	h.set_mode(Hero.Mode.REST)  # (she walks to the centre: Rest's way home)
+	card.visible = true
+	card.show_lesson(spec.walk_title, spec.walk_text)
+	game.events.debug("scenario: %s walks from %s to the village" % [h.label(), spec.hero_start])
+
+
+func _walk(_delta: float) -> void:
+	var h := game.hero
+	card.place()
+	game.camera.focus(h.position)
+	if h.at_home and h.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.2:
+		phase = Phase.ARRIVAL
+		h.set_mode(Hero.Mode.DEFEND)  # (no resting, no snoring: she's home)
+		if is_instance_valid(tent_node):
+			tent_node.queue_free()  # (packed up and brought home)
+		card.visible = false
+		_play(spec.arrival(self), func(_s: bool) -> void: _begin_play())
+
+
+func _begin_play() -> void:
+	phase = Phase.PLAY
+	game.hero.set_mode(Hero.Mode.DEFEND)
+	card.visible = true
+	if not steps.is_empty():
+		_begin(0)
+	else:
+		_end_steps()
+	_poll_now()
+
+
+# --- cutscenes ---------------------------------------------------------------------------------
+
+## Plays `list` (nothing if empty) and calls `then(skipped)` once it is over.
+func _play(list: Array[Dictionary], then: Callable) -> void:
+	if list.is_empty():
+		then.call(false)
+		return
+	var was_card := card != null and card.visible
+	if card:
+		card.visible = false
+	if highlight:
+		highlight.visible = false
+	cutscene = Cutscene.new()
+	cutscene.name = "Cutscene"
+	cutscene.finished.connect(func(skipped: bool) -> void:
+		cutscene = null
+		if card:
+			card.visible = was_card
+		game.events.debug("cutscene over%s" % (" (skipped)" if skipped else ""))
+		if phase == Phase.OVER:
+			return  # (lost meanwhile: nothing follows)
+		if highlight:
+			highlight.visible = true
+		then.call(skipped))
+	cutscene.play(game, list, spec.speakers)
+
+
+## Helpers for the cutscenes: where a tile is on the map (world position).
+func at(tile) -> Vector2:
+	return Iso.to_world(Vector2(tile))
+
+
+## A figure for a cutscene (a cart, a person) standing on `tile`: a sprite of `art`.
+func actor(art: String, tile: Vector2) -> Node2D:
+	var n := Node2D.new()
+	n.position = Iso.to_world(tile)
+	n.add_child(Art.sprite(art))
+	game.world.objects.add_child(n)
+	return n
+
+
+## Moves `n` along `tiles` (grid positions) in `time` real seconds.
+func move_actor(n: Node2D, tiles: Array, time: float) -> void:
+	if tiles.size() < 2:
+		return
+	var tw := n.create_tween()
+	tw.set_ignore_time_scale(true)
+	var per := time / float(tiles.size() - 1)
+	if Iso.to_world(Vector2(tiles[-1])).x < Iso.to_world(Vector2(tiles[0])).x:
+		n.scale.x = -1.0  # (art faces right)
+	for i in range(1, tiles.size()):
+		tw.tween_property(n, "position", Iso.to_world(Vector2(tiles[i])), per)
+
+
+## The last `n` road tiles a wagon (or an enemy) takes from the map edge to the
+## gate nearest `near` (the edge spawn closest to it); [] if there's none.
+func road_in(near: Vector2i, n: int) -> Array[Vector2i]:
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for sp in game.map.edge_spawns:
+		var d := Vector2(sp).distance_to(Vector2(near))
+		if d < best_d:
+			best_d = d
+			best = sp
+	if best == Vector2i(-1, -1):
+		return [] as Array[Vector2i]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = spec.number
+	var full := game.world.pathing.enemy_route(best, rng)
+	return full.slice(maxi(0, full.size() - n))
+
+
+## The map darkens to dusk over `time` seconds (a cutscene's evening).
+func dusk(time: float) -> void:
+	var cm := CanvasModulate.new()
+	cm.name = "Dusk"
+	cm.color = Color.WHITE
+	game.add_child(cm)
+	var tw := cm.create_tween()
+	tw.set_ignore_time_scale(true)
+	tw.tween_property(cm, "color", Color(0.72, 0.6, 0.55), time)
+
+
+# --- the cards ---------------------------------------------------------------------------------
+
+func _begin(i: int) -> void:
+	step = i
+	_next_in = -1.0
+	_tab = ""
+	var s: Dictionary = steps[i]
+	if s.has("start"):
+		(s["start"] as Callable).call()
+	card.show_lesson(str(s["title"]), str(s["text"]))
+	game.events.debug("scenario card %d: %s" % [i + 1, s["title"]])
+	_point()
+
+
+func _end_steps() -> void:
+	step = steps.size()
+	highlight.clear()
+	card.show_lesson("", "")
+
+
+func _poll_steps(delta: float) -> void:
+	if step < 0 or step >= steps.size():
+		return
+	if _next_in >= 0.0:
+		_next_in -= delta
+		if _next_in < 0.0:
+			if step + 1 >= steps.size():
+				_end_steps()
+				return
+			var next: Dictionary = steps[step + 1]
+			if next.has("ready") and not (next["ready"] as Callable).call():
+				_next_in = 0.0  # (keeps waiting)
+				card.set_lesson_text(str(next.get("wait_text", card.lesson_text())))
+			else:
+				_begin(step + 1)
+		return
+	if (steps[step]["done"] as Callable).call():
+		card.lesson_done()
+		highlight.clear()
+		Sfx.play("chime", 0.0)
+		game.events.debug("scenario card %d done" % (step + 1))
+		spec.on_card_done(self, str(steps[step].get("id", "")))
+		_next_in = STEP_PAUSE
+	else:
+		_point()
+
+
+## Updates the highlight, as the tutorial's (see Tutorial._point).
+func _point() -> void:
+	var s: Dictionary = steps[step]
+	var p: Dictionary = (s["point"] as Callable).call() if s.has("point") else {}
+	var tab := str(p.get("tab", ""))
+	if tab != "" and tab != _tab:
+		game.hud.show_tab(tab, game.hud.dock_open())
+	_tab = tab
+	var target: Control = null
+	for n in p.get("hud", []):
+		var c := game.hud.control_named(n)
+		if c and c.is_visible_in_tree():
+			target = c
+			break
+	if target and target != highlight.target:
+		game.hud.scroll_to(target)
+	var tiles: Array[Vector2i] = []
+	tiles.assign(p.get("tiles", []))
+	var units: Array[MilitaryUnit] = []
+	units.assign(p.get("units", []))
+	highlight.point_at(target, game.hud.dock_clip(target), tiles, units)
+
+
+## The current card's title ("" when none is shown).
+func card_title() -> String:
+	return str(steps[step]["title"]) if step >= 0 and step < steps.size() else ""
+
+
+# --- polling: cards, hints, objectives --------------------------------------------------------
+
+func _process(delta: float) -> void:
+	if game == null or phase == Phase.OVER:
+		return
+	if game.game_over:
+		card.visible = false
+		highlight.visible = false
+		return
+	match phase:
+		Phase.WALK:
+			_walk(delta)
+		Phase.PLAY:
+			card.place()
+			_poll_steps(delta)
+			if _hint_left > 0.0:
+				_hint_left -= delta
+				if _hint_left <= 0.0:
+					card.show_hint("")
+			_poll -= delta
+			if _poll <= 0.0:
+				_poll_now()
+		Phase.OUTRO:
+			if not _outro_started and not game.waves.in_progress():
+				_outro_started = true
+				card.visible = false
+				highlight.clear()
+				_play(spec.outro(self), func(_s: bool) -> void: _win())
+
+
+func _poll_now() -> void:
+	_poll = POLL
+	for hut: Node in _smoke.keys():
+		if not is_instance_valid(hut) or not (hut as Hut).ruined:
+			if is_instance_valid(_smoke[hut]):
+				(_smoke[hut] as Node).queue_free()
+			_smoke.erase(hut)
+	for hn in hints:
+		var id := str(hn["id"])
+		if not _hints_shown.has(id) and (hn["when"] as Callable).call():
+			_hints_shown[id] = true
+			var t := str((hn["text"] as Callable).call()) if hn["text"] is Callable else str(hn["text"])
+			card.show_hint(t)
+			_hint_left = HINT_TIME
+			game.events.important(t)
+			Sfx.play("chime", 0.0)
+	var all := not objectives.is_empty()
+	for o in objectives:
+		var id := str(o["id"])
+		var done: bool = (o["done"] as Callable).call()
+		var detail := str((o["detail"] as Callable).call()) if o.has("detail") else ""
+		card.set_objective(id, done, detail)
+		if done and _goal_state.has(id) and not _goal_state[id]:
+			game.events.info("Objective done: %s" % o["text"])  # (not for one met from the start)
+		_goal_state[id] = done
+		all = all and done
+	if all:
+		phase = Phase.OUTRO
+		game.events.info("Every objective is met")
+		game.waves.hold = true
+		game.waves.call_locked = true
+
+
+# --- the rules ---------------------------------------------------------------------------------
+
+## Whether this scenario lets the village have `key` (a military kind or a villager role).
+func allows(key: String) -> bool:
+	if Config.MILITARY.has(key):
+		return spec.units.is_empty() or spec.units.has(key)
+	return true
+
+
+func allows_building(kind: String) -> bool:
+	return spec.build.is_empty() or spec.build.has(kind)
+
+
+func allows_branches() -> bool:
+	return spec.specialise
+
+
+## Why the scenario refuses a command now, or "".
+func command_error(type: String, args: Dictionary) -> String:
+	var story := phase in [Phase.INTRO, Phase.WALK, Phase.ARRIVAL]
+	match type:
+		"place_building":
+			if not allows_building(str(args.get("kind", ""))):
+				return "That can't be built yet"
+		"recruit_unit", "send_unit":
+			if not allows(str(args.get("kind", ""))):
+				return "That unit can't be recruited yet"
+		"upgrade_unit":
+			var u = game.entity(int(args.get("unit", 0)))
+			var to := str(args.get("to", ""))
+			if not allows_branches() and u is MilitaryUnit and to != "" and to != (u as MilitaryUnit).kind:
+				return "Units can't specialise yet"
+		"hero_mode", "hero_support", "attack_camp":
+			if story:
+				return "%s is on her way home" % game.hero.label()
+		"call_wave":
+			if story:
+				return "Not yet"
+	return ""
+
+
+func _on_villager_died(civ: Civilian, reason: String, _cause: String) -> void:
+	if spec.fail_on_villager_death and phase != Phase.OVER:
+		lose(spec.death_text(civ, reason))
+
+
+func _on_hero_downed() -> void:
+	if not spec.hero_revives and phase != Phase.OVER:
+		lose("%s was struck down, and nobody can bring her back here." % game.hero.label())
+
+
+func _on_wave_started(n: int) -> void:
+	if n == 1:
+		game.waves.hold = false  # (from now on the countdown runs)
+	spec.on_wave_started(self, n)
+
+
+func _on_wave_finished(n: int) -> void:
+	spec.on_wave_finished(self, n)
+	if n >= spec.waves.size() and phase == Phase.PLAY:
+		game.events.info("That was the last wave")
+
+
+## The scenario is lost: `why` on the defeat screen.
+func lose(why: String) -> void:
+	if phase == Phase.OVER or game.game_over:
+		return
+	phase = Phase.OVER
+	if cutscene:
+		cutscene.skip()
+	card.visible = false
+	highlight.visible = false
+	game.events.important("Scenario lost: %s" % why)
+	game.end_game("%s failed" % spec.title, "%s\nTry again: the scenario starts over." % why)
+
+
+func _win() -> void:
+	phase = Phase.OVER
+	game.events.info("Scenario %d complete" % spec.number)
+	won.emit()
+	game.end_game("%s: complete" % spec.title, "Scenario %d of the campaign is done." % spec.number, true)
+
+
+# --- helpers for a scenario's cards and objectives -------------------------------------------
+
+## The player's watchtowers; `walls`: the wall towers too.
+func towers(walls := false) -> Array:
+	return game.player_village.buildings().filter(func(b: Building) -> bool: return b is Tower and (walls or b.kind == "tower"))
+
+
+func farms() -> Array:
+	return game.player_village.buildings().filter(func(b: Building) -> bool: return b is Farm)
+
+
+## The village's pieces of `kind` ("gate", "wall", "wall_tower", "hut").
+func pieces(kind: String) -> Array:
+	return game.player_village.buildings().filter(func(b: Building) -> bool: return b.kind == kind)
+
+
+## Standing at full HP, with no repair, rebuild or upgrade left to do.
+func whole(b: Building) -> bool:
+	if b is Hut:
+		return (b as Hut).is_intact()
+	return b.complete and not b.devastated and b.hp >= b.max_hp() - 0.01 and not b.repairing
+
+
+func first_tiles(list: Array) -> Array[Vector2i]:
+	return (list[0] as Building).tiles() if not list.is_empty() else [] as Array[Vector2i]
+
+
+## Placing a `kind`: its Build entry (until placing), and the marked tiles.
+func place_point(kind: String, tiles: Array) -> Dictionary:
+	var placing := game.mode == Game.Mode.BUILD and game.build_kind == kind
+	return {"hud": [] if placing else ["build:" + kind, "tab:build", "dock"], "tab": "build", "tiles": tiles}
+
+
+## Manning `posts`: the recruit entry for `kind`, the reserve while a unit
+## waits there, nothing in the dock while one walks to its post.
+func unit_point(kind: String, posts: Array) -> Dictionary:
+	var tiles := first_tiles(posts)
+	if not game.army.reserve().is_empty():
+		return {"hud": ["reserve", "tab:army", "dock"], "tab": "army", "tiles": tiles}
+	if not game.army.walking().is_empty():
+		return {"tiles": tiles}
+	return {"hud": ["army:" + kind, "tab:army", "dock"], "tab": "army", "tiles": tiles}
+
+
+## Every unit's kind and level now (a card that waits for a promotion).
+func mark_units() -> void:
+	mark = {}
+	for u in game.army.units:
+		mark[u] = [u.kind, u.level]
+
+
+## A unit has gone up a level (or specialised) since mark_units.
+func unit_promoted() -> bool:
+	for u in game.army.units:
+		if mark.has(u) and (u.kind != mark[u][0] or u.level > int(mark[u][1])):
+			return true
+	return false

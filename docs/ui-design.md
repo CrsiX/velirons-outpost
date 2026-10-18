@@ -26,8 +26,8 @@ Big touch targets everywhere, so mouse and fingers work the same.
 
 ## 2. Title screen (`title_screen.gd`, `title_backdrop.gd`)
 
-- **Main page:** Singleplayer, Multiplayer, Tutorial, Library, Map Editor and Exit, each with its own
-  icon at the same size. Exit is hidden in the browser (`OS.has_feature("web")`), since a page can't
+- **Main page:** Campaign, Singleplayer, Multiplayer, Tutorial, Library, Map Editor and Exit, each with its own
+  icon at the same size (Campaign: a crimson banner, `icon_campaign`). Exit is hidden in the browser (`OS.has_feature("web")`), since a page can't
   close its tab. **Map Editor** opens `scenes/map_editor.tscn` (docs/map-editor-design.md).
 - **Singleplayer page:** Continue (only with a single-player save: the newest one, autosave or
   manual, with a line under it saying what it is, "Wave 7 · Highlands · Normal"; then it is the
@@ -41,6 +41,16 @@ Big touch targets everywhere, so mouse and fingers work the same.
   (`user://player.cfg`).
 - **Multiplayer page:** `MultiplayerMenu` (docs/multiplayer-design.md). The title screen opens on it
   when a LAN session is still open (coming back from a game).
+- **Campaign page:** one button per built scenario ("1. Homecoming", the first in primary style) with its
+  line under it (`Scenario.blurb`), "Scenarios 2 to 11 are still to come.", Back (Esc too). A scenario
+  button sets `Settings.scenario_next` and starts the game scene (docs/scenarios-design.md §7).
+- **In a scenario** (docs/scenarios-design.md §7): its **card** sits top left where the tutorial's does
+  (`ScenarioCard`): a heading ("Scenario 1: Homecoming ▾", a tap folds the card to it), the teaching
+  card (title, text, a tick when done), a hint in orange when one comes up (14 s), and the objectives,
+  each with a dot or a tick and its progress ("4 / 9"). The highlight is the tutorial's. **Cutscenes**
+  (`Cutscene`, a CanvasLayer over everything): black bars top and bottom (9 % each), the HUD hidden, a
+  dialogue box at the bottom (at most 900 px wide; portrait 112 px, 80 px on narrow screens; the
+  speaker's name in their colour; "Tap to go on"), title cards in the middle, *Skip* top right.
 - **Tutorial** sets `Settings.tutorial_next` and starts the game scene (docs/tutorial-design.md).
 - **Library** opens the same `Library` control the game uses (§9). There is no game to pause here.
 - **Keys:** Enter opens the Singleplayer page, and on it continues the newest save (or, without
@@ -87,8 +97,8 @@ Big touch targets everywhere, so mouse and fingers work the same.
   - **Food**: amount and rate, "123 (+4/min)", the rate smaller and grey. The amount turns red while the village starves.
   - **Material** (a button): opens the trade dialog to buy material with gold.
   - **People**: "civilians / huts", a button that opens the villager list (§7).
-  - **Hero**: `{xp}` and his XP, with a health bar along its bottom edge (`HERO_HP_BAR` 7 px). It is
-    green from 50 %, yellow from 20 %, red below, and empty while he is downed. The button opens the
+  - **Hero**: `{xp}` and her XP, with a health bar along its bottom edge (`HERO_HP_BAR` 7 px). It is
+    green from 50 %, yellow from 20 %, red below, and empty while she is downed. The button opens the
     hero panel.
 
   The right group holds the wave controls:
@@ -217,11 +227,11 @@ Big touch targets everywhere, so mouse and fingers work the same.
   - level, HP and XP;
   - one icon button per mode, the current one framed (Support only in co-op, with its village toggle);
   - a hint for the mode (`HERO_MODE_HINTS`; Rest: "Walks back to the village centre and rests there,
-    fighting nobody, healing as he idles.");
+    fighting nobody, healing as she idles.");
   - *Level up* and a status line;
   - training progress (when training);
-  - *Go to hero* (or H): the view moves to him; while he is down, to where he fell (he stays there,
-    unseen, until he revives).
+  - *Go to hero* (or H): the view moves to her; while she is down, to where she fell (she stays there,
+    unseen, until she revives).
 - **Villager list** (the people button): the title "Villagers n / cap". Every villager is listed by
   role (`Config.CIVILIAN_ORDER`) and number, with what they are doing (and their HP when hurt), and:
   - *View*: moves the camera to them (to the village centre for those at home);

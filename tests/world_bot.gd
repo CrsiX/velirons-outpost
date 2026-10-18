@@ -293,7 +293,7 @@ func _test_game() -> void:
 	var went := await wait_until(func() -> bool: return job.obj == free_t, 10.0)
 	check(went, "in Explore mode the hero goes for the found treasure first")
 	var looted := await wait_until(func() -> bool: return free_t.looted, 120.0)
-	check(looted and job.task == HeroExploreJob.Task.CARRYING, "he loots it and carries the loot home")
+	check(looted and job.task == HeroExploreJob.Task.CARRYING, "she loots it and carries the loot home")
 	var paid := await wait_until(func() -> bool: return job.task != HeroExploreJob.Task.CARRYING, 120.0)
 	var r := free_t.reward()
 	check(paid and (not r.has("gold") or game.economy.amount("gold") >= gold0 + int(r["gold"]) - 1), "home again, the village gets the loot (%s)" % Treasure.reward_text(r))
@@ -314,7 +314,7 @@ func _test_game() -> void:
 	check(logs.any(func(l: String) -> bool: return "ruined watchtower. The hero can claim it (Explore mode)" in l), "a found ruin says only the hero can claim it (Info)")
 	hero.set_mode(Hero.Mode.EXPLORE)
 	var first := await wait_until(func() -> bool: return job.obj != null, 10.0)
-	check(first and job.obj == ruin, "claims come before loot: he heads for the ruin")
+	check(first and job.obj == ruin, "claims come before loot: she heads for the ruin")
 	var claimed := await wait_until(func() -> bool: return ruin.village == v, 120.0)
 	check(claimed, "the hero claims the ruined watchtower")
 	var info: Dictionary = ruin.info()
@@ -343,7 +343,7 @@ func _test_game() -> void:
 	check(game.command("attack_camp", {"camp": camp.nid})["ok"] and hero.camp_target == camp, "ordered: the hero sets off to clear it")
 	var cleared := await wait_until(func() -> bool: return camp.cleared, 180.0)
 	await frames(3)
-	check(cleared and hero.camp_target == null, "he clears the camp and goes back to his mode")
+	check(cleared and hero.camp_target == null, "she clears the camp and goes back to her mode")
 	check(guarded.lootable(), "then its treasure is free")
 
 	# Unlock sites: dormant until their wave; then the hero unlocks the unit for everyone.
@@ -352,7 +352,7 @@ func _test_game() -> void:
 		if o is UnlockSite and o.data["site"] == "stone_circle":
 			circle = o
 	check(circle != null and not circle.awake and not circle.claimable(), "the stone circle sleeps before its wave")
-	# (the hero may have passed it on his way to the camp: forget it again)
+	# (the hero may have passed it on her way to the camp: forget it again)
 	circle.found_by.erase(v.id)
 	var fog_e: PackedByteArray = game.fog.explored_of[v.id]
 	for dy in range(-3, 4):
@@ -447,16 +447,16 @@ func _test_game() -> void:
 	check(gb.sprite.position.length() > 0.5 or absf(gb.sprite.rotation) > 0.01, "an enemy's melee blow is animated")
 	gb.take_damage(1e9)
 
-	# The hero levels up with his own XP.
+	# The hero levels up with her own XP.
 	hero.xp = 0
 	var refused := game.command("hero_level_up")
-	check(not refused["ok"] and "Not enough XP" in refused["error"], "without enough XP he can't level up (%s)" % refused.get("error", ""))
+	check(not refused["ok"] and "Not enough XP" in refused["error"], "without enough XP she can't level up (%s)" % refused.get("error", ""))
 	var cost := hero.level_up_cost()
 	hero.xp = cost + 7
 	var up := game.command("hero_level_up")
-	check(up["ok"] and hero.level == 1 and hero.xp == 7 and is_equal_approx(hero.max_hp, Config.hero_stat("hp", 1)) and Config.hero_stat("damage", 1) > Config.HERO["damage"], "spending %d XP he reaches level 2: %d HP, %.0f damage" % [cost, int(hero.max_hp), Config.hero_stat("damage", 1)])
+	check(up["ok"] and hero.level == 1 and hero.xp == 7 and is_equal_approx(hero.max_hp, Config.hero_stat("hp", 1)) and Config.hero_stat("damage", 1) > Config.HERO["damage"], "spending %d XP she reaches level 2: %d HP, %.0f damage" % [cost, int(hero.max_hp), Config.hero_stat("damage", 1)])
 	var fx := hero.get_node_or_null("LevelUpFx")
-	check(fx != null and fx.get_child_count() == 3 and (fx.get_child(1) as Sprite2D).texture == Art.tex("levelup_chevrons"), "glowing chevrons rise over his head")
+	check(fx != null and fx.get_child_count() == 3 and (fx.get_child(1) as Sprite2D).texture == Art.tex("levelup_chevrons"), "glowing chevrons rise over her head")
 	var y0: float = fx.position.y if fx else 0.0
 	await frames(3)
 	check(is_instance_valid(fx) and fx.position.y < y0, "and float upwards")
@@ -464,7 +464,7 @@ func _test_game() -> void:
 	check(gone, "then fade away")
 	game.hud._hero_panel.visible = true
 	game.hud._refresh_hero()
-	check("Level 2" in game.hud._hero_stats.text and ("Level up to 3  (%d XP)" % hero.level_up_cost()) == Hud.button_text(game.hud._hero_level_button) and game.hud._hero_level_button.disabled, "his panel shows the level and the next level's cost")
+	check("Level 2" in game.hud._hero_stats.text and ("Level up to 3  (%d XP)" % hero.level_up_cost()) == Hud.button_text(game.hud._hero_level_button) and game.hud._hero_level_button.disabled, "her panel shows the level and the next level's cost")
 	game.hud._hero_panel.visible = false
 	check(Config.hero_level_cost(Config.HERO_MAX_LEVEL - 1) == 0 and Config.hero_level_cost(0) < Config.hero_level_cost(Config.HERO_MAX_LEVEL - 2), "each level costs more; none past the last")
 
@@ -485,8 +485,8 @@ func _test_game() -> void:
 	hero.take_damage(1e9)
 	await frames(2)
 	var sack: MapObject = w.map_objects.back() if w.map_objects.size() > n0 else null
-	check(sack is Treasure and sack.data.get("sack", false) and (sack as Treasure).reward().get("gold", 0) == 50, "downed while carrying, the hero drops the loot where he fell")
-	check(hero.level == 1 and hero.xp == 0, "downed, he loses his XP but keeps his level")
+	check(sack is Treasure and sack.data.get("sack", false) and (sack as Treasure).reward().get("gold", 0) == 50, "downed while carrying, the hero drops the loot where she fell")
+	check(hero.level == 1 and hero.xp == 0, "downed, she loses her XP but keeps her level")
 	game.queue_free()
 	await frames(3)
 

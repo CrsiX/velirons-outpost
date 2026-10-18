@@ -338,7 +338,7 @@ func _test_help() -> void:
 	var t1: Tower = v1.buildings().filter(func(b: Building) -> bool: return b is Tower)[0]
 	check(game.commands.submit(v1, "station_unit", {"unit": u.nid, "post": t1.nid})["ok"], "the new owner can station it like any of its own units")
 
-	# The hero supports the other village (no camp guard on his way to spoil it).
+	# The hero supports the other village (no camp guard on her way to spoil it).
 	await clear_enemies()
 	var hero := v0.hero
 	await _tap(hud._hero_button)
@@ -346,15 +346,15 @@ func _test_help() -> void:
 	check(game.command("hero_mode", {"mode": Hero.Mode.SUPPORT})["ok"] and hero.support_target == v1, "Support mode picks the other village")
 	hud._refresh_hero()
 	await frames(2)
-	check(hud._hero_support_button.is_visible_in_tree() and v1.village_name in hud._hero_support_button.text and "defends it" in hud._hero_mode_hint.text and hud._hero_mode_word.text == "supporting" and hud._hero_mode_buttons[Hero.Mode.SUPPORT].visible, "the panel shows a second toggle with the village he supports (\"Hero: supporting\", Support icon shown in co-op)")
+	check(hud._hero_support_button.is_visible_in_tree() and v1.village_name in hud._hero_support_button.text and "defends it" in hud._hero_mode_hint.text and hud._hero_mode_word.text == "supporting" and hud._hero_mode_buttons[Hero.Mode.SUPPORT].visible, "the panel shows a second toggle with the village she supports (\"Hero: supporting\", Support icon shown in co-op)")
 	var walk := {"ok": true, "last": hero.grid_pos}
 	var there := await wait_until(func() -> bool:
 		walk["ok"] = walk["ok"] and hero.grid_pos.distance_to(walk["last"]) < 1.0
 		walk["last"] = hero.grid_pos
 		return hero.at_home and hero.grid_pos.distance_to(Vector2(v1.center)) < 0.3, 90.0)
-	check(there and walk["ok"] and ("defending %s" % v1.village_name) in hero.status(), "he walks to %s and stands guard there (%s)" % [v1.village_name, hero.status()])
+	check(there and walk["ok"] and ("defending %s" % v1.village_name) in hero.status(), "she walks to %s and stands guard there (%s)" % [v1.village_name, hero.status()])
 	var own_mode := v1.hero.mode
-	check(game.commands.submit(v1, "hero_mode", {"mode": Hero.Mode.REST})["ok"] and hero.mode == Hero.Mode.SUPPORT and v1.hero.mode == Hero.Mode.REST, "the supported village's orders go to its own hero, never to him")
+	check(game.commands.submit(v1, "hero_mode", {"mode": Hero.Mode.REST})["ok"] and hero.mode == Hero.Mode.SUPPORT and v1.hero.mode == Hero.Mode.REST, "the supported village's orders go to its own hero, never to her")
 	game.commands.submit(v1, "hero_mode", {"mode": own_mode})
 	var g: Vector2i = v1.gates[0]
 	var foe_at := Vector2(game.world.pathing.nearest_road(g + (g - v1.center).sign() * 3))
@@ -364,20 +364,20 @@ func _test_help() -> void:
 	foe.set_grid_pos(foe_at)
 	var xp0 := hero.xp
 	var fights := await wait_until(func() -> bool: return hero.target == foe and hero.xp > xp0, 30.0)
-	check(fights, "an enemy at %s's gate: he goes out and fights it, earning XP" % v1.village_name)
+	check(fights, "an enemy at %s's gate: she goes out and fights it, earning XP" % v1.village_name)
 	foe.take_damage(1e9)
 	hero.hp = hero.max_hp * 0.5
 	var back := await wait_until(func() -> bool: return hero.at_home and hero.grid_pos.distance_to(Vector2(v1.center)) < 0.3, 60.0)
 	var hp_b := hero.hp
 	await wait_until(func() -> bool: return hero.hp > hp_b + 1.0, Config.HERO["rest_delay"] + 6.0)
-	check(back and hero.hp > hp_b, "back at %s's centre he rests and heals there" % v1.village_name)
+	check(back and hero.hp > hp_b, "back at %s's centre she rests and heals there" % v1.village_name)
 	hero.take_damage(1e9)
 	game.waves.wave_finished.emit(game.waves.wave)
 	await frames(3)
-	check(not hero.dead and hero.mode == Hero.Mode.SUPPORT and hero.grid_pos.distance_to(Vector2(v0.center)) < 3.0, "downed, he revives at home, still in Support mode")
+	check(not hero.dead and hero.mode == Hero.Mode.SUPPORT and hero.grid_pos.distance_to(Vector2(v0.center)) < 3.0, "downed, she revives at home, still in Support mode")
 	var d0 := hero.grid_pos.distance_to(Vector2(v1.center))
 	await wait_until(func() -> bool: return hero.grid_pos.distance_to(Vector2(v1.center)) < d0 - 3.0, 20.0)
 	check(hero.grid_pos.distance_to(Vector2(v1.center)) < d0 - 3.0, "and heads back to %s" % v1.village_name)
 	game.command("hero_mode", {"mode": Hero.Mode.DEFEND})
 	var home := await wait_until(func() -> bool: return hero.at_home and hero.grid_pos.distance_to(Vector2(v0.center)) < 0.3, 90.0)
-	check(home, "back in Defend mode he walks home")
+	check(home, "back in Defend mode she walks home")

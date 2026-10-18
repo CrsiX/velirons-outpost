@@ -1,19 +1,19 @@
 class_name HeroExploreJob
 extends ExploreJob
 ## The hero's Explore mode (docs/world-design.md §9.1): before exploring
-## unknown land he goes for known things only a hero can do, the nearest of
+## unknown land she goes for known things only a hero can do, the nearest of
 ## the highest priority first, anywhere on the map:
 ##   1. claims: awakened unit-unlock sites and ruined watchtowers,
 ##   2. looting unguarded treasures (first come, first served),
 ##   3. exploring, as the explorer does.
-## Loot is carried home and paid there; downed on the way, he drops it.
+## Loot is carried home and paid there; downed on the way, she drops it.
 
 enum Task { NONE, TO_OBJECT, WORKING, CARRYING }
 
 var task := Task.NONE
 var obj: MapObject = null
 var work_left := 0.0
-## What he carries home (a treasure's reward) and where it came from.
+## What she carries home (a treasure's reward) and where it came from.
 var carrying: Dictionary = {}
 var carrying_from := ""
 var _look := 0.0
@@ -68,7 +68,7 @@ func _pick_task() -> bool:
 	if cands.is_empty():
 		return false
 	cands.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
-	# The first one he can walk to (paths only for as many as needed).
+	# The first one she can walk to (paths only for as many as needed).
 	var best: MapObject = null
 	for c in cands:
 		if not w.game.world.pathing.find_path(w.current_tile(), (c[2] as MapObject).visit_tile()).is_empty():
@@ -156,7 +156,7 @@ func _pay() -> void:
 	(w as Hero).changed.emit()
 
 
-## Downed (or the mode changed) while carrying: the loot stays where he is.
+## Downed (or the mode changed) while carrying: the loot stays where she is.
 func drop_loot() -> void:
 	if task == Task.CARRYING and not carrying.is_empty():
 		w.game.world.add_dropped_loot(w.current_tile(), carrying)
@@ -185,7 +185,7 @@ func resume() -> void:
 
 func on_evade() -> void:
 	if task == Task.CARRYING:
-		return  # (running home is where he was going anyway)
+		return  # (running home is where she was going anyway)
 	_drop_task()
 	super.on_evade()
 

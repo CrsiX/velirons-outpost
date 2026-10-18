@@ -140,6 +140,7 @@ var _hero_status: Label
 var _hero_mode_buttons: Array[Button] = []
 var _hero_mode_icon: TextureRect
 var _hero_mode_word: Label
+var _hero_name_label: Label
 var _hero_mode_hint: Label
 var _hero_train_label: Label
 var _hero_train_bar: ProgressBar
@@ -151,9 +152,9 @@ const HERO_MODE_HINTS: Array[String] = [
 	"Builds like a builder, at half speed.",
 	"Explores like an explorer, with a shorter sight range.",
 	"Gathers corpses like a gatherer, 2 at a time.",
-	"Passes his XP on to the unit at the Training Grounds (free level-ups). Only useful with Training Grounds and a unit stationed there; otherwise he defends.",
-	"Walks back to the village centre and rests there, fighting nobody, healing as he idles.",
-	"Walks to another village and defends it like at home: its gates, its centre. He keeps his XP and heals there. That village can't give him orders.",
+	"Passes her XP on to the unit at the Training Grounds (free level-ups). Only useful with Training Grounds and a unit stationed there; otherwise she defends.",
+	"Walks back to the village centre and rests there, fighting nobody, healing as she idles.",
+	"Walks to another village and defends it like at home: its gates, its centre. She keeps her XP and heals there. That village can't give her orders.",
 ]
 var _speed_button: Button
 var _speed_index := 0
@@ -204,6 +205,7 @@ var _relayout_queued := false
 var _tab_buttons: Dictionary = {}
 var _tab_pages: Dictionary = {}
 var _build_buttons: Dictionary = {}
+var _build_panels: Dictionary = {}
 ## A Build entry pressed (its kind), and whether it's being dragged onto the map.
 var _press_build := ""
 var _dragging_build := false
@@ -237,6 +239,8 @@ var _overlay_title: Label
 var _overlay_sub: Label
 var _overlay_button: Button
 var _overlay_menu_button: Button
+## The overlay shows a won scenario (its second button plays it again).
+var _overlay_won := false
 
 var _press_unit: MilitaryUnit = null
 var _press_pos := Vector2.ZERO
@@ -544,7 +548,7 @@ func _build_topbar() -> void:
 	_hero_button.add_theme_constant_override("icon_max_width", 26)  # (room for the health bar)
 	_hero_button.add_theme_font_size_override("font_size", 18)
 	_hero_button.tooltip_text = "The hero: tap for orders"
-	# His health along the bottom of the button.
+	# Her health along the bottom of the button.
 	_hero_hp_bar = Control.new()
 	_hero_hp_bar.name = "HealthBar"
 	_hero_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -727,8 +731,8 @@ func hotkey_speed(speed: float) -> void:
 	set_speed_index(Game.SPEEDS.find(speed))
 
 
-## H and the hero panel's button: the view moves to the hero, or, while he is
-## down, to where he fell (he stays there, unseen, until he revives).
+## H and the hero panel's button: the view moves to the hero, or, while she is
+## down, to where she fell (she stays there, unseen, until she revives).
 func go_to_hero() -> void:
 	var h: Hero = game.hero
 	if h == null:
@@ -837,7 +841,8 @@ func _build_hero_panel() -> void:
 	v.add_child(head)
 	head.add_theme_constant_override("separation", 6)
 	head.add_child(_icon(Art.tex("icon_hero"), 34))
-	head.add_child(_label("Hero:", 22, UiTheme.GOLD))
+	_hero_name_label = _label("Hero:", 22, UiTheme.GOLD)
+	head.add_child(_hero_name_label)
 	_hero_mode_icon = _icon(Art.tex(Hero.MODE_ICONS[0]), 30)
 	head.add_child(_hero_mode_icon)
 	_hero_mode_word = _label(Hero.MODE_WORDS[0], 22, UiTheme.GOLD)
@@ -854,7 +859,7 @@ func _build_hero_panel() -> void:
 	_hero_stats.add_theme_font_size_override("normal_font_size", 17)
 	_hero_stats.add_theme_color_override("default_color", UiTheme.TEXT)
 	v.add_child(_hero_stats)
-	# His modes, one icon each (the current one framed).
+	# Her modes, one icon each (the current one framed).
 	var modes := HBoxContainer.new()
 	modes.add_theme_constant_override("separation", 5)
 	v.add_child(modes)
@@ -871,14 +876,14 @@ func _build_hero_panel() -> void:
 		modes.add_child(b)
 		_hero_mode_buttons.append(b)
 	_hero_support_button = _button("", Vector2(0, 48))
-	_hero_support_button.tooltip_text = "Tap to pick the village he supports"
+	_hero_support_button.tooltip_text = "Tap to pick the village she supports"
 	_hero_support_button.pressed.connect(func() -> void:
 		var cur: Village = game.hero.support_target
 		_do("hero_support", {"target": _next_other(cur.id if cur else -1)})
 		_refresh_hero())
 	v.add_child(_hero_support_button)
 	_hero_level_button = _button("", Vector2(0, 46))
-	_hero_level_button.tooltip_text = "Spend the hero's XP on his next level: more HP, a harder sword"
+	_hero_level_button.tooltip_text = "Spend the hero's XP on her next level: more HP, a harder sword"
 	_hero_level_button.pressed.connect(func() -> void:
 		_do("hero_level_up")
 		_refresh_hero())
@@ -1089,6 +1094,7 @@ func _refresh_hero() -> void:
 	_hero_status.text = "Now: " + st
 	_hero_mode_icon.texture = Art.tex(Hero.MODE_ICONS[h.mode])
 	_hero_mode_word.text = Hero.MODE_WORDS[h.mode]
+	_hero_name_label.text = "%s:" % h.display_name()
 	for i in _hero_mode_buttons.size():
 		var b := _hero_mode_buttons[i]
 		b.visible = i != Hero.Mode.SUPPORT or game.villages.size() > 1  # (single player: nobody to support)
@@ -1107,7 +1113,7 @@ func _refresh_hero() -> void:
 		else:
 			_hero_train_label.text = "%s level %d -> %d: %d / %d XP needed. Hero has %d XP to give." % [u.display_name(), u.level + 1, u.level + 2, int(u.train_xp), int(u.train_xp_needed()), h.xp]
 			if h.train_pause > 0.0:
-				_hero_train_label.text += "\nLevel up! Training goes on in %d s: change his mode now to keep his XP." % ceili(h.train_pause)
+				_hero_train_label.text += "\nLevel up! Training goes on in %d s: change her mode now to keep her XP." % ceili(h.train_pause)
 			_hero_train_bar.max_value = u.train_xp_needed()
 			_hero_train_bar.value = u.train_xp
 
@@ -1486,6 +1492,7 @@ func _build_page_build() -> Control:
 		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_icons(spec["cost"]), _on_build_pressed.bind(kind))
 		grid.add_child(e["panel"])
 		_build_buttons[kind] = e["button"]
+		_build_panels[kind] = e["panel"]
 		(e["button"] as Button).button_down.connect(_on_build_down.bind(kind))
 		e["button"].tooltip_text = "Tap, then tap the map; or drag it onto the map"
 	var hint := _label("Village huts can only be rebuilt: tap a ruined hut inside the walls.", 14, UiTheme.MUTED)
@@ -2917,7 +2924,11 @@ func _build_overlay() -> void:
 	_overlay_load_button.visible = false
 	v.add_child(_overlay_load_button)
 	_overlay_menu_button = _button("Main menu", Vector2(0, 56))
-	_overlay_menu_button.pressed.connect(func() -> void: game.go_to_title())
+	_overlay_menu_button.pressed.connect(func() -> void:
+		if _overlay_won:  # (a scenario: Play again)
+			game.restart()
+		else:
+			game.go_to_title())
 	v.add_child(_overlay_menu_button)
 	_stats_overlay_button = _button("Statistics", Vector2(0, 56))
 	_stats_overlay_button.icon = Art.tex("icon_stats")
@@ -2979,12 +2990,16 @@ func show_session_ended(reason: String) -> void:
 	_connect_overlay(func() -> void: game.go_to_title())
 
 
-func show_game_over(title: String, subtitle: String) -> void:
+## The game is over: lost, or `won` (a scenario: then the button goes back to
+## the title, and Play again is the second one).
+func show_game_over(title: String, subtitle: String, won := false) -> void:
 	_overlay_title.text = title
-	_overlay_title.add_theme_color_override("font_color", UiTheme.BAD)
+	_overlay_title.add_theme_color_override("font_color", UiTheme.GOOD if won else UiTheme.BAD)
 	_overlay_sub.text = subtitle
 	var again_tutorial := game.tutorial != null and game.tutorial.active
-	_overlay_button.text = "Main menu" if game.networked else ("Try the tutorial again" if again_tutorial else "Try again")
+	_overlay_button.text = "Main menu" if game.networked or won else ("Try the tutorial again" if again_tutorial else "Try again")
+	_overlay_won = won
+	_overlay_menu_button.text = "Play again" if won else "Main menu"
 	_overlay_menu_button.visible = not game.networked  # (networked: the main button is the way out)
 	_overlay_load_button.visible = not game.networked and not game.tutorial_mode and game.backdrop == null and SaveGame.newest_of(game.game_id) != ""
 	_stats_overlay_button.visible = game.backdrop == null
@@ -2992,7 +3007,7 @@ func show_game_over(title: String, subtitle: String) -> void:
 	_refresh_stats_button()
 	_info_panel.visible = false
 	var on_press := func() -> void:
-		if game.networked:
+		if game.networked or won:
 			game.go_to_title()
 		else:
 			game.restart(again_tutorial)
@@ -3163,11 +3178,12 @@ func _refresh() -> void:
 	_refresh_wave()
 	for kind in _build_buttons:
 		(_build_buttons[kind] as Button).disabled = not game.economy.can_afford(Config.BUILDINGS[kind]["cost"])
+		(_build_panels[kind] as Control).visible = game.allows_building(kind)
 	for role in _recruit_rows:
 		var e: Dictionary = _recruit_rows[role]
 		(e["title"] as Label).text = "%s  ×%d" % [Config.CIVILIANS[role]["name"], game.population.count(role)]
 		(e["button"] as Button).disabled = game.population.recruit_error(role) != ""
-		(e["panel"] as Control).visible = game.is_unlocked(role)
+		(e["panel"] as Control).visible = game.available(role)
 		if role == "farmer":
 			(e["desc"] as Label).text = "%s\nWithout a farm: %d" % [Config.CIVILIANS[role]["desc"], game.population.free_farmers().size()]
 		elif role == "forester":
@@ -3178,7 +3194,7 @@ func _refresh() -> void:
 			(e["desc"] as Label).text = "%s\nCorpses lying around: %d" % [Config.CIVILIANS[role]["desc"], game.corpses.count()]
 	for kind in _military_buttons:
 		(_military_buttons[kind] as Button).disabled = not game.economy.can_afford(Config.MILITARY[kind]["cost"])
-		(_military_panels[kind] as Control).visible = game.is_unlocked(kind)
+		(_military_panels[kind] as Control).visible = game.available(kind)
 	_rebuild_reserve()
 	_refresh_send()
 	_refresh_dialogs()
@@ -3217,12 +3233,16 @@ func _refresh_wave() -> void:
 		_wave_label.text = "Wave %d attacking" % w.wave
 		set_rich_text(_call_button, "Fighting...")
 		_call_button.disabled = true
+	elif w.all_done():
+		_wave_label.text = "All %d waves survived" % w.wave  # (a scenario's last wave)
+		set_rich_text(_call_button, "No more waves")
+		_call_button.disabled = true
 	elif w.call_locked:
 		_wave_label.text = "Wave %d: not yet" % (w.wave + 1)  # (the tutorial starts it)
 		set_rich_text(_call_button, "Not yet")
 		_call_button.disabled = true
 	else:
 		var s := int(ceil(maxf(w.countdown, 0.0)))
-		_wave_label.text = "Wave %d waits" % (w.wave + 1) if w.hold and game.tutorial_mode else "Wave %d in %d:%02d" % [w.wave + 1, s / 60, s % 60]
+		_wave_label.text = "Wave %d waits" % (w.wave + 1) if w.hold and (game.tutorial_mode or game.scenario) else "Wave %d in %d:%02d" % [w.wave + 1, s / 60, s % 60]
 		set_rich_text(_call_button, "Call now +%d {gold}" % w.early_call_bonus())
 		_call_button.disabled = false

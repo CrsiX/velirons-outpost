@@ -101,7 +101,7 @@ Counters add up from the start of the game. They are grouped as in the table.
 **Co-op** (shown only with 2+ villages)
 - Caravans sent and received: gold, food and material, after tax.
 - Units sent and received.
-- Time the hero spent in Support mode, and kills he made there.
+- Time the hero spent in Support mode, and kills she made there.
 
 ## 5. Where the numbers come from (hooks)
 

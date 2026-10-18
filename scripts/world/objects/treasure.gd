@@ -3,7 +3,7 @@ extends MapObject
 ## A treasure (docs/world-design.md §9.2): looted by the hero in Explore mode,
 ## first come first served, once no camp guards it. The reward is paid when
 ## the looter gets home; a looter downed on the way drops it (a "sack"
-## treasure appears where he fell, anyone can pick it up).
+## treasure appears where she fell, anyone can pick it up).
 
 var looted := false
 ## The hero looting it right now (so two don't pick the same one).

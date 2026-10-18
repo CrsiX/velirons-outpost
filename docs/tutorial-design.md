@@ -34,7 +34,8 @@ Goals:
 - Testable headless like the rest (`tests/tutorial_bot.gd` drives it).
 
 Non-goals:
-- No voice-over, no cutscenes. New art: only the highlight (outline and
+- No voice-over, no cutscenes (the campaign's scenarios have them, see
+  scenarios-design.md §7; this tutorial stays without). New art: only the highlight (outline and
   arrow) and the open-book icon.
 - No tutorial in co-op. The library works in co-op too.
 - No change to the rules of a normal game.
@@ -51,7 +52,7 @@ Non-goals:
 - **The village starts small:** a builder and a forester, the forester's
   camp, and nothing else. No farm, no farmer, no explorer, no gatherer.
   Every other role is recruited during the steps.
-- **The hero starts in Rest mode**, not Defend. He stays in the village
+- **The hero starts in Rest mode**, not Defend. She stays in the village
   centre, so the tower does the fighting in wave 1.
 - **Waves wait:** there's no countdown (the wave text says "Wave N waits").
   Wave 1 starts when the player calls it (step 6), and wave 2 when step 10
@@ -96,17 +97,17 @@ Non-goals:
 | 5 | Food | "Villagers need to eat. Place a farm on the marked field, then recruit a farmer to work it. The top bar shows your food and how it changes per minute." | a farm is finished and a farmer works it |
 | 6 | Waves | "Ready? Start the first wave now with Call now: calling early pays bonus gold." | wave 1 is called |
 | 7 | Gatherer | (starts only once wave 1 has left its first corpse; meanwhile the card says "Here they come! Watch your archer on the tower.") "Enemies leave corpses. A gatherer brings them home for gold and food. Recruit one in the Village tab." | a gatherer is recruited and has brought a corpse home |
-| 8 | Hero | "This is your hero. Tap him in the top bar and send him exploring: he uncovers the fog and earns XP." | the hero is in Explore mode and has earned XP (or a level) since the step began |
-| 9 | Hero levels | "He has enough XP for a level: more HP and a harder sword. Level him up." (the tutorial tops up his XP to the 50 needed if he has less) | the hero reaches level 2 |
+| 8 | Hero | "This is your hero. Tap her in the top bar and send her exploring: she uncovers the fog and earns XP." | the hero is in Explore mode and has earned XP (or a level) since the step began |
+| 9 | Hero levels | "She has enough XP for a level: more HP and a harder sword. Level her up." (the tutorial tops up her XP to the 50 needed if she has less) | the hero reaches level 2 |
 | 10 | Barracks | "Barracks send their units out to fight what comes near. Build one by the road and station a shield bearer." | any unit is stationed on a barracks bench |
-| 11 | Unit levels | "Units get better with levels. Tap one and promote it with gold. (Later, training grounds let the hero pass on his XP to a unit instead.)" | any unit goes up a level (by gold or by training) or specialises |
+| 11 | Unit levels | "Units get better with levels. Tap one and promote it with gold. (Later, training grounds let the hero pass on her XP to a unit instead.)" | any unit goes up a level (by gold or by training) or specialises |
 | 12 | Tower upgrades | "Towers can be upgraded too: tap the watchtower and upgrade it. Your builder does the work." | a tower (watchtower or wall tower) reaches level 2 |
 | 13 | End ("Well done!") | "That's all you need. Waves get bigger and new enemies show up. Survive as long as you can!" (Play on / Back to title) | a choice is made |
 
 Notes on the list:
 - **The order works.** Every step has what it needs from the steps before
   it: the tower before the archer, the archer before wave 1, wave 1's
-  corpses before the gatherer, and the hero's XP from exploring before his
+  corpses before the gatherer, and the hero's XP from exploring before her
   level-up. The barracks come before wave 2.
 - **No explorer at the start** fits step 8: the hero is the one who
   uncovers the fog, so the player sees it happen.
@@ -201,7 +202,8 @@ Notes on the list:
 - `Config.TUTORIAL`: seed 1337, Highlands, Easy, start villagers and
   buildings, starting resources, the tile for step 2, the field for step 5,
   and the two waves.
-  - As built, the spots are **picked on the map**, so a change to the world
+  - As built, the spots are **picked on the map** (`RoadSpots`,
+    `scripts/tutorial/road_spots.gd`, which the scenarios' cards use too), so a change to the world
     generator can't put them in a river: the waves' road is the last 18 road
     tiles before the gate, coming from the edge spawn nearest by road. The
     watchtower goes next to that road 3 to 7 tiles before the gate, the

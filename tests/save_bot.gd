@@ -298,7 +298,7 @@ func _single() -> void:
 	check(summons.size() == 1 and absf((summons[0] as EarthElemental).hp - 17.0) < 0.01, "the summoner's elemental is back, as hurt as it was")
 	h = game.hero
 	check(h.level == 1 and h.xp == 33 and not h.at_home and (h.jobs[Hero.Mode.EXPLORE] as HeroExploreJob).task == HeroExploreJob.Task.CARRYING and not h.path.is_empty(),
-		"the hero: level 2, his XP, out in the field carrying his loot home (%d, %d, %s, %d)" % [h.level, h.xp, h.at_home, (h.jobs[Hero.Mode.EXPLORE] as HeroExploreJob).task])
+		"the hero: level 2, her XP, out in the field carrying her loot home (%d, %d, %s, %d)" % [h.level, h.xp, h.at_home, (h.jobs[Hero.Mode.EXPLORE] as HeroExploreJob).task])
 	var gath2 := game.entity(ids["gath"]) as Gatherer
 	check(gath2 != null and gath2.job.carried.size() == 2 and not gath2.evading and gath2.job.state == GatherJob.State.TO_CORPSE
 		and gath2.job.target == game.corpses.corpses[0] and gath2.hut != null and gath2.hut.resident == gath2,

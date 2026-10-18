@@ -478,8 +478,8 @@ looted / claimed / taken).
 
 ### 9.1 The hero in Explore mode
 
-The hero's Explore mode has a priority list. He takes the nearest thing of
-the highest priority there is, among what his village has found and he can
+The hero's Explore mode has a priority list. She takes the nearest thing of
+the highest priority there is, among what her village has found and she can
 walk to:
 
 1. **claims:** unlock sites that have awakened (§9.4) and ruined
@@ -487,10 +487,10 @@ walk to:
 2. **looting** unguarded treasures and dropped loot (§9.2);
 3. then **exploring** unknown land.
 
-- There is **no range limit**: he goes wherever the nearest target is, in
+- There is **no range limit**: she goes wherever the nearest target is, in
   any slice.
-- He doesn't loot guarded treasures until their camp is cleared (§9.3), and
-  he never attacks a camp on his own.
+- She doesn't loot guarded treasures until their camp is cleared (§9.3), and
+  she never attacks a camp on her own.
 - The explorer villager only reveals objects. He can't claim, unlock or
   loot. Gatherers don't loot treasures either: besides corpses they only
   pick up dropped loot (§9.2).
@@ -518,13 +518,13 @@ walk to:
   bones of tier 2 or 3 hold a relic instead of gold half the time, at most
   `RELIC_MAX` (2) per map. Cleared lairs can drop one too (§9.6).
 - **Looting:**
-  - The **hero** loots automatically in Explore mode (§9.1). He walks there,
+  - The **hero** loots automatically in Explore mode (§9.1). She walks there,
     loots for the loot time, and carries the reward home. There is no "Send
-    hero" button: fewer choices. Each treasure looted earns him
+    hero" button: fewer choices. Each treasure looted earns her
     `HERO_XP_PER_ACTION` "loot" (10 XP); picking up dropped loot earns none.
   - The reward is paid when the looter gets home, like corpses. If the hero
-    is downed on the way home, or switched to another mode, he drops the
-    loot where he is (a small sack), and anyone can pick it up: a hero in
+    is downed on the way home, or switched to another mode, she drops the
+    loot where she is (a small sack), and anyone can pick it up: a hero in
     Explore mode or a gatherer.
 - **First come, first served:** anyone can loot any treasure, in anyone's
   slice. Whoever finishes looting first gets it, and the log tells everyone.
@@ -549,8 +549,8 @@ walk to:
 - The treasure can only be looted once the camp is cleared.
 - **Sending the hero is an explicit choice**, because it's a real fight: the
   camp's panel has "Attack with the hero". The hero then goes there (whatever
-  mode he was in), fights until the camp is cleared or he is downed, and then
-  goes back to his mode.
+  mode she was in), fights until the camp is cleared or she is downed, and then
+  goes back to her mode.
 - The guards are enemies, so towers and barracks fight any that come within
   their range without an order; only the hero needs it.
 - Once cleared, the treasure counts as unguarded and the hero loots it in
@@ -617,7 +617,7 @@ unlocked).
   tiles from the village (`RUIN_DISTANCE`), always with a road within 2
   tiles (the more road nearby, the likelier the spot).
 - The explorer (or anyone) can **reveal** one. Only the **hero** can
-  **claim** it: in Explore mode he goes there before exploring new land
+  **claim** it: in Explore mode she goes there before exploring new land
   (§9.1). Claiming takes 5 s (`RUIN_CLAIM_TIME`).
 - A claimed ruin belongs to the claiming village, but it's still a ruin.
   **Restoring** is an explicit order: its panel has "Restore (cost)". The
@@ -894,7 +894,7 @@ Everything is in `scripts/core/config.gd`, in two blocks:
     downed;
   - a claimed ruin restored by a builder for half the cost (only when
     ordered);
-  - "Attack with the hero" on a camp: he clears it, then returns to his mode;
+  - "Attack with the hero" on a camp: she clears it, then returns to her mode;
   - the unlock messages at a site's wave (found / not found yet);
   - a global unit unlock reaching every village; the Info log messages;
   - the miner: unlocked by walking up to a mine (with the Info log line),
@@ -934,7 +934,7 @@ All built:
 | D9 | Locked units | Summoner (stone circle, wave 3), apprentice (mage's tower, wave 5) and acolyte (ruined chapel, wave 6); archer, shield bearer and barracks from the start. **Ask how future units are unlocked** |
 | D10 | Neutral places | Ruined watchtowers (claimed by the hero in Explore mode, before new land; the explorer only reveals); lairs by zone, waking from wave 10 (§9.6); mines on the outer edge of ranges, linked to the roads, worked by the miner (unlocked globally when a mine is first reached; one miner per mine, first to arrive; lives in a hut, dies with it; passive gold, 0.25/s). Oases and merchant later |
 | D11 | Water and swamp | Shallow water × 0.5, swamp × 0.7 off the road; enemies cross water only at fords and bridges. Bridges always man-made, their look depends on the zone (stone in meadow … charred in ash land), look only |
-| D12 | Downed looter | Drops the loot where he is; a hero in Explore mode or a gatherer can pick it up |
+| D12 | Downed looter | Drops the loot where she is; a hero in Explore mode or a gatherer can pick it up |
 | D13 | Allocation shape | Equal-area **slices around the centre** for every player count, so every village has some map edge |
 | D14 | Village spot | Best tile within **12 tiles** of the slice's centre (away from water, mountains, volcanoes, the sea, other villages and the border) |
 | D15 | Road links | At least 2 per village for 3+ players (a full triangle for 3, a ring and chords for 4-8). Roads go around mountain ranges or through a pass, or a link is dropped. **2 players are always linked** (regenerate if impossible) |

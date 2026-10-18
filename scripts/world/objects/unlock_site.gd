@@ -10,7 +10,7 @@ extends MapObject
 var awake := false
 ## Someone unlocked the unit (here or at another copy): nothing more to get.
 var used := false
-## The hero on his way to / at it right now.
+## The hero on her way to / at it right now.
 var claimed_by: Node = null
 
 

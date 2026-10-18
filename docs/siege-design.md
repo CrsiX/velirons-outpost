@@ -198,9 +198,9 @@ for scenario tactics later.
 
 ## 6. The hero
 
-In Defend mode he watches the whole wall ring, not just the gates: enemies within
-`alert_radius` of any of his village's pieces (`HERO.alert_radius`). Enemies inside the walls
-come first, then the nearest, then the strongest. In Build mode he repairs like a builder.
+In Defend mode she watches the whole wall ring, not just the gates: enemies within
+`alert_radius` of any of her village's pieces (`HERO.alert_radius`). Enemies inside the walls
+come first, then the nearest, then the strongest. In Build mode she repairs like a builder.
 
 ## 7. UI
 

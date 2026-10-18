@@ -4,7 +4,7 @@ extends CivilianJob
 ## collect "safe" corpses (no living enemy nearby) on land its village has
 ## explored, up to `capacity` per trip,
 ## and brings them home for gold and a little food. Loot a downed hero dropped
-## (a sack) is picked up first, and paid out at home like his loot.
+## (a sack) is picked up first, and paid out at home like her loot.
 
 enum State { RESTING, TO_CORPSE, LOOTING, RETURNING }
 

@@ -12,6 +12,8 @@ var uid := 0
 ## Co-op client: what the host says this villager is doing.
 var net_status := ""
 var role := ""
+## A name of their own (a scenario's named villager: "Einar"); "" for none.
+var given_name := ""
 ## The village this villager (or hero) belongs to; set before setup().
 var village: Village
 ## The hut this villager lives in (every villager has exactly one).
@@ -46,9 +48,9 @@ func status_text() -> String:
 	return net_status if game.is_client else status()
 
 
-## Log name, numbered per role: "farmer 3".
+## Log name, numbered per role: "farmer 3"; a named villager by name.
 func label() -> String:
-	return "%s %d" % [display_name().to_lower(), uid]
+	return given_name if given_name != "" else "%s %d" % [display_name().to_lower(), uid]
 
 
 func _process(delta: float) -> void:

@@ -38,7 +38,7 @@ var received := false
 var ended := false
 var _next_sample := 0.0
 var _wave_started_at := -1.0
-## Per village: when the hero last came back (or the game started); -1 while he's down.
+## Per village: when the hero last came back (or the game started); -1 while she's down.
 var _hero_up_since: Array[float] = []
 
 

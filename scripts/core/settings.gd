@@ -17,6 +17,12 @@ var player_name := ""
 var player_color := 0
 ## The next game is the guided tutorial (set by the title screen, taken by Game).
 var tutorial_next := false
+## The next game is this scenario of the campaign (Campaign; 0: none; set by
+## the title screen's campaign page, taken by Game).
+var scenario_next := 0
+## While a scenario runs: enemy values scaled by these instead of the
+## difficulty's multiplier ({"hp": 0.5, ...}; Scenario.enemy_scale).
+var enemy_scale := {}
 
 const PLAYER_FILE := "user://player.cfg"
 
@@ -40,6 +46,13 @@ func take_tutorial() -> bool:
 	var t := tutorial_next
 	tutorial_next = false
 	return t
+
+
+## The scenario the title screen asked for, once (then it's cleared); 0: none.
+func take_scenario() -> int:
+	var n := scenario_next
+	scenario_next = 0
+	return n
 
 
 ## The Difficulty for "easy" / "normal" / "hard".
@@ -144,5 +157,7 @@ func difficulty_key() -> String:
 	return NAMES[difficulty].to_lower()
 
 
-func enemy_multiplier() -> float:
-	return ENEMY_MULTIPLIER[difficulty]
+## What enemy value `key` (Config.DIFFICULTY_SCALED) is multiplied by: the
+## difficulty's multiplier, unless a scenario sets its own (enemy_scale).
+func enemy_multiplier(key: String = "") -> float:
+	return float(enemy_scale[key]) if enemy_scale.has(key) else ENEMY_MULTIPLIER[difficulty]

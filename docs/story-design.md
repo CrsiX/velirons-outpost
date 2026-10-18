@@ -1,7 +1,7 @@
 # Story design
 
-Status: **planned, nothing of it is built yet.** This page holds the story the game's scenarios, library texts and event log will draw on. It
-changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
+Status: **scenario 1's part is built** (Brenna, Einar and Pell, their portraits, the cutscene format: `scenarios-design.md` §7); the rest is
+planned. This page holds the story the game's scenarios, library texts and event log will draw on. It changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
 *open* is not decided.
 
 ## 1. Premise
@@ -44,7 +44,7 @@ library and journals. A new named character is added only if a scenario needs on
 **The hero** (**Brenna**) is a **woman**. One of the royal knights. She was in the military, so she served heir 2, who later became **evil**. She
 was **betrayed by that side**: Rhodri had the pass held with no relief so that her company could be given to his ritual and bound, and she escaped
 it (scenario 5, section 4). She left and went back to her home town, the outpost. The game's hero (see `hero-design.md`) is this character. Her
-mode-based behaviour stays as it is; the story gives it a face. (The game's texts and `hero-design.md` still say "he" and would change with it.)
+mode-based behaviour stays as it is; the story gives it a face. (The game's texts, its code comments and `hero-design.md` call the hero "she".)
 
 The military's distrust of heir 1 was about a woman **ruling and commanding the realm**, not about women serving in the ranks. The hero is a
 knight who earned her place, which makes her an exception worth a line of story: she served the side whose officers would not have accepted a
@@ -224,7 +224,7 @@ so any one of them can be replayed on its own. The story carries over, not the g
 **Deaths.** In scenarios 1 to 3, at the home village, Brenna revives as in the normal game (her people bring her back). In **all other scenarios
 her being downed is a defeat**, and the player can try again. This includes scenario 10, although it is at home: there is no one left to bring her
 back. Pell's death fails every scenario from 4 on, and Fiona's death is always a defeat. Scenario 1 also fails if any villager dies. These are
-per-scenario settings (to go into `config.gd` when built), and a message on entering the first away scenario should say so.
+per-scenario settings (in each scenario's own file, `scripts/scenarios/scenario_<n>.gd`), and a message on entering the first away scenario should say so.
 
 Each scenario opens and closes with a cutscene (section 8). The outro plays when the scenario's **objective** is fulfilled. The objectives are in
 `scenarios-design.md`. The tutorial is merged into scenarios 1 to 3 (see `scenarios-design.md` section 4).
@@ -238,8 +238,9 @@ The rest of the telling is in places the game already has.
   Brenna wake in a tent on the road home and see the ruined village in the distance.
 - **Outro cutscene (every scenario):** plays when the scenario's objective is fulfilled and gives further information that closes the scenario and
   leads to the next. The campaign's last one is the story's ending, an open end (scenario 11).
-- **Skipping and format:** cutscenes may be skipped by the player. Their format (for example still pictures with text, or a short scene in the
-  game's engine) and whether they can be watched again from the title screen or the library are *open*.
+- **Skipping and format:** cutscenes may be skipped by the player. They play in the game's engine: the map behind, the camera moving, people
+  speaking in dialogue boxes with their portraits (`scenarios-design.md` §7.2). Whether they can be watched again from the title screen or the
+  library is *open*.
 - **Title screen:** a one-line intro (draft below).
 - **Library:** category groupings on the Enemies tab (the Renegades and the Dread Legion marked as people), a short lore line per entry, lore on
   the Places tab for unlock sites and ruined towers.
@@ -260,4 +261,4 @@ The story is otherwise settled. What remains (the other open questions are in `s
 - Whether the rival guilds hire Renegades.
 - Whether witch, gargoyle and siren form an Arcane category.
 - Whether the Dread Legion can be freed, for example when the crown breaks (the ending is open).
-- The cutscene format, and whether they can be watched again.
+- Whether cutscenes can be watched again (their format is decided: in the engine, with dialogue).

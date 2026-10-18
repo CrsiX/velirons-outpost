@@ -2,7 +2,7 @@ class_name TrainingGrounds
 extends MilitaryPost
 ## 2x2 yard with a small hut, weapon racks and archery targets. It has two
 ## slots: one military unit (stationed like on a tower; it doesn't fight here)
-## and the hero, who in Train mode passes his XP on to that unit until it has
+## and the hero, who in Train mode passes her XP on to that unit until it has
 ## enough for its next level, which it then gets for free.
 
 ## The hero currently training here (null if none).
