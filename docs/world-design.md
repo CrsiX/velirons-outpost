@@ -727,6 +727,28 @@ get a road is placed elsewhere.
 
 Oases (farms in the desert) and a travelling merchant.
 
+### 9.8 Water monsters: what the generator must provide (not built)
+
+docs/aquatic-design.md (crab, leviathan, siren, octopus) needs water that today's maps don't
+have: rivers are one deep tile wide, lakes keep away from villages and villages stay
+`VILLAGE_SEA_DIST` (10) from the sea, so no water monster could ever threaten one. These
+changes are **necessary** (aquatic-design phase 5):
+
+- **Water bodies:** label every connected body (deep tile count, widest point) so a kind's
+  `min_deep_tiles` / `min_width` can be checked. Report them to the checks and the editor.
+- **Coast maps:** every village must have connected deep water very close: an inlet (a channel
+  from the sea with a shallow rim and a deep core at least 3 wide at the mouth, dead-ending so it
+  never cuts a road) reaching to within `COAST_INLET_DIST` (8 tiles, tunable) of the village's
+  walls, in a body big enough for the leviathan and the octopus. Roads route around it (deep
+  water is never crossed) and the village keeps its `VILLAGE_SEA_DIST` rule elsewhere.
+- **Other map types:** optionally a lagoon or large lake near a village (a setting); without it
+  the water kinds are simply not eligible there.
+- **`water_spawns`:** 1-2 per eligible body, on deep tiles, preferably at the map edge or in the
+  open water, always connected to the threatened shore. Stored in `MapData` and the JSON format.
+- **Checks:** a water spawn must be deep and in a fitting body; a Coast village without a
+  reachable deep tile near it is a warning.
+- Rebake `data/title_maps/` after the generator changes.
+
 ## 10. Gameplay effects at a glance
 
 | Thing | Effect |
@@ -935,6 +957,7 @@ All built:
 - **Camp monsters** are enemies (group "enemies") that never walk a road; they
   pay their kill gold like wave enemies and leave no corpse.
 - **Relics** in the game: tower range, revive time, the hero's rest, farm food.
+- **Water monsters** need generator changes first: §9.8.
 - **Not built** (as agreed): eruptions, oases, the merchant, ships landing
   raiders on coasts.
 - **Future units:** ask how each one is unlocked before building it (§9.4).

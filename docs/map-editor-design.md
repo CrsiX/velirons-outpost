@@ -795,6 +795,10 @@ conditions, areas that start explored), a scenario editor, and sharing maps
 online. The format keeps room for them: a scenario will be its own file
 pointing at a map by name.
 
+## 12b. Planned: water spawns
+
+docs/aquatic-design.md adds `water_spawns` (deep-water tiles where water monsters spawn): a *Water spawn* tool, a layer, an inspector line for the water body under the pointer (deep tiles, width, which kinds fit), a check (must be deep water in a body that fits a kind: error) and a `"water_spawns"` key in the JSON format (format version bump). Not built.
+
 ## 13. As built: differences from the draft, and what's left
 
 - Slices are recomputed by steps to the nearest village, not walking distance.
