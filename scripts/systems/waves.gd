@@ -42,6 +42,11 @@ var _rat_scan := 0.0
 var _aqua: Dictionary = {}
 ## Water kinds whose first one was logged already (once per game).
 var _aqua_logged := {}
+## Seconds that only water monsters have been left in this wave, and whether
+## that was announced (AQUA warn_after; once per wave).
+var _water_only := 0.0
+var _water_warned := false
+var _water_scan := 0.0
 
 
 func setup(p_game: Game) -> void:
@@ -110,6 +115,8 @@ func start_now() -> void:
 func _start_wave() -> void:
 	rat_deadline = -1.0
 	rats_leave = false
+	_water_only = 0.0
+	_water_warned = false
 	wave += 1
 	countdown = -1.0
 	var n := wave
@@ -263,6 +270,7 @@ func _process(delta: float) -> void:
 			_start_wave()
 		return
 	_check_rats(delta)
+	_check_water(delta)
 	if _queue.is_empty():
 		return
 	_spawn_timer -= delta
@@ -271,6 +279,53 @@ func _process(delta: float) -> void:
 		# Each village at its own pace; the rats of a pack follow each other closely.
 		var next: Dictionary = _queue[0] if not _queue.is_empty() else {}
 		_spawn_timer = float(next["gap"]) if next.has("gap") else Config.WAVE_SPAWN_GAP / game.villages.size()
+
+
+## Once nothing but water monsters is left of the wave (nothing more to
+## come), the villages they came for hear about it after AQUA warn_after
+## seconds, once per wave: the wave ends only when those are dead.
+func _check_water(delta: float) -> void:
+	if _water_warned or wave <= 0:
+		return
+	_water_scan -= delta
+	if _water_scan > 0.0:
+		return
+	var step := 0.5 - _water_scan
+	_water_scan = 0.5
+	var left := _water_left()
+	if left.is_empty() or not _queue.is_empty():
+		_water_only = 0.0
+		return
+	_water_only += step
+	if _water_only < float(Config.AQUA["warn_after"]):
+		return
+	_water_warned = true
+	var per: Dictionary = {}  # village -> kind names
+	for e: Enemy in left:
+		var v: Village = e.target_village if is_instance_valid(e.target_village) else game.villages[0]
+		var names: Array = per.get(v, [])
+		var n := str(e.spec()["name"]).to_lower()
+		if not names.has(n):
+			names.append(n)
+		per[v] = names
+	for v: Village in per:
+		var what := ", ".join(per[v])
+		v.events.important("Water monsters are still out there (%s). The wave ends only when they are dead: build towers by the water" % what)
+		v.toast("Water monsters remain: %s" % what, Color("7ac8ff"))
+
+
+## The wave's living enemies if every one of them is a water monster (crab,
+## siren, leviathan, octopus; not an arm, a camp guard or a debug one), else [].
+func _water_left() -> Array[Enemy]:
+	var out: Array[Enemy] = []
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var e := node as Enemy
+		if e.dead or e.behavior is CampBehavior or e.behavior is ArmBehavior or _uncounted.has(e):
+			continue
+		if e.habitat() == "land":
+			return [] as Array[Enemy]
+		out.append(e)
+	return out
 
 
 ## Once no enemy but rats is left (and only rats are still to come), the rats

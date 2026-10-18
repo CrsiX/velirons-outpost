@@ -593,6 +593,11 @@ func _test_waves() -> void:
 	await wait(3.0)
 	check(lev != null and w.in_progress() and w.enemies_left() == 1, "the wave goes on while the leviathan lives (it counts in the top bar)")
 	check(logs.any(func(l: String) -> bool: return l == Config.AQUA_FIRST["leviathan"]), "the first leviathan of the game is logged")
+	check(not logs.any(func(l: String) -> bool: return l.begins_with("Water monsters are still out there")), "no warning straight away")
+	var warned := await wait_until(func() -> bool: return logs.any(func(l: String) -> bool: return l.begins_with("Water monsters are still out there (leviathan)")), float(Config.AQUA["warn_after"]) + 5.0)
+	check(warned, "with only water monsters left, after %d s the log says so (and a toast)" % int(Config.AQUA["warn_after"]))
+	await wait(2.0)
+	check(logs.filter(func(l: String) -> bool: return l.begins_with("Water monsters are still out there")).size() == 1, "once per wave")
 	if lev:
 		kill(lev)
 	await frames(3)

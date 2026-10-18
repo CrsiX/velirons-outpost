@@ -1234,9 +1234,14 @@ const ENEMIES := {
 ##                     are what water monsters threaten (wave eligibility)
 ##   spawn_shore ..... a water spawn picked by the game keeps this far from them
 ##   melee_reach ..... melee reaches a mob on deep water from the tile next to it
+##   warn_after ...... once only water monsters are left in a wave (the rest of it
+##                     dead, nothing more to come), after this many seconds the log
+##                     (Important) and a toast say so, once per wave: the wave ends
+##                     only when they are dead, so towers by the water are needed
 const AQUA := {
 	"dive_time": 0.5, "surface_time": 0.5, "sink_time": 6.0,
 	"threat_radius": 12.0, "spawn_shore": 8.0, "melee_reach": 1.5,
+	"warn_after": 15.0,
 }
 ## The log's line for the first of each water kind in a game (Info; the octopus: Important).
 const AQUA_FIRST := {

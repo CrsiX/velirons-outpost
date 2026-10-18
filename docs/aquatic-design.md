@@ -364,5 +364,10 @@ eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`)
   slowly, and while moving they throw a splash now and then round their body (on each machine
   by itself). The leviathan and the octopus always; the crab and the siren while in water (deep,
   shallow or a ford); on roads and land they walk like anyone.
+- *Water monsters left at the end of a wave:* a wave still ends only when they are dead (no
+  timeout). Once nothing but water monsters is left of it (the rest dead, nothing more to come),
+  after `AQUA.warn_after` (15) s the villages they came for hear it once per wave: the log
+  (Important) "Water monsters are still out there (leviathan, ...). The wave ends only when they
+  are dead: build towers by the water", and a toast.
 - *Replication:* the dive state and `fx` travel with every enemy's state; arms are enemies, so
   they reach clients like any other.
