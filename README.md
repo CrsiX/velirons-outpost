@@ -44,6 +44,7 @@ internal project structure is quite messy and the code reeks of gen AI.
   building, training, resting
 * Tutorial playthrough that teaches the most important parts of the game
 * LAN co-op multiplayer up to 8 players, not supported in web version
+* Statistics and in-game timelines to see how good each village operated
 
 ## Roadmap
 
@@ -53,12 +54,14 @@ internal project structure is quite messy and the code reeks of gen AI.
   things spicy
 * Actually usable relics and perhaps more exploration in late-game
 * Scenarios
-* Statistics & tables for in-game stats
 * Some end-the-game win-condition
 
-## Tests
+## Tests & Tools
 
 `tests/` holds headless bots that play the game and check what happens.
 Each is a scene that exits 0 when every check passed.
 The helper `run_all.sh` can be used to run all, or some specific tests.
 Notably, the `net_bot` needs two processes because it simulates LAN play.
+
+There is a simulation script in `tools/balance` that simulates entire game
+playthroughs used for balancing.

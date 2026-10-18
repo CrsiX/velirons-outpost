@@ -218,6 +218,172 @@ const SAVE := {
 	"name_max": 30,
 }
 
+## The balancing bot (tools/balance_bot.gd, docs/balance-bot-design.md): it
+## plays whole single-player games the way a player would and records how far
+## it got. Everything it decides on its own (how often, how far it looks, when
+## it gives up) is here, the player's choices are in BALANCE_PROFILES.
+##   "think_interval":  game seconds between two rounds of decisions;
+##   "speed":           Engine.time_scale while it plays (the game's own
+##                      fastest speed is 4; higher is quicker but coarser);
+##   "max_waves":       a run that survives this many waves stops, "censored"
+##                      (the true answer is higher). 0 = never stop;
+##   "max_game_seconds", "max_real_seconds": the same, by game / wall clock;
+##   "max_wave_seconds": a wave that has run this long without ending (an
+##                      enemy that can't be reached, say) ends the run, "stalled";
+##   "scan_radius":     tiles around the village centre where it looks for
+##                      building spots;
+##   "tower_spacing":   towers (and barracks) keep this far from each other;
+##   "approach_steps":  road steps from a gate that count as "the approach"
+##                      a tower should cover;
+##   "queue_slack":     unfinished sites allowed per builder before it stops
+##                      placing new ones;
+##   "farm_road_gap":   a farm keeps this many tiles from any road (rats);
+##   "min_food":        villagers are only recruited while this much food is left;
+##   "gold_reserve":    gold it keeps back from upgrades (it still buys
+##                      units for empty posts);
+##   "sample_interval": game seconds between the army / economy snapshots of
+##                      the timeline in the record (the game's own Stats
+##                      samples are in the record as well);
+##   "track_interval":  game seconds between looks at the enemies on the map;
+##   "unit_dps_summon_life": seconds a summoner's elementals count as fighting
+##                      in its nominal DPS.
+const BALANCE_BOT := {
+	"think_interval": 2.0,
+	"speed": 4.0,
+	"max_waves": 40,
+	"max_game_seconds": 14400.0,
+	"max_real_seconds": 3000.0,
+	"max_wave_seconds": 900.0,
+	"scan_radius": 18,
+	"tower_spacing": 2.5,
+	"approach_steps": 18,
+	"queue_slack": 2,
+	"farm_road_gap": 2,
+	"min_food": 20.0,
+	"gold_reserve": 0.0,
+	"sample_interval": 15.0,
+	"track_interval": 0.25,
+	"unit_dps_summon_life": 12.0,
+}
+
+## The player the balancing bot plays (--policy=<name>). All counts are
+## targets it works towards as resources allow, in this order of priority:
+## huts rebuilt, villagers, economy buildings, army, upgrades.
+##   "villagers":      role -> how many it wants (it recruits in "villager_order");
+##   "farms", "camps": worker camps and farms to build (one worker each);
+##   "retire_explorer_wave": from this wave the explorer retires, to free a hut
+##                      (0 = never);
+##   "towers":         [at start, more per wave, at most] watchtowers;
+##   "tower_levels":   [[from wave, level], ...] the level every tower is
+##                      upgraded to (wall towers too);
+##   "barracks":       [[from wave, count], ...] barracks wanted;
+##   "barracks_levels": [[from wave, level], ...] the same for their upgrades;
+##   "training":       from this wave on: one training grounds (0 = never);
+##   "tower_units":    unit kinds for the towers, in turn (kinds not unlocked
+##                      yet are skipped; the first one is the fallback);
+##   "wall_units":     the same for the wall towers (they take what the
+##                      watchtowers take if empty);
+##   "barracks_units": the same for the barracks' benches;
+##   "branch":         unit kind -> specialisation it takes as soon as it can
+##                      (BRANCH_MIN_LEVEL); a kind not listed keeps levelling;
+##   "upgrade_order":  which units get gold first: "lowest" level first, or
+##                      "kinds" (the order of the unit lists, then lowest);
+##   "hero":           "explore_waves": until this wave he explores between
+##                      waves (then he trains, or defends); "attack_camps":
+##                      from this hero level he is sent against known camps;
+##   "call_early":     calls the next wave as soon as everything is bought and
+##                      manned (for the bonus gold; faster games);
+##   "buy_materials":  trades gold for building material when that is all
+##                      that holds a building back;
+##   "cheats":         debug commands run at the start ("unlock": every
+##                      unit and role that has to be found, "gold": +1000...).
+const BALANCE_PROFILES := {
+	"balanced": {
+		"desc": "Watchtowers with archers, then barracks, training grounds and upgrades. The default player.",
+		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
+		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"towers": [2, 1.0, 12], "tower_levels": [[3, 2], [8, 3]],
+		"barracks": [[2, 1], [8, 2]], "barracks_levels": [[4, 2], [9, 3]],
+		"training": 3,
+		"tower_units": ["archer"], "wall_units": [], "barracks_units": ["shield_bearer", "archer"],
+		"branch": {"archer": "crossbowman", "shield_bearer": "warrior"},
+		"upgrade_order": "lowest",
+		"hero": {"explore_waves": 4, "attack_camps": 0},
+		"call_early": false, "buy_materials": true, "cheats": [],
+	},
+	"archers": {
+		"desc": "Towers only: every wall tower and watchtower gets an archer, tower upgrades, no barracks.",
+		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
+		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"towers": [3, 1.5, 16], "tower_levels": [[2, 2], [6, 3]],
+		"barracks": [], "barracks_levels": [],
+		"training": 3,
+		"tower_units": ["archer"], "wall_units": ["archer"], "barracks_units": [],
+		"branch": {"archer": "crossbowman"},
+		"upgrade_order": "lowest",
+		"hero": {"explore_waves": 4, "attack_camps": 0},
+		"call_early": false, "buy_materials": true, "cheats": [],
+	},
+	"swift": {
+		"desc": "Like archers, but every archer becomes a swiftbowman.",
+		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
+		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"towers": [3, 1.5, 16], "tower_levels": [[2, 2], [6, 3]],
+		"barracks": [], "barracks_levels": [],
+		"training": 3,
+		"tower_units": ["archer"], "wall_units": ["archer"], "barracks_units": [],
+		"branch": {"archer": "swiftbowman"},
+		"upgrade_order": "lowest",
+		"hero": {"explore_waves": 4, "attack_camps": 0},
+		"call_early": false, "buy_materials": true, "cheats": [],
+	},
+	"melee": {
+		"desc": "Barracks first: shield bearers who turn into warriors, berserkers or halberdiers, a few archer towers.",
+		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
+		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"towers": [1, 0.4, 5], "tower_levels": [[4, 2]],
+		"barracks": [[1, 1], [4, 2], [8, 3]], "barracks_levels": [[2, 2], [5, 3]],
+		"training": 3,
+		"tower_units": ["archer"], "wall_units": [], "barracks_units": ["shield_bearer"],
+		"branch": {"shield_bearer": "berserker"},
+		"upgrade_order": "lowest",
+		"hero": {"explore_waves": 4, "attack_camps": 0},
+		"call_early": false, "buy_materials": true, "cheats": [],
+	},
+	"mages": {
+		"desc": "Apprentices and summoners on the towers (everything unlocked at the start), fire mages and fire summoners.",
+		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
+		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"towers": [3, 1.5, 16], "tower_levels": [[2, 2], [6, 3]],
+		"barracks": [], "barracks_levels": [],
+		"training": 3,
+		"tower_units": ["apprentice", "summoner"], "wall_units": ["apprentice", "summoner"], "barracks_units": [],
+		"branch": {"apprentice": "fire_mage", "summoner": "fire_summoner"},
+		"upgrade_order": "lowest",
+		"hero": {"explore_waves": 0, "attack_camps": 0},
+		"call_early": false, "buy_materials": true, "cheats": ["unlock"],
+	},
+	"holy": {
+		"desc": "Acolytes in the barracks and on the towers (unlocked at the start), inquisitors and high priests.",
+		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
+		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"towers": [2, 1.0, 12], "tower_levels": [[3, 2], [8, 3]],
+		"barracks": [[1, 1], [6, 2]], "barracks_levels": [[3, 2], [8, 3]],
+		"training": 3,
+		"tower_units": ["acolyte"], "wall_units": [], "barracks_units": ["acolyte"],
+		"branch": {"acolyte": "inquisitor"},
+		"upgrade_order": "lowest",
+		"hero": {"explore_waves": 0, "attack_camps": 0},
+		"call_early": false, "buy_materials": true, "cheats": ["unlock"],
+	},
+}
+
 ## World generation (docs/world-design.md). The map is cut into one equal-area
 ## slice per player around its centre; each village sits near its slice's
 ## centre. Zones come from height x moisture; ash land only around volcanoes.
