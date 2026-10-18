@@ -243,7 +243,7 @@ session).
 Each file:
 ```
 "VOSV"            4 bytes, magic
-format            u32, SaveGame.FORMAT (1)
+format            u32, SaveGame.FORMAT (2: the map holds water spawns)
 header length     u32
 header            var_to_bytes(Dictionary), uncompressed
 body              zstd(var_to_bytes(Dictionary)), its raw size first (as MapData.to_bytes)

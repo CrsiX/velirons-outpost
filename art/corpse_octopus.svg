@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="60" viewBox="-45 -16 90 30">
+  <ellipse cx="0" cy="0" rx="36" ry="11" fill="#1d3a52" opacity="0.45"/>
+  <path d="M-8,0 Q-22,6 -32,2" fill="none" stroke="#5e2238" stroke-width="5" stroke-linecap="round"/>
+  <path d="M-16,0 Q-30,-4 -40,-4" fill="none" stroke="#5e2238" stroke-width="5" stroke-linecap="round"/>
+  <path d="M8,0 Q22,6 32,2" fill="none" stroke="#5e2238" stroke-width="5" stroke-linecap="round"/>
+  <path d="M16,0 Q30,-4 40,-4" fill="none" stroke="#5e2238" stroke-width="5" stroke-linecap="round"/>
+  <ellipse cx="0" cy="-4" rx="18" ry="9" fill="#8a3a5a" stroke="#15110d" stroke-width="1.4"/>
+  <polyline points="-9,-6 -5,-3" fill="none" stroke="#15110d" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-5,-6 -9,-3" fill="none" stroke="#15110d" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="5,-6 9,-3" fill="none" stroke="#15110d" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="9,-6 5,-3" fill="none" stroke="#15110d" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

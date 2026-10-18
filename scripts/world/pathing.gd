@@ -4,7 +4,10 @@ extends RefCounted
 ## Ground units (civilians, soldiers): AStarGrid2D; forest, mountains, deep
 ## water, lava and solid buildings block; shallow water and swamp cost more. Enemies: flow fields over road tiles: one to the nearest
 ## gate of any village, and one per village to that village's own gates (each
-## village's wave goes for that village; see Waves).
+## village's wave goes for that village; see Waves). Amphibians (crabs,
+## sirens) have the same over road and water tiles; water-bound monsters
+## move within one body of deep water (water_body, water_path;
+## docs/aquatic-design.md §3).
 
 const UNREACHABLE := 1 << 30
 
@@ -18,6 +21,18 @@ var village_fields: Array[PackedInt32Array] = []
 ## Goes up whenever a tile's walkability changes (keys the reach cache).
 var version := 0
 var _reach_cache := {}  # from tile -> [version, distance field]
+## Per tile: the body of deep water it belongs to (index into `bodies`; -1:
+## not deep water). Bodies are 4-connected; bridges split them.
+var water_body := PackedInt32Array()
+## Per body: {"deep": tile count, "width": its widest point in tiles (a
+## one-tile river is 1), "tiles": Array[Vector2i] (its deep tiles)}.
+var bodies: Array[Dictionary] = []
+## Amphibians: steps over road and water tiles to the nearest gate of any
+## village, and per village to its own gates.
+var amphibian_dist := PackedInt32Array()
+var amphibian_fields: Array[PackedInt32Array] = []
+## Deep water only (water-bound monsters).
+var water_astar := AStarGrid2D.new()
 
 
 func _init(p_map: MapData) -> void:
@@ -42,6 +57,7 @@ func _init(p_map: MapData) -> void:
 				if f < 1.0:
 					astar.set_point_weight_scale(t, 1.0 / f)  # (slow ground: go round if it's not far)
 	build_enemy_field()
+	_build_water()
 
 
 ## Buildings toggle solidity; impassable terrain always stays solid.
@@ -277,11 +293,16 @@ func _road_field(gates: Array) -> PackedInt32Array:
 	return dist
 
 
-## Road steps to the nearest gate (of village `village`, or of any village with -1).
-func enemy_distance(t: Vector2i, village: int = -1) -> int:
+## Road steps to the nearest gate (of village `village`, or of any village
+## with -1); `amphibian`: over road and water tiles.
+func enemy_distance(t: Vector2i, village: int = -1, amphibian := false) -> int:
 	if not map.in_bounds(t):
 		return UNREACHABLE
-	var field := enemy_dist if village < 0 or village >= village_fields.size() else village_fields[village]
+	var field: PackedInt32Array
+	if amphibian:
+		field = amphibian_dist if village < 0 or village >= amphibian_fields.size() else amphibian_fields[village]
+	else:
+		field = enemy_dist if village < 0 or village >= village_fields.size() else village_fields[village]
 	return field[map.index(t)]
 
 
@@ -299,24 +320,191 @@ func nearest_road(t: Vector2i) -> Vector2i:
 
 ## Road route from a spawn to the nearest gate (of `village`, or of any village
 ## with -1), following the flow field. Ties between equally short branches are
-## broken randomly.
-func enemy_route(from: Vector2i, rng: RandomNumberGenerator, village: int = -1) -> Array[Vector2i]:
+## broken randomly. `amphibian`: over road and water tiles.
+func enemy_route(from: Vector2i, rng: RandomNumberGenerator, village: int = -1, amphibian := false) -> Array[Vector2i]:
 	var route: Array[Vector2i] = [from]
 	var t := from
 	var guard := 0
-	while enemy_distance(t, village) > 0 and guard < map.size * map.size:
+	while enemy_distance(t, village, amphibian) > 0 and guard < map.size * map.size:
 		guard += 1
 		var best: Array[Vector2i] = []
-		var best_d := enemy_distance(t, village)
+		var here := enemy_distance(t, village, amphibian)
+		var best_d := here
 		for n in MapData.neighbors4(t):
-			var d := enemy_distance(n, village)
+			var d := enemy_distance(n, village, amphibian)
 			if d < best_d:
 				best_d = d
 				best = [n]
-			elif d == best_d and d < enemy_distance(t, village):
+			elif d == best_d and d < here:
 				best.append(n)
 		if best.is_empty():
 			break
 		t = best[rng.randi() % best.size()]
 		route.append(t)
 	return route
+
+
+# --- water (docs/aquatic-design.md §3) ----------------------------------------------------
+
+func _build_water() -> void:
+	var n := map.size
+	var lab := label_water(map)
+	water_body = lab["of"]
+	bodies.assign(lab["bodies"])
+	water_astar.region = Rect2i(0, 0, n, n)
+	water_astar.cell_size = Vector2.ONE
+	water_astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+	water_astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+	water_astar.default_estimate_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+	water_astar.update()
+	for y in n:
+		for x in n:
+			water_astar.set_point_solid(Vector2i(x, y), not map.is_deep(Vector2i(x, y)))
+	amphibian_dist = _amphibian_field(map.gates)
+	amphibian_fields.clear()
+	for v in map.villages:
+		amphibian_fields.append(_amphibian_field(v["gates"]))
+
+
+## The map's bodies of deep water (4-connected; bridges split them):
+## {"of": PackedInt32Array (per tile: its body, -1: not deep water),
+## "bodies": [{"deep": tile count, "width": its widest point in tiles (2 x
+## the most Chebyshev steps from a tile that isn't deep water, minus 1: a
+## one-tile river is 1), "tiles": Array[Vector2i]}]}. Beyond the map's edge
+## counts as water (the sea goes on there). The map editor uses it too.
+static func label_water(map: MapData) -> Dictionary:
+	var n := map.size
+	var of := PackedInt32Array()
+	of.resize(n * n)
+	of.fill(-1)
+	var out: Array[Dictionary] = []
+	var depth := PackedInt32Array()
+	depth.resize(n * n)
+	depth.fill(0)
+	var queue: Array[Vector2i] = []
+	for y in n:
+		for x in n:
+			var t := Vector2i(x, y)
+			if not map.is_deep(t):
+				continue
+			for k in 8:
+				var nb := t + Vector2i([-1, 1, 0, 0, -1, 1, -1, 1][k], [0, 0, -1, 1, -1, -1, 1, 1][k])
+				if map.in_bounds(nb) and not map.is_deep(nb):
+					depth[y * n + x] = 1
+					queue.append(t)
+					break
+	var head := 0
+	while head < queue.size():
+		var t := queue[head]
+		head += 1
+		var d := depth[map.index(t)] + 1
+		for k in 8:
+			var nb := t + Vector2i([-1, 1, 0, 0, -1, 1, -1, 1][k], [0, 0, -1, 1, -1, -1, 1, 1][k])
+			if map.in_bounds(nb) and map.is_deep(nb) and depth[map.index(nb)] == 0:
+				depth[map.index(nb)] = d
+				queue.append(nb)
+	for y in n:
+		for x in n:
+			var start := Vector2i(x, y)
+			if not map.is_deep(start) or of[map.index(start)] >= 0:
+				continue
+			var id := out.size()
+			var tiles: Array[Vector2i] = [start]
+			of[map.index(start)] = id
+			var deepest := 0
+			var h := 0
+			while h < tiles.size():
+				var t := tiles[h]
+				h += 1
+				var dt := depth[map.index(t)]
+				deepest = maxi(deepest, dt if dt > 0 else n)
+				for nb in MapData.neighbors4(t):
+					if map.is_deep(nb) and of[map.index(nb)] < 0:
+						of[map.index(nb)] = id
+						tiles.append(nb)
+			out.append({"deep": tiles.size(), "width": 2 * mini(deepest, n) - 1, "tiles": tiles})
+	return {"of": of, "bodies": out}
+
+
+## The water monsters (WAVE_MIX "needs": "water") that can live in `body`
+## (a label_water entry).
+static func kinds_fitting(body: Dictionary) -> Array[String]:
+	var out: Array[String] = []
+	for kind: String in Config.WAVE_MIX:
+		if Config.WAVE_MIX[kind].get("needs", "") != "water":
+			continue
+		var e: Dictionary = Config.ENEMIES[kind]
+		if int(body["deep"]) >= int(e.get("min_deep_tiles", 1)) and int(body["width"]) >= int(e.get("min_width", 1)):
+			out.append(kind)
+	return out
+
+
+## Steps over road and water tiles from every such tile to the nearest of `gates`.
+func _amphibian_field(gates: Array) -> PackedInt32Array:
+	var dist := PackedInt32Array()
+	dist.resize(map.size * map.size)
+	dist.fill(UNREACHABLE)
+	var queue: Array[Vector2i] = []
+	for g in gates:
+		dist[map.index(g)] = 0
+		queue.append(g)
+	var head := 0
+	while head < queue.size():
+		var t := queue[head]
+		head += 1
+		for nb in MapData.neighbors4(t):
+			if map.in_bounds(nb) and dist[map.index(nb)] == UNREACHABLE and (map.is_road(nb) or map.is_wet(nb)):
+				dist[map.index(nb)] = dist[map.index(t)] + 1
+				queue.append(nb)
+	return dist
+
+
+## The deep-water body of `t` (-1: not deep water).
+func body_of(t: Vector2i) -> int:
+	return water_body[map.index(t)] if map.in_bounds(t) else -1
+
+
+## Whether a kind (Config.ENEMIES) can live in body `b`.
+func body_fits(b: int, kind: String) -> bool:
+	if b < 0 or b >= bodies.size():
+		return false
+	var e: Dictionary = Config.ENEMIES[kind]
+	return int(bodies[b]["deep"]) >= int(e.get("min_deep_tiles", 1)) and int(bodies[b]["width"]) >= int(e.get("min_width", 1))
+
+
+## Grid waypoints over deep water from `from` to `to` (same body; empty if none).
+func water_path(from: Vector2i, to: Vector2i) -> PackedVector2Array:
+	if not map.is_deep(from) or not map.is_deep(to) or body_of(from) != body_of(to):
+		return PackedVector2Array()
+	return water_astar.get_point_path(from, to)
+
+
+## The deep tile of body `b` nearest to `p` (grid), or (-1, -1).
+func nearest_deep(b: int, p: Vector2) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	if b < 0 or b >= bodies.size():
+		return best
+	for t: Vector2i in bodies[b]["tiles"]:
+		var d := Vector2(t).distance_squared_to(p)
+		if d < best_d:
+			best_d = d
+			best = t
+	return best
+
+
+## A walkable tile to stand on to reach `t` in close combat: `t` itself, or
+## its nearest walkable neighbour (deep water: from the shore), else (-1, -1).
+func stand_near(t: Vector2i, from: Vector2) -> Vector2i:
+	if is_walkable(t):
+		return t
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for k in 8:
+		var nb := t + Vector2i([-1, 1, 0, 0, -1, 1, -1, 1][k], [0, 0, -1, 1, -1, -1, 1, 1][k])
+		if is_walkable(nb):
+			var d := Vector2(nb).distance_squared_to(from)
+			if d < best_d:
+				best_d = d
+				best = nb
+	return best

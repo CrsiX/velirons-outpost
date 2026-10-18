@@ -347,7 +347,8 @@ func _test_help() -> void:
 	var t1: Tower = v1.buildings().filter(func(b: Building) -> bool: return b is Tower)[0]
 	check(game.commands.submit(v1, "station_unit", {"unit": u.nid, "post": t1.nid})["ok"], "the new owner can station it like any of its own units")
 
-	# The hero supports the other village.
+	# The hero supports the other village (no camp guard on his way to spoil it).
+	await clear_enemies()
 	var hero := v0.hero
 	await _tap(hud._hero_button)
 	check(not hud._hero_support_button.is_visible_in_tree(), "(Defend: no support toggle)")

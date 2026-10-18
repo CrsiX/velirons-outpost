@@ -23,9 +23,25 @@ static func run(m: MapData) -> Array[Dictionary]:
 	for t in m.edge_spawns:
 		if not m.is_edge(t) or not m.is_road(t):
 			_add(out, "error", "Spawn [%d, %d] isn't a road tile on the map's edge" % [t.x, t.y], t)
+	_water_spawns(out, m)
 	_objects(out, m, pieces, walk)
 	_warnings(out, m)
 	return out
+
+
+## Water spawns (docs/aquatic-design.md §9): on deep water, in a body of
+## water at least one water monster fits.
+static func _water_spawns(out: Array[Dictionary], m: MapData) -> void:
+	if m.water_spawns.is_empty():
+		return
+	var lab := Pathing.label_water(m)
+	for t in m.water_spawns:
+		if not m.in_bounds(t) or not m.is_deep(t):
+			_add(out, "error", "Water spawn [%d, %d] isn't on deep water" % [t.x, t.y], t if m.in_bounds(t) else NO_TILE)
+			continue
+		var body: Dictionary = lab["bodies"][int(lab["of"][m.index(t)])]
+		if Pathing.kinds_fitting(body).is_empty():
+			_add(out, "error", "Water spawn [%d, %d]: its water (%d deep tiles, %d wide) is too small for any water monster" % [t.x, t.y, int(body["deep"]), int(body["width"])], t)
 
 
 static func errors(problems: Array[Dictionary]) -> Array[Dictionary]:

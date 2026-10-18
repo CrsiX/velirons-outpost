@@ -1,8 +1,9 @@
 # Veliron's Outpost: water monsters (design)
 
-Status: **proposal, nothing built yet.** Decisions from the review are marked *(decided)*; what
-is only a maybe is in §13. Every number below is a first guess and lives in `scripts/core/config.gd`
-once built (`ENEMIES`, `AQUA`, `WAVE_MIX`).
+Status: **built** (all five phases of §14). The numbers below are first guesses and live in
+`scripts/core/config.gd` (`ENEMIES`, `AQUA`, `AQUA_FIRST`, `WAVE_MIX`, the generator's
+`COAST_INLET_*`, `LAGOON_*`, `WATER_SPAWNS` and each map type's `"lagoon"`). Where the build
+differs from the first draft, or decides what the draft left open, it says so in §15.
 
 Scope: four new enemy kinds that travel through rivers, lakes and the sea (crab, leviathan,
 siren, gigantic octopus), the rules they share (habitat, submerging, melee reach, corpses that
@@ -61,8 +62,8 @@ rules for **deep water**:
   first second can finish, a later one can't. The existing "corpse gone mid-spell ends it" holds.)
 - Corpses in shallow water and on land stay as usual and are cleared by the usual wave rule.
 
-Leviathan and octopus corpses can never be raised (`"raisable": false`, like a raised enemy's
-and a necromancer's own). A raised crab or siren never submerges.
+Leviathan and octopus corpses can never be raised (`"revivable": false`, the key the
+necromancer's own corpse already used). A raised crab or siren never submerges.
 
 ## 3. Movement
 
@@ -288,3 +289,68 @@ now and then (`chance`, `max_count` 1).
 4. **Gigantic octopus** (and `max_count`, `chance`).
 5. **World generator:** the map must really give them water (docs/world-design.md §9.8).
    Until then the new kinds only appear on maps from the editor or tests.
+
+## 15. As built
+
+**Code.** `Enemy` (`habitat()`, `dive` with `Dive.UP / DIVING / DOWN / SURFACING`,
+`targetable()`, `melee_ok(from, magical)`, `melee_reach(base)`, `fx` for what a behavior shows:
+the song ring, the water column, the arms), behaviors `leviathan_behavior`, `siren_behavior`,
+`octopus_behavior` and `arm_behavior` on a shared base `aqua_behavior` (who of ours they go for,
+swimming over deep water); the crab is `melee_behavior` with `"auto_submerge"`. `Pathing`: the
+water bodies (`label_water`, static, also used by the editor and the generator), the amphibians'
+flow fields (`enemy_distance` / `enemy_route` with `amphibian`), `water_path`, `stand_near`.
+`Unit.force_move` / `is_forced` / `held_by` (§7). `Combat.songs` / `song_at` / `song_rate`, and
+`Combat.haste` takes the place a holder acts from. `Aqua` (`scripts/systems/aqua.gd`): §9's
+eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`). Test:
+`tests/aqua_bot`.
+
+**Decisions taken while building:**
+
+- *Width* of a body: 2 x the most Chebyshev steps from a tile that isn't deep water, minus 1
+  (a one-tile river is 1, a 3-tile channel 3). Beyond the map's edge counts as water (the sea
+  goes on). Bodies are 4-connected deep tiles; **a bridge splits a body** (water-bound monsters
+  don't swim under bridges: they would have to be under water there, and bridges never allow it).
+- *Body sizes:* crab and siren 6 deep tiles (a one-tile pond is no home), width 1 (rivers do);
+  leviathan 30 and 2; octopus 80 and 3.
+- *Reach* (`"reach"` in each entry) for eligibility: crab 2, siren 5.5, leviathan 5.6, octopus
+  5.5. The threatened tiles' distance is counted in Chebyshev steps.
+- *Melee reach* (§2.1): `AQUA.melee_reach` 1.5, so a unit on the tile beside (diagonals too)
+  reaches it. Chasing a monster on deep water goes to the walkable tile next to it nearest to the
+  attacker (`Pathing.stand_near`).
+- *Who engages* (§2.1a): towers through `MilitaryBehavior.enemies_near` (targetable only); the
+  hero, soldiers and earth elementals through `melee_ok`; barracks with only melee units on the
+  benches don't turn out for what their blades can't reach.
+- *Fire elementals* strike with magic: a siren in the water doesn't keep them off (they still
+  need the tile next to a monster on deep water).
+- *A lured unit fights what is in its reach, except her* (§6) is read as: the song doesn't change
+  who it fights; she is out of melee's reach only while in water (on land the hero strikes her).
+- *The spatial mage's push* doesn't move water-bound monsters (they have no road to be thrown back
+  along); amphibians are thrown back along their route like anyone.
+- *Ice* slows them like anyone (the leviathan doesn't move while up, so it doesn't matter there).
+- *Spawning:* water-bound monsters always come from the village's water spawns (or §9's picked
+  deep tile); an amphibian half of the time, else from the edge like the rest of the wave. A
+  co-op wave's shared extra (25 % x villages) brings no water monsters. Lairs never send them.
+- *The leviathan* arrives under water; with nobody about it goes to the deep tile nearest the
+  village and comes up there every `idle_surface` s. After an early dive the next surfacing must
+  last `flee_min_up` s before it can dive early again (after a normal dive: no minimum).
+- *The siren:* she holds once the nearest of ours (unit, building, villager) is within
+  `hold_range`; she comes up when one of ours is within her song; once her patience runs out she
+  walks to the gate, singing, and never holds again (so a wave can't stall on her). Each unit is
+  pulled only by its strongest song; pulls stop 0.6 tiles from her.
+- *The octopus* is up except while it dives; it moves at its speed up or under. An arm takes 0.15
+  s or so to reach (`arm_reach_speed` 8 tiles/s) and lets go when its catch gets out of reach
+  (cooldown: half). **Arm HP grows with the waves** like enemy HP (`octopus_arm` "hp" x the
+  difficulty x the octopus's wave factor), so arms keep their share of the fight late on. The arm
+  is an `Enemy` of kind `octopus_arm` (no wave member: it is spawned by the octopus, never counted,
+  pays nothing, leaves no corpse); a hooked unit's `held_by` is the arm, and the hero, soldiers
+  and elementals fight it first. The grapple's damage is melee.
+- *Drowning:* a villager dies ("drowned, dragged under by ..."), a soldier is downed, the hero is
+  downed (his XP lost), an elemental crumbles; a fire elemental (a flyer) doesn't drown.
+- *The log:* the first of each kind per game (`AQUA_FIRST`): Info, the octopus Important.
+- *Saves:* `SaveGame.FORMAT` 2 (the map holds the water spawns). Map files: format 2, key
+  `"water_spawns"` after `"volcanoes"`; a format 1 file still reads (no water spawns).
+- *The generator* (docs/world-design.md §9.8): Coast maps carve an inlet per village, other map
+  types a lagoon with the type's chance; each gets a landing road; water spawns per fitting body
+  near a village.
+- *Replication:* the dive state and `fx` travel with every enemy's state; arms are enemies, so
+  they reach clients like any other.

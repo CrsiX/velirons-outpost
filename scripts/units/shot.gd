@@ -54,6 +54,9 @@ func _process(delta: float) -> void:
 		rotation = (p - global_position).angle()
 	global_position = p
 	if _t >= 1.0:
+		if not visual_only and is_instance_valid(target) and not target.dead and not target.targetable():
+			queue_free()  # it dived meanwhile: the shot fizzles
+			return
 		if not visual_only and on_hit.is_valid():
 			on_hit.call(target, _end)
 		queue_free()

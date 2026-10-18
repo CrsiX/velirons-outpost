@@ -24,6 +24,9 @@ var sea: Dictionary = {}
 var beaches: Dictionary = {}
 ## Tiles painted as ash land around volcanoes.
 var ash: Dictionary = {}
+## Water near villages for the water monsters (GenWater.near_villages): per
+## inlet or lagoon {"village": id, "tip": the water tile nearest the village}.
+var aqua_sites: Array[Dictionary] = []
 ## Per tile: steps to the nearest tile of another slice (large with one slice).
 var border_dist := PackedInt32Array()
 ## Why the map failed its checks (empty: fine).

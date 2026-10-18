@@ -2,6 +2,8 @@ class_name Corpse
 extends Node2D
 ## What's left of a killed enemy. Lies where it fell until a gatherer carries
 ## it home, it rots away (CORPSE_LIFETIME), or the wave after next is finished.
+## On deep water it sinks: it fades over AQUA sink_time and is gone (nobody
+## can gather it; a necromancer can still raise it until then).
 
 var game: Game
 var kind := "goblin"
@@ -22,6 +24,10 @@ var hp_scale := 1.0
 var revivable := true
 ## The necromancer raising it right now.
 var raising_by: Node = null
+## Sinking on deep water (see _process).
+var sinking := false
+var _sink_total := 1.0
+var _sprite: Sprite2D
 
 
 func label() -> String:
@@ -38,6 +44,11 @@ func setup(p_game: Game, p_kind: String, p_wave: int, at: Vector2) -> void:
 	var s := Art.sprite("corpse_" + Config.ENEMIES[kind]["art"])
 	s.flip_h = randf() < 0.5
 	add_child(s)
+	_sprite = s
+	if game.map and game.map.is_deep(tile()):
+		sinking = true
+		_sink_total = float(Config.AQUA["sink_time"])
+		time_left = _sink_total
 
 
 func tile() -> Vector2i:
@@ -49,7 +60,18 @@ func spec() -> Dictionary:
 
 
 func _process(delta: float) -> void:
-	if game.is_client or not game.corpses.rot:
+	if game.is_client:
+		return
+	if sinking:
+		time_left -= delta
+		var k := clampf(time_left / _sink_total, 0.0, 1.0)
+		modulate.a = k
+		_sprite.position.y = (1.0 - k) * 10.0
+		if time_left <= 0.0:
+			game.log_all(EventLog.Level.DEBUG, "%s sank" % label())
+			game.corpses.remove(self)
+		return
+	if not game.corpses.rot:
 		return
 	time_left -= delta
 	if time_left < 10.0:

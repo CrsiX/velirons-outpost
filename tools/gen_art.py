@@ -1746,6 +1746,179 @@ def rat():
     a.save("unit_rat")
 
 
+# ---------------------------------------------------------------- water monsters (docs/aquatic-design.md)
+
+def _waterline(a, rx, ry, cy=0.0):
+    """Where a monster comes out of the water: a dark ring and a light rim."""
+    a.ellipse(0, cy, rx, ry, "#1d3a52", opacity=0.55)
+    a.ellipse(0, cy, rx, ry, "none", "#cfe6f5", 1.4, opacity=0.8)
+    a.ellipse(0, cy, rx * 0.7, ry * 0.65, "none", "#9cc6e2", 1.0, opacity=0.6)
+
+
+def crab():
+    """A big red-orange crab, side-on, claws raised, eyes on stalks."""
+    a = Art()
+    a.shadow(14, 4.5, opacity=0.4)
+    shell, shell_d, shell_l = "#c2512e", "#8e3418", "#e07a4e"
+    for x0, x1 in ((-10, -15), (-6, -10), (6, 10), (10, 15)):  # legs
+        a.line([(x0, -6), (x1, -3), (x1 + (1 if x1 > 0 else -1), 0)], INK, 2.8)
+        a.line([(x0, -6), (x1, -3), (x1 + (1 if x1 > 0 else -1), 0)], shell_d, 1.4)
+    a.ellipse(0, -9, 13, 6.5, shell, INK, 1.4)  # shell
+    a.ellipse(-2, -11, 8, 3, shell_l, opacity=0.7)
+    a.ellipse(4, -6, 9, 2.4, shell_d, opacity=0.5)
+    for sx in (-1, 1):  # claws
+        a.line([(sx * 10, -11), (sx * 15, -18)], INK, 3.4)
+        a.line([(sx * 10, -11), (sx * 15, -18)], shell_d, 2)
+        a.raw('<path d="M%s,-18 Q%s,-28 %s,-26 L%s,-21 Q%s,-23 %s,-19 Z" fill="%s" stroke="%s" stroke-width="1.2" stroke-linejoin="round"/>'
+              % (fmt(sx * 13), fmt(sx * 16), fmt(sx * 22), fmt(sx * 18), fmt(sx * 20), fmt(sx * 17), shell, INK), [(-23, -29), (23, -17)])
+    for ex in (-3, 3):  # eye stalks
+        a.line([(ex, -14), (ex, -19)], INK, 2)
+        a.ellipse(ex, -20, 1.8, 1.8, "#15110d")
+        a.ellipse(ex - 0.5, -20.5, 0.6, 0.6, "#ffffff")
+    a.save("unit_crab")
+
+
+def corpse_crab():
+    a = Art()
+    a.ellipse(0, 0, 16, 5, "#000", opacity=0.3)
+    a.ellipse(0, -3, 12, 5.5, "#8e3418", INK, 1.3)  # on its back
+    a.ellipse(0, -4, 8, 3, "#e8b090", opacity=0.6)
+    for x0, x1, y1 in ((-8, -13, -10), (-4, -6, -12), (4, 6, -12), (8, 13, -10)):
+        a.line([(x0, -5), (x1, y1)], INK, 2.4)
+        a.line([(x0, -5), (x1, y1)], "#c2512e", 1.2)
+    a.poly([(12, -2), (20, -6), (19, 0)], "#c2512e", INK, 1)  # a claw lying apart
+    a.save("corpse_crab")
+
+
+def leviathan():
+    """A sea serpent up out of the water: two coils and a crested head, dark
+    teal scales, pale belly, glowing yellow eyes."""
+    a = Art()
+    _waterline(a, 34, 11)
+    scale, scale_d, belly = "#1f5b5c", "#123c3e", "#9ec9a8"
+    for cx, w, h in ((-22, 9, 10), (-6, 10, 13)):  # coils behind the neck
+        a.raw('<path d="M%s,2 Q%s,%s %s,2 Z" fill="%s" stroke="%s" stroke-width="1.4"/>' % (fmt(cx - w), fmt(cx), fmt(-h * 2), fmt(cx + w), scale, INK),
+              [(cx - w, -h * 2), (cx + w, 2)])
+        a.raw('<path d="M%s,1 Q%s,%s %s,1" fill="none" stroke="%s" stroke-width="2"/>' % (fmt(cx - w * 0.6), fmt(cx), fmt(-h * 1.5), fmt(cx + w * 0.6), scale_d),
+              [(cx - w, -h * 2), (cx + w, 2)])
+    # neck rising to the head
+    a.raw('<path d="M6,3 Q4,-30 16,-52 L28,-48 Q20,-28 22,3 Z" fill="%s" stroke="%s" stroke-width="1.5" stroke-linejoin="round"/>' % (scale, INK), [(4, -53), (28, 3)])
+    a.raw('<path d="M18,2 Q16,-26 25,-46" fill="none" stroke="%s" stroke-width="3"/>' % belly, [(16, -47), (26, 3)])
+    for y in (-10, -22, -34):  # scale rows
+        a.line([(8, y), (19, y - 3)], scale_d, 1.2)
+    # crest
+    a.poly([(12, -46), (6, -62), (16, -54), (14, -68), (22, -56), (24, -66), (27, -52)], "#7a2a3a", INK, 1.2)
+    # head
+    a.raw('<path d="M14,-56 Q22,-64 34,-58 L44,-52 Q40,-46 30,-46 Q20,-44 14,-50 Z" fill="%s" stroke="%s" stroke-width="1.5" stroke-linejoin="round"/>' % (scale, INK), [(14, -65), (44, -44)])
+    a.line([(32, -49), (43, -51)], INK, 1.2)  # jaw
+    a.poly([(34, -49), (35, -46), (36, -49)], "#ffffff", INK, 0.5)  # fangs
+    a.poly([(39, -50), (40, -47.5), (41, -50)], "#ffffff", INK, 0.5)
+    a.ellipse(28, -56, 2.4, 1.8, "#f2e04a", INK, 0.8)
+    a.ellipse(28.5, -56, 0.8, 1.4, INK)
+    a.ellipse(28, -56, 5, 4, "#f2e04a", opacity=0.25)
+    for x, y in ((-30, -2), (32, 0), (-14, 4)):  # foam
+        a.ellipse(x, y, 3, 1.2, "#e8f4fb", opacity=0.8)
+    a.save("unit_leviathan")
+
+
+def corpse_leviathan():
+    a = Art()
+    a.ellipse(0, 0, 30, 9, "#1d3a52", opacity=0.45)
+    a.raw('<path d="M-26,0 Q-14,-10 -2,-2 Q10,6 22,-4 L26,-1 Q12,10 -2,3 Q-14,-4 -24,4 Z" fill="#1f5b5c" stroke="%s" stroke-width="1.3"/>' % INK, [(-27, -10), (27, 8)])
+    a.raw('<path d="M-22,1 Q-12,-6 -2,0 Q10,6 22,-2" fill="none" stroke="#9ec9a8" stroke-width="1.6"/>', [(-22, -6), (22, 6)])
+    a.ellipse(26, -3, 6, 3.5, "#1f5b5c", INK, 1.2)
+    a.line([(24, -5), (28, -2)], INK, 1)
+    a.line([(28, -5), (24, -2)], INK, 1)
+    a.save("corpse_leviathan")
+
+
+def siren():
+    """A siren rising from the water on a scaled tail: long sea-green hair,
+    pale skin, a shell on her breast, arms spread as she sings."""
+    a = Art()
+    _waterline(a, 14, 5)
+    tail, tail_d, hair = "#2f7f7a", "#1f5a57", "#3fae96"
+    a.raw('<path d="M-8,2 Q-10,-14 -5,-24 L6,-24 Q10,-12 7,2 Z" fill="%s" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % (tail, INK), [(-10, -25), (10, 2)])
+    for y in (-4, -10, -16):
+        a.raw('<path d="M-6,%s Q-3,%s 0,%s Q3,%s 6,%s" fill="none" stroke="%s" stroke-width="1"/>' % (fmt(y), fmt(y - 2), fmt(y), fmt(y - 2), fmt(y), tail_d), [(-6, y - 2), (6, y)])
+    a.poly([(-14, 3), (-8, -2), (-6, 3)], tail_d, INK, 1)  # fin tips in the water
+    a.raw('<path d="M-7,-30 Q-12,-18 -9,-10 L-5,-12 Q-7,-20 -4,-28 Z" fill="%s" stroke="%s" stroke-width="1"/>' % (hair, INK), [(-12, -31), (-4, -10)])
+    a.poly([(-6, -24), (6, -24), (5, -31), (-5, -31)], "#e8d8cc", INK, 1.2)  # body
+    a.ellipse(0, -27, 2.5, 2, "#e8b8c8", INK, 0.8)  # shell
+    a.line([(-5, -29), (-13, -36)], INK, 3.4)  # arms spread
+    a.line([(-5, -29), (-13, -36)], "#e8d8cc", 2)
+    a.line([(5, -29), (13, -36)], INK, 3.4)
+    a.line([(5, -29), (13, -36)], "#e8d8cc", 2)
+    a.ellipse(0, -36, 5.5, 5.5, "#e8d8cc", INK, 1.3)  # head
+    a.raw('<path d="M-6,-37 Q-6,-44 0,-44 Q6,-44 6,-37 Q3,-41 0,-41 Q-3,-41 -6,-37 Z" fill="%s" stroke="%s" stroke-width="1"/>' % (hair, INK), [(-7, -45), (7, -36)])
+    a.ellipse(2.5, -36.5, 0.9, 0.9, INK)
+    a.ellipse(3, -33.5, 1.2, 0.8, "#7a2a3a")  # singing mouth
+    a.save("unit_siren")
+
+
+def corpse_siren():
+    a = Art()
+    a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
+    a.raw('<path d="M-16,2 Q-6,-4 4,0 L4,4 Q-6,2 -14,6 Z" fill="#2f7f7a" stroke="%s" stroke-width="1.2"/>' % INK, [(-17, -4), (5, 7)])
+    a.poly([(-18, 1), (-14, 4), (-19, 7)], "#1f5a57", INK, 1)
+    a.poly([(3, -3), (12, -4), (12, 2), (3, 3)], "#e8d8cc", INK, 1.1)
+    a.ellipse(15, -2, 4.5, 4, "#e8d8cc", INK, 1.2)
+    a.line([(13, -5), (20, 1)], "#3fae96", 3)  # hair
+    a.save("corpse_siren")
+
+
+def octopus():
+    """The gigantic octopus: a huge purple-red mantle out of the water, big
+    eyes, and stubs of its arms curling on the surface (the arms that reach
+    are drawn by the game)."""
+    a = Art()
+    _waterline(a, 46, 15)
+    skin, skin_d, skin_l, spot = "#8a3a5a", "#5e2238", "#b05a7a", "#d89ab0"
+    for sx, h in ((-1, 1), (1, 1), (-1, 0), (1, 0)):  # arm stubs curling on the water
+        x0 = sx * (16 if h else 28)
+        a.raw('<path d="M%s,0 Q%s,%s %s,%s Q%s,%s %s,%s" fill="none" stroke="%s" stroke-width="7" stroke-linecap="round"/>'
+              % (fmt(x0), fmt(x0 + sx * 12), fmt(4 - h * 2), fmt(x0 + sx * 18), fmt(-4), fmt(x0 + sx * 22), fmt(-12), fmt(x0 + sx * 16), fmt(-14), INK), [(x0 - 25, -16), (x0 + 25, 6)])
+        a.raw('<path d="M%s,0 Q%s,%s %s,%s Q%s,%s %s,%s" fill="none" stroke="%s" stroke-width="4.5" stroke-linecap="round"/>'
+              % (fmt(x0), fmt(x0 + sx * 12), fmt(4 - h * 2), fmt(x0 + sx * 18), fmt(-4), fmt(x0 + sx * 22), fmt(-12), fmt(x0 + sx * 16), fmt(-14), skin), [(x0 - 25, -16), (x0 + 25, 6)])
+    # the mantle
+    a.raw('<path d="M-24,2 Q-30,-40 -10,-62 Q0,-70 10,-62 Q30,-40 24,2 Z" fill="%s" stroke="%s" stroke-width="1.6" stroke-linejoin="round"/>' % (skin, INK), [(-30, -70), (30, 2)])
+    a.raw('<path d="M6,-62 Q24,-42 20,0 L24,2 Q30,-40 10,-62 Z" fill="%s"/>' % skin_d, [(6, -62), (30, 2)])
+    a.raw('<path d="M-16,-50 Q-8,-62 0,-62" fill="none" stroke="%s" stroke-width="3" stroke-linecap="round" opacity="0.7"/>' % skin_l, [(-17, -63), (1, -49)])
+    for x, y, r in ((-12, -30, 2.5), (-4, -46, 2), (8, -40, 2.2), (14, -22, 1.8), (-16, -14, 2), (2, -56, 1.6)):
+        a.ellipse(x, y, r, r * 0.8, spot, opacity=0.7)
+    for ex in (-10, 10):  # eyes
+        a.ellipse(ex, -12, 6, 5, "#f0d878", INK, 1.2)
+        a.ellipse(ex, -12, 4.2, 1.6, INK)
+        a.ellipse(ex - 1.5, -13.5, 1, 0.8, "#ffffff")
+    a.save("unit_octopus")
+
+
+def corpse_octopus():
+    a = Art()
+    a.ellipse(0, 0, 36, 11, "#1d3a52", opacity=0.45)
+    for sx in (-1, 1):
+        for k in (0, 1):
+            x0 = sx * (8 + k * 8)
+            a.raw('<path d="M%s,0 Q%s,%s %s,%s" fill="none" stroke="#5e2238" stroke-width="5" stroke-linecap="round"/>' % (fmt(x0), fmt(x0 + sx * 14), fmt(6 - k * 10), fmt(x0 + sx * 24), fmt(2 - k * 6)), [(x0 - 26, -10), (x0 + 26, 8)])
+    a.ellipse(0, -4, 18, 9, "#8a3a5a", INK, 1.4)
+    a.line([(-9, -6), (-5, -3)], INK, 1.2)
+    a.line([(-5, -6), (-9, -3)], INK, 1.2)
+    a.line([(5, -6), (9, -3)], INK, 1.2)
+    a.line([(9, -6), (5, -3)], INK, 1.2)
+    a.save("corpse_octopus")
+
+
+def octopus_arm():
+    """The tip of an octopus's arm where it holds its catch (the arm itself is
+    drawn by the game): a curl with pale suckers."""
+    a = Art()
+    a.raw('<path d="M-6,-4 Q-10,-18 0,-22 Q10,-24 9,-14 Q8,-8 2,-10 Q-2,-12 1,-16" fill="none" stroke="%s" stroke-width="7" stroke-linecap="round"/>' % INK, [(-11, -25), (11, -2)])
+    a.raw('<path d="M-6,-4 Q-10,-18 0,-22 Q10,-24 9,-14 Q8,-8 2,-10 Q-2,-12 1,-16" fill="none" stroke="#8a3a5a" stroke-width="4.5" stroke-linecap="round"/>', [(-11, -25), (11, -2)])
+    for x, y in ((-7, -10), (-6, -16), (-2, -20), (4, -21)):
+        a.ellipse(x, y, 1.1, 1.1, "#e0b8c8")
+    a.save("unit_octopus_arm")
+
+
 # ---------------------------------------------------------------- small bits
 
 def arrow():
@@ -3776,6 +3949,15 @@ def main():
     vampire_bat(0)
     vampire_bat(1)
     corpse_vampire()
+    crab()
+    corpse_crab()
+    leviathan()
+    corpse_leviathan()
+    siren()
+    corpse_siren()
+    octopus()
+    corpse_octopus()
+    octopus_arm()
     spell_bolt()
     spell_glow()
     arrow()

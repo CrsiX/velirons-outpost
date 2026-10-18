@@ -280,7 +280,7 @@ All keys in this order on export.
 | key | type | |
 |---|---|---|
 | `format` | string | always `"velirons-outpost-map"` |
-| `format_version` | int | 1 |
+| `format_version` | int | 2 (format 1: no `water_spawns`) |
 | `name` | string | 1-60 characters; shown in the map list and the lobby |
 | `author` | string | 0-60 characters |
 | `description` | string | 0-1000 characters |
@@ -417,7 +417,7 @@ not format errors: the map loads, and the checks (§5.4) report them.
 ```json
 {
   "format": "velirons-outpost-map",
-  "format_version": 1,
+  "format_version": 2,
   "name": "Two Rivers",
   "author": "Chris",
   "description": "A river splits the valley; the ford in the north is the weak spot.",
@@ -795,9 +795,16 @@ conditions, areas that start explored), a scenario editor, and sharing maps
 online. The format keeps room for them: a scenario will be its own file
 pointing at a map by name.
 
-## 12b. Planned: water spawns
+## 12b. Water spawns
 
-docs/aquatic-design.md adds `water_spawns` (deep-water tiles where water monsters spawn): a *Water spawn* tool, a layer, an inspector line for the water body under the pointer (deep tiles, width, which kinds fit), a check (must be deep water in a body that fits a kind: error) and a `"water_spawns"` key in the JSON format (format version bump). Not built.
+docs/aquatic-design.md adds `water_spawns` (deep-water tiles where water monsters spawn), built:
+a *Water spawn* tool (after Spawn: a click on deep water adds one, a click on one or a right-click
+removes it; refused off deep water), a *Water spawns* layer (blue tiles marked "~"), an inspector
+line for the body of deep water under the pointer ("Water body: n deep tiles, w wide · fits
+crab, siren, ..." or "too small for water monsters"), a check (a water spawn off deep water, or
+in a body no water monster fits: an error; Tidy leaves them alone, the check reports them) and a
+`"water_spawns"` key in the JSON format (format version 2, after `"volcanoes"`: a list of tiles in
+row order; optional on reading, so format 1 files still read).
 
 ## 13. As built: differences from the draft, and what's left
 

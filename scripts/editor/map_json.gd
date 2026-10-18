@@ -8,7 +8,7 @@ extends RefCounted
 ## of every problem and where it is.
 
 const FORMAT := "velirons-outpost-map"
-const VERSION := 1
+const VERSION := 2
 ## One character per tile; the index is the MapData.Terrain value.
 const TERRAIN_CODES := ".RFDMWSL"
 ## One character per tile; the index is the Config.ZONE_ORDER index.
@@ -21,7 +21,7 @@ const REWARD_KEYS: Array[String] = ["gold", "food", "materials", "hero_xp", "hea
 
 const TOP_KEYS: Array[String] = [
 	"format", "format_version", "name", "author", "description", "size", "map_type", "origin",
-	"legend", "layers", "crossings", "volcanoes", "villages", "village_links", "objects",
+	"legend", "layers", "crossings", "volcanoes", "water_spawns", "villages", "village_links", "objects",
 ]
 const TOP_REQUIRED: Array[String] = ["format", "format_version", "name", "size", "map_type", "layers", "villages", "objects"]
 const LAYER_KEYS: Array[String] = ["terrain", "zone", "slice", "beach", "props", "decor"]
@@ -92,6 +92,9 @@ static func write(m: MapData) -> String:
 	var vol: Array = m.volcanoes.duplicate()
 	vol.sort_custom(MapData.row_order)
 	out.append('  "volcanoes": %s,' % _tiles(vol))
+	var ws: Array = m.water_spawns.duplicate()
+	ws.sort_custom(MapData.row_order)
+	out.append('  "water_spawns": %s,' % _tiles(ws))
 	out.append('  "villages": [' if not m.villages.is_empty() else '  "villages": [],')
 	for i in m.villages.size():
 		var v: Dictionary = m.villages[i]
@@ -336,6 +339,7 @@ class _Reader:
 		_crossings(d.get("crossings", []), m)
 		var vol := tile_list(d.get("volcanoes", []), "volcanoes")
 		m.volcanoes.assign(vol)
+		m.water_spawns.assign(tile_list(d.get("water_spawns", []), "water_spawns"))  # (format 2; none in a format 1 file)
 		_villages(d.get("villages"), m)
 		_links(d.get("village_links", []), m)
 		_objects(d.get("objects"), m)

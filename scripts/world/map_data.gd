@@ -57,6 +57,8 @@ var meta: Dictionary = {}
 ## Villages of the map that nobody plays (for_game): {"center", "rect",
 ## "pieces": [{kind, tile, flip}]}. Built as ownerless ruins (§8.2).
 var abandoned: Array[Dictionary] = []
+## Deep-water tiles where water monsters come from (docs/aquatic-design.md §9).
+var water_spawns: Array[Vector2i] = []
 
 
 func _init(p_size: int) -> void:
@@ -107,6 +109,28 @@ func is_mountain(t: Vector2i) -> bool:
 
 func is_water(t: Vector2i) -> bool:
 	return in_bounds(t) and (terrain[index(t)] == Terrain.WATER or terrain[index(t)] == Terrain.SHALLOW)
+
+
+## Deep water (not a bridge over it): where water monsters dive.
+func is_deep(t: Vector2i) -> bool:
+	return in_bounds(t) and terrain[index(t)] == Terrain.WATER
+
+
+## Water an amphibian swims through: deep or shallow water, or a bridge or
+## ford over it.
+func is_wet(t: Vector2i) -> bool:
+	if not in_bounds(t):
+		return false
+	var v := terrain[index(t)]
+	if v == Terrain.WATER or v == Terrain.SHALLOW:
+		return true
+	return crossings.has(t) and int(crossings[t][1]) != Terrain.LAVA
+
+
+## Standing in water for a siren's sake: deep or shallow water or a ford (a
+## bridge is land).
+func in_water(t: Vector2i) -> bool:
+	return is_water(t) or (crossings.has(t) and int(crossings[t][1]) == Terrain.SHALLOW)
 
 
 ## Ground units (civilians, soldiers) can't enter forest, mountains, deep water or lava.
@@ -190,6 +214,7 @@ func to_bytes() -> PackedByteArray:
 		"village_links": village_links, "village_layout": village_layout, "farm_plot": farm_plot,
 		"zones": zones, "decor": decor, "crossings": crossings, "volcanoes": volcanoes, "beaches": beaches,
 		"slice_of": slice_of, "slices": slices, "objects": objects, "map_type": map_type, "seed": seed_value,
+		"water_spawns": water_spawns,
 	}
 	if not meta.is_empty():
 		d["meta"] = meta
@@ -229,6 +254,7 @@ static func from_bytes(bytes: PackedByteArray) -> MapData:
 	m.seed_value = d["seed"]
 	m.meta = d.get("meta", {})
 	m.abandoned.assign(d.get("abandoned", []))
+	m.water_spawns.assign(d.get("water_spawns", []))
 	return m
 
 

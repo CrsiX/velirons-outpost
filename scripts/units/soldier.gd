@@ -118,7 +118,7 @@ func _sortie(delta: float) -> void:
 		arrived.emit(self)
 		return
 	_think -= delta
-	_strike_cd -= delta * unit.rate(game)
+	_strike_cd -= delta * unit.rate(game, grid_pos)
 	if unit.has_stat("cry"):
 		_war_cry(delta)
 	if _think <= 0.0:
@@ -138,7 +138,7 @@ func _sortie(delta: float) -> void:
 	_calm = 0.0
 	match unit.role():
 		"melee":
-			if target.grid_pos.distance_to(grid_pos) > unit.field_range():
+			if target.grid_pos.distance_to(grid_pos) > target.melee_reach(unit.field_range()):
 				_close_in(delta, target.grid_pos)
 			else:
 				_set_moving(false)
@@ -168,7 +168,11 @@ func _sortie(delta: float) -> void:
 ## The enemy within the barracks' reach nearest to this soldier. With "hunt"
 ## priorities (Inquisitor) the lowest effective distance (see _hunt_distance);
 ## it keeps its current target unless another is hunt_switch tiles better.
+## Held by an octopus's arm, it fights the arm. Monsters under water are no
+## targets; melee goes only for what it can reach (Enemy.melee_ok).
 func _nearest_foe() -> Enemy:
+	if is_instance_valid(held_by) and not held_by.dead:
+		return held_by as Enemy
 	var reach := barracks.activation_range() + Config.SORTIE_LEASH
 	var home := barracks.act_center()
 	if farm != null:
@@ -181,10 +185,12 @@ func _nearest_foe() -> Enemy:
 	var current_d := INF
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or e.grid_pos.distance_to(home) > reach:
+		if not e.targetable() or e.grid_pos.distance_to(home) > reach:
 			continue
 		if e.flies() and not flyers:
 			continue  # (out of a blade's reach: it only gets hit back, see counter_strike)
+		if unit.role() == "melee" and not e.melee_ok(grid_pos):
+			continue  # (under water out of reach, or a siren in the water)
 		var d := _hunt_distance(e, e.grid_pos.distance_to(grid_pos), hunt)
 		if e == target:
 			current_d = d
@@ -242,7 +248,8 @@ func _close_in(delta: float, to: Vector2) -> void:
 	var tile := Vector2i(to.round())
 	var open := pathing.is_walkable(tile)
 	if not open:
-		tile = pathing.nearest_walkable(tile)  # (it stands where we can't: get as near as we can)
+		var stand := pathing.stand_near(tile, grid_pos)  # (it stands where we can't: get as near as we can)
+		tile = stand if stand != Vector2i(-1, -1) else pathing.nearest_walkable(tile)
 	if path_index >= path.size() or tile != _chase_tile:
 		_chase_tile = tile
 		var p := pathing.find_path(current_tile(), tile)

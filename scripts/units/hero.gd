@@ -317,10 +317,13 @@ func _defend(delta: float) -> void:
 ## Goes for `target` and strikes it when in reach.
 func _fight(delta: float) -> void:
 	_returning = false
+	if not target.melee_ok(grid_pos):
+		target = null  # it dived, or it's out of a sword's reach
+		return
 	if at_home:
 		_set_home(false)
 	var dist := target.grid_pos.distance_to(grid_pos)
-	if dist <= Config.HERO["attack_range"]:
+	if dist <= target.melee_reach(Config.HERO["attack_range"]):
 		_set_moving(false)
 		face(target.grid_pos)
 		if _attack_timer <= 0.0:
@@ -379,8 +382,8 @@ func _pick_enemy() -> Enemy:
 	var out_far := grid_pos.distance_to(centre) > Config.HERO["leash"]
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or e.flies():
-			continue  # (flyers: out of his sword's reach, he only hits back)
+		if e.flies() or not e.melee_ok(grid_pos):
+			continue  # (flyers: out of his sword's reach, he only hits back; under water or out at sea: none)
 		var near_me := not at_home and e.grid_pos.distance_to(grid_pos) <= Config.HERO["sight"]
 		if e.grid_pos.distance_to(centre) > Config.HERO["leash"] and not (out_far and near_me):
 			continue
@@ -399,7 +402,7 @@ func _pick_enemy() -> Enemy:
 	var best_d := INF
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or not (e.behavior is RatBehavior):
+		if not e.targetable() or not (e.behavior is RatBehavior):
 			continue
 		var f: Farm = (e.behavior as RatBehavior).farm
 		if not is_instance_valid(f) or f.village != base():
@@ -413,12 +416,13 @@ func _pick_enemy() -> Enemy:
 
 func _chase() -> void:
 	_chase_tile = target.current_tile()
-	var p := game.world.pathing.find_path(current_tile(), _chase_tile)
+	var stand := game.world.pathing.stand_near(_chase_tile, grid_pos)  # (in deep water: from the shore)
+	var p := game.world.pathing.find_path(current_tile(), stand) if stand != Vector2i(-1, -1) else PackedVector2Array()
 	if p.is_empty():
 		target = null
 		return
 	p[0] = grid_pos
-	p[p.size() - 1] = target.grid_pos
+	p[p.size() - 1] = target.grid_pos if stand == _chase_tile else Vector2(stand)
 	follow(p)
 
 
@@ -476,7 +480,12 @@ func _process(delta: float) -> void:
 	if not dead and not game.is_client:
 		# His blow's cooldown runs in every mode, also while he flees, and no
 		# mode change resets it: switching modes never gives him an extra blow.
-		_attack_timer -= delta * Combat.haste(game, self)
+		_attack_timer -= delta * Combat.haste(game, self, grid_pos)
+		if is_instance_valid(held_by) and not held_by.dead:
+			# An octopus's arm holds him: he fights it, whatever his mode, even fleeing.
+			target = held_by as Enemy
+			_fight(delta)
+			return
 	super(delta)
 	_snore(delta)
 

@@ -617,7 +617,8 @@ func _test_lairs() -> void:
 	var comp := {}
 	for sp in plain:
 		comp[sp["kind"]] = comp.get(sp["kind"], 0) + 1
-	check(comp == Config.wave_composition(10), "the wave keeps its mix (the lair takes its kinds from the share)")
+	var elig := w.aqua(v)  # (water monsters too, if water by the village lets them come)
+	check(comp == Config.wave_composition(10, not elig.is_empty(), elig.keys()), "the wave keeps its mix (the lair takes its kinds from the share)")
 	check(str(b.kinds_for(13)) == str(["ork", "gargoyle"]) and str(a.kinds_for(13)) == str(["skeleton", "necromancer", "vampire"]) and str(b.kinds_for(3)) == str(["ork"]) and str(b.kinds_for(1)) == str(["goblin"]), "themes: a cave sends orks and gargoyles, a crypt skeletons, necromancers and vampires (once their wave has come; goblins before)")
 	w._spawn(from_lair[0])
 	await frames(2)

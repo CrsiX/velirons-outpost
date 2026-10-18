@@ -14,7 +14,7 @@ var _timer := 1.0
 
 func tick(post: Node, unit: MilitaryUnit, delta: float) -> void:
 	_prune()
-	_timer -= delta * unit.rate(post.game)
+	_timer -= delta * unit.rate(post.game, post.act_center())
 	if _timer > 0.0:
 		return
 	if summons.size() >= roundi(unit.stat("max_summons")):

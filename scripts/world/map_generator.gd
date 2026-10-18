@@ -6,10 +6,13 @@ extends RefCounted
 ##   3. water: coast (Coast type), lakes, rivers,
 ##   4. mountain ranges and volcanoes (ash land around them),
 ##   5. zones and vegetation,
-##   6. villages near their slice's centre,
-##   7-8. road network and routing (bridges, fords, passes),
+##   6. villages near their slice's centre, then water near them for the
+##      water monsters (Coast: an inlet each; else maybe a lagoon),
+##   7-8. road network and routing (bridges, fords, passes), a landing road
+##      to each inlet or lagoon,
 ##   9. fix steps: farm plot, fair land, trees for the camp,
 ##   10. special objects (treasures, camps, unlock sites, ruins, lairs, mines),
+##      and the water monsters' spawns,
 ##   11. checks: a map that fails them is made again from the next seed.
 ## Only randomness seeded from `seed_value` is used, so a seed (and map type)
 ## always gives the same map (the co-op host generates, clients receive it).
@@ -51,11 +54,15 @@ static func run(c: GenContext) -> void:
 	marks.append("zones %d" % (Time.get_ticks_msec() - t0))
 	GenVillages.place(c)
 	marks.append("villages %d" % (Time.get_ticks_msec() - t0))
+	GenWater.near_villages(c)
+	marks.append("aqua %d" % (Time.get_ticks_msec() - t0))
 	GenRoads.build(c)
+	GenWater.landings(c)
 	marks.append("roads %d" % (Time.get_ticks_msec() - t0))
 	GenFixes.run(c)
 	marks.append("fixes %d" % (Time.get_ticks_msec() - t0))
 	GenObjects.place(c)
+	GenWater.water_spawns(c)
 	marks.append("objects %d" % (Time.get_ticks_msec() - t0))
 	if OS.has_environment("GEN_PROFILE"):
 		print(", ".join(marks))

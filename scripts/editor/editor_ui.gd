@@ -12,13 +12,14 @@ extends CanvasLayer
 const TOOL_NAMES := {
 	"file": "File", "terrain": "Terrain", "zone": "Zone", "props": "Trees, peaks", "decor": "Decor",
 	"beach": "Beach", "road": "Road", "volcano": "Volcano", "village": "Village", "piece": "Pieces",
-	"spawn": "Spawn", "slice": "Slice", "object": "Objects",
+	"spawn": "Spawn", "water": "Water spawn", "slice": "Slice", "object": "Objects",
 }
 const TOOL_HINTS := {
 	"file": "While this tab is open the map isn't edited: click a tile, object or village to see it in the inspector, drag to pan.",
 	"village": "Click open land: a new village (the standard layout). Drag a village to move it. Delete removes the selected one.",
 	"piece": "Click a tile: the piece below goes there (for the selected or nearest village). Flip turns a wall; Erase removes a piece.",
 	"spawn": "Click a road tile at the map's edge: a spawn (for the selected village, or the one of its slice). Click one again to remove it.",
+	"water": "Click deep water: a water spawn, where water monsters come from (crabs, sirens, leviathans, octopuses). Its body of water must fit one of them. Click one again to remove it.",
 	"object": "Click open land: a new object. Click one to select it, drag it to move it. Delete removes it.",
 	"volcano": "Click: a volcano (3x3) there, or remove the one there.",
 }
@@ -26,7 +27,7 @@ const TOOL_HINTS := {
 const RIGHT_HINTS := {
 	"terrain": "Right-click: grass.", "zone": "Right-click: take the tile's zone.", "props": "", "decor": "Right-click: erase decor.",
 	"beach": "Right-click: erase beach.", "road": "Right-click: erase road.", "volcano": "Right-click: remove a volcano.",
-	"village": "Right-click: delete a village.", "piece": "Right-click: remove a piece.", "spawn": "Right-click: remove a spawn.",
+	"village": "Right-click: delete a village.", "piece": "Right-click: remove a piece.", "spawn": "Right-click: remove a spawn.", "water": "Right-click: remove a water spawn.",
 	"slice": "Right-click: take the tile's slice.", "object": "Right-click: delete an object.",
 }
 const TERRAIN_NAMES := ["Grass", "Road", "Forest", "Desert", "Mountain", "Deep water", "Shallow water", "Lava"]
@@ -66,6 +67,8 @@ var _view_button: Button
 var _save_button: Button
 ## The road steps from every tile to each village's gates (built when needed, dropped on a change).
 var _road_fields: Array[PackedInt32Array] = []
+## The map's bodies of deep water (Pathing.label_water), made when needed.
+var _water: Dictionary = {}
 var _portrait := false
 ## The content width the grids were last built for (their columns follow it).
 var _built_w := -1.0
@@ -158,7 +161,9 @@ func setup(p_editor: MapEditor) -> void:
 	picker = MapPicker.new()
 	root.add_child(picker)
 	picker.picked.connect(_on_opened)
-	editor.changed.connect(func() -> void: _road_fields.clear())  # (before refresh: it may show road steps)
+	editor.changed.connect(func() -> void:
+		_road_fields.clear()  # (before refresh: it may show road steps)
+		_water = {})
 	editor.changed.connect(refresh)
 	editor.selection_changed.connect(_show_inspector)
 	root.get_viewport().size_changed.connect(_fit, CONNECT_DEFERRED)  # (once the root has its new size)
@@ -492,7 +497,7 @@ func _decor_arts() -> Array:
 func _build_layers() -> void:
 	_clear(_layers_box)
 	var names := [["zones", "Zones (isometric)"], ["slices", "Slices"], ["grid", "Grid"], ["passable", "Blocked / shallow"],
-		["buildable", "Buildable land"], ["spawns", "Spawns"], ["villages", "Villages"], ["objects", "Objects"],
+		["buildable", "Buildable land"], ["spawns", "Spawns"], ["water_spawns", "Water spawns"], ["villages", "Villages"], ["objects", "Objects"],
 		["rings", "Camp rings, fronts"], ["problems", "Problem marks"]]
 	_layers_box.columns = _cols(1, names.size() + 1, 210.0)
 	for n in names:
@@ -573,6 +578,28 @@ func _tile_details(box: Control, t: Vector2i) -> void:
 		var d := _road_fields[i][m.index(t)]
 		if d < 1 << 29:
 			box.add_child(_label("Road steps to village %d: %d" % [i + 1, d], 14, UiTheme.MUTED))
+	var w := water_text(t)
+	if w != "":
+		box.add_child(_label(w, 14, UiTheme.MUTED))
+
+
+## The body of deep water under `t` in words ("" if none): its size, its
+## width and which water monsters fit in it.
+func water_text(t: Vector2i) -> String:
+	var m := editor.map
+	if not m.is_deep(t):
+		return ""
+	if _water.is_empty() or (_water["of"] as PackedInt32Array).size() != m.size * m.size:
+		_water = Pathing.label_water(m)
+	var b := int(_water["of"][m.index(t)])
+	if b < 0:
+		return ""
+	var body: Dictionary = _water["bodies"][b]
+	var fits := Pathing.kinds_fitting(body)
+	var names := PackedStringArray()
+	for k in fits:
+		names.append(str(Config.ENEMIES[k]["name"]).to_lower())
+	return "Water body: %d deep tiles, %d wide · %s" % [int(body["deep"]), int(body["width"]), "fits " + ", ".join(names) if not names.is_empty() else "too small for water monsters"]
 
 
 ## The inspector's tile under the pointer (with a finger: the last one tapped).

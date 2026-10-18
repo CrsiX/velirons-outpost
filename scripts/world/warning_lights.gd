@@ -57,7 +57,7 @@ func compute_spots(vid: int = -1) -> Array[Vector2]:
 	var early := _early()
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or e.behavior is CampBehavior or not (early or e.from_lair):
+		if e.dead or e.behavior is CampBehavior or e.habitat() == "water" or not (early or e.from_lair):
 			continue
 		if vid < 0:
 			if e.visible:

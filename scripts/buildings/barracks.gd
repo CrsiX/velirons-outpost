@@ -105,10 +105,13 @@ func enemy_near() -> bool:
 	var c := act_center()
 	var r := activation_range()
 	var no_flyers := not units().any(func(u: MilitaryUnit) -> bool: return u.hits_flyers())
+	var only_melee := units().all(func(u: MilitaryUnit) -> bool: return u.role() == "melee")
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or (e.flies() and no_flyers):
+		if not e.targetable() or (e.flies() and no_flyers):
 			continue  # (only melee on the benches, no halberdier: they can't go for flyers)
+		if only_melee and not e.melee_ok(c):
+			continue  # (out in deep water, or a siren in the water: blades can't reach it)
 		if e.grid_pos.distance_to(c) <= r:
 			return true
 	return false

@@ -218,13 +218,14 @@ const SAVE := {
 ## centre. Zones come from height x moisture; ash land only around volcanoes.
 const MAP_TYPE_ORDER: Array[String] = ["temperate", "highlands", "coast", "desert", "volcanic"]
 ## Per type: shifts of the height / moisture fields, sea edges, multipliers for
-## lakes, rivers, mountains and mines, the volcano count range, lava rivers.
+## lakes, rivers, mountains and mines, the volcano count range, lava rivers,
+## the chance of a lagoon by each village (LAGOON_SIZE).
 const MAP_TYPES := {
-	"temperate": {"name": "Temperate", "height": 0.0, "moisture": 0.0, "coast_edges": [0, 0], "lakes": 1.0, "rivers": 1.0, "mountains": 1.0, "volcanoes": [0, 1], "mines": 1.0},
-	"highlands": {"name": "Highlands", "height": 0.15, "moisture": -0.05, "coast_edges": [0, 0], "lakes": 0.5, "rivers": 1.5, "mountains": 1.6, "volcanoes": [0, 1], "mines": 1.5},
-	"coast": {"name": "Coast", "height": -0.05, "moisture": 0.08, "coast_edges": [1, 2], "lakes": 0.7, "rivers": 1.0, "mountains": 0.8, "volcanoes": [0, 0], "mines": 1.0},
-	"desert": {"name": "Desert", "height": 0.0, "moisture": -0.22, "coast_edges": [0, 0], "lakes": 0.3, "rivers": 0.3, "mountains": 1.0, "volcanoes": [0, 1], "mines": 1.0, "steppe_max": 0.4},
-	"volcanic": {"name": "Volcanic", "height": 0.1, "moisture": -0.1, "coast_edges": [0, 0], "lakes": 0.5, "rivers": 0.0, "mountains": 1.2, "volcanoes": [1, 3], "mines": 1.0, "lava_rivers": true},
+	"temperate": {"name": "Temperate", "height": 0.0, "moisture": 0.0, "coast_edges": [0, 0], "lakes": 1.0, "rivers": 1.0, "mountains": 1.0, "volcanoes": [0, 1], "mines": 1.0, "lagoon": 0.3},
+	"highlands": {"name": "Highlands", "height": 0.15, "moisture": -0.05, "coast_edges": [0, 0], "lakes": 0.5, "rivers": 1.5, "mountains": 1.6, "volcanoes": [0, 1], "mines": 1.5, "lagoon": 0.2},
+	"coast": {"name": "Coast", "height": -0.05, "moisture": 0.08, "coast_edges": [1, 2], "lakes": 0.7, "rivers": 1.0, "mountains": 0.8, "volcanoes": [0, 0], "mines": 1.0, "lagoon": 0.0},
+	"desert": {"name": "Desert", "height": 0.0, "moisture": -0.22, "coast_edges": [0, 0], "lakes": 0.3, "rivers": 0.3, "mountains": 1.0, "volcanoes": [0, 1], "mines": 1.0, "steppe_max": 0.4, "lagoon": 0.1},
+	"volcanic": {"name": "Volcanic", "height": 0.1, "moisture": -0.1, "coast_edges": [0, 0], "lakes": 0.5, "rivers": 0.0, "mountains": 1.2, "volcanoes": [1, 3], "mines": 1.0, "lava_rivers": true, "lagoon": 0.0},
 }
 ## Zones: ground art (variants), tree share and tree mix (weights), decoration
 ## props (not trees; walkable; cleared by buildings) and rules.
@@ -289,6 +290,20 @@ const RIVER_MEANDER_FREQ := 0.1
 const RIVER_JITTER := 0.4
 const RIVER_GOAL_SLACK := 1.3
 const COAST_SHARE := Vector2(0.15, 0.3)
+## Water for the water monsters (docs/world-design.md §9.8). Coast maps: every
+## village gets an inlet from the sea, a channel COAST_INLET_WIDTH wide (a
+## deep core with a shallow rim), dead-ending within COAST_INLET_DIST of its
+## walls; the sea keeps the rest of VILLAGE_SEA_DIST. Other map types: with
+## the type's "lagoon" chance a village gets a lagoon, a lake of LAGOON_SIZE
+## tiles whose shore comes within LAGOON_DIST of its walls (deep core at least
+## LAGOON_MIN_WIDTH wide). WATER_SPAWNS: deep tiles per water body water
+## monsters can live in, where they come from.
+const COAST_INLET_DIST := 8.0
+const COAST_INLET_WIDTH := 5
+const LAGOON_SIZE := Vector2i(60, 110)
+const LAGOON_DIST := 6.0
+const LAGOON_MIN_WIDTH := 3
+const WATER_SPAWNS := Vector2i(1, 2)
 ## Bridge look by the zone around it (the look only).
 const BRIDGE_STYLES := {"meadow": "stone", "oak": "stone", "pine": "timber", "heath": "timber", "steppe": "rope", "swamp": "stilts", "ash": "charred"}
 ## Mountains and volcanoes.
@@ -919,7 +934,8 @@ const CAMERA_KEY_ZOOM := 1.12
 ##   desc ............. one line for the library
 ##   behavior ......... what it does besides walking to a gate (scripts/units/enemies/):
 ##                      "melee" (fights defenders in its way and villagers in reach),
-##                      "witch", "rat", "thief", "necromancer" or "vampire"
+##                      "witch", "rat", "thief", "necromancer", "vampire",
+##                      "leviathan", "siren", "octopus" or "arm" (an octopus's arm)
 ##   hp, speed ........ hit points; tiles per second along the road
 ##   damage ........... close-combat damage per hit (0 = never fights in melee)
 ##   attack_cooldown .. seconds between melee hits
@@ -930,7 +946,9 @@ const CAMERA_KEY_ZOOM := 1.12
 ## split_into / split_count, colors, level, hp_bar_y (see "slime3"),
 ## resist (damage taken by category, see DAMAGE_CATEGORIES; holy: docs/acolyte-design.md §3),
 ## unholy (true: the Inquisitor hunts it; everything a necromancer raises counts too),
-## library (false: no library entry of its own), library_name (its name there).
+## library (false: no library entry of its own), library_name (its name there),
+## habitat, submerges and the other water keys (see "crab" and AQUA),
+## revivable (false: a necromancer can't raise its corpse).
 ## Any enemy that gets through a gate destroys exactly one random hut, on every
 ## difficulty (the villager living there, if any, dies with it). Except
 ## rats (they eat food), thieves (they steal gold), vampire bats (they turn
@@ -1103,6 +1121,129 @@ const ENEMIES := {
 		"drain": 0.67,
 		"bat_below": 0.33, "bat_time": 10.0, "bat_speed": 1.8, "bat_gate_heal": 0.33,
 	},
+	# --- water monsters (docs/aquatic-design.md; the shared rules are in AQUA) ---
+	# Every kind has a "habitat": "land" (the default), "amphibian" (roads and
+	# water: deep, shallow, fords, bridges; it leaves the water only onto a
+	# road) or "water" (deep water only). "submerges": it can dive on deep
+	# tiles, and is untargetable while diving, down or surfacing.
+	# "min_deep_tiles" / "min_width": the smallest water body it lives in (deep
+	# tiles; widest point in tiles, a one-tile river is 1). "reach": how far
+	# from its water it threatens the land (wave eligibility, AQUA).
+	# A goblin that can swim: submerged while on deep water, surfaced
+	# everywhere else (never by choice). Fights like a goblin.
+	"crab": {
+		"name": "Crab", "art": "crab", "behavior": "melee",
+		"desc": "A goblin that swims: it comes up rivers and lakes, out of sight under deep water, and climbs out onto the roads.",
+		"hp": 20.0, "speed": 1.1,
+		"damage": 4.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
+		"habitat": "amphibian", "submerges": true, "auto_submerge": true,
+		"min_deep_tiles": 6, "min_width": 1, "reach": 2.0,
+	},
+	# A sea serpent that never leaves deep water and never moves while up. It
+	# lurks submerged (swim speed "speed"), surfaces near our people for
+	# surface_min..surface_max s and channels a water blast (blast_windup s,
+	# then spell_damage per s for blast_time s, magical) at someone within
+	# blast_range: villagers, units and the hero outside, elementals; never a
+	# tower's unit, nobody inside the walls. A blast every blast_cooldown s.
+	# Losing flee_share of its max HP in one surfacing makes it dive early;
+	# then it stays up at least flee_min_up s the next time. It moves on at
+	# least move_on tiles after each dive. With nobody to blast it still comes
+	# up every idle_surface s at the deep tile nearest the village.
+	"leviathan": {
+		"name": "Leviathan", "art": "leviathan", "behavior": "leviathan", "attack_category": "magical", "revivable": false,
+		"desc": "A sea serpent of the deep. It surfaces near the shore and blasts whoever is out there with a column of water, then dives and moves on.",
+		"hp": 220.0, "speed": 1.3,
+		"damage": 0.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 40, "gold_on_collect": 0, "food_on_collect": 0,
+		"habitat": "water", "submerges": true,
+		"min_deep_tiles": 30, "min_width": 2, "reach": 5.6,
+		"blast_range": 4.6,  # below a level 3 watchtower's reach (5.2), above a level 2's (4.4)
+		"spell_damage": 6.0, "blast_windup": 0.8, "blast_time": 4.0, "blast_cooldown": 8.0,
+		"surface_min": 5.0, "surface_max": 9.0, "idle_surface": 20.0,
+		"flee_share": 0.25, "flee_min_up": 3.0, "move_on": 6.0,
+	},
+	# A support monster: she keeps hold_range from the nearest of ours (a
+	# unit, building or villager) and sings (song_radius). At distance d her
+	# song's strength is s = 1 - d / song_radius: mobile units of ours (the
+	# hero, soldiers on a sortie, elementals, villagers outside) are pulled
+	# towards her at song_pull x s tiles/s (never into deep water), and every
+	# unit's attack, cast, summon and heal timers run 1 - song_slow x s as
+	# fast (tower units too). A High Priest's aura makes a unit immune. Melee
+	# can't touch her while she stands in water (deep or shallow, a ford;
+	# a bridge is land), except from inside a High Priest's aura. After
+	# patience s without luring anyone she walks to the gate and stops for
+	# nothing. Submerged while travelling in deep water; up when one of ours
+	# is within song_radius; dives for dive_time s after losing dive_loss of
+	# her max HP within dive_window s.
+	"siren": {
+		"name": "Siren", "art": "siren", "behavior": "siren",
+		"desc": "She sings from the water: our people are drawn towards her and fight slower. Melee can't reach her in the water, unless a High Priest blesses them.",
+		"hp": 24.0, "speed": 0.9,
+		"damage": 0.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 14, "gold_on_collect": 0, "food_on_collect": 1,
+		"resist": {"melee": 1.5, "magical": 0.67},
+		"habitat": "amphibian", "submerges": true,
+		"min_deep_tiles": 6, "min_width": 1, "reach": 5.5,
+		"song_radius": 4.5, "song_pull": 0.9, "song_slow": 0.6,
+		"hold_range": 4.0, "patience": 30.0,
+		"dive_loss": 0.3, "dive_window": 6.0, "dive_time": 5.0,
+		"melee_proof_in_water": true,
+	},
+	# The strongest water monster, rare (WAVE_MIX: chance, max_count). Never
+	# leaves deep water; moves at "speed" towards our people (else to the deep
+	# tile nearest the village). Its `arms` arms each reach arm_range, one
+	# target each (never two on one): villagers outside, the hero, soldiers on
+	# a sortie, elementals. A hooked unit is pulled towards it at arm_pull
+	# tiles/s (into deep water too: it drowns; the hero is downed; flyers
+	# don't drown) and takes spell_damage per s; it fights the arm, which is
+	# a target of its own while reaching or holding ("octopus_arm": its HP is
+	# arm_hp, scaled like enemy HP by difficulty and the wave). An arm at 0 HP
+	# frees its unit and is gone for arm_respawn s. After a grapple an arm
+	# waits arm_cooldown s; the arms start arm_stagger s apart. It dives
+	# (arms let go) for dive_time s after losing dive_loss of its max HP
+	# within dive_window s, then can't dive again for dive_lockout s.
+	"octopus": {
+		"name": "Gigantic octopus", "art": "octopus", "behavior": "octopus", "revivable": false,
+		"desc": "Rare and huge. Its eight arms grab people near the shore and drag them into the deep. Cut an arm to free whoever it holds.",
+		"hp": 1200.0, "speed": 0.5,
+		"damage": 0.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 250, "gold_on_collect": 0, "food_on_collect": 0,
+		"habitat": "water", "submerges": true, "hp_bar_y": -70.0,
+		"min_deep_tiles": 80, "min_width": 3, "reach": 5.5,
+		"arms": 8, "arm_range": 4.5, "arm_cooldown": 6.0, "arm_stagger": 0.75,
+		"arm_reach_speed": 8.0,  # tiles per second of a reaching arm's tip
+		"spell_damage": 3.0, "arm_pull": 0.6, "arm_respawn": 30.0,
+		"dive_loss": 0.15, "dive_window": 6.0, "dive_time": 6.0, "dive_lockout": 20.0,
+	},
+	# One of the octopus's arms while it reaches or holds: a target like any
+	# enemy, but not a wave member (no gold, no corpse, not counted).
+	"octopus_arm": {
+		"name": "Tentacle", "art": "octopus_arm", "behavior": "arm", "corpse": false, "library": false,
+		"desc": "An arm of the gigantic octopus.",
+		"hp": 30.0, "speed": 0.0,
+		"damage": 0.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 0, "gold_on_collect": 0, "food_on_collect": 0,
+		"habitat": "water", "hp_bar_y": -30.0,
+	},
+}
+## The water monsters' shared rules (docs/aquatic-design.md):
+##   dive_time / surface_time .. seconds of diving and of coming up (untargetable)
+##   sink_time ....... a corpse on deep water sinks (fades) over this and is gone
+##   threat_radius ... the land and shallow tiles within this of a village centre
+##                     are what water monsters threaten (wave eligibility)
+##   spawn_shore ..... a water spawn picked by the game keeps this far from them
+##   melee_reach ..... melee reaches a mob on deep water from the tile next to it
+const AQUA := {
+	"dive_time": 0.5, "surface_time": 0.5, "sink_time": 6.0,
+	"threat_radius": 12.0, "spawn_shore": 8.0, "melee_reach": 1.5,
+}
+## The log's line for the first of each water kind in a game (Info; the octopus: Important).
+const AQUA_FIRST := {
+	"crab": "Crabs crawl up out of the water!",
+	"siren": "A siren sings from the water!",
+	"leviathan": "A leviathan rises from the deep!",
+	"octopus": "A gigantic octopus rises from the deep!",
 }
 ## Rat packs: from `from_wave`, a wave gets rat packs with chance `chance`:
 ## `packs` of them (more every `more_every` waves), `size` rats each, spawned
@@ -1124,7 +1265,11 @@ const DIFFICULTY_SCALED: Array[String] = [
 
 ## Which enemies march in wave n. Each kind joins from `from_wave`; its share of
 ## the wave starts at `share` and grows by `growth` per wave, up to `max_share`.
-## WAVE_FILLER makes up the rest.
+## WAVE_FILLER makes up the rest. Optional: "needs": "water" (only for a
+## village its water monsters can reach, see Aqua; elsewhere the filler takes
+## its share), "max_count" (at most this many per wave and village; the rest
+## go to the filler) and "chance" (it comes in a wave only with this chance,
+## rolled per wave and village by Waves).
 const WAVE_MIX := {
 	"skeleton": {"from_wave": 2, "share": 0.12, "growth": 0.06, "max_share": 0.35},
 	"ork": {"from_wave": 3, "share": 0.10, "growth": 0.03, "max_share": 0.25},
@@ -1134,6 +1279,10 @@ const WAVE_MIX := {
 	"gargoyle": {"from_wave": 10, "share": 0.06, "growth": 0.01, "max_share": 0.15},
 	"necromancer": {"from_wave": 13, "share": 0.04, "growth": 0.005, "max_share": 0.08},
 	"vampire": {"from_wave": 13, "share": 0.05, "growth": 0.01, "max_share": 0.12},
+	"crab": {"from_wave": 6, "share": 0.08, "growth": 0.01, "max_share": 0.15, "needs": "water"},
+	"siren": {"from_wave": 8, "share": 0.06, "growth": 0.005, "max_share": 0.1, "needs": "water"},
+	"leviathan": {"from_wave": 10, "share": 0.03, "growth": 0.0, "max_share": 0.03, "needs": "water", "max_count": 2},
+	"octopus": {"from_wave": 20, "share": 0.01, "growth": 0.0, "max_share": 0.01, "needs": "water", "max_count": 1, "chance": 0.25},
 }
 const WAVE_FILLER := "goblin"
 ## The special kinds together never take more than this share of a wave
@@ -1141,8 +1290,10 @@ const WAVE_FILLER := "goblin"
 const WAVE_MIX_CAP := 0.85
 
 
-## Kind -> count for wave n (counts add up to wave_size(n)).
-static func wave_composition(n: int) -> Dictionary:
+## Kind -> count for wave n (counts add up to wave_size(n)). The kinds that
+## need water only with `water` (a village water monsters can reach), and of
+## those only the ones in `only` if it isn't empty.
+static func wave_composition(n: int, water := false, only: Array = []) -> Dictionary:
 	var total := wave_size(n)
 	var out := {}
 	var used := 0
@@ -1151,6 +1302,8 @@ static func wave_composition(n: int) -> Dictionary:
 	for kind in WAVE_MIX:
 		var mix: Dictionary = WAVE_MIX[kind]
 		if n < mix["from_wave"]:
+			continue
+		if mix.get("needs", "") == "water" and (not water or (not only.is_empty() and not only.has(kind))):
 			continue
 		shares[kind] = minf(mix["share"] + mix["growth"] * (n - mix["from_wave"]), mix["max_share"])
 		sum += shares[kind]

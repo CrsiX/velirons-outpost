@@ -479,10 +479,10 @@ func _debug(v: Village, a: Dictionary) -> Dictionary:
 				game.unlock(key, v)
 		"spawn":
 			var kind := str(a.get("kind", ""))
-			if not Config.ENEMIES.has(kind):
+			if not Config.ENEMIES.has(kind) or Config.ENEMIES[kind]["behavior"] == "arm":
 				return fail("Unknown enemy '%s'" % kind)
 			if game.waves.debug_spawn(kind, v) == null:
-				return fail("No spawn point")
+				return fail("No spawn point" if str(Config.ENEMIES[kind].get("habitat", "land")) != "water" else "No water it can live in")
 		_:
 			return fail("Unknown debug action '%s'" % what)
 	v.events.debug("debug: %s %s" % [what, str(a.get("kind", ""))])

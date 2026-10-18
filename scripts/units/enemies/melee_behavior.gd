@@ -12,8 +12,8 @@ var _foe: Node = null  # a melee defender
 
 
 func tick(enemy: Enemy, delta: float) -> bool:
-	if enemy.stat("damage") <= 0.0:
-		return false
+	if enemy.stat("damage") <= 0.0 or not enemy.targetable():
+		return false  # (a crab under water swims on)
 	_attack_timer -= delta
 	_scan_timer -= delta
 	if _scan_timer <= 0.0:

@@ -4,6 +4,9 @@ extends RefCounted
 ## edges (Coast type), lakes in the lowest hollows, rivers running downhill
 ## into a lake, the sea or off the map. Deep water in the middle, shallow
 ## water at the rims. Every slice keeps some land edge for its spawns.
+## After the villages (§9.8, docs/aquatic-design.md): water near them for the
+## water monsters (near_villages: an inlet from the sea on Coast maps, else
+## maybe a lagoon), a landing road to it (landings), and the water spawns.
 
 
 static func place(c: GenContext) -> void:
@@ -283,3 +286,277 @@ static func route_river(c: GenContext, src: Vector2i, lava: bool, max_len: int =
 		for nb in MapData.neighbors4(t):
 			if c.is_land(nb) and not c.rivers.has(nb) and c.rng.randf() < 0.3:
 				m.set_terrain(nb, MapData.Terrain.SHALLOW)
+
+
+# --- water for the water monsters (docs/world-design.md §9.8) -------------------------------
+
+## After the villages: on Coast maps every village gets an inlet from the
+## sea; on the other map types a village gets a lagoon with the type's
+## "lagoon" chance. Their own random numbers, so the rest of a map's seeded
+## rolls stay as they were.
+static func near_villages(c: GenContext) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([c.seed_value, "aqua"])
+	for vi in c.m.villages.size():
+		if not c.sea.is_empty():
+			_inlet(c, vi)
+		elif rng.randf() < float(c.type.get("lagoon", 0.0)):
+			_lagoon(c, vi, rng)
+
+
+static func _cheb(a: Vector2i, b: Vector2i) -> int:
+	return maxi(absi(a.x - b.x), absi(a.y - b.y))
+
+
+## Can water go on `t` (for village `vi`'s inlet or lagoon, keeping `keep`
+## Chebyshev steps from its centre)? Not on mountains, lava or by a crater,
+## not too near any village, nor on the map's outer ring.
+static func _water_ok(c: GenContext, t: Vector2i, vi: int, keep: int) -> bool:
+	var m := c.m
+	if not m.in_bounds(t) or t.x < 1 or t.y < 1 or t.x > m.size - 2 or t.y > m.size - 2:
+		return false
+	var v := m.get_terrain(t)
+	if v == MapData.Terrain.MOUNTAIN or v == MapData.Terrain.LAVA or m.near_crater(t):
+		return false
+	for i in m.villages.size():
+		var d := _cheb(t, m.villages[i]["center"])
+		if d < (keep if i == vi else keep + 4):
+			return false
+	return true
+
+
+## An inlet: the shortest channel from the sea's deep water to a tip
+## COAST_INLET_DIST from village `vi`'s walls, COAST_INLET_WIDTH wide (a deep
+## core, a shallow rim), dead-ending there.
+static func _inlet(c: GenContext, vi: int) -> void:
+	var m := c.m
+	var centre: Vector2i = m.villages[vi]["center"]
+	var half := Config.COAST_INLET_WIDTH / 2
+	var tip_d := 2 + int(Config.COAST_INLET_DIST) + half  # (the rim comes within COAST_INLET_DIST of the walls)
+	for t: Vector2i in c.sea:
+		if m.get_terrain(t) == MapData.Terrain.WATER and _cheb(t, centre) <= tip_d + 1:
+			c.aqua_sites.append({"village": vi, "tip": t})
+			return  # (the sea is close enough already)
+	# The sea's deep water nearest the village, and the tip on the ring
+	# tip_d round it nearest to that.
+	var sea_t := Vector2i(-1, -1)
+	var sea_d := INF
+	for t: Vector2i in c.sea:
+		var d := Vector2(t).distance_squared_to(Vector2(centre))
+		if m.get_terrain(t) == MapData.Terrain.WATER and d < sea_d:
+			sea_d = d
+			sea_t = t
+	var tip := Vector2i(-1, -1)
+	var tip_best := INF
+	for k in range(-tip_d, tip_d + 1):
+		for t in [centre + Vector2i(k, -tip_d), centre + Vector2i(k, tip_d), centre + Vector2i(-tip_d, k), centre + Vector2i(tip_d, k)]:
+			var d := Vector2(t).distance_squared_to(Vector2(sea_t))
+			if d < tip_best and _water_ok(c, t, vi, tip_d) and c.is_land(t):
+				tip_best = d
+				tip = t
+	if sea_t.x < 0 or tip.x < 0:
+		c.warn("village %d gets no inlet from the sea" % vi)
+		return
+	# A winding channel from the tip to the sea (A* over a noisy cost).
+	var astar := AStarGrid2D.new()
+	astar.region = Rect2i(0, 0, m.size, m.size)
+	astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
+	astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
+	astar.update()
+	var noise := FastNoiseLite.new()
+	noise.seed = c.seed_value * 37 + vi
+	noise.frequency = 0.08
+	for y in m.size:
+		for x in m.size:
+			var t := Vector2i(x, y)
+			if c.sea.has(t):
+				astar.set_point_weight_scale(t, 0.5)
+			elif not _water_ok(c, t, vi, tip_d):
+				astar.set_point_solid(t, true)
+			else:
+				astar.set_point_weight_scale(t, 1.0 + 6.0 * absf(noise.get_noise_2d(x, y)) + 3.0 * clampf(c.h(t), 0.0, 1.0))
+	var route := astar.get_id_path(tip, sea_t)
+	if route.is_empty() or route.size() > int(m.size * 0.7):
+		c.warn("village %d gets no inlet from the sea" % vi)
+		return
+	var path: Array[Vector2i] = []
+	for t in route:
+		if c.sea.has(t):
+			break
+		path.append(t)
+	_carve_channel(c, path, half, vi)
+	c.aqua_sites.append({"village": vi, "tip": tip})
+
+
+## Water along `path`: deep within `half` - 1 of it, shallow at `half`.
+static func _carve_channel(c: GenContext, path: Array[Vector2i], half: int, vi: int) -> void:
+	var m := c.m
+	var deep := {}
+	var rim := {}
+	for t in path:
+		for dy in range(-half, half + 1):
+			for dx in range(-half, half + 1):
+				var q := t + Vector2i(dx, dy)
+				if not _water_ok(c, q, vi, 2 + int(Config.COAST_INLET_DIST)):
+					continue
+				if maxi(absi(dx), absi(dy)) < half:
+					deep[q] = true
+				else:
+					rim[q] = true
+	for q: Vector2i in rim:
+		if not deep.has(q) and c.is_land(q):
+			_make_water(c, q, MapData.Terrain.SHALLOW)
+	for q: Vector2i in deep:
+		_make_water(c, q, MapData.Terrain.WATER)
+
+
+static func _make_water(c: GenContext, t: Vector2i, terrain: int) -> void:
+	var m := c.m
+	m.set_terrain(t, terrain)
+	m.props.erase(t)
+	m.decor.erase(t)
+	c.rivers.erase(t)
+	c.sea[t] = true
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var nb := t + Vector2i(dx, dy)
+			if m.in_bounds(nb):
+				c.beaches[nb] = true
+
+
+## A lagoon: a lake of LAGOON_SIZE tiles on the side of village `vi` with the
+## most open land, its shore LAGOON_DIST from the walls, a deep core at least
+## LAGOON_MIN_WIDTH wide and a shallow rim.
+static func _lagoon(c: GenContext, vi: int, rng: RandomNumberGenerator) -> void:
+	var m := c.m
+	var centre: Vector2i = m.villages[vi]["center"]
+	var size := rng.randi_range(Config.LAGOON_SIZE.x, Config.LAGOON_SIZE.y)
+	var r := sqrt(size / PI)
+	var keep := 2 + int(Config.LAGOON_DIST)
+	var best := Vector2i(-1, -1)
+	var best_s := -1
+	for k in 16:
+		var a := TAU * k / 16.0 + rng.randf() * 0.2
+		var mid := Vector2i((Vector2(centre) + Vector2.from_angle(a) * (keep + r + 1.0)).round())
+		var open := 0
+		for dy in range(-ceili(r), ceili(r) + 1):
+			for dx in range(-ceili(r), ceili(r) + 1):
+				var t := mid + Vector2i(dx, dy)
+				if Vector2(dx, dy).length() <= r and _water_ok(c, t, vi, keep) and c.is_land(t):
+					open += 1
+		if open > best_s:
+			best_s = open
+			best = mid
+	if best.x < 0 or best_s < size * 0.6:
+		return
+	var noise := FastNoiseLite.new()
+	noise.seed = c.seed_value * 13 + vi
+	noise.frequency = 0.25
+	var tiles := {}
+	var ri := ceili(r) + 2
+	for dy in range(-ri, ri + 1):
+		for dx in range(-ri, ri + 1):
+			var t := best + Vector2i(dx, dy)
+			if Vector2(dx, dy).length() <= r + 1.2 * noise.get_noise_2d(t.x, t.y) and _water_ok(c, t, vi, keep):
+				tiles[t] = true
+	var tip := Vector2i(-1, -1)
+	var tip_d := INF
+	for t: Vector2i in tiles:
+		var edge := false
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				if not tiles.has(t + Vector2i(dx, dy)):
+					edge = true
+		_make_water(c, t, MapData.Terrain.SHALLOW if edge else MapData.Terrain.WATER)
+		if not edge and Vector2(t).distance_to(Vector2(centre)) < tip_d:
+			tip_d = Vector2(t).distance_to(Vector2(centre))
+			tip = t
+	if tip.x >= 0:
+		c.aqua_sites.append({"village": vi, "tip": tip})
+
+
+## After the roads: a short road from the shore nearest each inlet's or
+## lagoon's tip to the network, so crabs and sirens can climb out there.
+static func landings(c: GenContext) -> void:
+	if c.aqua_sites.is_empty():
+		return
+	var m := c.m
+	var router := GenRoads.router(c)
+	for site in c.aqua_sites:
+		var tip: Vector2i = site["tip"]
+		# The land tile next to this water nearest the tip.
+		var shore := Vector2i(-1, -1)
+		var shore_d := INF
+		for dy in range(-4, 5):
+			for dx in range(-4, 5):
+				var t := tip + Vector2i(dx, dy)
+				if not c.is_land(t) or m.in_village(t):
+					continue
+				var wet := false
+				for nb in MapData.neighbors4(t):
+					wet = wet or m.is_water(nb)
+				if not wet:
+					continue
+				var d := Vector2(t).distance_to(Vector2(tip))
+				if d < shore_d:
+					shore_d = d
+					shore = t
+		if shore.x < 0:
+			continue
+		var touches := m.is_road(shore)
+		for nb in MapData.neighbors4(shore):
+			touches = touches or m.is_road(nb)
+		if not touches:
+			router.spur_from(shore)
+
+
+## The water monsters' spawns: WATER_SPAWNS deep tiles in every body of water
+## some water monster fits that comes near a village: at the map's edge if it
+## reaches it (the open sea), else as far out in the open water as can be,
+## and away from the shore (AQUA spawn_shore) where possible.
+static func water_spawns(c: GenContext) -> void:
+	var m := c.m
+	m.water_spawns.clear()
+	var lab := Pathing.label_water(m)
+	var bodies: Array = lab["bodies"]
+	var near := float(Config.AQUA["threat_radius"]) + 6.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([c.seed_value, "water_spawns"])
+	var land_dist := c.distance_to(func(t: Vector2i) -> bool: return not m.is_deep(t), true)
+	for b in bodies.size():
+		var body: Dictionary = bodies[b]
+		if Pathing.kinds_fitting(body).is_empty():
+			continue
+		var close := false
+		for t: Vector2i in body["tiles"]:
+			for v in m.villages:
+				if Vector2(t).distance_to(Vector2(v["center"])) <= near:
+					close = true
+					break
+			if close:
+				break
+		if not close:
+			continue
+		var n := rng.randi_range(Config.WATER_SPAWNS.x, Config.WATER_SPAWNS.y)
+		var picked: Array[Vector2i] = []
+		for k in n:
+			var best := Vector2i(-1, -1)
+			var best_s := -INF
+			for t: Vector2i in body["tiles"]:
+				var s := float(land_dist[m.index(t)]) + (20.0 if m.is_edge(t) else 0.0) + rng.randf() * 0.5
+				var far_ok := true
+				for v in m.villages:
+					if Vector2(t).distance_to(Vector2(v["center"])) < float(Config.AQUA["spawn_shore"]) + 2.0:
+						far_ok = false
+				if not far_ok:
+					s -= 50.0
+				for p in picked:
+					if Vector2(t).distance_to(Vector2(p)) < 10.0:
+						s -= 40.0
+				if s > best_s:
+					best_s = s
+					best = t
+			if best.x >= 0 and not picked.has(best):
+				picked.append(best)
+		m.water_spawns.append_array(picked)
+	m.water_spawns.sort_custom(MapData.row_order)

@@ -2699,6 +2699,8 @@ func _build_debug(center: Control) -> void:
 	grid.add_theme_constant_override("v_separation", 10)
 	ev.add_child(grid)
 	for kind: String in Config.ENEMIES:
+		if Config.ENEMIES[kind]["behavior"] == "arm":
+			continue  # (an octopus's arm only comes with its octopus)
 		var name := str(Config.ENEMIES[kind]["name"])
 		var b := _button(name, Vector2(180, 52))
 		b.icon = Art.tex("unit_" + str(Config.ENEMIES[kind]["art"]))

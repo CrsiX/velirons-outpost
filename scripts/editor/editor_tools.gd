@@ -400,6 +400,18 @@ static func toggle_spawn(m: MapData, t: Vector2i, owner: int) -> Variant:
 	return [t] as Array[Vector2i]
 
 
+## Adds or removes a water spawn (docs/aquatic-design.md §9) on deep-water tile `t`.
+static func toggle_water_spawn(m: MapData, t: Vector2i) -> Variant:
+	if m.water_spawns.has(t):
+		m.water_spawns.erase(t)
+		return [t] as Array[Vector2i]
+	if not m.is_deep(t):
+		return "A water spawn goes on deep water"
+	m.water_spawns.append(t)
+	m.water_spawns.sort_custom(MapData.row_order)
+	return [t] as Array[Vector2i]
+
+
 # --- objects ---------------------------------------------------------------------------------
 
 ## A new object of `kind` on `t` with its default fields: its index, or why not.

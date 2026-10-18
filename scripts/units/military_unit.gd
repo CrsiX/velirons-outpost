@@ -120,9 +120,10 @@ func max_hp() -> float:
 
 
 ## How fast its attack, summon and heal timers run (1 = normal): a war cry's
-## haste, and a berserker's rage (the more HP it has lost, the faster).
-func rate(game: Game) -> float:
-	var r := Combat.haste(game, self)
+## haste, a siren's song at `pos` (grid; where it acts from), and a
+## berserker's rage (the more HP it has lost, the faster).
+func rate(game: Game, pos := Vector2.INF) -> float:
+	var r := Combat.haste(game, self, pos)
 	if has_stat("rage"):
 		var missing := clampf(1.0 - hp / max_hp(), 0.0, 1.0)
 		r /= maxf(1.0 - stat("rage") * missing, 0.05)

@@ -8,7 +8,7 @@ var _cooldown := 0.3
 
 
 func tick(post: Node, unit: MilitaryUnit, delta: float) -> void:
-	_cooldown -= delta * unit.rate(post.game)
+	_cooldown -= delta * unit.rate(post.game, post.act_center())
 	var targets := enemies_near(post, post.act_range())
 	if targets.is_empty():
 		return

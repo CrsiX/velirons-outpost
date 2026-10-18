@@ -1,8 +1,9 @@
 extends Node2D
 ## A short effect drawn in code: an exploding fireball (flash, fire ring and
 ## sparks), a healing ring, a warp blink, a puff of dark smoke, an acolyte's
-## beam of light from straight above, a flash of holy light from a blow, or a
-## warrior's war cry (red-orange rings rushing out to its reach).
+## beam of light from straight above, a flash of holy light from a blow, a
+## warrior's war cry (red-orange rings rushing out to its reach), or a water
+## monster's splash as it dives or comes up.
 ## Fades out on its own.
 
 const LIFE := 0.55
@@ -69,6 +70,12 @@ func _draw() -> void:
 			draw_line(Vector2(0.0, -14.0 - l), Vector2(0.0, -14.0 + l), Color(1.0, 0.9, 0.45, fade), 3.0)
 			draw_line(Vector2(-l * 0.7, -14.0), Vector2(l * 0.7, -14.0), Color(1.0, 0.9, 0.45, fade), 3.0)
 			_ellipse(rx * 0.8, Color(1.0, 0.85, 0.35, 0.6 * fade), 2.5)
+		"splash":  # a water monster diving or coming up: a white ring and droplets
+			_ellipse(rx, Color(0.85, 0.95, 1.0, 0.8 * fade), 3.0)
+			_ellipse(rx * 0.55, Color(0.6, 0.8, 1.0, 0.6 * fade), 2.0)
+			for s in _sparks.slice(0, 9):
+				var p := Vector2(s.x * rx * 0.8, s.y * rx * 0.4 - 30.0 * sin(k * PI))
+				draw_circle(p, 2.5 * fade + 0.8, Color(0.8, 0.93, 1.0, fade))
 		"war_cry":  # a warrior's shout: rings rushing out to the cry's reach, short strokes on the way
 			var reach := radius * Iso.HALF_W * (0.15 + 0.85 * sqrt(k))
 			_ellipse(reach, Color(1.0, 0.45, 0.15, 0.85 * fade), 5.0)

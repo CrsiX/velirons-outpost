@@ -285,6 +285,7 @@ static func _enemies() -> Array[Dictionary]:
 			f.append("Takes %s x %s damage" % [_n(e["resist"][cat]), cat])
 		if e.get("unholy", false):
 			f.append("Unholy: the inquisitor hunts it")
+		f.append_array(_water_facts(kind))
 		var loot := "Killed: %d gold" % Config.enemy_stat_int(kind, "gold_on_kill")
 		if e.get("corpse", true):
 			var c := PackedStringArray()
@@ -304,6 +305,41 @@ static func _enemies() -> Array[Dictionary]:
 			f.append("Comes out of monster lairs: %s" % ", ".join(lairs))
 		out.append({"name": e.get("library_name", e["name"]), "art": "unit_" + str(e["art"]), "text": e.get("desc", ""), "facts": f})
 	return out
+
+
+## What a water monster does (docs/aquatic-design.md), from Config.
+static func _water_facts(kind: String) -> PackedStringArray:
+	var e: Dictionary = Config.ENEMIES[kind]
+	var f := PackedStringArray()
+	match str(e.get("habitat", "land")):
+		"amphibian":
+			f.append("Swims: comes along the roads and through rivers, lakes and the sea, and leaves the water only onto a road")
+		"water":
+			f.append("Lives in deep water and never leaves it")
+		_:
+			return f
+	if e.get("submerges", false):
+		f.append("Dives under deep water, where nothing can hit it")
+	var mix: Dictionary = Config.WAVE_MIX.get(kind, {})
+	if mix.get("needs", "") == "water":
+		f.append("Comes only to villages by water it can live in (%d+ deep tiles, %d+ wide)" % [int(e.get("min_deep_tiles", 1)), int(e.get("min_width", 1))])
+	if mix.has("chance"):
+		f.append("Rare: in %d %% of the waves, at most %d" % [roundi(100.0 * float(mix["chance"])), int(mix.get("max_count", 1))])
+	elif mix.has("max_count"):
+		f.append("At most %d in a wave" % int(mix["max_count"]))
+	match kind:
+		"leviathan":
+			f.append("Water blast: %s damage per second for %s s, range %s tiles, every %s s" % [_n(Config.enemy_stat(kind, "spell_damage")), _n(e["blast_time"]), _n(e["blast_range"]), _n(e["blast_cooldown"])])
+			f.append("Out of reach of level 1 and 2 watchtowers: a level 3 one or a wall tower reaches it")
+		"siren":
+			f.append("Song (%s tiles): pulls our people towards her and slows every unit's attacks, by up to %d %%" % [_n(e["song_radius"]), roundi(100.0 * float(e["song_slow"]))])
+			f.append("In the water only ranged attacks reach her; a High Priest's aura shields from the song and lets melee strike her")
+		"octopus":
+			f.append("%d arms reaching %s tiles: each grabs one of ours and drags them into the deep (%s damage per second)" % [int(e["arms"]), _n(e["arm_range"]), _n(Config.enemy_stat(kind, "spell_damage"))])
+			f.append("Cut an arm (%s HP) to free whoever it holds; it grows back after %s s" % [_n(Config.enemy_stat("octopus_arm", "hp")), _n(e["arm_respawn"])])
+	if e.get("corpse", true):
+		f.append("Its corpse sinks in deep water")
+	return f
 
 
 ## The first wave `kind` marches in (0: only from lairs and camps).

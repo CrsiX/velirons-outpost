@@ -23,7 +23,7 @@ const TERRAIN_NAMES: Array[String] = ["grass", "road", "forest", "desert", "moun
 ## Everything to_bytes()/from_bytes() carries (the co-op host sends it).
 const SAVED_FIELDS: Array[String] = ["size", "terrain", "props", "village_rect", "gates", "edge_spawns",
 	"villages", "village_links", "village_layout", "farm_plot", "zones", "decor", "crossings",
-	"volcanoes", "beaches", "slice_of", "slices", "objects", "map_type", "seed_value", "meta", "abandoned"]
+	"volcanoes", "beaches", "slice_of", "slices", "objects", "map_type", "seed_value", "meta", "abandoned", "water_spawns"]
 ## ... and the fields that only ever exist in a running game.
 const RUNTIME_FIELDS: Array[String] = ["explored", "watched", "buildings"]
 

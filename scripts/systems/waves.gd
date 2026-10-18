@@ -7,6 +7,8 @@ extends Node
 ## single-player wave) from its home edge, plus WAVE_EXTRA_PER_PLAYER x P of a
 ## village's wave from random edge spawns, for the standing village nearest to
 ## where they spawn. Shares of fallen villages go to the nearest standing one.
+## Water monsters (docs/aquatic-design.md §9) join a village's share only
+## where they can reach it (Aqua.eligibility), from its water spawns.
 
 signal changed
 signal wave_started(n: int)
@@ -36,6 +38,10 @@ var _rng := RandomNumberGenerator.new()
 var rat_deadline := -1.0
 var rats_leave := false
 var _rat_scan := 0.0
+## Per village id: Aqua.eligibility (worked out at the first wave).
+var _aqua: Dictionary = {}
+## Water kinds whose first one was logged already (once per game).
+var _aqua_logged := {}
 
 
 func setup(p_game: Game) -> void:
@@ -149,12 +155,13 @@ func _share(n: int, hp_scale: float, spawns: Array[Vector2i], target: Village) -
 		pool.append(l)
 		if (l.theme()["kinds"] as Array).has("rat"):
 			rat_pool.append(l)
-	var kinds := _kinds(n)
+	var kinds := _kinds(n, target)
 	kinds.shuffle()
 	var out := []
 	for i in kinds.size():
 		out.append(_spec(kinds[i], pool[i % pool.size()], hp_scale, target))
 	_theme_lairs(out, n)
+	_water_spawns(out, target)
 	# Rat packs: whole packs, each from one spawn, the rats a moment apart.
 	var rp: Dictionary = Config.RAT_PACKS
 	if n >= int(rp["from_wave"]) and _rng.randf() < float(rp["chance"]):
@@ -218,9 +225,27 @@ func _extra(n: int, hp_scale: float) -> Array:
 	return out
 
 
-func _kinds(n: int) -> Array[String]:
+## The kinds of village `target`'s share of wave `n` (null: the co-op extra,
+## no water monsters). Water kinds only if they can reach the village; then
+## each kind's "chance" is rolled and its "max_count" applied (the rest go to
+## the filler).
+func _kinds(n: int, target: Village = null) -> Array[String]:
 	var kinds: Array[String] = []
-	var comp := Config.wave_composition(n)
+	var elig := aqua(target)
+	var comp := Config.wave_composition(n, not elig.is_empty(), elig.keys())
+	for kind: String in comp.keys():
+		var mix: Dictionary = Config.WAVE_MIX.get(kind, {})
+		var keep := int(comp[kind])
+		if mix.has("chance") and _rng.randf() >= float(mix["chance"]):
+			keep = 0
+		if mix.has("max_count"):
+			keep = mini(keep, int(mix["max_count"]))
+		if keep < int(comp[kind]):
+			comp[Config.WAVE_FILLER] = int(comp.get(Config.WAVE_FILLER, 0)) + int(comp[kind]) - keep
+			if keep > 0:
+				comp[kind] = keep
+			else:
+				comp.erase(kind)
 	for kind in comp:
 		for i in comp[kind]:
 			kinds.append(kind)
@@ -286,11 +311,19 @@ func _spawn(spec: Dictionary) -> Enemy:
 		target = game.nearest_standing_village(spec["spawn"])
 	if target == null:
 		target = game.villages[0]
-	# Single player: the nearest gate, as ever. Co-op: the target village's gates.
-	var field := target.id if coop and game.world.pathing.enemy_distance(spec["spawn"], target.id) < Pathing.UNREACHABLE else -1
-	var route := game.world.pathing.enemy_route(spec["spawn"], _rng, field)
+	var kind: String = spec.get("kind", Config.WAVE_FILLER)
+	var habitat := str(Config.ENEMIES[kind].get("habitat", "land"))
+	var amph := habitat == "amphibian"
+	var route: Array[Vector2i] = [spec["spawn"]]
+	if habitat != "water":  # (water-bound monsters have no route: their behavior moves them)
+		# Single player: the nearest gate, as ever. Co-op: the target village's gates.
+		var field := target.id if coop and game.world.pathing.enemy_distance(spec["spawn"], target.id, amph) < Pathing.UNREACHABLE else -1
+		route = game.world.pathing.enemy_route(spec["spawn"], _rng, field, amph)
 	var g: Enemy = ENEMY_SCRIPT.new()
-	g.setup(game, route, spec["hp_scale"], spec.get("kind", Config.WAVE_FILLER))
+	g.setup(game, route, spec["hp_scale"], kind)
+	if habitat != "land" and not _aqua_logged.has(kind) and not _uncounted_next:
+		_aqua_logged[kind] = true
+		target.events.add(EventLog.Level.IMPORTANT if kind == "octopus" else EventLog.Level.INFO, str(Config.AQUA_FIRST.get(kind, "A %s comes out of the water!" % str(g.spec()["name"]).to_lower())))
 	g.wave = wave
 	var lair = spec.get("lair")
 	g.from_lair = is_instance_valid(lair) and (lair as MonsterLair).woke_at == wave
@@ -311,21 +344,64 @@ func _add(g: Enemy, target: Village) -> void:
 
 
 ## Debug (Commands._debug): an enemy of `kind` at a random edge spawn of
-## `target`, now, wave or no wave. It doesn't count for the wave.
+## `target`, now, wave or no wave (a water monster: at one of its water
+## spawns, or any water spawn or deep tile its kind can live in). It doesn't
+## count for the wave.
 func debug_spawn(kind: String, target: Village) -> Enemy:
+	if str(Config.ENEMIES[kind].get("habitat", "land")) == "water":
+		var water: Array = aqua(target).get(kind, [])
+		if water.is_empty():
+			for t in game.map.water_spawns:
+				if game.world.pathing.body_fits(game.world.pathing.body_of(t), kind):
+					water.append(t)
+		if water.is_empty():
+			for b in game.world.pathing.bodies.size():
+				if game.world.pathing.body_fits(b, kind):
+					water.append(game.world.pathing.nearest_deep(b, Vector2(target.center)))
+		if water.is_empty():
+			return null
+		return spawn_at(kind, water[_rng.randi() % water.size()], target, wave)
 	var points: Array = target.home_spawns if game.villages.size() > 1 and not target.home_spawns.is_empty() else game.map.edge_spawns
 	if points.is_empty():
 		return null
 	return spawn_at(kind, points[_rng.randi() % points.size()], target, wave)
 
 
-## An enemy of `kind` at `tile` (on a road), as strong as in wave `strength`,
-## now; it doesn't count for the wave (debug_spawn, the title backdrop).
+## An enemy of `kind` at `tile` (on a road; a water monster: on deep water),
+## as strong as in wave `strength`, now; it doesn't count for the wave
+## (debug_spawn, the title backdrop, tests).
 func spawn_at(kind: String, tile: Vector2i, target: Village, strength: int) -> Enemy:
+	_uncounted_next = true
 	var g := _spawn(_spec(kind, tile, pow(Config.WAVE_HP_GROWTH, maxi(strength, 1) - 1), target))
+	_uncounted_next = false
 	_alive -= 1
 	_uncounted[g] = true
 	return g
+
+
+## Village `v`'s Aqua.eligibility ({} for null), worked out once.
+func aqua(v: Village) -> Dictionary:
+	if v == null or game.world == null or game.world.pathing == null:
+		return {}
+	if not _aqua.has(v.id):
+		_aqua[v.id] = Aqua.eligibility(game, v.id)
+	return _aqua[v.id]
+
+
+## Water monsters in a share come from the village's water spawns (water-bound
+## ones always; amphibians half of the time, else from the edge, as rolled).
+func _water_spawns(out: Array, target: Village) -> void:
+	var elig := aqua(target)
+	for spec in out:
+		var kind: String = spec["kind"]
+		if not elig.has(kind):
+			continue
+		var spawns: Array = elig[kind]
+		var water_bound := str(Config.ENEMIES[kind].get("habitat", "land")) == "water"
+		if spawns.is_empty() or (not water_bound and _rng.randf() < 0.5):
+			continue
+		spec["spawn"] = spawns[_rng.randi() % spawns.size()]
+		spec.erase("lair")
 
 
 ## Villages whose first raised dead are logged already (at Info; later: Debug).
@@ -340,9 +416,10 @@ func raise_corpse(c: Corpse, by: Enemy) -> Enemy:
 		return null
 	var target: Village = by.target_village if is_instance_valid(by.target_village) else game.villages[0]
 	var pathing := game.world.pathing
-	var road := pathing.nearest_road(c.tile())
-	var field := target.id if game.villages.size() > 1 and pathing.enemy_distance(road, target.id) < Pathing.UNREACHABLE else -1
-	var route := pathing.enemy_route(road, _rng, field)
+	var amph := str(Config.ENEMIES[c.kind].get("habitat", "land")) == "amphibian"  # (a raised crab swims on, but never dives)
+	var road := c.tile() if amph and game.map.is_wet(c.tile()) else pathing.nearest_road(c.tile())
+	var field := target.id if game.villages.size() > 1 and pathing.enemy_distance(road, target.id, amph) < Pathing.UNREACHABLE else -1
+	var route := pathing.enemy_route(road, _rng, field, amph)
 	var g: Enemy = ENEMY_SCRIPT.new()
 	g.setup(game, route, c.hp_scale, c.kind)
 	g.wave = c.wave
@@ -426,6 +503,8 @@ func _on_enemy_reached_gate(g: Enemy) -> void:
 
 ## Debug enemies (debug_spawn), which don't count for the wave.
 var _uncounted := {}
+## spawn_at is making one of those (no "first one" log for it).
+var _uncounted_next := false
 
 
 func _enemy_gone(g: Enemy = null) -> void:

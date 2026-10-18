@@ -11,7 +11,7 @@ signal selection_changed
 
 ## The tools, in the order of the tool panel. "file" (the File tab) edits
 ## nothing: a click selects, a drag pans.
-const TOOLS: Array[String] = ["file", "terrain", "zone", "props", "decor", "beach", "road", "volcano", "village", "piece", "spawn", "slice", "object"]
+const TOOLS: Array[String] = ["file", "terrain", "zone", "props", "decor", "beach", "road", "volcano", "village", "piece", "spawn", "water", "slice", "object"]
 ## Tools that paint along a drag.
 const STROKE_TOOLS: Array[String] = ["terrain", "zone", "props", "decor", "beach", "slice", "road"]
 const NO_TILE := Vector2i(-1, -1)
@@ -30,7 +30,7 @@ var opts := {
 ## Layer switches (EditorOverlay); "flow": the village whose road steps show (-1: none).
 var layers := {
 	"zones": false, "slices": false, "grid": false, "passable": false, "buildable": false, "flow": -1,
-	"spawns": true, "villages": true, "objects": true, "rings": false, "problems": true,
+	"spawns": true, "water_spawns": true, "villages": true, "objects": true, "rings": false, "problems": true,
 }
 ## {"type": "tile" | "object" | "village", "tile" / "index"}; empty: nothing.
 var selected: Dictionary = {}
@@ -327,7 +327,7 @@ func _on_tapped(w: Vector2) -> void:
 
 ## The tiles the brush covers under the pointer (for the pointer overlay).
 func brush_tiles() -> Array[Vector2i]:
-	if hover == NO_TILE or not map.in_bounds(hover) or tool in ["file", "village", "object", "spawn"]:
+	if hover == NO_TILE or not map.in_bounds(hover) or tool in ["file", "village", "object", "spawn", "water"]:
 		return [] as Array[Vector2i]
 	if tool in ["piece", "volcano"] or (tool == "road" and opts["road"] == "path") or (tool == "terrain" and opts["fill"]):
 		return [hover] as Array[Vector2i]
@@ -391,6 +391,8 @@ func _press(t: Vector2i) -> void:
 		"spawn":
 			var owner := int(selected["index"]) if selected.get("type") == "village" else -1
 			edit(func() -> Variant: return EditorTools.toggle_spawn(map, t, owner))
+		"water":
+			edit(func() -> Variant: return EditorTools.toggle_water_spawn(map, t))
 		"object":
 			var oi := object_at(t)
 			if oi >= 0:
@@ -451,6 +453,11 @@ func _erase(t: Vector2i) -> void:
 				edit(func() -> Variant: return EditorTools.toggle_spawn(map, t, -1))
 			else:
 				ui.status("No spawn there", true)
+		"water":
+			if map.water_spawns.has(t):
+				edit(func() -> Variant: return EditorTools.toggle_water_spawn(map, t))
+			else:
+				ui.status("No water spawn there", true)
 		"village":
 			var vi := village_at(t)
 			if vi >= 0:

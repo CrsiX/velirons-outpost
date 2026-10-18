@@ -59,8 +59,9 @@ func is_safe(c: Corpse) -> bool:
 	return true
 
 
+## Corpses a gatherer may go for: nobody's, safe, and not sinking in deep water.
 func available() -> Array[Corpse]:
-	return corpses.filter(func(c: Corpse) -> bool: return c.claimed_by == null and is_safe(c))
+	return corpses.filter(func(c: Corpse) -> bool: return c.claimed_by == null and not c.sinking and is_safe(c))
 
 
 func count() -> int:

@@ -17,7 +17,15 @@ const BEHAVIORS := {
 	"thief": preload("res://scripts/units/enemies/thief_behavior.gd"),
 	"necromancer": preload("res://scripts/units/enemies/necromancer_behavior.gd"),
 	"vampire": preload("res://scripts/units/enemies/vampire_behavior.gd"),
+	"leviathan": preload("res://scripts/units/enemies/leviathan_behavior.gd"),
+	"siren": preload("res://scripts/units/enemies/siren_behavior.gd"),
+	"octopus": preload("res://scripts/units/enemies/octopus_behavior.gd"),
+	"arm": preload("res://scripts/units/enemies/arm_behavior.gd"),
 }
+
+## Water monsters (docs/aquatic-design.md §2): up (targetable), diving, down
+## or surfacing (all three untargetable).
+enum Dive { UP, DIVING, DOWN, SURFACING }
 
 var kind := ""
 var max_hp := 10.0
@@ -61,6 +69,15 @@ var _shadow: Polygon2D
 ## A slime's colour (Config.SLIME_COLORS), rolled at spawn; "" for the rest.
 var color := ""
 var _sack: Sprite2D
+var dive := Dive.UP
+var _dive_t := 0.0
+## What a behavior shows besides the sprite (co-op clients get it too):
+## "song" (a siren's ring: its radius), "jet" (a leviathan's water column:
+## the target's grid position) with "wind" (0..1 while it winds up), "arms"
+## (an octopus's reaching or holding arms: [grid position of the tip]).
+var fx := {}
+## The deep-water body a water-bound monster lives in (Pathing.bodies).
+var body := -1
 
 
 func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: String) -> void:
@@ -76,8 +93,10 @@ func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: Stri
 		color = colors[randi() % colors.size()]
 	_init_sprite(unit_art())
 	var pts := PackedVector2Array()
-	# A small sideways offset per enemy so groups don't walk in single file.
-	_jitter = Vector2(randf_range(-0.18, 0.18), randf_range(-0.18, 0.18))
+	# A small sideways offset per enemy so groups don't walk in single file
+	# (not in deep water: monsters there keep to the tiles' middles).
+	if habitat() != "water":
+		_jitter = Vector2(randf_range(-0.18, 0.18), randf_range(-0.18, 0.18))
 	for t in route:
 		pts.append(Vector2(t) + _jitter)
 	set_grid_pos(pts[0])
@@ -85,15 +104,24 @@ func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: Stri
 	behavior = BEHAVIORS[spec()["behavior"]].new()
 	if flies():
 		_take_off()
+	if habitat() == "water" and game.world and game.world.pathing:
+		body = game.world.pathing.body_of(current_tile())
 	add_to_group("enemies")
 	_update_visibility()
 
 
-## Co-op: turns towards `v` (its target fell), along the roads from where it is.
+## Co-op: turns towards `v` (its target fell), along the roads from where it
+## is (an amphibian: roads and water; water-bound monsters only change sides).
 func retarget(v: Village, rng: RandomNumberGenerator) -> void:
-	var from := game.world.pathing.nearest_road(current_tile())
-	var field := v.id if game.world.pathing.enemy_distance(from, v.id) < Pathing.UNREACHABLE else -1
-	var route := game.world.pathing.enemy_route(from, rng, field)
+	if habitat() == "water":
+		target_village = v
+		return
+	var amph := is_amphibian()
+	var from := current_tile()
+	if not (amph and game.map.is_wet(from)):
+		from = game.world.pathing.nearest_road(from)
+	var field := v.id if game.world.pathing.enemy_distance(from, v.id, amph) < Pathing.UNREACHABLE else -1
+	var route := game.world.pathing.enemy_route(from, rng, field, amph)
 	var old := target_village
 	target_village = v
 	var pts := PackedVector2Array([grid_pos])
@@ -122,8 +150,8 @@ func is_slowed() -> bool:
 ## Spatial magic: thrown `tiles` back along its road (away from the village),
 ## at most once every `immunity` seconds. Returns whether it moved.
 func push_back(tiles: float, immunity: float) -> bool:
-	if _push_immune > 0.0 or path.size() < 2:
-		return false
+	if _push_immune > 0.0 or path.size() < 2 or habitat() == "water":
+		return false  # (water-bound monsters have no road to be thrown back along)
 	_push_immune = immunity
 	var left := tiles
 	var pos := grid_pos
@@ -157,6 +185,129 @@ func attack_category() -> String:
 ## ground slows it, and only ranged attacks and other flyers can go for it.
 func flies() -> bool:
 	return airborne or spec().get("flying", false)
+
+
+# --- water monsters (docs/aquatic-design.md) -------------------------------------------
+
+## "land", "amphibian" (roads and water) or "water" (deep water only).
+func habitat() -> String:
+	return str(spec().get("habitat", "land"))
+
+
+## Walks the amphibians' flow field (roads and water). Raised from its corpse
+## it keeps that, but never dives again.
+func is_amphibian() -> bool:
+	return habitat() == "amphibian"
+
+
+## Can it dive? Only a kind that submerges, never a raised one.
+func can_submerge() -> bool:
+	return spec().get("submerges", false) and not raised
+
+
+## On a deep water tile (where it may dive; melee reaches it only from the shore).
+func on_deep() -> bool:
+	return game.map.is_deep(current_tile())
+
+
+## The one test every targeting site uses: alive and up (not diving, down or
+## surfacing).
+func targetable() -> bool:
+	return not dead and dive == Dive.UP
+
+
+## Down (or on its way down or up): ripples instead of the monster.
+func submerged() -> bool:
+	return dive != Dive.UP
+
+
+## Starts diving (only on deep water). Returns whether it does.
+func dive_down() -> bool:
+	if dive == Dive.DOWN or dive == Dive.DIVING or not can_submerge() or not on_deep():
+		return false
+	_set_dive(Dive.DIVING)
+	Combat.local_burst(game, "splash", position, 0.6)
+	return true
+
+
+## Starts coming up.
+func surface() -> void:
+	if dive == Dive.UP or dive == Dive.SURFACING:
+		return
+	_set_dive(Dive.SURFACING)
+
+
+func _set_dive(d: Dive) -> void:
+	if dive == d:
+		return
+	if d == Dive.SURFACING and dive != Dive.DOWN:
+		Combat.local_burst(game, "splash", position, 0.6)
+	dive = d
+	_dive_t = 0.0
+	_show_dive()
+	queue_redraw()
+
+
+## Diving and surfacing take their time (AQUA); a crab dives and surfaces by
+## itself on deep water and off it.
+func _tick_dive(delta: float) -> void:
+	if spec().get("auto_submerge", false) and can_submerge():
+		if on_deep():
+			if dive == Dive.UP or dive == Dive.SURFACING:
+				dive_down()
+		elif dive == Dive.DOWN or dive == Dive.DIVING:
+			surface()
+	elif dive != Dive.UP and not can_submerge():
+		_set_dive(Dive.UP)  # (raised: never under again)
+	if dive == Dive.DIVING or dive == Dive.SURFACING:
+		_dive_t += delta
+		var need := float(Config.AQUA["dive_time" if dive == Dive.DIVING else "surface_time"])
+		if _dive_t >= need:
+			_set_dive(Dive.DOWN if dive == Dive.DIVING else Dive.UP)
+		else:
+			_show_dive()
+
+
+## The sprite sinks under the surface and fades, or rises out of it.
+func _show_dive() -> void:
+	var k := 1.0
+	match dive:
+		Dive.DOWN:
+			k = 0.0
+		Dive.DIVING:
+			k = 1.0 - clampf(_dive_t / float(Config.AQUA["dive_time"]), 0.0, 1.0)
+		Dive.SURFACING:
+			k = clampf(_dive_t / float(Config.AQUA["surface_time"]), 0.0, 1.0)
+	sprite.visible = k > 0.01
+	sprite.modulate.a = k
+	sprite.offset.y = (1.0 - k) * 24.0
+
+
+## Co-op client: the host's dive state.
+func net_dive(d: int) -> void:
+	if d != dive:
+		_set_dive(d as Dive)
+
+
+## Can a melee blow from someone standing at `from` (grid) go for it? Not
+## while it is under; on deep water only from a walkable tile next to it
+## (§2.1); and a siren in water only from inside a High Priest's aura (§6),
+## unless the blow is `magical` (a fire elemental's).
+func melee_ok(from: Vector2, magical := false) -> bool:
+	if not targetable():
+		return false
+	var t := current_tile()
+	if not magical and spec().get("melee_proof_in_water", false) and game.map.in_water(t) and not Combat.in_holy_aura(game, from):
+		return false
+	if game.map.is_deep(t):
+		return game.world.pathing.stand_near(t, from) != Vector2i(-1, -1)
+	return true
+
+
+## A melee attacker's reach towards it: on deep water it is struck from the
+## tile next to it (AQUA melee_reach), so at least that.
+func melee_reach(base: float) -> float:
+	return maxf(base, float(Config.AQUA["melee_reach"])) if on_deep() else base
 
 
 ## Its sprite: unit_<art>, or unit_<art>_<colour> for a slime.
@@ -251,7 +402,7 @@ func _land() -> void:
 
 
 func _walk_factor() -> float:
-	return 1.0 if flies() else super._walk_factor()
+	return 1.0 if flies() or habitat() != "land" else super._walk_factor()
 
 
 ## A thief with stolen gold: it shows a coin sack.
@@ -335,11 +486,16 @@ func _process(delta: float) -> void:
 		return
 	if flies():
 		_fly(delta)
-	if channel_to != Vector2.INF:
+	if channel_to != Vector2.INF or submerged() or not fx.is_empty():
 		queue_redraw()
 	if game.is_client:
+		if dive == Dive.DIVING or dive == Dive.SURFACING:
+			_dive_t += delta
+			_show_dive()
 		net_follow(delta)  # the host simulates; we just follow
 		return
+	if spec().has("submerges"):
+		_tick_dive(delta)
 	_push_immune -= delta
 	if raised and decay_rate > 0.0:
 		hp -= decay_rate * delta
@@ -434,6 +590,8 @@ func _fly(delta: float) -> void:
 
 
 func _draw() -> void:
+	if not dead:
+		_draw_water()
 	if channel_to != Vector2.INF and not dead:
 		# The necromancer's green beam to the corpse, flickering.
 		var to := Iso.to_world(channel_to) - position
@@ -442,6 +600,75 @@ func _draw() -> void:
 		draw_line(from, to, Color(0.42, 1.0, 0.54, a * 0.5), 6.0)
 		draw_line(from, to, Color(0.75, 1.0, 0.8, a), 2.0)
 		draw_circle(to, 7.0 + 2.0 * sin(Time.get_ticks_msec() / 120.0), Color(0.42, 1.0, 0.54, a * 0.35))
-	if dead or hp >= max_hp:
+	if dead or hp >= max_hp or dive == Dive.DOWN:
 		return
 	_draw_hp_bar(28.0, -62.0 if flies() else float(spec().get("hp_bar_y", -46.0)), 5.0, hp / max_hp, Color("4a1510"), Color("d8412f"))
+
+
+## Water monsters: ripples and a trail of bubbles while under; a siren's song
+## ring; a leviathan's water column; an octopus's arms (see `fx`).
+func _draw_water() -> void:
+	var ms := Time.get_ticks_msec() / 1000.0
+	var big := 1.8 if habitat() == "water" else 1.0
+	if dive != Dive.UP:
+		for i in 3:
+			var k := fmod(ms * 0.7 + i / 3.0, 1.0)
+			var rx := (8.0 + 22.0 * k) * big
+			_ring(Vector2.ZERO, rx, rx * 0.45, Color(0.8, 0.92, 1.0, 0.55 * (1.0 - k)), 2.0)
+		for i in 4:
+			var k := fmod(ms * 1.1 + i * 0.27, 1.0)
+			var bx := sin(ms * 3.0 + i * 1.7) * 6.0 * big
+			draw_circle(Vector2(bx, -2.0 - 10.0 * k), 1.5 + 1.5 * k, Color(0.9, 0.97, 1.0, 0.7 * (1.0 - k)))
+	if fx.has("song"):
+		var r := float(fx["song"]) * Iso.HALF_W
+		var pulse := 0.5 + 0.5 * sin(ms * 4.0)
+		_ring(Vector2.ZERO, r, r * 0.5, Color(0.55, 0.95, 0.9, 0.35 + 0.15 * pulse), 3.0)
+		_ring(Vector2.ZERO, r * 0.66, r * 0.33, Color(0.55, 0.95, 0.9, 0.18 + 0.1 * pulse), 2.0)
+		for i in 3:  # notes drifting up
+			var k := fmod(ms * 0.5 + i / 3.0, 1.0)
+			var at := Vector2(-14.0 + 14.0 * i, -50.0 - 26.0 * k)
+			var col := Color(0.7, 1.0, 0.95, 1.0 - k)
+			draw_circle(at, 3.0, col)
+			draw_line(at + Vector2(2.5, 0), at + Vector2(2.5, -10), col, 1.5)
+			draw_line(at + Vector2(2.5, -10), at + Vector2(6.5, -7), col, 1.5)
+	if fx.has("jet"):
+		var to := Iso.to_world(Vector2(fx["jet"])) - position
+		var wind := float(fx.get("wind", 1.0))
+		var from := Vector2(0, -40)
+		if wind < 1.0:  # winding up: a ring tightening on the target
+			_ring(to, 26.0 * (1.0 - wind) + 8.0, (26.0 * (1.0 - wind) + 8.0) * 0.5, Color(0.6, 0.85, 1.0, 0.4 + 0.5 * wind), 3.0)
+		else:
+			var w := 9.0 + 3.0 * sin(ms * 25.0)
+			draw_line(from, to, Color(0.35, 0.6, 0.95, 0.5), w * 1.8)
+			draw_line(from, to, Color(0.75, 0.9, 1.0, 0.9), w * 0.7)
+			draw_circle(to, 10.0 + 3.0 * sin(ms * 20.0), Color(0.85, 0.95, 1.0, 0.6))
+	if fx.has("arms"):
+		for tip in fx["arms"]:
+			_tentacle(Iso.to_world(Vector2(tip)) - position, ms)
+
+
+## A tentacle from the body to `to` (local), curling a little.
+func _tentacle(to: Vector2, ms: float) -> void:
+	var from := Vector2(0, -12)
+	var pts := PackedVector2Array()
+	var side := (to - from).orthogonal().normalized()
+	for i in 13:
+		var k := i / 12.0
+		var wave := sin(k * PI * 2.0 + ms * 4.0) * 7.0 * sin(k * PI)
+		pts.append(from.lerp(to, k) + side * wave)
+	for i in pts.size() - 1:
+		var k := i / 12.0
+		draw_line(pts[i], pts[i + 1], Color("15110d"), 11.0 * (1.0 - k * 0.7) + 2.0)
+	for i in pts.size() - 1:
+		var k := i / 12.0
+		draw_line(pts[i], pts[i + 1], Color("8a3a5a"), 11.0 * (1.0 - k * 0.7))
+	for i in range(2, 12, 2):
+		draw_circle(pts[i] - side * 2.0, 1.8 * (1.0 - i / 14.0) + 0.6, Color("e0b8c8"))
+
+
+func _ring(c: Vector2, rx: float, ry: float, col: Color, w: float) -> void:
+	var pts := PackedVector2Array()
+	for i in 33:
+		var a := TAU * i / 32.0
+		pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
+	draw_polyline(pts, col, w)

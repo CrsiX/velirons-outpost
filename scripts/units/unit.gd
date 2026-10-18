@@ -16,6 +16,14 @@ var nid := 0
 var _bob := 0.0
 var _net_to := Vector2.ZERO
 var _net_has := false
+## Forced movement (docs/aquatic-design.md §7): a siren's song or an
+## octopus's arm moves the unit itself; meanwhile its own walking (path,
+## leash, flee, work) stands still. `forced_by` is the source.
+var forced_by: Object = null
+var _forced_frame := -10
+var _was_forced := false
+## The octopus arm holding it (its attacks go at the arm), or null.
+var held_by: Node = null
 
 
 func _init_sprite(art_name: String) -> void:
@@ -55,8 +63,15 @@ func follow(p_path: PackedVector2Array) -> void:
 		path_index = 1
 
 
-## Advance along the path; returns true when the end is reached.
+## Advance along the path; returns true when the end is reached. While a
+## forced movement holds it, it doesn't get on (and never "arrives").
 func step_path(delta: float) -> bool:
+	if is_forced():
+		_set_moving(true)
+		_animate(delta)
+		return false
+	if _was_forced:
+		_after_forced()
 	if path_index >= path.size():
 		_set_moving(false)
 		return true
@@ -80,6 +95,55 @@ func step_path(delta: float) -> bool:
 	_set_moving(true)
 	_animate(delta)
 	return path_index >= path.size()
+
+
+# --- forced movement (docs/aquatic-design.md §7) --------------------------------------------
+
+## Moved by `source` this frame (or the last).
+func is_forced() -> bool:
+	return Engine.get_process_frames() - _forced_frame <= 1
+
+
+## Moves the unit by `step` (grid) for `source`, over ground it can walk
+## (sliding along a shore or a wall); `into_deep`: deep water too (an
+## octopus's grapple). Never onto a solid tile.
+func force_move(step: Vector2, source: Object, into_deep := false) -> void:
+	_forced_frame = Engine.get_process_frames()
+	_was_forced = true
+	forced_by = source
+	for s in [step, Vector2(step.x, 0.0), Vector2(0.0, step.y)]:
+		if s.length() < 0.0001:
+			continue
+		var to: Vector2 = grid_pos + s
+		if _can_be_forced_onto(Vector2i(to.round()), into_deep):
+			set_grid_pos(to)
+			if absf(Iso.to_world(s).x) > 0.01:
+				sprite.flip_h = Iso.to_world(s).x < 0.0
+			return
+
+
+func _can_be_forced_onto(t: Vector2i, into_deep: bool) -> bool:
+	if t == current_tile():
+		return true
+	var pathing := game.world.pathing
+	if pathing.is_walkable(t):
+		return true
+	return into_deep and game.map.is_deep(t) and game.map.building_at(t) == null
+
+
+## Let go: whoever was walking somewhere finds a new way there from here.
+func _after_forced() -> void:
+	_was_forced = false
+	forced_by = null
+	if path_index >= path.size() or game == null or game.world == null:
+		return
+	var goal := path[path.size() - 1]
+	var p := game.world.pathing.find_path(current_tile(), Vector2i(goal.round()))
+	if p.is_empty():
+		return
+	p[0] = grid_pos
+	p[p.size() - 1] = goal
+	follow(p)
 
 
 ## Shallow water and fords x0.5, swamp off the road x0.7 (MapData.walk_factor).

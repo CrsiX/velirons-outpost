@@ -69,13 +69,15 @@ func _process(delta: float) -> void:
 	if dead:
 		return
 	_think_timer -= delta
-	_attack_timer -= delta * Combat.haste(game, self)
+	_attack_timer -= delta * Combat.haste(game, self, grid_pos)
 	if _think_timer <= 0.0:
 		_think_timer = 0.3
 		_pick_target()
+	if is_instance_valid(target) and not target.dead and not _can_hit(target):
+		target = null
 	if is_instance_valid(target) and not target.dead:
 		var dist := target.grid_pos.distance_to(grid_pos)
-		if dist <= Config.SUMMON["attack_range"]:
+		if dist <= target.melee_reach(Config.SUMMON["attack_range"]):
 			_set_moving(false)
 			face(target.grid_pos)
 			if _attack_timer <= 0.0:
@@ -89,13 +91,25 @@ func _process(delta: float) -> void:
 		_wander(delta)
 
 
+## Can it go for `e`? Up (not under water), within reach of its fists (or
+## flames: a fire elemental isn't held off by a siren's water), no flyer for
+## an earth elemental.
+func _can_hit(e: Enemy) -> bool:
+	if e.flies() and not flies():
+		return false  # (an earth elemental can't reach a flyer; a fire elemental flies too)
+	return e.melee_ok(grid_pos, flies())
+
+
 func _pick_target() -> void:
 	var best: Enemy = null
 	var best_d := INF
+	if is_instance_valid(held_by) and not held_by.dead:
+		target = held_by as Enemy  # an octopus's arm holds it: it fights the arm
+		return
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or (e.flies() and not flies()):
-			continue  # (an earth elemental can't reach a flyer; a fire elemental flies too)
+		if e.dead or not _can_hit(e):
+			continue
 		var d := e.grid_pos.distance_to(grid_pos)
 		# Only enemies it can see, and not too far from its post.
 		if d <= Config.SUMMON["sight"] and e.grid_pos.distance_to(Vector2(home)) <= Config.SUMMON["leash"] + Config.SUMMON["sight"] and d < best_d:
@@ -108,14 +122,15 @@ func _pick_target() -> void:
 
 func _chase() -> void:
 	_chase_tile = target.current_tile()
-	var p := game.world.pathing.find_path(current_tile(), _chase_tile)
+	var stand := game.world.pathing.stand_near(_chase_tile, grid_pos)  # (in deep water: from the shore)
+	var p := game.world.pathing.find_path(current_tile(), stand) if stand != Vector2i(-1, -1) else PackedVector2Array()
 	if p.is_empty():
 		target = null
 		return
 	# Start from where we actually stand (no stepping back to the tile centre)
 	# and walk the last stretch straight at the enemy.
 	p[0] = grid_pos
-	p[p.size() - 1] = target.grid_pos
+	p[p.size() - 1] = target.grid_pos if stand == _chase_tile else Vector2(stand)
 	follow(p)
 
 

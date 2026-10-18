@@ -66,7 +66,7 @@ func _conversions(g: MapData, what: String) -> void:
 	check(MapJson.write(m2) == j1 and differ(m1, m2, true) == "", "%s: MapData -> packed -> MapData -> JSON: the same text" % what)
 	var gp := MapData.from_bytes(g.to_bytes())
 	check(MapJson.write(gp) == j1, "%s: the generated map packed and unpacked exports the same" % what)
-	check(j1.begins_with("{\n  \"format\": \"velirons-outpost-map\",\n  \"format_version\": 1,\n") and j1.ends_with("}\n") and not "\t" in j1 and not "\r" in j1, "%s: canonical layout (2-space indent, \\n, a final newline)" % what)
+	check(j1.begins_with("{\n  \"format\": \"velirons-outpost-map\",\n  \"format_version\": %d,\n" % MapJson.VERSION) and j1.ends_with("}\n") and not "\t" in j1 and not "\r" in j1, "%s: canonical layout (2-space indent, \\n, a final newline)" % what)
 	var lines := j1.split("\n")
 	check(lines.size() > g.size * 6 and lines.size() < g.size * 7 + 200 + g.objects.size() + g.crossings.size() + g.village_layout.size(), "%s: one line per row, object, crossing and piece (%d lines)" % [what, lines.size()])
 	var errs := MapChecks.errors(MapChecks.run(m1)).map(func(p: Dictionary) -> String: return p["text"])

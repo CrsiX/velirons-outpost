@@ -66,6 +66,8 @@ func _draw() -> void:
 		_draw_villages(m)
 	if layers.get("spawns", true):
 		_draw_spawns(m)
+	if layers.get("water_spawns", true):
+		_draw_water_spawns(m)
 	if layers.get("problems", true):
 		_draw_problems()
 
@@ -195,6 +197,13 @@ func _draw_spawns(m: MapData) -> void:
 			draw_colored_polygon(tile_poly(s, 0.9), Color(MapPlan.SPAWN, 0.8))
 			draw_polyline(_closed(tile_poly(s, 0.9)), col, 3.0)
 			_label(pt(Vector2(s)), str(i + 1), Color.WHITE, 13)
+
+
+func _draw_water_spawns(m: MapData) -> void:
+	for s: Vector2i in m.water_spawns:
+		draw_colored_polygon(tile_poly(s, 0.9), Color(0.25, 0.55, 0.95, 0.8))
+		draw_polyline(_closed(tile_poly(s, 0.9)), Color.WHITE, 2.0)
+		_label(pt(Vector2(s)), "~", Color.WHITE, 15)
 
 
 func _draw_problems() -> void:

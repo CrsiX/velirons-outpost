@@ -4,8 +4,9 @@ extends RefCounted
 ## tower and out in the field: the shot, then the hit's damage and effect
 ## (splash, slow, push back, a berserker's lifesteal), and healing for
 ## healers. Also the High Priests' holy auras (docs/acolyte-design.md §6):
-## allies in one deal more damage, necromancers raise slower; and the
-## warriors' war cries (docs/military-design.md §3a): allies attack faster.
+## allies in one deal more damage, necromancers raise slower; the
+## warriors' war cries (docs/military-design.md §3a): allies attack faster;
+## and the sirens' songs (docs/aquatic-design.md §6): allies attack slower.
 
 const SHOT_SCRIPT := preload("res://scripts/units/shot.gd")
 const BURST_SCRIPT := preload("res://scripts/units/military/burst.gd")
@@ -34,6 +35,8 @@ static func attack(game: Game, unit: MilitaryUnit, from: Vector2, target: Enemy,
 ## have been freed while the shot was flying.
 static func hit(game: Game, unit: MilitaryUnit, t, dmg: float, source: Node, at: Vector2) -> void:
 	var a: Dictionary = Config.ATTACKS[unit.spec()["attack"]]
+	if is_instance_valid(t) and not t.dead and not (t as Enemy).targetable():
+		return  # it dived meanwhile: the shot fizzles
 	var center := Iso.to_grid(at)
 	if is_instance_valid(t) and not t.dead:
 		var e := t as Enemy
@@ -53,7 +56,7 @@ static func hit(game: Game, unit: MilitaryUnit, t, dmg: float, source: Node, at:
 		var r := unit.stat("splash")
 		for node in game.get_tree().get_nodes_in_group("enemies"):
 			var o := node as Enemy
-			if o != t and not o.dead and o.grid_pos.distance_to(center) <= r:
+			if o != t and o.targetable() and o.grid_pos.distance_to(center) <= r:
 				o.take_damage(dmg * float(a.get("splash_share", 0.5)), source if is_instance_valid(source) else null, a.get("category", "pure"))
 	if a.get("explode", false):
 		burst(game, "explosion", Iso.to_world(center) + Vector2(0, -16), unit.stat("splash") if unit.has_stat("splash") else 1.0)
@@ -172,12 +175,14 @@ static func necro_slow(game: Game, pos: Vector2) -> float:
 # --- war cries (warriors) ------------------------------------------------------------
 
 ## How fast `holder`'s attack, summon and heal timers run (1 = normal): 1 + its
-## war-cry haste while that lasts. `holder`: a MilitaryUnit, Hero or
-## EarthElemental (each has cry_bonus / cry_until), or null.
-static func haste(game: Game, holder: Object) -> float:
+## war-cry haste while that lasts, times a siren's slow at `pos` (grid; INF:
+## none). `holder`: a MilitaryUnit, Hero or EarthElemental (each has
+## cry_bonus / cry_until), or null.
+static func haste(game: Game, holder: Object, pos := Vector2.INF) -> float:
+	var song := song_rate(game, pos) if pos != Vector2.INF else 1.0
 	if holder == null or not is_instance_valid(game) or game.clock >= float(holder.get("cry_until")):
-		return 1.0
-	return 1.0 + float(holder.get("cry_bonus"))
+		return song
+	return (1.0 + float(holder.get("cry_bonus"))) * song
 
 
 ## A warrior's war cry at `center` (grid): every ally within `radius` tiles,
@@ -221,3 +226,53 @@ static func _hasten(game: Game, h: Object, bonus: float, duration: float) -> voi
 		h.set("cry_until", now + duration)
 	elif bonus >= cur - 0.0001:
 		h.set("cry_until", maxf(until, now + duration))
+
+
+# --- siren songs (docs/aquatic-design.md §6) ---------------------------------------------
+
+## Every singing siren right now: [{"e": the siren, "c": grid centre, "r":
+## radius, "slow", "pull"}], made once per frame.
+static var _songs: Array[Dictionary] = []
+static var _songs_frame := -1
+static var _songs_game := 0
+
+
+static func songs(game: Game) -> Array[Dictionary]:
+	var frame := Engine.get_process_frames()
+	if frame == _songs_frame and _songs_game == game.get_instance_id():
+		return _songs
+	_songs_frame = frame
+	_songs_game = game.get_instance_id()
+	_songs = []
+	for node in game.get_tree().get_nodes_in_group("enemies"):
+		var e := node as Enemy
+		if e.dead or not e.fx.has("song"):
+			continue
+		var sp := e.spec()
+		_songs.append({"e": e, "c": e.grid_pos, "r": float(e.fx["song"]), "slow": float(sp.get("song_slow", 0.0)), "pull": float(sp.get("song_pull", 0.0))})
+	return _songs
+
+
+## The strongest song over `pos` (grid): [strength 0..1 (1 - d / radius), its
+## song entry]; [0, {}] outside every song or inside a High Priest's aura.
+static func song_at(game: Game, pos: Vector2) -> Array:
+	var best := 0.0
+	var which := {}
+	for s in songs(game):
+		var k := 1.0 - pos.distance_to(s["c"]) / maxf(s["r"], 0.01)
+		if k > best:
+			best = k
+			which = s
+	if best > 0.0 and in_holy_aura(game, pos):
+		return [0.0, {}]
+	return [best, which]
+
+
+## How fast timers run at `pos` under the strongest song: 1 - slow x strength.
+static func song_rate(game: Game, pos: Vector2) -> float:
+	if not is_instance_valid(game) or game.world == null:
+		return 1.0
+	var s := song_at(game, pos)
+	if float(s[0]) <= 0.0:
+		return 1.0
+	return maxf(1.0 - float(s[1]["slow"]) * float(s[0]), 0.05)

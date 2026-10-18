@@ -300,6 +300,13 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 - Lair guards (`LAIR_THEMES.guards`) work the same way, with the waking wave's HP scale.
 - Wave counts ignore guards (filter `CampBehavior`).
 
+## 16b. Water monsters
+
+The crab, the siren, the leviathan and the gigantic octopus live in water: their habitats,
+diving (untargetable while under), melee reach on deep water, sinking corpses, the siren's song
+and the octopus's arms, and when they join a village's waves (`WAVE_MIX` `"needs": "water"`,
+`"max_count"`, `"chance"`; `Aqua.eligibility`) are all in docs/aquatic-design.md.
+
 ## 17. Open ideas / not built
 
 - **Invisible enemies:** none exist yet. `Combat.in_holy_aura(game, grid_pos)` is the hook: a

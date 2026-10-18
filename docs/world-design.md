@@ -727,27 +727,39 @@ get a road is placed elsewhere.
 
 Oases (farms in the desert) and a travelling merchant.
 
-### 9.8 Water monsters: what the generator must provide (not built)
+### 9.8 Water monsters: what the generator provides
 
-docs/aquatic-design.md (crab, leviathan, siren, octopus) needs water that today's maps don't
-have: rivers are one deep tile wide, lakes keep away from villages and villages stay
-`VILLAGE_SEA_DIST` (10) from the sea, so no water monster could ever threaten one. These
-changes are **necessary** (aquatic-design phase 5):
+docs/aquatic-design.md (crab, leviathan, siren, octopus) needs deep water near villages, which
+the older maps didn't have (rivers one deep tile wide, lakes kept away from villages, villages
+`VILLAGE_SEA_DIST` from the sea). Built (`GenWater.near_villages`, `landings`, `water_spawns`):
 
-- **Water bodies:** label every connected body (deep tile count, widest point) so a kind's
-  `min_deep_tiles` / `min_width` can be checked. Report them to the checks and the editor.
-- **Coast maps:** every village must have connected deep water very close: an inlet (a channel
-  from the sea with a shallow rim and a deep core at least 3 wide at the mouth, dead-ending so it
-  never cuts a road) reaching to within `COAST_INLET_DIST` (8 tiles, tunable) of the village's
-  walls, in a body big enough for the leviathan and the octopus. Roads route around it (deep
-  water is never crossed) and the village keeps its `VILLAGE_SEA_DIST` rule elsewhere.
-- **Other map types:** optionally a lagoon or large lake near a village (a setting); without it
-  the water kinds are simply not eligible there.
-- **`water_spawns`:** 1-2 per eligible body, on deep tiles, preferably at the map edge or in the
-  open water, always connected to the threatened shore. Stored in `MapData` and the JSON format.
-- **Checks:** a water spawn must be deep and in a fitting body; a Coast village without a
-  reachable deep tile near it is a warning.
-- Rebake `data/title_maps/` after the generator changes.
+- **Water bodies:** `Pathing.label_water` labels every body of deep water (4-connected; bridges
+  split them) with its deep tile count and width (a one-tile river is 1). The checks, the editor
+  and the game use it.
+- **Coast maps** (stage 6b, right after the villages, before the roads): every village whose sea
+  isn't close already gets an **inlet**: from the tile on the ring `2 + COAST_INLET_DIST (8) + 2`
+  Chebyshev steps round its centre nearest the sea's deep water, an A* channel over a noisy cost
+  (so it winds) to the sea, `COAST_INLET_WIDTH` (5) wide: a deep core 3 wide and a shallow rim,
+  whose rim comes within 8 tiles of the walls. It keeps 4 more steps away from other villages,
+  off mountains, lava, craters and the map's outer ring, and gives up (a soft warning, "village n
+  gets no inlet from the sea") when no channel of at most 0.7 x the map size is found. Inlets join
+  the sea (`c.sea`), so roads route around them (deep water is never crossed) and beaches line
+  them. The sea keeps `VILLAGE_SEA_DIST` everywhere else.
+- **Other map types:** with the type's `"lagoon"` chance (Temperate 0.3, Highlands 0.2, Desert
+  0.1, Volcanic and Coast 0) a village gets a **lagoon**: a round lake of `LAGOON_SIZE` (60-110)
+  tiles on the side with the most open land, its shore `LAGOON_DIST` (6) from the walls, deep
+  inside and shallow at the rim (deep enough for a leviathan; for an octopus only when big).
+  Lagoons and inlets roll their own random numbers, so a map that gets neither is the same as
+  before.
+- **Landings** (after the roads): a short road from the shore nearest each inlet's or lagoon's
+  tip to the network, so crabs and sirens can climb out there.
+- **`water_spawns`** (last, after the objects): 1-2 (`WATER_SPAWNS`) per body that fits a water
+  monster and comes within `AQUA.threat_radius` + 6 of a village: at the map's edge if the body
+  reaches it, else the deepest open water, away from the villages (`AQUA.spawn_shore` + 2) and 10
+  tiles from each other. Stored in `MapData` and the JSON format (format 2).
+- **Checks:** the map editor's checks refuse a water spawn off deep water or in a body no water
+  monster fits (an error); a Coast village without an inlet is the generator's soft warning.
+- `data/title_maps/` was rebaked.
 
 ## 10. Gameplay effects at a glance
 
@@ -957,7 +969,7 @@ All built:
 - **Camp monsters** are enemies (group "enemies") that never walk a road; they
   pay their kill gold like wave enemies and leave no corpse.
 - **Relics** in the game: tower range, revive time, the hero's rest, farm food.
-- **Water monsters** need generator changes first: §9.8.
+- **Water monsters:** the generator gives them water near the villages (§9.8).
 - **Not built** (as agreed): eruptions, oases, the merchant, ships landing
   raiders on coasts.
 - **Future units:** ask how each one is unlocked before building it (§9.4).
