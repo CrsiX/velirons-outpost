@@ -151,3 +151,22 @@ error, never a silent "no change". Once a change is good, make it in config.gd f
   frames coarse (`--speed` allows them).
 - The bot does not use the debug commands unless a profile says so (`cheats`), so the baseline
   finds unlock sites like a player does.
+
+## 8. In GitHub CI
+
+- **Smoke test** (`bots.yml`, job `balance-smoke`, so it runs on every push and pull request, and
+  before the Pages deploy): five games with `--max-waves=5 --require-waves=5`, one job each: two fixed
+  (temperate seed 1 / balanced / normal; coast seed 2 / archers / easy) and three with a random seed
+  and map (melee / normal, mages / easy, holy / normal). The seed is printed in the job's summary:
+  rerun it with the same `--map=random --seeds=N`. A game that doesn't survive wave 5 fails the job
+  (`BALANCE FAIL` in the log), unlike the other bots, whose failures only show up in the summary.
+  It catches the bot or a profile breaking against the game's code, and an early game that
+  stopped working at all. Hard difficulty is left out: the bot dies before wave 5 in about a
+  fifth of hard games, so there it would only test the dice.
+- **Balance run** (`balance.yml`, started by hand: Actions > Balance > Run workflow): full games,
+  no wave limit (`--max-waves=0`), spread over `machines` jobs (default 12) by `--shard`. Inputs: maps,
+  seeds, difficulties, policies, and optionally `overrides` (one `PATH=VALUE` per line, as for
+  `variant.py`) with a `label`, to test a config change. The last job merges the results and makes the
+  report: artifact `balance-report` (`report.html`, `report.md`, the CSVs and `runs.jsonl`), and
+  `report.md` as the run's summary. A full game takes a few minutes; the default (5 maps x 6 seeds on
+  12 machines) is 30 games.

@@ -147,6 +147,63 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # The balancing bot (docs/balance-bot-design.md) as a smoke test: five short
+  # games of different kinds, each has to get through wave 5 alive. Two are
+  # fixed (the same game every run: a change that breaks it is the culprit),
+  # three get a random seed and map (printed in the log: rerun it with the same
+  # --map / --seeds to see it again). No hard games: the bot dies before wave 5
+  # in about a fifth of them, so there it would only test the dice. Unlike the bots above this one fails the
+  # run: it can't tell "the code is wrong" from "the balance changed" any other way.
+  balance-smoke:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: fixed-temperate, map: temperate, seed: "1", difficulty: normal, policy: balanced}
+          - {name: fixed-coast, map: coast, seed: "2", difficulty: easy, policy: archers}
+          - {name: random-melee, map: random, seed: random, difficulty: normal, policy: melee}
+          - {name: random-mages, map: random, seed: random, difficulty: easy, policy: mages}
+          - {name: random-holy, map: random, seed: random, difficulty: normal, policy: holy}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Restore Godot
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+          fail-on-cache-miss: true
+
+      - name: Import assets
+        run: ~/godot --headless --import 2>&1 | tail -5
+
+      - name: Play five waves (${{ matrix.name }})
+        if: ${{ inputs.bots == '' || contains(format(' {0} ', inputs.bots), ' balance ') }}
+        run: |
+          SEED="${{ matrix.seed }}"
+          if [ "$SEED" = random ]; then SEED=$(( (RANDOM * 32768 + RANDOM) % 90000 + 1000 )); fi
+          echo "map=${{ matrix.map }} seed=$SEED difficulty=${{ matrix.difficulty }} policy=${{ matrix.policy }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          mkdir -p logs
+          ~/godot --headless --fixed-fps 60 res://tools/balance_bot.tscn -- \
+            --map=${{ matrix.map }} --seeds=$SEED --difficulty=${{ matrix.difficulty }} --policy=${{ matrix.policy }} \
+            --max-waves=5 --require-waves=5 --no-detail --out=logs/balance-smoke-${{ matrix.name }}.jsonl 2>&1 | tee logs/balance-smoke-${{ matrix.name }}.log
+          exit ${PIPESTATUS[0]}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: balance-smoke-${{ matrix.name }}
+          path: logs
+          if-no-files-found: ignore
+          retention-days: 14
+
   # Everything the bots printed, in one place: what failed and where in the bot
   # it was checked, the engine errors, and the map generation tables. A bot that
   # fails its checks does not fail the run -- it shows up here and as a warning

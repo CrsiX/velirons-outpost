@@ -1,0 +1,166 @@
+name: Balance
+
+# Started by hand (Actions > Balance > Run workflow): the balancing bot plays
+# full games, with no wave limit, spread over many machines, and the results
+# come back as one report (report.html with charts, report.md, CSVs, the raw
+# runs.jsonl) in the artifact "balance-report" and as the run's summary.
+# docs/balance-bot-design.md explains the numbers.
+on:
+  workflow_dispatch:
+    inputs:
+      maps:
+        description: "Map types, comma separated (temperate highlands coast desert volcanic random)"
+        type: string
+        default: "temperate,highlands,coast,desert,volcanic"
+      seeds:
+        description: "Seeds per map type / difficulty / policy: 1-10, or 1,5,9"
+        type: string
+        default: "1-6"
+      difficulties:
+        description: "easy, normal, hard (comma separated)"
+        type: string
+        default: "normal"
+      policies:
+        description: "Playing styles (balanced archers swift melee mages holy), comma separated"
+        type: string
+        default: "balanced"
+      machines:
+        description: "Machines to spread the games over (one game at a time on each)"
+        type: number
+        default: 12
+      overrides:
+        description: "Optional config changes to test, one PATH=VALUE or PATH*=FACTOR per line (e.g. ENEMIES.goblin.hp=30); empty plays the project as it is"
+        type: string
+        default: ""
+      label:
+        description: "Name of the variant when there are overrides"
+        type: string
+        default: "variant"
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.7"
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - id: plan
+        run: |
+          N=${{ inputs.machines }}
+          echo "shards=$(python3 -c "import json; print(json.dumps(list(range($N))))")" >> "$GITHUB_OUTPUT"
+
+  # The same Godot cache as bots.yml (this fetches it when nothing has yet).
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot & export templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          BASE=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          wget -q $BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          wget -q $BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          unzip -q Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot
+          TPL=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p $TPL
+          unzip -q Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          mv templates/* $TPL/
+
+  play:
+    needs: [plan, setup]
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Restore Godot
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+          fail-on-cache-miss: true
+
+      - name: Make the variant
+        if: ${{ inputs.overrides != '' }}
+        env:
+          OVERRIDES: ${{ inputs.overrides }}
+        run: |
+          ARGS=()
+          while IFS= read -r line; do
+            line="${line//[$'\r']/}"
+            [ -n "$line" ] && ARGS+=(--set "$line")
+          done <<< "$OVERRIDES"
+          python3 tools/balance/variant.py --src . --dst "$RUNNER_TEMP/variant" "${ARGS[@]}"
+          echo "PROJECT=$RUNNER_TEMP/variant" >> "$GITHUB_ENV"
+          echo "OVERRIDE_TEXT=$(echo "$OVERRIDES" | tr '\n' ';')" >> "$GITHUB_ENV"
+
+      - name: Import assets
+        run: ~/godot --headless --path "${PROJECT:-.}" --import 2>&1 | tail -5
+
+      - name: Play
+        run: |
+          LABEL=base
+          [ -n "${PROJECT:-}" ] && LABEL="${{ inputs.label }}"
+          mkdir -p out
+          ~/godot --headless --fixed-fps 60 --path "${PROJECT:-.}" res://tools/balance_bot.tscn -- \
+            --map=${{ inputs.maps }} --seeds=${{ inputs.seeds }} --difficulty=${{ inputs.difficulties }} \
+            --policy=${{ inputs.policies }} --max-waves=0 --label="$LABEL" --overrides="${OVERRIDE_TEXT:-}" \
+            --rev=${{ github.sha }} --shard=${{ matrix.shard }}/${{ inputs.machines }} \
+            --out="$GITHUB_WORKSPACE/out/runs-${{ matrix.shard }}.jsonl" 2>&1 | tee out/log-${{ matrix.shard }}.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: balance-runs-${{ matrix.shard }}
+          path: out
+          if-no-files-found: ignore
+          retention-days: 30
+
+  report:
+    needs: play
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: runs
+          pattern: balance-runs-*
+          merge-multiple: true
+
+      - name: Report
+        run: |
+          cat runs/runs-*.jsonl > runs.jsonl
+          python3 tools/balance/report.py runs.jsonl --out report > report.txt
+          head -c 900000 report/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: balance-report
+          path: |
+            report
+            runs.jsonl
+          retention-days: 90

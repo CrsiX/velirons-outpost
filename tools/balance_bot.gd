@@ -20,7 +20,9 @@ extends Node
 ##   --rev=<text>      the code revision to record (default: git, if there is one)
 ##   --shard=i/n       runs only every n-th case from i (to share a sweep)
 ##   --no-detail       leave the timeline and the per-wave rows out
-## Exits 0 when every case ran (survived waves are the result, not a pass / fail).
+##   --require-waves=N exit 1 unless every game survived at least N waves (CI's smoke test)
+## Exits 0 when every case ran (survived waves are the result, not a pass / fail,
+## unless --require-waves says otherwise).
 
 const SCHEMA := 1
 
@@ -50,6 +52,8 @@ func _main() -> void:
 	DirAccess.make_dir_recursive_absolute(_out_path.get_base_dir())
 	print("balance bot: %d case(s) -> %s" % [cases.size(), _out_path])
 	var failed := 0
+	var short: Array[String] = []
+	var required := int(_args.get("require-waves", 0))
 	for i in cases.size():
 		var c: Dictionary = cases[i]
 		print("case %d/%d: map=%s seed=%d difficulty=%s policy=%s" % [i + 1, cases.size(), c["map"], c["seed"], c["difficulty"], c["policy"]])
@@ -59,13 +63,17 @@ func _main() -> void:
 			continue
 		_append(rec)
 		var r: Dictionary = rec["result"]
+		if int(r["waves_survived"]) < required:
+			short.append("%s: %d of %d waves (%s)" % [rec["run_id"], r["waves_survived"], required, r["ended_by"]])
 		print("  -> survived %d waves (%s%s) in %.0f game s, %.0f real s" % [r["waves_survived"], r["ended_by"], ", censored" if r["censored"] else "", r["game_seconds"], r["real_seconds"]])
 	print("BALANCE DONE: %d run(s), %d failed" % [cases.size() - failed, failed])
-	get_tree().quit(1 if failed > 0 else 0)
+	for line in short:
+		print("BALANCE FAIL: " + line)
+	get_tree().quit(1 if failed > 0 or not short.is_empty() else 0)
 
 
 ## Every option the bot knows (--help prints them; unknown ones are refused).
-const OPTIONS := ["help", "h", "map", "seeds", "difficulty", "policy", "max-waves", "max-game-seconds", "max-real-seconds", "speed", "out", "label", "overrides", "rev", "shard", "no-detail"]
+const OPTIONS := ["help", "h", "map", "seeds", "difficulty", "policy", "max-waves", "max-game-seconds", "max-real-seconds", "speed", "out", "label", "overrides", "rev", "shard", "no-detail", "require-waves"]
 
 
 func _help() -> String:
@@ -98,6 +106,7 @@ func _help() -> String:
 		"  --rev=TEXT         code revision to record (default: git's, if any)",
 		"  --shard=I/N        play only every N-th case from I (to split a sweep over processes)",
 		"  --no-detail        leave out the per-wave rows and the timeline (much smaller files)",
+		"  --require-waves=N  exit 1 unless every game survived at least N waves (a smoke test)",
 		"  --help             this text",
 		"",
 		"Many cases at once, and config variants: python3 tools/balance/sweep.py --help",
