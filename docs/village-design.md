@@ -87,10 +87,15 @@ in docs/multiplayer-design.md.
   without fog (`Game.disable_fog`: only the title backdrop and tests).
 - **Free buildings** (`START_BUILDINGS`): a farm and a worker camp, finished
   (`Construction.build_starting`).
-  - The farm goes on the map's guaranteed farm plot next to the village (`Village.farm_plot`).
-  - The camp goes within 9 tiles of the centre, by the forest's edge. It needs at least 6
-    trees within 5 tiles, not next to a gate, and not hidden behind the walls or a tree on
-    screen. The tutorial pins it (`TUTORIAL.camp_tile`).
+  - Both are placed on the finished map; the map keeps no room for them. Each goes on the
+    nearest free spot within `START_BUILDING_RADIUS` (9) tiles of the centre (square), not
+    within 2 tiles of a gate, not hidden behind the walls or a tree on screen, and reachable
+    on foot. The farm needs farmland (no steppe, swamp, ash, sand or trees under it).
+  - The camp also needs at least 6 trees within 5 tiles and prefers the forest's edge. The
+    tutorial pins it (`TUTORIAL.camp_tile`).
+  - Where no spot fits, the village starts without that building (logged, Info: "No room
+    for a farm near the village: it starts without one"). On a harsh map (ash, desert,
+    swamp, dense forest) that is a harder start on purpose: the farmer waits for a farm.
   - The starting farmer and forester take them at once (automatic assignment, §6).
 - `START_REVEAL_RADIUS` 7.5 tiles around the centre start explored. Each starting building
   reveals 2.5 tiles around it.
@@ -353,7 +358,7 @@ config.gd and count real seconds, whatever the game speed; paused time doesn't c
 
 - `Village` (scripts/systems/village.gd): one player's village. It holds the `Economy`,
   `Population`, `Construction`, `Army`, the hero and the `EventLog`, plus the centre, walls,
-  gates, home spawns and farm plot. It also has `intact_huts()`, `relic_bonus()` and
+  gates and home spawns. It also has `intact_huts()`, `relic_bonus()` and
   `is_standing()`.
 - `Economy`: the three amounts, `spend` / `refund` / `add`, food consumption,
   `buy_materials`.

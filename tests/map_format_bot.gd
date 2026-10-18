@@ -102,8 +102,8 @@ func _for_game(m: MapData, what: String) -> void:
 	check(back.abandoned.size() == g.abandoned.size() and back.abandoned[0]["center"] == g.abandoned[0]["center"], "%s: the abandoned village travels in the packed map (co-op start)" % what)
 
 
-## The first stored field where `a` and `b` differ ("" if none). The farm plot
-## isn't stored in files; `meta` only counts with `with_meta`.
+## The first stored field where `a` and `b` differ ("" if none); `meta`
+## only counts with `with_meta`.
 func differ(a: MapData, b: MapData, with_meta: bool = false) -> String:
 	if a == null or b == null:
 		return "a map is missing"
@@ -321,7 +321,7 @@ func _play_loaded() -> void:
 	await _start_game()
 	check(game.map.meta.get("name") == "Loaded map" and game.map.size == 75 and game.map.abandoned.is_empty(), "a map from JSON is the game's map")
 	check(game.player_village.center == m.villages[0]["center"] and game.player_village.intact_huts().size() == 9, "the village stands where the file says, all its huts intact")
-	check(game.map.farm_plot == Vector2i(-1, -1) and game.player_village.buildings().any(func(b: Building) -> bool: return b is Farm), "no farm plot in the file: the starting farm found a spot of its own")
+	check(game.player_village.buildings().any(func(b: Building) -> bool: return b is Farm), "the starting farm found a spot of its own")
 	game.waves.countdown = 0.5
 	var started := await wait_until(func() -> bool: return game.waves.wave == 1 and game.waves.enemies_left() > 0, 30.0)
 	check(started, "a wave starts on it")
@@ -359,6 +359,9 @@ func _play_odd_village() -> void:
 			dropped = true
 			break
 	m.derive()
+	# Lairs and mines whose road only led to a closed gate go too.
+	var to_gate := GenChecks.road_field(m, [keep])
+	m.objects.assign(m.objects.filter(func(o: Dictionary) -> bool: return not o["kind"] in ["lair", "mine"] or to_gate[m.index(o["front"])] < 1 << 29))
 	var problems := MapChecks.run(m)
 	var warns: Array = problems.filter(func(p: Dictionary) -> bool: return p["level"] == "warning").map(func(p: Dictionary) -> String: return p["text"])
 	check(MapChecks.errors(problems).is_empty(), "one gate and 8 huts: no errors %s" % str(MapChecks.errors(problems).map(func(p: Dictionary) -> String: return p["text"])))

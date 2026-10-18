@@ -205,8 +205,8 @@ Notes on the list:
     generator can't put them in a river: the waves' road is the last 18 road
     tiles before the gate, coming from the edge spawn nearest by road. The
     watchtower goes next to that road 3 to 7 tiles before the gate, the
-    barracks 8 to 13 tiles before it, and the farm on the map's guaranteed
-    farm plot. Their surroundings are uncovered at the start. A tile set in
+    barracks 8 to 13 tiles before it, and the farm on the nearest free spot
+    by the village. Their surroundings are uncovered at the start. A tile set in
     `Config.TUTORIAL` (instead of `Vector2i(-1, -1)`) overrides the pick.
   - If something gets built on a spot before its step (say a watchtower on
     the barracks spot), the step marks the nearest free spot within 6 tiles

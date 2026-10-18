@@ -637,7 +637,7 @@ class _Reader:
 			return
 		for id in list.size():
 			var e: Dictionary = by_id[id]
-			m.villages.append({"center": e["center"], "home_spawns": e["home_spawns"], "farm_plot": Vector2i(-1, -1)})
+			m.villages.append({"center": e["center"], "home_spawns": e["home_spawns"]})
 			for p in e["pieces"]:
 				p["owner"] = id
 				m.village_layout.append(p)

@@ -62,10 +62,6 @@ func _free(t: Vector2i, size: int, vi: int, spacing: float = Config.OBJECT_SPACI
 		for v in m.villages:
 			if Vector2(p).distance_to(Vector2(v["center"])) < Config.FOREST_CLEARING_RING + 4:
 				return false
-		for v in m.villages:
-			var fp: Vector2i = v["farm_plot"]
-			if fp.x >= 0 and absi(p.x - fp.x) <= 2 and absi(p.y - fp.y) <= 2:
-				return false
 	for o in m.objects:
 		if Vector2(t).distance_to(Vector2(o["tile"])) < spacing:
 			return false

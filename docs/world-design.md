@@ -145,9 +145,6 @@ sources, mountains and volcanoes (§6, §7).
 9. **Fix steps**, per village, each a small local repair after the big
    stages:
    - **fair land** (§4.3): repaint land around a village that falls short;
-   - **farm plot:** a 3×3 plot by the clearing ring (diagonally 4 tiles out
-     from the centre, or farther out if those don't fit), cleared and made
-     meadow, with a walkway to the ring around the walls;
    - **starting camp:** make sure there are trees within reach of the
      worker camp.
 10. **Special objects** (§9), including the road spurs to mines and the
@@ -204,8 +201,11 @@ Within `ZONE_FAIR_RADIUS` (12 tiles) of every village centre:
 - no steppe, swamp or ash land within `ZONE_FAIR_CLEAR` (8 tiles): it is
   repainted as meadow;
 - at least 25 % meadow: the nearest open tiles become meadow;
-- at least 25 % trees (`ZONE_FAIR_MIN`): woods are planted (below);
-- a farm plot (the fix step in §3.2).
+- at least 25 % trees (`ZONE_FAIR_MIN`): woods are planted (below).
+
+The generator keeps **no room for a farm**: the game places the starting
+farm on the finished map, on the nearest free spot by the village, or not
+at all (docs/village-design.md §4). A harsh map can mean a harder start.
 
 This is repaired in a fix step (§3.2, step 9), never by regenerating the
 map. In single player the same rule applies to the one village.
@@ -222,7 +222,7 @@ the village, and meadow last (kept for farms). Not within the clearing ring
 plus one, not on or next to a road. If no spot within 9 tiles of the centre
 (outside the clearing ring) has 8+ trees within 5 tiles, the worker camp gets
 a grove: `ZONE_FAIR_WOODS.grove` (14) trees grown the same way in a round
-patch 8 tiles out, on the side away from the farm plot.
+patch 8 tiles east of the centre.
 
 ## 5. Roads
 
@@ -289,8 +289,7 @@ map (`ROAD_COSTS`):
   links that can't get through (or, for links, only by a detour longer than
   2.5 ×) are routed again with every mountain tile (not volcanoes) open at
   cost 15. Mine spurs and lair roads never cut passes.
-- Once farm plots exist, later roads (mine spurs, lair roads) keep off them;
-  lair roads also keep off the other objects.
+- Lair roads keep off the other objects.
 
 Carving a road: river tiles of deep water or lava get a **bridge** (§6.3 for
 the look; lava always the charred one), shallow tiles a **ford**, mountain
@@ -304,7 +303,6 @@ Hard (the map is made again, §3.2 step 11):
 - Every village has at least one spawn, and every home spawn reaches its
   village's gates by road.
 - Every village has at least 2 approaches.
-- Every village has a farm plot.
 - Every village found a spot (§3.2); in co-op, every village has its links
   (§5.1).
 - Every kind of unlock site has at least one copy (§9.4).
@@ -473,7 +471,7 @@ lairs and ruins are spread over the map, and unlock-site copies are fewer
 than slices. What is kept fair is the **treasures** per slice (the same
 count and tiers at the same distances from each village). Every object
 stands on open land (not on a road, in a village, on the map edge, within 8
-tiles of a village centre or by a farm plot), at least `OBJECT_SPACING` (6)
+tiles of a village centre), at least `OBJECT_SPACING` (6)
 tiles from other objects, and reachable on foot from its slice's village.
 Objects are replicated like buildings (id, kind, state: hidden / found /
 looted / claimed / taken).
@@ -877,8 +875,7 @@ Everything is in `scripts/core/config.gd`, in two blocks:
 - `tests/world_bot.gd`, on maps for 1-8 players and every map type:
   - slices: equal tile counts (± 1 %), every slice reaches the edge, every
     village in its slice and near its centre;
-  - every village has a farm plot of farmland and no steppe, swamp or ash
-    land next to it;
+  - no steppe, swamp or ash land next to any village;
   - shares: ash land only around volcanoes (or on lava), steppe within its
     cap, enough meadow and trees; coast maps have water, volcanic maps a
     volcano and lava; no volcano next to a village;
@@ -910,8 +907,8 @@ Everything is in `scripts/core/config.gd`, in two blocks:
 All built:
 
 1. **Slices, zones and roads:** stages, slices and village placement,
-   fields, zones, road network (at least 2 links) and routing, fix steps
-   (farm plot), `world_bot` basics, ground and prop art.
+   fields, zones, road network (at least 2 links) and routing, fix steps,
+   `world_bot` basics, ground and prop art.
 2. **Water:** lakes, swamp, rivers with bridges and fords (zone styles),
    coast type, water art and shader, pathing and building rules.
 3. **Mountains and volcanoes:** ridge ranges and passes; volcanoes with ash

@@ -2,8 +2,6 @@ class_name GenFixes
 extends RefCounted
 ## Stage 9 (docs/world-design.md §3.2): small local repairs after the big
 ## stages, per village:
-##   - a guaranteed 3x3 farm plot next to the clearing (repainted as meadow if
-##     the ground there doesn't allow farms),
 ##   - fair land: no steppe, swamp or ash within ZONE_FAIR_CLEAR, and at least
 ##     ZONE_FAIR_MIN meadow and trees within ZONE_FAIR_RADIUS,
 ##   - trees within reach of the worker camp.
@@ -12,9 +10,7 @@ extends RefCounted
 static func run(c: GenContext) -> void:
 	for v in c.m.villages:
 		_fair_land(c, v)
-		_farm_plot(c, v)
 		_camp_trees(c, v)
-	c.m.farm_plot = c.m.villages[0]["farm_plot"]
 
 
 static func _fair_land(c: GenContext, v: Dictionary) -> void:
@@ -96,47 +92,12 @@ static func _next_to_road(m: MapData, t: Vector2i) -> bool:
 	return false
 
 
-## Guarantees one 3x3 farm plot touching the village's clear ring, inside its
-## starting view; stored as the village's "farm_plot".
 ## `t` becomes meadow: grass instead of sand, no decor.
 static func _to_meadow(m: MapData, t: Vector2i) -> void:
 	m.set_zone(t, "meadow")
 	if m.get_terrain(t) == MapData.Terrain.DESERT:
 		m.set_terrain(t, MapData.Terrain.GRASS)
 	m.decor.erase(t)
-
-
-static func _farm_plot(c: GenContext, v: Dictionary) -> void:
-	var m := c.m
-	var centre: Vector2i = v["center"]
-	var corners: Array[Vector2i] = [Vector2i(4, 4), Vector2i(-4, 4), Vector2i(4, -4), Vector2i(-4, -4)]
-	c.shuffle(corners)
-	for off in [Vector2i(5, 5), Vector2i(-5, 5), Vector2i(5, -5), Vector2i(-5, -5), Vector2i(6, 0), Vector2i(-6, 0), Vector2i(0, 6), Vector2i(0, -6)]:
-		corners.append(off)
-	for off in corners:
-		var plot := centre + off
-		var ok := true
-		for dy in range(-1, 2):
-			for dx in range(-1, 2):
-				var t := plot + Vector2i(dx, dy)
-				if not m.in_bounds(t) or m.is_road(t) or m.in_village(t) or m.is_edge(t):
-					ok = false
-		if not ok:
-			continue
-		for dy in range(-1, 2):
-			for dx in range(-1, 2):
-				GenZones.clear(c, plot + Vector2i(dx, dy), "meadow")
-		# A walkway from the plot to the ring around the walls.
-		var step := -off.sign()
-		var p := plot
-		while maxi(absi(p.x - centre.x), absi(p.y - centre.y)) > Config.FOREST_CLEARING_RING:
-			p += step
-			for t in [p, p - Vector2i(step.x, 0)]:
-				if not m.is_road(t) and not m.in_village(t):
-					GenZones.clear(c, t)
-		v["farm_plot"] = plot
-		return
-	c.fail("no farm plot for village at %s" % str(centre))
 
 
 ## A worker camp wants 8+ trees within 5 tiles of a spot near the village (the camp itself needs 6): if
@@ -156,9 +117,8 @@ static func _camp_trees(c: GenContext, v: Dictionary) -> void:
 						n += 1
 			if n >= 8:
 				return
-	# Plant a grove on the side away from the farm plot.
-	var away: Vector2i = -((v["farm_plot"] as Vector2i) - centre).sign() if v["farm_plot"] != Vector2i(-1, -1) else Vector2i(1, 0)
-	var grove := centre + away * 8
+	# Plant a grove east of the village.
+	var grove := centre + Vector2i(8, 0)
 	var open: Array = []
 	for dy in range(-3, 4):
 		for dx in range(-3, 4):

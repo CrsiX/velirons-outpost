@@ -102,7 +102,7 @@ func start() -> void:
 ## The waves' road: from the edge spawn nearest to the village (by road), the
 ## last `spawn_distance` tiles before the gate. The watchtower goes by the
 ## road 3 to 7 tiles before the gate, the barracks 8 to 13; the farm on the
-## map's guaranteed farm plot.
+## nearest free spot by the village.
 func _pick_spots() -> void:
 	var td: Dictionary = Config.TUTORIAL
 	var pathing := game.world.pathing
@@ -125,8 +125,7 @@ func _pick_spots() -> void:
 	var taken: Array[Vector2i] = [tower_tile]
 	farm_tile = td["farm_tile"]
 	if farm_tile == Vector2i(-1, -1):
-		var plot := game.player_village.farm_plot
-		farm_tile = plot if plot != Vector2i(-1, -1) and _fits("farm", plot, taken) else _near_village("farm", taken)
+		farm_tile = _near_village("farm", taken)
 	taken.append_array(Building.footprint(farm_tile, 3))
 	barracks_tile = td["barracks_tile"] if td["barracks_tile"] != Vector2i(-1, -1) else _by_road("barracks", 8, 13, taken)
 

@@ -76,15 +76,6 @@ func _map_errors(m: MapData, players: int, type: String) -> Array[String]:
 			e.append("village %d is %.0f tiles from its slice's centre" % [m.villages.find(v), d])
 		if m.slice_of[m.index(v["center"])] != int(v["slice"]):
 			e.append("village outside its slice")
-		var fp: Vector2i = v["farm_plot"]
-		if fp == Vector2i(-1, -1):
-			e.append("no farm plot")
-		else:
-			for dy in range(-1, 2):
-				for dx in range(-1, 2):
-					var t := fp + Vector2i(dx, dy)
-					if m.get_terrain(t) != MapData.Terrain.GRASS or Config.ZONES[m.zone(t)].get("no_farms", false):
-						e.append("farm plot tile %s isn't farmland" % str(t))
 		# Fair land: no steppe, swamp or ash close to the walls.
 		for dy in range(-7, 8):
 			for dx in range(-7, 8):

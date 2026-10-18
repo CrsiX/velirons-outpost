@@ -8,7 +8,7 @@ extends "res://tests/bot_base.gd"
 ##   godot --headless --fixed-fps 60 --path . res://tests/aqua_bot.tscn
 ## Exits 0 when every check passes.
 
-const SEEDS: Array[int] = [4242, 4243, 4244, 4245, 4246, 4247]
+const SEEDS: Array[int] = [4242, 4243, 4244, 4245, 4246, 4247, 4248, 4249, 4250, 4251, 4252, 4253, 4254, 4255, 4256, 4257]
 
 ## The lake: its deep tiles, a deep tile in its middle, one by the village's
 ## shore, and the walkable shore tile next to that.
@@ -86,9 +86,6 @@ func _blocked(m: MapData, t: Vector2i) -> bool:
 	if not m.in_bounds(t) or t.x < 2 or t.y < 2 or t.x > m.size - 3 or t.y > m.size - 3:
 		return true
 	if m.is_road(t) or m.in_village(t) or m.is_water(t) or m.is_mountain(t) or m.get_terrain(t) == MapData.Terrain.LAVA:
-		return true
-	var fp: Vector2i = m.villages[0]["farm_plot"]
-	if fp.x >= 0 and maxi(absi(t.x - fp.x), absi(t.y - fp.y)) <= 2:
 		return true
 	for o in m.objects:
 		if Vector2(t).distance_to(Vector2(o["tile"])) < 3.0:

@@ -63,11 +63,6 @@ func _setup() -> void:
 		for t in MapData.rect_tiles((v["rect"] as Rect2i).grow(1)):
 			if m.in_bounds(t):
 				astar.set_point_solid(t, true)
-		# (later roads, like mine spurs, keep off the farm plot)
-		var fp: Vector2i = v.get("farm_plot", Vector2i(-1, -1))
-		if fp.x >= 0:
-			for t in Building.footprint(fp, 3):
-				astar.set_point_solid(t, true)
 
 
 ## A router on the current map (for mine and lair spurs).

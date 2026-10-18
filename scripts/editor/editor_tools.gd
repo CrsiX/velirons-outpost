@@ -282,7 +282,7 @@ static func add_village(m: MapData, center: Vector2i) -> Variant:
 		if why != "":
 			return why
 	var i := m.villages.size()
-	m.villages.append({"center": center, "home_spawns": [] as Array[Vector2i], "farm_plot": Vector2i(-1, -1)})
+	m.villages.append({"center": center, "home_spawns": [] as Array[Vector2i]})
 	for p in want:
 		p["owner"] = i
 		m.village_layout.append(p)

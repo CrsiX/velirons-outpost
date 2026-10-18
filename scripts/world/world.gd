@@ -108,8 +108,6 @@ func setup(p_game: Game, seed_value: int) -> void:
 	for i in map.villages.size():
 		var v: Dictionary = map.villages[i]
 		fog.reveal(Vector2(v["center"]), Config.START_REVEAL_RADIUS, i)
-		if v["farm_plot"] != Vector2i(-1, -1):
-			fog.reveal(Vector2(v["farm_plot"]), 2.0, i)
 		for j in map.villages.size():
 			fog.explore_tiles(MapData.rect_tiles(v["rect"]), j)
 	for a in map.abandoned:  # (everyone knows where the ruined villages are, too)

@@ -216,10 +216,9 @@ A file that breaks the *format* is a different matter: it is refused on import
   villages' spawns) and `village_layout` (the pieces with their owner);
   slice centres (`slices`); each object's `slice` (from its tile); the art of
   objects whose art follows from their fields (§6.7).
-- **Farm plots** are neither stored nor checked for custom maps (they are going
-  away). Until they are gone, a game on a custom map places its starting farm
-  where the game's own placement finds the nearest free spot by the village,
-  or without one, no starting farm.
+- **No farm plots:** maps (generated or from files) keep no room for a farm.
+  A game places its starting farm on the nearest free spot by the village,
+  or, without one, starts without a farm.
 
 ### 5.3 Tidy-up after each edit (automatic)
 
@@ -233,8 +232,8 @@ A file that breaks the *format* is a different matter: it is refused on import
 
 ### 5.4 Checks
 
-The generator keeps its own, stricter rules for the maps it makes (its 3×3
-farm plot and its 2 approaches stay requirements there). For a map in the
+The generator keeps its own, stricter rules for the maps it makes (its 2
+approaches stay a requirement there). For a map in the
 editor or played from a file:
 
 Errors (block Play and the lobby):
@@ -721,7 +720,7 @@ seeds each). The forms: **MapData** (in memory), **JSON** (text), **packed**
 (`MapData.to_bytes`, as in `BakedMap` and the co-op start message).
 
 - MapData → JSON → MapData: equal in every stored field. The comparison
-  ignores only the farm plot (not stored) and is field by field, so a failure
+  is field by field, so a failure
   names the field and the first tile or entry that differs.
 - MapData → packed → MapData → JSON: the same JSON text as MapData → JSON.
 - JSON → MapData → JSON: byte-identical (export is canonical).
@@ -778,13 +777,12 @@ and every unlock site.
 2. Village slots per size: 50 → 1, 75 → 2, 100 → 4, 125 → 6, 150+ → 8.
 3. No size choice for generated games for now.
 4. No "starts explored" areas yet: that comes with scenarios, but will be needed.
-5. `map_type` is a free name; no farm plots stored; the village layout is
+5. `map_type` is a free name; the village layout is
    stored piece by piece (standard layout for generated maps, a warning, not
    an error, when a custom map differs).
 6. Isometric and top-down 2D views, switchable.
 7. The web build warns whenever a map of 150×150 or more is opened.
-8. Custom maps: no 3×3 farm plot requirement; fewer than 2 approaches is a
-   warning.
+8. Custom maps: fewer than 2 approaches is a warning.
 9. End-to-end conversion tests (§10); export strict, import tolerant within
    bounds, refusing format violations.
 

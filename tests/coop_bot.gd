@@ -70,15 +70,6 @@ func _check_map(p: int, sd: int) -> void:
 			var route := pathing.enemy_route(sp, RandomNumberGenerator.new(), i if p > 1 else -1)
 			if not (v["gates"] as Array).has(route[-1]):
 				errs.append("village %d: route from %s doesn't reach its gate" % [i, sp])
-		# Farm plot: free 3x3 meadow.
-		var fp: Vector2i = v["farm_plot"]
-		if fp == Vector2i(-1, -1):
-			errs.append("village %d has no farm plot" % i)
-		else:
-			for t in Building.footprint(fp, 3):
-				if m.get_terrain(t) != MapData.Terrain.GRASS or m.in_village(t):
-					errs.append("village %d farm plot not clear at %s" % [i, t])
-					break
 		# Villagers can walk to every other village.
 		for j in m.villages.size():
 			if j != i and pathing.find_path(c, m.villages[j]["center"]).is_empty():

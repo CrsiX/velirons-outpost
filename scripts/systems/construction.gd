@@ -318,13 +318,14 @@ func complete(site: Building) -> void:
 
 ## The free, finished buildings the level starts with (Game.start_buildings,
 ## normally Config.START_BUILDINGS):
-## the farm on the map's guaranteed farm plot, a worker camp close to the
-## village by the forest. Run before the villagers move in, who then take them.
+## the farm and the worker camp (by the forest) on the nearest free spots
+## near the village, or not at all where none fits (no room is kept for them
+## on the map). Run before the villagers move in, who then take them.
 func build_starting() -> void:
 	for kind in game.start_buildings:
 		var spot := _start_spot(kind)
 		if spot == Vector2i(-1, -1):
-			push_warning("No room for the starting %s" % kind)
+			village.events.info("No room for a %s near the village: it starts without one" % Config.BUILDINGS[kind]["name"].to_lower())
 			continue
 		var b := _new_building(kind, spot, true)
 		village.events.debug("%s stands ready at %s (free at the start)" % [b.label(), str(spot)])
@@ -332,16 +333,15 @@ func build_starting() -> void:
 
 
 func _start_spot(kind: String) -> Vector2i:
-	if kind == "farm" and village.farm_plot != Vector2i(-1, -1) and placement_error(kind, village.farm_plot, true) == "":
-		return village.farm_plot
 	var fixed: Vector2i = Config.TUTORIAL["camp_tile"]
 	if kind == "camp" and game.tutorial_mode and fixed != Vector2i(-1, -1) and placement_error(kind, fixed, true) == "":
 		return fixed
 	# Anywhere near the village, not crowding a gate; a camp wants trees close by.
 	var centre := village.center
 	var candidates: Array = []
-	for dy in range(-9, 10):
-		for dx in range(-9, 10):
+	var r := Config.START_BUILDING_RADIUS
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
 			var t := centre + Vector2i(dx, dy)
 			if placement_error(kind, t, true) != "" or _next_to_gate(t) or _hidden(t):
 				continue

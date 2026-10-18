@@ -477,7 +477,8 @@ func _run() -> void:
 	# --- start state -----------------------------------------------------------
 	check(game.population.count() == 4 and game.population.cap() == 9, "4 civilians, 9 huts")
 	check(civs("builder").size() == 1 and civs("farmer").size() == 1 and civs("forester").size() == 1 and civs("explorer").size() == 1, "one builder, farmer, forester, explorer")
-	var start_farm: Farm = map.building_at(map.farm_plot) as Farm
+	var start_farms := game.world.buildings.filter(func(b: Building) -> bool: return b is Farm)
+	var start_farm: Farm = start_farms[0] if start_farms.size() == 1 else null
 	var start_camps := game.world.buildings.filter(func(b: Building) -> bool: return b is WorkerCamp)
 	check(start_farm != null and start_farm.complete and start_camps.size() == 1 and start_camps[0].complete, "a farm and a worker camp stand near the village from the start")
 	var start_camp: WorkerCamp = start_camps[0] if not start_camps.is_empty() else null
@@ -535,7 +536,8 @@ func _run() -> void:
 	var some_forest: Vector2i = map.props.keys().filter(func(t: Vector2i) -> bool: return map.is_forest(t))[0]
 	var some_mountain: Vector2i = map.props.keys().filter(func(t: Vector2i) -> bool: return map.is_mountain(t))[0]
 	check(game.world.pathing.astar.is_point_solid(some_forest) and game.world.pathing.astar.is_point_solid(some_mountain), "forest and mountains block villagers")
-	check(map.farm_plot != Vector2i(-1, -1) and start_farm != null and start_farm.tile == map.farm_plot, "the starting farm sits on the guaranteed farm plot")
+	var vc := game.player_village.center
+	check(start_farm != null and maxi(absi(start_farm.tile.x - vc.x), absi(start_farm.tile.y - vc.y)) <= Config.START_BUILDING_RADIUS, "the starting farm stands within START_BUILDING_RADIUS of the centre")
 	var desert_tile: Vector2i = Vector2i(-1, -1)
 	for i in total:
 		var dt := Vector2i(i % map.size, i / map.size)

@@ -224,7 +224,7 @@ func _client_custom() -> void:
 	var game := Net.game
 	var mine := game.player_village
 	var want := custom_map()
-	await wait_until(func() -> bool: return mine.buildings().size() >= 27)
+	await wait_until(func() -> bool: return mine.buildings().size() >= 26 and mine.buildings().any(func(b: Building) -> bool: return b is WorkerCamp))
 	check(mine.id == 1 and mine.center == want.villages[2]["center"], "we play village 3 of the map")
 	check(game.map.abandoned.size() == 1 and game.map.meta.get("name") == "Net bot map", "we got the host's map, village 2 abandoned")
 	var ruins := await wait_until(func() -> bool: return game.world.buildings.filter(func(b: Building) -> bool: return b.has_meta("abandoned")).size() == 25, 30.0)
@@ -375,7 +375,8 @@ func _client() -> void:
 		return
 	var game := Net.game
 	var mine := game.player_village
-	var synced := await wait_until(func() -> bool: return mine.buildings().size() >= 27 and mine.population.count() == Config.START_CIVILIANS.size() and mine.hero.nid > 0)
+	# (25 village pieces and the starting camp; the starting farm only where it fits)
+	var synced := await wait_until(func() -> bool: return mine.buildings().size() >= 26 and mine.buildings().any(func(b: Building) -> bool: return b is WorkerCamp) and mine.population.count() == Config.START_CIVILIANS.size() and mine.hero.nid > 0)
 	check(synced, "our village arrives from the host: %d buildings, %d villagers, the hero" % [mine.buildings().size(), mine.population.count()])
 	check(mine.id == 1 and mine.village_name == CLIENT_NAME and game.villages[0].village_name == HOST_NAME, "we play the second village")
 	# The world: the host's map exactly, its objects' states, the unlocks.

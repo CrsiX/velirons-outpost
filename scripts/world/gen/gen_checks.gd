@@ -18,8 +18,6 @@ static func run(c: GenContext) -> void:
 				c.fail("spawn %s can't reach village %d by road" % [str(s), vi])
 		if GenRoads.approaches(m, v) < 2:
 			c.fail("village %d has fewer than 2 approaches" % vi)
-		if v["farm_plot"] == Vector2i(-1, -1):
-			c.fail("village %d has no farm plot" % vi)
 	if c.players > 1:
 		var shares := zone_shares(m)
 		for z in Config.ZONE_ORDER:

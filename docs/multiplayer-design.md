@@ -267,12 +267,12 @@ The player cap is `MAX_PLAYERS = 8` (Config). The formula keeps working past
 
 Everything the generator does around a village is done once per village:
 - the clearing ring;
-- the guaranteed 3×3 farm plot with its walkway;
 - fair land: no steppe, swamp or ash land within 8 tiles, at least 25 %
   meadow and 25 % trees within 12;
 - trees within reach of the worker camp (a grove is planted if not);
 - the starting farm and worker camp (`START_BUILDINGS`), placed by the game
-  near its own trees.
+  on the finished map near the village (the camp by its own trees), each
+  only where it fits.
 
 Mountains follow noise ridges anywhere on the map (not within 8 tiles of a
 slice centre); roads go around them or through a pass. Lakes, river sources
@@ -283,7 +283,7 @@ and volcanoes keep away from the slice centres too.
 - **Only the host generates.** It sends clients the finished map, not a seed:
   `MapData.to_bytes`, a compressed copy of the terrain, zones, props, decor,
   crossings, beaches, volcanoes, slices, the villages (walls, gates, home
-  spawns, farm plot), the links, the special objects, map type and seed.
+  spawns), the links, the special objects, map type and seed.
 - It is sent once, reliably, with the game setup. The buildings, units and
   everything else come with the snapshots.
 - Clients never run the generator, so there are no cross-platform randomness
@@ -553,7 +553,7 @@ panels. The debug log entries for them stay local.
    - the civilian graph is shared, so caravans, soldiers and heroes walk
      between villages.
 4. **Map generator:** multi-village layout (§5; docs/world-design.md).
-   - `MapData.villages[]`: centre, rect, gates, home spawns, farm plot,
+   - `MapData.villages[]`: centre, rect, gates, home spawns,
      slice; `village_links`.
 5. **Fog:**
    - one fog state per village in `FogLayer`, on the host;

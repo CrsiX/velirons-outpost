@@ -19,7 +19,7 @@ var village_rect: Rect2i
 var gates: Array[Vector2i] = []
 ## One entry per village: {"center": Vector2i, "rect": Rect2i, "gates":
 ## Array[Vector2i], "home_spawns": Array[Vector2i] (edge road tiles its own wave
-## comes from), "farm_plot": Vector2i}.
+## comes from)}.
 var villages: Array[Dictionary] = []
 ## Pairs of village ids joined by a road (co-op maps).
 var village_links: Array[Vector2i] = []
@@ -28,8 +28,6 @@ var edge_spawns: Array[Vector2i] = []
 var village_layout: Array[Dictionary] = []  # (+ "owner": village id)
 ## Tall terrain props (trees on forest, peaks on mountains): tile -> art name.
 var props: Dictionary = {}
-## Centre of the guaranteed free 3x3 farm plot near the village.
-var farm_plot := Vector2i(-1, -1)
 ## Zone per tile (index into Config.ZONE_ORDER).
 var zones: PackedByteArray
 ## Small walkable props (reeds, boulders, cacti): tile -> art. Cleared by buildings.
@@ -223,7 +221,7 @@ func to_bytes() -> PackedByteArray:
 	var d := {
 		"size": size, "terrain": terrain, "props": props, "village_rect": village_rect,
 		"gates": gates, "edge_spawns": edge_spawns, "villages": villages,
-		"village_links": village_links, "village_layout": village_layout, "farm_plot": farm_plot,
+		"village_links": village_links, "village_layout": village_layout,
 		"zones": zones, "decor": decor, "crossings": crossings, "volcanoes": volcanoes, "beaches": beaches,
 		"slice_of": slice_of, "slices": slices, "objects": objects, "map_type": map_type, "seed": seed_value,
 		"water_spawns": water_spawns,
@@ -253,7 +251,6 @@ static func from_bytes(bytes: PackedByteArray) -> MapData:
 	m.villages.assign(d["villages"])
 	m.village_links.assign(d["village_links"])
 	m.village_layout.assign(d["village_layout"])
-	m.farm_plot = d["farm_plot"]
 	m.zones = d["zones"]
 	m.decor = d["decor"]
 	m.crossings = d["crossings"]
@@ -311,8 +308,6 @@ func derive() -> void:
 		hs.assign(v.get("home_spawns", []))
 		hs.sort_custom(MapData.row_order)
 		v["home_spawns"] = hs
-		if not v.has("farm_plot"):
-			v["farm_plot"] = Vector2i(-1, -1)
 		gates.append_array(vg)
 		spawns.append_array(hs)
 	spawns.sort_custom(MapData.row_order)

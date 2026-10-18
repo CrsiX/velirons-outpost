@@ -10,7 +10,7 @@ extends RefCounted
 ##      water monsters (Coast: an inlet each; else maybe a lagoon),
 ##   7-8. road network and routing (bridges, fords, passes), a landing road
 ##      to each inlet or lagoon,
-##   9. fix steps: farm plot, fair land, trees for the camp,
+##   9. fix steps: fair land, trees for the camp,
 ##   10. special objects (treasures, camps, unlock sites, ruins, lairs, mines),
 ##      and the water monsters' spawns,
 ##   11. checks: a map that fails them is made again from the next seed.

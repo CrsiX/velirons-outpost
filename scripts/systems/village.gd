@@ -17,12 +17,11 @@ var village_name := "Veliron's Outpost"
 var color := Color("c9a24a")
 ## Village centre tile (where villagers live and the hero waits).
 var center := Config.VILLAGE_CENTER
-## Its 5x5 walls, gates, the edge road tiles its own wave comes from, and its
-## guaranteed farm plot (all from the map, see apply_map).
+## Its 5x5 walls, gates and the edge road tiles its own wave comes from (all
+## from the map, see apply_map).
 var rect := Rect2i(Config.VILLAGE_ORIGIN, Vector2i(5, 5))
 var gates: Array[Vector2i] = []
 var home_spawns: Array[Vector2i] = []
-var farm_plot := Vector2i(-1, -1)
 
 var economy: Economy
 var population: Population
@@ -77,7 +76,6 @@ func apply_map(d: Dictionary) -> void:
 	rect = d["rect"]
 	gates.assign(d["gates"])
 	home_spawns.assign(d["home_spawns"])
-	farm_plot = d["farm_plot"]
 
 
 ## Starting state: resources, the free starting buildings, villagers, the hero.

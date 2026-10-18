@@ -53,16 +53,21 @@ const VILLAGE_LAYOUT: Array[String] = [
 
 const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
 const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explorer"]
-## Built for free near the village at the start (the farm on the guaranteed
-## farm plot, the camp close to the forest); the starting farmer and forester work them.
+## Built for free near the village at the start (the camp close to the
+## forest); the starting farmer and forester work them. Each goes on the
+## nearest free spot within START_BUILDING_RADIUS of the centre that isn't
+## next to a gate; where none fits (a farm among ash, sand, swamp or trees),
+## the village simply starts without it. The map makes no room for them.
 const START_BUILDINGS: Array[String] = ["farm", "camp"]
+## How far from the village centre (tiles, square) a starting building may stand.
+const START_BUILDING_RADIUS := 9
 const START_REVEAL_RADIUS := 7.5
 
 ## The guided tutorial (docs/tutorial-design.md): its map, the small starting
 ## village (no farm, no farmer, no explorer), enough resources for every step,
 ## and its two waves. The spots for the steps (watchtower, farm field,
 ## barracks) are picked on the road the tutorial waves take (Vector2i(-1, -1):
-## pick; the farm field is the map's guaranteed farm plot). Its waves come
+## pick; the farm field: the nearest free spot by the village). Its waves come
 ## down that road from `spawn_distance` road tiles before the gate.
 const TUTORIAL := {
 	"seed": 1337, "map_type": "highlands", "difficulty": "easy",

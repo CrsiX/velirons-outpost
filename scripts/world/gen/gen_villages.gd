@@ -81,7 +81,7 @@ static func _stamp(c: GenContext, center: Vector2i, s: int) -> void:
 	var id := m.villages.size()
 	var o := center - Vector2i(2, 2)
 	var rect := Rect2i(o, Vector2i(5, 5))
-	var v := {"center": center, "rect": rect, "gates": [] as Array[Vector2i], "home_spawns": [] as Array[Vector2i], "farm_plot": Vector2i(-1, -1), "slice": s}
+	var v := {"center": center, "rect": rect, "gates": [] as Array[Vector2i], "home_spawns": [] as Array[Vector2i], "slice": s}
 	m.villages.append(v)
 	var ring := Config.FOREST_CLEARING_RING
 	for dy in range(-ring, ring + 1):
