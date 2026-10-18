@@ -1,10 +1,16 @@
 extends "res://tests/bot_base.gd"
-## Headless test of the campaign's scenarios (docs/scenarios-design.md):
-## scenario 1, Homecoming, played through with commands: its baseline (map
-## file, ruins, villagers, Einar, Brenna at her tent), its rules, the intro
-## cutscene and the walk home, the arrival, every card, the waves, the
+## Headless test of the campaign's scenarios (docs/scenarios-design.md),
+## each played through with commands. Scenario 1, Homecoming: its baseline
+## (map file, ruins, villagers, Einar, Brenna at her tent), its rules, the
+## intro cutscene and the walk home, the arrival, every card, the waves, the
 ## objectives, the outro and the win; a villager's death as a defeat; the
-## hints; the title screen's Campaign page.
+## hints; the title screen's Campaign page. Scenario 2, The Old Friend: Pell,
+## the stall and trade, the waves waiting for it, rats at the stall, the hero
+## claiming the ruin, the cards, the talks between waves, Pell's death as a
+## defeat, the win. Scenario 3, The Wardline: the grown map, the ruins (a
+## barracks too), restoring, journals and the logbook, specialising and
+## training, the lit road, the waves that keep coming, the win.
+##   -- --only=1|2|3   one scenario only (the title screen with 1)
 
 var sc: ScenarioRunner
 
@@ -12,12 +18,25 @@ var sc: ScenarioRunner
 func _run() -> void:
 	var diff := Settings.difficulty
 	Settings.difficulty = Settings.Difficulty.HARD
-	_map_file()
-	await _play_through()
-	await _defeat()
-	await _hints()
+	var only := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--only="):
+			only = a.trim_prefix("--only=")
+	if only in ["", "1"]:
+		_map_file()
+		await _play_through()
+		await _defeat()
+		await _hints()
+	if only in ["", "2"]:
+		await _scenario_2()
+	if only in ["", "3"]:
+		await _scenario_3()
+	if is_instance_valid(game):
+		game.queue_free()
+		await frames(2)
 	check(Settings.difficulty == Settings.Difficulty.HARD and Settings.enemy_scale.is_empty(), "the player's difficulty is back, no scenario scale left, once the game is gone")
-	await _title()
+	if only in ["", "1"]:
+		await _title()
 	Settings.difficulty = diff
 	Engine.time_scale = 1.0
 	print("CHECKS %d  FAILURES %d" % [checks, failures.size()])
@@ -33,11 +52,12 @@ func cmd(type: String, args: Dictionary = {}) -> Dictionary:
 	return r
 
 
-func _new_game() -> void:
+func _new_game(n := 1) -> void:
 	if is_instance_valid(game):
 		game.queue_free()
 		await frames(2)
-	Settings.scenario_next = 1
+	Engine.time_scale = 1.0
+	Settings.scenario_next = n
 	game = load("res://scenes/main.tscn").instantiate()
 	add_child(game)
 	await frames(3)
@@ -239,11 +259,15 @@ func _play_through() -> void:
 	check(game.hud._overlay_menu_button.text == "Play again" and game.hud._overlay_button.text == "Main menu", "Main menu, or Play again")
 
 
-## Every enemy of the waves dies (not the camps' guards).
+## Every enemy of the waves dies (with `kill_camps`, the camps' guards too).
 func _kill_wave() -> void:
 	for e: Enemy in get_tree().get_nodes_in_group("enemies"):
-		if not (e.behavior is CampBehavior):
+		if kill_camps or not (e.behavior is CampBehavior):
 			kill(e, game.hero)
+
+
+## _kill_wave kills the camps' guards too (scenario 3: two camps by the north road).
+var kill_camps := false
 
 
 func _total(d: Dictionary) -> int:
@@ -302,8 +326,263 @@ func _title() -> void:
 	cb.pressed.emit()
 	await frames(1)
 	check(t._campaign_page.visible and not t._main_page.visible, "it opens the campaign page")
-	check(t.scenario_buttons.size() == Campaign.count() and t.scenario_buttons[0].text == "1. Homecoming", "scenario 1 is there: %s" % t.scenario_buttons[0].text)
+	check(t.scenario_buttons.size() == 3 and t.scenario_buttons[0].text == "1. Homecoming" and t.scenario_buttons[1].text == "2. The Old Friend" and t.scenario_buttons[2].text == "3. The Wardline", "scenarios 1 to 3 are there: %s" % str(t.scenario_buttons.map(func(b: Button) -> String: return b.text)))
 	check(t._campaign_page.get_children().any(func(c: Node) -> bool: return c is Label and (c as Label).text.contains("still to come")), "and the rest are to come")
 	t.show_page(t._main_page)
 	t.queue_free()
 	await frames(1)
+
+
+# --- scenario 2: The Old Friend ---------------------------------------------------------------
+
+## Skips the cutscene playing now, if any.
+func _skip_scene() -> void:
+	if sc.cutscene != null:
+		sc.cutscene.skip()
+		await frames(2)
+
+
+func _scenario_2() -> void:
+	print("-- scenario 2: setup")
+	await _new_game(2)
+	var v := game.player_village
+	check(sc != null and sc.spec.number == 2 and game.map.size == 75 and MapJson.map_name(game.map) == "Homecoming", "scenario 2 runs on the home map")
+	var pell: Civilian = sc.merchant()
+	check(pell != null and pell.label() == "Pell" and pell.role == "merchant" and is_instance_valid(pell.hut), "Pell is a villager (a merchant) with a hut")
+	check(game.population.count() == 5 and v.intact_huts().size() == 9, "five villagers, all nine huts stand")
+	check(sc.pieces("gate").all(sc.whole) and sc.pieces("wall_tower").all(sc.whole), "the walls are whole")
+	var towers := sc.towers()
+	check(towers.size() == 2 and towers.all(func(t: Tower) -> bool: return t.garrison != null and t.garrison.kind == "archer"), "two watchtowers, each with an archer")
+	check(game.hero.level == 1 and game.hero.label() == "Brenna", "Brenna at level 2")
+	check(game.waves.hold and game.waves.call_locked and not cmd("call_wave")["ok"], "the first wave waits for the stall; it can't be called")
+	check(game.allows_building("stall") and game.allows_building("barracks") and not game.allows_building("training"), "the stall and barracks can be built, no training grounds")
+	check(game.available("shield_bearer") and not game.available("apprentice"), "shield bearers can be recruited")
+	check(game.hud._build_panels["stall"].visible, "the Build tab shows the stall")
+	check(not game.population.recruit_error("merchant").is_empty() and not game.hud._recruit_rows.has("merchant"), "merchants can't be recruited")
+	await wait(1.0)
+	await _skip_scene()
+	check(sc.phase == ScenarioRunner.Phase.PLAY and sc.card.lesson_title() == "Pell's stall", "play: the stall's card")
+
+	print("-- scenario 2: the stall")
+	var spot: Vector2i = sc.highlight.tiles[0] if not sc.highlight.tiles.is_empty() else Vector2i(-1, -1)
+	var r := cmd("place_building", {"kind": "stall", "tile": spot})
+	check(r["ok"], "the stall goes on the marked spot %s" % spot)
+	Engine.time_scale = 4.0
+	check(await wait_until(func() -> bool: return sc.step == 1, 240.0), "the trade card once it stands")
+	var stall: Stall = sc.stalls()[0]
+	check(stall.size == 2 and stall.display_name() == "Peddler's Stall" and stall.worker == pell, "a 2x2 peddler's stall, Pell's")
+	check(not game.waves.hold and not game.waves.call_locked and game.waves.countdown > 30.0, "the first wave's countdown runs (%.0f s)" % game.waves.countdown)
+	check(await wait_until(func() -> bool: return stall.is_open(), 60.0), "Pell walks over and opens it")
+	check(stall.rate() == 0.0 and game.population.food_per_second() < Config.FARM_RATE, "it grows no food")
+	stall.stored = 30.0
+	var gold := v.economy.amount("gold")
+	var mat := v.economy.amount("materials")
+	r = cmd("trade", {"building": stall.nid, "good": "materials"})
+	check(r["ok"] and is_equal_approx(v.economy.amount("gold"), gold - 15.0) and is_equal_approx(v.economy.amount("materials"), mat + 10.0) and is_equal_approx(stall.stored, 20.0), "10 material for 15 gold, from his goods (%s)" % str(r))
+	check(not cmd("trade", {"building": stall.nid, "good": "gold"})["ok"], "he doesn't sell gold")
+	stall.stored = 5.0
+	check(not cmd("trade", {"building": stall.nid, "good": "food"})["ok"], "sold out: no trade")
+	stall.stored = 30.0
+	check(await wait_until(func() -> bool: return sc.step == 2, 5.0), "the hero's card")
+
+	print("-- scenario 2: rats at the stall")
+	var road_t := sc.road_to_village(stall.tile)
+	var near: Vector2i = road_t[0] if not road_t.is_empty() else stall.tile
+	game.population.unassign_worker(stall)  # (Pell goes home: a rat would go for him first)
+	check(await wait_until(func() -> bool: return pell.at_home, 60.0) and not stall.is_open(), "Pell away: the stall is closed")
+	var rat := game.waves.spawn_at("rat", near, v, 1)
+	rat.max_hp = 1e6  # (the watchtower by the road shoots it, but this one lives)
+	rat.hp = rat.max_hp
+	var before := stall.stored
+	check(await wait_until(func() -> bool: return stall.has_rats(), 20.0), "a rat on the road goes for the stall")
+	await wait(3.0)
+	check(stall.stored < before, "and eats its goods (%.1f -> %.1f)" % [before, stall.stored])
+	if is_instance_valid(rat):
+		kill(rat)
+	game.population.assign_worker(stall)
+	check(await wait_until(func() -> bool: return stall.is_open(), 60.0), "Pell back at his stall")
+	stall.stored = 30.0
+
+	print("-- scenario 2: the ruin, levels, barracks, a tower upgrade")
+	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
+	var site: Dictionary = sc.ruin_sites[0]
+	check(await wait_until(func() -> bool: return sc.claimed(site), 400.0), "Brenna claims the broken watchtower")
+	check(await wait_until(func() -> bool: return sc.step == 3, 5.0), "the restore card")
+	var ruin = sc.on_site(site)
+	check(cmd("restore_ruin", {"ruin": ruin.nid})["ok"], "it is restored")
+	check(await wait_until(func() -> bool: return sc.step == 4, 5.0), "the level card")
+	check(game.hero.can_level_up() and cmd("hero_level_up")["ok"], "Brenna has the XP and levels up")
+	check(await wait_until(func() -> bool: return sc.step == 5, 5.0), "the barracks card")
+	cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
+	var bspot: Vector2i = sc.highlight.tiles[0] if not sc.highlight.tiles.is_empty() else find_spot("barracks", v.center)
+	check(cmd("place_building", {"kind": "barracks", "tile": bspot})["ok"], "barracks on the marked spot")
+	check(cmd("recruit_unit", {"kind": "shield_bearer"})["ok"], "a shield bearer")
+	var barracks: Barracks = v.buildings().filter(func(b: Building) -> bool: return b is Barracks)[0]
+	check(await wait_until(func() -> bool: return barracks.complete, 240.0), "the barracks stand")
+	cmd("station_unit", {"unit": game.army.reserve()[0].nid, "post": barracks.nid})
+	check(await wait_until(func() -> bool: return sc.step == 6, 120.0), "the tower-upgrade card")
+	v.economy.add("materials", 200)
+	check(cmd("upgrade_tower", {"building": sc.towers()[0].nid})["ok"], "a watchtower upgrade")
+	check(await wait_until(func() -> bool: return sc.step >= sc.steps.size(), 240.0), "the cards are over")
+
+	print("-- scenario 2: the waves and the talks")
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	guard.start()
+	var scenes := 0
+	while not game.waves.all_done() and not game.game_over:
+		if sc.cutscene != null:
+			scenes += 1
+			await _skip_scene()
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+	guard.queue_free()
+	check(scenes >= 3 and not game.game_over, "seven waves, with talks between them (%d scenes)" % scenes)
+	check(await wait_until(func() -> bool: return sc.phase == ScenarioRunner.Phase.OUTRO or sc.cutscene != null, 30.0), "the objectives are met (%s)" % str(sc._goal_state))
+	check(await wait_until(func() -> bool: return sc.cutscene != null, 120.0), "the outro plays")
+	Engine.time_scale = 1.0
+	var said := await _watch(sc.cutscene)
+	check(said.has("pell"), "Pell asks for the Wardline (%s)" % str(said))
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Old Friend: complete", "won: %s" % game.hud._overlay_title.text)
+
+	print("-- scenario 2: Pell's death")
+	await _new_game(2)
+	await _skip_scene()
+	game.population.kill(sc.merchant(), "from the attack of goblin 3", "enemies")
+	await frames(2)
+	check(game.game_over and game.hud._overlay_title.text == "The Old Friend failed" and game.hud._overlay_sub.text.contains("Pell must not die"), "Pell dies: the scenario is lost (%s)" % game.hud._overlay_sub.text)
+
+
+# --- scenario 3: The Wardline -------------------------------------------------------------------
+
+## Closes the journal page; the bot's 4x speed again (closing it puts the
+## game's own speed back, 1x here).
+func _close_journal() -> void:
+	sc.journal.close_page()
+	Engine.time_scale = 4.0
+
+
+func _scenario_3() -> void:
+	print("-- scenario 3: setup")
+	await _new_game(3)
+	var v := game.player_village
+	check(sc != null and sc.error == "" and game.map.size == 100 and MapJson.map_name(game.map) == "The Wardline", "scenario 3 runs on the grown 100x100 map")
+	check(sc.ruin_sites.size() == 5 and sc.ruin_sites.filter(func(s: Dictionary) -> bool: return s["building"] == "barracks").size() == 1, "five ruins: four watchtowers and a barracks")
+	var bruin = sc.on_site(sc.ruin_sites.filter(func(s: Dictionary) -> bool: return s["building"] == "barracks")[0])
+	check(bruin is RuinedTower and bruin.size == 2 and bruin.display_name() == "Ruined barracks" and bruin.art() == "barracks_ruin", "the barracks ruin is 2x2, with its own look")
+	var stall: Stall = sc.stalls()[0] if not sc.stalls().is_empty() else null
+	check(stall != null and stall.level == 2 and stall.display_name() == "Trade Stall" and stall.worker == sc.merchant(), "Pell's trade stall stands (level 2), his")
+	check(v.buildings().any(func(b: Building) -> bool: return b is Barracks and not (b as Barracks).units().is_empty()), "barracks with a shield bearer")
+	var archer: MilitaryUnit = game.army.units.filter(func(u: MilitaryUnit) -> bool: return u.kind == "archer" and u.level == 2)[0]
+	check(archer.upgrade_options().any(func(o: Dictionary) -> bool: return o["to"] == "crossbowman"), "level 3 archers can specialise")
+	check(game.hero.level == 3 and game.allows_building("training") and not game.allows_building("stall"), "Brenna at level 4; training grounds allowed")
+	check(game.waves.last_wave == 0 and not game.waves.call_locked, "the waves don't stop by themselves")
+	var w7 := sc.next_wave(7)
+	check(int(w7["kinds"]["goblin"]) == 10 and int(w7["kinds"]["thief"]) == 4, "past the list the last wave comes again, growing (%s)" % str(w7["kinds"]))
+	await wait(1.0)
+	await _skip_scene()
+	check(sc.card.lesson_title() == "Claim the ruins", "the first card: claim the ruins")
+	check(not sc.spec._dark_road(sc).is_empty(), "the road out to the ruins is dark")
+
+	print("-- scenario 3: claiming and restoring")
+	kill_camps = true  # (the builders would flee from the camps by the road)
+	var guard := Timer.new()  # (enemies die as they come, the whole time)
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	guard.start()
+	Engine.time_scale = 4.0
+	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
+	check(await wait_until(func() -> bool: return sc.ruin_sites.any(sc.claimed), 400.0), "Brenna claims a ruin")
+	cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
+	game.waves.hold = true  # (no new waves while the builders are out on the road; released for the win)
+	v.economy.add("materials", 800)
+	v.economy.add("gold", 1500)
+	v.economy.add("food", 300)
+	for s in sc.ruin_sites:
+		var o = sc.on_site(s)
+		if o is RuinedTower and o.village == null:
+			(o as RuinedTower).claim(v)
+	var restored := 0
+	for s in sc.ruin_sites:
+		if cmd("restore_ruin", {"ruin": sc.on_site(s).nid})["ok"]:
+			restored += 1
+	check(restored == 5, "all five are restored by order (%d)" % restored)
+	var b_site: Dictionary = sc.ruin_sites.filter(func(s: Dictionary) -> bool: return s["building"] == "barracks")[0]
+	check(sc.on_site(b_site) is Barracks and (sc.on_site(b_site) as Building).devastated, "the ruined barracks becomes devastated barracks, for the builders")
+	check(await wait_until(func() -> bool: return sc.journal != null and sc.journal.visible, 400.0), "a restored tower gives up a journal page")
+	check(sc.journal.title().begins_with("A garrison journal, page 1") and get_tree().paused, "page 1, and the game waits meanwhile")
+	_close_journal()
+	check(not get_tree().paused, "closed, it goes on")
+	var pages := 1
+	var logbook := false
+	var t := 0.0
+	while t < 900.0 and not sc.ruin_sites.all(func(s: Dictionary) -> bool: return sc.restored(s) != null):
+		if sc.journal.visible:
+			if sc.journal.title() == "The garrison's logbook":
+				logbook = sc.journal.text().contains("Fiona") and sc.journal.text().contains("Rhodri")
+			else:
+				pages += 1
+			_close_journal()
+		await _skip_scene()
+		await wait(0.5)
+		t += 0.5
+	for k in 20:  # (the last pages, one after the other)
+		await frames(10)
+		if sc.journal.visible:
+			if sc.journal.title() == "The garrison's logbook":
+				logbook = sc.journal.text().contains("Fiona") and sc.journal.text().contains("Rhodri")
+			else:
+				pages += 1
+			_close_journal()
+		await _skip_scene()
+	check(sc.ruin_sites.all(func(s: Dictionary) -> bool: return sc.restored(s) != null), "all five stand again%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	check(pages == 4 and logbook, "four journal pages and the logbook, signed for both heirs (%d pages)" % pages)
+
+	print("-- scenario 3: specialising, training, manning")
+	check(cmd("upgrade_unit", {"unit": archer.nid, "to": "crossbowman"})["ok"] and archer.kind == "crossbowman", "an archer becomes a crossbowman")
+	var tg_spot := find_spot("training", v.center)
+	check(cmd("place_building", {"kind": "training", "tile": tg_spot})["ok"], "training grounds are placed")
+	var tg: TrainingGrounds = v.buildings().filter(func(b: Building) -> bool: return b is TrainingGrounds)[0]
+	check(await wait_until(func() -> bool: return tg.complete, 300.0), "and built")
+	cmd("recruit_unit", {"kind": "archer"})
+	var trainee: MilitaryUnit = game.army.reserve()[0]
+	cmd("station_unit", {"unit": trainee.nid, "post": tg.nid})
+	check(await wait_until(func() -> bool: return trainee.state == MilitaryUnit.State.STATIONED, 120.0), "an archer at the training grounds")
+	game.hero.xp = 500
+	cmd("hero_mode", {"mode": Hero.Mode.TRAIN})
+	check(await wait_until(func() -> bool: return trainee.level >= 1, 180.0), "Brenna trains it up a level (mode %s xp %d unit %s L%d txp %.0f/%.0f %s; paused %s phase %d cut %s journal %s)" % [game.hero.mode_name(), game.hero.xp, trainee.kind, trainee.level + 1, trainee.train_xp, trainee.train_xp_needed(), game.hero.status(), get_tree().paused, sc.phase, sc.cutscene != null, sc.journal.title() if sc.journal.visible else "-"])
+	cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
+	for s in sc.ruin_sites:
+		var post := sc.restored(s) as MilitaryPost
+		cmd("recruit_unit", {"kind": "shield_bearer" if post is Barracks else "archer"})
+		cmd("station_unit", {"unit": game.army.reserve()[0].nid, "post": post.nid})
+	check(await wait_until(func() -> bool: return sc._goal_state.get("towers", false) and sc._goal_state.get("barracks", false), 300.0), "every restored post is manned (%s)" % str(sc._goal_state))
+
+	print("-- scenario 3: lighting the road")
+	var stones := 0
+	t = 0.0
+	while not sc.spec._dark_road(sc).is_empty() and t < 900.0:
+		var dark: Array[Vector2i] = sc.spec._dark_road(sc)
+		if v.construction.queue.is_empty():
+			var at := find_spot("lightstone", dark[0])
+			if cmd("place_building", {"kind": "lightstone", "tile": at})["ok"]:
+				stones += 1
+		await _skip_scene()
+		await wait(1.0)
+		t += 1.0
+	check(sc.spec._dark_road(sc).is_empty() and stones > 0, "light stones light the whole road (%d stones)" % stones)
+
+	print("-- scenario 3: the waves and the win")
+	game.waves.hold = false
+	check(await wait_until(func() -> bool: return sc.phase != ScenarioRunner.Phase.PLAY or game.game_over, 300.0), "the line is restored and lit: the outro (%s)" % str(sc._goal_state))
+	guard.queue_free()
+	check(await wait_until(func() -> bool: return sc.cutscene != null or game.game_over, 200.0), "the outro plays")
+	Engine.time_scale = 1.0
+	await _watch(sc.cutscene)
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Wardline: complete", "won: %s" % game.hud._overlay_title.text)

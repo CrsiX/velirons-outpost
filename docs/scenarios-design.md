@@ -1,6 +1,6 @@
 # Scenarios design
 
-Status: **scenario 1 and the scenario system are built** (§7 says how, and what was decided for scenario 1); scenarios 2 to 11 are planned. This
+Status: **scenarios 1 to 3 and the scenario system are built** (§7 says how, and what was decided for them); scenarios 4 to 11 are planned. This
 page outlines the campaign: eleven scenarios that tell the story in `story-design.md` (read that first; names, places and the cause of the war are
 explained there). Everything about the scenarios not yet built is a draft. Numbers marked *target* are starting points to tune; a scenario's own
 numbers and texts go into its own file (`scripts/scenarios/scenario_<n>.gd`), not into `config.gd`. *Open* means not decided.
@@ -574,13 +574,22 @@ The game has none of this yet, except where noted:
 - **Rules** it enforces: `Commands.submit` asks `ScenarioRunner.command_error` (buildings, unit kinds, specialising, no hero orders or wave calls
   during the story parts); the HUD hides what isn't allowed (`Game.available`, `Game.allows_building`; `MilitaryUnit.upgrade_options` leaves out
   the branches when `Game.allows_branches` is false). A villager's death (`Population.civilian_died`) or the hero being downed (`Hero.downed`) end
-  the scenario when its rules say so; the usual defeat does too. The defeat screen names the cause and offers *Try again* (the scenario starts
+  the scenario when its rules say so (`fail_on_villager_death`, `must_live` names, `hero_revives`); the usual defeat does too. The defeat screen names the cause and offers *Try again* (the scenario starts
   over) and *Main menu*; the win screen *Main menu* and *Play again* (`Game.end_game`, `Hud.show_game_over(..., won)`).
 - **Waves:** a scenario's waves are `Waves.scripted` entries without a fixed `spawn`: `kinds`, spread over `spawns` edge spawns, plus `rat_packs`
   (each pack from one spawn). `Waves.last_wave` stops the waves after the last one (the top bar says "All N waves survived"); `Waves.buffer` is
-  the gap between waves; wave 1 can wait to be called (`first_wave_waits`).
-- **Not built yet:** saving a scenario (`Game.save_error` refuses it, there is no autosave), Pell's market, guard mobs, bosses, scripted caravans,
-  choices, the Legion's death effect, anything carried between scenarios (by design: nothing carries over).
+  the gap between waves; wave 1 can wait to be called (`first_wave_waits`), or wait until the scenario lets it come (`first_wave_call` false,
+  `ScenarioRunner.release_waves`); with `repeat_last` the last listed wave comes again and again, `more_each_wave` bigger each time, until the
+  objectives are met (`Waves.last_wave` 0).
+- **More of the baseline:** `prebuilt` posts and buildings, finished and manned, placed by a road (`road`: 0 the one nearest the village by road;
+  `at`: road tiles before its gate; `RoadSpots`) or on a fixed `tile`, at a `level`, with their `units`; `wall_tower` mans the corner tower by that
+  road. Named villagers (`names`, by role; `Civilian.given_name`).
+- **During play:** `play_scene` (a short scene between waves: a talk, a visitor; one after the other; cutscenes hold the wave countdown),
+  `on_poll` (a scenario's own events every 0.25 s), `on_wave_started` / `on_wave_finished`, `on_card_done`, and `show_journal` (a page found:
+  a journal, a letter, a logbook, on parchment over the paused game, `Journal`). Objectives can be `optional` (shown, not needed to win).
+- **Not built yet:** saving a scenario (`Game.save_error` refuses it, there is no autosave; the stall and the merchant aren't in saves either),
+  upgrading the stall in play, guard mobs, bosses, scripted caravans, choices, the Legion's death effect, anything carried between scenarios (by
+  design: nothing carries over).
 
 ### 7.2 Cutscenes
 
@@ -614,5 +623,67 @@ The game has none of this yet, except where noted:
 - **Hints** (once each, on the card and in the log): a villager fleeing an enemy, a villager hurt, food falling below 60, enemies inside the walls.
 - **Objectives:** survive the 5 waves; every hut rebuilt; every gate and every wall tower whole (walls are not required); more villagers than at
   the start; food not falling. All at once win it.
-- **The old tutorial stays** as it is for now (title screen *Tutorial*); it can be retired once scenarios 2 and 3 cover its other steps.
+- **The old tutorial stays** as it is for now (title screen *Tutorial*); scenarios 1 to 3 now cover all of its steps, so it can be retired when
+  you decide.
+
+### 7.4 Pell, the stall and trade
+
+- **The trade stall** (`stall`, `Stall`, 2x2, 30 material, 12 s; `Config.BUILDINGS` with `"campaign": true`: only in a scenario that lists it in
+  `build`, never in a normal game). Its level is its stage (`Config.STALL_LEVELS`): *Peddler's Stall* (30 goods, +6 a minute, lots of 10 material
+  for 15 gold or 10 food for 12), *Trade Stall* (60, +12, 15 for 20 / 15 for 15), *Guild Market* (120, +24, 25 for 30 / 25 for 22). There is no
+  upgrade in play yet: a scenario sets the level (`prebuilt`).
+- **The merchant** (`merchant`, `Merchant`; can't be recruited; Pell) lives in a hut and works the stall (`works_at`): he walks there and stays by
+  it, tending it. Only while he is there is it open: its goods refill, and its panel buys lots (the `trade` command, `Stall.buy`; it says why not:
+  closed, sold out, not enough gold). Like any villager outside he runs home from enemies and comes back once rested.
+- **Rats** treat the stall as a farm (`Stall` extends `Farm`; its `stored` is its goods, its `rate` 0): they go for it and eat the goods, and it
+  refills nothing meanwhile; barracks and the hero go after rats there as on a farm. (Rats bite people first: with Pell at the stall they go for
+  him, and he flees.) Farm-only rules (the food warning's tips, the scenarios' `farms()`) look at `kind == "farm"`.
+- Art: `stall` (a booth with a striped awning and Pell's cart), `stall_3` (the guild market), `unit_merchant` (Pell).
+
+### 7.5 Scenario 2 as built (`scenario_2.gd`)
+
+- **Map:** the home map (`homecoming.json`), as in scenario 1.
+- **Baseline:** Easy, enemies at 0.6 HP and damage; 120 gold, 60 food, 110 material (food is short); a builder, a farmer, Einar, a gatherer and
+  Pell; all huts and the walls whole; the farm and the camp; two watchtowers by the two nearest roads, with an archer each (level 2 and 1). Brenna
+  is level 2.
+- **Rules:** archers and shield bearers, no specialising; watchtowers, farms, camps, light stones, barracks and the stall; Pell must not die
+  (`must_live`; "Pell died ... Pell must not die.").
+- **Waves:** seven, Wilderness only: 1: 4 goblins; 2: 5 goblins, 4 rats; 3: 5 goblins, an ork; 4: 4 goblins, an ork and two rat packs (6, 5: the
+  farm test); 5: 6 goblins, 2 orks, a big slime; 6: 7 goblins, 2 orks, 5 rats; 7: 8 goblins, 3 orks, 2 big slimes, 5 rats. Wave 1 can't be called:
+  its 45 s countdown starts once the stall stands. 40 s between waves.
+- **Story:** the intro (a title card; a few weeks later; Pell's cart at the north gate; the reunion: she wasn't at the capital, and they leave it at
+  that; where can he set up his stall); after wave 1 Pell tells of King Orsin's death and the war of his children, Fiona and Rhodri; after wave 3 a
+  stranger from a rival guild walks up the road and asks questions; after wave 5 Pell tells of the guild's split; the outro (dusk at the stall:
+  the road to the border town is cut where the Wardline stood; help restore it and the guild can send caravans).
+- **Cards:** Pell's stall (placed on a marked spot by the road, or anywhere), trade (buy a lot), Brenna explores (she claims the broken
+  watchtower), restore it, her level, barracks with a shield bearer, a tower upgrade.
+- **Hints:** Pell fleeing, rats on the farm or the stall, food low. **Objectives:** survive the 7 waves; Pell's stall standing; *optional:* buy
+  something from Pell.
+
+### 7.6 Scenario 3 as built (`scenario_3.gd`)
+
+- **Map:** `data/maps/wardline.json`, 100x100: `tools/make_scenario_map.gd` (`-- 3`) grows the home map: it sits in the middle, a generated
+  Highlands map (seed 4711) fills the ring around it (its roads, villages and objects left out), and the home roads run on straight to the new
+  edges (bridges and fords where they cross water). The seams between the two show; smoothing them is for the map editor. Placed along the north
+  road (the road to the border), 13, 25 and 37 road tiles from the gate: three ruined watchtowers, and at 46 a ruined **barracks** (2x2); with the
+  one by the west road from the home map, four towers and the barracks. The two monster camps by the north road (from the home map) are in the
+  way: the builders flee from them, so the hero (or towers) must clear them.
+- **Ruined barracks:** a ruin object can have been a watchtower or barracks (`"building"` in the map file, format version 3;
+  `RuinedTower.building()`): claimed and restored the same way (half its price: 10 material and 15 gold), it becomes devastated barracks.
+- **Baseline:** Easy, enemies at 0.75; 260 gold, 160 food, 220 material; two builders, two farmers, Einar, a gatherer, Pell; Pell's Trade Stall
+  (level 2), a second farm, barracks with a level 3 shield bearer, three watchtowers with archers (level 3, 3 and 2). Brenna is level 4.
+- **Rules:** archers and shield bearers, specialising open (from level 3); training grounds allowed; Pell must not die.
+- **Waves:** Wilderness, and from wave 3 thieves (the first Renegades); six listed (5 goblins and 4 rats up to 8 goblins, 3 orks, 3 thieves, 2
+  big slimes and 6 rats), then the last again with 2 goblins, an ork and a thief more each time, until the objectives are met. The first wave comes
+  after the usual 90 s; 45 s between waves.
+- **Story:** the intro (Brenna and Pell walk the north road to the first ruin; Pell explains the Wardline, Brenna served on it); each restored
+  watchtower gives up a page of its garrison's journal (four pages; the third says what the light stones between the towers are for), one at a
+  time; the restored barracks its logbook: the order to abandon the post, signed in both Fiona's and Rhodri's names, in a careful square hand,
+  and Brenna knows it: Lysa's, her old captain's; the outro (the first guild caravan comes down the lit road; word from the border town: the
+  guild's store there is under pressure; Brenna leaves home with Pell; from here on nobody can bring her back).
+- **Cards:** claim the ruins (Explore), restore a tower, specialise an archer, training grounds with a unit, Train mode (a level from Brenna's XP),
+  light the road (a light stone where the road is dark).
+- **Hints:** thieves on the road, Pell fleeing. **Objectives:** every ruined watchtower restored and manned (4); the barracks restored and manned;
+  the road of the line lit: every road tile from the village out to every ruin site watched by one of the village's buildings (what towers and
+  light stones see, not where people walk; `ScenarioRunner.lit`).
 

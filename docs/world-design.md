@@ -625,6 +625,10 @@ unlocked).
   ordered at once: half a watchtower's price (`REPAIR_SHARE`), done by a
   **builder** like any repair (docs/siege-design.md §4). Then it's a normal
   watchtower.
+- A map file can also hold a **ruined barracks** (a ruin with `"building":
+  "barracks"`, 2x2; the campaign's Wardline, docs/scenarios-design.md §7.6):
+  claimed and restored the same way, for half the barracks' price, it becomes
+  devastated barracks. The generator only makes watchtower ruins.
 - First come, first served: once claimed, it's gone for everyone else. A
   village may claim a ruin in **any** slice, including another player's; it
   then owns a tower in their land. Restoring it is up to its owner.

@@ -20,19 +20,20 @@ func _init(p_game: Game) -> void:
 	game = p_game
 
 
-## The road from the edge spawn nearest to the village (by road): its last
-## `length` + 1 tiles before the gate. False if the map has no edge spawn.
-func pick_route(length: int, seed_value: int) -> bool:
+## The road from the edge spawn nearest to the village (by road; `which` 1:
+## the next nearest, ...): its last `length` + 1 tiles before the gate. False
+## if the map has no such edge spawn.
+func pick_route(length: int, seed_value: int, which: int = 0) -> bool:
 	var pathing := game.world.pathing
-	var best := Vector2i(-1, -1)
-	var best_d := Pathing.UNREACHABLE
-	for sp in game.map.edge_spawns:
-		var d := pathing.enemy_distance(sp)
-		if d < best_d:
-			best_d = d
-			best = sp
-	if best == Vector2i(-1, -1):
+	var order: Array = []  # [distance, index in edge_spawns]: ties keep the map's order
+	for i in game.map.edge_spawns.size():
+		var d := pathing.enemy_distance(game.map.edge_spawns[i])
+		if d < Pathing.UNREACHABLE:
+			order.append([d, i])
+	order.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
+	if which >= order.size():
 		return false
+	var best: Vector2i = game.map.edge_spawns[int(order[which][1])]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var full := pathing.enemy_route(best, rng)

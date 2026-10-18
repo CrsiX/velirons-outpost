@@ -622,7 +622,28 @@ const BUILDINGS := {
 		"name": "Light Stone", "cost": {"materials": 20}, "build_time": 10.0, "size": 1, "art": "light_stone",
 		"desc": "Rune pillar that lights up the land around it. Needs no one to man it.",
 	},
+	# The merchant's trade stall (docs/scenarios-design.md §7.4): only in the
+	# campaign's scenarios that allow it ("campaign": never in a normal game).
+	# Its level is its stage (STALL_LEVELS); the merchant works it.
+	"stall": {
+		"name": "Trade Stall", "cost": {"materials": 30}, "build_time": 12.0, "size": 2, "art": "stall",
+		"campaign": true,
+		"desc": "2x2. The merchant's stall: while he tends it, gold buys building material and food from his stock. Rats eat his goods.",
+	},
 }
+
+## The trade stall's stages (Building.level 1-3): peddler, stall, guild market.
+## "stock": goods it holds at most (a lot sold takes its "amount" of goods);
+## "refill": goods per minute while the merchant tends it; "lots": what gold
+## buys, {good: {"amount", "gold"}}.
+const STALL_LEVELS: Array[Dictionary] = [
+	{"name": "Peddler's Stall", "stock": 30, "refill": 6.0,
+		"lots": {"materials": {"amount": 10, "gold": 15}, "food": {"amount": 10, "gold": 12}}},
+	{"name": "Trade Stall", "stock": 60, "refill": 12.0,
+		"lots": {"materials": {"amount": 15, "gold": 20}, "food": {"amount": 15, "gold": 15}}},
+	{"name": "Guild Market", "stock": 120, "refill": 24.0,
+		"lots": {"materials": {"amount": 25, "gold": 30}, "food": {"amount": 25, "gold": 22}}},
+]
 
 ## Tower range in tiles. Towers own the range; units own damage and speed.
 const TOWER_RANGE := {"tower": 3.6, "wall_tower": 4.8}
@@ -648,6 +669,7 @@ const BUILDING_HP := {
 	"camp": [50.0],
 	"lightstone": [80.0],
 	"training": [150.0],
+	"stall": [100.0, 150.0, 200.0],
 	"hut": [1.0],
 }
 ## The village's pieces were never bought: their price and build time count
@@ -709,6 +731,12 @@ const CIVILIANS := {
 		"name": "Miner", "cost": {"food": 30}, "speed": 1.5,
 		"desc": "Works a mine in the mountains for gold. Stays at the mine, safe inside; one miner per mine.",
 	},
+	# Can't be recruited: only a campaign scenario has one (Pell; docs/scenarios-design.md §7.4).
+	"merchant": {
+		"name": "Merchant", "cost": {}, "speed": 1.5, "recruit": false,
+		"desc": "Tends the trade stall: while he is there, gold buys his goods. Flees from enemies.",
+		"works_at": "stall",
+	},
 	# Can't be recruited: a spatial mage of level ARCHMAGE_LEVEL becomes one
 	# (docs/military-design.md §7). A key to ending the siege, later.
 	"spatial_archmage": {
@@ -724,7 +752,7 @@ static func worker_role(kind: String) -> String:
 	return ""
 
 
-const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "spatial_archmage"]
+const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "merchant", "spatial_archmage"]
 ## Unit kinds and villager roles that have to be unlocked first, and how
 ## (docs/world-design.md §9.4, §9.6). Unlocks are global: for every village.
 const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "acolyte": "chapel", "miner": "mine"}

@@ -180,7 +180,7 @@ func _ruins() -> void:
 					best_s = score
 					best = t
 			if best.x >= 0:
-				_add({"kind": "ruin", "art": "watchtower_ruin", "tile": best, "size": 1, "slice": s})
+				_add({"kind": "ruin", "building": "tower", "art": "watchtower_ruin", "tile": best, "size": 1, "slice": s})
 
 
 func _roads_near(t: Vector2i, r: int) -> int:

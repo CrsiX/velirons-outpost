@@ -279,7 +279,7 @@ All keys in this order on export.
 | key | type | |
 |---|---|---|
 | `format` | string | always `"velirons-outpost-map"` |
-| `format_version` | int | 2 (format 1: no `water_spawns`) |
+| `format_version` | int | 3 (format 1: no `water_spawns`; 2: no ruin `building`) |
 | `name` | string | 1-60 characters; shown in the map list and the lobby |
 | `author` | string | 0-60 characters |
 | `description` | string | 0-1000 characters |
@@ -355,7 +355,7 @@ fields. Sorted by `id` on export.
 | `treasure` | `treasure` (`chest`, `ruins`, `shrine`, `standing_stones`, `shipwreck`, `dragon_bones`), `tier` (1-3), `reward` (what looting it gives: `gold`, `food`, `materials`, `hero_xp`, `heal_units` as whole numbers, or `relic`: a `Config.RELICS` key; optional, default `{}`) |
 | `camp` | `tier`, `guards` (the treasure's `id`), `monsters` (enemy kinds) |
 | `unlock` | `site` (`stone_circle`, `mage_tower`, `chapel`), `unlocks` (unit kind), `wave` (from which wave it awakens) |
-| `ruin` | (none) |
+| `ruin` | `building` (`tower` or `barracks`: what it was and becomes again when restored; optional, default `tower`; a barracks ruin is 2x2. The editor sets it by the size placed: 1x1 a watchtower, 2x2 barracks) |
 | `lair` | `art` (`lair_cave`, `lair_tree`, `lair_ruin`, `lair_pit`, `lair_crypt`, and the 2x2 `..._big` ones), `front` (the road tile its door joins) |
 | `mine` | `front` |
 
@@ -565,7 +565,7 @@ not format errors: the map loads, and the checks (§5.4) report them.
     {"id": 1, "kind": "treasure", "tile": [12, 60], "size": 1, "treasure": "standing_stones", "tier": 3, "reward": {"relic": "hawkeye"}},
     {"id": 2, "kind": "camp", "tile": [14, 58], "size": 1, "tier": 3, "guards": 1, "monsters": ["ork", "ork", "goblin"]},
     {"id": 3, "kind": "unlock", "tile": [55, 20], "size": 1, "site": "stone_circle", "unlocks": "summoner", "wave": 3},
-    {"id": 4, "kind": "ruin", "tile": [48, 30], "size": 1},
+    {"id": 4, "kind": "ruin", "tile": [48, 30], "size": 1, "building": "tower"},
     {"id": 5, "kind": "lair", "tile": [5, 8], "size": 2, "art": "lair_cave", "front": [4, 9]},
     {"id": 6, "kind": "mine", "tile": [3, 7], "size": 1, "front": [4, 7]}
   ]
@@ -587,7 +587,8 @@ Size: a 200×200 map is about 6 layers × 200 rows × ~205 bytes ≈ 250 KB, fin
   *Open* lists them with name, size, villages, map type and date.
 - **Built-in maps:** `res://data/maps/*.json`, shipped with the game,
   read-only, listed under "Built-in": so far the campaign's scenario maps
-  (`homecoming.json`, scenario 1; docs/scenarios-design.md §7.3). Opened in
+  (`homecoming.json`, scenarios 1 and 2; `wardline.json`, scenario 3, the home
+  map grown to 100x100; docs/scenarios-design.md §7). Opened in
   the editor, one is saved as a new file under your maps; to change a
   scenario's map, Export it over its file in `data/maps/`. (If loading JSON turns out too slow for
   big maps, they can be baked into `.res` files like the title maps; not

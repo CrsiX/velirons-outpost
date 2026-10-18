@@ -709,6 +709,9 @@ func _object_info(i: int) -> void:
 				if str(a).begins_with("lair_"):
 					arts.append([a, str(a).trim_prefix("lair_").replace("_", " ")])
 			_choices(_inspect, arts, o["art"], func(v: Variant) -> void: set_field.call("art", v))
+		"ruin":
+			var bk := str(o.get("building", "tower"))
+			_inspect.add_child(_label("A ruined %s: restored, it becomes one again (placed as 1x1: a watchtower, 2x2: barracks)" % str(Config.BUILDINGS[bk]["name"]).to_lower(), 14))
 	if o.has("front"):
 		var f: Vector2i = o["front"]
 		_inspect.add_child(_label("Front: %d, %d" % [f.x, f.y], 14))

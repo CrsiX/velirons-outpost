@@ -43,6 +43,13 @@ var huts_standing := 9
 var pieces_standing := {}
 ## The HP share the standing pieces have left.
 var pieces_hp := 1.0
+## Posts and buildings that stand finished at the start, manned:
+## {"kind": a Config.BUILDINGS key, or "wall_tower" (the corner tower nearest
+## that road's gate), "road": which road (0: the one nearest the village by
+## road, 1: the next, ...), "at": [lo, hi] road tiles before its gate (or
+## "tile": a fixed tile), "level", "units": [{"kind", "level"}] (one per slot)}.
+## A workplace among them takes its worker (the stall: the merchant).
+var prebuilt: Array[Dictionary] = []
 ## The hero: a name, the level (1 = the first), and where she starts (a tile;
 ## (-1, -1): the village centre; from there she walks to the village after
 ## the intro). A tent stands on `tent_tile` ((-1, -1): none).
@@ -66,6 +73,8 @@ var specialise := true
 var hero_revives := true
 ## Any villager's death is a defeat (scenario 1).
 var fail_on_villager_death := false
+## Named villagers whose death is a defeat ("Pell").
+var must_live: Array[String] = []
 ## Corpses rot as usual (false: they lie until gathered or the next wave ends).
 var corpses_rot := true
 
@@ -77,6 +86,13 @@ var corpses_rot := true
 var waves: Array[Dictionary] = []
 ## Wave 1 comes only when the player calls it (no countdown).
 var first_wave_waits := true
+## While wave 1 waits, the player may call it; false: it waits until the
+## scenario releases the waves (ScenarioRunner.release_waves).
+var first_wave_call := true
+## After the last listed wave more come until the objectives are met: the
+## last one again, with `more_each_wave` ({kind: count}) more per wave.
+var repeat_last := false
+var more_each_wave := {}
 ## Seconds between a wave's end and the next (the countdown).
 var wave_gap := 30.0
 
@@ -120,14 +136,20 @@ func hints(_r: ScenarioRunner) -> Array[Dictionary]:
 
 
 ## The objectives, shown under the card: {"id", "text", "done": Callable ->
-## bool, "detail": optional Callable -> String (progress, e.g. "3 / 5")}. All
-## done (at once) wins the scenario.
+## bool, "detail": optional Callable -> String (progress, e.g. "3 / 5"),
+## "optional": true (shown, not needed to win)}. All the others done (at
+## once) win the scenario.
 func objectives(_r: ScenarioRunner) -> Array[Dictionary]:
 	return []
 
 
 ## Once everything is set up, before the intro.
 func on_start(_r: ScenarioRunner) -> void:
+	pass
+
+
+## Every 0.25 s while it is played (events that aren't a wave: something restored...).
+func on_poll(_r: ScenarioRunner) -> void:
 	pass
 
 

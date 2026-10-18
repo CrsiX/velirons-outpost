@@ -50,7 +50,10 @@ Big touch targets everywhere, so mouse and fingers work the same.
   each with a dot or a tick and its progress ("4 / 9"). The highlight is the tutorial's. **Cutscenes**
   (`Cutscene`, a CanvasLayer over everything): black bars top and bottom (9 % each), the HUD hidden, a
   dialogue box at the bottom (at most 900 px wide; portrait 112 px, 80 px on narrow screens; the
-  speaker's name in their colour; "Tap to go on"), title cards in the middle, *Skip* top right.
+  speaker's name in their colour; "Tap to go on"), title cards in the middle, *Skip* top right. A **journal page**
+  (`Journal`, a found journal, letter or logbook) is a parchment panel in the middle over a dimmed, paused game
+  (single player), with *Close* (Esc too: a HUD popup). The **trade stall's panel** shows its goods (n / max),
+  whether the merchant is there, rats, and one *Buy* button per lot (material, food) with its price.
 - **Tutorial** sets `Settings.tutorial_next` and starts the game scene (docs/tutorial-design.md).
 - **Library** opens the same `Library` control the game uses (§9). There is no game to pause here.
 - **Keys:** Enter opens the Singleplayer page, and on it continues the newest save (or, without

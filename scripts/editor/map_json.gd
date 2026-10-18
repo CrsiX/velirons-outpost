@@ -8,7 +8,7 @@ extends RefCounted
 ## of every problem and where it is.
 
 const FORMAT := "velirons-outpost-map"
-const VERSION := 2
+const VERSION := 3
 ## One character per tile; the index is the MapData.Terrain value.
 const TERRAIN_CODES := ".RFDMWSL"
 ## One character per tile; the index is the Config.ZONE_ORDER index.
@@ -32,10 +32,13 @@ const OBJECT_FIELDS := {
 	"treasure": {"fields": ["treasure", "tier", "reward"], "required": ["treasure", "tier"]},
 	"camp": {"fields": ["tier", "guards", "monsters"], "required": ["tier", "guards"]},
 	"unlock": {"fields": ["site", "unlocks", "wave"], "required": ["site"]},
-	"ruin": {"fields": [], "required": []},
+	"ruin": {"fields": ["building"], "required": []},
 	"lair": {"fields": ["art", "front"], "required": ["art", "front"]},
 	"mine": {"fields": ["front"], "required": ["front"]},
 }
+
+## What a ruin ("ruin" object) can have been: a watchtower or (2x2) barracks.
+const RUIN_BUILDINGS: Array[String] = ["tower", "barracks"]
 
 const LEGEND := {
 	"terrain": ". grass, R road, F forest, D desert, M mountain, W deep water, S shallow water, L lava",
@@ -244,6 +247,8 @@ static func _object_line(o: Dictionary, i: int) -> String:
 		"lair":
 			parts.append('"art": %s' % _q(o["art"]))
 			parts.append('"front": %s' % _t(o["front"]))
+		"ruin":
+			parts.append('"building": %s' % _q(str(o.get("building", "tower"))))
 		"mine":
 			parts.append('"front": %s' % _t(o["front"]))
 	return "{%s}" % ", ".join(parts)
@@ -266,7 +271,7 @@ static func object_art(o: Dictionary) -> String:
 		"treasure": return str(o["treasure"])
 		"camp": return "camp"
 		"unlock": return str(o["site"]) if o["site"] == "stone_circle" else str(o["site"]) + "_ruin"
-		"ruin": return "watchtower_ruin"
+		"ruin": return "barracks_ruin" if str(o.get("building", "tower")) == "barracks" else "watchtower_ruin"
 		"mine": return "mine"
 	return str(o.get("art", ""))
 
@@ -778,6 +783,11 @@ class _Reader:
 				d["front"] = tile(o.get("front"), where + ".front")
 			"mine":
 				d["front"] = tile(o.get("front"), where + ".front")
+			"ruin":
+				var bk = o.get("building", "tower")
+				if not RUIN_BUILDINGS.has(bk):
+					err(where + ".building", "must be one of %s" % ", ".join(RUIN_BUILDINGS))
+				d["building"] = bk
 		if errors.size() > n:
 			return false
 		if not d.has("art"):

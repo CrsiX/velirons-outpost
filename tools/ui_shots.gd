@@ -11,7 +11,9 @@ extends Node
 ## goblins hitting a gate, the library's gate entry and the statistics, and
 ## (`--only=scenario`) scenario 1: the campaign page, the intro cutscene, the
 ## walk home, the arrival, the cards and objectives, the outro and the end
-## (landscape, and the intro and a card in portrait).
+## (landscape, and the intro and a card in portrait); (`--only=campaign`)
+## scenarios 2 and 3: Pell's arrival, his stall and its panel, a talk between
+## waves, the Wardline's start, a journal page, a restored ruin and the road.
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -94,6 +96,8 @@ func _run() -> void:
 		await _siege()
 	if only in ["", "scenario"]:
 		await _scenario()
+	if only in ["", "campaign"]:
+		await _campaign()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -812,3 +816,89 @@ func _cut_to_line(sc: ScenarioRunner, who: String, part := "") -> void:
 			c.advance()
 			c.advance()
 		await _frames(1)
+
+
+## A scenario's game, its intro running (a few frames past its start).
+func _scenario_game(n: int) -> Game:
+	Settings.scenario_next = n
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	add_child(g)
+	for i in 600:
+		await _frames(1)
+		if g.scenario and g.scenario.cutscene and g.scenario.cutscene.line != "":
+			break
+	return g
+
+
+func _campaign() -> void:
+	var g := await _scenario_game(2)
+	var sc := g.scenario
+	await _cut_to_line(sc, "pell")
+	await shot("campaign_s2_reunion")
+	sc.cutscene.skip()
+	await _frames(30)
+	await shot("campaign_s2_stall_card")
+	var spot := sc.spots.by_road("stall", 3, 8, [])
+	var b: Building = g.player_village.construction._new_building("stall", spot, true)
+	g.player_village.population.assign_worker(b as Workplace, true)
+	for i in 400:
+		await _frames(1)
+		if (b as Stall).is_open():
+			break
+	(b as Stall).stored = 24.0
+	g.camera.focus(b.position)
+	g.camera.zoom = Vector2(1.3, 1.3)
+	g.select(b)
+	await _frames(20)
+	await shot("campaign_s2_stall_panel")
+	g.deselect()
+	sc.spec.on_wave_finished(sc, 1)
+	for i in 300:
+		await _frames(1)
+		if sc.cutscene and sc.cutscene.line.contains("Orsin"):
+			break
+	await _frames(40)
+	await shot("campaign_s2_news")
+	sc.cutscene.skip()
+	g.queue_free()
+	await _frames(3)
+	g = await _scenario_game(3)
+	sc = g.scenario
+	await _cut_to_line(sc, "pell", "There")
+	await shot("campaign_s3_first_ruin")
+	sc.cutscene.skip()
+	await _frames(30)
+	await shot("campaign_s3_cards")
+	var v := g.player_village
+	v.economy.add("materials", 900)
+	v.economy.add("gold", 900)
+	var site: Dictionary = sc.spec._north_sites(sc)[0]
+	var ruin = sc.on_site(site)
+	(ruin as RuinedTower).claim(v)
+	g.command("restore_ruin", {"ruin": ruin.nid})
+	var tower: Building = sc.on_site(site)
+	tower.finish_repair()
+	tower.repairing = false
+	v.construction.queue.erase(tower)
+	for i in 120:
+		await _frames(1)
+		if sc.journal and sc.journal.visible:
+			break
+	await _frames(10)
+	await shot("campaign_s3_journal")
+	sc.journal.close_page()
+	g.army.recruit("archer")
+	g.command("station_unit", {"unit": g.army.reserve()[0].nid, "post": tower.nid})
+	var dark: Array[Vector2i] = sc.spec._dark_road(sc)
+	for k in 2:
+		if dark.size() > 3:
+			var t := _free_spot_in(g, "lightstone", dark[dark.size() * (k + 1) / 3])
+			if t != Vector2i(-1, -1):
+				v.construction._new_building("lightstone", t, true)
+	g.fog.reveal(Vector2(tower.tile), 14.0, v.id)
+	g.camera.focus(tower.position)
+	g.camera.zoom = Vector2(0.55, 0.55)
+	await _frames(60)
+	await shot("campaign_s3_road")
+	g.queue_free()
+	await _frames(3)

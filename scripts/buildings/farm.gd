@@ -104,8 +104,13 @@ func take_food() -> int:
 
 func info() -> Dictionary:
 	var d := super.info()
-	if not working():
-		return d
+	if working():
+		_work_info(d)
+	return d
+
+
+## A working farm's own lines and actions in its panel (the stall has its own).
+func _work_info(d: Dictionary) -> void:
 	var lines: Array[String] = d["lines"]
 	var actions: Array[Dictionary] = d["actions"]
 	lines.append("Stored food: %d / %d" % [int(stored), int(Config.FARM_CAPACITY)])
@@ -124,7 +129,6 @@ func info() -> Dictionary:
 			"disabled": free.is_empty(),
 			"action": func() -> void: game.command("assign_worker", {"building": nid}),
 		})
-	return d
 
 
 ## Bottom progress bar sits over the field centre, not the back-tile origin.

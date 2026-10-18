@@ -964,9 +964,12 @@ func available(key: String) -> bool:
 	return is_unlocked(key) and (scenario == null or scenario.allows(key))
 
 
-## Can `kind` be built (a scenario may allow only some buildings)?
+## Can `kind` be built (a scenario may allow only some buildings; the
+## campaign's own kinds, the stall, only where a scenario lists them)?
 func allows_building(kind: String) -> bool:
-	return scenario == null or scenario.allows_building(kind)
+	if scenario == null:
+		return not Config.BUILDINGS.get(kind, {}).get("campaign", false)
+	return scenario.allows_building(kind)
 
 
 ## Can units specialise (a scenario may forbid it)?

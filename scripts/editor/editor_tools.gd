@@ -437,6 +437,8 @@ static func add_object(m: MapData, kind: String, t: Vector2i, size: int = 1) -> 
 			o["front"] = _front(m, t, size)
 		"mine":
 			o["front"] = _front(m, t, size)
+		"ruin":
+			o["building"] = "barracks" if size == 2 else "tower"  # (a 2x2 ruin was barracks)
 	if not o.has("art"):
 		o["art"] = MapJson.object_art(o)
 	m.objects.append(o)

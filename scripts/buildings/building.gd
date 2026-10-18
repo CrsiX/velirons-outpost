@@ -508,6 +508,12 @@ func pick_rect() -> Rect2:
 
 
 func _draw() -> void:
+	_draw_bars()
+
+
+## The HP bar (hurt) and the work progress bar (a kind that draws itself
+## differently, like the stall, still calls it).
+func _draw_bars() -> void:
 	var w := 60.0
 	if complete and not devastated and hp < max_hp() and village != null:
 		var share := hp_share()

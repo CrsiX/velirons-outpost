@@ -34,6 +34,7 @@ const HANDLERS := {
 	"move_unit": "_move_unit",
 	"swap_units": "_swap_units",
 	"buy_materials": "_buy_materials",
+	"trade": "_trade",
 	"hero_mode": "_hero_mode",
 	"hero_level_up": "_hero_level_up",
 	"call_wave": "_call_wave",
@@ -113,7 +114,7 @@ func _restore_ruin(v: Village, a: Dictionary) -> Dictionary:
 	var ruin = game.entity(int(a.get("ruin", 0)))
 	if not (ruin is RuinedTower) or ruin.village != v:
 		return fail("That isn't your ruin")
-	var cost := RuinedTower.restore_cost()
+	var cost := RuinedTower.restore_cost((ruin as RuinedTower).building())
 	if not v.economy.can_afford(cost):
 		return fail("Not enough building material")
 	var site := v.construction.restore_ruin(ruin, cost)
@@ -147,7 +148,7 @@ func _unassign_miner(v: Village, a: Dictionary) -> Dictionary:
 
 func _place_building(v: Village, a: Dictionary) -> Dictionary:
 	var kind := str(a.get("kind", ""))
-	if not Config.BUILDINGS.has(kind) or not Construction.KIND_SCRIPTS.has(kind):
+	if not Config.BUILDINGS.has(kind) or not Construction.KIND_SCRIPTS.has(kind) or not game.allows_building(kind):
 		return fail("Can't build that")
 	var tile: Vector2i = a.get("tile", Vector2i(-1, -1))
 	var err := v.construction.placement_error(kind, tile)
@@ -155,6 +156,18 @@ func _place_building(v: Village, a: Dictionary) -> Dictionary:
 		return fail(err)
 	var b := v.construction.place(kind, tile)
 	return ok({"id": b.nid}) if b else fail("Can't build here")
+
+
+## Buys a lot of `good` at the merchant's stall (Stall.buy).
+func _trade(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if not (b is Stall):
+		return fail("That isn't your stall")
+	var good := str(a.get("good", ""))
+	var err := (b as Stall).buy_error(good)
+	if err != "":
+		return fail(err)
+	return ok({"amount": (b as Stall).buy(good)})
 
 
 func _cancel_site(v: Village, a: Dictionary) -> Dictionary:

@@ -261,7 +261,7 @@ func _towers(walls := false) -> Array:
 
 
 func _farms() -> Array:
-	return game.player_village.buildings().filter(func(b: Building) -> bool: return b is Farm)
+	return game.player_village.buildings().filter(func(b: Building) -> bool: return b is Farm and b.kind == "farm")
 
 
 func _barracks() -> Array:

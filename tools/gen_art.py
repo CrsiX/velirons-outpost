@@ -958,6 +958,108 @@ def campaign_icon():
   <path d="M34.5 32 L34.5 28 Q36 26 37.5 28 L37.5 32Z" fill="{INK}"/>''')
 
 
+def _awning_stall(a, cx, cy, w, d, colours):
+    """A market booth at grid offset (cx, cy): a counter with goods and a
+    striped awning on four posts."""
+    x0, x1, y0, y1 = cx - w, cx + w, cy - d, cy + d
+    for (gx, gy) in [(x0, y0), (x1, y0), (x0, y1), (x1, y1)]:  # posts
+        px, py = P(gx, gy, 0)
+        a.line([(px, py), (px, py - 30)], WOOD_D, 2.2)
+    a.box(x0, x1, y0 + 0.05, y1, 0, 10, WOOD_L, WOOD, WOOD_D)  # counter
+    # goods on the counter: sacks, a bolt of cloth, jars
+    for i, (gx, col) in enumerate([(x0 + 0.08, "#c9a86a"), (cx, "#7a3a5a"), (x1 - 0.1, "#b8955a")]):
+        gxp, gyp = P(gx, cy, 10)
+        if i == 1:
+            a.poly([(gxp - 6, gyp), (gxp + 6, gyp), (gxp + 5, gyp - 5), (gxp - 5, gyp - 5)], col, INK, 0.8)
+        else:
+            a.ellipse(gxp, gyp - 3, 4.5, 3.5, col, INK, 0.8)
+    # the awning: stripes from back to front
+    n = 6
+    for i in range(n):
+        u0, u1 = x0 - 0.03 + (x1 - x0 + 0.06) * i / n, x0 - 0.03 + (x1 - x0 + 0.06) * (i + 1) / n
+        col = colours[i % 2]
+        a.poly([P(u0, y0 - 0.04, 30), P(u1, y0 - 0.04, 30), P(u1, y1 + 0.08, 22), P(u0, y1 + 0.08, 22)], col, INK, 0.8)
+    a.line([P(x0 - 0.03, y1 + 0.08, 22), P(x1 + 0.03, y1 + 0.08, 22)], INK, 1.2)
+
+
+def stall(level):
+    """The merchant's 2x2 stall: level 1-2 a booth with a striped awning, crates
+    and Pell's cart behind it; level 3 (guild market) two booths and a banner."""
+    a = Art()
+    s = 0.98
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], DIRT, INK, 1.0, opacity=0.85)
+    # crates and barrels about the yard
+    for (gx, gy) in [(-0.75, 0.55), (-0.55, 0.75)]:
+        a.box(gx - 0.1, gx + 0.1, gy - 0.1, gy + 0.1, 0, 9, "#b08a58", WOOD, WOOD_D, sw=1)
+    bx, by = P(0.75, 0.6, 0)
+    a.poly([(bx - 5, by), (bx + 5, by), (bx + 6, by - 12), (bx - 6, by - 12)], WOOD, INK, 1)
+    a.line([(bx - 5.5, by - 4), (bx + 5.5, by - 4)], "#6a6a6a", 1.1)
+    a.ellipse(bx, by - 12, 6, 2.2, WOOD_D, INK, 0.8)
+    if level >= 3:
+        _awning_stall(a, -0.35, -0.35, 0.4, 0.22, [CRIMSON, "#e8dcc0"])
+        _awning_stall(a, 0.4, 0.15, 0.3, 0.2, ["#2f5a7a", "#e8dcc0"])
+        px, py = P(0.85, -0.85, 0)
+        a.line([(px, py), (px, py - 52)], WOOD_D, 2.4)
+        a.poly([(px, py - 52), (px + 18, py - 47), (px, py - 40)], GOLD, INK, 1)
+        a.save("stall_3")
+        return
+    # Pell's cart parked at the back
+    cx, cy = P(-0.55, -0.55, 0)
+    a.poly([(cx - 16, cy - 8), (cx + 12, cy - 14), (cx + 14, cy - 22), (cx - 14, cy - 16)], WOOD, INK, 1.2)
+    a.ellipse(cx - 6, cy - 4, 6, 6, WOOD_D, INK, 1.2)
+    a.ellipse(cx - 6, cy - 4, 1.8, 1.8, "#3a2a1a")
+    a.ellipse(cx - 2, cy - 22, 6, 4.5, "#c9a86a", INK, 1)
+    a.ellipse(cx + 6, cy - 24, 5, 4, "#b8955a", INK, 1)
+    _awning_stall(a, 0.25, 0.1, 0.45, 0.25, [CRIMSON, "#e8dcc0"])
+    a.save("stall")
+
+
+def merchant():
+    """Pell: a wide-brimmed hat, a long brown coat, a lantern."""
+    def extra(a, layer):
+        if layer == "front":
+            a.poly([(-7, -12), (7, -12), (6, -27), (-6, -27)], "#5a4630", INK, 1)  # coat
+            a.line([(-1, -26), (-3, -12)], GOLD, 1.2)
+            a.line([(5, -21), (10, -16)], INK, 3.6)  # arm
+            a.line([(10, -16), (10, -12)], INK, 1)
+            a.poly([(8, -12), (12, -12), (11.5, -5), (8.5, -5)], GOLD, INK, 1)  # lantern
+            a.ellipse(10, -8.5, 1.5, 2, "#fff4c0")
+
+    def hat(a):
+        a.raw('<path d="M-11,-36 Q0,-40 11,-36 Q6,-34 0,-34 Q-6,-34 -11,-36Z" fill="#3a2e22" stroke="%s" stroke-width="1.2"/>' % INK, [(-12, -41), (12, -33)])
+        a.raw('<path d="M-6,-36 Q-5,-44 0,-44 Q5,-44 6,-36Z" fill="#4a3a2a" stroke="%s" stroke-width="1.2"/>' % INK, [(-7, -45), (7, -35)])
+        a.line([(-5.5, -37.5), (5.5, -37.5)], CRIMSON, 1.6)
+        a.raw('<path d="M-4,-29 Q0,-25 4,-29 Q3,-27 0,-26.5 Q-3,-27 -4,-29Z" fill="#6a4a30"/>', [(-4, -30), (4, -26)])  # beard
+    person("unit_merchant", ("#5a4630", "#46361f"), hat=hat, extra=extra)
+
+
+def barracks_ruin():
+    """A ruined 2x2 barracks of the old Wardline: a broken fence, the burnt
+    shell of its hut, a fallen bench and rubble."""
+    a = Art()
+    s = 0.98
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], "#5e5040", INK, 1.0, opacity=0.85)
+    for t in [i / 6 for i in range(7)]:  # what's left of the fence
+        if t in (2 / 6, 3 / 6, 5 / 6):
+            continue
+        for p in (P(-s + 2 * s * t, s), P(s, s - 2 * s * t)):
+            a.line([p, (p[0], p[1] - 4 - 5 * ((t * 7) % 1))], WOOD_D, 2.2)
+    hx, hy, w = -0.6, -0.6, 0.33
+    a.box(hx - w, hx + w, hy - 0.22, hy + 0.22, 0, 11, "#5a4e40", "#5a4e40", "#463c30")
+    a.poly([P(hx - w, hy + 0.22, 11), P(hx - 0.1, hy + 0.22, 17), P(hx + w, hy + 0.22, 9), P(hx + w, hy + 0.22, 11)], "#463c30", INK, 1)
+    for (gx, gy, z) in [(hx - 0.1, hy, 11), (hx + 0.15, hy + 0.05, 11)]:  # charred beams
+        x, y = P(gx, gy, z)
+        a.line([(x - 9, y + 2), (x + 8, y - 6)], "#2a2018", 2.6)
+    a.box(0.25, 0.65, 0.3, 0.4, 0, 3, WOOD, WOOD_D, WOOD_D)  # a fallen bench
+    for (gx, gy) in [(0.5, -0.4), (0.62, -0.3), (-0.1, 0.5), (0.0, 0.62)]:  # rubble
+        x, y = P(gx, gy, 0)
+        a.ellipse(x, y - 2, 4, 2.6, "#77736c", INK, 0.8)
+    px, py = P(0.6, -0.6, 0)  # a torn banner pole
+    a.line([(px, py), (px + 3, py - 28)], WOOD_D, 2)
+    a.poly([(px + 3, py - 28), (px + 12, py - 25), (px + 6, py - 22), (px + 9, py - 19), (px + 2, py - 18)], CRIMSON_D, INK, 0.8)
+    a.save("barracks_ruin")
+
+
 def light_stone(glow_only=False):
     """Carved pillar on a plinth; runes glow dim yellow. Glow is a separate
     layer (same canvas) so the game can pulse it."""
@@ -4210,6 +4312,10 @@ def main():
     flags()
     app_icon()
     tent_small()
+    stall(1)
+    stall(3)
+    merchant()
+    barracks_ruin()
     portraits()
     campaign_icon()
     write_manifest()

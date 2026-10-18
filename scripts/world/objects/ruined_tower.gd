@@ -1,33 +1,39 @@
 class_name RuinedTower
 extends MapObject
-## A ruined watchtower (docs/world-design.md §9.5). The explorer (or anyone)
-## can find it; only a hero can claim it (Explore mode goes for it before new
-## land), first come first served, in any slice. The claiming village then
-## owns the ruin; restoring it is an explicit order ("Restore (half cost)"):
-## it becomes a devastated watchtower of that village, and a builder repairs
-## it like any other (docs/siege-design.md §4).
+## A ruined watchtower (docs/world-design.md §9.5), or a ruined barracks (the
+## map file's "building": "barracks", 2x2; the campaign's Wardline). The
+## explorer (or anyone) can find it; only a hero can claim it (Explore mode
+## goes for it before new land), first come first served, in any slice. The
+## claiming village then owns the ruin; restoring it is an explicit order
+## ("Restore (half cost)"): it becomes a devastated building of that kind of
+## that village, and a builder repairs it like any other (docs/siege-design.md §4).
 
 ## The hero on her way to claim it.
 var claimed_by: Node = null
 
 
+## What it was, and becomes again: "tower" or "barracks".
+func building() -> String:
+	return str(data.get("building", "tower"))
+
+
 func art() -> String:
-	return "watchtower_ruin"
+	return "barracks_ruin" if building() == "barracks" else "watchtower_ruin"
 
 
 func display_name() -> String:
-	return "Ruined watchtower"
+	return "Ruined %s" % str(Config.BUILDINGS[building()]["name"]).to_lower()
 
 
 func claimable() -> bool:
 	return village == null and (claimed_by == null or not is_instance_valid(claimed_by))
 
 
-## Half a watchtower's price (rounded up): the repair of a devastated one
+## Half the price of a `kind` (rounded up): the repair of a devastated one
 ## (docs/siege-design.md §4).
-static func restore_cost() -> Dictionary:
+static func restore_cost(kind: String = "tower") -> Dictionary:
 	var out := {}
-	var full: Dictionary = Config.BUILDINGS["tower"]["cost"]
+	var full: Dictionary = Config.BUILDINGS[kind]["cost"]
 	for k in full:
 		out[k] = ceili(full[k] * Config.REPAIR_SHARE)
 	return out
@@ -43,7 +49,7 @@ func claim(v: Village) -> void:
 func found_message(_v: Village) -> String:
 	if village != null:
 		return ""
-	return "Found a ruined watchtower. The hero can claim it (Explore mode)."
+	return "Found a %s. The hero can claim it (Explore mode)." % display_name().to_lower()
 
 
 func info() -> Dictionary:
@@ -53,8 +59,8 @@ func info() -> Dictionary:
 	if village == null:
 		lines.append("Nobody's. The hero can claim it (Explore mode).")
 	elif village == game.player_village:
-		lines.append("Yours. A builder can restore it into a watchtower.")
-		var cost := restore_cost()
+		lines.append("Yours. A builder can restore it into a %s." % str(Config.BUILDINGS[building()]["name"]).to_lower())
+		var cost := restore_cost(building())
 		actions.append({
 			"label": "Restore (%s)" % Config.cost_icons(cost),
 			"disabled": not village.economy.can_afford(cost),

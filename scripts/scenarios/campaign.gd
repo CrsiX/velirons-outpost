@@ -5,6 +5,8 @@ extends RefCounted
 
 const SCENARIOS: Array[Script] = [
 	preload("res://scripts/scenarios/scenario_1.gd"),
+	preload("res://scripts/scenarios/scenario_2.gd"),
+	preload("res://scripts/scenarios/scenario_3.gd"),
 ]
 
 ## How many the campaign will have (the menu lists the rest as to come).

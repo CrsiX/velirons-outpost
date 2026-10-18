@@ -12,6 +12,7 @@ const KIND_SCRIPTS := {
 	"lightstone": preload("res://scripts/buildings/light_stone.gd"),
 	"training": preload("res://scripts/buildings/training_grounds.gd"),
 	"barracks": preload("res://scripts/buildings/barracks.gd"),
+	"stall": preload("res://scripts/buildings/stall.gd"),
 }
 
 var game: Game
@@ -87,12 +88,14 @@ func restore_ruin(ruin: RuinedTower, cost: Dictionary) -> Building:
 	if not village.economy.spend(cost, "repairs"):
 		return null
 	var tile := ruin.tile
+	var kind := ruin.building()
+	var what := ruin.display_name().to_lower()
 	game.world.remove_map_object(ruin)
-	var b := _new_building("tower", tile, true)
+	var b := _new_building(kind, tile, true)
 	b.set_devastated(true)
 	b.start_repair(cost)
 	queue.append(b)
-	village.events.info("A builder will restore the ruined watchtower (%s)" % Config.cost_text(cost))
+	village.events.info("A builder will restore the %s (%s)" % [what, Config.cost_text(cost)])
 	Sfx.play("place")
 	changed.emit()
 	return b

@@ -1486,7 +1486,7 @@ func _build_page_build() -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	var grid := _entry_grid(v)
-	for kind in ["tower", "barracks", "farm", "camp", "lightstone", "training"]:
+	for kind in ["tower", "barracks", "farm", "camp", "lightstone", "training", "stall"]:
 		var spec: Dictionary = Config.BUILDINGS[kind]
 		var icon := Art.tex(spec["art"])
 		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_icons(spec["cost"]), _on_build_pressed.bind(kind))
@@ -2015,7 +2015,7 @@ func food_short() -> bool:
 func food_warning_text() -> String:
 	var farms: Array[Farm] = []
 	for b in game.world.buildings:
-		if b is Farm and b.village == game.player_village and b.working():
+		if b is Farm and b.kind == "farm" and b.village == game.player_village and b.working():
 			farms.append(b)
 	var tip := ""
 	if farms.is_empty():

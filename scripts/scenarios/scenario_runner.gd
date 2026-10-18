@@ -57,6 +57,16 @@ var _old_difficulty = null  # (Settings.Difficulty)
 ## Smoke over ruined huts (hut -> particles), gone once rebuilt.
 var _smoke := {}
 var _outro_started := false
+## Prebuilt posts and their units: [[post, [{"kind", "level"}]]].
+var _prebuilt: Array = []
+## RoadSpots per road index (road_spots).
+var _roads := {}
+## The map's ruined towers and barracks at the start: [{"tile", "building"}].
+var ruin_sites: Array[Dictionary] = []
+## Scenes waiting for the one playing now (play_scene).
+var _scene_queue: Array = []
+## The journal shown now (show_journal), or null.
+var journal: Journal = null
 
 
 ## Before the world is made: the map from its file, the difficulty and the
@@ -90,6 +100,7 @@ func _exit_tree() -> void:
 ## has it (ruined huts, broken walls, gates and towers).
 func apply_baseline() -> void:
 	var v := game.player_village
+	v.construction.setup(v)  # (before the village's own setup: the prebuilt posts need it)
 	var c := Vector2(v.center)
 	var huts := v.huts()
 	huts.sort_custom(func(a: Building, b: Building) -> bool: return Vector2(a.tile).distance_to(c) < Vector2(b.tile).distance_to(c))
@@ -108,7 +119,86 @@ func apply_baseline() -> void:
 				b.queue_redraw()
 			else:
 				b.set_devastated(true)
+	_prebuild()
 	game.siege.mark_stale(v, true)
+	for o in game.world.map_objects:
+		if o is RuinedTower:
+			ruin_sites.append({"tile": o.tile, "building": (o as RuinedTower).building()})
+
+
+## The scenario's prebuilt posts and buildings (Scenario.prebuilt), finished;
+## their units come once the army is set up (_man_prebuilt).
+func _prebuild() -> void:
+	var v := game.player_village
+	var taken: Array[Vector2i] = []
+	for p in spec.prebuilt:
+		var kind := str(p["kind"])
+		var b: Building = null
+		if kind == "wall_tower":
+			b = _wall_tower_by(road_spots(int(p.get("road", 0))))
+		else:
+			var t: Vector2i = p.get("tile", Vector2i(-1, -1))
+			if t == Vector2i(-1, -1):
+				var at: Array = p.get("at", [3, 7])
+				t = road_spots(int(p.get("road", 0))).by_road(kind, int(at[0]), int(at[1]), taken)
+			if t == Vector2i(-1, -1) or v.construction.placement_error(kind, t, true) != "":
+				push_warning("scenario %d: no room for a prebuilt %s (%s)" % [spec.number, kind, str(p)])
+				continue
+			b = v.construction._new_building(kind, t, true)
+			taken.append_array(Building.footprint(t, int(Config.BUILDINGS[kind]["size"])))
+			game.fog.reveal(Vector2(t), 3.0, v.id)
+		if b == null:
+			continue
+		if p.has("level"):
+			b.level = int(p["level"])
+			b.hp = b.max_hp()
+			b.refresh()
+		if p.has("units"):
+			_prebuilt.append([b, p["units"]])
+
+
+## The village's corner tower nearest the gate of `rs`'s road.
+func _wall_tower_by(rs: RoadSpots) -> Building:
+	var gate: Vector2 = Vector2(rs.route[-1]) if not rs.route.is_empty() else Vector2(game.player_village.center)
+	var best: Building = null
+	for b in pieces("wall_tower"):
+		if best == null or Vector2(b.tile).distance_to(gate) < Vector2(best.tile).distance_to(gate):
+			best = b
+	return best
+
+
+## The prebuilt posts' units, on their posts (no walking there, no gold).
+func _man_prebuilt() -> void:
+	var army := game.army
+	for pair in _prebuilt:
+		var post := pair[0] as MilitaryPost
+		if post == null:
+			continue
+		var list: Array = pair[1]
+		for i in mini(list.size(), post.capacity()):
+			var u: Dictionary = list[i]
+			var unit := MilitaryUnit.new(str(u["kind"]))
+			unit.village = game.player_village
+			unit.original_owner = game.player_village
+			unit.nid = game.register(unit)
+			unit.uid = game.next_id(unit.kind)
+			unit.level = clampi(int(u.get("level", 1)) - 1, 0, Config.MAX_UNIT_LEVEL - 1)
+			unit.hp = unit.max_hp()
+			army.units.append(unit)
+			unit.post = post
+			unit.slot = i
+			unit.state = MilitaryUnit.State.STATIONED
+			post.set_slot(i, unit)
+	army.changed.emit()
+
+
+## A RoadSpots on road `which` (0: the one nearest the village by road), kept.
+func road_spots(which: int) -> RoadSpots:
+	if not _roads.has(which):
+		var rs := RoadSpots.new(game)
+		rs.pick_route(60, spec.number, which)
+		_roads[which] = rs
+	return _roads[which]
 
 
 ## Once the game is set up (villages, HUD): the rules, the hero at her start,
@@ -118,6 +208,7 @@ func start() -> void:
 	var h := game.hero
 	start_villagers = game.population.count()
 	_name_villagers()
+	_man_prebuilt()
 	if spec.hero_name != "":
 		h.given_name = spec.hero_name
 	if spec.hero_level > 1:
@@ -129,7 +220,8 @@ func start() -> void:
 	var w := game.waves
 	w.hold = spec.first_wave_waits
 	w.buffer = spec.wave_gap
-	w.last_wave = spec.waves.size()
+	w.last_wave = 0 if spec.repeat_last else spec.waves.size()
+	w.call_locked = spec.first_wave_waits and not spec.first_wave_call
 	for wave in spec.waves:
 		w.scripted.append(wave.duplicate(true))
 	w.wave_started.connect(_on_wave_started)
@@ -286,6 +378,8 @@ func _play(list: Array[Dictionary], then: Callable) -> void:
 		then.call(false)
 		return
 	var was_card := card != null and card.visible
+	var held := game.waves.hold
+	game.waves.hold = true  # (no countdown runs out during a cutscene)
 	if card:
 		card.visible = false
 	if highlight:
@@ -294,6 +388,7 @@ func _play(list: Array[Dictionary], then: Callable) -> void:
 	cutscene.name = "Cutscene"
 	cutscene.finished.connect(func(skipped: bool) -> void:
 		cutscene = null
+		game.waves.hold = held
 		if card:
 			card.visible = was_card
 		game.events.debug("cutscene over%s" % (" (skipped)" if skipped else ""))
@@ -303,6 +398,17 @@ func _play(list: Array[Dictionary], then: Callable) -> void:
 			highlight.visible = true
 		then.call(skipped))
 	cutscene.play(game, list, spec.speakers)
+
+
+## A short scene during play (between waves: a talk, a visitor); one after
+## the other if one is playing already.
+func play_scene(list: Array[Dictionary]) -> void:
+	if cutscene != null:
+		_scene_queue.append(list)
+		return
+	_play(list, func(_s: bool) -> void:
+		if not _scene_queue.is_empty() and phase == Phase.PLAY:
+			play_scene(_scene_queue.pop_front()))
 
 
 ## Helpers for the cutscenes: where a tile is on the map (world position).
@@ -468,6 +574,7 @@ func _process(delta: float) -> void:
 
 func _poll_now() -> void:
 	_poll = POLL
+	spec.on_poll(self)
 	for hut: Node in _smoke.keys():
 		if not is_instance_valid(hut) or not (hut as Hut).ruined:
 			if is_instance_valid(_smoke[hut]):
@@ -491,7 +598,7 @@ func _poll_now() -> void:
 		if done and _goal_state.has(id) and not _goal_state[id]:
 			game.events.info("Objective done: %s" % o["text"])  # (not for one met from the start)
 		_goal_state[id] = done
-		all = all and done
+		all = all and (done or bool(o.get("optional", false)))
 	if all:
 		phase = Phase.OUTRO
 		game.events.info("Every objective is met")
@@ -509,7 +616,9 @@ func allows(key: String) -> bool:
 
 
 func allows_building(kind: String) -> bool:
-	return spec.build.is_empty() or spec.build.has(kind)
+	if spec.build.is_empty():
+		return not Config.BUILDINGS.get(kind, {}).get("campaign", false)
+	return spec.build.has(kind)
 
 
 func allows_branches() -> bool:
@@ -541,7 +650,7 @@ func command_error(type: String, args: Dictionary) -> String:
 
 
 func _on_villager_died(civ: Civilian, reason: String, _cause: String) -> void:
-	if spec.fail_on_villager_death and phase != Phase.OVER:
+	if (spec.fail_on_villager_death or spec.must_live.has(civ.given_name)) and phase != Phase.OVER:
 		lose(spec.death_text(civ, reason))
 
 
@@ -558,8 +667,32 @@ func _on_wave_started(n: int) -> void:
 
 func _on_wave_finished(n: int) -> void:
 	spec.on_wave_finished(self, n)
-	if n >= spec.waves.size() and phase == Phase.PLAY:
+	if spec.repeat_last and n >= spec.waves.size() and game.waves.scripted.is_empty() and not spec.waves.is_empty():
+		game.waves.scripted.append(next_wave(n + 1))
+	elif n >= spec.waves.size() and phase == Phase.PLAY:
 		game.events.info("That was the last wave")
+
+
+## Wave `n` past the scenario's list (repeat_last): the last one, with
+## `more_each_wave` more of its kinds for every wave past it.
+func next_wave(n: int) -> Dictionary:
+	var w: Dictionary = spec.waves[-1].duplicate(true)
+	var past := n - spec.waves.size()
+	var kinds: Dictionary = w.get("kinds", {})
+	for k in spec.more_each_wave:
+		kinds[k] = int(kinds.get(k, 0)) + int(spec.more_each_wave[k]) * past
+	w["kinds"] = kinds
+	return w
+
+
+## The first wave may come: its countdown starts at `delay` seconds.
+func release_waves(delay: float) -> void:
+	var w := game.waves
+	w.hold = false
+	w.call_locked = false
+	if w.wave == 0:
+		w.countdown = delay
+	w.changed.emit()
 
 
 ## The scenario is lost: `why` on the defeat screen.
@@ -590,12 +723,136 @@ func towers(walls := false) -> Array:
 
 
 func farms() -> Array:
-	return game.player_village.buildings().filter(func(b: Building) -> bool: return b is Farm)
+	return game.player_village.buildings().filter(func(b: Building) -> bool: return b is Farm and b.kind == "farm")
 
 
 ## The village's pieces of `kind` ("gate", "wall", "wall_tower", "hut").
 func pieces(kind: String) -> Array:
 	return game.player_village.buildings().filter(func(b: Building) -> bool: return b.kind == kind)
+
+
+## The village's merchant (the stall's man), or null.
+func merchant() -> Merchant:
+	for c in game.population.civilians:
+		if c is Merchant:
+			return c
+	return null
+
+
+## The village's trade stalls.
+func stalls() -> Array:
+	return game.player_village.buildings().filter(func(b: Building) -> bool: return b is Stall)
+
+
+## What stands on ruin site `site` (ruin_sites) now: the ruin itself
+## (MapObject), the building restored from it, or null.
+func on_site(site: Dictionary) -> Node:
+	return game.map.building_at(site["tile"])
+
+
+## The building restored from ruin site `site`: standing (not devastated, no
+## repair left), or null.
+func restored(site: Dictionary) -> Building:
+	var b = on_site(site)
+	if b is Building and not (b is MapObject) and b.kind == site["building"] and b.complete and not b.devastated and not b.repairing:
+		return b
+	return null
+
+
+## Has the ruin at `site` been claimed by the village (or restored since)?
+func claimed(site: Dictionary) -> bool:
+	var b = on_site(site)
+	return (b is RuinedTower and (b as RuinedTower).village == game.player_village) or (b is Building and not (b is MapObject) and b.village == game.player_village)
+
+
+## The road tiles from `a` to `b` (both on or next to a road), along the roads
+## only, in order; [] if the roads don't join them.
+func road_between(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+	var m := game.map
+	var from := _road_near(a)
+	var to := _road_near(b)
+	if from == Vector2i(-1, -1) or to == Vector2i(-1, -1):
+		return [] as Array[Vector2i]
+	var prev := {from: from}
+	var q: Array[Vector2i] = [from]
+	var i := 0
+	while i < q.size():
+		var t := q[i]
+		i += 1
+		if t == to:
+			break
+		for n in MapData.neighbors4(t):
+			if m.in_bounds(n) and m.is_road(n) and not prev.has(n):
+				prev[n] = t
+				q.append(n)
+	if not prev.has(to):
+		return [] as Array[Vector2i]
+	var out: Array[Vector2i] = [to]
+	while out[0] != from:
+		out.push_front(prev[out[0]])
+	return out
+
+
+## The road tiles from (next to) `t` to the village's walls, along the roads
+## only, in order; [] if no road joins them.
+func road_to_village(t: Vector2i) -> Array[Vector2i]:
+	var m := game.map
+	var from := _road_near(t)
+	if from == Vector2i(-1, -1):
+		return [] as Array[Vector2i]
+	var near := game.player_village.rect.grow(1)
+	var prev := {from: from}
+	var q: Array[Vector2i] = [from]
+	var i := 0
+	var end := Vector2i(-1, -1)
+	while i < q.size():
+		var c := q[i]
+		i += 1
+		if near.has_point(c):
+			end = c
+			break
+		for n in MapData.neighbors4(c):
+			if m.in_bounds(n) and m.is_road(n) and not prev.has(n):
+				prev[n] = c
+				q.append(n)
+	if end == Vector2i(-1, -1):
+		return [] as Array[Vector2i]
+	var out: Array[Vector2i] = [end]
+	while out[0] != from:
+		out.push_front(prev[out[0]])
+	return out
+
+
+## `t` if it is a road tile, else the nearest road tile within 2.
+func _road_near(t: Vector2i) -> Vector2i:
+	if game.map.in_bounds(t) and game.map.is_road(t):
+		return t
+	for r in [1, 2]:
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				var n := t + Vector2i(dx, dy)
+				if game.map.in_bounds(n) and game.map.is_road(n):
+					return n
+	return Vector2i(-1, -1)
+
+
+## Watched by one of the village's buildings (towers, light stones, ...: what
+## they see, not where people happen to walk).
+func lit(t: Vector2i) -> bool:
+	for b in game.player_village.buildings():
+		var r := b.sight_radius()
+		if r > 0.0 and b.working() and b.sight_center().distance_to(Vector2(t)) <= r:
+			return true
+	return false
+
+
+## A journal page, a letter or a logbook over the game, paused meanwhile
+## (single player); Close or Esc goes on.
+func show_journal(title: String, text: String) -> void:
+	if journal == null:
+		journal = Journal.new()
+		journal.setup(game)
+	journal.open(title, text)
 
 
 ## Standing at full HP, with no repair, rebuild or upgrade left to do.
@@ -626,16 +883,18 @@ func unit_point(kind: String, posts: Array) -> Dictionary:
 	return {"hud": ["army:" + kind, "tab:army", "dock"], "tab": "army", "tiles": tiles}
 
 
-## Every unit's kind and level now (a card that waits for a promotion).
+## Every unit's kind and level now, in mark["units"] (a card that waits for a promotion).
 func mark_units() -> void:
-	mark = {}
+	var units := {}
 	for u in game.army.units:
-		mark[u] = [u.kind, u.level]
+		units[u] = [u.kind, u.level]
+	mark["units"] = units
 
 
 ## A unit has gone up a level (or specialised) since mark_units.
 func unit_promoted() -> bool:
+	var units: Dictionary = mark.get("units", {})
 	for u in game.army.units:
-		if mark.has(u) and (u.kind != mark[u][0] or u.level > int(mark[u][1])):
+		if units.has(u) and (u.kind != units[u][0] or u.level > int(units[u][1])):
 			return true
 	return false
