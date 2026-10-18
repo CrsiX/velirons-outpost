@@ -1,7 +1,7 @@
 # Veliron's Outpost: enemies (design)
 
 Status: **built; describes the current code**. Tested by tests/enemy_bot.gd (thief, gargoyle,
-necromancer, vampire, slimes), tests/rat_bot.gd (rats) and tests/sim_bot.gd (waves, raids, corpses).
+necromancer, vampire, slimes, spiders), tests/rat_bot.gd (rats) and tests/sim_bot.gd (waves, raids, corpses).
 Scope: every enemy kind, how waves are put together and escalate, difficulty, damage
 categories, flyers, corpses and raids. Every number lives in `scripts/core/config.gd`
 (`ENEMIES`, `WAVE_MIX`, `RAT_PACKS`, ...). The tables below give the Normal values at wave 1.
@@ -16,9 +16,10 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   - `melee_behavior.gd`: goblins, skeletons, orks, gargoyles, slimes (and the base of thief and vampire);
   - `witch_behavior.gd` + `spell_bolt.gd`;
   - `rat_behavior.gd`, `thief_behavior.gd`, `necromancer_behavior.gd`, `vampire_behavior.gd`;
+  - `spider_mother_behavior.gd` (extends `MeleeBehavior`) and `egg_behavior.gd` (her eggs);
   - `camp_behavior.gd`: monster-camp and lair guards (set by the camp, not by config).
 - `scripts/systems/waves.gd` (`Waves`): countdown, wave make-up, spawning, rat packs, lair
-  themes, the co-op extra, raising corpses, slime splits, kill gold.
+  themes, the co-op extra, raising corpses, slime splits, spider eggs (laying, hatching), kill gold.
 - `scripts/systems/corpses.gd` (`Corpses`) + `scripts/units/corpse.gd`: corpses, rotting, clearing.
 - `Game.on_enemy_reached_gate`, `Game.thief_steals`, `Game.raid_roll`: what happens once an
   enemy gets in (the hut it reached burns: `Enemy.raid_hut`).
@@ -59,6 +60,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 | Gargoyle | 10 | 6 % | 1 % | 15 % |
 | Necromancer | 13 | 4 % | 0.5 % | 8 % |
 | Vampire | 13 | 5 % | 1 % | 12 % |
+| Spider mother | 9 | 4 % | 0.5 % | 8 % (at most 2, +1 every 5 waves: `max_count`, `max_count_every`) |
 
 - **Rat packs** (`RAT_PACKS`): from wave 3, with chance 60 %, a wave gets 1-2 packs, plus one
   more every 5 waves after wave 3. Each pack has 4-7 rats from one spawn (an edge spawn or a
@@ -101,11 +103,13 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   `pure` (a raised enemy's drain; never scaled).
 - Enemy blows are `melee`, except a kind's `attack_category` (the witch: `magical`).
 - `resist` maps a category to a factor on the damage taken (`Enemy.take_damage`); missing = ×1.
-- **Holy** (the acolyte line, docs/acolyte-design.md §3): goblin, ork, thief, gargoyle ×0.75;
+- **Holy** (the acolyte line, docs/acolyte-design.md §3): goblin, ork, thief, gargoyle, spider
+  mother, spider egg, spiderling ×0.75;
   skeleton ×1.25; necromancer and vampire (bat too) ×1.5; witch, rat, slimes ×1. Anything a
-  necromancer raised takes another ×2 (`raised_holy`).
-- **Unholy** (`"unholy": true`): skeleton, necromancer, vampire. Raised enemies count as unholy
-  too. Only the Inquisitor's targeting uses it.
+  necromancer raised, and anything undead (`Enemy.undead`: a raised spider mother's eggs and
+  spiderlings), takes another ×2 (`raised_holy`).
+- **Unholy** (`"unholy": true`): skeleton, necromancer, vampire. Raised and undead enemies count
+  as unholy too (`Enemy.is_unholy`). Only the Inquisitor's targeting uses it.
 - The vampire takes ×0.67 magical damage.
 
 ## 5. Flyers
@@ -123,7 +127,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 ## 6. Corpses
 
 - Killing an enemy pays its `gold_on_kill` at once to the killer's village (else the village it
-  attacked), and leaves a corpse unless its kind has `"corpse": false` (rats, slimes). Raised
+  attacked), and leaves a corpse unless its kind has `"corpse": false` (rats, slimes, spider eggs, spiderlings). Raised
   enemies (killed or decayed), camp and lair guards leave none.
 - A gatherer (or the hero in Gather mode) brings safe corpses home (no living enemy within
   `CORPSE_SAFE_RADIUS`, 6 tiles) for `gold_on_collect` and `food_on_collect`. A thief's corpse
@@ -146,7 +150,8 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 - Inside, an enemy walks to the nearest intact hut and burns it (huts have 1 HP), on every
   difficulty. Only the villager living there dies.
 - Exceptions:
-  - kinds with `raid_chance` roll for it (small slimes); failed, they melt away;
+  - kinds with `raid_chance` roll for it (small slimes); failed, they melt away (`"gone"`: the
+    log's words for it); spiderlings have 0: they never burn a hut, they scuttle off;
   - rats eat food instead (§10);
   - thieves steal gold and run back (§11);
   - a vampire bat heals at a gate and turns back (§15); a vampire that turns into a bat
@@ -293,6 +298,60 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   flies back the way it came. Landed, the vampire takes the road to the village again; only on
   its feet does it break in.
 - A necromancer can raise it once.
+
+## 15b. Spider mother, spider eggs, spiderlings (Wilderness)
+
+| Kind | HP | Speed | Damage / cooldown | Kill gold | Corpse gold / food | Holy |
+|---|---|---|---|---|---|---|
+| Spider mother | 90 | 0.6 | 9 / 1.3 s | 10 | 8 / 0 | ×0.75 |
+| Spider egg | 1 (always) | 0 | none | 0 | no corpse | ×0.75 |
+| Spiderling | 8 | 1.8 | 1.5 / 1.0 s | 1 | no corpse | ×0.75 |
+
+- **Spider mother:** from wave 9 (`WAVE_MIX`; at most 2 per wave and village, one more every 5
+  waves after wave 9: 3 from wave 14, 4 from 19; `Config.wave_max_count`), and out of
+  hollow-tree lairs (`LAIR_THEMES.lair_tree`; a lair's entries aren't held to `max_count`).
+  Bigger than an ork. Otherwise a melee fighter like the ork (`SpiderMotherBehavior` extends
+  `MeleeBehavior`; breaks walls and gates, burns a hut when she gets in), plus her eggs:
+  - *On the way:* `first_lay` (25 s) after she comes onto the map, then every `lay_every`
+    (15 s), she lays a clutch (`Waves.lay_eggs`) of
+    `clutch` (4-6, at random) eggs around her (within `lay_spread`, 0.6 tiles; on ground one
+    can walk), without stopping.
+  - *Alarmed:* when a fighter of any village is within `alarm_range` (4 tiles: the hero, a
+    soldier or an elemental; or a manned tower that has her in range; units that can't hurt,
+    such as a Healing Mage, don't count: `EnemyBehavior._fighter_near`, shared with the
+    necromancer) or she is hurt, while fewer than `guard_count` (3) of her young (spiderlings
+    and unhatched eggs, any mother's) are within `guard_radius` (2.5), she stops, lays a clutch
+    and waits until every egg of it has hatched or been smashed. Meanwhile she still fights
+    whoever comes into reach (and doesn't hit walls). Then she isn't alarmed again for
+    `alarm_cooldown` (12 s, counted from the laying); the next clutch on the way comes
+    `lay_every` after it.
+  - Killed: 10 gold, a corpse worth 8 gold and no food. A necromancer can raise her; raised,
+    she lays a clutch at once and then every `lay_every` (15 s; she drains away in 20 s),
+    otherwise as before (same clutch, same hatch time, laying takes no time), but her eggs are **undead**
+    (`Enemy.undead`, pale like the raised): unholy and ×2 holy damage, and so are the
+    spiderlings out of them. Undead ones don't drain away (only the raised do).
+- **Spider egg** (`spider_egg`, behavior `egg`, `"entry": "none"`): `"fixed_hp"`: always 1 HP,
+  never scaled by difficulty or wave. It never moves and counts for the wave (an egg of a
+  debug mother doesn't). After `hatch_time` (6 s) it hatches (`Waves.hatch`) into
+  `hatch_into` (a spiderling with its mother's HP scale, undead from an undead egg); the
+  spiderling is counted before the egg is let go, so the wave can't end in between.
+  - It wobbles for the last `wobble_time` (2.5 s), faster and harder towards the end
+    (`EggBehavior.animate`, on every machine).
+  - Hatched, it becomes its broken shell (`unit_spider_egg_shell`, `Enemy.hatch_out`): out of
+    the `enemies` group (nothing targets or counts it), for `shell_time` (4 s), then it fades.
+    It shows on watched tiles like any enemy.
+    Co-op clients see the shell (`"sh"` in the enemy state).
+  - **Low priority** (`"low_priority"`): towers (`MilitaryBehavior.enemies_near` sorts them
+    last), soldiers (the Inquisitor too), elementals and the hero go for eggs only when no
+    other enemy is in reach (`Enemy.LOW_PRIORITY_TILES` on their distance).
+  - Smashed: no gold, no corpse. Villagers don't flee from eggs (`"scares": false`,
+    `Civilian.enemy_nearby`); once they hatch, they flee from the spiderlings.
+- **Spiderling** (`melee`): about a rat's strength, quick (1.8), fights like a goblin, breaks
+  gates and walls (`siege` 1) and goes round them where that is cheaper (the siege field),
+  but `raid_chance` 0: it never burns a hut, it scuttles off once inside. 1 gold, no corpse.
+  It walks from where it hatched to the nearest road and on to its egg's village.
+- Library: one entry for the mother (with the eggs) and one for the spiderling; eggs have
+  `"library": false`.
 
 ## 16. Monster-camp guards
 

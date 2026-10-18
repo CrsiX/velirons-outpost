@@ -234,7 +234,7 @@ func _extra(n: int, hp_scale: float) -> Array:
 
 ## The kinds of village `target`'s share of wave `n` (null: the co-op extra,
 ## no water monsters). Water kinds only if they can reach the village; then
-## each kind's "chance" is rolled and its "max_count" applied (the rest go to
+## each kind's "chance" is rolled and its max count (Config.wave_max_count) applied (the rest go to
 ## the filler).
 func _kinds(n: int, target: Village = null) -> Array[String]:
 	var kinds: Array[String] = []
@@ -246,7 +246,7 @@ func _kinds(n: int, target: Village = null) -> Array[String]:
 		if mix.has("chance") and _rng.randf() >= float(mix["chance"]):
 			keep = 0
 		if mix.has("max_count"):
-			keep = mini(keep, int(mix["max_count"]))
+			keep = mini(keep, Config.wave_max_count(kind, n))
 		if keep < int(comp[kind]):
 			comp[Config.WAVE_FILLER] = int(comp.get(Config.WAVE_FILLER, 0)) + int(comp[kind]) - keep
 			if keep > 0:
@@ -470,18 +470,8 @@ func raise_corpse(c: Corpse, by: Enemy) -> Enemy:
 	if not game.corpses.corpses.has(c):
 		return null
 	var target: Village = by.target_village if is_instance_valid(by.target_village) else game.villages[0]
-	var pathing := game.world.pathing
-	var amph := str(Config.ENEMIES[c.kind].get("habitat", "land")) == "amphibian"  # (a raised crab swims on, but never dives)
-	var road := c.tile() if amph and game.map.is_wet(c.tile()) else pathing.nearest_road(c.tile())
-	var field := target.id if game.villages.size() > 1 and pathing.enemy_distance(road, target.id, amph) < Pathing.UNREACHABLE else -1
-	var route := pathing.enemy_route(road, _rng, field, amph)
-	var g: Enemy = ENEMY_SCRIPT.new()
-	g.setup(game, route, c.hp_scale, c.kind)
+	var g := _walker(c.kind, c.grid_pos, c.hp_scale, target)
 	g.wave = c.wave
-	var pts := PackedVector2Array([c.grid_pos])
-	pts.append_array(g.path)
-	g.set_grid_pos(c.grid_pos)
-	g.follow(pts)
 	var spec: Dictionary = by.spec()
 	g.make_raised(float(spec["raise_hp"]), float(spec["raise_decay"]))
 	game.corpses.remove(c)
@@ -490,6 +480,79 @@ func raise_corpse(c: Corpse, by: Enemy) -> Enemy:
 	_raise_logged[target.id] = true
 	target.events.add(EventLog.Level.INFO if first else EventLog.Level.DEBUG, "A necromancer raised a dead %s!" % str(g.spec()["name"]).to_lower() if first else "%s raised %s from the dead" % [by.label(), g.label()])
 	Combat.burst(game, "warp", g.position + Vector2(0, -16), 0.8)
+	return g
+
+
+## An enemy of `kind` standing at `pos` (grid), not yet added: its road from
+## the nearest road tile (an amphibian in water: from there) to `target`.
+func _walker(kind: String, pos: Vector2, hp_scale: float, target: Village) -> Enemy:
+	var pathing := game.world.pathing
+	var tile := Vector2i(pos.round())
+	var amph := str(Config.ENEMIES[kind].get("habitat", "land")) == "amphibian"  # (a raised crab swims on, but never dives)
+	var road := tile if amph and game.map.is_wet(tile) else pathing.nearest_road(tile)
+	var field := target.id if game.villages.size() > 1 and pathing.enemy_distance(road, target.id, amph) < Pathing.UNREACHABLE else -1
+	var route := pathing.enemy_route(road, _rng, field, amph)
+	var g: Enemy = ENEMY_SCRIPT.new()
+	g.setup(game, route, hp_scale, kind)
+	var pts := PackedVector2Array([pos])
+	pts.append_array(g.path)
+	g.set_grid_pos(pos)
+	g.follow(pts)
+	return g
+
+
+## A spider mother lays a clutch: clutch[0]..clutch[1] eggs of her `lays`
+## kind around her (lay_spread tiles, on ground one can walk), with her HP
+## scale; undead if she was raised or is undead. They count for the wave
+## (or not, like a debug mother).
+func lay_eggs(m: Enemy) -> Array[Enemy]:
+	var spec: Dictionary = m.spec()
+	var kind := str(spec["lays"])
+	var target: Village = m.target_village if is_instance_valid(m.target_village) else game.villages[0]
+	var n := _rng.randi_range(int(spec["clutch"][0]), int(spec["clutch"][1]))
+	var out: Array[Enemy] = []
+	var turn := _rng.randf() * TAU
+	for i in n:
+		var a := turn + TAU * (float(i) + _rng.randf() * 0.5) / float(n)
+		var pos := m.grid_pos + Vector2(cos(a), sin(a)) * float(spec["lay_spread"]) * _rng.randf_range(0.5, 1.0)
+		if not game.world.pathing.is_walkable(Vector2i(pos.round())):
+			pos = m.grid_pos + Vector2(cos(a), sin(a)) * 0.15
+		var e: Enemy = ENEMY_SCRIPT.new()
+		e.setup(game, [Vector2i(pos.round())] as Array[Vector2i], m.hp_scale, kind)
+		e.set_grid_pos(pos)
+		e.follow(PackedVector2Array([pos]))
+		e.wave = m.wave
+		if m.raised or m.undead:
+			e.make_undead()
+		_add(e, target)
+		if _uncounted.has(m):
+			_alive -= 1
+			_uncounted[e] = true
+		e.pop_in()
+		out.append(e)
+	target.events.debug("%s lays %d eggs" % [m.label(), n])
+	return out
+
+
+## A spider egg hatches: its hatch_into comes out where it lay, as strong as
+## the egg's wave (undead from an undead egg), and takes the road to the
+## egg's village; the egg is a broken shell for a while (Enemy.hatch_out).
+## The spiderling counts for the wave (or not, like the egg).
+func hatch(egg: Enemy) -> Enemy:
+	if egg.dead:
+		return null
+	var target: Village = egg.target_village if is_instance_valid(egg.target_village) else game.villages[0]
+	var g := _walker(str(egg.spec()["hatch_into"]), egg.grid_pos, egg.hp_scale, target)
+	g.wave = egg.wave
+	if egg.undead:
+		g.make_undead()
+	_add(g, target)
+	if _uncounted.has(egg):
+		_alive -= 1
+		_uncounted[g] = true
+	g.pop_in()
+	target.events.debug("%s hatches: %s" % [egg.label(), g.label()])
+	egg.hatch_out()  # (after the spiderling counts: the wave can't end in between)
 	return g
 
 

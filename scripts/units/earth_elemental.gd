@@ -111,9 +111,10 @@ func _pick_target() -> void:
 		if e.dead or not _can_hit(e):
 			continue
 		var d := e.grid_pos.distance_to(grid_pos)
-		# Only enemies it can see, and not too far from its post.
-		if d <= Config.SUMMON["sight"] and e.grid_pos.distance_to(Vector2(home)) <= Config.SUMMON["leash"] + Config.SUMMON["sight"] and d < best_d:
-			best_d = d
+		# Only enemies it can see, and not too far from its post; eggs last.
+		var k := d + (Enemy.LOW_PRIORITY_TILES if e.low_priority() else 0.0)
+		if d <= Config.SUMMON["sight"] and e.grid_pos.distance_to(Vector2(home)) <= Config.SUMMON["leash"] + Config.SUMMON["sight"] and k < best_d:
+			best_d = k
 			best = e
 	if best != null and best != target:
 		village.events.debug("%s attacks %s" % [label(), best.label()])

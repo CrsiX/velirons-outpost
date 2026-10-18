@@ -1868,6 +1868,109 @@ def rat():
     a.save("unit_rat")
 
 
+# ---------------------------------------------------------------- spiders (docs/enemies-design.md §15b)
+
+def _spider_leg(a, hip, knee, foot, color, sw):
+    a.line([hip, knee, foot], INK, sw + 1.6)
+    a.line([hip, knee, foot], color, sw)
+
+
+def spider_mother():
+    """A huge dark spider, side view, facing right: a bloated abdomen with a red
+    hourglass and a cluster of pale eggs underneath, eight jointed legs, red eyes."""
+    a = Art()
+    a.shadow(26, 8, opacity=0.45)
+    chitin, chitin_l, far = "#2e2433", "#4b3c55", "#1f1824"
+    # far-side legs (darker, behind the body)
+    for hx, kx, kz, fx in ((2, -20, -30, -34), (5, -8, -33, -18), (9, 16, -33, 14), (12, 28, -29, 36)):
+        _spider_leg(a, (hx, -16), (kx, kz), (fx, -2), far, 1.6)
+    # abdomen: bloated, with a lighter back and a red hourglass
+    a.ellipse(-11, -21, 16, 13, chitin, INK, 1.5)
+    a.ellipse(-13, -26, 10, 5.5, chitin_l, opacity=0.7)
+    a.poly([(-15, -28), (-9, -28), (-12, -23.5)], "#b3302a", INK, 0.8)
+    a.poly([(-15, -19), (-9, -19), (-12, -23.5)], "#b3302a", INK, 0.8)
+    for sx in (-22, -18, -4, -1):  # bristles
+        a.line([(sx, -31 + abs(sx + 11) * 0.35), (sx - 1.5, -35 + abs(sx + 11) * 0.35)], INK, 1.0)
+    # pale eggs clinging under the abdomen
+    for ex, ey in ((-18, -9), (-13, -8), (-8, -9), (-15.5, -11.5), (-10.5, -11.5)):
+        a.ellipse(ex, ey, 2.8, 2.4, "#e7dfc6", INK, 0.8)
+    # cephalothorax and head
+    a.ellipse(8, -17, 9.5, 7.5, chitin, INK, 1.4)
+    a.ellipse(7, -20.5, 6, 3, chitin_l, opacity=0.6)
+    a.ellipse(16, -15, 5, 4.5, chitin, INK, 1.2)
+    # fangs
+    a.poly([(18, -12), (21, -11), (19, -6)], "#d8cfb8", INK, 0.8)
+    a.poly([(15.5, -11.5), (18, -11), (16.5, -6.5)], "#d8cfb8", INK, 0.8)
+    # a cluster of red eyes
+    for ex, ey, r in ((17.5, -17.5, 1.5), (19.5, -16, 1.2), (15.5, -18.5, 1.1), (18, -19.8, 0.9), (20.5, -18.3, 0.8)):
+        a.ellipse(ex, ey, r, r, "#ff3a2a")
+    a.ellipse(17.2, -17.9, 0.5, 0.5, "#ffd0c0")
+    # near-side legs
+    for hx, kx, kz, fx in ((3, -22, -32, -37), (6, -6, -35, -21), (10, 19, -35, 18), (13, 31, -30, 40)):
+        _spider_leg(a, (hx, -14), (kx, kz), (fx, 0), chitin, 2.0)
+        a.ellipse(kx, kz, 1.4, 1.4, chitin_l, INK, 0.8)  # knee joint
+    a.save("unit_spider_mother")
+
+
+def corpse_spider_mother():
+    """On its back, legs curled up."""
+    a = Art()
+    a.ellipse(0, 0, 24, 7, "#000", opacity=0.3)
+    a.ellipse(2, 2, 20, 5, "#1e2a14", opacity=0.45)  # dark ichor
+    chitin = "#2e2433"
+    for hx, kx, ky, fx, fy in ((-6, -14, -16, -8, -18), (-1, -6, -20, 0, -21), (5, 6, -20, 11, -18), (10, 16, -15, 19, -10)):
+        _spider_leg(a, (hx, -6), (kx, ky), (fx, fy), chitin, 1.8)
+    a.ellipse(-8, -4, 14, 7.5, chitin, INK, 1.4)
+    a.ellipse(-8, -6, 8, 3, "#5a4a62", opacity=0.6)  # pale belly
+    a.ellipse(10, -3, 7.5, 5.5, chitin, INK, 1.2)
+    for ex in (-12, -7):  # crushed eggs
+        a.ellipse(ex, 3, 2.6, 1.6, "#cfc6aa", INK, 0.7)
+    a.save("corpse_spider_mother")
+
+
+def spiderling():
+    """A small brown spider, side view, facing right (the game flips it)."""
+    a = Art()
+    a.shadow(10, 3, opacity=0.35)
+    body, body_l, far = "#5a4232", "#7c6048", "#3e2e22"
+    for hx, kx, kz, fx in ((-1, -8, -10, -12), (1, -3, -11, -6), (3, 7, -11, 7), (4, 11, -9, 13)):
+        _spider_leg(a, (hx, -5), (kx, kz), (fx, -1), far, 0.7)
+    a.ellipse(-4, -7, 6.5, 5.2, body, INK, 1.1)
+    a.ellipse(-5, -8.5, 3, 1.6, body_l, opacity=0.7)
+    a.ellipse(-4, -6.8, 1.0, 1.4, "#c9a24a", opacity=0.85)  # a little gold spot
+    a.ellipse(3, -5, 3.4, 2.8, body, INK, 1.0)
+    a.ellipse(4.8, -5.6, 0.8, 0.8, "#ff3a2a")
+    a.ellipse(3.6, -6.2, 0.6, 0.6, "#ff3a2a")
+    for hx, kx, kz, fx in ((-1, -9, -11, -13), (1, -4, -12, -7), (3, 8, -12, 8), (4, 12, -10, 15)):
+        _spider_leg(a, (hx, -4), (kx, kz), (fx, 0), body, 0.8)
+    a.save("unit_spiderling")
+
+
+def spider_eggs():
+    """One spider egg (pale, veined, glistening) and the broken shell it leaves."""
+    shell, shell_d, vein = "#e9e1c8", "#c9bf9f", "#9fb08a"
+    a = Art()
+    a.shadow(6.5, 2.4, opacity=0.35)
+    a.ellipse(0, -6.5, 5.2, 6.5, shell, INK, 1.1)
+    a.ellipse(1.5, -4.5, 3.2, 3.6, shell_d, opacity=0.55)
+    a.raw('<path d="M-2,-11 Q-3.5,-7 -1.5,-3" fill="none" stroke="%s" stroke-width="0.8"/>' % vein, [(-4, -11), (-1, -3)])
+    a.raw('<path d="M2,-10 Q3.5,-7 2,-4.5" fill="none" stroke="%s" stroke-width="0.7"/>' % vein, [(1, -10), (4, -4)])
+    a.ellipse(-2, -9.5, 1.4, 1.0, "#ffffff", opacity=0.8)
+    a.save("unit_spider_egg")
+    b = Art()
+    b.shadow(6.5, 2.4, opacity=0.3)
+    # the lower half, a jagged rim, and the dark inside
+    b.poly([(-5.2, -5.5), (-3.5, -7.5), (-2, -5.8), (0, -8.2), (1.8, -6), (3.6, -7.8), (5.2, -5.5),
+            (4.6, -2.2), (2.5, -0.4), (-2.5, -0.4), (-4.6, -2.2)], shell, INK, 1.1)
+    b.ellipse(0, -5.6, 4.0, 1.4, "#4a4030", opacity=0.75)
+    b.ellipse(1.5, -2.6, 2.6, 1.6, shell_d, opacity=0.55)
+    # a few fragments beside it
+    b.poly([(-9, -1), (-7, -3), (-6, -0.5)], shell, INK, 0.8)
+    b.poly([(7, -0.5), (9.5, -2), (9.8, 0.3)], shell, INK, 0.8)
+    b.poly([(5.5, 1.5), (7, 0.8), (7.2, 2.2)], shell_d, INK, 0.6)
+    b.save("unit_spider_egg_shell")
+
+
 # ---------------------------------------------------------------- water monsters (docs/aquatic-design.md)
 
 def _waterline(a, rx, ry, cy=0.0):
@@ -4031,6 +4134,10 @@ def main():
     goblin()
     rat()
     slimes()
+    spider_mother()
+    corpse_spider_mother()
+    spiderling()
+    spider_eggs()
     gatherer()
     forester()
     worker_camp()

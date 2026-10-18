@@ -44,7 +44,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 	_ally_scan -= delta
 	if _ally_scan <= 0.0:
 		_ally_scan = 0.3
-		_held = _fighter_near(enemy)
+		_held = _fighter_near(enemy, float(enemy.spec()["raise_range"]))
 	if _cool > 0.0:
 		return _held
 	_scan -= delta
@@ -77,19 +77,6 @@ func _stop(enemy: Enemy) -> void:
 			corpse.raising_by = null
 	corpse = null
 	enemy.channel_to = Vector2.INF
-
-
-static func _fighter_near(enemy: Enemy) -> bool:
-	var r := float(enemy.spec()["raise_range"])
-	for node in enemy.get_tree().get_nodes_in_group("melee_defenders"):
-		if not node.dead and not (node is Soldier and not node.unit.fights()) and node.grid_pos.distance_to(enemy.grid_pos) <= r:
-			return true
-	for b in enemy.game.world.towers():
-		var t := b as Tower
-		if t and t.garrison != null and t.garrison.state == MilitaryUnit.State.STATIONED and t.garrison.fights() \
-				and Vector2(t.tile).distance_to(enemy.grid_pos) <= t.range_tiles():
-			return true
-	return false
 
 
 ## The nearest corpse it may raise: another kind's, never raised before, not

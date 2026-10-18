@@ -271,6 +271,17 @@ static func _enemies() -> Array[Dictionary]:
 		if from > 0:
 			f.append("In the waves from wave %d%s" % [from, " (in packs)" if kind == "rat" else ""])
 		f.append("HP %s · speed %s tiles/s" % [_n(Config.enemy_stat(kind, "hp")), _n(Config.enemy_stat(kind, "speed"))])
+		if e.has("lays"):
+			var egg: Dictionary = Config.ENEMIES[e["lays"]]
+			f.append("Lays %d-%d eggs as she walks, the first time %s s after she comes, then every %s s; each has %s HP and hatches into a %s after %s s" % [e["clutch"][0], e["clutch"][1], _n(e["first_lay"]), _n(e["lay_every"]), _n(egg["hp"]), str(Config.ENEMIES[egg["hatch_into"]]["name"]).to_lower(), _n(egg["hatch_time"])])
+			f.append("Threatened (a fighter of ours within %s tiles, a tower, or a hit) while fewer than %d of her young are around her, she stops, lays a clutch and waits for it to hatch" % [_n(e["alarm_range"]), int(e["guard_count"])])
+			f.append("Raised by a necromancer she lays undead eggs at once: unholy, and holy damage hurts them twice as much")
+		if e.get("habitat", "land") == "land" and Config.WAVE_MIX.get(kind, {}).has("max_count"):
+			f.append(_max_count_text(kind))
+		if kind == "spiderling":
+			f.append("Hatches from a spider mother's eggs; hatched from undead eggs it is undead (unholy, x2 holy damage)")
+		if e.get("raid_chance", 1.0) <= 0.0:
+			f.append("Breaks gates and walls, but burns no huts")
 		if e.has("split_into"):
 			f.append("Slain, it splits into %d smaller slimes, and each of those into %d more" % [e["split_count"], Config.ENEMIES[e["split_into"]]["split_count"]])
 		if float(e["damage"]) > 0.0:
@@ -326,7 +337,7 @@ static func _water_facts(kind: String) -> PackedStringArray:
 	if mix.has("chance"):
 		f.append("Rare: in %d %% of the waves, at most %d" % [roundi(100.0 * float(mix["chance"])), int(mix.get("max_count", 1))])
 	elif mix.has("max_count"):
-		f.append("At most %d in a wave" % int(mix["max_count"]))
+		f.append(_max_count_text(kind))
 	match kind:
 		"leviathan":
 			f.append("Water blast: %s damage per second for %s s, range %s tiles, every %s s" % [_n(Config.enemy_stat(kind, "spell_damage")), _n(e["blast_time"]), _n(e["blast_range"]), _n(e["blast_cooldown"])])
@@ -343,6 +354,15 @@ static func _water_facts(kind: String) -> PackedStringArray:
 
 
 ## The first wave `kind` marches in (0: only from lairs and camps).
+## "At most 2 in a wave" (and how the cap grows), from WAVE_MIX.
+static func _max_count_text(kind: String) -> String:
+	var mix: Dictionary = Config.WAVE_MIX[kind]
+	var t := "At most %d in a wave" % int(mix["max_count"])
+	if int(mix.get("max_count_every", 0)) > 0:
+		t += ", one more every %d waves" % int(mix["max_count_every"])
+	return t
+
+
 static func _enemy_from_wave(kind: String) -> int:
 	if kind == Config.WAVE_FILLER:
 		return 1

@@ -751,7 +751,7 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 		v.toast("A rat ate %d food!" % eat, Color("ffb07a"))
 		return
 	if not raid_roll(g):
-		v.events.debug("%s got into the village and melted away" % g.label().capitalize())
+		v.events.debug("%s got into the village and %s" % [g.label().capitalize(), str(g.spec().get("gone", "melted away"))])
 		return
 	v.events.debug("%s broke into the village" % g.label())
 	# The hut it got to (docs/siege-design.md §5.3); one at random if it came

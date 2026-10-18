@@ -36,7 +36,7 @@ func info_lines(unit: MilitaryUnit) -> Array[String]:
 
 
 ## Enemies within `radius` tiles of the post that can be hit (not under
-## water), closest to their gate first.
+## water), closest to their gate first; low-priority ones (spider eggs) last.
 static func enemies_near(post: Node, radius: float) -> Array[Enemy]:
 	var out: Array[Enemy] = []
 	var c: Vector2 = post.act_center()
@@ -44,5 +44,8 @@ static func enemies_near(post: Node, radius: float) -> Array[Enemy]:
 		var e := node as Enemy
 		if e.targetable() and e.grid_pos.distance_to(c) <= radius:
 			out.append(e)
-	out.sort_custom(func(a: Enemy, b: Enemy) -> bool: return a.remaining() < b.remaining())
+	out.sort_custom(func(a: Enemy, b: Enemy) -> bool:
+		if a.low_priority() != b.low_priority():
+			return b.low_priority()
+		return a.remaining() < b.remaining())
 	return out

@@ -191,7 +191,7 @@ func _nearest_foe() -> Enemy:
 			continue  # (out of a blade's reach: it only gets hit back, see counter_strike)
 		if unit.role() == "melee" and not e.melee_ok(grid_pos):
 			continue  # (under water out of reach, or a siren in the water)
-		var d := _hunt_distance(e, e.grid_pos.distance_to(grid_pos), hunt)
+		var d := _hunt_distance(e, e.grid_pos.distance_to(grid_pos), hunt) + (Enemy.LOW_PRIORITY_TILES if e.low_priority() else 0.0)
 		if e == target:
 			current_d = d
 		if d < best_d:
@@ -202,12 +202,12 @@ func _nearest_foe() -> Enemy:
 	return best
 
 
-## An Inquisitor's priority class of `e`: "witch", "unholy" (ENEMIES "unholy",
-## or raised by a necromancer) or "".
+## An Inquisitor's priority class of `e`: "witch", "unholy" (Enemy.is_unholy:
+## ENEMIES "unholy", raised by a necromancer, or undead) or "".
 static func hunt_class(e: Enemy) -> String:
 	if e.kind == "witch":
 		return "witch"
-	if e.raised or e.spec().get("unholy", false):
+	if e.is_unholy():
 		return "unholy"
 	return ""
 

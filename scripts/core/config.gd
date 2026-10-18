@@ -560,7 +560,7 @@ const LAIR_EVERY := 3
 const LAIR_QUIET_WAVES := 3
 const LAIR_THEMES := {
 	"lair_cave": {"name": "cave", "kinds": ["ork", "gargoyle"], "guards": ["ork", "ork", "goblin"]},
-	"lair_tree": {"name": "hollow tree", "kinds": ["goblin", "rat"], "guards": ["goblin", "goblin", "goblin"]},
+	"lair_tree": {"name": "hollow tree", "kinds": ["goblin", "rat", "spider_mother"], "guards": ["goblin", "goblin", "goblin"]},
 	"lair_ruin": {"name": "sunken ruin", "kinds": ["skeleton", "witch"], "guards": ["skeleton", "skeleton", "witch"]},
 	"lair_pit": {"name": "smoking pit", "kinds": ["ork", "gargoyle"], "guards": ["ork", "ork", "goblin"]},
 	"lair_crypt": {"name": "crypt", "kinds": ["skeleton", "necromancer", "vampire"], "guards": ["skeleton", "skeleton", "skeleton"]},
@@ -1153,6 +1153,7 @@ const CAMERA_KEY_ZOOM := 1.12
 ##   behavior ......... what it does besides walking to a gate (scripts/units/enemies/):
 ##                      "melee" (fights defenders in its way and villagers in reach),
 ##                      "witch", "rat", "thief", "necromancer", "vampire",
+##                      "spider_mother", "egg" (a spider egg),
 ##                      "leviathan", "siren", "octopus" or "arm" (an octopus's arm)
 ##   hp, speed ........ hit points; tiles per second along the road
 ##   damage ........... close-combat damage per hit (0 = never fights in melee)
@@ -1161,14 +1162,19 @@ const CAMERA_KEY_ZOOM := 1.12
 ##   gold_on_collect, food_on_collect .. paid when a gatherer brings the corpse home
 ## Behaviours may add their own keys (see "witch").
 ## Optional: corpse (false: none), raid_chance (of burning a hut at the gate; 1),
+## gone (the log's words when it doesn't: "melted away"),
 ## split_into / split_count, colors, level, hp_bar_y (see "slime3"),
 ## resist (damage taken by category, see DAMAGE_CATEGORIES; holy: docs/acolyte-design.md §3),
 ## unholy (true: the Inquisitor hunts it; everything a necromancer raises counts too),
 ## library (false: no library entry of its own), library_name (its name there),
 ## habitat, submerges and the other water keys (see "crab" and AQUA),
 ## revivable (false: a necromancer can't raise its corpse),
+## fixed_hp (true: its hp is never scaled by difficulty or wave, see "spider_egg"),
+## low_priority (true: towers and fighters go for it only when nothing else is in reach),
+## scares (false: villagers don't run from it, see "spider_egg"),
 ## entry ("siege", the default: breaks into the village; "slip": held a while
-## by an intact gate, then through it; docs/siege-design.md §5.1),
+## by an intact gate, then through it; docs/siege-design.md §5.1; "none":
+## never moves, see "spider_egg"),
 ## siege (damage factor against walls, gates and wall towers; 0 or missing:
 ## it can't hurt them, waits, and slips past after SIEGE.stuck_slip).
 ## Any enemy that gets into the village burns the nearest intact hut, on every
@@ -1355,6 +1361,63 @@ const ENEMIES := {
 		"drain": 0.67,
 		"bat_below": 0.33, "bat_time": 10.0, "bat_speed": 1.8, "bat_gate_heal": 0.33,
 	},
+	# --- spiders (Wilderness; docs/enemies-design.md §15b) ---
+	# A huge, slow spider that fights like an ork and lays eggs (`lays`, a kind
+	# of its own): a clutch of clutch[0]..clutch[1] eggs around her
+	# (lay_spread tiles) as she walks, without stopping: the first first_lay s
+	# after she comes onto the map, then every lay_every s.
+	# Alarmed (one of ours who fights within alarm_range, or a manned tower
+	# with her in range, or she is hurt) while fewer than guard_count of her
+	# spiderlings and eggs are within guard_radius, she stops, lays a clutch
+	# and waits until it has hatched (or is gone), still fighting whoever
+	# comes close; then not again for alarm_cooldown s. Raised by a
+	# necromancer she lays too, at once when she rises and then every
+	# lay_every s (she drains away in the necromancer's raise_decay):
+	# those eggs and their spiderlings are undead (unholy, raised_holy x holy
+	# damage), but they don't drain away. Laying takes no time.
+	"spider_mother": {
+		"name": "Spider mother", "art": "spider_mother", "behavior": "spider_mother",
+		"siege": 1.0,
+		"desc": "A huge, slow spider. Now and then she lays a clutch of eggs; threatened while few of her young are around her, she stops and lays more, and waits for them to hatch.",
+		"hp": 90.0, "speed": 0.6,
+		"damage": 9.0, "attack_cooldown": 1.3,
+		"gold_on_kill": 10, "gold_on_collect": 8, "food_on_collect": 0,
+		"resist": {"holy": 0.75},
+		"hp_bar_y": -50.0,
+		"lays": "spider_egg", "clutch": [4, 6], "lay_spread": 0.6, "first_lay": 25.0, "lay_every": 15.0,
+		"alarm_range": 4.0, "guard_radius": 2.5, "guard_count": 3, "alarm_cooldown": 12.0,
+	},
+	# One egg of a clutch: always 1 HP (fixed_hp: no difficulty or wave
+	# scaling), never moves. After hatch_time s it hatches into `hatch_into`
+	# (as strong as its mother's wave); it wobbles for the last wobble_time s.
+	# The broken shell stays shell_time s (nothing can hit it). Towers and
+	# fighters go for eggs only when no other enemy is in reach
+	# (low_priority). Villagers don't run from eggs (scares false), only from
+	# what hatches. It counts for the wave; hatching or killed, no corpse.
+	"spider_egg": {
+		"name": "Spider egg", "art": "spider_egg", "behavior": "egg", "corpse": false, "library": false,
+		"entry": "none", "fixed_hp": true, "low_priority": true, "scares": false,
+		"desc": "A spider mother's egg. Smash it before it hatches.",
+		"hp": 1.0, "speed": 0.0,
+		"damage": 0.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 0, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"holy": 0.75},
+		"hp_bar_y": -18.0,
+		"hatch_into": "spiderling", "hatch_time": 6.0, "wobble_time": 2.5, "shell_time": 4.0,
+	},
+	# Hatched from a spider mother's egg: about a rat's strength, fights like
+	# a goblin and breaks walls and gates, but burns no huts (raid_chance 0:
+	# inside the walls it scuttles off).
+	"spiderling": {
+		"name": "Spiderling", "art": "spiderling", "behavior": "melee", "corpse": false, "raid_chance": 0.0, "gone": "scuttled off",
+		"siege": 1.0,
+		"desc": "Hatched from a spider mother's eggs. Weak and quick; it gnaws at gates and walls, but burns no huts.",
+		"hp": 8.0, "speed": 1.8,
+		"damage": 1.5, "attack_cooldown": 1.0,
+		"gold_on_kill": 1, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"holy": 0.75},
+		"hp_bar_y": -20.0,
+	},
 	# --- water monsters (docs/aquatic-design.md; the shared rules are in AQUA) ---
 	# Every kind has a "habitat": "land" (the default), "amphibian" (roads and
 	# water: deep, shallow, fords, bridges; it leaves the water only onto a
@@ -1512,7 +1575,8 @@ const DIFFICULTY_SCALED: Array[String] = [
 ## WAVE_FILLER makes up the rest. Optional: "needs": "water" (only for a
 ## village its water monsters can reach, see Aqua; elsewhere the filler takes
 ## its share), "max_count" (at most this many per wave and village; the rest
-## go to the filler) and "chance" (it comes in a wave only with this chance,
+## go to the filler; with "max_count_every" it grows by 1 every that many
+## waves after from_wave) and "chance" (it comes in a wave only with this chance,
 ## rolled per wave and village by Waves).
 const WAVE_MIX := {
 	"skeleton": {"from_wave": 2, "share": 0.12, "growth": 0.06, "max_share": 0.35},
@@ -1523,6 +1587,7 @@ const WAVE_MIX := {
 	"gargoyle": {"from_wave": 10, "share": 0.06, "growth": 0.01, "max_share": 0.15},
 	"necromancer": {"from_wave": 13, "share": 0.04, "growth": 0.005, "max_share": 0.08},
 	"vampire": {"from_wave": 13, "share": 0.05, "growth": 0.01, "max_share": 0.12},
+	"spider_mother": {"from_wave": 9, "share": 0.04, "growth": 0.005, "max_share": 0.08, "max_count": 2, "max_count_every": 5},
 	"crab": {"from_wave": 6, "share": 0.08, "growth": 0.01, "max_share": 0.15, "needs": "water"},
 	"siren": {"from_wave": 8, "share": 0.06, "growth": 0.005, "max_share": 0.1, "needs": "water"},
 	"leviathan": {"from_wave": 10, "share": 0.03, "growth": 0.0, "max_share": 0.03, "needs": "water", "max_count": 2},
@@ -1561,6 +1626,17 @@ static func wave_composition(n: int, water := false, only: Array = []) -> Dictio
 			used += c
 	out[WAVE_FILLER] = out.get(WAVE_FILLER, 0) + total - used
 	return out
+
+
+## The most of `kind` in wave `n` (per village): WAVE_MIX "max_count", plus 1
+## every "max_count_every" waves after its from_wave; -1 without a cap.
+static func wave_max_count(kind: String, n: int) -> int:
+	var mix: Dictionary = WAVE_MIX.get(kind, {})
+	if not mix.has("max_count"):
+		return -1
+	var every := int(mix.get("max_count_every", 0))
+	var more := maxi(n - int(mix["from_wave"]), 0) / every if every > 0 else 0
+	return int(mix["max_count"]) + more
 
 
 ## Warning lights (easy/normal only) show where hidden enemies will emerge.

@@ -1,6 +1,6 @@
 extends "res://tests/bot_base.gd"
-## Headless test of the thief, the gargoyle, the necromancer, the vampire
-## and the monster lairs. Run with:
+## Headless test of the thief, the gargoyle, the necromancer, the vampire,
+## the monster lairs, slimes and the spider mother. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/enemy_bot.tscn
 ## Exits 0 when every check passes.
 
@@ -39,6 +39,7 @@ func _run() -> void:
 	await _test_vampire()
 	await _test_lairs()
 	await _test_slimes()
+	await _test_spiders()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -374,19 +375,19 @@ func _test_necromancer() -> void:
 	var tw: Tower = game.world.towers()[0]
 	var back := nec.grid_pos
 	nec.set_grid_pos(Vector2(tw.tile) + Vector2(1.5, 0.0))
-	var none_near := not NecromancerBehavior._fighter_near(nec)
+	var none_near := not NecromancerBehavior._fighter_near(nec, float(nec.spec()["raise_range"]))
 	var held_by := {}
 	for kind in ["healing_mage", "high_priest", "archer"]:
 		var u := MilitaryUnit.new(kind)
 		u.village = v
 		u.state = MilitaryUnit.State.STATIONED
 		tw.garrison = u
-		var on_tower := NecromancerBehavior._fighter_near(nec)
+		var on_tower := NecromancerBehavior._fighter_near(nec, float(nec.spec()["raise_range"]))
 		tw.garrison = null
 		var so: Soldier = preload("res://scripts/units/soldier.gd").new()
 		so.setup(game, u, Vector2i(nec.grid_pos.round()))
 		game.world.objects.add_child(so)
-		var outside := NecromancerBehavior._fighter_near(nec)
+		var outside := NecromancerBehavior._fighter_near(nec, float(nec.spec()["raise_range"]))
 		so.free()
 		held_by[kind] = [on_tower, outside]
 	nec.set_grid_pos(back)
@@ -755,3 +756,195 @@ func _test_slimes() -> void:
 	check(bigs.size() == 1 and e3["name"] == "Slime" and e3["art"] == "unit_slime3", "the library has one entry, \"Slime\", showing the big slime")
 	check(e3.get("text", "") == "Slain, it splits into two smaller slimes, and each of those into two more." and ("HP %s" % Library._n(Config.enemy_stat("slime3", "hp"))) in "\n".join(e3.get("facts", [])), "its text only tells of the split; its numbers are the big slime's")
 
+
+
+# --- spiders (docs/enemies-design.md §15b) -----------------------------------------------------------
+
+func _of_kind(kind: String) -> Array[Enemy]:
+	var out: Array[Enemy] = []
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if (node as Enemy).kind == kind and not node.dead:
+			out.append(node)
+	return out
+
+
+func _test_spiders() -> void:
+	print("-- spiders")
+	await clear_enemies()
+	await clear_corpses()
+	var en := Config.ENEMIES
+	var sm: Dictionary = en["spider_mother"]
+	var egg_cfg: Dictionary = en["spider_egg"]
+	var sl: Dictionary = en["spiderling"]
+	check(sm["hp"] == 90.0 and sm["hp"] > en["ork"]["hp"] and sm["speed"] < en["ork"]["speed"] and sm["behavior"] == "spider_mother", "a spider mother: more HP than an ork (90), slower")
+	check(sm.get("corpse", true) and sm["gold_on_collect"] > 0 and sm["food_on_collect"] == 0 and sm["resist"]["holy"] == 0.75, "her corpse brings gold, no food; holy x0.75 (Wilderness)")
+	check(not sl.get("corpse", true) and sl["raid_chance"] == 0.0 and sl["speed"] == 1.8 and sl["behavior"] == "melee" and sl["siege"] > 0.0 and sl["gold_on_kill"] == 1, "spiderlings: goblin-like, break walls, burn no huts, no corpse, 1 gold")
+	check(sl["hp"] <= 2.0 * en["rat"]["hp"] and sl["damage"] <= 3.0 * en["rat"]["damage"] and sl["speed"] < en["rat"]["speed"], "a spiderling is about a rat's strength (and rats stay the fastest)")
+	check(egg_cfg["hp"] == 1.0 and egg_cfg.get("fixed_hp", false) and not egg_cfg.get("library", true) and egg_cfg["entry"] == "none", "an egg: 1 HP, fixed; no library entry of its own")
+	var first := 0
+	for n in range(1, 30):
+		if Config.wave_composition(n).has("spider_mother"):
+			first = n
+			break
+	check(first == 9 and "spider_mother" in Config.LAIR_THEMES["lair_tree"]["kinds"], "spider mothers march from wave 9 (%d) and come out of hollow trees" % first)
+	var caps := [9, 13, 14, 19, 24].map(func(n: int) -> int: return Config.wave_max_count("spider_mother", n))
+	check(caps == [2, 2, 3, 4, 5] and Config.wave_max_count("goblin", 30) == -1 and Config.wave_max_count("leviathan", 40) == 2, "at most 2 a wave, one more every 5 waves (waves 9/13/14/19/24: %s)" % str(caps))
+	var art_ok := true
+	for a in ["unit_spider_mother", "corpse_spider_mother", "unit_spiderling", "unit_spider_egg", "unit_spider_egg_shell"]:
+		art_ok = art_ok and ResourceLoader.exists("res://art/%s.svg" % a)
+	check(art_ok and Art.tex("unit_spider_mother").get_width() > Art.tex("unit_ork").get_width(), "art for mother, corpse, spiderling, egg and shell; she is bigger than an ork")
+
+	# On her way she lays a clutch every lay_every s, without stopping.
+	var alive0: int = game.waves._alive
+	var m := spawn("spider_mother", Vector2(road_out(20)), 1.0, true)
+	var mb := m.behavior as SpiderMotherBehavior
+	m.speed = 0.25  # (slow, so she stays out on the road through all of this)
+	m.base_speed = 0.25
+	await frames(2)
+	check(absf(mb._lay - float(sm["first_lay"])) < 0.5 and float(sm["first_lay"]) == 25.0 and float(sm["lay_every"]) == 15.0, "her first clutch comes %s s after she enters the map (%.1f), then every %s s" % [sm["first_lay"], mb._lay, sm["lay_every"]])
+	mb._lay = 0.01
+	await frames(3)
+	var eggs := _of_kind("spider_egg")
+	check(eggs.size() >= 4 and eggs.size() <= 6, "she lays a clutch of 4-6 eggs (%d)" % eggs.size())
+	check(eggs.all(func(e: Enemy) -> bool: return e.grid_pos.distance_to(m.grid_pos) < 1.2 and e.max_hp == 1.0 and e.hp == 1.0), "around her, each with 1 HP")
+	check(game.waves._alive == alive0 + 1 + eggs.size(), "the eggs count for the wave")
+	var villager: Civilian = game.population.civilians[0]
+	var vpos := villager.grid_pos
+	var lone := spawn("spider_egg", Vector2(road_out(3)))
+	villager.grid_pos = lone.grid_pos + Vector2(0.5, 0.0)
+	var scared_by_egg := villager.enemy_nearby()
+	villager.grid_pos = vpos
+	kill(lone)
+	check(not mb.waiting() and m.moving and absf(mb._lay - float(sm["lay_every"])) < 0.5, "on her way she doesn't stop for them; the next clutch in %s s" % sm["lay_every"])
+	var hard := Enemy.new()
+	hard.setup(game, [Vector2i(game.player_village.center)] as Array[Vector2i], 50.0, "spider_egg")
+	check(hard.max_hp == 1.0, "an egg has 1 HP whatever the wave")
+	hard.free()
+	# Towers go for eggs last.
+	var gob := spawn("goblin", eggs[0].grid_pos + Vector2(0.3, 0.0))
+	var post := game.world.towers()[0]
+	var near := MilitaryBehavior.enemies_near(post, 1000.0)
+	var low := near.map(func(e: Enemy) -> bool: return e.low_priority())
+	var first_low := low.find(true)
+	check(near.has(gob) and first_low > near.find(gob) and not low.slice(first_low).has(false), "towers pick real enemies before eggs")
+	kill(gob)
+	await clear_corpses()
+	# The eggs wobble before they hatch, then a spiderling comes out of each.
+	var wobbled := false
+	var t := 0.0
+	var hatch_t := float(egg_cfg["hatch_time"])
+	while t < hatch_t + 1.0 and not eggs.all(func(e: Enemy) -> bool: return e.shell):
+		if eggs.any(func(e: Enemy) -> bool: return not e.shell and absf(e.sprite.rotation) > 0.05):
+			wobbled = true
+		await wait(0.1)
+		t += 0.1
+	check(wobbled, "eggs wobble before they hatch")
+	await frames(2)
+	var lings := _of_kind("spiderling")
+	check(eggs.all(func(e: Enemy) -> bool: return is_instance_valid(e) and e.shell and not e.is_in_group("enemies") and e.sprite.texture == Art.tex("unit_spider_egg_shell")), "hatched, each egg is a broken shell nothing can target")
+	check(lings.size() == eggs.size() and lings.all(func(e: Enemy) -> bool: return e.path.size() >= 2 and e.target_village == m.target_village), "a spiderling out of every egg (%d), walking to the village" % lings.size())
+	check(game.waves._alive == alive0 + 1 + lings.size(), "the spiderlings count for the wave instead of the eggs")
+	villager.grid_pos = lings[0].grid_pos + Vector2(0.5, 0.0)
+	var scared_by_ling := villager.enemy_nearby()
+	villager.grid_pos = vpos
+	check(not scared_by_egg and scared_by_ling, "villagers don't run from eggs, only from what hatches")
+	check(lings.all(func(e: Enemy) -> bool: return absf(e.hp_scale - m.hp_scale) < 0.001), "as strong as their mother's wave")
+	await wait(float(egg_cfg["shell_time"]) + 1.0)
+	check(eggs.all(func(e) -> bool: return not is_instance_valid(e)), "the shells are gone after %s s" % egg_cfg["shell_time"])
+	for e in lings:
+		kill(e, game.hero)
+	await frames(2)
+	check(game.corpses.corpses.is_empty(), "spiderlings leave no corpse")
+
+	# Hurt with too few of her young around: she stops, lays and waits.
+	mb._lay = 99.0
+	mb._alarm_cd = 0.0
+	m.take_damage(1.0, game.hero)
+	await frames(3)
+	eggs = _of_kind("spider_egg")
+	var pos := m.grid_pos
+	check(eggs.size() >= 4 and mb.waiting(), "attacked with no young near, she lays a clutch (%d) and guards it" % eggs.size())
+	await wait(hatch_t * 0.6)
+	check(m.grid_pos.distance_to(pos) < 0.05 and mb.waiting(), "she stays by her eggs until they hatch")
+	# Hit again while waiting (cooldown): no second clutch.
+	var n_eggs := eggs.size()
+	m.take_damage(1.0, game.hero)
+	await frames(3)
+	check(_of_kind("spider_egg").size() == n_eggs, "no new clutch while she waits / cools down")
+	await wait_until(func() -> bool: return not mb.waiting(), hatch_t + 2.0)
+	await wait(1.0)
+	check(m.grid_pos.distance_to(pos) > 0.1, "hatched: she walks on")
+	for e in _of_kind("spiderling"):
+		kill(e, game.hero)
+	await frames(2)
+	# Surrounded by her young, a hit makes her lay nothing.
+	var guards: Array[Enemy] = []
+	for i in int(sm["guard_count"]):
+		guards.append(spawn("spiderling", m.grid_pos + Vector2(0.3 * i - 0.3, 0.4)))
+	mb._alarm_cd = 0.0
+	m.take_damage(1.0, game.hero)
+	await frames(3)
+	check(SpiderMotherBehavior.guards(m) >= int(sm["guard_count"]) and _of_kind("spider_egg").is_empty() and not mb.waiting(), "surrounded by her young (%d), a hit doesn't make her lay" % SpiderMotherBehavior.guards(m))
+	for e in guards:
+		kill(e, game.hero)
+	await frames(2)
+	# Smashing the clutch ends her wait.
+	mb._alarm_cd = 0.0
+	m.take_damage(1.0, game.hero)
+	await frames(3)
+	eggs = _of_kind("spider_egg")
+	var gold0 := int(game.economy.amount("gold"))
+	var alive1: int = game.waves._alive
+	for e in eggs:
+		e.take_damage(1.0, game.hero)
+	await frames(3)
+	check(not mb.waiting() and game.corpses.corpses.is_empty() and game.waves._alive == alive1 - eggs.size() and int(game.economy.amount("gold")) == gold0, "smashed eggs (one hit each): no corpse, no gold, she stops waiting")
+	# Killed: a corpse with gold only.
+	kill(m, game.hero)
+	await frames(2)
+	var corpse: Corpse = null
+	for c in game.corpses.corpses:
+		if c.kind == "spider_mother":
+			corpse = c
+	check(corpse != null, "she leaves a corpse")
+
+	# Raised by a necromancer she lays undead eggs; their spiderlings are undead too.
+	var nec := spawn("necromancer", corpse.grid_pos + Vector2(0.5, 0.0))
+	var risen := game.waves.raise_corpse(corpse, nec)
+	kill(nec)
+	await frames(2)
+	var rb := risen.behavior as SpiderMotherBehavior
+	risen.speed = 0.0
+	await frames(3)
+	eggs = _of_kind("spider_egg")
+	check(eggs.size() >= 4 and absf(rb._lay - float(sm["lay_every"])) < 0.5, "raised, she lays a clutch at once (%d eggs), the next in %s s (%.1f)" % [eggs.size(), sm["lay_every"], rb._lay])
+	check(float(sm["lay_every"]) < float(en["necromancer"]["raise_decay"]), "raised, she lays at least once more before she drains away")
+	check(risen.raised and rb != null and eggs.size() >= 4 and eggs.all(func(e: Enemy) -> bool: return e.undead and e.is_unholy() and Soldier.hunt_class(e) == "unholy"), "a raised mother lays undead eggs: unholy, the Inquisitor hunts them")
+	var hp0 := eggs[0].hp
+	eggs[0].take_damage(0.1, null, "holy")
+	check(absf((hp0 - eggs[0].hp) - 0.1 * 0.75 * float(en["necromancer"]["raised_holy"])) < 0.001, "holy damage hurts undead eggs x%s more" % en["necromancer"]["raised_holy"])
+	await wait_until(func() -> bool: return eggs.all(func(e: Enemy) -> bool: return not is_instance_valid(e) or e.shell), hatch_t + 2.0)
+	await frames(2)
+	lings = _of_kind("spiderling")
+	check(not lings.is_empty() and lings.all(func(e: Enemy) -> bool: return e.undead and not e.raised and e.decay_rate == 0.0 and Soldier.hunt_class(e) == "unholy"), "their spiderlings are undead (unholy, no drain)")
+	hp0 = lings[0].hp
+	lings[0].take_damage(1.0, null, "holy")
+	check(absf((hp0 - lings[0].hp) - 0.75 * float(en["necromancer"]["raised_holy"])) < 0.001, "holy damage hurts undead spiderlings x%s more" % en["necromancer"]["raised_holy"])
+	var plain := spawn("spiderling", Vector2(road_out(12)))
+	check(Soldier.hunt_class(plain) == "" and not plain.is_unholy(), "an ordinary spiderling isn't unholy")
+	await clear_enemies()
+
+	# At the gate a spiderling burns nothing: it scuttles off.
+	var huts := game.player_village.intact_huts().size()
+	var n_logs := logs.size()
+	var ling := spawn("spiderling", Vector2(road_out(2)), 1.0, true)
+	(game.map.building_at(game.player_village.gates[0]) as Building).take_damage(1e6)
+	await wait_until(func() -> bool: return not is_instance_valid(ling) or ling.dead, 20.0)
+	await frames(2)
+	check(game.player_village.intact_huts().size() == huts and logs.slice(n_logs).any(func(l: String) -> bool: return "scuttled off" in l), "a spiderling that gets in burns no hut: it scuttles off")
+
+	var lib := Library.entries("enemies")
+	var names := lib.map(func(d: Dictionary) -> String: return d["name"])
+	check("Spider mother" in names and "Spiderling" in names and not ("Spider egg" in names), "the library has the spider mother and the spiderling (eggs are part of her entry)")
+	var facts := "\n".join(lib[names.find("Spider mother")]["facts"])
+	check("Lays 4-6 eggs" in facts and "from wave 9" in facts, "her entry tells of the eggs and her wave")

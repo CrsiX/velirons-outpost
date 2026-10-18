@@ -8,7 +8,13 @@ extends Node
 ## the settings with Save / Load, the save page, Continue, the save list (in
 ## landscape and portrait), and (`--only=siege`) building HP: hurt, devastated
 ## and upgraded walls, gates and buildings, their panels, a repair under way,
-## goblins hitting a gate, the library's gate entry and the statistics.
+## goblins hitting a gate, the library's gate entry and the statistics, and
+## (`--only=spiders`) a spider mother laying eggs, eggs wobbling and hatching,
+## the broken shells, spiderlings at a gate, undead ones, the library, and
+## (`--only=undead_spiders`) a spider mother raised by a necromancer, in real
+## time: the spell, her first clutch at once, undead eggs hatching, her next
+## clutch, an acolyte's holy beams on undead spiderlings, her crumbling, her
+## library entry (with the log at Debug; it prints what it sees).
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -89,6 +95,10 @@ func _run() -> void:
 		await _saves()
 	if only in ["", "siege"]:
 		await _siege()
+	if only in ["", "spiders"]:
+		await _spiders()
+	if only in ["", "undead_spiders"]:
+		await _undead_spiders()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -687,3 +697,265 @@ func _free_spot_in(g: Game, kind: String, near: Vector2i) -> Vector2i:
 				if g.construction.placement_error(kind, t) == "":
 					return t
 	return near
+
+
+# --- the spider mother (docs/enemies-design.md §15b) ----------------------------------------
+
+func _spiders() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	g.disable_fog = true
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	for t in g.world.towers():
+		if t.garrison:
+			g.army.unstation(t.garrison)
+	var gate: Vector2i = v.gates[0]
+	var road := gate
+	var seen := {road: true}
+	for i in 9:
+		for n in MapData.neighbors4(road):
+			if g.map.is_road(n) and not seen.has(n) and not g.map.in_village(n):
+				seen[n] = true
+				road = n
+				break
+	var spawn := func(kind: String, at: Vector2, hp_scale: float) -> Enemy:
+		g.waves._spawn({"kind": kind, "spawn": g.map.edge_spawns[0], "hp_scale": hp_scale, "village": v})
+		var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+		e.set_grid_pos(at)
+		var route := g.world.pathing.enemy_route(Vector2i(at.round()), RandomNumberGenerator.new(), -1)
+		var pts := PackedVector2Array([at])
+		for t in route:
+			pts.append(Vector2(t))
+		e.follow(pts)
+		return e
+	# A mother next to an ork and a goblin, for size; she lays a clutch.
+	var m: Enemy = spawn.call("spider_mother", Vector2(road), 50.0)
+	var ork: Enemy = spawn.call("ork", Vector2(road) + Vector2(0.9, -0.6), 50.0)
+	var gob: Enemy = spawn.call("goblin", Vector2(road) + Vector2(-0.6, 0.9), 50.0)
+	for e: Enemy in [m, ork, gob]:
+		e.speed = 0.0
+	(m.behavior as SpiderMotherBehavior)._lay = 0.01
+	await _frames(5)
+	g.camera.focus(Iso.to_world(m.grid_pos))
+	g.camera.zoom = Vector2(1.6, 1.6)
+	await _frames(10)
+	await shot("spiders_mother_lays")
+	ork.vanish()
+	gob.vanish()
+	# Wobbling just before they hatch, then the shells and the spiderlings.
+	var eggs: Array[Enemy] = []
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if (node as Enemy).kind == "spider_egg":
+			eggs.append(node)
+	for e in eggs:
+		(e.behavior as EggBehavior).age = float(e.spec()["hatch_time"]) - 0.6
+	await _frames(12)
+	await shot("spiders_eggs_wobble")
+	await _frames(40)
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if (node as Enemy).kind == "spiderling":
+			node.speed = 0.0
+	await _frames(20)
+	await shot("spiders_hatched_shells")
+	# Hurt, with her young gone: she stops and guards a new clutch.
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if (node as Enemy).kind == "spiderling":
+			(node as Enemy).vanish()
+	await _frames(30)
+	m.take_damage(5.0, null)
+	m.take_damage(1.0, g.hero)
+	await _frames(10)
+	await shot("spiders_mother_guards")
+	# Spiderlings breaking the top gate.
+	m.vanish()
+	for node in get_tree().get_nodes_in_group("enemies"):
+		(node as Enemy).vanish()
+	await _frames(20)
+	var near := gate
+	seen = {near: true}
+	for i in 2:
+		for n in MapData.neighbors4(near):
+			if g.map.is_road(n) and not seen.has(n) and not g.map.in_village(n):
+				seen[n] = true
+				near = n
+				break
+	for k in 7:
+		spawn.call("spiderling", Vector2(near) + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 50.0)
+	Engine.time_scale = 3.0
+	await _frames(90)
+	Engine.time_scale = 1.0
+	g.camera.focus(Iso.tile_to_world(gate))
+	g.camera.zoom = Vector2(1.4, 1.4)
+	await _frames(10)
+	await shot("spiders_spiderlings_at_gate")
+	for node in get_tree().get_nodes_in_group("enemies"):
+		(node as Enemy).vanish()
+	await _frames(20)
+	# A raised mother and her undead clutch.
+	var c := g.corpses.spawn("spider_mother", 1, Vector2(road))
+	c.hp_scale = 50.0
+	var nec: Enemy = spawn.call("necromancer", Vector2(road) + Vector2(0.8, 0.0), 1.0)
+	var risen := g.waves.raise_corpse(c, nec)
+	nec.vanish()
+	risen.speed = 0.0
+	risen.decay_rate = 0.0
+	await _frames(10)
+	g.camera.focus(Iso.to_world(risen.grid_pos))
+	g.camera.zoom = Vector2(1.6, 1.6)
+	await _frames(10)
+	await shot("spiders_undead_clutch")
+	for node in get_tree().get_nodes_in_group("enemies"):
+		(node as Enemy).vanish()
+	g.hud.open_library("enemies")
+	await _frames(10)
+	await shot("spiders_library")
+	g.hud.library.close()
+	g.queue_free()
+	await _frames(3)
+
+
+## Waits `seconds` of game time (the frame delta already counts the time scale).
+func _game_wait(seconds: float) -> void:
+	var t := 0.0
+	while t < seconds:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+
+
+func _undead_spiders() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	g.disable_fog = true
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	g.events.shown_level = EventLog.Level.DEBUG
+	var v := g.player_village
+	var h := g.hero  # (out of the way: he'd fight everything)
+	h.process_mode = Node.PROCESS_MODE_DISABLED
+	h.remove_from_group("melee_defenders")
+	h.visible = false
+	for t in g.world.towers():
+		if t.garrison:
+			g.army.unstation(t.garrison)
+	var gate: Vector2i = v.gates[0]
+	var path: Array[Vector2i] = [gate]
+	var seen := {gate: true}
+	for i in 12:
+		for n in MapData.neighbors4(path.back()):
+			if g.map.is_road(n) and not seen.has(n) and not g.map.in_village(n):
+				seen[n] = true
+				path.append(n)
+				break
+	var far := path[mini(10, path.size() - 1)]
+	var spawn := func(kind: String, at: Vector2, hp_scale: float) -> Enemy:
+		g.waves._spawn({"kind": kind, "spawn": g.map.edge_spawns[0], "hp_scale": hp_scale, "village": v})
+		var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+		e.set_grid_pos(at)
+		var route := g.world.pathing.enemy_route(Vector2i(at.round()), RandomNumberGenerator.new(), -1)
+		var pts := PackedVector2Array([at])
+		for t in route:
+			pts.append(Vector2(t))
+		e.follow(pts)
+		return e
+	var count := func(kind: String) -> Array[Enemy]:
+		var out: Array[Enemy] = []
+		for node in get_tree().get_nodes_in_group("enemies"):
+			if (node as Enemy).kind == kind:
+				out.append(node)
+		return out
+	# An acolyte on a watchtower by the road, nearer the village.
+	g.unlocks["acolyte"] = true
+	g.economy.add("gold", 500)
+	g.economy.add("materials", 500)
+	var tw := g.construction.place("tower", _free_spot_in(g, "tower", path[mini(5, path.size() - 1)] + Vector2i(1, 1)))
+	tw.progress = tw.build_time
+	g.construction.complete(tw)
+	var aco := g.army.recruit("acolyte")
+	g.army.station(aco, tw)
+	# A spider mother killed on the road; a necromancer comes for her corpse.
+	var m: Enemy = spawn.call("spider_mother", Vector2(far), 12.0)  # (tough: the acolyte shouldn't kill her before she drains away)
+	m.speed = 0.0
+	await _frames(5)
+	m.take_damage(1e9, null)
+	await _frames(20)
+	var corpse: Corpse = null
+	for c in g.corpses.corpses:
+		if c.kind == "spider_mother":
+			corpse = c
+	print("corpse: %s" % (corpse != null))
+	var nec: Enemy = spawn.call("necromancer", Vector2(far) + Vector2(1.2, 0.4), 50.0)
+	nec.speed = 0.3
+	g.camera.focus(Iso.to_world(Vector2(far)))
+	g.camera.zoom = Vector2(1.5, 1.5)
+	await _game_wait(1.5)
+	var nb := nec.behavior as NecromancerBehavior
+	print("necromancer channels: %s" % (nb.corpse == corpse))
+	await shot("undead_necromancer_channels")
+	# The spell ends: she rises and lays a clutch at once.
+	Engine.time_scale = 2.0
+	var waited := 0.0
+	while count.call("spider_mother").is_empty() and waited < 12.0:
+		await _game_wait(0.1)
+		waited += 0.1
+	print("necromancer alive: %s" % (is_instance_valid(nec) and not nec.dead))
+	var risen: Array[Enemy] = count.call("spider_mother")
+	var mo: Enemy = risen[0] if not risen.is_empty() else null
+	Engine.time_scale = 1.0
+	await _frames(10)
+	var eggs: Array[Enemy] = count.call("spider_egg")
+	print("risen: %s raised=%s hp %.0f/%.0f, eggs %d undead %s, next clutch in %.1f s" % [mo != null, mo.raised if mo else false, mo.hp if mo else 0.0, mo.max_hp if mo else 0.0, eggs.size(), eggs.all(func(e: Enemy) -> bool: return e.undead), (mo.behavior as SpiderMotherBehavior)._lay if mo else -1.0])
+	nec.vanish()
+	if mo:
+		mo.speed = 0.15
+		mo.base_speed = 0.15
+		g.camera.focus(Iso.to_world(mo.grid_pos))
+	await _frames(10)
+	await shot("undead_mother_rises_lays")
+	# Undead eggs wobble, hatch; undead spiderlings walk to the village.
+	await _game_wait(float(Config.ENEMIES["spider_egg"]["hatch_time"]) - 0.8)
+	await shot("undead_eggs_wobble")
+	await _game_wait(1.2)
+	var lings: Array[Enemy] = count.call("spiderling")
+	print("hatched: %d spiderlings, undead %s, drain %s" % [lings.size(), lings.all(func(e: Enemy) -> bool: return e.undead), lings.any(func(e: Enemy) -> bool: return e.decay_rate > 0.0)])
+	await shot("undead_spiderlings_hatch")
+	# The acolyte's beams on undead spiderlings (x2 holy).
+	g.camera.focus(Iso.tile_to_world(tw.tile))
+	await _game_wait(3.0)
+	await shot("undead_acolyte_beams")
+	# Her second clutch, 15 s after rising.
+	print("before the second clutch: mother %s, next clutch in %.1f s" % ["there" if is_instance_valid(mo) and not mo.dead else "gone", (mo.behavior as SpiderMotherBehavior)._lay if is_instance_valid(mo) else -1.0])
+	if is_instance_valid(mo) and not mo.dead:
+		g.camera.focus(Iso.to_world(mo.grid_pos))
+		await _game_wait(maxf((mo.behavior as SpiderMotherBehavior)._lay + 0.3, 0.0))
+		var alive := is_instance_valid(mo) and not mo.dead
+		print("second clutch: eggs %d, mother %s" % [count.call("spider_egg").size(), "hp %.0f/%.0f" % [mo.hp, mo.max_hp] if alive else "gone"])
+		await shot("undead_second_clutch")
+	# She drains away: she crumbles to dust (no corpse, no gold).
+	var corpses0 := g.corpses.corpses.size()
+	await _game_wait(8.0)
+	print("mother gone: %s, corpses %d -> %d" % [not is_instance_valid(mo) or mo.dead, corpses0, g.corpses.corpses.size()])
+	await shot("undead_mother_crumbled")
+	for e in g.events.entries:
+		if "spider mother" in str(e["text"]) or "necromancer" in str(e["text"]):
+			print("log: %s" % e["text"])
+	for node in get_tree().get_nodes_in_group("enemies"):
+		(node as Enemy).vanish()
+	g.hud.open_library("enemies")
+	await _frames(10)
+	var lib: Library = g.hud.library
+	for c in lib._list.get_children():
+		if str(c.get_meta("entry_name", "")) == "Spider mother":
+			lib._scroll.ensure_control_visible(c)
+	await _frames(10)
+	await shot("undead_library_spider_mother")
+	lib.close()
+	g.queue_free()
+	await _frames(3)

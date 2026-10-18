@@ -21,7 +21,12 @@ const BEHAVIORS := {
 	"siren": preload("res://scripts/units/enemies/siren_behavior.gd"),
 	"octopus": preload("res://scripts/units/enemies/octopus_behavior.gd"),
 	"arm": preload("res://scripts/units/enemies/arm_behavior.gd"),
+	"spider_mother": preload("res://scripts/units/enemies/spider_mother_behavior.gd"),
+	"egg": preload("res://scripts/units/enemies/egg_behavior.gd"),
 }
+## How many tiles farther a low_priority enemy (a spider egg) counts for
+## whoever picks a target: anything else in reach comes first.
+const LOW_PRIORITY_TILES := 1000.0
 
 ## Water monsters (docs/aquatic-design.md §2): up (targetable), diving, down
 ## or surfacing (all three untargetable).
@@ -59,6 +64,11 @@ var raised := false
 var decay_rate := 0.0
 ## Died of that drain, not killed: no gold.
 var decayed := false
+## Undead without being raised (a raised spider mother's eggs and their
+## spiderlings): unholy, and holy damage hurts it like the raised; no drain.
+var undead := false
+## A hatched egg: only its broken shell, out of everyone's reach (hatch_out).
+var shell := false
 ## Flying for now (a vampire in bat form): see set_airborne.
 var airborne := false
 ## A necromancer's spell on a corpse there (grid position; INF = none).
@@ -98,7 +108,7 @@ func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: Stri
 	game = p_game
 	kind = p_kind
 	hp_scale = p_hp_scale
-	max_hp = stat("hp") * hp_scale
+	max_hp = float(spec()["hp"]) if spec().get("fixed_hp", false) else stat("hp") * hp_scale
 	hp = max_hp
 	speed = stat("speed") * randf_range(0.92, 1.08)
 	base_speed = speed
@@ -507,6 +517,56 @@ func make_raised(share: float, decay: float) -> void:
 	queue_redraw()
 
 
+## Undead from the start (see `undead`): as pale as the raised.
+func make_undead() -> void:
+	undead = true
+	modulate = Color(0.7, 1.0, 0.75, 0.8)
+
+
+## Unholy: its kind is, or it was raised or is undead (the Inquisitor hunts it).
+func is_unholy() -> bool:
+	return raised or undead or spec().get("unholy", false)
+
+
+## Comes last for whoever picks a target (a spider egg; see LOW_PRIORITY_TILES).
+func low_priority() -> bool:
+	return spec().get("low_priority", false)
+
+
+## An egg hatched (Waves.hatch): its broken shell stays shell_time s, out of
+## everyone's reach, then fades (on a co-op client the host removes it).
+func hatch_out() -> void:
+	if dead:
+		return
+	dead = true
+	shell = true
+	remove_from_group("enemies")
+	behavior.on_death(self)
+	_show_shell()
+	if game.is_client:
+		return
+	vanished.emit(self)
+	var tw := create_tween()
+	tw.tween_interval(float(spec().get("shell_time", 3.0)))
+	tw.tween_property(self, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(queue_free)
+
+
+func _show_shell() -> void:
+	shell = true
+	Art.apply(sprite, "unit_%s_shell" % spec()["art"])
+	sprite.rotation = 0.0
+	sprite.scale = Vector2(0.5, 0.5)
+	queue_redraw()
+
+
+## Co-op client: the host's egg hatched.
+func net_shell() -> void:
+	if not shell:
+		dead = true
+		_show_shell()
+
+
 ## Log name, numbered per kind: "goblin 4".
 func label() -> String:
 	return "%s %d" % [str(spec()["name"]).to_lower(), uid]
@@ -566,6 +626,8 @@ func swing(grid_target: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	if dead:
+		if shell and not game.is_client:
+			_update_visibility()  # (a shell is seen like any enemy)
 		return
 	if flies():
 		_fly(delta)
@@ -573,6 +635,7 @@ func _process(delta: float) -> void:
 		queue_redraw()
 	if _wades():
 		_wade(delta)
+	behavior.animate(self, delta)
 	if game.is_client:
 		if dive == Dive.DIVING or dive == Dive.SURFACING:
 			_dive_t += delta
@@ -803,7 +866,7 @@ func take_damage(amount: float, source: Node = null, category: String = "pure") 
 	if dead:
 		return
 	amount *= float(spec().get("resist", {}).get(category, 1.0))
-	if raised and category == "holy":
+	if (raised or undead) and category == "holy":
 		amount *= float(Config.ENEMIES["necromancer"]["raised_holy"])  # (the undead it raised)
 	hp -= amount
 	behavior.on_hurt(self)

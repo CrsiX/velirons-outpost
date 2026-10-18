@@ -48,3 +48,23 @@ func on_hurt(_enemy: Enemy) -> void:
 ## Called once when the enemy dies or vanishes.
 func on_death(_enemy: Enemy) -> void:
 	pass
+
+
+## Called every frame on every machine (a co-op client too), for looks only.
+func animate(_enemy: Enemy, _delta: float) -> void:
+	pass
+
+
+## A fighter of any village near `enemy`: the hero, a soldier or an elemental
+## within `r` tiles, or a manned tower that has it in range. Units that can't
+## hurt it (a Healing Mage, a High Priest) don't count.
+static func _fighter_near(enemy: Enemy, r: float) -> bool:
+	for node in enemy.get_tree().get_nodes_in_group("melee_defenders"):
+		if not node.dead and not (node is Soldier and not node.unit.fights()) and node.grid_pos.distance_to(enemy.grid_pos) <= r:
+			return true
+	for b in enemy.game.world.towers():
+		var t := b as Tower
+		if t and t.garrison != null and t.garrison.state == MilitaryUnit.State.STATIONED and t.garrison.fights() \
+				and Vector2(t.tile).distance_to(enemy.grid_pos) <= t.range_tiles():
+			return true
+	return false

@@ -143,7 +143,7 @@ the library marks them as such.
 
 | Category | Members now | Planned or open | Why they came |
 |---|---|---|---|
-| **Wilderness** | goblin, ork, rat, slime | spider (coming soon); **sea monsters**: giant crab (4), giant octopus and leviathan (9), which swim rivers, lakes and the sea (built: `aquatic-design.md`) | Always lived around the kingdom. The Wardline held them back. |
+| **Wilderness** | goblin, ork, rat, slime | spider mother with her eggs and spiderlings (built: `enemies-design.md` §15b); **sea monsters**: giant crab (4), giant octopus and leviathan (9), which swim rivers, lakes and the sea (built: `aquatic-design.md`) | Always lived around the kingdom. The Wardline held them back. |
 | **Renegades** (*Abtrünnige*) | thief | bandit, deserter, assassin | **Fully human**, ordinary criminals who saw the chance when the order collapsed: bad people, but not evil. |
 | **Undead** | skeleton | ghost, wraith, zombie | The war's dead, unburied. |
 | **Evil** | vampire, necromancer | demon | Intelligent and malicious, drawn by the death. |

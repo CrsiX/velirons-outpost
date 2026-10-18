@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="68" height="43" viewBox="-16 -15.2 34 21.5">
+  <ellipse cx="0" cy="0" rx="10" ry="3" fill="#000" opacity="0.35"/>
+  <polyline points="-1,-5 -8,-10 -12,-1" fill="none" stroke="#15110d" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-1,-5 -8,-10 -12,-1" fill="none" stroke="#3e2e22" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="1,-5 -3,-11 -6,-1" fill="none" stroke="#15110d" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="1,-5 -3,-11 -6,-1" fill="none" stroke="#3e2e22" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="3,-5 7,-11 7,-1" fill="none" stroke="#15110d" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="3,-5 7,-11 7,-1" fill="none" stroke="#3e2e22" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="4,-5 11,-9 13,-1" fill="none" stroke="#15110d" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="4,-5 11,-9 13,-1" fill="none" stroke="#3e2e22" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="-4" cy="-7" rx="6.5" ry="5.2" fill="#5a4232" stroke="#15110d" stroke-width="1.1"/>
+  <ellipse cx="-5" cy="-8.5" rx="3" ry="1.6" fill="#7c6048" opacity="0.7"/>
+  <ellipse cx="-4" cy="-6.8" rx="1" ry="1.4" fill="#c9a24a" opacity="0.85"/>
+  <ellipse cx="3" cy="-5" rx="3.4" ry="2.8" fill="#5a4232" stroke="#15110d" stroke-width="1.0"/>
+  <ellipse cx="4.8" cy="-5.6" rx="0.8" ry="0.8" fill="#ff3a2a"/>
+  <ellipse cx="3.6" cy="-6.2" rx="0.6" ry="0.6" fill="#ff3a2a"/>
+  <polyline points="-1,-4 -9,-11 -13,0" fill="none" stroke="#15110d" stroke-width="2.4000000000000004" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-1,-4 -9,-11 -13,0" fill="none" stroke="#5a4232" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="1,-4 -4,-12 -7,0" fill="none" stroke="#15110d" stroke-width="2.4000000000000004" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="1,-4 -4,-12 -7,0" fill="none" stroke="#5a4232" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="3,-4 8,-12 8,0" fill="none" stroke="#15110d" stroke-width="2.4000000000000004" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="3,-4 8,-12 8,0" fill="none" stroke="#5a4232" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="4,-4 12,-10 15,0" fill="none" stroke="#15110d" stroke-width="2.4000000000000004" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="4,-4 12,-10 15,0" fill="none" stroke="#5a4232" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

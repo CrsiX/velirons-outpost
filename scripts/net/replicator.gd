@@ -304,9 +304,9 @@ func _describe(n: Node) -> Array:
 		return [c.nid, "c", {"r": c.role, "v": vid, "u": c.uid}, _unit_state(c).merged({"h": c.at_home, "s": c.status_text(), "hut": game.id_of(c.hut), "hp": snappedf(c.hp, 0.5)}), c.current_tile(), vid, false]
 	if n is Enemy:
 		var e := n as Enemy
-		if e.dead:
+		if e.dead and not e.shell:  # (a hatched egg's shell stays a while)
 			return []
-		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0, "c": e.color}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "air": e.airborne, "ch": e.channel_to if e.channel_to != Vector2.INF else null, "dv": int(e.dive), "efx": e.fx}), e.current_tile(), -1, false]
+		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0, "c": e.color}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "ud": e.undead, "sh": e.shell, "air": e.airborne, "ch": e.channel_to if e.channel_to != Vector2.INF else null, "dv": int(e.dive), "efx": e.fx}), e.current_tile(), -1, false]
 	if n is Soldier:
 		var s := n as Soldier
 		vid = s.unit.village.id if s.unit.village else -1
@@ -606,6 +606,10 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		if st.get("rz", false) and not en.raised:
 			en.raised = true
 			en.modulate = Color(0.7, 1.0, 0.75, 0.8)
+		if st.get("ud", false) and not en.undead:
+			en.make_undead()
+		if st.get("sh", false):
+			en.net_shell()
 		if bool(st.get("air", false)) != en.airborne:
 			en.set_airborne(bool(st.get("air", false)))
 		var ch = st.get("ch")
