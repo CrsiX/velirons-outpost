@@ -630,7 +630,20 @@ const BUILDINGS := {
 		"campaign": true,
 		"desc": "2x2. The merchant's stall: while he tends it, gold buys building material and food from his stock. Rats eat his goods.",
 	},
+	# The guild's warehouse (scenario 4: it must not fall); prebuilt by a
+	# scenario, never placed by the player. Enemies breaking in go for it as
+	# for a hut and plunder it (WAREHOUSE).
+	"warehouse": {
+		"name": "Guild Warehouse", "cost": {"materials": 80}, "build_time": 20.0, "size": 2, "art": "warehouse",
+		"campaign": true,
+		"desc": "2x2. The guild's stock. Enemies that break in go for it as for a hut and plunder it.",
+	},
 }
+
+## The guild warehouse (Warehouse; docs/scenarios-design.md §7.7):
+## raid_damage: HP an enemy that gets to it takes (it is gone then, as after
+## burning a hut).
+const WAREHOUSE := {"raid_damage": 50.0}
 
 ## The trade stall's stages (Building.level 1-3): peddler, stall, guild market.
 ## "stock": goods it holds at most (a lot sold takes its "amount" of goods);
@@ -670,6 +683,7 @@ const BUILDING_HP := {
 	"lightstone": [80.0],
 	"training": [150.0],
 	"stall": [100.0, 150.0, 200.0],
+	"warehouse": [400.0],
 	"hut": [1.0],
 }
 ## The village's pieces were never bought: their price and build time count
@@ -737,6 +751,12 @@ const CIVILIANS := {
 		"desc": "Tends the trade stall: while he is there, gold buys his goods. Flees from enemies.",
 		"works_at": "stall",
 	},
+	# Can't be recruited: only a campaign scenario has one (Wenna, scenario 4;
+	# docs/scenarios-design.md §7.7). Stays in her hut, the guild house.
+	"guildmaster": {
+		"name": "Guild Master", "cost": {}, "speed": 1.2, "recruit": false,
+		"desc": "Keeps the guild's books in the guild house and never leaves it. She dies if it burns.",
+	},
 	# Can't be recruited: a spatial mage of level ARCHMAGE_LEVEL becomes one
 	# (docs/military-design.md §7). A key to ending the siege, later.
 	"spatial_archmage": {
@@ -752,7 +772,7 @@ static func worker_role(kind: String) -> String:
 	return ""
 
 
-const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "merchant", "spatial_archmage"]
+const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "merchant", "guildmaster", "spatial_archmage"]
 ## Unit kinds and villager roles that have to be unlocked first, and how
 ## (docs/world-design.md §9.4, §9.6). Unlocks are global: for every village.
 const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "acolyte": "chapel", "miner": "mine"}
@@ -1492,6 +1512,31 @@ const ENEMIES := {
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 0, "gold_on_collect": 0, "food_on_collect": 0,
 		"habitat": "water", "hp_bar_y": -30.0,
+	},
+	# The Dread Legion (docs/story-design.md §5): Rhodri's soldiers, people
+	# bound by the crown's ritual, not monsters. Only in the campaign
+	# ("campaign": never in the normal waves). A fallen one is released
+	# ("release": the pale colour fades, a breath goes out) and leaves no corpse.
+	"legion_footman": {
+		"name": "Legion Footman", "art": "legion_footman", "behavior": "melee", "corpse": false,
+		"siege": 1.0, "campaign": true, "release": true,
+		"desc": "A soldier of the Dread Legion, bound to Rhodri: pale, silent, and marching in step. A person, not a monster.",
+		"hp": 38.0, "speed": 0.95,
+		"damage": 7.0, "attack_cooldown": 1.1,
+		"gold_on_kill": 5, "gold_on_collect": 0, "food_on_collect": 0,
+	},
+	# A Legion captain (the campaign's Lysa and Torben, named by the scenario):
+	# a tougher footman that is never killed. Below retreat_below of its HP it
+	# falls back (CaptainBehavior): untargetable, retreat_speed x as fast, back
+	# the way it came and off the map. ("Commanding abilities": open.)
+	"legion_captain": {
+		"name": "Legion Captain", "art": "legion_captain", "behavior": "captain", "corpse": false,
+		"siege": 1.0, "campaign": true, "release": true,
+		"desc": "Leads the Dread Legion's soldiers: plumed helm, a captain's cloak. It falls back when beaten instead of falling.",
+		"hp": 140.0, "speed": 0.95,
+		"damage": 12.0, "attack_cooldown": 1.2,
+		"gold_on_kill": 0, "gold_on_collect": 0, "food_on_collect": 0,
+		"retreat_below": 0.3, "retreat_speed": 1.4, "hp_bar_y": -52.0,
 	},
 }
 ## The water monsters' shared rules (docs/aquatic-design.md):

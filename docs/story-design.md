@@ -1,7 +1,7 @@
 # Story design
 
-Status: **scenario 1's part is built** (Brenna, Einar and Pell, their portraits, the cutscene format: `scenarios-design.md` §7); the rest is
-planned. This page holds the story the game's scenarios, library texts and event log will draw on. It changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
+Status: **scenarios 1 to 5 are built** (Brenna, Einar, Pell, Wenna, Sigmund, Lysa and Torben, the portraits, the cutscene format, the Legion's
+footman and captain: `scenarios-design.md` §7); the rest is planned. This page holds the story the game's scenarios, library texts and event log will draw on. It changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
 *open* is not decided.
 
 ## 1. Premise
@@ -179,7 +179,7 @@ the library marks them as such.
 | **Renegades** (*Abtrünnige*) | thief | bandit, deserter, assassin | **Fully human**, ordinary criminals who saw the chance when the order collapsed: bad people, but not evil. |
 | **Undead** | skeleton | ghost, wraith, zombie | The war's dead, unburied. |
 | **Evil** | vampire, necromancer | demon | Intelligent and malicious, drawn by the death. |
-| **Dread Legion** | none | footman, archer, captain, banner-bearer, the marshal (a mid-boss); unit names *open* | Rhodri's own army: human soldiers under the corruption's influence, like brainwashing. See below. |
+| **Dread Legion** | footman, captain (campaign only: `scenarios-design.md` §7.7) | archer, banner-bearer, the marshal (a mid-boss); unit names *open* | Rhodri's own army: human soldiers under the corruption's influence, like brainwashing. See below. |
 | **Arcane** (*open*) | witch, gargoyle | siren, wisp, golem | Magic-made or magic-using. Goes with neither Wilderness nor Evil. |
 
 Library and log text should use the category name ("a Renegade", "the Undead"), not a person's backstory.
@@ -201,7 +201,9 @@ They look like soldiers in different poses and with different skills, paler than
 orders.
 - Its core is **Brenna's own old company**, whom the ritual at the pass bound (scenario 5). Two of them are named: its captain **Lysa** and her
   comrade **Torben**.
-- When a Legion soldier falls, the game shows a release: the pale colour fades, a human face shows for a moment and a breath goes out.
+- When a Legion soldier falls, the game shows a release: the pale colour fades, a human face shows for a moment and a breath goes out (built:
+  the colour warms, a pale breath rises).
+- Its named captains, **Lysa** and **Torben**, are never killed before the story is done with them: beaten, they fall back (scenario 5).
 - It is the army of the final struggle, and it is what marches on the home village (scenarios 5, 8, 9, 10 and 11).
 - The difference from the Renegades: they chose to be criminals, the Legion never chose.
 - In the last wave of scenario 11 Rhodri himself fights as a captain-like melee boss with commanding abilities.

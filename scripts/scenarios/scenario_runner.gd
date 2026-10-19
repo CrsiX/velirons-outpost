@@ -138,6 +138,8 @@ func _prebuild() -> void:
 			b = _wall_tower_by(road_spots(int(p.get("road", 0))))
 		else:
 			var t: Vector2i = p.get("tile", Vector2i(-1, -1))
+			if p.get("near_water", false):
+				t = _spot_by_water(kind, taken)
 			if t == Vector2i(-1, -1):
 				var at: Array = p.get("at", [3, 7])
 				t = road_spots(int(p.get("road", 0))).by_road(kind, int(at[0]), int(at[1]), taken)
@@ -155,6 +157,38 @@ func _prebuild() -> void:
 			b.refresh()
 		if p.has("units"):
 			_prebuilt.append([b, p["units"]])
+
+
+## Where a `kind` goes by the water: a free spot next to the walls (within
+## the band where enemies leave their roads, Config.SIEGE.approach) nearest
+## the water; (-1, -1) if there is none.
+func _spot_by_water(kind: String, taken: Array[Vector2i]) -> Vector2i:
+	var v := game.player_village
+	var size := int(Config.BUILDINGS[kind]["size"])
+	var band := v.rect.grow(int(Config.SIEGE["approach"]) - 1)
+	var water: Array[Vector2i] = []
+	var look := v.rect.grow(14)
+	for y in range(look.position.y, look.end.y):
+		for x in range(look.position.x, look.end.x):
+			if game.map.is_water(Vector2i(x, y)):
+				water.append(Vector2i(x, y))
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for y in range(band.position.y, band.end.y):
+		for x in range(band.position.x, band.end.x):
+			var t := Vector2i(x, y)
+			var fp := Building.footprint(t, size)
+			if fp.any(func(q: Vector2i) -> bool: return not band.has_point(q) or taken.has(q) or game.map.is_road(q)):
+				continue
+			if v.construction.placement_error(kind, t, true) != "":
+				continue
+			var d := INF
+			for w in water:
+				d = minf(d, Vector2(w).distance_to(Vector2(t)))
+			if d < best_d:
+				best_d = d
+				best = t
+	return best
 
 
 ## The village's corner tower nearest the gate of `rs`'s road.
@@ -259,6 +293,11 @@ func _name_villagers() -> void:
 		if spec.names.has(c.role) and not named.has(c.role):
 			named[c.role] = true
 			c.given_name = str(spec.names[c.role])
+			if spec.homes.has(c.given_name) and is_instance_valid(c.hut):
+				var home: Dictionary = spec.homes[c.given_name]
+				c.hut.look = str(home.get("art", ""))
+				c.hut.look_name = str(home.get("name", ""))
+				c.hut.refresh()
 
 
 ## She stands by her tent (it is uncovered, and so is the road she came by
@@ -574,6 +613,9 @@ func _process(delta: float) -> void:
 
 func _poll_now() -> void:
 	_poll = POLL
+	_check_must_stand()
+	if phase == Phase.OVER:
+		return
 	spec.on_poll(self)
 	for hut: Node in _smoke.keys():
 		if not is_instance_valid(hut) or not (hut as Hut).ruined:
@@ -649,6 +691,16 @@ func command_error(type: String, args: Dictionary) -> String:
 	return ""
 
 
+## A kind that must not fall (Scenario.must_stand) has fallen: lost.
+func _check_must_stand() -> void:
+	for kind in spec.must_stand:
+		var list := pieces(kind)
+		if list.is_empty() or list.any(func(b: Building) -> bool: return not b.devastated):
+			continue
+		lose(spec.fallen_text(list[0]))
+		return
+
+
 func _on_villager_died(civ: Civilian, reason: String, _cause: String) -> void:
 	if (spec.fail_on_villager_death or spec.must_live.has(civ.given_name)) and phase != Phase.OVER:
 		lose(spec.death_text(civ, reason))
@@ -701,7 +753,7 @@ func lose(why: String) -> void:
 		return
 	phase = Phase.OVER
 	if cutscene:
-		cutscene.skip()
+		cutscene.stop()
 	card.visible = false
 	highlight.visible = false
 	game.events.important("Scenario lost: %s" % why)
@@ -729,6 +781,40 @@ func farms() -> Array:
 ## The village's pieces of `kind` ("gate", "wall", "wall_tower", "hut").
 func pieces(kind: String) -> Array:
 	return game.player_village.buildings().filter(func(b: Building) -> bool: return b.kind == kind)
+
+
+## The map's treasures (Treasure), farthest from the village first.
+func treasures() -> Array:
+	var c := Vector2(game.player_village.center)
+	var out := game.world.map_objects.filter(func(o: Node) -> bool: return o is Treasure)
+	out.sort_custom(func(a: Node, b: Node) -> bool: return Vector2((a as Treasure).tile).distance_to(c) > Vector2((b as Treasure).tile).distance_to(c))
+	return out
+
+
+## The edge spawn whose road comes in nearest `near` (a tile), or (-1, -1).
+func spawn_near(near: Vector2i) -> Vector2i:
+	var road := road_in(near, 100000)
+	return road[0] if not road.is_empty() else Vector2i(-1, -1)
+
+
+## `count` more of `kind` for the wave under way, from road tile `tile`
+## (they count for the wave); `extra`: "name", "art" (a named Legion captain).
+func add_enemies(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary = {}) -> void:
+	if tile != Vector2i(-1, -1):
+		game.waves.add_to_wave(kind, tile, count, extra)
+
+
+## Whether an enemy of `kind` is about now (not counting monster camps' guards).
+func enemy_about(kind: String) -> bool:
+	return game.get_tree().get_nodes_in_group("enemies").any(func(e: Node) -> bool: return (e as Enemy).kind == kind and not ((e as Enemy).behavior is CampBehavior))
+
+
+## The living enemy named `who` (a Legion captain), or null.
+func named_enemy(who: String) -> Enemy:
+	for e in game.get_tree().get_nodes_in_group("enemies"):
+		if (e as Enemy).given_name == who and not (e as Enemy).dead:
+			return e
+	return null
 
 
 ## The village's merchant (the stall's man), or null.

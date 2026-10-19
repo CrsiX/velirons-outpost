@@ -192,10 +192,9 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 
 
 func hints(r: ScenarioRunner) -> Array[Dictionary]:
-	var g := r.game
 	return [
 		{"id": "thieves",
-			"when": func() -> bool: return g.get_tree().get_nodes_in_group("enemies").any(func(e: Node) -> bool: return (e as Enemy).kind == "thief"),
+			"when": func() -> bool: return r.enemy_about("thief"),
 			"text": "Renegades on the road: thieves! At a gate they steal gold and run. Stop them before they get there, or catch them on the way out."},
 		{"id": "pell",
 			"when": func() -> bool: return r.merchant() != null and r.merchant().evading,

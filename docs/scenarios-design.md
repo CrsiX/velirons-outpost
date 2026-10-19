@@ -1,6 +1,6 @@
 # Scenarios design
 
-Status: **scenarios 1 to 3 and the scenario system are built** (§7 says how, and what was decided for them); scenarios 4 to 11 are planned. This
+Status: **scenarios 1 to 5 and the scenario system are built** (§7 says how, and what was decided for them); scenarios 6 to 11 are planned. This
 page outlines the campaign: eleven scenarios that tell the story in `story-design.md` (read that first; names, places and the cause of the war are
 explained there). Everything about the scenarios not yet built is a draft. Numbers marked *target* are starting points to tune; a scenario's own
 numbers and texts go into its own file (`scripts/scenarios/scenario_<n>.gd`), not into `config.gd`. *Open* means not decided.
@@ -195,7 +195,7 @@ units, level about 5. **No revive.**
 **Objective:** hold the town for 9 waves until the neutral guild's convoy is loaded and leaves. The **warehouse** must survive (defeat if it
 falls). The guild master, Wenna, must not die.
 
-**Monsters:** Wilderness and **Renegades** in numbers: thieves, and possibly bandits hired by a rival guild (*open*). The harbour adds the first
+**Monsters:** Wilderness and **Renegades** in numbers: thieves (bandits: decided against for now, thieves only). The harbour adds the first
 **crabs** (Wilderness, aquatic) and, at most, **one siren** (Arcane, used sparingly): they come up the river and the coast. Both are built
 (`aquatic-design.md`): the crab is a goblin that swims, the siren a support monster whose song pulls and slows our units and whom melee cannot hit
 while she is in the water. The map needs a water body big enough for them (6 deep tiles) and water spawns, made in the map editor.
@@ -533,10 +533,10 @@ the gatherer step is done). When the scenario's steps are over the normal countd
 
 - Each other scenario's exact *N* and *target* numbers.
 - Hero level and the units per baseline.
-- Whether the warehouse (4) is a defeat condition. Fiona's death always is.
-- Whether bandits are a new Renegade kind, and whether the rival guild hires Renegades.
-- The Dread Legion: unit kinds and names, how its camps, ranks and banners work (a banner-bearer could buff like the war cry), and its place in the
-  mid-boss design (the marshal).
+- ~~Whether the warehouse (4) is a defeat condition~~: it is (§7.7). Fiona's death always is.
+- Whether bandits are a new Renegade kind (not for now: thieves only), and whether the rival guild hires Renegades.
+- The Dread Legion: the footman and the captain are built (§7.7); the other kinds and names, how its camps, ranks and banners work (a
+  banner-bearer could buff like the war cry), a captain's commanding abilities, and its place in the mid-boss design (the marshal).
 - Where else than the Coast the water monsters appear. Scenario 4 has only crabs and one siren at most. The stats of the scripted leviathan and
   the guard octopus are *open*.
 - The Arcane category and where witches, gargoyles and the siren first appear (5 or 8; the siren is rare and shows up once at most in 4).
@@ -611,9 +611,9 @@ The game has none of this yet, except where noted:
 - **During play:** `play_scene` (a short scene between waves: a talk, a visitor; one after the other; cutscenes hold the wave countdown),
   `on_poll` (a scenario's own events every 0.25 s), `on_wave_started` / `on_wave_finished`, `on_card_done`, and `show_journal` (a page found:
   a journal, a letter, a logbook, on parchment over the paused game, `Journal`). Objectives can be `optional` (shown, not needed to win).
-- **Not built yet:** saving a scenario (`Game.save_error` refuses it, there is no autosave; the stall and the merchant aren't in saves either),
-  upgrading the stall in play, guard mobs, bosses, scripted caravans, choices, the Legion's death effect, anything carried between scenarios (by
-  design: nothing carries over).
+- **Not built yet:** saving a scenario (`Game.save_error` refuses it, there is no autosave; the stall, the merchant, the guild master and the
+  warehouse aren't in saves either), upgrading the stall in play, guard mobs, bosses, scripted caravans, the Legion's other kinds (archers,
+  banner-bearers, the marshal) and a captain's commanding abilities, anything carried between scenarios (by design: nothing carries over).
 
 ### 7.2 Cutscenes
 
@@ -621,9 +621,13 @@ The game has none of this yet, except where noted:
   the camera moves between spots; people speak in a box at the bottom (portrait, name in their colour, the line typed out); the narrator's lines
   have no portrait and are centred. A tap, click, Space or Enter shows the whole line, then the next; *Skip* (top right) or Esc ends it.
 - A scenario writes a cutscene as a list of steps: `say` (speaker id, text), `camera` (a world position, zoom, time), `wait`, `fade` (in / out),
-  `title` (a title card), `do` (a scripted action: a cart on the road, dusk), `until` (wait for a condition). The runner has helpers for them:
+  `title` (a title card), `do` (a scripted action: a cart on the road, dusk), `until` (wait for a condition), and a **choice**: a `say` step with
+  `choices` (`[{"text", "do"}]`) shows a button per choice instead of waiting for a tap; the picked one's `do` runs (scenario 4's offer: taking
+  the gold calls `ScenarioRunner.lose`), then the cutscene goes on. Skip before a choice still to come jumps to it (only the `do` steps on the way
+  run), so the player always makes it; at the choice Skip and Esc do nothing; after it Skip ends the cutscene. The runner has helpers for them:
   `at(tile)`, `actor(art, tile)`, `move_actor`, `road_in`, `dusk`.
-- The speakers' portraits are generated art (`portrait_brenna`, `portrait_einar`, `portrait_pell` in `tools/gen_art.py`).
+- The speakers' portraits are generated art (`portrait_brenna`, `portrait_einar`, `portrait_pell`, `portrait_wenna`, `portrait_sigmund`,
+  `portrait_lysa`, `portrait_rival` in `tools/gen_art.py`).
 - Whether they can be watched again (title screen, library) is still *open*.
 
 ### 7.3 Scenario 1 as built (`scenario_1.gd`)
@@ -711,3 +715,83 @@ The game has none of this yet, except where noted:
   the road of the line lit: every road tile from the village out to every ruin site watched by one of the village's buildings (what towers and
   light stones see, not where people walk; `ScenarioRunner.lit`).
 
+### 7.7 What scenarios 4 and 5 added to the engine
+
+- **The guild warehouse** (`warehouse`, `Warehouse`, 2x2, 400 HP; `"campaign": true`, never placed by the player: a scenario prebuilds it). It
+  is a **raid target**: its tiles are targets of the siege field (`Siege.store_at`) as intact huts are, so enemies that leave their road near the
+  village go for it when it is the cheaper way (it stands outside the walls: nothing to break through first). An enemy that gets onto it plunders
+  it (`Enemy.raid_store`, `Game.on_enemy_reached_gate`, `Warehouse.plunder`): it loses `Config.WAREHOUSE.raid_damage` (50) HP and the enemy is
+  gone, as after burning a hut (no hut burns for it). At 0 HP it is devastated, and a builder repairs it like any building; it can't be torn down.
+  Art: `warehouse` (timber and stone, a slate roof, a loading door with a hoist, the guild's sign: gold scales on blue).
+- **`must_stand`** (Scenario): building kinds that must not fall; once every one of a kind is devastated the scenario is lost
+  (`Scenario.fallen_text`).
+- **`near_water`** prebuilt placement: the free spot within the siege band by the walls nearest the water (the warehouse by the harbour).
+- **The guild master** (`guildmaster`, `GuildMaster`; can't be recruited): a villager who stays in her hut (she never goes out, so she is safe
+  while it stands, and dies with it). A named villager's hut can have its own look and name (`Scenario.homes`, `Hut.look` / `look_name`: Wenna's
+  *Guild House*, art `guild_house`). Art `unit_guildmaster`.
+- **The Dread Legion** (`story-design.md` §5; `Config.ENEMIES`, `"campaign": true`: never in the normal waves, only where a scenario sends
+  them). A fallen Legion soldier is **released** (`"release": true`, `Enemy._release`): the pale colour warms, a pale breath rises (burst
+  `release`), and it sinks away; no corpse.
+  - *Legion Footman* (`legion_footman`): 38 HP, speed 0.95, 7 damage every 1.1 s, breaks gates and walls; 5 gold. A pale soldier in a grey
+    helm and a faded tabard, spear and round shield.
+  - *Legion Captain* (`legion_captain`, behaviour `captain`, `CaptainBehavior`): 140 HP, 12 damage every 1.2 s, no gold. **Never killed:** the
+    moment its HP would drop below `retreat_below` (30 %) it keeps that much and **falls back** (`Enemy.retreating`): nothing targets it any
+    more (`Enemy.targetable`), it leaves any siege, and walks back the way it came at `retreat_speed` (×1.4) and off the map (the wave ends
+    then). The story needs Lysa and Torben later (scenarios 9 and 10). Commanding abilities: *open*.
+  - **Named enemies:** a queue entry's `name` and `art` give an enemy a name and a look of its own (`Enemy.set_identity`): the name shows over
+    its head and is its label in the log; Lysa's captain has a crimson plume and a dark-red braid (`unit_legion_captain_lysa`), Torben's the
+    generic pale plume (`unit_legion_captain`).
+- **Adding to a running wave:** `ScenarioRunner.add_enemies(kind, tile, count, extra)` (`Waves.add_to_wave`): more enemies for the wave under way,
+  from a road tile, counted for it (scenario 5's Legion down the pass, its captains, the old gate's gargoyles). `spawn_near(tile)`: the edge
+  spawn whose road comes in nearest a tile.
+- **Water monsters in scripted waves** come from the village's water spawns as in the normal waves (`Waves._water_spawns`: water-bound always,
+  amphibians half the time).
+- **Helpers:** `treasures()` (the map's treasures, farthest first), `named_enemy(name)`.
+- **Maps:** `tools/make_scenario_map.gd` `-- 4` (Coast, seed 42: the village on a sea inlet, three roads, two water spawns) and `-- 5`
+  (Highlands, seed 11: mountains round the fort, the road down from the north, five treasures, two of them guarded by camps); both without
+  unlock sites, lairs and ruins. `data/maps/guildtown.json`, `data/maps/old_fort.json`; edit them by hand in the map editor.
+
+### 7.8 Scenario 4 as built (`scenario_4.gd`)
+
+- **Map:** `guildtown.json` (*The Guild Town*).
+- **Baseline:** Easy, enemies at 0.9; 200 gold, 170 food, 200 material; two builders, two farmers, a forester, a gatherer, Pell and **Wenna**
+  (the guild master, in the Guild House); the farm and the camp; the **warehouse** by the harbour (`near_water`), Pell's **Guild Market**
+  (stall level 3), barracks with a level 3 shield bearer, two watchtowers with archers (level 3 and 2). Brenna is level 5.
+- **Rules:** archers and shield bearers, specialising, training grounds; Brenna **can't be revived** (downed is a defeat); Pell and Wenna must
+  not die; the warehouse must not fall (`must_stand`).
+- **Waves:** nine. Goblins and orks; **thieves** in every wave (2 to 5; bandits are not built: thieves only, as decided); **crabs** from wave 2
+  (out of the sea: the water spawns); **one siren** in wave 7; rat packs and big slimes now and then. Wave 1 waits to be called; 40 s between waves.
+- **Story:** the intro (the harbour half closed by a rival guild's chains; Pell's old guild house; Wenna: the convoy is loading in the warehouse,
+  nine days; the rules); after wave 1 Wenna tells how the guild broke apart (every master had to choose an heir; the neutral guild is the ones who
+  wouldn't); after wave 3 a **rival guild's master** comes up the road and offers Brenna gold to leave: a **choice** (*Take the gold and leave*
+  loses the scenario: "Brenna took the rival guild's gold and rode away..."; *Refuse* goes on); wave 7 starts the convoy's loading; after wave 6 a
+  captured thief's **coins of three mints** (Karmere, Lyrenne, Aurelith; a journal page); the outro (the convoy rolls out; that night Pell reads
+  the Renegades' ledger: payments to a quartermaster of Rhodri's army from three sources, "someone bought him"; Brenna will go back to her fort).
+- **Cards:** the warehouse (tap it), guard the harbour (a manned watchtower within 5 tiles of the warehouse), call the first wave.
+- **Hints:** crabs, the siren, the warehouse hit (repair it), Brenna badly hurt (no revive: send her to rest), thieves. **Objectives:** hold until
+  the convoy leaves (9 waves); keep the warehouse standing (its HP share shown).
+
+### 7.9 Scenario 5 as built (`scenario_5.gd`)
+
+- **Map:** `old_fort.json` (*The Old Fort*).
+- **Baseline:** Easy, enemies at 0.95; 220 gold, 150 food, 220 material; two builders (one is **Sigmund**, the old veteran), a farmer, a
+  forester, a gatherer, Pell; the farm and the camp; 6 of 9 huts stand; 2 walls, 1 gate and 1 wall tower stand at 60 % HP, the rest are
+  devastated; Pell's wagon (a Peddler's Stall), barracks with a level 3 shield bearer, a watchtower with a level 3 archer, a wall tower with a
+  level 2 archer. Brenna is level 7.
+- **Rules:** archers and shield bearers, specialising, training grounds; no revive; Pell must not die.
+- **Waves:** ten. Goblins, orks, rats, thieves; **witches** from wave 3 and **gargoyles** from wave 6 (the first Arcane). Wave 10: 6 goblins and
+  2 orks, and when it starts (`on_wave_started`) the **Dread Legion** comes down the pass from the north edge (8 footmen, and the captains
+  **Lysa** and **Torben**), while 3 **gargoyles** wake at the fort's old gate (a road tile 14 tiles up the pass road). Wave 1 waits to be called;
+  45 s between waves.
+- **Evidence:** the three treasures farthest from the fort (Sigmund knows where: their places are uncovered at the start); the hero loots them as
+  any treasure (guarded ones once their camp is cleared). Each found piece shows its page, in the order found: **Rhodri's order** ("Hold until
+  the last. Do not ask for relief. Relief will not come. The crown will come to you itself..."), **the roll of the fallen** (forty-one names in
+  one ink on one day, Brenna's among them, no grave marked), **a foreign seal** (a tower over three waves; whose, nobody can say).
+- **Story:** the intro (the fort, the field where the company stood; Pell; Sigmund: "you look well for a dead woman"; the evidence is in the
+  hills); Sigmund tells it after waves 1, 2, 3 and 5 (Lysa sent Brenna down the pass with a plea for relief; Rhodri came the next evening with the
+  crown; the company knelt on the field and stood up bound; no body on the field), Pell after wave 7; wave 10's scene (the column down the pass,
+  Lysa and Torben; "Hold until the last."; the gargoyles on the old gate); when a captain falls back, Brenna: they are alive, and she will free
+  them; the outro (the order read aloud; Rhodri gave her company to his crown; Lysa sent her away that night; she can't stand aside any more: she
+  will find Fiona; the way east crosses the field where the armies met).
+- **Cards:** the evidence (Explore; the three places marked), guarded (attack a camp). **Hints:** a witch, a gargoyle, the Legion (released when
+  it falls), Brenna badly hurt. **Objectives:** find the three pieces of evidence; hold the fort for 10 waves.

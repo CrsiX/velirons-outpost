@@ -16,7 +16,13 @@ extends CanvasLayer
 ##   {"title": "...", "sub": "...", "time": s}               a title card (a tap goes on)
 ##   {"do": Callable}                                         a scripted action, at once
 ##   {"until": Callable -> bool, "max": s}                    waits until it holds
-## Times are real seconds (whatever the game speed).
+##   {"say": ..., "text": ..., "choices": [{"text", "do": Callable}]}
+##                                     a line with buttons instead of a tap: the
+##                                     picked one's "do" runs, then the cutscene
+##                                     goes on (Scenario 4's offer)
+## Times are real seconds (whatever the game speed). Skip, before a choice
+## still to come, jumps to it (only "do" steps run on the way): the player
+## always makes the choice. After it, Skip ends the cutscene.
 
 signal finished(skipped: bool)
 ## A tap went through to the step waiting for it (advance()).
@@ -36,6 +42,10 @@ var index := -1
 ## The line shown now: "" while none ("say" steps only).
 var line := ""
 var _skipped := false
+## Skipping towards the choice at this step (-1: not skipping).
+var _skip_to := -1
+## The choice made at each choice step so far (step index -> choice index).
+var chosen := {}
 var _tap_wait := false
 var _typing: Tween
 var _cam_tween: Tween
@@ -48,6 +58,7 @@ var _portrait: TextureRect
 var _name: Label
 var _text: Label
 var _more: Label
+var _choices: HBoxContainer
 var _title: Label
 var _sub: Label
 var skip_button: Button
@@ -147,6 +158,11 @@ func _build() -> void:
 	_more = _label("Tap to go on", 14, UiTheme.MUTED)
 	_more.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	v.add_child(_more)
+	_choices = HBoxContainer.new()
+	_choices.alignment = BoxContainer.ALIGNMENT_END
+	_choices.add_theme_constant_override("separation", 12)
+	_choices.visible = false
+	v.add_child(_choices)
 	skip_button = Button.new()
 	skip_button.text = "Skip"
 	skip_button.focus_mode = Control.FOCUS_NONE
@@ -200,7 +216,16 @@ func _play_steps() -> void:
 			return
 		index = i
 		var s: Dictionary = steps[i]
-		if s.has("say"):
+		if _skip_to >= 0:
+			if i < _skip_to:
+				if s.has("do"):
+					(s["do"] as Callable).call()
+				continue
+			_skip_to = -1
+			_fader.color.a = 0.0  # (skipped past a fade in)
+		if s.has("choices"):
+			await _choose(str(s.get("say", "")), str(s.get("text", "")), s["choices"])
+		elif s.has("say"):
 			await _say(str(s["say"]), str(s["text"]))
 		elif s.has("camera"):
 			var t := float(s.get("time", 1.5))
@@ -219,12 +244,21 @@ func _play_steps() -> void:
 			(s["do"] as Callable).call()
 		elif s.has("until"):
 			var left := float(s.get("max", 10.0))
-			while left > 0.0 and not _skipped and not (s["until"] as Callable).call():
+			while left > 0.0 and not _skipped and _skip_to < 0 and not (s["until"] as Callable).call():
 				await _sleep(0.1)
 				left -= 0.1
 
 
 func _say(who: String, t: String) -> void:
+	_show_line(who, t)
+	_tap_wait = true
+	await tapped
+	_tap_wait = false
+	line = ""
+
+
+## The box with `who`'s portrait and name and line `t`, typing out.
+func _show_line(who: String, t: String) -> void:
 	var sp: Dictionary = speakers.get(who, {})
 	_box.visible = true
 	var narrator := sp.is_empty()
@@ -243,10 +277,54 @@ func _say(who: String, t: String) -> void:
 	_typing.tween_property(_text, "visible_ratio", 1.0, maxf(0.2, t.length() * TYPE_SPEED))
 	_more.modulate.a = 0.0
 	_typing.tween_property(_more, "modulate:a", 1.0, 0.3)
-	_tap_wait = true
-	await tapped
-	_tap_wait = false
+
+
+## A line with a button per choice; waits for one (Skip doesn't pass it).
+func _choose(who: String, t: String, list: Array) -> void:
+	_show_line(who, t)
+	_typing = null
+	_text.visible_ratio = 1.0
+	_more.visible = false
+	for c in _choices.get_children():
+		c.queue_free()
+	var picked := [-1]
+	for k in list.size():
+		var b := Button.new()
+		b.text = str(list[k]["text"])
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(0, 46)
+		b.add_theme_font_size_override("font_size", 19)
+		b.pressed.connect(func() -> void:
+			picked[0] = k
+			tapped.emit())
+		_choices.add_child(b)
+	_choices.visible = true
+	_box.mouse_filter = Control.MOUSE_FILTER_PASS
+	_choices.mouse_filter = Control.MOUSE_FILTER_PASS
+	while picked[0] < 0 and running:
+		await tapped
+	_choices.visible = false
+	_more.visible = true
+	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line = ""
+	if picked[0] < 0:
+		return  # (the game ended meanwhile)
+	chosen[index] = picked[0]
+	var c: Dictionary = list[picked[0]]
+	if c.has("do"):
+		(c["do"] as Callable).call()
+
+
+## Picks choice `k` of the choice shown now (tests; as its button).
+func choose(k: int) -> void:
+	var bs := _choices.get_children()
+	if _choices.visible and k >= 0 and k < bs.size():
+		(bs[k] as Button).pressed.emit()
+
+
+## Whether a choice is waiting for the player now.
+func choosing() -> bool:
+	return running and _choices.visible
 
 
 func _title_card(t: String, sub: String, time: float) -> void:
@@ -260,7 +338,7 @@ func _title_card(t: String, sub: String, time: float) -> void:
 	var taps := [false]
 	var on_tap := func() -> void: taps[0] = true
 	tapped.connect(on_tap)
-	while left > 0.0 and not taps[0] and not _skipped:
+	while left > 0.0 and not taps[0] and not _skipped and _skip_to < 0:
 		await _sleep(0.1)
 		left -= 0.1
 	tapped.disconnect(on_tap)
@@ -301,11 +379,27 @@ func advance() -> void:
 
 
 func skip() -> void:
-	if not running:
+	if not running or choosing():
 		return
+	for k in range(index + 1, steps.size()):
+		if steps[k].has("choices"):
+			_skip_to = k  # (on to the choice: the player makes it)
+			if _cam_tween:
+				_cam_tween.kill()
+			tapped.emit()
+			return
 	_skipped = true
 	tapped.emit()
 	_end(true)
+
+
+## Ends it now, a choice waiting or not (the scenario is lost meanwhile).
+func stop() -> void:
+	if not running:
+		return
+	_skipped = true
+	_end(true)
+	tapped.emit()
 
 
 ## Over: the game as it was, the cutscene hidden (it frees itself once its

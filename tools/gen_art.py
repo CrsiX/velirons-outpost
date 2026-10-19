@@ -947,6 +947,67 @@ def portraits():
   <circle cx="54" cy="52" r="2.6" fill="#fff4c0"/>''', bg="#33291f")
 
 
+def portraits_away():
+    """The speakers of scenarios 4 and 5 (docs/story-design.md section 2)."""
+    # Wenna: the neutral guild's master; grey hair in a bun, a dark-blue coat,
+    # a gold chain of office, a sharp look over half-moon spectacles.
+    portrait_svg("portrait_wenna", f"""
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#2f3e5a" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M20 46 Q32 58 44 46" fill="none" stroke="{GOLD}" stroke-width="2.4"/>
+  <circle cx="32" cy="55" r="3" fill="{GOLD}" stroke="{INK}" stroke-width="1.4"/>
+  <rect x="27" y="35" width="10" height="9" fill="#d0a684" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 25 Q19 12 32 11 Q45 12 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#d8ae8a" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M19 26 Q16 9 32 8 Q48 9 45 26 Q44 16 32 15 Q22 16 19 26Z" fill="#9a958c" stroke="{INK}" stroke-width="2"/>
+  <circle cx="32" cy="7" r="6" fill="#9a958c" stroke="{INK}" stroke-width="2"/>
+  <path d="M23 26 Q27 24 30 26 M34 26 Q37 24 41 26" fill="none" stroke="#8a6a40" stroke-width="1.6"/>
+  <path d="M23 27 L30 27 M34 27 L41 27" stroke="{GOLD_D}" stroke-width="1"/>
+  <circle cx="27" cy="25.5" r="1.3" fill="{INK}"/><circle cx="37" cy="25.5" r="1.3" fill="{INK}"/>
+  <path d="M28.5 33.5 Q32 33 35.5 33.5" fill="none" stroke="#7a4a3a" stroke-width="1.4" stroke-linecap="round"/>""", bg="#262f3c")
+    # Sigmund: the old veteran at Brenna's fort; bald, a white beard, a patch
+    # over one eye, worn mail under a brown jerkin.
+    portrait_svg("portrait_sigmund", f"""
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#7a7e86" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M12 52 L52 52 M10 58 L54 58 M14 47 L50 47" stroke="#5a5e66" stroke-width="1.4" stroke-dasharray="2 2"/>
+  <path d="M20 66 L22 46 L42 46 L44 66Z" fill="#5a4630" stroke="{INK}" stroke-width="2"/>
+  <rect x="27" y="35" width="10" height="9" fill="#c49474" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 23 Q19 9 32 9 Q45 9 44 23 Q44 35 32 38 Q20 35 20 23Z" fill="#cc9c78" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M20 25 Q20 45 32 48 Q44 45 44 25 Q40 32 32 32 Q24 32 20 25Z" fill="#e8e4dc" stroke="{INK}" stroke-width="2"/>
+  <path d="M26 31 Q32 29 38 31" fill="none" stroke="#c8c4bc" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M19 19 L45 27" stroke="{INK}" stroke-width="1.8"/>
+  <ellipse cx="37" cy="24.5" rx="4" ry="3.4" fill="#2a221c" stroke="{INK}" stroke-width="1.4"/>
+  <circle cx="27" cy="25" r="1.4" fill="{INK}"/>
+  <path d="M24 21.5 L29 21" stroke="#e8e4dc" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M23 14 Q26 12 29 14" fill="none" stroke="#b0805e" stroke-width="1"/>""", bg="#2e2a26")
+    # Lysa: Brenna's old captain, bound to Rhodri; a pale face, empty pale
+    # eyes, a captain's helm with a crimson plume, a dark-red braid.
+    portrait_svg("portrait_lysa", f"""
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#2a2a30" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M14 66 Q14 48 24 45 L40 45 Q50 48 50 66Z" fill="#5a4448" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M18 50 L46 50" stroke="{GOLD_D}" stroke-width="2"/>
+  <path d="M18 30 Q10 40 14 56 Q18 46 21 36Z" fill="#6a2a20" stroke="{INK}" stroke-width="1.8"/>
+  <rect x="27" y="35" width="10" height="9" fill="#bcc0c4" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 25 Q19 13 32 12 Q45 13 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#c8cccf" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M18 24 Q17 6 32 5 Q47 6 46 24 L42 24 L42 18 Q32 15 22 18 L22 24Z" fill="#8a8e96" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M31 18 L31 27 L33 27 L33 18Z" fill="#6a6e76" stroke="{INK}" stroke-width="1.2"/>
+  <path d="M38 7 Q50 2 58 14 Q52 10 44 12Z" fill="{CRIMSON}" stroke="{INK}" stroke-width="1.8"/>
+  <ellipse cx="27" cy="25.5" rx="2" ry="1.4" fill="#e4ecf8" stroke="#8a9aaa" stroke-width="0.8"/>
+  <ellipse cx="37" cy="25.5" rx="2" ry="1.4" fill="#e4ecf8" stroke="#8a9aaa" stroke-width="0.8"/>
+  <path d="M28.5 33.5 L35.5 33.5" stroke="#7a7e86" stroke-width="1.4" stroke-linecap="round"/>""", bg="#22242a")
+    # A rival guild's master: a fur collar, a heavy gold ring, a trimmed beard
+    # and a smile that doesn't reach the eyes.
+    portrait_svg("portrait_rival", f"""
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#4a2a3a" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M10 50 Q20 40 32 46 Q44 40 54 50 Q50 56 44 52 Q38 56 32 52 Q26 56 20 52 Q14 56 10 50Z" fill="#8a7458" stroke="{INK}" stroke-width="1.8"/>
+  <rect x="27" y="35" width="10" height="9" fill="#d0a080" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 25 Q19 12 32 11 Q45 12 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#d8a882" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M19 22 Q17 7 32 7 Q47 7 45 22 Q42 13 32 13 Q22 13 19 22Z" fill="#1e1a18" stroke="{INK}" stroke-width="2"/>
+  <path d="M26 33 Q32 41 38 33 Q35 38 32 38 Q29 38 26 33Z" fill="#1e1a18" stroke="{INK}" stroke-width="1.4"/>
+  <path d="M26 31 Q32 33.5 38 31" fill="none" stroke="#6a3a2a" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M24 23 L29 24 M35 24 L40 23" stroke="#1e1a18" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="27" cy="26" r="1.4" fill="{INK}"/><circle cx="37" cy="26" r="1.4" fill="{INK}"/>
+  <circle cx="50" cy="60" r="3.2" fill="{GOLD}" stroke="{INK}" stroke-width="1.4"/>""", bg="#2e2230")
+
+
 def campaign_icon():
     """The title screen's Campaign button: a crimson banner on a pole with a gold tower."""
     icon_svg("icon_campaign", f'''
@@ -1058,6 +1119,162 @@ def barracks_ruin():
     a.line([(px, py), (px + 3, py - 28)], WOOD_D, 2)
     a.poly([(px + 3, py - 28), (px + 12, py - 25), (px + 6, py - 22), (px + 9, py - 19), (px + 2, py - 18)], CRIMSON_D, INK, 0.8)
     a.save("barracks_ruin")
+
+
+def warehouse():
+    """The guild's 2x2 warehouse (scenario 4): a long timber-and-stone store
+    with a slate roof, a wide loading door, a hoist beam, the neutral guild's
+    sign (gold scales on blue) and crates and sacks in its yard."""
+    a = Art()
+    s = 0.98
+    a.shadow(90, 45, cy=6)
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], DIRT, INK, 1.0, opacity=0.85)
+    x0, x1, y0, y1, h, ridge = -0.8, 0.55, -0.55, 0.25, 34, 66
+    a.box(x0, x1, y0, y1, 0, 12, STONE_T, STONE_L, STONE_R)  # stone footing
+    a.box(x0, x1, y0, y1, 12, h, "#8c7b62", "#8c7b62", "#6c5e4a")
+    for t in (0.0, 0.25, 0.5, 0.75, 1.0):  # timber framing
+        gx = x0 + (x1 - x0) * t
+        a.line([P(gx, y1, 12), P(gx, y1, h)], "#3b2a1d", 2)
+    a.line([P(x0, y1, 23), P(x1, y1, 23)], "#3b2a1d", 1.6)
+    # the loading door (open, dark) and its frame
+    a.poly([P(-0.32, y1, 0), P(0.02, y1, 0), P(0.02, y1, 24), P(-0.32, y1, 24)], "#22180f", INK, 1.2)
+    a.line([P(-0.15, y1, 0), P(-0.15, y1, 24)], "#3b2a1d", 1.2)
+    # slate roof along x
+    ym = (y0 + y1) / 2
+    ey, ex = 0.08, 0.04
+    slope = (ridge - h) / (y1 - ym)
+    eave_h = h - slope * ey
+    xa, xb = x0 - ex, x1 + ex
+    a.poly([P(xa, y0 - ey, eave_h), P(xb, y0 - ey, eave_h), P(xb, ym, ridge), P(xa, ym, ridge)], "#2e3a44")
+    a.poly([P(x1, y0, h), P(x1, ym, ridge), P(x1, y1, h)], "#7a6a52")
+    a.poly([P(xa, ym, ridge), P(xb, ym, ridge), P(xb, y1 + ey, eave_h), P(xa, y1 + ey, eave_h)], "#3e4c58")
+    for t in (0.25, 0.5, 0.75):
+        yy = ym + (y1 + ey - ym) * t
+        zz = ridge - (ridge - eave_h) * t
+        a.line([P(xa, yy, zz), P(xb, yy, zz)], "#2a343c", 1.2)
+    a.line([P(xb, y0 - ey, eave_h), P(xb, ym, ridge), P(xb, y1 + ey, eave_h)], "#3b2a1d", 3.2)
+    a.line([P(xa, ym, ridge), P(xb, ym, ridge)], "#3b2a1d", 2.4)
+    # hoist beam over the door with a rope and a sack
+    bx, by = P(-0.15, y1 + 0.02, h + 6)
+    a.line([(bx, by), (bx - 10, by + 12)], WOOD_D, 3)
+    a.line([(bx - 10, by + 12), (bx - 10, by + 30)], "#c8b080", 1)
+    a.ellipse(bx - 10, by + 34, 4.5, 4, "#c9a86a", INK, 0.9)
+    # the guild's sign on the gable: gold scales on blue
+    sx, sy = P(x1, -0.15, h - 4)
+    a.poly([(sx - 2, sy - 10), (sx + 12, sy - 15), (sx + 12, sy - 1), (sx - 2, sy + 4)], "#2f4a6a", INK, 1)
+    a.line([(sx + 5, sy - 10), (sx + 5, sy - 1)], GOLD, 1.4)
+    a.line([(sx + 1, sy - 6), (sx + 9, sy - 9)], GOLD, 1.4)
+    a.ellipse(sx + 1.5, sy - 3.5, 2, 1, GOLD)
+    a.ellipse(sx + 9, sy - 6.5, 2, 1, GOLD)
+    # crates, barrels and sacks in the yard
+    for (gx, gy) in [(0.7, 0.55), (0.82, 0.3), (0.45, 0.75)]:
+        a.box(gx - 0.1, gx + 0.1, gy - 0.1, gy + 0.1, 0, 10, "#b08a58", WOOD, WOOD_D, sw=1)
+    a.box(0.7, 0.8, 0.45, 0.55, 10, 19, "#b08a58", WOOD, WOOD_D, sw=1)
+    for (gx, gy) in [(-0.6, 0.65), (-0.4, 0.8)]:
+        x, y = P(gx, gy, 0)
+        a.poly([(x - 5, y), (x + 5, y), (x + 6, y - 12), (x - 6, y - 12)], WOOD, INK, 1)
+        a.line([(x - 5.5, y - 4), (x + 5.5, y - 4)], "#6a6a6a", 1.1)
+        a.ellipse(x, y - 12, 6, 2.2, WOOD_D, INK, 0.8)
+    for (gx, gy) in [(0.1, 0.7), (0.22, 0.62)]:
+        x, y = P(gx, gy, 0)
+        a.ellipse(x, y - 4, 5, 4.2, "#c9a86a", INK, 0.9)
+    a.save("warehouse")
+
+
+def guild_house():
+    """Wenna's house in the guild town (scenario 4): a hut's lot, but a
+    taller stone-and-timber house with a slate roof and the guild's sign."""
+    a = Art()
+    x0, x1, y0, y1 = -0.34, 0.34, -0.3, 0.3
+    a.shadow(44, 22, cy=4)
+    h, ridge = 36, 62
+    a.box(x0, x1, y0, y1, 0, 14, STONE_T, STONE_L, STONE_R)
+    a.box(x0, x1, y0, y1, 14, h, "#9a8a6e", "#9a8a6e", "#76674f")
+    for t in (0.0, 0.5, 1.0):
+        gx = x0 + (x1 - x0) * t
+        a.line([P(gx, y1, 14), P(gx, y1, h)], "#3b2a1d", 2)
+    a.poly([P(-0.08, y1, 0), P(0.08, y1, 0), P(0.08, y1, 17), P(-0.08, y1, 17)], "#2b1e14")
+    a.poly([P(x1, 0.15, 20), P(x1, -0.05, 20), P(x1, -0.05, 29), P(x1, 0.15, 29)], GLOW)
+    a.poly([P(x1, 0.15, 4), P(x1, -0.05, 4), P(x1, -0.05, 11), P(x1, 0.15, 11)], GLOW)
+    ym = (y0 + y1) / 2
+    ey, ex = 0.07, 0.03
+    slope = (ridge - h) / (y1 - ym)
+    eave_h = h - slope * ey
+    xa, xb = x0 - ex, x1 + ex
+    a.poly([P(xa, y0 - ey, eave_h), P(xb, y0 - ey, eave_h), P(xb, ym, ridge), P(xa, ym, ridge)], "#2e3a44")
+    a.poly([P(x1, y0, h), P(x1, ym, ridge), P(x1, y1, h)], "#8a7a5e")
+    a.poly([P(xa, ym, ridge), P(xb, ym, ridge), P(xb, y1 + ey, eave_h), P(xa, y1 + ey, eave_h)], "#3e4c58")
+    a.line([P(xb, y0 - ey, eave_h), P(xb, ym, ridge), P(xb, y1 + ey, eave_h)], "#3b2a1d", 3.2)
+    a.line([P(xa, ym, ridge), P(xb, ym, ridge)], "#3b2a1d", 2.4)
+    # the guild's sign over the door
+    sx, sy = P(0.0, y1 + 0.02, 22)
+    a.line([(sx - 2, sy), (sx + 10, sy - 4)], WOOD_D, 2)
+    a.poly([(sx + 4, sy - 2), (sx + 13, sy - 5), (sx + 13, sy + 5), (sx + 4, sy + 8)], "#2f4a6a", INK, 0.9)
+    a.line([(sx + 8.5, sy - 2), (sx + 8.5, sy + 5)], GOLD, 1.2)
+    a.line([(sx + 5.5, sy + 1), (sx + 11.5, sy - 1)], GOLD, 1.2)
+    # chimney
+    a.box(0.14, 0.24, -0.1, 0.0, ridge - 14, ridge + 8, STONE_T, STONE_L, STONE_R)
+    a.save("guild_house")
+
+
+def guild_master():
+    """Wenna: a long dark-blue robe, a gold chain of office, the guild's ledger."""
+    def extra(a, layer):
+        if layer == "front":
+            a.line([(-4, -26), (0, -20), (4, -26)], GOLD, 1.4)  # chain
+            a.ellipse(0, -20, 1.6, 1.6, GOLD, INK, 0.6)
+            a.poly([(3, -20), (11, -21), (11, -13), (3, -12)], "#6a2a24", INK, 1)  # ledger
+            a.line([(4, -16.5), (10, -17)], "#e8dcc0", 0.8)
+
+    def hat(a):
+        a.raw('<path d="M-6,-34 Q-7,-42 0,-41 Q6,-42 6,-35 Q4,-39 0,-39 Q-4,-39 -6,-34Z" fill="#8a8478" stroke="%s" stroke-width="1.1"/>' % INK, [(-7, -43), (7, -33)])
+        a.ellipse(-4, -40, 3, 2.6, "#8a8478", INK, 1)  # the bun
+    person("unit_guildmaster", ("#2f3e5a", "#243048"), hat=hat, skin="#d8b08c", robe=True, extra=extra)
+
+
+def legion_footman():
+    """A soldier of the Dread Legion: pale skin, a grey-steel helm, a faded
+    tabard that was crimson once, a spear and a round shield; stiff."""
+    def extra(a, layer):
+        if layer == "back":
+            a.line([(-7, -6), (-2, -52)], INK, 3.4)  # spear, upright
+            a.line([(-7, -6), (-2, -52)], "#6a5a48", 1.8)
+            a.poly([(-3.5, -52), (-2, -60), (-0.5, -52)], "#b8bcc4", INK, 0.8)
+        else:
+            a.poly([(-6, -12), (6, -12), (5, -26), (-5, -26)], "#6a4e50", INK, 1)  # faded tabard
+            a.line([(0, -26), (0, -12)], "#5a4446", 1)
+            a.ellipse(7, -18, 6, 7, "#5a5e66", INK, 1.2)  # shield
+            a.ellipse(7, -18, 2, 2.3, "#8a8e96", INK, 0.8)
+
+    def hat(a):
+        a.raw('<path d="M-6.5,-31 Q-7,-41 0,-41 Q7,-41 6.5,-31 L4,-31 L4,-34 L-4,-34 L-4,-31Z" fill="#7a7e86" stroke="%s" stroke-width="1.2"/>' % INK, [(-7, -42), (7, -30)])
+        a.line([(-1, -34), (-1, -29)], "#5a5e66", 1.4)  # nose guard
+        a.ellipse(3, -33, 1.1, 0.8, "#d8e0f0")  # empty, pale eye
+    person("unit_legion_footman", ("#4a4c54", "#3a3c44"), hat=hat, skin="#c4c6c8", extra=extra)
+
+
+def legion_captain(name, plume, hair=None):
+    """A Legion captain: the footman's pallor, a plumed helm, a long dark cloak
+    and a sword held high. Lysa's own has a crimson plume and a dark-red
+    braid; Torben's (the generic one) a pale grey plume."""
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-7, -27), (-12, -2), (0, -4), (6, -27)], "#2a2a30", INK, 1.2)  # cloak
+            if hair:
+                a.raw('<path d="M-5,-33 Q-11,-28 -9,-19 Q-8,-24 -4,-29Z" fill="%s" stroke="%s" stroke-width="1"/>' % (hair, INK), [(-11, -34), (-3, -18)])
+        else:
+            a.poly([(-6, -12), (6, -12), (5, -26), (-5, -26)], "#5a4448", INK, 1)
+            a.line([(-5, -24), (5, -24)], GOLD_D, 1.4)  # a captain's sash
+            a.line([(4, -22), (10, -30)], INK, 3.6)  # sword arm, raised
+            a.line([(9, -29), (12, -32)], INK, 2.4)
+            a.poly([(11, -33), (13, -31), (21, -46), (20, -47)], "#c8ccd4", INK, 0.9)
+
+    def hat(a):
+        a.raw('<path d="M-6.5,-31 Q-7,-41 0,-41 Q7,-41 6.5,-31 L4,-31 L4,-34 L-4,-34 L-4,-31Z" fill="#8a8e96" stroke="%s" stroke-width="1.2"/>' % INK, [(-7, -42), (7, -30)])
+        a.line([(-1, -34), (-1, -29)], "#5a5e66", 1.4)
+        a.raw('<path d="M0,-41 Q-4,-50 -12,-49 Q-6,-46 -4,-41Z" fill="%s" stroke="%s" stroke-width="1"/>' % (plume, INK), [(-13, -51), (1, -40)])
+        a.ellipse(3, -33, 1.1, 0.8, "#d8e0f0")
+    person(name, ("#3a3a42", "#2c2c34"), hat=hat, skin="#c4c6c8", extra=extra)
 
 
 def light_stone(glow_only=False):
@@ -4316,7 +4533,14 @@ def main():
     stall(3)
     merchant()
     barracks_ruin()
+    warehouse()
+    guild_house()
+    guild_master()
+    legion_footman()
+    legion_captain("unit_legion_captain", "#b8bcc4")
+    legion_captain("unit_legion_captain_lysa", CRIMSON, hair="#6a2a20")
     portraits()
+    portraits_away()
     campaign_icon()
     write_manifest()
     print("generated %d sprites" % len(manifest))

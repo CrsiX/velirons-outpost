@@ -6,6 +6,10 @@ extends Building
 var ruined := false
 ## The one villager living here, if any.
 var resident: Civilian = null
+## Its art while intact ("": a hut; a scenario's guild house: "guild_house")
+## and its name then ("": Village Hut).
+var look := ""
+var look_name := ""
 var _site_overlay: Sprite2D
 
 
@@ -23,9 +27,13 @@ func is_intact() -> bool:
 
 
 func refresh() -> void:
-	Art.apply(sprite, "hut" if is_intact() else "hut_ruin")
+	Art.apply(sprite, ("hut" if look == "" else look) if is_intact() else "hut_ruin")
 	_site_overlay.visible = not complete
 	queue_redraw()
+
+
+func display_name() -> String:
+	return look_name if look_name != "" else super.display_name()
 
 
 ## Intact huts watch farther than other buildings; ruins still count as buildings.

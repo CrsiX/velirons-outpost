@@ -21,6 +21,7 @@ const BEHAVIORS := {
 	"siren": preload("res://scripts/units/enemies/siren_behavior.gd"),
 	"octopus": preload("res://scripts/units/enemies/octopus_behavior.gd"),
 	"arm": preload("res://scripts/units/enemies/arm_behavior.gd"),
+	"captain": preload("res://scripts/units/enemies/captain_behavior.gd"),
 }
 
 ## Water monsters (docs/aquatic-design.md §2): up (targetable), diving, down
@@ -54,6 +55,15 @@ var from_lair := false
 var hp_scale := 1.0
 ## Gold a thief stole; its corpse holds it too.
 var loot_gold := 0
+## A name of its own (the campaign's Legion captains: "Lysa"), shown over
+## its head and used in the log; "" for the rest.
+var given_name := ""
+## Its art instead of its kind's (a named captain's own look), "" for none.
+var art_override := ""
+## Falling back (a Legion captain, CaptainBehavior): nothing targets it.
+var retreating := false
+## Where it came onto the map (its road's first tile).
+var home_tile := Vector2i.ZERO
 ## Raised by a necromancer: pale, and its HP drains away (decay_rate per s).
 var raised := false
 var decay_rate := 0.0
@@ -92,6 +102,8 @@ var _stuck := 0.0
 var _slip := 0.0
 ## The hut it got to: Game.on_enemy_reached_gate burns this one.
 var raid_hut: Hut = null
+## The raid target it got to instead (a guild warehouse): it plunders that.
+var raid_store: Warehouse = null
 
 
 func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: String) -> void:
@@ -113,6 +125,7 @@ func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: Stri
 		_jitter = Vector2(randf_range(-0.18, 0.18), randf_range(-0.18, 0.18))
 	for t in route:
 		pts.append(Vector2(t) + _jitter)
+	home_tile = route[0]
 	set_grid_pos(pts[0])
 	follow(pts)
 	behavior = BEHAVIORS[spec()["behavior"]].new()
@@ -264,7 +277,7 @@ func must_be_under() -> bool:
 ## The one test every targeting site uses: alive and up (not diving, down or
 ## surfacing).
 func targetable() -> bool:
-	return not dead and dive == Dive.UP
+	return not dead and dive == Dive.UP and not retreating
 
 
 ## Down (or on its way down or up): ripples instead of the monster.
@@ -390,7 +403,20 @@ func melee_reach(base: float) -> float:
 
 ## Its sprite: unit_<art>, or unit_<art>_<colour> for a slime.
 func unit_art() -> String:
+	if art_override != "":
+		return "unit_" + art_override
 	return "unit_%s%s" % [spec()["art"], "_" + color if color != "" else ""]
+
+
+## A name and a look of its own (a named Legion captain).
+func set_identity(p_name: String, p_art: String) -> void:
+	given_name = p_name
+	if p_art != "" and p_art != art_override:
+		art_override = p_art
+		var flip := sprite.flip_h
+		Art.apply(sprite, unit_art())
+		sprite.flip_h = flip
+	queue_redraw()
 
 
 ## A slime's halves keep its colour.
@@ -433,7 +459,9 @@ func _set_moving(v: bool) -> void:
 
 ## The art it shows now: its own, or the bat's.
 func art_base() -> String:
-	return "vampire_bat" if airborne else str(spec()["art"])
+	if airborne:
+		return "vampire_bat"
+	return art_override if art_override != "" else str(spec()["art"])
 
 
 ## Into the air (`on`) as a bat, or back on its feet: a puff of dark smoke,
@@ -509,6 +537,8 @@ func make_raised(share: float, decay: float) -> void:
 
 ## Log name, numbered per kind: "goblin 4".
 func label() -> String:
+	if given_name != "":
+		return given_name
 	return "%s %d" % [str(spec()["name"]).to_lower(), uid]
 
 
@@ -643,7 +673,7 @@ func entry() -> String:
 
 ## May break into its village by the siege field now?
 func _may_siege() -> bool:
-	return entry() == "siege" and habitat() != "water" and not airborne and not game.is_client \
+	return entry() == "siege" and habitat() != "water" and not airborne and not retreating and not game.is_client \
 		and is_instance_valid(target_village) and not target_village.fallen and not (behavior is CampBehavior)
 
 
@@ -713,6 +743,11 @@ func _siege_tick(delta: float) -> bool:
 	var hut := game.siege.hut_at(v, here)
 	if hut != null:
 		raid_hut = hut
+		_get_in()
+		return true
+	var store := game.siege.store_at(v, here)
+	if store != null:
+		raid_store = store
 		_get_in()
 		return true
 	if not air:
@@ -816,6 +851,9 @@ func take_damage(amount: float, source: Node = null, category: String = "pure") 
 		remove_from_group("enemies")
 		behavior.on_death(self)
 		killed.emit(self)
+		if spec().get("release", false):
+			_release()
+			return
 		var tw := create_tween().set_parallel()
 		tw.tween_property(self, "scale", Vector2(1.2, 0.3), 0.25)
 		tw.tween_property(self, "modulate:a", 0.0, 0.25)
@@ -823,6 +861,19 @@ func take_damage(amount: float, source: Node = null, category: String = "pure") 
 		return
 	if source != null:
 		behavior.on_damaged(self, source)
+
+
+## A Dread Legion soldier falls (docs/story-design.md §5): the pale colour
+## fades into a living one, a breath goes out, and it sinks down and is gone.
+func _release() -> void:
+	Combat.burst(game, "release", position + Vector2(0, -34), 0.6)
+	sprite.self_modulate = Color(0.8, 0.85, 0.95)
+	var tw := create_tween()
+	tw.tween_property(sprite, "self_modulate", Color(1.08, 0.95, 0.85), 0.45)
+	tw.tween_interval(0.35)
+	tw.tween_property(self, "modulate:a", 0.0, 0.6)
+	tw.parallel().tween_property(self, "scale", Vector2(1.0, 0.85), 0.6)
+	tw.tween_callback(queue_free)
 
 
 ## Wings beating, rising and sinking a little: it flies. (Its shadow stays
@@ -858,6 +909,12 @@ func _draw() -> void:
 		draw_line(from, to, Color(0.42, 1.0, 0.54, a * 0.5), 6.0)
 		draw_line(from, to, Color(0.75, 1.0, 0.8, a), 2.0)
 		draw_circle(to, 7.0 + 2.0 * sin(Time.get_ticks_msec() / 120.0), Color(0.42, 1.0, 0.54, a * 0.35))
+	if given_name != "" and not dead:
+		var f := ThemeDB.fallback_font
+		var w := f.get_string_size(given_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+		var y := float(spec().get("hp_bar_y", -46.0)) - 10.0
+		draw_string_outline(f, Vector2(-w / 2.0, y), given_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, 4, Color(0.08, 0.06, 0.05, 0.9))
+		draw_string(f, Vector2(-w / 2.0, y), given_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color("e8d8b0"))
 	if dead or hp >= max_hp or dive == Dive.DOWN:
 		return
 	_draw_hp_bar(28.0, -62.0 if flies() else float(spec().get("hp_bar_y", -46.0)), 5.0, hp / max_hp, Color("4a1510"), Color("d8412f"))

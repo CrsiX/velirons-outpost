@@ -33,6 +33,9 @@ var resources := {"gold": 0, "food": 0, "materials": 0}
 var civilians: Array[String] = []
 ## Names for villagers: role -> name, given to the first of that role.
 var names := {}
+## A named villager's hut with a look of its own: name -> {"art", "name"}
+## (Wenna's guild house).
+var homes := {}
 ## Built for free at the start (Config.START_BUILDINGS' rules).
 var buildings: Array[String] = []
 ## How many of the village's 9 huts stand (the ones nearest the centre); the
@@ -47,7 +50,8 @@ var pieces_hp := 1.0
 ## {"kind": a Config.BUILDINGS key, or "wall_tower" (the corner tower nearest
 ## that road's gate), "road": which road (0: the one nearest the village by
 ## road, 1: the next, ...), "at": [lo, hi] road tiles before its gate (or
-## "tile": a fixed tile), "level", "units": [{"kind", "level"}] (one per slot)}.
+## "tile": a fixed tile, or "near_water": true, the free spot by the walls
+## nearest the water), "level", "units": [{"kind", "level"}] (one per slot)}.
 ## A workplace among them takes its worker (the stall: the merchant).
 var prebuilt: Array[Dictionary] = []
 ## The hero: a name, the level (1 = the first), and where she starts (a tile;
@@ -75,6 +79,9 @@ var hero_revives := true
 var fail_on_villager_death := false
 ## Named villagers whose death is a defeat ("Pell").
 var must_live: Array[String] = []
+## Building kinds that must not fall: once every one of a kind is devastated
+## (or gone), the scenario is lost (the guild warehouse).
+var must_stand: Array[String] = []
 ## Corpses rot as usual (false: they lie until gathered or the next wave ends).
 var corpses_rot := true
 
@@ -164,6 +171,11 @@ func on_wave_started(_r: ScenarioRunner, _n: int) -> void:
 
 func on_wave_finished(_r: ScenarioRunner, _n: int) -> void:
 	pass
+
+
+## The defeat screen's line when the last building of a `must_stand` kind fell.
+func fallen_text(b: Building) -> String:
+	return "The %s fell." % b.display_name().to_lower()
 
 
 ## The defeat screen's line for a villager's death ("a goblin killed Einar").

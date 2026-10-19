@@ -208,6 +208,7 @@ func _scripted_wave(sw: Dictionary, n: int, hp_scale: float) -> Array:
 		out.append(_spec(kinds[i], points[i % points.size()], hp_scale, target))
 	for size in sw.get("rat_packs", []):
 		_insert_pack(out, points[_rng.randi() % points.size()], int(size), hp_scale, target)
+	_water_spawns(out, target)
 	return out
 
 
@@ -414,6 +415,8 @@ func _spawn(spec: Dictionary) -> Enemy:
 		route = game.world.pathing.enemy_route(spec["spawn"], _rng, field, amph)
 	var g: Enemy = ENEMY_SCRIPT.new()
 	g.setup(game, route, spec["hp_scale"], kind)
+	if spec.has("name") or spec.has("art"):
+		g.set_identity(str(spec.get("name", "")), str(spec.get("art", "")))
 	if habitat != "land" and not _aqua_logged.has(kind) and not _uncounted_next:
 		_aqua_logged[kind] = true
 		target.events.add(EventLog.Level.IMPORTANT if kind == "octopus" else EventLog.Level.INFO, str(Config.AQUA_FIRST.get(kind, "A %s comes out of the water!" % str(g.spec()["name"]).to_lower())))
@@ -434,6 +437,18 @@ func _add(g: Enemy, target: Village) -> void:
 	g.vanished.connect(func(e: Enemy) -> void: _enemy_gone(e))
 	game.world.objects.add_child(g)
 	_alive += 1
+
+
+## A scenario's extra enemies for the wave under way (they count for it):
+## `count` of `kind` from road tile `tile`, at the end of its queue; `extra`
+## goes into each one's queue entry ("name", "art": Enemy.set_identity).
+func add_to_wave(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary = {}) -> void:
+	var hp_scale := pow(Config.WAVE_HP_GROWTH, maxi(wave, 1) - 1)
+	for i in count:
+		var sp := _spec(kind, tile, hp_scale, game.villages[0])
+		sp.merge(extra)
+		_queue.append(sp)
+	changed.emit()
 
 
 ## Debug (Commands._debug): an enemy of `kind` at a random edge spawn of

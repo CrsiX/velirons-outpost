@@ -286,6 +286,10 @@ static func _enemies() -> Array[Dictionary]:
 		if e.get("unholy", false):
 			f.append("Unholy: the inquisitor hunts it")
 		f.append_array(_water_facts(kind))
+		if e.get("campaign", false):
+			f.append("The Dread Legion: people, bound to Rhodri. Only in the campaign")
+		if e.has("retreat_below"):
+			f.append("Never killed: below %d %% of its HP it falls back and leaves" % roundi(100.0 * float(e["retreat_below"])))
 		var loot := "Killed: %d gold" % Config.enemy_stat_int(kind, "gold_on_kill")
 		if e.get("corpse", true):
 			var c := PackedStringArray()
@@ -294,6 +298,8 @@ static func _enemies() -> Array[Dictionary]:
 				if v > 0:
 					c.append("%d %s" % [v, res])
 			loot += "; its corpse, brought home: %s" % (", ".join(c) if not c.is_empty() else "nothing")
+		elif e.get("release", false):
+			loot += "; released, it leaves no corpse"
 		else:
 			loot += "; leaves no corpse"
 		f.append(loot)
@@ -455,6 +461,10 @@ static func _buildings() -> Array[Dictionary]:
 				f.append("The hero passes on %s XP per second" % _n(Config.HERO["train_rate"]))
 			"lightstone":
 				f.append("Lights up %s tiles around it" % _n(Config.LIGHTSTONE_SIGHT))
+			"warehouse":
+				f.append("Each enemy that gets to it takes %s HP; it can't be torn down" % _n(Config.WAREHOUSE["raid_damage"]))
+		if b.get("campaign", false):
+			f.append("Only in the campaign")
 		out.append({"name": b["name"], "art": b["art"], "text": b["desc"], "facts": f})
 	out.append({
 		"name": "Wall Tower", "art": "wall_tower",

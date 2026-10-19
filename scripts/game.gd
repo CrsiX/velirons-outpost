@@ -773,6 +773,9 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 	if not raid_roll(g):
 		v.events.debug("%s got into the village and melted away" % g.label().capitalize())
 		return
+	if is_instance_valid(g.raid_store):
+		g.raid_store.plunder(g)  # (rubble already: nothing more to take)
+		return
 	v.events.debug("%s broke into the village" % g.label())
 	# The hut it got to (docs/siege-design.md §5.3); one at random if it came
 	# in some other way.

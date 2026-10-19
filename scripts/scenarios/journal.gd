@@ -60,7 +60,8 @@ func open(title: String, text: String) -> void:
 		_speed_before = game.speed_index
 		game.apply_speed(Game.SPEEDS.find(0.0))
 	visible = true
-	game.events.info("%s: %s" % [title, text.left(60) + ("..." if text.length() > 60 else "")])
+	var flat := " ".join(Array(text.split("\n", false)).map(func(l: String) -> String: return l.strip_edges()))  # (one line in the log)
+	game.events.info("%s: %s" % [title, flat.left(60) + ("..." if flat.length() > 60 else "")])
 
 
 func close_page() -> void:

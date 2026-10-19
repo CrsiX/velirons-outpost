@@ -9,8 +9,14 @@ extends "res://tests/bot_base.gd"
 ## claiming the ruin, the cards, the talks between waves, Pell's death as a
 ## defeat, the win. Scenario 3, The Wardline: the grown map, the ruins (a
 ## barracks too), restoring, journals and the logbook, specialising and
-## training, the lit road, the waves that keep coming, the win.
-##   -- --only=1|2|3   one scenario only (the title screen with 1)
+## training, the lit road, the waves that keep coming, the win. Scenario 4,
+## The Split: the guild town, Wenna and her guild house, the warehouse by the
+## harbour plundered and its fall as a defeat, the rival's offer (a choice),
+## the coins, crabs out of the sea, Brenna downed as a defeat, the win.
+## Scenario 5, The Betrayal: the ruined fort, Sigmund, the evidence and its
+## pages, the Dread Legion (a footman's release, a captain falling back),
+## the last wave's Legion and gargoyles, the win.
+##   -- --only=1|2|3|4|5   one scenario only (the title screen with 1)
 
 var sc: ScenarioRunner
 
@@ -31,6 +37,11 @@ func _run() -> void:
 		await _scenario_2()
 	if only in ["", "3"]:
 		await _scenario_3()
+	if only in ["", "4"]:
+		await _cutscene_choice()
+		await _scenario_4()
+	if only in ["", "5"]:
+		await _scenario_5()
 	if is_instance_valid(game):
 		game.queue_free()
 		await frames(2)
@@ -65,12 +76,15 @@ func _new_game(n := 1) -> void:
 
 
 ## Through a cutscene: every line (a tap shows it whole, the next goes on).
-## Returns the speakers' ids in order.
-func _watch(c: Cutscene) -> Array[String]:
+## A choice gets choice `pick`. Returns the speakers' ids in order.
+func _watch(c: Cutscene, pick := 0) -> Array[String]:
 	var said: Array[String] = []
 	var t := 0.0
 	while is_instance_valid(c) and c.running and t < 90.0:
-		if c.line != "":
+		if c.choosing():
+			said.append(str(c.steps[c.index].get("say", "")))
+			c.choose(pick)
+		elif c.line != "":
 			var s: Dictionary = c.steps[c.index]
 			said.append(str(s["say"]))
 			c.advance()  # (the whole line)
@@ -326,7 +340,8 @@ func _title() -> void:
 	cb.pressed.emit()
 	await frames(1)
 	check(t._campaign_page.visible and not t._main_page.visible, "it opens the campaign page")
-	check(t.scenario_buttons.size() == 3 and t.scenario_buttons[0].text == "1. Homecoming" and t.scenario_buttons[1].text == "2. The Old Friend" and t.scenario_buttons[2].text == "3. The Wardline", "scenarios 1 to 3 are there: %s" % str(t.scenario_buttons.map(func(b: Button) -> String: return b.text)))
+	var names: Array = t.scenario_buttons.map(func(b: Button) -> String: return b.text)
+	check(names == ["1. Homecoming", "2. The Old Friend", "3. The Wardline", "4. The Split", "5. The Betrayal"], "scenarios 1 to 5 are there: %s" % str(names))
 	check(t._campaign_page.get_children().any(func(c: Node) -> bool: return c is Label and (c as Label).text.contains("still to come")), "and the rest are to come")
 	t.show_page(t._main_page)
 	t.queue_free()
@@ -586,3 +601,275 @@ func _scenario_3() -> void:
 	await _watch(sc.cutscene)
 	await frames(3)
 	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Wardline: complete", "won: %s" % game.hud._overlay_title.text)
+
+
+
+# --- cutscene choices ----------------------------------------------------------------------------
+
+func _cutscene_choice() -> void:
+	print("-- a choice in a cutscene")
+	await _new_game(4)
+	await _skip_scene()
+	var picked := [-1]
+	var steps: Array[Dictionary] = [
+		{"say": "", "text": "one"},
+		{"do": func() -> void: picked[0] = 9},
+		{"say": "", "text": "two"},
+		{"say": "", "text": "which?", "choices": [
+			{"text": "A", "do": func() -> void: picked[0] = 0},
+			{"text": "B", "do": func() -> void: picked[0] = 1},
+		]},
+		{"say": "", "text": "after"},
+		{"say": "", "text": "the end"},
+	]
+	var c := Cutscene.new()
+	c.play(game, steps, {})
+	await frames(2)
+	c.skip()
+	await frames(3)
+	check(c.running and c.choosing() and c.index == 3, "Skip before a choice jumps to it (step %d)" % c.index)
+	check(picked[0] == 9, "the actions on the way still ran")
+	c.skip()
+	c.advance()
+	await frames(2)
+	check(c.choosing(), "the choice waits: neither Skip nor a tap passes it")
+	c.choose(1)
+	await frames(2)
+	check(picked[0] == 1 and c.chosen.get(3) == 1 and c.running and c.line == "after", "B picked: its action, and the cutscene goes on")
+	c.skip()
+	await frames(2)
+	check(not is_instance_valid(c) or not c.running, "past the choice, Skip ends it")
+
+
+# --- scenario 4: The Split ---------------------------------------------------------------------
+
+func _warehouse() -> Warehouse:
+	var list := sc.pieces("warehouse")
+	return list[0] if not list.is_empty() else null
+
+
+func _scenario_4() -> void:
+	print("-- scenario 4: setup")
+	await _new_game(4)
+	var v := game.player_village
+	check(sc != null and sc.error == "" and game.map.size == 75 and MapJson.map_name(game.map) == "The Guild Town", "scenario 4 runs on the guild town's map")
+	check(not game.map.water_spawns.is_empty(), "the map has water spawns")
+	var wenna: Civilian = game.population.civilians.filter(func(c: Civilian) -> bool: return c.given_name == "Wenna")[0] if game.population.count("guildmaster") > 0 else null
+	check(wenna is GuildMaster and wenna.label() == "Wenna", "Wenna, the guild master, is a villager")
+	check(wenna != null and wenna.hut.look == "guild_house" and wenna.hut.display_name() == "Guild House", "her hut is the guild house")
+	check(not game.population.recruit_error("guildmaster").is_empty() and not game.hud._recruit_rows.has("guildmaster"), "guild masters can't be recruited")
+	check(sc.merchant() != null and sc.merchant().label() == "Pell", "Pell is there")
+	var stall: Stall = sc.stalls()[0] if not sc.stalls().is_empty() else null
+	check(stall != null and stall.level == 3 and stall.display_name() == "Guild Market", "the full guild market")
+	var w := _warehouse()
+	check(w != null and w.size == 2 and w.complete and w.hp == w.max_hp() and w.display_name() == "Guild Warehouse", "the guild warehouse stands, 2x2, whole")
+	check(w != null and game.siege.in_zone(v, w.tile) and not v.rect.has_point(w.tile), "by the walls, where enemies leave their roads")
+	var water_d := INF
+	for y in range(v.rect.position.y - 14, v.rect.end.y + 14):
+		for x in range(v.rect.position.x - 14, v.rect.end.x + 14):
+			if game.map.is_water(Vector2i(x, y)) and w != null:
+				water_d = minf(water_d, Vector2(x, y).distance_to(Vector2(w.tile)))
+	check(water_d <= 8.0, "on the harbour side, by the water (%.1f tiles)" % water_d)
+	check(w != null and not w.can_tear_down() and not game.allows_building("warehouse"), "it can't be torn down or built")
+	check(game.hero.level == 4 and not sc.spec.hero_revives, "Brenna at level 5; she can't be brought back")
+	check(game.waves.scripted.size() == 9 and game.waves.last_wave == 9, "nine scripted waves")
+	await wait(1.0)
+	check(sc.cutscene != null, "the intro plays")
+	var said := await _watch(sc.cutscene)
+	check(said.has("wenna") and said.has("pell") and said.has("brenna"), "Wenna, Pell and Brenna speak (%s)" % str(said))
+	check(sc.phase == ScenarioRunner.Phase.PLAY and sc.card.lesson_title() == "The warehouse", "play: the warehouse's card")
+
+	print("-- scenario 4: the warehouse is plundered")
+	game.selected = w
+	check(await wait_until(func() -> bool: return sc.step == 1, 10.0), "the card is done once it is looked at")
+	cmd("hero_mode", {"mode": Hero.Mode.REST})
+	var road := game.world.pathing.nearest_road(w.tile)
+	var gob := game.waves.spawn_at("goblin", road, v, 1)
+	gob.max_hp = 1e6
+	gob.hp = gob.max_hp
+	var huts := v.intact_huts().size()
+	check(await wait_until(func() -> bool: return w.hp < w.max_hp() or not is_instance_valid(gob) or gob.dead, 120.0), "a goblin by the warehouse goes for it")
+	check(is_equal_approx(w.hp, w.max_hp() - float(Config.WAREHOUSE["raid_damage"])), "and plunders it: %d HP (%d / %d)" % [int(Config.WAREHOUSE["raid_damage"]), w.hp, w.max_hp()])
+	check(not is_instance_valid(gob) or gob.dead, "the goblin is gone then")
+	check(v.intact_huts().size() == huts, "no hut burned for it")
+	check(await wait_until(func() -> bool: return sc.card.hint().begins_with("The warehouse is hit"), 5.0), "a hint: repair it")
+	check(w.can_repair() and cmd("repair", {"building": w.nid})["ok"], "it can be repaired")
+
+	print("-- scenario 4: guarding the harbour")
+	var spot := find_spot("tower", w.tile)
+	check(cmd("place_building", {"kind": "tower", "tile": spot})["ok"], "a watchtower by the warehouse")
+	cmd("recruit_unit", {"kind": "archer"})
+	Engine.time_scale = 4.0
+	var tower: Tower = sc.towers().filter(func(t: Tower) -> bool: return t.tile == spot)[0]
+	check(await wait_until(func() -> bool: return tower.complete, 200.0), "it stands")
+	cmd("station_unit", {"unit": game.army.reserve()[0].nid, "post": tower.nid})
+	check(await wait_until(func() -> bool: return sc.step == 2, 120.0), "manned: the harbour is guarded; the call card")
+	cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
+
+	print("-- scenario 4: the waves, the offer, the coins")
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	guard.start()
+	var crab_water := false
+	var offered := false
+	var coins := false
+	var t := 0.0
+	while not game.waves.all_done() and not game.game_over and t < 1500.0:
+		for e: Enemy in get_tree().get_nodes_in_group("enemies"):
+			if e.kind == "crab" and game.map.is_water(e.home_tile):
+				crab_water = true
+		if sc.journal != null and sc.journal.visible:
+			coins = coins or sc.journal.title() == "Foreign coins"
+			_close_journal()
+		if sc.cutscene != null:
+			if sc.cutscene.steps.any(func(st: Dictionary) -> bool: return st.has("choices")):
+				offered = true
+				await _watch(sc.cutscene, 1)
+				Engine.time_scale = 4.0
+			else:
+				await _skip_scene()
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+		t += 0.5
+	check(not game.game_over and game.waves.all_done(), "nine waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	check(crab_water, "crabs come out of the sea (a water spawn)")
+	check(offered, "the rival's offer was made, and refused")
+	check(coins, "the captured Renegade's coins")
+	check(await wait_until(func() -> bool: return sc.cutscene != null, 120.0), "the outro plays")
+	guard.queue_free()
+	Engine.time_scale = 1.0
+	said = await _watch(sc.cutscene)
+	check(said.has("pell") and said.has("brenna"), "Pell reads the ledger (%s)" % str(said))
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Split: complete", "won: %s" % game.hud._overlay_title.text)
+
+	print("-- scenario 4: defeats")
+	await _new_game(4)
+	await _skip_scene()
+	sc.spec.on_wave_finished(sc, 3)
+	check(await wait_until(func() -> bool: return sc.cutscene != null, 5.0), "the rival's offer")
+	await _watch(sc.cutscene, 0)
+	await frames(3)
+	check(game.game_over and game.hud._overlay_sub.text.contains("took the rival guild's gold"), "taking the gold loses the scenario (%s)" % game.hud._overlay_sub.text)
+	await _new_game(4)
+	await _skip_scene()
+	_warehouse().take_damage(1e6)
+	check(await wait_until(func() -> bool: return game.game_over, 3.0), "the warehouse falls: lost")
+	check(game.hud._overlay_title.text == "The Split failed" and game.hud._overlay_sub.text.contains("warehouse"), "it says so (%s)" % game.hud._overlay_sub.text)
+	await _new_game(4)
+	await _skip_scene()
+	var wn: Civilian = game.population.civilians.filter(func(c: Civilian) -> bool: return c.given_name == "Wenna")[0]
+	game.population.kill(wn, "when goblin 2 burned her home", "hut")
+	await frames(2)
+	check(game.game_over and game.hud._overlay_sub.text.contains("Wenna"), "Wenna dies: lost (%s)" % game.hud._overlay_sub.text)
+	await _new_game(4)
+	await _skip_scene()
+	game.hero.take_damage(1e6)
+	await frames(3)
+	check(game.game_over and game.hud._overlay_sub.text.contains("nobody can bring her back"), "Brenna is downed: lost (%s)" % game.hud._overlay_sub.text)
+
+
+# --- scenario 5: The Betrayal ------------------------------------------------------------------
+
+func _scenario_5() -> void:
+	print("-- scenario 5: setup")
+	await _new_game(5)
+	var v := game.player_village
+	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Old Fort", "scenario 5 runs on the old fort's map")
+	var sig := game.population.civilians.filter(func(c: Civilian) -> bool: return c.given_name == "Sigmund")
+	check(sig.size() == 1 and (sig[0] as Civilian).role == "builder", "Sigmund is there, a builder")
+	check(v.intact_huts().size() == 6, "six huts stand (%d)" % v.intact_huts().size())
+	check(sc.pieces("wall").filter(func(b: Building) -> bool: return not b.devastated).size() == 2, "two walls stand")
+	check(sc.stalls().size() == 1 and sc.stalls()[0].level == 1, "Pell's wagon: a peddler's stall")
+	check(game.hero.level == 6 and not sc.spec.hero_revives, "Brenna at level 7, no revive")
+	var ev: Array = sc.spec._evidence(sc)
+	check(ev.size() == 3, "three treasures hold the evidence")
+	check(ev.all(func(o: Treasure) -> bool: return game.fog.is_explored_by(v.id, o.tile)), "their places are known")
+	check(game.waves.scripted.size() == 10, "ten waves")
+	await wait(1.0)
+	var said := await _watch(sc.cutscene)
+	check(said.has("sigmund") and said.has("brenna"), "the intro: Sigmund and Brenna (%s)" % str(said))
+	check(sc.card.lesson_title() == "The evidence", "the evidence card")
+
+	print("-- scenario 5: the Dread Legion")
+	cmd("hero_mode", {"mode": Hero.Mode.REST})
+	var road := game.world.pathing.nearest_road(v.center + Vector2i(0, -12))
+	var foot := game.waves.spawn_at("legion_footman", road, v, 1)
+	check(foot.label().begins_with("legion footman") and foot.unit_art() == "unit_legion_footman", "a Legion footman")
+	var corpses := game.corpses.corpses.size()
+	kill(foot)
+	await frames(3)
+	check(foot.dead and game.corpses.corpses.size() == corpses, "slain, it is released: no corpse")
+	var lysa := game.waves.spawn_at("legion_captain", road, v, 1)
+	lysa.set_identity("Lysa", "legion_captain_lysa")
+	check(lysa.label() == "Lysa" and lysa.unit_art() == "unit_legion_captain_lysa", "a captain with a name and a look of her own")
+	lysa.take_damage(1e6)
+	check(not lysa.dead and lysa.retreating and not lysa.targetable(), "never killed: below 30 % she falls back, out of reach")
+	check(is_equal_approx(lysa.hp, lysa.max_hp * 0.3), "with 30 % of her HP")
+	Engine.time_scale = 4.0
+	check(await wait_until(func() -> bool: return not is_instance_valid(lysa) or lysa.dead, 120.0), "she walks back up her road and leaves the map")
+	var lib := Library.entries("enemies").filter(func(e: Dictionary) -> bool: return str(e["name"]).begins_with("Legion"))
+	check(lib.size() == 2 and lib.all(func(e: Dictionary) -> bool: return (e["facts"] as PackedStringArray).has("The Dread Legion: people, bound to Rhodri. Only in the campaign")), "the library has the footman and the captain, as people")
+
+	print("-- scenario 5: the evidence")
+	cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
+	var pages := 0
+	for o: Treasure in ev:
+		o.mark_looted()
+		check(await wait_until(func() -> bool: return sc.journal != null and sc.journal.visible, 10.0), "a found piece: its page")
+		pages += 1
+		_close_journal()
+	check(pages == 3 and int(sc.mark.get("found", 0)) == 3, "all three found (%d)" % int(sc.mark.get("found", 0)))
+	check(await wait_until(func() -> bool: return sc._goal_state.get("evidence", false), 5.0), "the evidence objective is met")
+
+	print("-- scenario 5: the waves, the Legion's last wave")
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	guard.start()
+	var legion := false
+	var captains := {}
+	var fell_back := false
+	var gate := sc.spec._old_gate(sc) as Vector2i
+	var gargoyles := [0]
+	var seen := func(n: Node) -> void:  # (the guard kills them before the next look; a beaten captain leaves)
+		if n is Enemy and (n as Enemy).given_name != "":
+			captains[(n as Enemy).given_name] = true
+		if n is Enemy and (n as Enemy).kind == "gargoyle" and (n as Enemy).home_tile == gate:
+			gargoyles[0] += 1
+	get_tree().node_added.connect(seen)
+	var scenes := 0
+	var t := 0.0
+	while not game.waves.all_done() and not game.game_over and t < 1500.0:
+		for e: Enemy in get_tree().get_nodes_in_group("enemies"):
+			legion = legion or e.kind == "legion_footman"
+			if e.given_name != "":
+				captains[e.given_name] = true
+		if sc.cutscene != null:
+			scenes += 1
+			if sc.cutscene.steps.any(func(st: Dictionary) -> bool: return str(st.get("text", "")).contains("Still following orders")):
+				fell_back = true
+			await _skip_scene()
+		if sc.journal != null and sc.journal.visible:
+			_close_journal()
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+		t += 0.5
+	get_tree().node_added.disconnect(seen)
+	check(not game.game_over and game.waves.all_done(), "ten waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	check(scenes >= 5, "Sigmund tells it between the waves (%d scenes)" % scenes)
+	check(legion and captains.has("Lysa") and captains.has("Torben"), "the last wave: the Legion, with Lysa and Torben (%s)" % str(captains.keys()))
+	check(gargoyles[0] == 3, "and the old gate's three gargoyles (%d)" % gargoyles[0])
+	check(fell_back, "Brenna sees a captain fall back")
+	check(await wait_until(func() -> bool: return sc.cutscene != null, 120.0), "the outro plays")
+	guard.queue_free()
+	Engine.time_scale = 1.0
+	said = await _watch(sc.cutscene)
+	check(said.has("brenna") and said.has("pell"), "Brenna reads the order (%s)" % str(said))
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Betrayal: complete", "won: %s" % game.hud._overlay_title.text)

@@ -2,8 +2,9 @@ extends Node2D
 ## A short effect drawn in code: an exploding fireball (flash, fire ring and
 ## sparks), a healing ring, a warp blink, a puff of dark smoke, an acolyte's
 ## beam of light from straight above, a flash of holy light from a blow, a
-## warrior's war cry (red-orange rings rushing out to its reach), or a water
-## monster's splash as it dives or comes up.
+## warrior's war cry (red-orange rings rushing out to its reach), a water
+## monster's splash as it dives or comes up, or a Legion soldier's last
+## breath (release).
 ## Fades out on its own.
 
 const LIFE := 0.55
@@ -76,6 +77,10 @@ func _draw() -> void:
 			for s in _sparks.slice(0, 9):
 				var p := Vector2(s.x * rx * 0.8, s.y * rx * 0.4 - 30.0 * sin(k * PI))
 				draw_circle(p, 2.5 * fade + 0.8, Color(0.8, 0.93, 1.0, fade))
+		"release":  # a Legion soldier falls: a pale breath goes out of it and rises
+			for s in _sparks.slice(0, 5):
+				var p := Vector2(s.x * rx * 0.35, -26.0 * k - absf(s.y) * 8.0)
+				draw_circle(p, 3.5 + 5.0 * k, Color(0.92, 0.95, 1.0, 0.55 * fade))
 		"war_cry":  # a warrior's shout: rings rushing out to the cry's reach, short strokes on the way
 			var reach := radius * Iso.HALF_W * (0.15 + 0.85 * sqrt(k))
 			_ellipse(reach, Color(1.0, 0.45, 0.15, 0.85 * fade), 5.0)

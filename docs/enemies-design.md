@@ -145,6 +145,9 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   - Flyers (gargoyles) fly over walls and gates to the nearest hut.
 - Inside, an enemy walks to the nearest intact hut and burns it (huts have 1 HP), on every
   difficulty. Only the villager living there dies.
+- A campaign scenario's guild warehouse (scenario 4) is a raid target too: the siege field leads
+  to it as to a hut, and an enemy that gets onto it plunders it (`WAREHOUSE.raid_damage` of its
+  HP) and is gone; no hut burns for it (docs/scenarios-design.md §7.7).
 - Exceptions:
   - kinds with `raid_chance` roll for it (small slimes); failed, they melt away;
   - rats eat food instead (§10);
@@ -319,6 +322,15 @@ The crab, the siren, the leviathan and the gigantic octopus live in water: their
 diving (untargetable while under), melee reach on deep water, sinking corpses, the siren's song
 and the octopus's arms, and when they join a village's waves (`WAVE_MIX` `"needs": "water"`,
 `"max_count"`, `"chance"`; `Aqua.eligibility`) are all in docs/aquatic-design.md.
+
+## 16c. The Dread Legion (campaign only)
+
+Rhodri's bound soldiers (docs/story-design.md §5): `legion_footman` and `legion_captain`, with
+`"campaign": true` (never in `WAVE_MIX`: only where a scenario sends them). A fallen one is
+released (`"release"`: no corpse, the colour warms, a pale breath). The captain
+(`CaptainBehavior`) is never killed: below `retreat_below` (30 %) it falls back, untargetable, off
+the map the way it came. Named ones (Lysa, Torben) carry a name and art of their own
+(`Enemy.set_identity`). Numbers and the rest: docs/scenarios-design.md §7.7.
 
 ## 17. Open ideas / not built
 

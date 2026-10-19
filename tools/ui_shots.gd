@@ -13,7 +13,10 @@ extends Node
 ## walk home, the arrival, the cards and objectives, the outro and the end
 ## (landscape, and the intro and a card in portrait); (`--only=campaign`)
 ## scenarios 2 and 3: Pell's arrival, his stall and its panel, a talk between
-## waves, the Wardline's start, a journal page, a restored ruin and the road.
+## waves, the Wardline's start, a journal page, a restored ruin and the road;
+## (`--only=away`) scenarios 4 and 5: Wenna, the warehouse and the guild
+## house, the rival's offer (a choice), a plundering goblin; Sigmund, the
+## evidence card and a page, the Legion with its named captains.
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -98,6 +101,8 @@ func _run() -> void:
 		await _scenario()
 	if only in ["", "campaign"]:
 		await _campaign()
+	if only in ["", "away"]:
+		await _away()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -900,5 +905,94 @@ func _campaign() -> void:
 	g.camera.zoom = Vector2(0.55, 0.55)
 	await _frames(60)
 	await shot("campaign_s3_road")
+	g.queue_free()
+	await _frames(3)
+
+
+func _away() -> void:
+	var g := await _scenario_game(4)
+	var sc := g.scenario
+	await _cut_to_line(sc, "wenna", "convoy")
+	await shot("away_s4_wenna")
+	sc.cutscene.skip()
+	await _frames(30)
+	var v := g.player_village
+	var w: Building = sc.pieces("warehouse")[0]
+	g.camera.focus(w.position)
+	g.camera.zoom = Vector2(0.9, 0.9)
+	await _frames(30)
+	await shot("away_s4_warehouse_card")
+	g.hero.set_mode(Hero.Mode.REST)
+	var gob := g.waves.spawn_at("goblin", g.world.pathing.nearest_road(w.tile), v, 1)
+	gob.max_hp = 1e6
+	gob.hp = gob.max_hp
+	for i in 1200:
+		await _frames(1)
+		if w.hp < w.max_hp():
+			break
+	g.select(w)
+	await _frames(20)
+	await shot("away_s4_warehouse_plundered")
+	g.deselect()
+	var home: Building = null
+	for c in g.population.civilians:
+		if c.given_name == "Wenna":
+			home = c.hut
+	if home:
+		g.camera.focus(home.position)
+		g.camera.zoom = Vector2(1.3, 1.3)
+		g.select(home)
+		await _frames(30)
+		await shot("away_s4_guild_house")
+		g.deselect()
+	sc.spec.on_wave_finished(sc, 3)
+	for i in 600:
+		await _frames(1)
+		if sc.cutscene and sc.cutscene.choosing():
+			break
+		if sc.cutscene and sc.cutscene.line != "":
+			sc.cutscene.advance()
+			sc.cutscene.advance()
+	await _frames(30)
+	await shot("away_s4_offer")
+	sc.cutscene.choose(1)
+	await _frames(10)
+	sc.cutscene.skip()
+	g.queue_free()
+	await _frames(3)
+	g = await _scenario_game(5)
+	sc = g.scenario
+	await _cut_to_line(sc, "sigmund")
+	await shot("away_s5_sigmund")
+	sc.cutscene.skip()
+	await _frames(30)
+	await shot("away_s5_evidence_card")
+	(sc.spec._evidence(sc)[0] as Treasure).mark_looted()
+	for i in 120:
+		await _frames(1)
+		if sc.journal and sc.journal.visible:
+			break
+	await _frames(10)
+	await shot("away_s5_evidence_page")
+	sc.journal.close_page()
+	v = g.player_village
+	var road := sc.road_in(v.center + Vector2i(0, -40), 9)
+	g.hero.set_mode(Hero.Mode.REST)
+	if not road.is_empty():
+		var at: Vector2i = road[0]
+		for k in 3:
+			g.waves.spawn_at("legion_footman", at, v, 1)
+		var lysa := g.waves.spawn_at("legion_captain", at, v, 1)
+		lysa.set_identity("Lysa", "legion_captain_lysa")
+		var torben := g.waves.spawn_at("legion_captain", at, v, 1)
+		torben.set_identity("Torben", "legion_captain")
+		g.fog.reveal(Vector2(at), 6.0, v.id)
+		for i in 90:
+			await _frames(1)
+		lysa.take_damage(lysa.max_hp * 0.2)
+		g.camera.focus(lysa.position)
+		g.camera.zoom = Vector2(1.4, 1.4)
+		await _frames(20)
+		await shot("away_s5_legion")
 	g.queue_free()
 	await _frames(3)

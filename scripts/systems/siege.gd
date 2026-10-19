@@ -2,7 +2,8 @@ class_name Siege
 extends Node
 ## Enemies at the village (docs/siege-design.md §5). Per village a small
 ## Dijkstra field over its pieces and the band of Config.SIEGE["approach"]
-## tiles around them, towards its intact huts. Costs are in tenths of a step:
+## tiles around them, towards its intact huts (and its raid targets: a
+## standing guild warehouse, Warehouse). Costs are in tenths of a step:
 ## ground STEP, slow ground SIEGE.slow_cost, an intact gate / wall / wall
 ## tower STEP plus STEP per SIEGE.hp_per_step of its HP. So enemies take the
 ## cheapest way in: the weakest barrier, or round to a broken one. Moving is
@@ -142,6 +143,14 @@ func barrier_at(v: Village, t: Vector2i) -> Building:
 	return null
 
 
+## A standing raid target of `v` on `t` (a guild warehouse), or null.
+func store_at(v: Village, t: Vector2i) -> Warehouse:
+	var b = game.map.building_at(t)
+	if b is Warehouse and b.village == v and (b as Warehouse).raidable():
+		return b
+	return null
+
+
 ## An intact hut of `v` on `t`, or null.
 func hut_at(v: Village, t: Vector2i) -> Hut:
 	var b = game.map.building_at(t)
@@ -186,7 +195,7 @@ func _build(v: Village, f: Dictionary) -> void:
 			var i := _idx(area, t)
 			air[i] = STEP
 			ground[i] = _ground_cost(v, t)
-			if hut_at(v, t) != null:
+			if hut_at(v, t) != null or store_at(v, t) != null:
 				huts.append(i)
 	f["enter"] = [ground, air]
 	f["value"] = [_dijkstra(area, ground, huts), _dijkstra(area, air, huts)]
@@ -198,7 +207,7 @@ func _ground_cost(v: Village, t: Vector2i) -> int:
 		if b.devastated or not b.complete:
 			return STEP
 		return STEP + ceili(b.hp / float(Config.SIEGE["hp_per_step"]) * STEP)
-	if b is Hut and b.village == v:
+	if (b is Hut or b is Warehouse) and b.village == v:
 		return STEP
 	if not game.world.pathing.is_walkable(t):
 		return BLOCKED

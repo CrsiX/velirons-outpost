@@ -111,6 +111,7 @@ in docs/multiplayer-design.md.
 | Explorer | 25 food | 2.0 | — | reveals `EXPLORER_REVEAL` 2.6 tiles |
 | Gatherer | 30 food | 1.6 | — | see below |
 | Merchant | (not recruited) | 1.5 | the trade stall (`works_at`) | only in the campaign (Pell); tends the stall, which trades only while he is there (docs/scenarios-design.md §7.4) |
+| Guild master | (not recruited) | 1.2 | none | only in the campaign (Wenna, scenario 4); stays in her hut, the Guild House, and dies with it (docs/scenarios-design.md §7.7) |
 | Miner | 30 food | 1.5 | a mine | locked until anyone walks up to a mine (`LOCKED.miner`) |
 | Spatial Archmage | — | 0.6 | — | can't be recruited |
 
@@ -202,7 +203,8 @@ in docs/multiplayer-design.md.
 
 Every building has HP (`BUILDING_HP`). Enemies can wear it down; at 0 it is devastated and
 does nothing until a builder repairs it, for building material (docs/siege-design.md). No
-enemy goes for the buildings outside the walls yet, except the octopus's arms.
+enemy goes for the buildings outside the walls yet, except the octopus's arms (and, in the
+campaign, the guild warehouse, which enemies plunder like a hut).
 
 | Building | Size | Cost | Build time | What it does |
 |---|---|---|---|---|
@@ -213,6 +215,7 @@ enemy goes for the buildings outside the walls yet, except the octopus's arms.
 | Training grounds (`training`) | 2×2 | 40 material + 40 gold | 14 s | one unit and the hero, who trains it with XP |
 | Light stone (`lightstone`) | 1×1 | 20 material | 10 s | sees `LIGHTSTONE_SIGHT` 5.5 tiles, nobody inside |
 | Trade stall (`stall`) | 2×2 | 30 material | 12 s | the merchant's; only in the campaign's scenarios (docs/scenarios-design.md §7.4) |
+| Guild warehouse (`warehouse`) | 2×2 | prebuilt (repairs count 80 material) | 20 s | only in the campaign (scenario 4); enemies plunder it like a hut; it can't be torn down (docs/scenarios-design.md §7.7) |
 | Hut (`hut`) | 1×1 | 40 material | 10 s | only rebuilt on its ruined lot (§3) |
 
 - **Farm output** (`Farm.rate`): `FARM_RATE` 0.4 food/s (24 per minute) while it has a farmer
