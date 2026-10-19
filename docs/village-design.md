@@ -112,6 +112,7 @@ in docs/multiplayer-design.md.
 | Gatherer | 30 food | 1.6 | — | see below |
 | Merchant | (not recruited) | 1.5 | the trade stall (`works_at`) | only in the campaign (Pell); tends the stall, which trades only while he is there (docs/scenarios-design.md §7.4) |
 | Guild master | (not recruited) | 1.2 | none | only in the campaign (Wenna, scenario 4); stays in her hut, the Guild House, and dies with it (docs/scenarios-design.md §7.7) |
+| Priest, Princess | (not recruited) | 1.1, 1.2 | none | only in the campaign (Anselm, scenario 6; Fiona, scenario 7): residents like the guild master (`Resident`, `"stays_home"`; docs/scenarios-design.md §7.10) |
 | Miner | 30 food | 1.5 | a mine | locked until anyone walks up to a mine (`LOCKED.miner`) |
 | Spatial Archmage | — | 0.6 | — | can't be recruited |
 
@@ -216,6 +217,8 @@ campaign, the guild warehouse, which enemies plunder like a hut).
 | Light stone (`lightstone`) | 1×1 | 20 material | 10 s | sees `LIGHTSTONE_SIGHT` 5.5 tiles, nobody inside |
 | Trade stall (`stall`) | 2×2 | 30 material | 12 s | the merchant's; only in the campaign's scenarios (docs/scenarios-design.md §7.4) |
 | Guild warehouse (`warehouse`) | 2×2 | prebuilt (repairs count 80 material) | 20 s | only in the campaign (scenario 4); enemies plunder it like a hut; it can't be torn down (docs/scenarios-design.md §7.7) |
+| Graveyard (`graveyard`) | 3×3 | prebuilt (repairs count 40 material) | 16 s | only in the campaign (scenario 6): gatherers bury the battlefield's fallen there; it can't be torn down (docs/scenarios-design.md §7.10) |
+| Druids' grove (`grove`) | 2×2 | prebuilt (repairs count 40 material) | 16 s | only in the campaign (scenario 7): barracks for the druids, at level 3; no upgrades, no tear-down (docs/military-design.md §6) |
 | Hut (`hut`) | 1×1 | 40 material | 10 s | only rebuilt on its ruined lot (§3) |
 
 - **Farm output** (`Farm.rate`): `FARM_RATE` 0.4 food/s (24 per minute) while it has a farmer

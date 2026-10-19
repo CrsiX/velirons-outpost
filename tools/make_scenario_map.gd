@@ -13,7 +13,8 @@ extends Node
 ## and objects left out), and the home roads run on straight to the new edge.
 ## "add_ruins": ruins placed by a road, {"edge": the map edge its road comes
 ## from ("north", "south", "west", "east"), "at": road tiles from the gate,
-## "building": "tower" or "barracks"}.
+## "building": "tower" or "barracks"}. "add_sites": unit-unlock sites placed
+## the same way, {"edge", "at", "site": a Config.UNLOCK_SITES key}.
 
 const MAPS := {
 	1: {"map_type": "highlands", "seed": 1337, "name": "Homecoming",
@@ -33,6 +34,14 @@ const MAPS := {
 	5: {"map_type": "highlands", "seed": 11, "name": "The Old Fort",
 		"description": "Scenario 5: Brenna's old fort, where the road comes down out of the northern pass. The evidence lies in the hills around it.",
 		"drop": ["unlock", "lair"], "ruins": 0},
+	6: {"map_type": "desert", "seed": 606, "name": "The Field of Bones",
+		"description": "Scenario 6: a village of survivors on the dry plain where the armies met, its ruined chapel by the road.",
+		"drop": ["unlock", "lair"], "ruins": 0,
+		"add_sites": [{"edge": "east", "at": 9, "site": "chapel"}]},
+	7: {"map_type": "temperate", "seed": 707, "name": "The Refuge",
+		"description": "Scenario 7: Fiona's hidden valley in the forest, with the druids' stone circle and the court mages' tower.",
+		"drop": ["unlock", "lair"], "ruins": 0,
+		"add_sites": [{"edge": "north", "at": 11, "site": "stone_circle"}, {"edge": "west", "at": 8, "site": "mage_tower"}]},
 }
 
 
@@ -67,6 +76,10 @@ func _ready() -> void:
 		var err := _add_ruin(m, ru)
 		if err != "":
 			printerr("ruin %s: %s" % [str(ru), err])
+	for si in spec.get("add_sites", []):
+		var err := _add_site(m, si)
+		if err != "":
+			printerr("site %s: %s" % [str(si), err])
 	m.meta = {"name": spec["name"], "author": "", "description": spec["description"],
 		"origin": {"generator_seed": gen_seed, "edited": true, "game_version": MapJson.game_version()}}
 	var text := MapJson.write(m)
@@ -199,8 +212,34 @@ func _extend_road(m: MapData, t: Vector2i, dir: Vector2i) -> Vector2i:
 ## A ruin by the road from map edge `ru.edge`, `ru.at` road tiles from the
 ## village's gate: on the nearest open land next to that road tile. "" or why not.
 func _add_ruin(m: MapData, ru: Dictionary) -> String:
+	var size := 2 if str(ru["building"]) == "barracks" else 1
+	var res = _add_by_road(m, ru, "ruin", size)
+	if res is String:
+		return res
+	m.objects[res]["building"] = str(ru["building"])
+	m.objects[res]["art"] = MapJson.object_art(m.objects[res])
+	return ""
+
+
+## A unit-unlock site by a road, as a ruin (_add_ruin). "" or why not.
+func _add_site(m: MapData, si: Dictionary) -> String:
+	var res = _add_by_road(m, si, "unlock", 1)
+	if res is String:
+		return res
+	var site := str(si["site"])
+	var o: Dictionary = m.objects[res]
+	o["site"] = site
+	o["unlocks"] = Config.UNLOCK_SITES[site]["unlocks"]
+	o["wave"] = int(Config.UNLOCK_SITES[site]["wave"])
+	o["art"] = MapJson.object_art(o)
+	return ""
+
+
+## An object of `kind` and `size` by the road from map edge `at.edge`,
+## `at.at` road tiles from the gate: its index, or why not.
+func _add_by_road(m: MapData, at: Dictionary, kind: String, size: int) -> Variant:
 	var sp := Vector2i(-1, -1)
-	var e := str(ru["edge"])
+	var e := str(at["edge"])
 	for t in m.edge_spawns:
 		if (e == "north" and t.y == 0) or (e == "south" and t.y == m.size - 1) or (e == "west" and t.x == 0) or (e == "east" and t.x == m.size - 1):
 			sp = t
@@ -209,19 +248,16 @@ func _add_ruin(m: MapData, ru: Dictionary) -> String:
 	var road := _road_to_village(m, sp)
 	if road.is_empty():
 		return "that road doesn't reach the village"
-	var k := clampi(road.size() - 1 - int(ru["at"]), 0, road.size() - 1)
-	var size := 2 if str(ru["building"]) == "barracks" else 1
+	var k := clampi(road.size() - 1 - int(at["at"]), 0, road.size() - 1)
 	var free := EditorTools.MapCheckFree.new(m)
 	for r in [1, 2, 3]:
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):
 				var t: Vector2i = road[k] + Vector2i(dx, dy)
 				if _open(m, free, Building.footprint(t, size)):
-					var res = EditorTools.add_object(m, "ruin", t, size)
+					var res = EditorTools.add_object(m, kind, t, size)
 					if res is int:
-						m.objects[res]["building"] = str(ru["building"])
-						m.objects[res]["art"] = MapJson.object_art(m.objects[res])
-						return ""
+						return res
 	return "no open land by the road there"
 
 

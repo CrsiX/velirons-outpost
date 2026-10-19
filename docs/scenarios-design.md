@@ -1,6 +1,6 @@
 # Scenarios design
 
-Status: **scenarios 1 to 5 and the scenario system are built** (§7 says how, and what was decided for them); scenarios 6 to 11 are planned. This
+Status: **scenarios 1 to 7 and the scenario system are built** (§7 says how, and what was decided for them); scenarios 8 to 11 are planned. This
 page outlines the campaign: eleven scenarios that tell the story in `story-design.md` (read that first; names, places and the cause of the war are
 explained there). Everything about the scenarios not yet built is a draft. Numbers marked *target* are starting points to tune; a scenario's own
 numbers and texts go into its own file (`scripts/scenarios/scenario_<n>.gd`), not into `config.gd`. *Open* means not decided.
@@ -285,6 +285,10 @@ The church tried to bury them and could not. Why the dead rising is not Rhodri's
 keep their distance from the war. He gives her a token that will get her through: a priest's word for a knight of Rhodri's army, which will get
 her in, but not trusted.
 
+**Decided:** the fallen are their own corpses on the field (soldiers in Fiona's blue and Rhodri's crimson) that never rot; a necromancer raises
+one as a skeleton. The gravediggers are gatherers: they carry the fallen to a **graveyard** (a new campaign building by the chapel), where each one
+is buried for good; enemy corpses still go home for gold. Anselm is a villager who stays in his house (like Wenna). Built as §7.11.
+
 ### 7. The Exile
 
 **Where:** Fiona's refuge, a hidden forest valley with a druids' grove (the stone circle), a mage's tower, and a few houses.
@@ -331,6 +335,12 @@ Fiona learns that her brother's crown binds people, and that Brenna has nowhere 
 **Outro cutscene:** Fiona gives Brenna a sealed scroll and asks her to deliver it to the court mages. She explains, only someone of House Aldmoor
 can end what Rhodri has become, but she cannot go yet, and they need more allies and more strength. She must keep the mages alive until the Crown
 is within reach. Brenna promises to bring her there when the time is right.
+
+**Decided:** the druids are three named **druid summoners** on the benches of their **grove** (a campaign barracks by the stone circle). They
+fight for it as barracks units do, but take no orders (they can't be moved, upgraded or withdrawn). During wave 5 a druid downed is a defeat; at
+other times they revive as usual. The trust phases: until wave 2 is over Brenna lives at her tent outside the walls (she rests and defends from
+there), and nothing can be built, repaired or rebuilt, no villager recruited, retired or assigned; units can be hired and stationed on the
+existing posts. After wave 2 she may move in, and villagers, repairs and rebuilding open; after wave 7 new buildings. Built as §7.12.
 
 ### 8. The Pale Court
 
@@ -537,6 +547,7 @@ the gatherer step is done). When the scenario's steps are over the normal countd
 - Whether bandits are a new Renegade kind (not for now: thieves only), and whether the rival guild hires Renegades.
 - The Dread Legion: the footman and the captain are built (§7.7); the other kinds and names, how its camps, ranks and banners work (a
   banner-bearer could buff like the war cry), a captain's commanding abilities, and its place in the mid-boss design (the marshal).
+- The druids (7): whether they come back later (scenario 10 or 11), and whether a grove can be found in a normal game.
 - Where else than the Coast the water monsters appear. Scenario 4 has only crabs and one siren at most. The stats of the scripted leviathan and
   the guard octopus are *open*.
 - The Arcane category and where witches, gargoyles and the siren first appear (5 or 8; the siren is rare and shows up once at most in 4).
@@ -611,7 +622,7 @@ The game has none of this yet, except where noted:
 - **During play:** `play_scene` (a short scene between waves: a talk, a visitor; one after the other; cutscenes hold the wave countdown),
   `on_poll` (a scenario's own events every 0.25 s), `on_wave_started` / `on_wave_finished`, `on_card_done`, and `show_journal` (a page found:
   a journal, a letter, a logbook, on parchment over the paused game, `Journal`). Objectives can be `optional` (shown, not needed to win).
-- **Not built yet:** saving a scenario (`Game.save_error` refuses it, there is no autosave; the stall, the merchant, the guild master and the
+- **Not built yet:** saving a scenario (`Game.save_error` refuses it, there is no autosave; the stall, the merchant, the guild master, the graveyard, the fallen, the grove, the druids and the
   warehouse aren't in saves either), upgrading the stall in play, guard mobs, bosses, scripted caravans, the Legion's other kinds (archers,
   banner-bearers, the marshal) and a captain's commanding abilities, anything carried between scenarios (by design: nothing carries over).
 
@@ -795,3 +806,86 @@ The game has none of this yet, except where noted:
   will find Fiona; the way east crosses the field where the armies met).
 - **Cards:** the evidence (Explore; the three places marked), guarded (attack a camp). **Hints:** a witch, a gargoyle, the Legion (released when
   it falls), Brenna badly hurt. **Objectives:** find the three pieces of evidence; hold the fort for 10 waves.
+
+### 7.10 What scenarios 6 and 7 added to the engine
+
+- **The fallen** (`Corpse.fallen`, `Corpse.make_fallen`, `Corpses.spawn_fallen` / `fallen()`): a battlefield's dead, placed by a scenario.
+  They are corpses of kind `skeleton` (raised, one comes up as a skeleton) with their own look (`corpse_fallen`: Fiona's blue,
+  `corpse_fallen_2`: Rhodri's crimson, by chance), never rot and are never cleared after a wave. A necromancer raises them like any corpse.
+- **The graveyard** (`graveyard`, `Graveyard`, 3x3, 150 HP; `"campaign": true`, prebuilt by a scenario, can't be torn down). While the village
+  has a standing one, gatherers (and the hero gathering) fetch the fallen too, `Config.FALLEN.carry` (1) at a time, carry them there instead of
+  home (`GatherJob` states `TO_GRAVE`, `BURYING`), and lay each in its grave in `bury_time` (4 s): `Graveyard.buried` grows, a mound with a cross
+  appears for each (`grave_mound`, up to 30), and they pay nothing. Without a graveyard nobody fetches the fallen. Art: `graveyard` (flat, on the
+  decal layer: a low stone wall, a lychgate, old crosses, a fresh grave with a spade).
+- **Residents** (`Resident`, `"stays_home"` in `Config.CIVILIANS`: what they do at home): campaign villagers who never leave their hut and die
+  with it; `GuildMaster` is one now. New roles: `priest` (Anselm) and `princess` (Fiona); neither can be recruited. Art `unit_priest`,
+  `unit_princess`; their houses `priest_house` (a bell-cote with a cross) and `fiona_house` (grey stone, her blue banner) via `Scenario.homes`.
+- **The druids** are the summoner's plant branch (`druid`, docs/military-design.md §3b: thornlings whose blows root); the grove's
+  take no orders (`MilitaryUnit.bound`, from a prebuilt unit's `"fixed": true`; `MilitaryUnit.fixed()`: `Commands` refuses moving, withdrawing,
+  swapping, upgrading and sending one; no upgrade options, no *Withdraw* in the panel). Their **grove** (`grove`, `Grove`, a `Barracks` with `post_kind` "grove", 400 HP, prebuilt at level 3 with its
+  benches; no upgrades, no tear-down): they turn out for enemies near it, fight, are downed and come back to their benches like barracks units.
+  Only druids serve in a grove. Art: `grove` (moss inside a ring of small stones, an old oak with mistletoe, log seats, a green fire).
+- **Unlock sites in a scenario:** `Scenario.sites` (site kind -> the wave it awakens: 0 at the start, -1 only when the scenario calls
+  `ScenarioRunner.awaken_site`), honoured by `World`; `Scenario.unlocked` (units unlocked from the start); `ScenarioRunner.site(kind)`.
+  `tools/make_scenario_map.gd` places sites by a road (`"add_sites"`, like `"add_ruins"`).
+- **Prebuilt by a site:** a prebuilt entry's `"near_site"` puts it on the free spot nearest the map's site of that kind (the graveyard by the
+  chapel, the grove by the stone circle).
+- **The hero living out** (`Scenario.hero_lives_out`): she starts at `hero_start` by her tent and doesn't walk in; that is her post
+  (`Hero.home_override`, `Hero.home()`: where she stands guard, rests, heals and revives) until `ScenarioRunner.hero_moves_in` (the tent is packed
+  up, she walks in).
+- **A scenario's own command rules:** `Scenario.command_error(r, type, args)`, asked after the runner's own (scenario 7's trust).
+- Portraits: `portrait_anselm`, `portrait_fiona`, `portrait_elder` (Elder Oren), `portrait_mage` (Idris, a court mage).
+
+### 7.11 Scenario 6 as built (`scenario_6.gd`)
+
+- **Map:** `data/maps/battlefield.json` (*The Field of Bones*; `make_scenario_map.gd -- 6`: Desert, seed 606, the ruined chapel by the east road
+  9 tiles from the gate).
+- **Baseline:** Easy, enemies at 1.0; 240 gold, 90 food (short: dry land), 200 material; two builders, a farmer, a forester, two gatherers (the
+  gravediggers), Pell and **Anselm** (a priest, in *Anselm's House*); the farm and the camp; three gates and three wall towers stand at 80 %; the
+  **graveyard** by the chapel, Pell's wagon (a peddler's stall), barracks with a level 4 shield bearer, two watchtowers with archers (level 4 and
+  3), a wall tower with a level 3 archer. Brenna is level 9.
+- **The field:** 36 of the fallen in four clusters on open land 8 to 17 tiles from the village, as far apart as the land allows; their places
+  are uncovered at the start.
+- **Rules:** archers, shield bearers and acolytes; specialising, training grounds; no revive; Pell and Anselm must not die; the chapel is
+  awake from the start (`sites`): Brenna wakes it by going there (Explore), and acolytes can be recruited. **Lost** once fewer of the fallen are
+  left (on the field and carried) than still have to be buried ("Too many of the fallen have risen").
+- **Waves:** Undead with Wilderness leftovers: skeletons and goblins, orks from wave 4, the first **necromancer** in wave 3 (two from wave 6),
+  a few thieves and witches, rats, a big slime. Eight listed, then the last again with 2 skeletons and an ork more each time
+  (`repeat_last`) until enough are buried. The first comes by itself after the usual 90 s; 45 s between waves.
+- **Story:** the intro (the plain of the dead, Anselm alone digging a grave by the chapel; he will tell where the court went if they help; the
+  chapel is only sleeping); after wave 1 who the dead were (Fiona's soldiers and mages, Rhodri's soldiers; the church couldn't bury them); wave
+  3, the first necromancer; the chapel woken (light through the broken roof; Anselm will make acolytes); after wave 5 why the dead rise (not
+  Rhodri's will alone: everyone's dead rise); the outro (the last grave of the day; the court went east to the druids' valley; a priest's sealed
+  word that gets a knight of Rhodri's army in, but not trusted).
+- **Cards:** the fallen (gatherers to the graveyard; recruit a third; done at 3 buried), the sleeping chapel (Explore), holy light (an acolyte on
+  a tower). **Hints:** a necromancer, one of the fallen risen (how many are left), Brenna badly hurt, food short. **Objectives:** bury 24 of the
+  fallen; wake the chapel.
+
+### 7.12 Scenario 7 as built (`scenario_7.gd`)
+
+- **Map:** `data/maps/refuge.json` (*The Refuge*; `make_scenario_map.gd -- 7`: Temperate, seed 707, a forest valley; the stone circle by the
+  north road 11 tiles from the gate, the mage's tower by the west road).
+- **Baseline:** Easy, enemies at 1.05; 260 gold, 160 food, 240 material; two builders, a farmer, a forester, a gatherer, Pell and **Fiona**
+  (a princess, in *Fiona's House*); the camp, and the farm by the south road (the forest leaves no room by the walls; food about even); 8 of 9 huts stand, 6 walls, 3 gates and 3 wall towers at 70 %, the rest devastated;
+  the **druids' grove** by the stone circle with three level 4 **druids**, Pell's wagon, two watchtowers with the court mages (apprentices,
+  level 4 and 3), barracks with a level 4 shield bearer, a wall tower with a level 4 archer. Brenna is level 11, at her tent by the east road
+  (`hero_lives_out`). Acolytes are unlocked (`unlocked`).
+- **Rules:** archers, shield bearers, acolytes, apprentices and summoners (the last two once found); specialising, training grounds; no revive;
+  Pell and Fiona must not die. **Fiona's trust** (`command_error`): until wave 2 is over her people take no orders (no building, repairs, hut
+  rebuilds, upgrades, tear-down, recruiting, retiring or assigning villagers, restoring ruins); units can be hired and stationed. After wave 2
+  (trust 1) Brenna moves in, everything but new buildings opens, and the court mages open their tower (the apprentice, by visiting it). After
+  wave 7 (trust 2) new buildings too. **Wave 5** comes for the grove: a second band (4 goblins, 4 skeletons, 2 orks, a witch) down the north
+  road past it, and a druid downed in that wave loses the scenario (one still down from before counts once it stood again). After it the stone
+  circle answers (the summoner, by visiting it).
+- **Waves:** twelve. Goblins and skeletons, orks from wave 3, witches, thieves, necromancers from wave 6, rats and big slimes now and then.
+  Wave 1 waits to be called; 45 s between waves.
+- **Story:** the intro (out of the trees; Fiona at the gate with two mages: Anselm vouches for Brenna, but she wears Rhodri's colours; she may
+  camp outside, her people take no orders; Pell's wagon may come in); after wave 2 Fiona lets her in, counting her people, not trusting her, and
+  Idris opens the tower; wave 5 the elder calls for help; after it the elder tells why the druids stayed out (the pact with the first king; the
+  church drove them from the towns) and that the circle will answer; after wave 7 Fiona allows building and tells why Orsin named no heir;
+  after wave 9 Brenna tells what happened to her company (the crown binds people), and Idris that Rhodri changed after the envoys came, from
+  nobody knows where; the outro (the working hides the valley; a sealed scroll for the court mages in the capital; only House Aldmoor can end
+  what Rhodri has become; Brenna will bring her there when the time is right).
+- **Cards:** outside the walls (hire a soldier and station it), the court mages' tower (waits for trust 1), mend the refuge (rebuild the
+  ruined hut), the stone circle (waits for wave 5). **Hints:** the druids turning out, the grove's wave, a witch, a necromancer, Brenna badly
+  hurt. **Objectives:** hold the refuge for 12 waves; earn Fiona's trust (outside, let in, trusted).

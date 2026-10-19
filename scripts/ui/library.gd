@@ -21,6 +21,7 @@ const STAT_NAMES := {
 	"aura": "Allies deal more damage",
 	"cry": "War cry: allies attack faster", "cry_time": "War cry lasts (s)",
 	"rage": "Rage (strikes faster as HP drops)", "lifesteal": "Lifesteal when low",
+	"root": "Each thornling blow roots for (s)",
 }
 const XP_WORDS := {
 	"hit": "per hit in a fight", "build_second": "per second of building",
@@ -424,6 +425,8 @@ static func _units() -> Array[Dictionary]:
 		f.append("Speed %s tiles/s" % _n(sp["speed"]))
 		if sp["hover"]:
 			f.append("Hovers: it can fight flyers")
+		if sp.has("root_immunity"):
+			f.append("Every blow roots the enemy in place (it still fights); then it can't be rooted for %s s. Flyers can't be rooted" % _n(sp["root_immunity"]))
 		if float(sp["self_damage"]) > 0.0:
 			f.append("Burns itself up: loses %s %% of the damage it deals as HP" % _n(float(sp["self_damage"]) * 100.0))
 		var by := ""

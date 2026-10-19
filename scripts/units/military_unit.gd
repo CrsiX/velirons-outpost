@@ -25,6 +25,8 @@ static var _next_id := 1
 
 var id := 0
 var kind := ""
+## Takes no orders (fixed()): set by a scenario (scenario 7's grove druids).
+var bound := false
 ## 0-based: 0 = level 1 ... Config.MAX_UNIT_LEVEL - 1.
 var level := 0
 var state := State.RESERVE
@@ -86,13 +88,22 @@ func label() -> String:
 	return "%s %d" % [display_name().to_lower(), uid]
 
 
+## Takes no orders (`bound`: scenario 7's grove druids): it can't be moved,
+## withdrawn, upgraded or sent; it stays on its post.
+func fixed() -> bool:
+	return bound
+
+
 ## "ranged", "melee", "summoner", "healer" or "support".
 func role() -> String:
 	return spec()["role"]
 
 
-## Can it serve on this kind of post ("tower", "barracks"; training grounds take anyone)?
+## Can it serve on this kind of post ("tower", "barracks"; training grounds
+## take anyone; a druids' grove only druids)?
 func fits(post_kind: String) -> bool:
+	if post_kind == "grove":
+		return kind == "druid"
 	return post_kind == "training" or spec()["posts"].has(post_kind)
 
 
@@ -186,6 +197,8 @@ func upgrade_cost() -> Dictionary:
 ## [{"to": kind, "level": 0-based, "cost": {}, "archmage": bool}]
 func upgrade_options() -> Array[Dictionary]:
 	var out_opts: Array[Dictionary] = []
+	if fixed():
+		return out_opts
 	if can_upgrade():
 		out_opts.append({"to": kind, "level": level + 1, "cost": upgrade_cost(), "archmage": false})
 	if level + 1 >= Config.BRANCH_MIN_LEVEL and (village == null or village.game.allows_branches()):

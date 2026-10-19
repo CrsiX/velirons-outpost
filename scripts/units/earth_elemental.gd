@@ -3,8 +3,9 @@ extends Unit
 ## A small elemental summoned next to its summoner (on a tower, or outside its
 ## barracks). It wanders around there until it spots an enemy, then walks up
 ## to it and fights in close combat. Enemies fight back; at 0 hp it crumbles
-## (no corpse). Kinds (Config.SUMMONS): earth, and fire, which hovers and
-## flickers, is quick and hits hard, but burns itself with every hit.
+## (no corpse). Kinds (Config.SUMMONS): earth; fire, which hovers and
+## flickers, is quick and hits hard, but burns itself with every hit; and the
+## druid's thornlings, slow and tough, whose every blow roots (Enemy.root).
 
 signal died(elemental: EarthElemental)
 
@@ -20,13 +21,15 @@ var home := Vector2i.ZERO
 var uid := 0
 ## Its summoner's village.
 var village: Village
-## "earth" / "fire" (Config.SUMMONS).
+## "earth" / "fire" / "thorn" (Config.SUMMONS).
 var summon := "earth"
+## Seconds each blow roots its enemy for (thornlings: their druid's "root"; 0: none).
+var root_time := 0.0
 var _flicker := 0.0
 
 
 func label() -> String:
-	return "%s %d" % ["fire elemental" if summon == "fire" else "elemental", uid]
+	return "%s %d" % [{"fire": "fire elemental", "thorn": "thornling"}.get(summon, "elemental"), uid]
 
 var _attack_timer := 0.0
 ## A warrior's war cry (Combat.war_cry): faster blows until Game.clock reaches cry_until.
@@ -167,6 +170,8 @@ func counter_strike(e: Enemy) -> void:
 
 func _strike(foe: Enemy) -> void:
 	foe.take_damage(damage * (1.0 + Combat.holy_bonus(game, grid_pos)), self, "magical" if flies() else "melee")  # (a flame is magic; a High Priest blesses it)
+	if root_time > 0.0 and not foe.dead and foe.root(root_time):
+		village.events.debug("%s roots %s for %.1f s" % [label(), foe.label(), root_time])
 	var burn: float = Config.SUMMONS[summon]["self_damage"]
 	if burn > 0.0:
 		take_damage(damage * burn, self, "pure")  # fire burns itself up

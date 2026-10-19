@@ -56,8 +56,7 @@ func act_center() -> Vector2:
 
 func refresh() -> void:
 	fit_slots()
-	var art := "barracks" if level == 1 else "barracks_%d" % level
-	Art.apply(sprite, art)
+	Art.apply(sprite, _art())
 	sprite.visible = complete
 	_site_sprite.visible = not complete
 	for i in _bench_sprites.size():
@@ -68,6 +67,10 @@ func refresh() -> void:
 			UnitFx.show_unit(s, u.kind)
 			s.modulate = Color(1, 1, 1, 0.35) if u.is_downed() else Color.WHITE
 	queue_redraw()
+
+
+func _art() -> String:
+	return "barracks" if level == 1 else "barracks_%d" % level
 
 
 ## Enemies near? Everyone who's sitting on a bench (and not downed) goes out.
@@ -195,7 +198,7 @@ func info() -> Dictionary:
 			lines.append("Bench %d: %s, level %d: {hp} %d/%d, %s" % [i + 1, u.display_name(), u.level + 1, ceili(u.hp), ceili(u.max_hp()), u.state_text()])
 			if u.is_available() and not u.upgrade_options().is_empty():
 				actions.append({"label": "Upgrade %s (bench %d)..." % [u.display_name().to_lower(), i + 1], "action": func() -> void: game.hud.open_upgrade(u)})
-			if u.is_available():
+			if u.is_available() and not u.fixed():
 				actions.append({"label": "Withdraw %s (bench %d)" % [u.display_name().to_lower(), i + 1], "action": func() -> void: game.command("withdraw_unit", {"unit": u.nid})})
 		elif inc:
 			lines.append("Bench %d: %s marching here." % [i + 1, inc.display_name()])

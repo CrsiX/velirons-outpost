@@ -15,8 +15,14 @@ extends "res://tests/bot_base.gd"
 ## the coins, crabs out of the sea, Brenna downed as a defeat, the win.
 ## Scenario 5, The Betrayal: the ruined fort, Sigmund, the evidence and its
 ## pages, the Dread Legion (a footman's release, a captain falling back),
-## the last wave's Legion and gargoyles, the win.
-##   -- --only=1|2|3|4|5   one scenario only (the title screen with 1)
+## the last wave's Legion and gargoyles, the win. Scenario 6, The Dead: Anselm,
+## the graveyard by the chapel, the fallen (never rotting, buried by the
+## gatherers, raised as skeletons), the chapel woken, an acolyte, the waves
+## until enough are buried, the win, too many risen as a defeat. Scenario 7,
+## The Exile: Fiona, the druids in their grove (no orders), Brenna at her tent,
+## Fiona's trust in steps (what is refused when), the mages' tower, wave 5's
+## band at the grove, the circle, the win, a druid falling in wave 5.
+##   -- --only=1|2|3|4|5|6|7   one scenario only (the title screen with 1)
 
 var sc: ScenarioRunner
 
@@ -42,6 +48,10 @@ func _run() -> void:
 		await _scenario_4()
 	if only in ["", "5"]:
 		await _scenario_5()
+	if only in ["", "6"]:
+		await _scenario_6()
+	if only in ["", "7"]:
+		await _scenario_7()
 	if is_instance_valid(game):
 		game.queue_free()
 		await frames(2)
@@ -341,7 +351,7 @@ func _title() -> void:
 	await frames(1)
 	check(t._campaign_page.visible and not t._main_page.visible, "it opens the campaign page")
 	var names: Array = t.scenario_buttons.map(func(b: Button) -> String: return b.text)
-	check(names == ["1. Homecoming", "2. The Old Friend", "3. The Wardline", "4. The Split", "5. The Betrayal"], "scenarios 1 to 5 are there: %s" % str(names))
+	check(names == ["1. Homecoming", "2. The Old Friend", "3. The Wardline", "4. The Split", "5. The Betrayal", "6. The Dead", "7. The Exile"], "scenarios 1 to 7 are there: %s" % str(names))
 	check(t._campaign_page.get_children().any(func(c: Node) -> bool: return c is Label and (c as Label).text.contains("still to come")), "and the rest are to come")
 	t.show_page(t._main_page)
 	t.queue_free()
@@ -849,9 +859,12 @@ func _scenario_5() -> void:
 			legion = legion or e.kind == "legion_footman"
 			if e.given_name != "":
 				captains[e.given_name] = true
+		var falls := func(steps: Array) -> bool: return steps.any(func(st: Dictionary) -> bool: return str(st.get("text", "")).contains("Still following orders"))
+		if sc._scene_queue.any(func(q: Array) -> bool: return falls.call(q)):
+			fell_back = true  # (queued behind the wave's own scene: the wave may end first)
 		if sc.cutscene != null:
 			scenes += 1
-			if sc.cutscene.steps.any(func(st: Dictionary) -> bool: return str(st.get("text", "")).contains("Still following orders")):
+			if falls.call(sc.cutscene.steps):
 				fell_back = true
 			await _skip_scene()
 		if sc.journal != null and sc.journal.visible:
@@ -873,3 +886,216 @@ func _scenario_5() -> void:
 	check(said.has("brenna") and said.has("pell"), "Brenna reads the order (%s)" % str(said))
 	await frames(3)
 	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Betrayal: complete", "won: %s" % game.hud._overlay_title.text)
+
+
+# --- scenario 6: The Dead ---------------------------------------------------------------------
+
+func _graveyard() -> Graveyard:
+	var list := sc.pieces("graveyard")
+	return list[0] if not list.is_empty() else null
+
+
+func _scenario_6() -> void:
+	print("-- scenario 6: setup")
+	await _new_game(6)
+	var v := game.player_village
+	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Field of Bones", "scenario 6 runs on the battlefield's map")
+	var ans := game.population.civilians.filter(func(c: Civilian) -> bool: return c.given_name == "Anselm")
+	check(ans.size() == 1 and ans[0] is Resident and (ans[0] as Civilian).role == "priest" and (ans[0] as Civilian).status() == "praying for the dead", "Anselm, the priest, stays in his house")
+	check(ans.size() == 1 and (ans[0] as Civilian).hut.look == "priest_house" and (ans[0] as Civilian).hut.display_name() == "Anselm's House", "his house has its own look and name")
+	check(not game.population.recruit_error("priest").is_empty() and not game.population.recruit_error("princess").is_empty(), "priests and princesses can't be recruited")
+	var gy := _graveyard()
+	var chapel := sc.site("chapel")
+	check(gy != null and chapel != null and Vector2(gy.tile).distance_to(Vector2(chapel.tile)) <= 7.0, "the graveyard stands by the chapel")
+	check(gy != null and gy.working() and gy.buried == 0 and not gy.can_tear_down(), "an empty graveyard, which can't be torn down")
+	check(chapel != null and chapel.awake, "the chapel is only sleeping: awake from the start")
+	var fallen := game.corpses.fallen()
+	check(fallen.size() == sc.spec.FALLEN, "%d of the fallen lie on the field (%d)" % [sc.spec.FALLEN, fallen.size()])
+	check(fallen.all(func(c: Corpse) -> bool: return game.fog.is_explored_by(v.id, c.tile()) and c.kind == "skeleton" and c.revivable), "their places are known; raised, they'd be skeletons")
+	check(game.hero.level == 8 and not sc.spec.hero_revives and sc.spec.must_live.has("Anselm"), "Brenna at level 9, no revive, Anselm must live")
+	check(game.waves.scripted.size() == 8 and sc.spec.repeat_last, "eight waves, then more until enough are buried")
+	await wait(1.0)
+	var said := await _watch(sc.cutscene)
+	check(said.has("anselm") and said.has("brenna"), "the intro: Anselm and Brenna (%s)" % str(said))
+	check(sc.card.lesson_title() == "The fallen", "the fallen card")
+
+	print("-- scenario 6: the fallen")
+	game.corpses.clear_wave(99)
+	fallen[0].time_left = -1.0
+	await frames(2)
+	check(sc.spec._still_to_bury(sc) + gy.buried == sc.spec.FALLEN, "the fallen never rot and are never cleared away (%d)" % (sc.spec._still_to_bury(sc) + gy.buried))
+	check(cmd("recruit_villager", {"role": "gatherer"})["ok"], "a third gatherer")
+	Engine.time_scale = 4.0
+	check(await wait_until(func() -> bool: return gy.buried >= 1, 120.0), "gatherers carry the fallen to the graveyard: buried (%d)" % gy.buried)
+	check(game.population.civilians.any(func(c: Civilian) -> bool: return c is Gatherer and (c as Gatherer).status().contains("graveyard")) or gy.buried > 0, "on their way: to the graveyard")
+	check(await _at_card(1, 120.0), "the fallen card is done once three are buried (%d)" % gy.buried)
+	var necro := game.waves.spawn_at("necromancer", game.world.pathing.nearest_road(v.center + Vector2i(0, -10)), v, 1)
+	var risen := game.waves.raise_corpse(game.corpses.fallen()[-1], necro)
+	check(risen != null and risen.kind == "skeleton" and risen.raised, "a necromancer raises one of the fallen: a skeleton")
+	check(await wait_until(func() -> bool: return sc.card.hint().begins_with("One of the fallen has risen"), 3.0), "a hint says so (%s)" % sc.card.hint())
+	kill(necro)
+	kill(risen)
+	Engine.time_scale = 1.0
+
+	print("-- scenario 6: the chapel")
+	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
+	Engine.time_scale = 4.0
+	check(await wait_until(func() -> bool: return game.is_unlocked("acolyte"), 180.0), "Brenna wakes the chapel: acolytes")
+	check(await wait_until(func() -> bool: return sc.cutscene != null, 5.0), "a scene at the chapel")
+	await _skip_scene()
+	cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
+	check(await _at_card(2, 10.0), "the holy light card")
+	var tower: Tower = sc.towers()[0]
+	cmd("withdraw_unit", {"unit": tower.garrison.nid})
+	check(cmd("recruit_unit", {"kind": "acolyte"})["ok"], "an acolyte")
+	var aco: MilitaryUnit = game.army.units.filter(func(u: MilitaryUnit) -> bool: return u.kind == "acolyte")[0]
+	check(await wait_until(func() -> bool: return tower.garrison == null and tower.incoming_slots.all(func(u) -> bool: return u == null), 60.0), "the archer walks off")
+	cmd("station_unit", {"unit": aco.nid, "post": tower.nid})
+	check(await wait_until(func() -> bool: return sc.step >= sc.steps.size(), 90.0), "an acolyte on the tower: the cards are done")
+
+	print("-- scenario 6: the waves, burying")
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	guard.start()
+	var scenes := 0
+	var t := 0.0
+	while sc.phase == ScenarioRunner.Phase.PLAY and not game.game_over and t < 1500.0:
+		if sc.cutscene != null:
+			scenes += 1
+			await _skip_scene()
+		await wait(0.5)
+		t += 0.5
+	check(not game.game_over, "no defeat%s" % (" (%s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	check(gy.buried >= sc.spec.BURY, "%d of the fallen buried (%d)" % [sc.spec.BURY, gy.buried])
+	check(scenes >= 2, "Anselm tells of the battle between the waves (%d scenes)" % scenes)
+	check(await wait_until(func() -> bool: return sc.cutscene != null, 180.0), "the outro plays")
+	guard.queue_free()
+	Engine.time_scale = 1.0
+	said = await _watch(sc.cutscene)
+	check(said.has("anselm") and said.has("brenna"), "Anselm tells where the court went (%s)" % str(said))
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Dead: complete", "won: %s" % game.hud._overlay_title.text)
+
+	print("-- scenario 6: too many risen")
+	await _new_game(6)
+	sc.cutscene.skip()
+	await frames(2)
+	var list := game.corpses.fallen()
+	for i in sc.spec.FALLEN - sc.spec.BURY + 1:
+		game.corpses.remove(list[i])
+	check(await wait_until(func() -> bool: return game.game_over, 3.0), "too many of the fallen gone: lost")
+	check(game.hud._overlay_sub.text.contains("Too many of the fallen have risen"), "it says why (%s)" % game.hud._overlay_sub.text)
+
+
+# --- scenario 7: The Exile --------------------------------------------------------------------
+
+func _druids() -> Array[MilitaryUnit]:
+	var out: Array[MilitaryUnit] = []
+	out.assign(game.army.units.filter(func(u: MilitaryUnit) -> bool: return u.kind == "druid"))
+	return out
+
+
+func _scenario_7() -> void:
+	print("-- scenario 7: setup")
+	await _new_game(7)
+	var v := game.player_village
+	var h := game.hero
+	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Refuge", "scenario 7 runs on the refuge's map")
+	var fi := game.population.civilians.filter(func(c: Civilian) -> bool: return c.given_name == "Fiona")
+	check(fi.size() == 1 and fi[0] is Resident and (fi[0] as Civilian).hut.display_name() == "Fiona's House", "Fiona stays in her house")
+	check(v.intact_huts().size() == 8, "one hut lies in ruins (%d stand)" % v.intact_huts().size())
+	check(sc.farms().size() == 1 and await wait_until(func() -> bool: return (sc.farms()[0] as Farm).farmer != null, 5.0), "a farm by a road (no room by the walls), and its farmer")
+	var grove: Grove = sc.pieces("grove")[0] if not sc.pieces("grove").is_empty() else null
+	var circle := sc.site("stone_circle")
+	check(grove != null and circle != null and Vector2(grove.tile).distance_to(Vector2(circle.tile)) <= 7.0, "the druids' grove by the stone circle")
+	check(_druids().size() == 3 and _druids().all(func(u: MilitaryUnit) -> bool: return u.post == grove and u.level == 3 and u.fixed()), "three druids (level 4) on its benches")
+	check(grove != null and grove.max_level() == grove.level and not grove.can_tear_down(), "the grove can't be upgraded or torn down")
+	var d0 := _druids()[0]
+	check(not cmd("withdraw_unit", {"unit": d0.nid})["ok"] and not cmd("upgrade_unit", {"unit": d0.nid, "to": "druid"})["ok"] and d0.upgrade_options().is_empty(), "druids take no orders")
+	check(game.is_unlocked("acolyte") and not game.is_unlocked("apprentice") and not game.is_unlocked("summoner"), "acolytes from the start; apprentices and summoners not yet")
+	check(not sc.site("mage_tower").awake and not circle.awake, "the tower and the circle sleep")
+	check(game.waves.scripted.size() == 12 and sc.spec.must_live.has("Fiona"), "twelve waves; Fiona must live")
+	await wait(1.0)
+	var said := await _watch(sc.cutscene)
+	check(said.has("fiona") and said.has("brenna") and said.has("pell"), "the intro: Fiona at the gate (%s)" % str(said))
+	check(sc.phase == ScenarioRunner.Phase.PLAY and h.home_override == sc.spec.hero_start and is_instance_valid(sc.tent_node), "Brenna camps outside, by her tent")
+	check(h.home() == sc.spec.hero_start and h.grid_pos.distance_to(Vector2(sc.spec.hero_start)) < 0.5, "her post is the tent")
+
+	print("-- scenario 7: outside the walls")
+	var wall: Building = sc.pieces("wall").filter(func(b: Building) -> bool: return b.devastated)[0]
+	var ruin: Building = v.huts().filter(func(b: Building) -> bool: return not (b as Hut).is_intact())[0]
+	check(not cmd("repair", {"building": wall.nid})["ok"] and not cmd("rebuild_hut", {"building": ruin.nid})["ok"], "no repairs, no rebuilding")
+	check(not cmd("recruit_villager", {"role": "builder"})["ok"] and not cmd("place_building", {"kind": "tower", "tile": find_spot("tower", v.center + Vector2i(6, 3))})["ok"], "no villagers, no building")
+	check(cmd("recruit_unit", {"kind": "archer"})["ok"], "soldiers can be hired")
+	var post: Building = sc.pieces("wall_tower").filter(func(b: Building) -> bool: return not b.devastated and (b as Tower).garrison == null)[0]
+	cmd("station_unit", {"unit": game.army.reserve()[0].nid, "post": post.nid})
+	check(await wait_until(func() -> bool: return sc.step >= 1 or sc._next_in >= 0.0, 60.0), "and stationed: the card is done")
+	await wait(2.0)
+	check(sc.step == 0 and sc.card.lesson_text().begins_with("Hold the first waves"), "the next one waits for Fiona (%s)" % sc.card.lesson_text())
+
+	print("-- scenario 7: the waves, Fiona's trust, the grove")
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	Engine.time_scale = 4.0
+	var band := [0]
+	var at: Vector2i = sc.spec._grove_road(sc)
+	var seen := func(n: Node) -> void:
+		if n is Enemy and (n as Enemy).home_tile == at:
+			band[0] += 1
+	get_tree().node_added.connect(seen)
+	var checked_in := false
+	var checked_build := false
+	var apprentice := false
+	var scenes := 0
+	var t := 0.0
+	guard.start()
+	while not game.waves.all_done() and not game.game_over and t < 1800.0:
+		if sc.cutscene != null:
+			scenes += 1
+			await _skip_scene()
+		var trust := int(sc.mark.get("trust", 0))
+		if trust >= 1 and not checked_in:
+			checked_in = true
+			check(h.home_override == Vector2i(-1, -1) and not is_instance_valid(sc.tent_node), "after wave 2 Brenna moves in")
+			check(sc.site("mage_tower").awake, "the court mages open their tower")
+			check(cmd("repair", {"building": wall.nid})["ok"] and cmd("rebuild_hut", {"building": ruin.nid})["ok"], "repairs and rebuilding now")
+			check(not cmd("place_building", {"kind": "tower", "tile": find_spot("tower", v.center + Vector2i(6, 3))})["ok"], "but nothing new yet")
+			cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
+		if checked_in and not apprentice and game.is_unlocked("apprentice"):
+			apprentice = true
+			cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
+		if trust >= 2 and not checked_build:
+			checked_build = true
+			check(cmd("place_building", {"kind": "tower", "tile": find_spot("tower", v.center + Vector2i(6, 3))})["ok"], "after wave 7 new buildings")
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+		t += 0.5
+	get_tree().node_added.disconnect(seen)
+	check(not game.game_over and game.waves.all_done(), "twelve waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	check(checked_in and checked_build and int(sc.mark.get("trust", 0)) == 2, "Fiona's trust in two steps")
+	check(apprentice, "Brenna unlocks the apprentice at the mages' tower")
+	check(band[0] == 11, "wave 5's band came down the north road to the grove (%d)" % band[0])
+	check(circle.awake and sc.mark.has("grove over"), "the grove held: the circle answers")
+	check(scenes >= 4, "the talks between the waves (%d scenes)" % scenes)
+	check(await wait_until(func() -> bool: return sc.cutscene != null, 120.0), "the outro plays")
+	guard.queue_free()
+	Engine.time_scale = 1.0
+	said = await _watch(sc.cutscene)
+	check(said.has("fiona") and said.has("brenna"), "Fiona's scroll (%s)" % str(said))
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Exile: complete", "won: %s" % game.hud._overlay_title.text)
+
+	print("-- scenario 7: a druid falls in wave 5")
+	await _new_game(7)
+	sc.cutscene.skip()
+	await frames(2)
+	sc.mark["grove watch"] = true
+	await wait(0.6)
+	game.army.down(_druids()[0], null)
+	check(await wait_until(func() -> bool: return game.game_over, 3.0), "a druid downed while the grove is attacked: lost")
+	check(game.hud._overlay_sub.text.contains("A druid fell"), "it says why (%s)" % game.hud._overlay_sub.text)

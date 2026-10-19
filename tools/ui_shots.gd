@@ -16,7 +16,10 @@ extends Node
 ## waves, the Wardline's start, a journal page, a restored ruin and the road;
 ## (`--only=away`) scenarios 4 and 5: Wenna, the warehouse and the guild
 ## house, the rival's offer (a choice), a plundering goblin; Sigmund, the
-## evidence card and a page, the Legion with its named captains.
+## evidence card and a page, the Legion with its named captains;
+## (`--only=exile`) scenarios 6 and 7: Anselm, the field of the fallen, the
+## graveyard filling; Fiona at the gate, Brenna's tent, the druids' grove and
+## its panel, Fiona's house.
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -103,6 +106,8 @@ func _run() -> void:
 		await _campaign()
 	if only in ["", "away"]:
 		await _away()
+	if only in ["", "exile"]:
+		await _exile()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -994,5 +999,66 @@ func _away() -> void:
 		g.camera.zoom = Vector2(1.4, 1.4)
 		await _frames(20)
 		await shot("away_s5_legion")
+	g.queue_free()
+	await _frames(3)
+
+
+func _exile() -> void:
+	var g := await _scenario_game(6)
+	var sc := g.scenario
+	await _cut_to_line(sc, "anselm", "I bury them")
+	await shot("exile_s6_anselm")
+	sc.cutscene.skip()
+	await _frames(30)
+	var cl: Vector2i = sc.spec._clusters(sc)[0]
+	g.camera.focus(Iso.to_world(Vector2(cl)))
+	g.camera.zoom = Vector2(1.2, 1.2)
+	await _frames(30)
+	await shot("exile_s6_fallen")
+	var gy: Graveyard = sc.pieces("graveyard")[0]
+	gy.bury(11, g.hero)
+	g.camera.focus(gy.position)
+	g.camera.zoom = Vector2(1.1, 1.1)
+	g.select(gy)
+	await _frames(30)
+	await shot("exile_s6_graveyard")
+	g.deselect()
+	var home: Building = null
+	for c in g.population.civilians:
+		if c.given_name == "Anselm":
+			home = c.hut
+	if home:
+		g.camera.focus(home.position)
+		g.camera.zoom = Vector2(1.3, 1.3)
+		await _frames(20)
+		await shot("exile_s6_anselms_house")
+	g.queue_free()
+	await _frames(3)
+	g = await _scenario_game(7)
+	sc = g.scenario
+	await _cut_to_line(sc, "fiona", "camp outside")
+	await shot("exile_s7_fiona")
+	sc.cutscene.skip()
+	await _frames(30)
+	g.camera.focus(Iso.to_world(Vector2(sc.spec.tent_tile)))
+	g.camera.zoom = Vector2(1.2, 1.2)
+	await _frames(20)
+	await shot("exile_s7_tent")
+	var grove: Building = sc.pieces("grove")[0]
+	g.camera.focus(grove.position)
+	g.camera.zoom = Vector2(1.2, 1.2)
+	g.select(grove)
+	await _frames(30)
+	await shot("exile_s7_grove")
+	g.deselect()
+	home = null
+	for c in g.population.civilians:
+		if c.given_name == "Fiona":
+			home = c.hut
+	if home:
+		g.camera.focus(home.position)
+		g.camera.zoom = Vector2(1.3, 1.3)
+		await _frames(20)
+		await shot("exile_s7_fiona_house")
 	g.queue_free()
 	await _frames(3)

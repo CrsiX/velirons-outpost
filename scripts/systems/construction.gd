@@ -14,6 +14,8 @@ const KIND_SCRIPTS := {
 	"barracks": preload("res://scripts/buildings/barracks.gd"),
 	"stall": preload("res://scripts/buildings/stall.gd"),
 	"warehouse": preload("res://scripts/buildings/warehouse.gd"),
+	"graveyard": preload("res://scripts/buildings/graveyard.gd"),
+	"grove": preload("res://scripts/buildings/grove.gd"),
 }
 
 var game: Game

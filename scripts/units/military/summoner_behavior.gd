@@ -1,6 +1,6 @@
 class_name SummonerBehavior
 extends MilitaryBehavior
-## Summons elementals (earth or fire, Config.SUMMONS; the unit's "summon")
+## Summons elementals (earth, fire or a druid's thornlings, Config.SUMMONS; the unit's "summon")
 ## next to its post while enemies are within the post's range or sight: a tower,
 ## or the summoner itself standing outside its barracks. Level-ups speed up
 ## summoning, raise the cap and make *newly* summoned elementals stronger
@@ -31,6 +31,8 @@ func tick(post: Node, unit: MilitaryUnit, delta: float) -> void:
 	e.village = post.village
 	var home := Vector2i(Vector2(post.act_center()).round())
 	e.setup(post.game, home, post.outer_tile(), unit.stat("summon_hp") * sm["hp"], unit.stat("summon_damage") * sm["damage"], kind)
+	if unit.spec()["stats"].has("root"):
+		e.root_time = unit.stat("root")
 	e.uid = post.game.next_id("elemental")
 	e.nid = post.game.register(e)
 	post.village.events.debug("summoned %s by %s on %s" % [e.label(), unit.label(), post.label()])
@@ -64,5 +66,6 @@ func info_lines(unit: MilitaryUnit) -> Array[String]:
 	var sm: Dictionary = Config.SUMMONS[unit.spec().get("summon", "earth")]
 	return [
 		"Summons every %.1f s, up to %d at once (%d active)" % [unit.stat("interval"), roundi(unit.stat("max_summons")), summons.size()],
-		"New %ss: %.0f hp, %.0f damage" % [str(sm["name"]).to_lower(), unit.stat("summon_hp") * sm["hp"], unit.stat("summon_damage") * sm["damage"]],
+		"New %ss: %.0f hp, %.0f damage%s" % [str(sm["name"]).to_lower(), unit.stat("summon_hp") * sm["hp"], unit.stat("summon_damage") * sm["damage"],
+			", each blow roots for %.1f s" % unit.stat("root") if unit.spec()["stats"].has("root") else ""],
 	]

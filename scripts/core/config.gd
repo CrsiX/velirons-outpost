@@ -638,12 +638,31 @@ const BUILDINGS := {
 		"campaign": true,
 		"desc": "2x2. The guild's stock. Enemies that break in go for it as for a hut and plunder it.",
 	},
+	# The battlefield's graveyard by the chapel (scenario 6); prebuilt by the
+	# scenario. Gatherers carry the fallen (Corpse.fallen) here to be buried.
+	"graveyard": {
+		"name": "Graveyard", "cost": {"materials": 40}, "build_time": 16.0, "size": 3, "art": "graveyard",
+		"campaign": true,
+		"desc": "3x3. Gatherers carry the fallen of the battlefield here and bury them, so no necromancer can raise them again.",
+	},
+	# The druids' grove by their stone circle (scenario 7): barracks whose
+	# benches only druids sit on; prebuilt by the scenario at level 3.
+	"grove": {
+		"name": "Druids' Grove", "cost": {"materials": 40}, "build_time": 16.0, "size": 2, "art": "grove",
+		"campaign": true,
+		"desc": "2x2. The druids' own barracks by their stone circle. They turn out for enemies near it, but take no orders.",
+	},
 }
 
 ## The guild warehouse (Warehouse; docs/scenarios-design.md §7.7):
 ## raid_damage: HP an enemy that gets to it takes (it is gone then, as after
 ## burning a hut).
 const WAREHOUSE := {"raid_damage": 50.0}
+
+## The battlefield's fallen (scenario 6; Corpse.fallen, Graveyard): a
+## gatherer carries "carry" of them per trip (the dead are heavy), and lays
+## each in its grave in "bury_time" seconds.
+const FALLEN := {"carry": 1, "bury_time": 4.0}
 
 ## The trade stall's stages (Building.level 1-3): peddler, stall, guild market.
 ## "stock": goods it holds at most (a lot sold takes its "amount" of goods);
@@ -684,6 +703,8 @@ const BUILDING_HP := {
 	"training": [150.0],
 	"stall": [100.0, 150.0, 200.0],
 	"warehouse": [400.0],
+	"graveyard": [150.0],
+	"grove": [400.0, 400.0, 400.0],
 	"hut": [1.0],
 }
 ## The village's pieces were never bought: their price and build time count
@@ -756,6 +777,21 @@ const CIVILIANS := {
 	"guildmaster": {
 		"name": "Guild Master", "cost": {}, "speed": 1.2, "recruit": false,
 		"desc": "Keeps the guild's books in the guild house and never leaves it. She dies if it burns.",
+		"stays_home": "keeping the guild's books",
+	},
+	# Can't be recruited: Anselm, the battlefield's priest (scenario 6). Stays
+	# in his hut ("stays_home": what he does there).
+	"priest": {
+		"name": "Priest", "cost": {}, "speed": 1.1, "recruit": false,
+		"desc": "Prays for the dead in his house and never leaves it. He dies if it burns.",
+		"stays_home": "praying for the dead",
+	},
+	# Can't be recruited: Fiona, the old king's daughter (scenario 7). Stays in
+	# her house.
+	"princess": {
+		"name": "Princess", "cost": {}, "speed": 1.2, "recruit": false,
+		"desc": "The old king's daughter holds her court in her house and never leaves it. She dies if it burns.",
+		"stays_home": "holding her court",
 	},
 	# Can't be recruited: a spatial mage of level ARCHMAGE_LEVEL becomes one
 	# (docs/military-design.md §7). A key to ending the siege, later.
@@ -772,7 +808,7 @@ static func worker_role(kind: String) -> String:
 	return ""
 
 
-const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "merchant", "guildmaster", "spatial_archmage"]
+const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "merchant", "guildmaster", "priest", "princess", "spatial_archmage"]
 ## Unit kinds and villager roles that have to be unlocked first, and how
 ## (docs/world-design.md §9.4, §9.6). Unlocks are global: for every village.
 const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "acolyte": "chapel", "miner": "mine"}
@@ -931,7 +967,7 @@ const MILITARY := {
 		"desc": "Summons earth elementals while enemies are near. Fragile, no attack of its own.",
 		"stats": {"hp": [18.0, 50.0], "interval": [6.0, 2.5], "max_summons": [2.0, 8.0], "summon_hp": [20.0, 90.0], "summon_damage": [4.0, 18.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
-		"branches": ["fire_summoner"],
+		"branches": ["fire_summoner", "druid"],
 	},
 	"fire_summoner": {
 		"name": "Fire Summoner", "role": "summoner", "posts": ["tower", "barracks"], "recruit": false,
@@ -1018,11 +1054,24 @@ const MILITARY := {
 		"stats": {"hp": [44.0, 95.0], "aura": [0.02, 0.2], "damage": [3.0, 10.0], "cooldown": [1.4, 1.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
+	# The summoner's plant branch (docs/military-design.md §3b): thornlings,
+	# slow and sturdy, whose every blow roots the enemy in place for "root"
+	# seconds (then it is immune for a while: SUMMONS.thorn.root_immunity).
+	# Scenario 7's grove druids are druids that take no orders
+	# (MilitaryUnit.bound).
+	"druid": {
+		"name": "Druid", "role": "summoner", "posts": ["tower", "barracks"], "recruit": false,
+		"branch_of": "summoner", "branch_cost": {"gold": 100},
+		"speed": 1.3, "summon": "thorn",
+		"desc": "Calls up thornlings: slow and tough, and every blow roots the enemy in place for a moment.",
+		"stats": {"hp": [26.0, 56.0], "interval": [5.0, 2.5], "max_summons": [3.0, 8.0], "summon_hp": [36.0, 100.0], "summon_damage": [7.2, 23.0], "root": [0.6, 1.2]},
+		"upgrade_cost": [70, 300], "train_xp": [45, 400],
+	},
 }
 ## Recruitable units in the Army tab (specialisations come from upgrades).
 const MILITARY_ORDER: Array[String] = ["archer", "shield_bearer", "summoner", "apprentice", "acolyte"]
 ## Kinds in tech-tree order (base unit, then its specialisations).
-const MILITARY_TREE: Array[String] = ["archer", "crossbowman", "swiftbowman", "shield_bearer", "warrior", "berserker", "halberdier", "summoner", "fire_summoner", "apprentice", "fire_mage", "ice_mage", "healing_mage", "spatial_mage", "acolyte", "inquisitor", "high_priest"]
+const MILITARY_TREE: Array[String] = ["archer", "crossbowman", "swiftbowman", "shield_bearer", "warrior", "berserker", "halberdier", "summoner", "fire_summoner", "druid", "apprentice", "fire_mage", "ice_mage", "healing_mage", "spatial_mage", "acolyte", "inquisitor", "high_priest"]
 
 ## What a unit's attack looks like and does. "projectile": art of the shot
 ## ("" = no shot); "whirl": the shot spins; "arc": arrows fly on an arc.
@@ -1058,6 +1107,10 @@ const SUMMONS := {
 	"earth": {"name": "Earth Elemental", "art": "unit_earth_elemental", "hp": 1.0, "damage": 1.0, "speed": 1.1, "self_damage": 0.0, "hover": false},
 	# Fire elementals hover and flicker; they lose self_damage x the damage they deal, as HP.
 	"fire": {"name": "Fire Elemental", "art": "unit_fire_elemental", "hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "hover": true},
+	# The druid's thornlings: slow and tough; each blow roots the enemy (the
+	# druid's "root" seconds); a rooted enemy is then immune to roots for
+	# root_immunity seconds. Flyers can't be rooted (nor reached).
+	"thorn": {"name": "Thornling", "art": "unit_thornling", "hp": 1.5, "damage": 0.8, "speed": 0.8, "self_damage": 0.0, "hover": false, "root_immunity": 2.0},
 }
 
 ## Barracks levels: benches (unit slots) and how near enemies must come before

@@ -271,7 +271,10 @@ func _on_explored(vid: int, tiles: Array[Vector2i]) -> void:
 func _on_wave_started(n: int) -> void:
 	for kind in Config.UNLOCK_SITES:
 		var spec: Dictionary = Config.UNLOCK_SITES[kind]
-		if n < int(spec["wave"]):
+		var from := int(spec["wave"])
+		if game.scenario and game.scenario.spec.sites.has(kind):
+			from = int(game.scenario.spec.sites[kind])  # (< 0: only when the scenario says)
+		if n < from or from < 0:
 			continue
 		var sites: Array = map_objects.filter(func(o: MapObject) -> bool: return o is UnlockSite and o.data["site"] == kind and not o.awake)
 		if sites.is_empty():

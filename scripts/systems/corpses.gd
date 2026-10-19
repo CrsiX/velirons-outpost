@@ -43,7 +43,7 @@ func remove(c: Corpse) -> void:
 func clear_wave(wave: int) -> void:
 	var n := 0
 	for c in corpses.duplicate():
-		if c.wave <= wave:
+		if c.wave <= wave and not c.fallen:
 			remove(c)
 			n += 1
 	if n > 0:
@@ -62,6 +62,19 @@ func is_safe(c: Corpse) -> bool:
 ## Corpses a gatherer may go for: nobody's, safe, and not sinking in deep water.
 func available() -> Array[Corpse]:
 	return corpses.filter(func(c: Corpse) -> bool: return c.claimed_by == null and not c.sinking and is_safe(c))
+
+
+## One of a battlefield's fallen at `at` (Corpse.make_fallen): it lies until
+## it is buried or raised.
+func spawn_fallen(at: Vector2) -> Corpse:
+	var c := spawn("skeleton", 0, at)
+	c.make_fallen()
+	return c
+
+
+## The fallen still lying on the field.
+func fallen() -> Array[Corpse]:
+	return corpses.filter(func(c: Corpse) -> bool: return c.fallen)
 
 
 func count() -> int:

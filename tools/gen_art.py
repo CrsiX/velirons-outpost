@@ -1232,6 +1232,313 @@ def guild_master():
     person("unit_guildmaster", ("#2f3e5a", "#243048"), hat=hat, skin="#d8b08c", robe=True, extra=extra)
 
 
+def corpse_fallen(name, tabard, tabard_d):
+    """One of the battlefield's fallen (scenario 6): dried out on the dry plain,
+    a dented helm, a faded tabard in the colours of the side he fell for (Fiona's
+    blue, Rhodri's crimson), bony hands, a broken spear."""
+    a = Art()
+    a.ellipse(0, 0, 21, 7, "#000", opacity=0.3)
+    a.line([(-20, 7), (14, -9)], INK, 3.2)  # broken spear
+    a.line([(-20, 7), (14, -9)], WOOD_L, 1.6)
+    a.poly([(14, -9), (19, -12), (16, -7)], "#9a9a9a", INK, 0.8)
+    a.poly([(-13, 1), (6, -6), (11, 1), (-8, 7)], tabard, INK, 1.2)  # body in the tabard
+    a.poly([(-3, -2), (8, -5), (11, 1), (0, 4)], tabard_d, stroke=None)
+    a.line([(-6, -1), (4, 3)], GOLD_D, 1.2)
+    for (x0, y0, x1, y1) in [(-13, 2, -21, 0), (-9, 6, -16, 9), (2, -5, -2, -11)]:  # bony limbs
+        a.line([(x0, y0), (x1, y1)], INK, 3.0)
+        a.line([(x0, y0), (x1, y1)], BONE_D, 1.6)
+        a.ellipse(x1, y1, 1.6, 1.2, BONE, INK, 0.7)
+    a.ellipse(13, -2, 5.2, 4.6, BONE, INK, 1.1)  # skull
+    a.ellipse(11.8, -2.4, 1.3, 1.4, "#1a1612")
+    a.ellipse(14.4, -2.4, 1.3, 1.4, "#1a1612")
+    a.poly([(8, -4), (11, -9), (17, -9), (19, -4)], "#7a7e86", INK, 1.1)  # dented helm
+    a.line([(10, -6.5), (18, -6.5)], "#5a5e66", 0.9)
+    a.save(name)
+
+
+def graveyard():
+    """The battlefield's graveyard (scenario 6, 3x3, flat: under walking units):
+    trodden earth inside a low stone wall, a lychgate on the near side, old
+    crosses along the back, and a fresh grave with a spade in the heap."""
+    rng = random.Random(606)
+    a = Art()
+    s = 1.45
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], "#6e5a3e", None)
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], DIRT_LIGHT, INK, 1.2, opacity=0.85)
+    for _ in range(40):  # tufts of dry grass
+        gx, gy = rng.uniform(-s, s), rng.uniform(-s, s)
+        x, y = P(gx, gy)
+        a.line([(x - 1.5, y), (x, y - 3), (x + 1.5, y)], "#8a8450", 0.8, opacity=0.7)
+    # the low wall, back edges first, then the near ones with a gap for the gate
+    def wall(p0, p1, gap=None):
+        steps = 9
+        for k in range(steps):
+            t0, t1 = k / steps, (k + 1) / steps
+            if gap and gap[0] <= t0 < gap[1]:
+                continue
+            q0 = (p0[0] + (p1[0] - p0[0]) * t0, p0[1] + (p1[1] - p0[1]) * t0)
+            q1 = (p0[0] + (p1[0] - p0[0]) * t1, p0[1] + (p1[1] - p0[1]) * t1)
+            x0, y0 = P(*q0)
+            x1, y1 = P(*q1)
+            a.poly([(x0, y0), (x1, y1), (x1, y1 - 5), (x0, y0 - 5)], STONE_L, INK, 0.9)
+            a.line([(x0, y0 - 5), (x1, y1 - 5)], STONE_T, 1.2)
+    wall((-s, -s), (s, -s))
+    wall((-s, -s), (-s, s))
+    # old crosses along the back
+    for k in range(5):
+        gx, gy = -1.1 + 0.55 * k, -1.2
+        x, y = P(gx, gy)
+        a.line([(x, y), (x, y - 13)], INK, 2.8)
+        a.line([(x, y), (x, y - 13)], "#8a7a62", 1.4)
+        a.line([(x - 4, y - 9), (x + 4, y - 9)], INK, 2.6)
+        a.line([(x - 4, y - 9), (x + 4, y - 9)], "#8a7a62", 1.2)
+        a.ellipse(x, y + 1, 5, 2, "#5a4a32", opacity=0.6)
+    # a fresh grave and its heap, a spade stuck in it
+    x, y = P(0.75, 0.55)
+    a.poly([(x - 9, y - 1), (x + 3, y - 6), (x + 9, y - 3), (x - 3, y + 2)], "#2a2016", INK, 1)
+    a.ellipse(x + 10, y + 3, 7, 3.4, DIRT_DARK, INK, 0.9)
+    a.line([(x + 12, y + 2), (x + 15, y - 14)], WOOD_D, 1.8)
+    a.poly([(x + 10.5, y + 3), (x + 14, y + 3.5), (x + 13.5, y - 1), (x + 11, y - 1.5)], "#9a9a9a", INK, 0.8)
+    wall((s, -s), (s, s))
+    wall((-s, s), (s, s), gap=(0.4, 0.6))
+    # the lychgate: two posts and a little roof over the gap
+    for t in (0.4, 0.6):
+        x, y = P(-s + 2 * s * t, s)
+        a.line([(x, y), (x, y - 18)], INK, 3.2)
+        a.line([(x, y), (x, y - 18)], WOOD, 1.8)
+    xa, ya = P(-s + 2 * s * 0.38, s)
+    xb, yb = P(-s + 2 * s * 0.62, s)
+    a.poly([(xa - 2, ya - 17), (xb + 2, yb - 17), ((xa + xb) / 2, (ya + yb) / 2 - 26)], "#4a3b24", INK, 1)
+    a.save("graveyard")
+
+
+def grave_mound():
+    """One buried soldier: a heap of dry earth and a plain wooden cross."""
+    a = Art()
+    a.ellipse(0, 0, 9, 3.6, "#000", opacity=0.25)
+    a.ellipse(0, -1, 8, 3.2, DIRT, INK, 0.9)
+    a.ellipse(-1, -2, 5, 1.6, DIRT_LIGHT, opacity=0.7)
+    a.line([(4, -1), (4, -12)], INK, 2.4)
+    a.line([(4, -1), (4, -12)], WOOD_L, 1.2)
+    a.line([(1, -9), (7, -9)], INK, 2.2)
+    a.line([(1, -9), (7, -9)], WOOD_L, 1.0)
+    a.save("grave_mound")
+
+
+def grove():
+    """The druids' grove by their stone circle (scenario 7, 2x2): moss and
+    ferns inside a ring of small standing stones, an old crooked oak at the
+    back, three log seats (the game seats the druids on them), a green fire."""
+    rng = random.Random(707)
+    a = Art()
+    s = 0.98
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], "#3e5a2c", None)
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], "#4d6a34", INK, 1.2, opacity=0.9)
+    for _ in range(26):
+        gx, gy = rng.uniform(-s, s), rng.uniform(-s, s)
+        x, y = P(gx, gy)
+        a.line([(x - 2, y), (x - 1, y - 4), (x, y)], "#6a8a44", 1, opacity=0.8)
+
+    def stone(gx, gy, h):
+        x, y = P(gx, gy)
+        a.poly([(x - 3, y), (x - 2.4, y - h), (x + 0.5, y - h - 2), (x + 3, y - h + 1), (x + 3, y)], "#77736c", INK, 1)
+        a.ellipse(x, y, 3.6, 1.4, "#3a5028", opacity=0.8)
+    ring = []
+    for k in range(10):
+        ang = k * math.tau / 10
+        ring.append((math.cos(ang) * 0.9, math.sin(ang) * 0.9))
+    back = [p for p in ring if p[0] + p[1] < 0]
+    front = [p for p in ring if p[0] + p[1] >= 0]
+    for (gx, gy) in back:
+        stone(gx, gy, 9)
+    # the old oak at the back
+    x, y = P(-0.55, -0.55)
+    a.poly([(x - 5, y), (x - 3, y - 26), (x - 9, y - 36), (x + 1, y - 30), (x + 6, y - 38), (x + 4, y - 24), (x + 5, y)], WOOD_D, INK, 1.2)
+    for (dx, dy, r) in [(-10, -44, 13), (6, -46, 14), (-2, -54, 13), (12, -38, 9), (-14, -34, 9)]:
+        a.ellipse(x + dx, y + dy, r, r * 0.8, "#2e4a24", INK, 1.1)
+        a.ellipse(x + dx - 2, y + dy - 2, r * 0.6, r * 0.45, "#456a30", opacity=0.8)
+    a.ellipse(x + 4, y - 44, 2.2, 2.2, "#e8f0c8")  # mistletoe
+    a.ellipse(x - 6, y - 50, 1.8, 1.8, "#e8f0c8")
+    # log seats where the game seats the druids
+    for (gx, gy) in [(-0.35, 0.45), (0.45, 0.35), (0.1, -0.25)]:
+        x, y = P(gx, gy)
+        a.poly([(x - 9, y + 1), (x + 9, y - 3), (x + 9, y - 7), (x - 9, y - 3)], WOOD, INK, 1)
+        a.ellipse(x + 9, y - 5, 2, 2.2, WOOD_L, INK, 0.8)
+    # the green fire
+    x, y = P(0.6, -0.45)
+    for k in range(6):
+        ang = k / 6 * math.tau
+        a.ellipse(x + math.cos(ang) * 6, y + math.sin(ang) * 3, 2, 1.4, "#77736c", INK, 0.7)
+    a.ellipse(x, y - 6, 8, 9, "#7aff9a", opacity=0.25)
+    a.poly([(x - 4, y), (x - 2, y - 9), (x, y - 5), (x + 2, y - 12), (x + 4, y)], "#5ae07a", INK, 0.8)
+    a.poly([(x - 2, y), (x, y - 6), (x + 2, y)], "#d8ffd8", stroke=None)
+    for (gx, gy) in front:
+        stone(gx, gy, 9)
+    a.save("grove")
+
+
+def druid():
+    """A druid: a moss-green robe, a hood with a wreath of leaves, a crooked staff."""
+    def extra(a, layer):
+        if layer == "back":
+            a.line([(9, 0), (11, -44)], INK, 3.2)
+            a.line([(9, 0), (11, -44)], WOOD, 1.8)
+            a.ellipse(11, -45, 3.4, 3, "#5aa04a", INK, 0.9)
+        else:
+            a.line([(-5, -24), (5, -24)], "#8a6a3a", 1.6)  # rope belt
+            a.line([(4, -20), (9, -28)], INK, 4)
+            a.line([(4, -20), (9, -28)], "#3e5a2c", 2.6)
+
+    def hat(a):
+        for (dx, dy) in [(-6, -38), (-3, -42), (1, -43), (5, -41), (7, -37)]:
+            a.ellipse(dx, dy, 2.4, 1.6, "#6aa84a", INK, 0.7)
+    person("unit_druid", ("#3e5a2c", "#2e4620"), hood="#4a3a24", hat=hat, robe=True, extra=extra)
+
+
+def priest_person():
+    """Anselm: a black cassock, a white collar, a grey fringe round a bald head,
+    a spade from the graves."""
+    def extra(a, layer):
+        if layer == "back":
+            a.line([(-9, 2), (-6, -30)], INK, 2.8)
+            a.line([(-9, 2), (-6, -30)], WOOD_L, 1.4)
+            a.poly([(-11, 2), (-6, 2), (-6.5, 7), (-10.5, 7)], "#9a9a9a", INK, 0.8)
+        else:
+            a.poly([(-4, -27), (4, -27), (3, -24), (-3, -24)], "#f0ece0", INK, 0.7)
+            a.line([(0, -22), (0, -15)], GOLD, 1.2)
+            a.line([(-2, -19.5), (2, -19.5)], GOLD, 1.2)
+
+    def hat(a):
+        a.raw('<path d="M-6,-31 Q-7,-37 -4,-37 M6,-32 Q7,-37 4,-37" fill="none" stroke="#b8b4ac" stroke-width="2.6"/>', [(-8, -38), (8, -30)])
+    person("unit_priest", ("#26242a", "#1a181e"), hat=hat, skin="#d4a888", robe=True, extra=extra)
+
+
+def princess():
+    """Fiona: a deep-blue gown with a silver hem, red-gold hair under a thin circlet."""
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-6, -36), (-10, -14), (-4, -24)], "#b0582a", INK, 0.9)  # hair down her back
+        else:
+            a.line([(-8, -6), (8, -6)], "#c8ccd8", 1.4)
+            a.line([(-5, -26), (5, -26)], "#c8ccd8", 1.2)
+
+    def hat(a):
+        a.raw('<path d="M-6,-33 Q-7,-41 0,-41 Q7,-41 6,-33 Q5,-38 0,-38 Q-5,-38 -6,-33Z" fill="#b0582a" stroke="%s" stroke-width="1.1"/>' % INK, [(-7, -42), (7, -32)])
+        a.line([(-5.5, -37.5), (5.5, -37.5)], "#d8dce8", 1.4)
+        a.ellipse(0, -38, 1.2, 1.2, "#7ab0ff")
+    person("unit_princess", ("#243a6a", "#1a2c52"), hat=hat, skin="#e0bc9c", robe=True, extra=extra)
+
+
+def _manor(name, lower, upper, roof, roof_front, decorate):
+    """A taller house on a hut's lot (the campaign's named villagers' homes)."""
+    a = Art()
+    x0, x1, y0, y1 = -0.34, 0.34, -0.3, 0.3
+    a.shadow(44, 22, cy=4)
+    h, ridge = 36, 62
+    a.box(x0, x1, y0, y1, 0, 14, lower[0], lower[1], lower[2])
+    a.box(x0, x1, y0, y1, 14, h, upper[0], upper[1], upper[2])
+    a.poly([P(-0.08, y1, 0), P(0.08, y1, 0), P(0.08, y1, 17), P(-0.08, y1, 17)], "#2b1e14")
+    a.poly([P(x1, 0.15, 20), P(x1, -0.05, 20), P(x1, -0.05, 29), P(x1, 0.15, 29)], GLOW)
+    ym = (y0 + y1) / 2
+    ey, ex = 0.07, 0.03
+    slope = (ridge - h) / (y1 - ym)
+    eave_h = h - slope * ey
+    xa, xb = x0 - ex, x1 + ex
+    a.poly([P(xa, y0 - ey, eave_h), P(xb, y0 - ey, eave_h), P(xb, ym, ridge), P(xa, ym, ridge)], roof)
+    a.poly([P(x1, y0, h), P(x1, ym, ridge), P(x1, y1, h)], upper[2])
+    a.poly([P(xa, ym, ridge), P(xb, ym, ridge), P(xb, y1 + ey, eave_h), P(xa, y1 + ey, eave_h)], roof_front)
+    a.line([P(xb, y0 - ey, eave_h), P(xb, ym, ridge), P(xb, y1 + ey, eave_h)], "#3b2a1d", 3.2)
+    a.line([P(xa, ym, ridge), P(xb, ym, ridge)], "#3b2a1d", 2.4)
+    decorate(a, x0, x1, y0, y1, h, ridge, ym)
+    a.save(name)
+
+
+def campaign_houses():
+    """Anselm's house (scenario 6): whitewashed, a bell-cote with a cross on the
+    gable. Fiona's house (scenario 7): grey stone, a slate roof, her blue
+    banner with the crown's silver tower."""
+    def bell(a, x0, x1, y0, y1, h, ridge, ym):
+        bx, by = P(x1, ym, ridge)
+        a.poly([(bx - 4, by), (bx + 4, by), (bx + 4, by - 10), (bx - 4, by - 10)], "#d8d0c0", INK, 1)
+        a.ellipse(bx, by - 5, 2.2, 2.6, GOLD_D, INK, 0.7)
+        a.poly([(bx - 6, by - 10), (bx + 6, by - 10), (bx, by - 15)], "#4a3b24", INK, 0.9)
+        a.line([(bx, by - 15), (bx, by - 22)], INK, 2)
+        a.line([(bx - 3, by - 19.5), (bx + 3, by - 19.5)], INK, 2)
+        for t in (0.25, 0.75):
+            gx = x0 + (x1 - x0) * t
+            a.poly([P(gx - 0.05, y1, 20), P(gx + 0.05, y1, 20), P(gx + 0.05, y1, 30), P(gx - 0.05, y1, 30)], GLOW)
+    _manor("priest_house", ("#b8b0a0", "#b8b0a0", "#948c7e"), ("#e0d8c8", "#e0d8c8", "#bab2a2"), "#4a3b24", "#5b4a2e", bell)
+
+    def banner(a, x0, x1, y0, y1, h, ridge, ym):
+        bx, by = P(x0 + 0.1, y1, h + 4)
+        a.line([(bx, by), (bx, by - 26)], WOOD_D, 1.8)
+        a.poly([(bx, by - 26), (bx + 12, by - 24), (bx + 12, by - 8), (bx + 6, by - 11), (bx, by - 8)], "#243a6a", INK, 0.9)
+        a.poly([(bx + 4, by - 13), (bx + 8, by - 13), (bx + 8, by - 21), (bx + 4, by - 21)], "#d8dce8", stroke=None)
+        a.box(0.14, 0.24, -0.1, 0.0, ridge - 14, ridge + 8, STONE_T, STONE_L, STONE_R)
+    _manor("fiona_house", (STONE_T, STONE_L, STONE_R), ("#8e8a84", "#8e8a84", "#6c6862"), "#2e3a44", "#3e4c58", banner)
+
+
+def portraits_67():
+    """The speakers of scenarios 6 and 7 (docs/story-design.md section 2)."""
+    # Anselm: the battlefield's old priest; a grey fringe round a bald crown,
+    # a black cassock, a white collar, tired kind eyes, dust on his cheek.
+    portrait_svg("portrait_anselm", f"""
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#26242a" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M26 43 L32 48 L38 43" fill="#f0ece0" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M32 50 L32 62 M27 55 L37 55" stroke="{GOLD}" stroke-width="2"/>
+  <rect x="27" y="35" width="10" height="9" fill="#c89c7c" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 25 Q19 11 32 10 Q45 11 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#d4a888" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M19 27 Q16 16 22 14 Q20 20 21 27Z M45 27 Q48 16 42 14 Q44 20 43 27Z" fill="#b8b4ac" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M24 23 Q27 21.5 29 23 M35 23 Q37 21.5 40 23" fill="none" stroke="#9a948a" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="27" cy="26" r="1.3" fill="{INK}"/><circle cx="37" cy="26" r="1.3" fill="{INK}"/>
+  <path d="M24 28.5 Q27 30 29 28.5 M35 28.5 Q37 30 40 28.5" fill="none" stroke="#a87858" stroke-width="0.9"/>
+  <path d="M28.5 34 Q32 35 35.5 34" fill="none" stroke="#7a4a3a" stroke-width="1.4" stroke-linecap="round"/>
+  <ellipse cx="40" cy="31" rx="2.6" ry="1.4" fill="#8a7a62" opacity="0.6"/>""", bg="#2a2824")
+    # Fiona: the old king's daughter; red-gold hair, a thin silver circlet, a
+    # deep-blue gown with a silver collar, a level, measuring look.
+    portrait_svg("portrait_fiona", f"""
+  <path d="M20 24 Q10 40 14 58 L23 52 Q19 40 22 30Z" fill="#b0582a" stroke="{INK}" stroke-width="2"/>
+  <path d="M44 24 Q54 40 50 58 L41 52 Q45 40 42 30Z" fill="#b0582a" stroke="{INK}" stroke-width="2"/>
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#243a6a" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M20 44 Q32 54 44 44" fill="none" stroke="#c8ccd8" stroke-width="2.2"/>
+  <rect x="27" y="35" width="10" height="9" fill="#dcb898" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 25 Q19 12 32 11 Q45 12 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#e4c0a0" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M19 27 Q15 8 32 7 Q49 8 45 27 Q44 16 36 14 Q30 18 21 17 Q20 22 19 27Z" fill="#b0582a" stroke="{INK}" stroke-width="2"/>
+  <path d="M20 15 Q32 10 44 15" fill="none" stroke="#d8dce8" stroke-width="2"/>
+  <circle cx="32" cy="12" r="1.8" fill="#7ab0ff" stroke="{INK}" stroke-width="0.8"/>
+  <path d="M24 23 L29 22.5 M35 22.5 L40 23" stroke="#7a3a1a" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="27" cy="26" r="1.4" fill="#2a3a5a"/><circle cx="37" cy="26" r="1.4" fill="#2a3a5a"/>
+  <path d="M28.5 33.5 L35.5 33.5" stroke="#9a5a4a" stroke-width="1.4" stroke-linecap="round"/>""", bg="#1e2638")
+    # The druids' elder: a long white beard, a wreath of oak leaves, a hood of
+    # undyed wool over a moss-green robe.
+    portrait_svg("portrait_elder", f"""
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#3e5a2c" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M10 40 Q8 8 32 4 Q56 8 54 40 L46 40 Q46 16 32 14 Q18 16 18 40Z" fill="#6a5a40" stroke="{INK}" stroke-width="2.2"/>
+  <rect x="27" y="35" width="10" height="9" fill="#c49474" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 25 Q19 13 32 12 Q45 13 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#cc9c78" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M20 27 Q18 56 32 62 Q46 56 44 27 Q40 34 32 34 Q24 34 20 27Z" fill="#ece8e0" stroke="{INK}" stroke-width="2"/>
+  <path d="M26 32 Q32 30 38 32" fill="none" stroke="#c8c4bc" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M19 17 Q32 11 45 17" fill="none" stroke="#4a7a32" stroke-width="3.2"/>
+  <ellipse cx="22" cy="16" rx="3" ry="2" fill="#6aa84a" stroke="{INK}" stroke-width="0.9"/>
+  <ellipse cx="32" cy="12.5" rx="3" ry="2" fill="#6aa84a" stroke="{INK}" stroke-width="0.9"/>
+  <ellipse cx="42" cy="16" rx="3" ry="2" fill="#6aa84a" stroke="{INK}" stroke-width="0.9"/>
+  <path d="M24 22.5 L29 22 M35 22 L40 22.5" stroke="#e8e4dc" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="27" cy="25.5" r="1.4" fill="{INK}"/><circle cx="37" cy="25.5" r="1.4" fill="{INK}"/>""", bg="#22301e")
+    # Idris, a court mage: a dark face, a silver-shot short beard, a deep
+    # violet hood with silver stars.
+    portrait_svg("portrait_mage", f"""
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#3a2a5a" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M10 42 Q8 8 32 5 Q56 8 54 42 L46 42 Q46 16 32 15 Q18 16 18 42Z" fill="#2c2048" stroke="{INK}" stroke-width="2.2"/>
+  <circle cx="14" cy="30" r="1" fill="#d8dce8"/><circle cx="50" cy="24" r="1" fill="#d8dce8"/><circle cx="20" cy="12" r="0.9" fill="#d8dce8"/>
+  <rect x="27" y="35" width="10" height="9" fill="#7a5038" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 25 Q19 13 32 12 Q45 13 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#8a5c40" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M22 30 Q24 41 32 42 Q40 41 42 30 Q38 35 32 35 Q26 35 22 30Z" fill="#4a4448" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M27 38 L29 40 M35 38 L33 40" stroke="#b8b4b0" stroke-width="1"/>
+  <path d="M24 23 L29 22.5 M35 22.5 L40 23" stroke="#1e1a18" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="27" cy="26" r="1.4" fill="{INK}"/><circle cx="37" cy="26" r="1.4" fill="{INK}"/>
+  <path d="M28.5 32.5 Q32 33.4 35.5 32.5" fill="none" stroke="#4a2a1e" stroke-width="1.4" stroke-linecap="round"/>""", bg="#221c30")
+
+
 def legion_footman():
     """A soldier of the Dread Legion: pale skin, a grey-steel helm, a faded
     tabard that was crimson once, a spear and a round shield; stiff."""
@@ -1502,6 +1809,32 @@ def earth_elemental():
     a.ellipse(2.5, -33.5, 1.2, 1, glow)
     a.poly([(-3, -38), (-1, -42), (1, -38)], "#6a9a4a", INK, 0.8)  # moss tuft
     a.save("unit_earth_elemental")
+
+
+def thornling():
+    """The druid's summon: a squat walking bramble of twisted vines, thorns all
+    over, root-feet, two amber eyes and one small pink flower."""
+    a = Art()
+    a.shadow(12, 5, opacity=0.4)
+    vine, vine_d, vine_l = "#3e5a2c", "#2a3e1e", "#5a7a3a"
+    for (x0, x1) in [(-6, -9), (5, 8)]:  # root-feet
+        a.line([(x0, -8), (x0 - 1, -3), (x1, 0)], INK, 3.6)
+        a.line([(x0, -8), (x0 - 1, -3), (x1, 0)], "#6a4a28", 2)
+    a.poly([(-11, -8), (-13, -20), (-8, -30), (0, -33), (8, -30), (13, -20), (11, -8), (0, -6)], vine, INK, 1.4)  # body
+    a.poly([(0, -33), (8, -30), (13, -20), (11, -8), (0, -6)], vine_d, stroke=None, opacity=0.6)
+    for pts in [[(-10, -12), (-4, -20), (-9, -27)], [(9, -11), (3, -19), (8, -26)], [(-5, -9), (1, -16), (-2, -28)]]:  # twisting vines
+        a.line(pts, vine_l, 1.6)
+    for (x, y, dx, dy) in [(-13, -20, -4, -1), (-11, -27, -3, -3), (13, -20, 4, -1), (11, -27, 3, -3), (-12, -12, -4, 1), (12, -12, 4, 1), (-3, -33, -1, -4), (4, -33, 1, -4)]:  # thorns
+        a.poly([(x, y - 1.2), (x + dx, y + dy), (x, y + 1.2)], "#c8b890", INK, 0.6)
+    for (x, y, r) in [(-15, -17, 3.8), (15, -18, 3.8)]:  # bramble fists
+        a.ellipse(x, y, r, r * 0.9, vine_l if x < 0 else vine, INK, 1.2)
+    a.ellipse(-3, -24, 1.6, 1.4, "#f0c040")  # eyes
+    a.ellipse(3, -24, 1.6, 1.4, "#f0c040")
+    for k in range(5):  # the flower
+        ang = k / 5 * math.tau
+        a.ellipse(6 + math.cos(ang) * 2.2, -31 + math.sin(ang) * 2.2, 1.6, 1.6, "#e88ab0", INK, 0.5)
+    a.ellipse(6, -31, 1.2, 1.2, "#f8e060")
+    a.save("unit_thornling")
 
 
 def caravan():
@@ -4541,6 +4874,17 @@ def main():
     legion_captain("unit_legion_captain_lysa", CRIMSON, hair="#6a2a20")
     portraits()
     portraits_away()
+    corpse_fallen("corpse_fallen", "#2f4a7a", "#243a62")
+    corpse_fallen("corpse_fallen_2", CRIMSON, CRIMSON_D)
+    graveyard()
+    grave_mound()
+    grove()
+    druid()
+    thornling()
+    priest_person()
+    princess()
+    campaign_houses()
+    portraits_67()
     campaign_icon()
     write_manifest()
     print("generated %d sprites" % len(manifest))

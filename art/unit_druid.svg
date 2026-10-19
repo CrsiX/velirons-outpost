@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="63" height="117" viewBox="-14 -51 31.5 58.5">
+  <ellipse cx="0" cy="0" rx="11" ry="4.5" fill="#000" opacity="0.4"/>
+  <polygon points="-9,-2 9,-2 7,-26 -7,-26" fill="#3e5a2c" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
+  <polygon points="0,-2 9,-2 7,-26 0,-26" fill="#2e4620"/>
+  <polyline points="-9,-2 9,-2 7,-26" fill="none" stroke="#15110d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="9,0 11,-44" fill="none" stroke="#15110d" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="9,0 11,-44" fill="none" stroke="#5e4129" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="11" cy="-45" rx="3.4" ry="3" fill="#5aa04a" stroke="#15110d" stroke-width="0.9"/>
+  <ellipse cx="0" cy="-33" rx="6" ry="6" fill="#d8b08c" stroke="#15110d" stroke-width="1.3"/>
+  <ellipse cx="3" cy="-33.5" rx="0.9" ry="0.9" fill="#15110d"/>
+  <path d="M-7,-30 Q-8,-43 0,-43 Q8,-43 7,-34 L4,-36 Q0,-40 -4,-36 Q-5,-33 -5,-28 Z" fill="#4a3a24" stroke="#15110d" stroke-width="1.3" stroke-linejoin="round"/>
+  <ellipse cx="-6" cy="-38" rx="2.4" ry="1.6" fill="#6aa84a" stroke="#15110d" stroke-width="0.7"/>
+  <ellipse cx="-3" cy="-42" rx="2.4" ry="1.6" fill="#6aa84a" stroke="#15110d" stroke-width="0.7"/>
+  <ellipse cx="1" cy="-43" rx="2.4" ry="1.6" fill="#6aa84a" stroke="#15110d" stroke-width="0.7"/>
+  <ellipse cx="5" cy="-41" rx="2.4" ry="1.6" fill="#6aa84a" stroke="#15110d" stroke-width="0.7"/>
+  <ellipse cx="7" cy="-37" rx="2.4" ry="1.6" fill="#6aa84a" stroke="#15110d" stroke-width="0.7"/>
+  <polyline points="-5,-24 5,-24" fill="none" stroke="#8a6a3a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="4,-20 9,-28" fill="none" stroke="#15110d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="4,-20 9,-28" fill="none" stroke="#3e5a2c" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

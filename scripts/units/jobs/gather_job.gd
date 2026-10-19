@@ -4,13 +4,18 @@ extends CivilianJob
 ## collect "safe" corpses (no living enemy nearby) on land its village has
 ## explored, up to `capacity` per trip,
 ## and brings them home for gold and a little food. Loot a downed hero dropped
-## (a sack) is picked up first, and paid out at home like her loot.
+## (a sack) is picked up first, and paid out at home like her loot. The
+## battlefield's fallen (Corpse.fallen; scenario 6) are fetched only while the
+## village has a graveyard, Config.FALLEN carry at a time, and carried there
+## to be buried (TO_GRAVE, BURYING).
 
-enum State { RESTING, TO_CORPSE, LOOTING, RETURNING }
+enum State { RESTING, TO_CORPSE, LOOTING, RETURNING, TO_GRAVE, BURYING }
 
 var state := State.RESTING
 var target: Corpse = null
 var carried: Array[String] = []  # enemy kinds
+## The fallen carried, for the graveyard.
+var carried_fallen := 0
 ## Stolen gold found on thieves' corpses, carried with them.
 var carried_gold := 0
 ## A dropped-loot sack on the way to / being picked up, and loot carried.
@@ -40,6 +45,8 @@ func tick(delta: float) -> void:
 			if w.rest_timer > 0.0:
 				return
 			w.rest_timer = 1.0  # peace-time check once a second
+			if carried_fallen > 0 and _to_grave():
+				return
 			if _pick_next():
 				state = State.TO_CORPSE
 		State.TO_CORPSE:
@@ -78,14 +85,17 @@ func tick(delta: float) -> void:
 			w._bob += delta * 12.0
 			w.sprite.rotation = sin(w._bob) * 0.15
 			if _timer <= 0.0:
-				carried.append(target.kind)
+				if target.fallen:
+					carried_fallen += 1
+				else:
+					carried.append(target.kind)
 				carried_gold += target.extra_gold
 				w.village.events.debug("%s collected %s" % [w.label(), target.label()])
 				w.game.corpses.remove(target)
 				target = null
 				w.sprite.rotation = 0.0
 				w.on_action("corpse")
-				if carried.size() >= capacity:
+				if _load() >= capacity or carried_fallen >= int(Config.FALLEN["carry"]):
 					_go_home()
 				else:
 					_next_or_home()
@@ -95,8 +105,28 @@ func tick(delta: float) -> void:
 				w.arrive_home()
 				state = State.RESTING
 				w.rest_timer = Config.GATHERER_REST
-	_sack.visible = (not carried.is_empty() or not loot.is_empty()) and not w.at_home
-	_sack.scale = Vector2.ONE * (0.5 + 0.08 * mini(carried.size(), 6))
+		State.TO_GRAVE:
+			var gy := _graveyard()
+			if gy == null:
+				state = State.RETURNING  # (it fell meanwhile: home with them)
+				w.head_home()
+			elif w.step_path(delta):
+				state = State.BURYING
+				_timer = float(Config.FALLEN["bury_time"]) * carried_fallen
+		State.BURYING:
+			var gy := _graveyard()
+			_timer -= delta
+			w._bob += delta * 8.0
+			w.sprite.rotation = sin(w._bob) * 0.12
+			if gy == null or _timer <= 0.0:
+				w.sprite.rotation = 0.0
+				if gy != null:
+					gy.bury(carried_fallen, w)
+					carried_fallen = 0
+				state = State.RETURNING
+				w.head_home()
+	_sack.visible = _load() + loot.size() > 0 and not w.at_home
+	_sack.scale = Vector2.ONE * (0.5 + 0.08 * mini(_load(), 6))
 
 
 ## Claims the closest reachable safe corpse and walks there. Dropped loot
@@ -106,7 +136,8 @@ func _pick_next() -> bool:
 		return true
 	# (only corpses on land its village has explored: none in the black fog)
 	var vid := w.village.id
-	var options := w.game.corpses.available().filter(func(c: Corpse) -> bool: return w.game.fog.is_explored_by(vid, c.tile()))
+	var graves := _graveyard() != null and carried_fallen < int(Config.FALLEN["carry"])
+	var options := w.game.corpses.available().filter(func(c: Corpse) -> bool: return w.game.fog.is_explored_by(vid, c.tile()) and (graves or not c.fallen))
 	if options.is_empty():
 		return false
 	var from := w.current_tile() if not w.at_home else w.village.center
@@ -167,7 +198,7 @@ func _release_target() -> void:
 
 func _next_or_home() -> void:
 	_release_target()
-	if carried.size() < capacity and _pick_next():
+	if _load() < capacity and _pick_next():
 		state = State.TO_CORPSE
 	else:
 		_go_home()
@@ -175,9 +206,34 @@ func _next_or_home() -> void:
 
 func _go_home() -> void:
 	_release_target()
-	state = State.RETURNING
 	w.sprite.rotation = 0.0
+	if carried_fallen > 0 and _to_grave():
+		return
+	state = State.RETURNING
 	w.head_home()
+
+
+## Corpses carried, the fallen too.
+func _load() -> int:
+	return carried.size() + carried_fallen
+
+
+## The village's graveyard nearest the worker that takes the dead in, or null.
+func _graveyard() -> Graveyard:
+	var best: Graveyard = null
+	for b in w.village.buildings():
+		if b is Graveyard and (b as Graveyard).open() and (best == null or w.grid_pos.distance_to(Vector2(b.tile)) < w.grid_pos.distance_to(Vector2(best.tile))):
+			best = b
+	return best
+
+
+## Sets off to bury the fallen it carries; false if there's no way there.
+func _to_grave() -> bool:
+	var gy := _graveyard()
+	if gy == null or not w.head_out(gy.visit_tile()):
+		return false
+	state = State.TO_GRAVE
+	return true
 
 
 func _deliver() -> void:
@@ -213,6 +269,7 @@ func resume() -> void:
 
 func on_evade() -> void:
 	_release_target()
+	w.sprite.rotation = 0.0
 	state = State.RETURNING  # keeps what is already in the sack
 
 
@@ -224,6 +281,7 @@ func after_evade() -> void:
 func release() -> void:
 	_release_target()
 	carried.clear()
+	carried_fallen = 0
 	carried_gold = 0
 	loot = {}
 	_sack.visible = false
@@ -234,4 +292,6 @@ func status() -> String:
 		State.TO_CORPSE: return "fetching dropped loot" if sack != null else "fetching a corpse"
 		State.LOOTING: return "collecting"
 		State.RETURNING: return "carrying %d corpses home" % carried.size()
+		State.TO_GRAVE: return "carrying %d of the fallen to the graveyard" % carried_fallen
+		State.BURYING: return "burying the fallen"
 	return "resting"

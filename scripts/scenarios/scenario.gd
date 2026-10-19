@@ -51,7 +51,9 @@ var pieces_hp := 1.0
 ## that road's gate), "road": which road (0: the one nearest the village by
 ## road, 1: the next, ...), "at": [lo, hi] road tiles before its gate (or
 ## "tile": a fixed tile, or "near_water": true, the free spot by the walls
-## nearest the water), "level", "units": [{"kind", "level"}] (one per slot)}.
+## nearest the water, or "near_site": an unlock site's kind, the free spot
+## nearest the map's site of that kind), "level", "units": [{"kind",
+## "level", "fixed": takes no orders (MilitaryUnit.bound)}] (one per slot)}.
 ## A workplace among them takes its worker (the stall: the merchant).
 var prebuilt: Array[Dictionary] = []
 ## The hero: a name, the level (1 = the first), and where she starts (a tile;
@@ -61,6 +63,9 @@ var hero_name := ""
 var hero_level := 1
 var hero_start := Vector2i(-1, -1)
 var tent_tile := Vector2i(-1, -1)
+## She doesn't walk in after the intro: she lives at her start (by her tent)
+## until the scenario lets her in (ScenarioRunner.hero_moves_in; scenario 7).
+var hero_lives_out := false
 ## The card while she walks from her start to the village.
 var walk_title := "On the way"
 var walk_text := ""
@@ -84,6 +89,12 @@ var must_live: Array[String] = []
 var must_stand: Array[String] = []
 ## Corpses rot as usual (false: they lie until gathered or the next wave ends).
 var corpses_rot := true
+## When the map's unit-unlock sites awaken, by site (Config.UNLOCK_SITES key):
+## the wave (0: at the start; -1: only when the scenario awakens it,
+## ScenarioRunner.awaken_site). Sites left out awaken as in a normal game.
+var sites := {}
+## Units and roles unlocked from the start (Config.LOCKED keys), as if found.
+var unlocked: Array[String] = []
 
 # --- waves --------------------------------------------------------------------------------
 
@@ -171,6 +182,12 @@ func on_wave_started(_r: ScenarioRunner, _n: int) -> void:
 
 func on_wave_finished(_r: ScenarioRunner, _n: int) -> void:
 	pass
+
+
+## Why this scenario refuses a command now (its own rules: scenario 7's
+## trust), or "" (ScenarioRunner.command_error asks it after its own rules).
+func command_error(_r: ScenarioRunner, _type: String, _args: Dictionary) -> String:
+	return ""
 
 
 ## The defeat screen's line when the last building of a `must_stand` kind fell.

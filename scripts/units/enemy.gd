@@ -45,6 +45,9 @@ var _jitter := Vector2.ZERO
 var base_speed := 1.0
 var _slow := 1.0
 var _slow_left := 0.0
+## Rooted by a thornling (root): seconds left, and when it may be rooted again (Game.clock).
+var _root_left := 0.0
+var _root_free_at := -1.0
 ## Seconds before a spatial mage can throw it back again.
 var _push_immune := 0.0
 ## Set by a behavior that moved the enemy itself this frame (rats off the road).
@@ -173,6 +176,22 @@ func slow(factor: float, seconds: float) -> void:
 
 func is_slowed() -> bool:
 	return _slow_left > 0.0
+
+
+## A thornling's blow roots it in place for `seconds`: it can't walk (_walk_factor),
+## but fights, casts and shoots on. Not a flyer, not while rooted, and not again
+## until SUMMONS.thorn.root_immunity seconds after a root wore off. Whether it took.
+func root(seconds: float) -> bool:
+	if dead or flies() or _root_left > 0.0 or game.clock < _root_free_at:
+		return false
+	_root_left = seconds
+	_root_free_at = game.clock + seconds + float(Config.SUMMONS["thorn"]["root_immunity"])
+	queue_redraw()
+	return true
+
+
+func is_rooted() -> bool:
+	return _root_left > 0.0
 
 
 ## Spatial magic: thrown `tiles` back along its road (away from the village),
@@ -510,6 +529,8 @@ func _land() -> void:
 
 
 func _walk_factor() -> float:
+	if _root_left > 0.0:
+		return 0.0  # (held by roots)
 	return 1.0 if flies() or habitat() != "land" else super._walk_factor()
 
 
@@ -621,6 +642,10 @@ func _process(delta: float) -> void:
 			decayed = dead  # (unless a vampire saved itself as a bat)
 			if dead:
 				return
+	if _root_left > 0.0:
+		_root_left -= delta
+		if _root_left <= 0.0:
+			queue_redraw()  # (the roots let go)
 	if _slow_left > 0.0:
 		_slow_left -= delta
 		if _slow_left <= 0.0:  # the frost wears off
@@ -901,6 +926,8 @@ func _fly(delta: float) -> void:
 func _draw() -> void:
 	if not dead:
 		_draw_water()
+	if _root_left > 0.0 and not dead:
+		_draw_roots()
 	if channel_to != Vector2.INF and not dead:
 		# The necromancer's green beam to the corpse, flickering.
 		var to := Iso.to_world(channel_to) - position
@@ -922,6 +949,17 @@ func _draw() -> void:
 
 ## Water monsters: ripples and a trail of bubbles while under; a siren's song
 ## ring; a leviathan's water column; an octopus's arms (see `fx`).
+## Roots: green-brown tendrils curling up round its feet.
+func _draw_roots() -> void:
+	for i in 5:
+		var a := float(i) / 5.0 * TAU
+		var base := Vector2(cos(a) * 9.0, sin(a) * 4.0)
+		var tip := base * 0.4 + Vector2(0, -11.0 - 3.0 * float(i % 2))
+		var mid := (base + tip) * 0.5 + Vector2(cos(a + 1.2) * 4.0, 0)
+		draw_polyline(PackedVector2Array([base, mid, tip]), Color("15110d"), 3.2, true)
+		draw_polyline(PackedVector2Array([base, mid, tip]), Color("5a7a32") if i % 2 == 0 else Color("6a4a28"), 1.8, true)
+
+
 func _draw_water() -> void:
 	var ms := Time.get_ticks_msec() / 1000.0
 	var big := 1.8 if habitat() == "water" else 1.0

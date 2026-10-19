@@ -454,6 +454,37 @@ func _test_effects() -> void:
 	foe.take_damage(1e9)
 	game.army.unstation(fs[0])
 	await clear_enemies()
+	# Druid: thornlings, slow and tough; every blow roots (docs/military-design.md §3b).
+	var dr: Array = await _manned("druid")
+	var dbeh: SummonerBehavior = dr[0].behavior
+	var dfoe := spawn_dummy("ork", _near_tower(dr[1], 2.5), 50.0)
+	var grown := await wait_until(func() -> bool: return not dbeh.summons.is_empty(), 20.0)
+	check(grown and dbeh.summons[0].summon == "thorn" and dbeh.summons[0].label().begins_with("thornling"), "the druid calls up thornlings")
+	if grown:
+		var th: EarthElemental = dbeh.summons[0]
+		check(is_equal_approx(th.max_hp, Config.unit_stat("druid", "summon_hp", 0) * Config.SUMMONS["thorn"]["hp"]) and is_equal_approx(th.root_time, Config.unit_stat("druid", "root", 0)), "more HP (%.0f), roots for %.1f s" % [th.max_hp, th.root_time])
+		check(th.speed < Config.SUMMONS["earth"]["speed"], "slower than an earth elemental")
+		check(await wait_until(func() -> bool: return dfoe.is_rooted(), 20.0), "its blow roots the enemy")
+	dfoe.take_damage(1e9)
+	game.army.unstation(dr[0])
+	await clear_enemies()
+	var walker := game.waves.spawn_at("goblin", game.map.edge_spawns[0], game.player_village, 1)
+	walker.max_hp = 1e9  # (nothing near may kill it meanwhile)
+	walker.hp = walker.max_hp
+	await wait(0.5)
+	check(walker.root(1.0) and walker.is_rooted(), "rooted")
+	var at := walker.grid_pos
+	await wait(0.7)
+	check(walker.grid_pos.distance_to(at) < 0.01, "a rooted enemy doesn't walk")
+	check(not walker.root(1.0), "no root on top of a root")
+	await wait(0.6)
+	check(not walker.is_rooted() and walker.grid_pos.distance_to(at) > 0.05, "the roots let go: it walks on")
+	check(not walker.root(1.0), "then it is immune for a while")
+	await wait(float(Config.SUMMONS["thorn"]["root_immunity"]) + 0.2)
+	check(walker.root(0.5), "and can be rooted again after it")
+	var gar := game.waves.spawn_at("gargoyle", game.map.edge_spawns[0], game.player_village, 1)
+	check(not gar.root(1.0), "flyers can't be rooted")
+	await clear_enemies()
 	# A summoner in the barracks steps outside and summons there; it can be hit.
 	var su := game.army.recruit("summoner")
 	for u in barracks.units():

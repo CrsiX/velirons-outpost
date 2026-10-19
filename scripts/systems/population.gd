@@ -22,6 +22,8 @@ const ROLE_SCRIPTS := {
 	"miner": preload("res://scripts/units/miner.gd"),
 	"merchant": preload("res://scripts/units/merchant.gd"),
 	"guildmaster": preload("res://scripts/units/guild_master.gd"),
+	"priest": preload("res://scripts/units/resident.gd"),
+	"princess": preload("res://scripts/units/resident.gd"),
 }
 
 var game: Game

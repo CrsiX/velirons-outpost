@@ -4,6 +4,9 @@ extends Node2D
 ## it home, it rots away (CORPSE_LIFETIME), or the wave after next is finished.
 ## On deep water it sinks: it fades over AQUA sink_time and is gone (nobody
 ## can gather it; a necromancer can still raise it until then).
+## A battlefield's fallen soldier (scenario 6, `fallen`) lies until it is
+## buried: it never rots or is cleared away, gatherers carry it to a graveyard
+## (Graveyard) for nothing but its grave, and raised it is a skeleton.
 
 var game: Game
 var kind := "goblin"
@@ -24,6 +27,8 @@ var hp_scale := 1.0
 var revivable := true
 ## The necromancer raising it right now.
 var raising_by: Node = null
+## One of the battlefield's fallen (make_fallen): buried in a graveyard, never rots.
+var fallen := false
 ## Sinking on deep water (see _process).
 var sinking := false
 var _sink_total := 1.0
@@ -51,6 +56,12 @@ func setup(p_game: Game, p_kind: String, p_wave: int, at: Vector2) -> void:
 		time_left = _sink_total
 
 
+## Makes it one of the battlefield's fallen (raised: a skeleton, its `kind`).
+func make_fallen() -> void:
+	fallen = true
+	Art.apply(_sprite, "corpse_fallen" if randf() < 0.5 else "corpse_fallen_2")  # (Fiona's blue, Rhodri's crimson)
+
+
 func tile() -> Vector2i:
 	return Vector2i(grid_pos.round())
 
@@ -71,7 +82,7 @@ func _process(delta: float) -> void:
 			game.log_all(EventLog.Level.DEBUG, "%s sank" % label())
 			game.corpses.remove(self)
 		return
-	if not game.corpses.rot:
+	if not game.corpses.rot or fallen:
 		return
 	time_left -= delta
 	if time_left < 10.0:

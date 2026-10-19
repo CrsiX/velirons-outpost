@@ -11,6 +11,9 @@ objects she claims and loots.
 ## 1. Summary
 
 - **Half villager, half soldier**, with a sword. One per village; she starts in its centre.
+- **Her post** (`Hero.home()`) is the village centre (in Support mode the supported village's). A campaign scenario can give her another
+  one (`Hero.home_override`: scenario 7, her tent outside the walls until she is let in): everything this page says about "the centre"
+  (standing guard, the leash, resting, healing, reviving) is then about her tent.
 - **No hut, no upkeep:** she eats nothing, doesn't count as a villager or towards the hut cap,
   and isn't in the villager list.
 - **The player picks her mode**; she carries it out on her own. Seven modes: Defend (default),

@@ -68,10 +68,24 @@ func submit(village: Village, type: String, args: Dictionary = {}) -> Dictionary
 		result = fail("The game is over")
 	elif game.scenario and game.scenario.command_error(type, args) != "":
 		result = fail(game.scenario.command_error(type, args))
+	elif _fixed_unit(type, args) != null:
+		result = fail("The %s takes no orders" % _fixed_unit(type, args).display_name().to_lower())
 	else:
 		result = call(HANDLERS[type], village, args)
 	applied.emit(village, type, args, result)
 	return result
+
+
+## A unit that takes no orders (MilitaryUnit.fixed: a grove's druid) that
+## a unit command of `type` names, or null.
+func _fixed_unit(type: String, args: Dictionary) -> MilitaryUnit:
+	if not type in ["upgrade_unit", "station_unit", "withdraw_unit", "move_unit", "swap_units", "send_unit", "promote_archmage"]:
+		return null
+	for key in ["unit", "other"]:
+		var u = game.entity(int(args.get(key, 0)))
+		if u is MilitaryUnit and (u as MilitaryUnit).fixed():
+			return u
+	return null
 
 
 static func ok(extra: Dictionary = {}) -> Dictionary:

@@ -140,6 +140,8 @@ func _prebuild() -> void:
 			var t: Vector2i = p.get("tile", Vector2i(-1, -1))
 			if p.get("near_water", false):
 				t = _spot_by_water(kind, taken)
+			elif p.has("near_site"):
+				t = _spot_by_site(kind, str(p["near_site"]), taken)
 			if t == Vector2i(-1, -1):
 				var at: Array = p.get("at", [3, 7])
 				t = road_spots(int(p.get("road", 0))).by_road(kind, int(at[0]), int(at[1]), taken)
@@ -148,6 +150,8 @@ func _prebuild() -> void:
 				continue
 			b = v.construction._new_building(kind, t, true)
 			taken.append_array(Building.footprint(t, int(Config.BUILDINGS[kind]["size"])))
+			for q in b.tiles():
+				game.world.clear_decor(q)  # (the decor isn't drawn yet: nothing else clears it)
 			game.fog.reveal(Vector2(t), 3.0, v.id)
 		if b == null:
 			continue
@@ -191,6 +195,31 @@ func _spot_by_water(kind: String, taken: Array[Vector2i]) -> Vector2i:
 	return best
 
 
+## Where a `kind` goes by the map's unlock site of `site_kind`: the free spot
+## nearest it (off the roads, within 6 tiles); (-1, -1) if there is none.
+func _spot_by_site(kind: String, site_kind: String, taken: Array[Vector2i]) -> Vector2i:
+	var s := site(site_kind)
+	if s == null:
+		return Vector2i(-1, -1)
+	var v := game.player_village
+	var size := int(Config.BUILDINGS[kind]["size"])
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for dy in range(-6, 7):
+		for dx in range(-6, 7):
+			var t := s.tile + Vector2i(dx, dy)
+			var fp := Building.footprint(t, size)
+			if fp.any(func(q: Vector2i) -> bool: return taken.has(q) or not game.map.in_bounds(q) or game.map.is_road(q) or game.map.props.has(q) or Vector2(q).distance_to(Vector2(s.tile)) < 1.5):
+				continue
+			if v.construction.placement_error(kind, t, true) != "":
+				continue
+			var d := Vector2(t).distance_to(Vector2(s.tile))
+			if d < best_d:
+				best_d = d
+				best = t
+	return best
+
+
 ## The village's corner tower nearest the gate of `rs`'s road.
 func _wall_tower_by(rs: RoadSpots) -> Building:
 	var gate: Vector2 = Vector2(rs.route[-1]) if not rs.route.is_empty() else Vector2(game.player_village.center)
@@ -218,6 +247,7 @@ func _man_prebuilt() -> void:
 			unit.uid = game.next_id(unit.kind)
 			unit.level = clampi(int(u.get("level", 1)) - 1, 0, Config.MAX_UNIT_LEVEL - 1)
 			unit.hp = unit.max_hp()
+			unit.bound = bool(u.get("fixed", false))
 			army.units.append(unit)
 			unit.post = post
 			unit.slot = i
@@ -241,6 +271,11 @@ func start() -> void:
 	var v := game.player_village
 	var h := game.hero
 	start_villagers = game.population.count()
+	for key in spec.unlocked:
+		game.unlocks[key] = true
+	for kind: String in spec.sites:
+		if int(spec.sites[kind]) == 0:
+			awaken_site(kind, false)
 	_name_villagers()
 	_man_prebuilt()
 	if spec.hero_name != "":
@@ -376,6 +411,11 @@ func _after_intro(_skipped: bool) -> void:
 	if spec.hero_start == Vector2i(-1, -1):
 		_begin_play()
 		return
+	if spec.hero_lives_out:
+		game.hero.set_process(true)
+		game.hero.home_override = spec.hero_start
+		_begin_play()
+		return
 	phase = Phase.WALK
 	var h := game.hero
 	h.set_process(true)
@@ -396,6 +436,18 @@ func _walk(_delta: float) -> void:
 			tent_node.queue_free()  # (packed up and brought home)
 		card.visible = false
 		_play(spec.arrival(self), func(_s: bool) -> void: _begin_play())
+
+
+## She may live in the village now (hero_lives_out): she packs up her tent
+## and walks in.
+func hero_moves_in() -> void:
+	var h := game.hero
+	if h.home_override == Vector2i(-1, -1):
+		return
+	h.home_override = Vector2i(-1, -1)
+	if is_instance_valid(tent_node):
+		tent_node.queue_free()
+	game.events.info("%s moves into the village" % h.label())
 
 
 func _begin_play() -> void:
@@ -688,7 +740,7 @@ func command_error(type: String, args: Dictionary) -> String:
 		"call_wave":
 			if story:
 				return "Not yet"
-	return ""
+	return spec.command_error(self, type, args)
 
 
 ## A kind that must not fall (Scenario.must_stand) has fallen: lost.
@@ -815,6 +867,25 @@ func named_enemy(who: String) -> Enemy:
 		if (e as Enemy).given_name == who and not (e as Enemy).dead:
 			return e
 	return null
+
+
+## The map's unlock site of `kind` ("chapel", "stone_circle", "mage_tower"), or null.
+func site(kind: String) -> UnlockSite:
+	for o in game.world.map_objects:
+		if o is UnlockSite and o.data["site"] == kind:
+			return o
+	return null
+
+
+## Awakens the map's site of `kind`: the hero can unlock its unit there now
+## (`tell`: the log says so).
+func awaken_site(kind: String, tell := true) -> void:
+	var s := site(kind)
+	if s == null or s.awake:
+		return
+	s.awaken()
+	if tell and not game.is_unlocked(str(Config.UNLOCK_SITES[kind]["unlocks"])):
+		game.events.info(str(Config.UNLOCK_SITES[kind]["awake"]))
 
 
 ## The village's merchant (the stall's man), or null.

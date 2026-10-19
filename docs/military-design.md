@@ -20,14 +20,14 @@ and the Spatial Archmage. Every number lives in `scripts/core/config.gd`.
     than any tower's.
   - *Melee* units (the shield bearer and its Warrior, Berserker and Halberdier,
     the Inquisitor) go only in barracks.
-  - *Summoner* (summoner, fire summoner): summons elementals, no attack of its own.
+  - *Summoner* (summoner, fire summoner, druid): summons elementals (the druid: thornlings), no attack of its own.
   - *Healer* (healing mage): heals allies, no damage.
   - *Support* (High Priest): a damage aura, see docs/acolyte-design.md.
 - **Tech tree:** from level 3 of a base unit, an upgrade can also turn it into
   **level 1 of a specialised unit**:
   - archer → crossbowman / swiftbowman;
   - shield bearer → warrior / berserker / halberdier (§3a);
-  - summoner → fire summoner;
+  - summoner → fire summoner / druid (§3b);
   - apprentice → fire / ice / healing / spatial mage;
   - acolyte → inquisitor / high priest (holy damage; see docs/acolyte-design.md).
 - **Specialising never costs strength:** a specialisation's level 1 is at least as
@@ -48,8 +48,8 @@ Shield Bearer ──────┬──────►  Warrior          (tank
   (melee,           ├──────►  Berserker        (attacks faster the more HP he lost; lifesteal when low)
    barracks only)   └──────►  Halberdier       (long polearm: reaches flyers)
 
-Summoner ───────────────────► Fire Summoner    (fire elementals instead of earth)
-  (summoner)
+Summoner ───────────┬──────►  Fire Summoner    (fire elementals instead of earth)
+  (summoner)        └──────►  Druid            (thornlings: slow, tough; every blow roots)
 
 Apprentice ─────────┬──────►  Fire Mage        (fireball, splash damage)
   (ranged)          ├──────►  Ice Mage         (slows the target)
@@ -108,6 +108,7 @@ checks both rules for every specialisation (`_spec_rule_breaks`).
 | **Halberdier** | melee · barracks only | 85 → 200 | 1.2 | 9 → 76 | 1.25 → 0.85 | 7.2 → 89 | reaches flyers (§3a) |
 | **Summoner** | summoner · tower, barracks | 18 → 50 | - | (summons) | - | - | fragile, no attack of its own (summon table below) |
 | **Fire Summoner** | summoner · tower, barracks | 26 → 55 | - | (summons) | - | - | fire elementals |
+| **Druid** | summoner · tower, barracks | 26 → 56 | - | (summons) | - | - | thornlings that root (§3b) |
 | **Apprentice** | ranged · tower, barracks | 20 → 60 | 2.8 | 7 → 38 | 1.0 → 0.55 | 7 → 69 | whirling dark-blue orb, plain damage |
 | **Fire Mage** | ranged · tower, barracks | 29 → 65 | 2.8 | 15 → 42 | 0.95 → 0.55 | 15.8 → 76 | fireball explodes: splash within 1.2 → 1.8 tiles (`splash`), 60 % of the damage (`splash_share`) |
 | **Ice Mage** | ranged · tower, barracks | 29 → 65 | 2.8 | 16 → 44 | 0.95 → 0.55 | 17 → 80 | hit enemy slowed to 70 % → 40 % speed for 2 → 3.5 s |
@@ -135,6 +136,7 @@ plus the tower level's `range_bonus` (+0.8 at level 2, +1.6 at level 3,
 |---|---|---|---|---|
 | Summoner | 6.0 → 2.5 (L3 5.2) | 2 → 8 (L3 3) | 20 → 90 (L3 36) | 4 → 18 (L3 7.1) |
 | Fire Summoner | 3.9 → 2.5 | 4 → 8 | 36 → 95 | 7.5 → 20 |
+| Druid | 5.0 → 2.5 | 3 → 8 | 36 → 100 | 7.2 → 23 |
 
 **Summons** (`SUMMONS`; `hp` and `damage` multiply the summoner's `summon_hp` and
 `summon_damage` at the moment of summoning; `speed` in tiles/s; shared values in
@@ -144,6 +146,7 @@ plus the tower level's `range_bonus` (+0.8 at level 2, +1.6 at level 3,
 |---|---|---|---|---|
 | Earth elemental | 1.0× summon HP (20 → 90) | 1.1 | 1.0× summon damage (4 → 18), melee | at level 1 as strong as a Normal goblin (20 HP, 4 damage); difficulty scales goblins, not elementals |
 | Fire elemental | 0.5× (18 → 48) | 1.8 | 2.5× (19 → 50), magical | burns itself: loses 25 % of the damage it deals, as HP (`self_damage`); hovers and flickers, a flyer |
+| Thornling | 1.5× (54 → 150) | 0.8 | 0.8× (5.8 → 18.4), melee | every blow roots the enemy for the druid's `root` (0.6 → 1.2 s), §3b |
 
 Existing elementals keep their stats when the summoner levels up. They crumble
 when their summoner leaves them: withdrawn, downed, specialised, or back on its
@@ -156,6 +159,21 @@ bench after a sortie.
 It doesn't reach summons or villagers (villagers have HP, `CIVILIAN_HP`, but heal
 only at home). On a tower, a healing mage heals as far as the tower reaches
 (so tower upgrades widen it); elsewhere within its own `radius`.
+
+### 3b. The druid
+
+The summoner's plant branch (`druid`, 100 gold from level 3, like the fire summoner; no unlock of its own). It summons
+**thornlings** (`SUMMONS.thorn`, `EarthElemental` with `summon` "thorn"): walking brambles, slow (0.8 tiles/s) and tough (1.5×
+summon HP) with less damage (0.8×). **Every blow roots** the enemy it hits (`Enemy.root`) for the druid's `root` stat at the
+moment of summoning (0.6 s at level 1 → 1.2 s at level 10; `EarthElemental.root_time`): a rooted enemy can't walk
+(`Enemy._walk_factor` is 0) but fights, casts and shoots on; green-brown tendrils curl round its feet (`Enemy._draw_roots`, not
+on co-op clients). A root doesn't stack or refresh; when it wears off the enemy can't be rooted again for `root_immunity` (2 s),
+so it holds about a third of the time at best. Flyers can't be rooted (thornlings can't reach them anyway). It is best against
+what slips past: rats running for farms, thieves fleeing with gold, slimes. Art: `unit_druid` (moss-green robe, a wreath of
+leaves, a crooked staff), `unit_thornling` (a squat bramble with thorns, root-feet, amber eyes and a pink flower).
+
+Scenario 7's grove druids are druids that take no orders (`MilitaryUnit.bound`, set by the scenario's prebuilt units: no
+moving, withdrawing, swapping, upgrading or sending); only druids serve in a grove (docs/scenarios-design.md §7.10).
 
 ### 3a. The shield bearer's specialisations
 
@@ -275,6 +293,8 @@ Their level 1 (85-90 HP, 5.2-7.2 DPS) is above the shield bearer's level 3
 | Barracks | 1-3 units, any kind | sit on benches; go out on sorties; can be hurt |
 
 - Summoners and fire summoners can serve on towers or in barracks.
+- Druids serve on towers and in barracks like any summoner; a druids' **grove** (`Grove`, campaign only: a `Barracks` with post
+  kind "grove") takes only druids. Scenario 7's grove druids take no orders (`MilitaryUnit.bound`, §3b).
 - Healing mages work from towers (around the tower) and from barracks (they go
   out with the others when enemies come near).
 - Shield bearers, warriors, berserkers, halberdiers and Inquisitors are barracks-only.
@@ -433,7 +453,7 @@ The acolyte line's art is in docs/acolyte-design.md.
 - Barracks: 20 material + 30 gold. Levels 1/2/3 with 1/2/3 slots and 4/5/6 tiles of range.
 - Revive 30-45 s, scaling with level. Regeneration 1 HP/s on benches and in the reserve.
 - Branching from level 3. The branch costs 100 gold (crossbowman, swiftbowman,
-  warrior, berserker, halberdier, fire summoner, inquisitor, high priest) and
+  warrior, berserker, halberdier, fire summoner, druid, inquisitor, high priest) and
   120 gold for each mage.
 - Spatial Archmage from spatial mage level 10, for 600 gold and a free hut.
 

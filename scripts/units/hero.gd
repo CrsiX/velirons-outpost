@@ -138,6 +138,28 @@ func effective_mode() -> Mode:
 	return mode
 
 
+## Where she lives instead of her village's centre (scenario 7: her tent
+## outside the walls until Fiona lets her in); (-1, -1): the centre.
+var home_override := Vector2i(-1, -1)
+
+
+## Her post: where she stands guard, rests, heals and revives (the centre of
+## base(), or home_override at home).
+func home() -> Vector2i:
+	if home_override != Vector2i(-1, -1) and base() == village:
+		return home_override
+	return base().center
+
+
+## Walks back to her post (home()).
+func head_home() -> void:
+	var p := game.world.pathing.find_path(current_tile(), home())
+	if p.is_empty():
+		arrive_home()
+		return
+	follow(p)
+
+
 ## Where she stands guard and rests: the supported village in Support mode,
 ## else her own.
 func base() -> Village:
@@ -201,7 +223,7 @@ func _stop_training() -> void:
 ## She stays visible in the village centre (villagers vanish into their huts).
 ## Back at her post: her own village centre, or the one she supports.
 func arrive_home() -> void:
-	set_grid_pos(Vector2(base().center))
+	set_grid_pos(Vector2(home()))
 	_set_home(true)
 	_set_moving(false)
 
@@ -288,7 +310,7 @@ func _job_idle() -> bool:
 
 ## Idle in the village centre: after a short while the HP slowly comes back.
 func _regen(delta: float) -> void:
-	var idle := at_home and not evading and not is_instance_valid(target) and grid_pos.distance_to(Vector2(base().center)) < 0.2
+	var idle := at_home and not evading and not is_instance_valid(target) and grid_pos.distance_to(Vector2(home())) < 0.2
 	_idle_time = _idle_time + delta if idle else 0.0
 	if _idle_time < Config.HERO["rest_delay"] or hp >= max_hp:
 		return
@@ -342,14 +364,14 @@ func _fight(delta: float) -> void:
 ## Walks back to the village centre (Defend re-targets on the way, see
 ## _pick_enemy). Never teleports: a chase path may still be half walked.
 func _return_home(delta: float) -> void:
-	if at_home and grid_pos.distance_to(Vector2(base().center)) > 0.2:
+	if at_home and grid_pos.distance_to(Vector2(home())) > 0.2:
 		_set_home(false)  # her post moved (Support): set off
 	if not at_home:
 		if not _returning:
 			_returning = true
 			_walk_home()
 		if step_path(delta):
-			if grid_pos.distance_to(Vector2(base().center)) < 0.1:
+			if grid_pos.distance_to(Vector2(home())) < 0.1:
 				_returning = false
 				arrive_home()
 			else:
@@ -358,14 +380,14 @@ func _return_home(delta: float) -> void:
 
 ## A walkable path from here to the village centre; straight across if none.
 func _walk_home() -> void:
-	var home_tile := base().center
-	var centre := Vector2(home_tile)
-	var p := game.world.pathing.find_path(current_tile(), home_tile)
+	var to := home()
+	var centre := Vector2(to)
+	var p := game.world.pathing.find_path(current_tile(), to)
 	if p.is_empty():
 		# Standing on a tile the pathing doesn't allow (e.g. mid-chase on a
 		# corner): try from a walkable neighbour.
 		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
-			p = game.world.pathing.find_path(current_tile() + d, home_tile)
+			p = game.world.pathing.find_path(current_tile() + d, to)
 			if not p.is_empty():
 				p.insert(0, grid_pos)
 				break
@@ -387,7 +409,7 @@ static func rect_distance(r: Rect2i, p: Vector2) -> float:
 func _pick_enemy() -> Enemy:
 	var best: Enemy = null
 	var best_key := Vector2(INF, INF)
-	var centre := Vector2(base().center)
+	var centre := Vector2(home())
 	# Beyond her leash (another mode took her out there): she still takes on
 	# what is within her sight on her way back.
 	var out_far := grid_pos.distance_to(centre) > Config.HERO["leash"]
@@ -504,7 +526,7 @@ func _process(delta: float) -> void:
 ## Resting in the village: Z's keep rising from her head and fade away, small
 ## to big ("Zzz" in motion). Co-op clients too: they know her mode.
 func _snore(delta: float) -> void:
-	if dead or mode != Mode.REST or grid_pos.distance_to(Vector2(base().center)) > 0.3:
+	if dead or mode != Mode.REST or grid_pos.distance_to(Vector2(home())) > 0.3:
 		_snore_in = 0.0
 		return
 	_snore_in -= delta
@@ -698,7 +720,7 @@ func _downed(source = null) -> void:
 func revive() -> void:
 	dead = false
 	hp = max_hp
-	set_grid_pos(Vector2(village.center))
+	set_grid_pos(Vector2(village.center if home_override == Vector2i(-1, -1) else home_override))  # (at home, even in Support mode)
 	path = PackedVector2Array()
 	at_home = true
 	visible = true
