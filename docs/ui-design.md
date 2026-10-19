@@ -41,8 +41,8 @@ Big touch targets everywhere, so mouse and fingers work the same.
   (`user://player.cfg`).
 - **Multiplayer page:** `MultiplayerMenu` (docs/multiplayer-design.md). The title screen opens on it
   when a LAN session is still open (coming back from a game).
-- **Campaign page:** one button per built scenario ("1. Homecoming", the first in primary style) with its
-  line under it (`Scenario.blurb`), "Scenarios 2 to 11 are still to come.", Back (Esc too). A scenario
+- **Campaign page:** one button per built scenario ("1. Homecoming", the first in primary style) (its line,
+  `Scenario.blurb`, only as the tooltip: nothing under the buttons), "Scenarios 8 to 11 are still to come.", Back (Esc too). A scenario
   button sets `Settings.scenario_next` and starts the game scene (docs/scenarios-design.md §7).
 - **In a scenario** (docs/scenarios-design.md §7): its **card** sits top left where the tutorial's does
   (`ScenarioCard`): a heading ("Scenario 1: Homecoming ▾", a tap folds the card to it), the teaching
