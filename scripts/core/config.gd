@@ -206,7 +206,7 @@ const STATS := {
 	"sample_interval": 15.0,
 	"client_refresh": 5.0,
 	"unit_sent_value": 50,
-	"kill_kinds": ["goblin", "skeleton", "ork", "witch", "rat", "thief", "gargoyle", "necromancer"],
+	"kill_kinds": ["goblin", "skeleton", "ork", "witch", "rat", "thief", "gargoyle", "necromancer", "wrathwood"],
 }
 
 ## Saving and loading games (docs/save-design.md): where the save files go,
@@ -988,7 +988,7 @@ const ATTACKS := {
 	"swift_arrow": {"projectile": "swift_arrow", "arc": true, "sound": "shoot", "category": "projectile"},
 	"bolt": {"projectile": "crossbow_bolt", "arc": false, "speed": 900.0, "sound": "shoot", "category": "projectile"},
 	"orb": {"projectile": "arcane_orb", "whirl": true, "speed": 420.0, "sound": "hit", "category": "magical"},
-	"fireball": {"projectile": "fireball", "whirl": true, "speed": 380.0, "splash_share": 0.6, "explode": true, "sound": "hit", "category": "magical"},
+	"fireball": {"projectile": "fireball", "whirl": true, "speed": 380.0, "splash_share": 0.6, "explode": true, "sound": "hit", "category": "fire"},
 	"frost": {"projectile": "frost_orb", "whirl": true, "speed": 420.0, "sound": "hit", "category": "magical"},
 	"warp": {"projectile": "warp_orb", "whirl": true, "speed": 460.0, "push_immunity": 4.0, "sound": "hit", "category": "magical"},
 	"heal": {"projectile": "", "sound": "recruit", "category": "holy"},
@@ -1000,9 +1000,11 @@ const ATTACKS := {
 ## What kind of damage a hit does (ATTACKS "category"; enemies: "attack_category",
 ## melee if not given). An enemy's "resist" table scales what it takes by
 ## category (a vampire takes 0.67 x magical damage). The hero's sword, earth
-## elementals and soldiers' strikes are melee; fire elementals are magical.
+## elementals and soldiers' strikes are melee; fireballs (and their splash)
+## and fire elementals are fire, a category of its own (a wrathwood takes
+## x2, water monsters x0.5). Every hit has exactly one category.
 ## "pure" (a raised enemy's drain, a flame burning itself up) is never scaled.
-const DAMAGE_CATEGORIES: Array[String] = ["melee", "projectile", "magical", "holy", "pure"]
+const DAMAGE_CATEGORIES: Array[String] = ["melee", "projectile", "magical", "fire", "holy", "pure"]
 
 ## Summoned elementals: "hp" and "damage" multiply the summoner's summon_hp
 ## and summon_damage; "speed" is in tiles per second.
@@ -1160,6 +1162,7 @@ const CAMERA_KEY_ZOOM := 1.12
 ##   attack_cooldown .. seconds between melee hits
 ##   gold_on_kill ..... paid the moment it dies
 ##   gold_on_collect, food_on_collect .. paid when a gatherer brings the corpse home
+##   (optional: materials_on_collect, building material, see "wrathwood")
 ## Behaviours may add their own keys (see "witch").
 ## Optional: corpse (false: none), raid_chance (of burning a hut at the gate; 1),
 ## gone (the log's words when it doesn't: "melted away"),
@@ -1357,7 +1360,7 @@ const ENEMIES := {
 		"hp": 40.0, "speed": 0.9,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 6, "gold_on_collect": 8, "food_on_collect": 0,
-		"resist": {"magical": 0.67, "holy": 1.5}, "unholy": true,
+		"resist": {"magical": 0.67, "fire": 0.67, "holy": 1.5}, "unholy": true,
 		"drain": 0.67,
 		"bat_below": 0.33, "bat_time": 10.0, "bat_speed": 1.8, "bat_gate_heal": 0.33,
 	},
@@ -1418,6 +1421,39 @@ const ENEMIES := {
 		"resist": {"holy": 0.75},
 		"hp_bar_y": -20.0,
 	},
+	# --- the wrathwood (Wilderness; docs/enemies-design.md §15c) ---
+	# Never in a wave: a tree a forester starts on may wake up as one
+	# (WRATHWOOD). It walks over forest too (Pathing.wood_path), never takes
+	# a road or breaks into a village (entry "none"). After its forester
+	# (chase), then his worker camp, then it wanders wander_time s within
+	# wander_radius, walks home to its old tile and guards it for good:
+	# anyone of ours within territory tiles is attacked, chased no farther
+	# than leash tiles from home. Whoever hurts it is its foe (while
+	# wandering, going home or guarding; within leash). In every state but
+	# guarding, a ready blow goes at what is within reach as it passes
+	# (its target first, then one of ours, then a building that isn't a hut),
+	# without stopping. Blows on buildings do damage x siege.
+	# Within regrow_radius of a tree it heals regrow x its max HP per s, x
+	# home_boost for home_boost_time s once back home. Root grip: every
+	# grip_every s (the first that long after waking), with one of ours on
+	# the ground within grip_radius, it stops grip_cast s and holds them all
+	# in place for grip_time s (they still fight). It wakes over wake_time s
+	# (still looking like its tree; it can be hit). Its corpse is a log of
+	# living wood: materials_on_collect building material, nothing else.
+	"wrathwood": {
+		"name": "Wrathwood", "art": "wrathwood", "behavior": "wrathwood", "revivable": false,
+		"entry": "none", "siege": 3.0,
+		"desc": "A tree that woke up under a forester's axe. It goes after him, then smashes his camp, and guards its old spot for good. Fire hurts it twice as much; arrows barely scratch it.",
+		"hp": 220.0, "speed": 0.45,
+		"damage": 22.0, "attack_cooldown": 2.5,
+		"gold_on_kill": 35, "gold_on_collect": 0, "food_on_collect": 0, "materials_on_collect": 40,
+		"resist": {"projectile": 0.5, "fire": 2.0, "holy": 0.75},
+		"hp_bar_y": -84.0,
+		"wake_time": 3.0, "reach": 1.0,
+		"regrow": 0.04, "regrow_radius": 2.5, "home_boost": 2.0, "home_boost_time": 10.0,
+		"wander_time": 20.0, "wander_radius": 3.0, "territory": 4.0, "leash": 6.0,
+		"grip_every": 8.0, "grip_radius": 1.6, "grip_cast": 0.6, "grip_time": 2.0,
+	},
 	# --- water monsters (docs/aquatic-design.md; the shared rules are in AQUA) ---
 	# Every kind has a "habitat": "land" (the default), "amphibian" (roads and
 	# water: deep, shallow, fords, bridges; it leaves the water only onto a
@@ -1435,6 +1471,7 @@ const ENEMIES := {
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
+		"resist": {"fire": 0.5},
 		"habitat": "amphibian", "submerges": true, "auto_submerge": true,
 		"min_deep_tiles": 6, "min_width": 1, "reach": 2.0,
 	},
@@ -1454,6 +1491,7 @@ const ENEMIES := {
 		"hp": 220.0, "speed": 1.3,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 40, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"fire": 0.5},
 		"habitat": "water", "submerges": true,
 		"min_deep_tiles": 30, "min_width": 2, "reach": 5.6,
 		"blast_range": 4.6,  # below a level 3 watchtower's reach (5.2), above a level 2's (4.4)
@@ -1481,7 +1519,7 @@ const ENEMIES := {
 		"hp": 24.0, "speed": 0.9,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 14, "gold_on_collect": 0, "food_on_collect": 1,
-		"resist": {"melee": 1.5, "magical": 0.67},
+		"resist": {"melee": 1.5, "magical": 0.67, "fire": 0.5},
 		"habitat": "amphibian", "submerges": true,
 		"min_deep_tiles": 6, "min_width": 1, "reach": 5.5,
 		"song_radius": 4.5, "song_pull": 0.9, "song_slow": 0.6,
@@ -1508,6 +1546,7 @@ const ENEMIES := {
 		"hp": 1200.0, "speed": 0.5,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 250, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"fire": 0.5},
 		"habitat": "water", "submerges": true, "hp_bar_y": -70.0,
 		"min_deep_tiles": 80, "min_width": 3, "reach": 5.5,
 		"arms": 8, "arm_range": 4.5, "arm_cooldown": 6.0, "arm_stagger": 0.75,
@@ -1526,9 +1565,28 @@ const ENEMIES := {
 		"hp": 30.0, "speed": 0.0,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 0, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"fire": 0.5},
 		"habitat": "water", "hp_bar_y": -30.0,
 	},
 }
+## When a tree wakes up as a wrathwood (docs/enemies-design.md §15c;
+## Wrathwoods). Rolled once per tree, at a forester's first blow on it:
+##   chance ........ by tree kind (a prop in TREE_CHOP_TIME); missing or 0: never
+##   remember ...... added for every tree that village's foresters felled so far
+##                   ("the forest remembers"; only for kinds with a chance)
+##   max_chance .... the chance never goes above this
+##   from_wave ..... none before this wave has begun
+##   quiet_waves ... none for this many waves after the village's last one died
+## A village has one at most at a time. Never in the tutorial or the title
+## backdrop (Game.wrathwoods).
+const WRATHWOOD := {
+	"chance": {"tree_oak": 0.015, "tree_pine_0": 0.003, "tree_pine_1": 0.003},
+	"remember": 0.0005,
+	"max_chance": 0.03,
+	"from_wave": 8,
+	"quiet_waves": 3,
+}
+
 ## The water monsters' shared rules (docs/aquatic-design.md):
 ##   dive_time / surface_time .. seconds of diving and of coming up (untargetable)
 ##   sink_time ....... a corpse on deep water sinks (fades) over this and is gone
@@ -1567,7 +1625,7 @@ const FARM_DEFENSE_LEASH := 4.0
 ## scaled (a bigger cooldown would make "hard" enemies weaker).
 const DIFFICULTY_SCALED: Array[String] = [
 	"hp", "speed", "damage", "spell_damage",
-	"gold_on_kill", "gold_on_collect", "food_on_collect",
+	"gold_on_kill", "gold_on_collect", "food_on_collect", "materials_on_collect",
 ]
 
 ## Which enemies march in wave n. Each kind joins from `from_wave`; its share of

@@ -65,7 +65,7 @@ Counters add up from the start of the game. They are grouped as in the table.
 
 **Military**
 - Enemies killed, total and by kind (goblin, skeleton, ork, witch, rat,
-  thief, gargoyle, necromancer, raised dead and all others), and by whom: towers, barracks
+  thief, gargoyle, necromancer, wrathwood, raised dead and all others), and by whom: towers, barracks
   units, summons, the hero.
 - Enemies that got into the village; huts burned.
 - Waves survived; the biggest wave; the fastest wave cleared.

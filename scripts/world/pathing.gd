@@ -33,6 +33,9 @@ var amphibian_dist := PackedInt32Array()
 var amphibian_fields: Array[PackedInt32Array] = []
 ## Deep water only (water-bound monsters).
 var water_astar := AStarGrid2D.new()
+## Walkable ground and forest (wrathwoods; docs/enemies-design.md §15c):
+## made the first time one asks (wood_path), then kept in step by set_solid.
+var _wood: AStarGrid2D = null
 
 
 func _init(p_map: MapData) -> void:
@@ -64,6 +67,8 @@ func _init(p_map: MapData) -> void:
 func set_solid(t: Vector2i, solid: bool) -> void:
 	var blocked := solid or not map.is_passable(t)
 	astar.set_point_solid(t, blocked)
+	if _wood and map.in_bounds(t):
+		_wood.set_point_solid(t, blocked and not map.is_forest(t))
 	if map.in_bounds(t) and _walk[map.index(t)] != (0 if blocked else 1):
 		_walk[map.index(t)] = 0 if blocked else 1
 		version += 1
@@ -105,6 +110,52 @@ func find_path(from: Vector2i, to: Vector2i) -> PackedVector2Array:
 	if not map.in_bounds(to) or not is_walkable(to):
 		return PackedVector2Array()
 	return astar.get_point_path(from, to)
+
+
+## Like find_path, but forest can be walked too (a wrathwood's way). From
+## where it stands (nearest such tile) to `to`, or to the nearest such tile
+## next to it when `to` is solid (a building it means to smash).
+func wood_path(from: Vector2i, to: Vector2i) -> PackedVector2Array:
+	if _wood == null:
+		_wood = AStarGrid2D.new()
+		_wood.region = Rect2i(0, 0, map.size, map.size)
+		_wood.cell_size = Vector2.ONE
+		_wood.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+		_wood.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+		_wood.default_estimate_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+		_wood.update()
+		for y in map.size:
+			for x in map.size:
+				var t := Vector2i(x, y)
+				_wood.set_point_solid(t, astar.is_point_solid(t) and not map.is_forest(t))
+	if not map.in_bounds(from) or not map.in_bounds(to):
+		return PackedVector2Array()
+	from = _wood_open_near(from, from)
+	to = _wood_open_near(to, Vector2(from))
+	if from == Vector2i(-1, -1) or to == Vector2i(-1, -1):
+		return PackedVector2Array()
+	return _wood.get_point_path(from, to, true)
+
+
+## `t` if a wrathwood can stand there, else its neighbour nearest `near`
+## that it can, else (-1, -1).
+func _wood_open_near(t: Vector2i, near: Vector2) -> Vector2i:
+	if not _wood.is_point_solid(t):
+		return t
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var n := t + Vector2i(dx, dy)
+			if map.in_bounds(n) and not _wood.is_point_solid(n) and Vector2(n).distance_squared_to(near) < best_d:
+				best_d = Vector2(n).distance_squared_to(near)
+				best = n
+	return best
+
+
+## Can a wrathwood stand on `t` (walkable ground or forest)?
+func wood_open(t: Vector2i) -> bool:
+	return map.in_bounds(t) and (is_walkable(t) or (map.is_forest(t) and map.building_at(t) == null))
 
 
 ## Breadth-first step counts from `from` over walkable tiles (8-neighbourhood;

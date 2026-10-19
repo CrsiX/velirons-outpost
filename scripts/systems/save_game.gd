@@ -3,7 +3,7 @@ extends RefCounted
 ## Saving and loading a running game (docs/save-design.md). Only between
 ## waves: what is saved is everything durable (the map as it is now, fog,
 ## objects, villages, buildings, villagers, army, hero, corpses, camp guards,
-## the waves' counter, statistics); what anything is doing right now (paths,
+## wrathwoods, the waves' counter, statistics); what anything is doing right now (paths,
 ## targets, cooldowns) starts afresh after a load.
 ##
 ## A save file in Config.SAVE["dir"]: "VOSV", FORMAT (u32), the header's
@@ -11,7 +11,7 @@ extends RefCounted
 ## length (u32) and the body (var_to_bytes, zstd). Plain values only: entities
 ## refer to each other by nid, villages by index, map objects by index.
 
-const FORMAT := 3
+const FORMAT := 4
 const MAGIC := "VOSV"
 const EXT := "vsave"
 const AUTO_PREFIX := "auto-"
@@ -109,7 +109,7 @@ static func start(path: String, tree: SceneTree) -> String:
 ## "" if every kind the body names exists in Config, else why it can't be loaded.
 static func check(b: Dictionary) -> String:
 	var bad := "Made with another version of the game"
-	if not b.has("map") or not b.has("villages") or not b.has("buildings"):
+	if not b.has("map") or not b.has("villages") or not b.has("buildings") or not b.has("wrathwoods"):
 		return "Broken file"
 	for d: Dictionary in b["buildings"]:
 		if not Construction.KIND_SCRIPTS.has(d["k"]) and not World.PIECE_SCRIPTS.has(d["k"]):
@@ -317,6 +317,7 @@ static func capture(game: Game) -> Dictionary:
 			corpses.append({"k": c.kind, "w": c.wave, "pos": c.grid_pos, "tl": c.time_left, "u": c.uid, "n": c.nid, "eg": c.extra_gold, "hs": c.hp_scale})
 	b["corpses"] = corpses
 	b["waves"] = {"wave": game.waves.wave, "countdown": game.waves.countdown}
+	b["wrathwoods"] = game.wrathwoods.save_state()
 	b["stats"] = game.stats.save_state()
 	return b
 
@@ -484,6 +485,7 @@ static func restore_entities(game: Game, b: Dictionary) -> void:
 		var camp := game.world.map_object(int(d["camp"])) as MonsterCamp
 		if camp:
 			camp.restore_guard(d)
+	game.wrathwoods.load_state(b["wrathwoods"])
 	var w: Dictionary = b["waves"]
 	game.waves.wave = int(w["wave"])
 	game.waves.countdown = float(w["countdown"])

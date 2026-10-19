@@ -114,7 +114,7 @@ func _sample() -> void:
 	var h := village.hero
 	var enemies := 0
 	for n in get_tree().get_nodes_in_group("enemies"):
-		if not (n as Enemy).behavior is CampBehavior:
+		if not (n as Enemy).wild():
 			enemies += 1
 	var row := {
 		"t": now(), "wave": game.waves.wave, "in_wave": 1 if game.waves.in_progress() else 0,

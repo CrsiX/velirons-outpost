@@ -23,6 +23,7 @@ const BEHAVIORS := {
 	"arm": preload("res://scripts/units/enemies/arm_behavior.gd"),
 	"spider_mother": preload("res://scripts/units/enemies/spider_mother_behavior.gd"),
 	"egg": preload("res://scripts/units/enemies/egg_behavior.gd"),
+	"wrathwood": preload("res://scripts/units/enemies/wrathwood_behavior.gd"),
 }
 ## How many tiles farther a low_priority enemy (a spider egg) counts for
 ## whoever picks a target: anything else in reach comes first.
@@ -380,12 +381,12 @@ func net_dive(d: int) -> void:
 ## Can a melee blow from someone standing at `from` (grid) go for it? Not
 ## while it is under; on deep water only from a walkable tile next to it
 ## (§2.1); and a siren in water only from inside a High Priest's aura (§6),
-## unless the blow is `magical` (a fire elemental's).
-func melee_ok(from: Vector2, magical := false) -> bool:
+## unless the blow is a `flame` (a fire elemental's).
+func melee_ok(from: Vector2, flame := false) -> bool:
 	if not targetable():
 		return false
 	var t := current_tile()
-	if not magical and spec().get("melee_proof_in_water", false) and game.map.in_water(t) and not Combat.in_holy_aura(game, from):
+	if not flame and spec().get("melee_proof_in_water", false) and game.map.in_water(t) and not Combat.in_holy_aura(game, from):
 		return false
 	if game.map.is_deep(t):
 		return game.world.pathing.stand_near(t, from) != Vector2i(-1, -1)
@@ -526,6 +527,11 @@ func make_undead() -> void:
 ## Unholy: its kind is, or it was raised or is undead (the Inquisitor hunts it).
 func is_unholy() -> bool:
 	return raised or undead or spec().get("unholy", false)
+
+
+## Not part of any wave (a camp guard, a wrathwood; EnemyBehavior.wild).
+func wild() -> bool:
+	return behavior != null and behavior.wild()
 
 
 ## Comes last for whoever picks a target (a spider egg; see LOW_PRIORITY_TILES).
@@ -707,7 +713,7 @@ func entry() -> String:
 ## May break into its village by the siege field now?
 func _may_siege() -> bool:
 	return entry() == "siege" and habitat() != "water" and not airborne and not game.is_client \
-		and is_instance_valid(target_village) and not target_village.fallen and not (behavior is CampBehavior)
+		and is_instance_valid(target_village) and not target_village.fallen and not wild()
 
 
 ## A "slip" enemy at the end of its road on an intact gate: held for SIEGE.slip_time.

@@ -14,7 +14,9 @@ extends Node
 ## (`--only=undead_spiders`) a spider mother raised by a necromancer, in real
 ## time: the spell, her first clutch at once, undead eggs hatching, her next
 ## clutch, an acolyte's holy beams on undead spiderlings, her crumbling, her
-## library entry (with the log at Debug; it prints what it sees).
+## library entry (with the log at Debug; it prints what it sees), and
+## (`--only=wrathwood`) a tree waking up under a forester's axe, the living
+## tree chasing him, its roots holding the hero, smashing the camp, and its log.
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -99,6 +101,8 @@ func _run() -> void:
 		await _spiders()
 	if only in ["", "undead_spiders"]:
 		await _undead_spiders()
+	if only in ["", "wrathwood"]:
+		await _wrathwood()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -957,5 +961,79 @@ func _undead_spiders() -> void:
 	await _frames(10)
 	await shot("undead_library_spider_mother")
 	lib.close()
+	g.queue_free()
+	await _frames(3)
+
+
+# --- the wrathwood (docs/enemies-design.md §15c) --------------------------------------------
+
+func _wrathwood() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	g.disable_fog = true
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	g.waves.wave = 8
+	var v := g.player_village
+	var f: Forester = null
+	for c in v.population.civilians:
+		if c is Forester:
+			f = c
+	if f == null or not is_instance_valid(f.camp):
+		print("wrathwood: no forester with a camp")
+		g.queue_free()
+		return
+	var found := g.world.find_tree(f.camp.tile, 10.0, f)
+	var t: Vector2i = found["tree"]
+	f._release_tree()
+	f.tree = t
+	g.world.claim_tree(t, f)
+	f.visible = true
+	f.set_grid_pos(Vector2(found["stand"]))
+	f._set_home(false)
+	f.state = Forester.State.CHOPPING
+	f._timer = 4.0
+	g.wrathwoods.always = true
+	g.camera.focus(Iso.tile_to_world(t))
+	g.camera.zoom = Vector2(1.6, 1.6)
+	await _frames(20)
+	await shot("wrathwood_waking")
+	var e := g.wrathwoods.of_village(v)
+	if e == null:
+		print("wrathwood: it didn't wake")
+		g.queue_free()
+		return
+	var b := e.behavior as WrathwoodBehavior
+	await _game_wait(float(e.spec()["wake_time"]) + 1.5)
+	await shot("wrathwood_chasing")
+	# Its roots hold the hero.
+	var h := g.hero
+	h.set_grid_pos(e.grid_pos + Vector2(0.9, 0.4))
+	b._grip = 0.0
+	await _frames(14)
+	g.camera.focus(Iso.to_world(e.grid_pos))
+	await _frames(4)
+	await shot("wrathwood_grip_cast")
+	await _game_wait(0.8)
+	await shot("wrathwood_roots_hold")
+	h.set_grid_pos(Vector2(v.center))
+	# Smashing the camp.
+	var camp := b.camp
+	Engine.time_scale = 4.0
+	var waited := 0.0
+	while is_instance_valid(camp) and not camp.devastated and waited < 90.0:
+		await _game_wait(0.5)
+		waited += 0.5
+	Engine.time_scale = 1.0
+	g.camera.focus(Iso.tile_to_world(camp.tile))
+	await _frames(10)
+	await shot("wrathwood_camp_smashed")
+	# Its log.
+	e.take_damage(1e9, h)
+	await _frames(20)
+	await shot("wrathwood_log")
 	g.queue_free()
 	await _frames(3)

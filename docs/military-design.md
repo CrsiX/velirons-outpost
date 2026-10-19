@@ -119,8 +119,9 @@ checks both rules for every specialisation (`_spec_rule_breaks`).
 | **Spatial Archmage** | civilian | - | - | - | - | - | from spatial mage ≥ `ARCHMAGE_LEVEL`; lives in a hut; role in the ending TBD |
 
 Damage categories (`ATTACKS` "category"): arrows and bolts are *projectile*,
-orbs, fireballs (and splash), frost and warp are *magical*, the acolyte line is
-*holy*, the shield bearer's line strikes *melee*.
+orbs, frost and warp are *magical*, fireballs (and their splash) and fire
+elementals' blows are *fire* (a category of its own: docs/enemies-design.md §4),
+the acolyte line is *holy*, the shield bearer's line strikes *melee*.
 
 \* **Own range** is used out in the field (barracks sorties). It never grows
 with upgrades and is always smaller than the smallest tower range
@@ -143,7 +144,7 @@ plus the tower level's `range_bonus` (+0.8 at level 2, +1.6 at level 3,
 | Summon | HP | Speed | Damage | Special |
 |---|---|---|---|---|
 | Earth elemental | 1.0× summon HP (20 → 90) | 1.1 | 1.0× summon damage (4 → 18), melee | at level 1 as strong as a Normal goblin (20 HP, 4 damage); difficulty scales goblins, not elementals |
-| Fire elemental | 0.5× (18 → 48) | 1.8 | 2.5× (19 → 50), magical | burns itself: loses 25 % of the damage it deals, as HP (`self_damage`); hovers and flickers, a flyer |
+| Fire elemental | 0.5× (18 → 48) | 1.8 | 2.5× (19 → 50), fire | burns itself: loses 25 % of the damage it deals, as HP (`self_damage`); hovers and flickers, a flyer |
 
 Existing elementals keep their stats when the summoner levels up. They crumble
 when their summoner leaves them: withdrawn, downed, specialised, or back on its
@@ -343,7 +344,7 @@ const MILITARY := {
 }
 const ATTACKS := {  # what a shot looks like, its damage category, fixed effect values
     "arrow":    {"projectile": "arrow", "arc": true, "category": "projectile", ...},
-    "fireball": {"projectile": "fireball", "splash_share": 0.6, "explode": true, "category": "magical", ...},
+    "fireball": {"projectile": "fireball", "splash_share": 0.6, "explode": true, "category": "fire", ...},
     "warp":     {"projectile": "warp_orb", "push_immunity": 4.0, "category": "magical", ...},
     ...
 }

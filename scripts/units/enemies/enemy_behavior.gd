@@ -9,6 +9,12 @@ static func _sheltered(node) -> bool:
 	return node is Civilian and not (node is Hero) and not (node as Civilian).is_exposed()
 
 
+## Not part of any wave, and never goes for a village by road (camp guards,
+## wrathwoods): the wave's checks, warning lights and the timeline skip it.
+func wild() -> bool:
+	return false
+
+
 ## Called every frame. Return true to hold the enemy in place this frame
 ## (e.g. while fighting or casting), false to let it keep walking.
 func tick(_enemy: Enemy, _delta: float) -> bool:

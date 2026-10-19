@@ -155,14 +155,15 @@ func choose_target(from: Vector2i) -> Vector2i:
 	return best_local
 
 
-## Tiles near camp guards (where it would flee), or empty if there are none.
+## Tiles near camp guards and wrathwoods (Enemy.wild: where it would
+## flee), or empty if there are none.
 func _camp_danger() -> PackedByteArray:
 	var out := PackedByteArray()
 	var map := w.game.map
 	var r := Config.EVADE_RADIUS + 0.5
 	for node in w.get_tree().get_nodes_in_group("enemies"):
 		var g := node as Enemy
-		if g.dead or not (g.behavior is CampBehavior):
+		if g.dead or not g.wild():
 			continue
 		if out.is_empty():
 			out.resize(map.size * map.size)

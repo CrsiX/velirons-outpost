@@ -46,13 +46,14 @@ func setup(p_game: Game, p_hosting: bool) -> void:
 			v.events.logged.connect(_on_logged.bind(v.id))
 		game.fog.explored_changed.connect(_on_explored)
 		game.world.tree_felled.connect(_on_tree_felled)
+		game.world.tree_woke.connect(_on_tree_woke)
 
 
 # --- host ------------------------------------------------------------------------------
 
 ## A client just (re)loaded the level: send it everything next time.
 func reset_peer(id: int) -> void:
-	_peers[id] = {"known": {}, "ev": [], "to": [], "ft": [], "fx": [], "ex": PackedInt32Array(), "full": true, "vd": {}, "tf": _felled.duplicate()}
+	_peers[id] = {"known": {}, "ev": [], "to": [], "ft": [], "fx": [], "ex": PackedInt32Array(), "full": true, "vd": {}, "tf": _felled.duplicate(), "tw": PackedInt32Array()}
 
 
 func _peers_of(vid: int) -> Array[int]:
@@ -75,6 +76,17 @@ func _on_explored(vid: int, tiles: Array[Vector2i]) -> void:
 		for t in tiles:
 			ex.append(game.map.index(t))
 		_peers[id]["ex"] = ex
+
+
+## A tree woke up as a wrathwood: gone without falling (a client joining
+## later just gets it among the felled ones).
+func _on_tree_woke(t: Vector2i) -> void:
+	var i := game.map.index(t)
+	_felled.append(i)
+	for id in _peers:
+		var tw: PackedInt32Array = _peers[id]["tw"]
+		tw.append(i)
+		_peers[id]["tw"] = tw
 
 
 func _on_tree_felled(t: Vector2i) -> void:
@@ -210,6 +222,9 @@ func _snapshot_for(id: int, all: Array) -> Dictionary:
 	if not p["tf"].is_empty():
 		out["tf"] = p["tf"]
 		p["tf"] = PackedInt32Array()
+	if not p["tw"].is_empty():
+		out["tw"] = p["tw"]
+		p["tw"] = PackedInt32Array()
 	out["wl"] = game.world.warnings.compute_spots(vid) if game.world.warnings.enabled() else []
 	return out
 
@@ -357,6 +372,10 @@ func _apply(d: Dictionary) -> void:
 		var t := Vector2i(i % game.map.size, i / game.map.size)
 		if game.world.is_tree(t):
 			game.world.remove_tree(t)
+	for i in (d.get("tw", PackedInt32Array()) as PackedInt32Array):
+		var t := Vector2i(i % game.map.size, i / game.map.size)
+		if game.world.is_tree(t):
+			game.world.remove_tree(t, false)
 	# Buildings first: units refer to them (huts, posts).
 	var sp: Array = d.get("sp", [])
 	for s in sp:

@@ -315,12 +315,13 @@ func _check_water(delta: float) -> void:
 
 
 ## The wave's living enemies if every one of them is a water monster (crab,
-## siren, leviathan, octopus; not an arm, a camp guard or a debug one), else [].
+## siren, leviathan, octopus; not an arm, a camp guard, a wrathwood or a
+## debug one), else [].
 func _water_left() -> Array[Enemy]:
 	var out: Array[Enemy] = []
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or e.behavior is CampBehavior or e.behavior is ArmBehavior or _uncounted.has(e):
+		if e.dead or e.wild() or e.behavior is ArmBehavior or _uncounted.has(e):
 			continue
 		if e.habitat() == "land":
 			return [] as Array[Enemy]
@@ -348,7 +349,7 @@ func _check_rats(delta: float) -> void:
 	var rats := false
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or e.behavior is CampBehavior:
+		if e.dead or e.wild():
 			continue
 		if e.kind == "rat":
 			rats = true

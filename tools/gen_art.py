@@ -1928,6 +1928,99 @@ def corpse_spider_mother():
     a.save("corpse_spider_mother")
 
 
+def _wrathwood_body(a, grip=False):
+    """The trunk of a wrathwood, facing right: root legs, a bark body with a
+    face, branch arms (raised, or plunged into the ground for a root grip) and
+    an oak crown."""
+    bark, bark_d, bark_l = "#5e4129", "#43301e", "#7a5738"
+    moss = "#4d6b37"
+    leaf = ("#203a22", "#1b331d", "#26442a", "#2e5232")
+    # root legs, spread wide
+    for x0, x1, x2 in ((-6, -11, -17), (6, 10, 16)):
+        a.line([(x0, -18), (x1, -6), (x2, -1)], INK, 8.5)
+        a.line([(x0, -18), (x1, -6), (x2, -1)], bark_d, 6)
+        a.line([(x2, -1), (x2 + (-5 if x2 < 0 else 5), 1)], INK, 3.4)
+        a.line([(x2, -1), (x2 + (-5 if x2 < 0 else 5), 1)], bark_d, 1.8)
+    # the far arm (behind the body)
+    if grip:
+        a.line([(-8, -48), (-15, -30), (-14, -8), (-18, 0)], INK, 7)
+        a.line([(-8, -48), (-15, -30), (-14, -8), (-18, 0)], bark_d, 4.6)
+    else:
+        a.line([(-8, -50), (-19, -60), (-24, -74)], INK, 7)
+        a.line([(-8, -50), (-19, -60), (-24, -74)], bark_d, 4.6)
+        for tx, ty in ((-30, -78), (-24, -82), (-19, -79)):
+            a.line([(-24, -74), (tx, ty)], INK, 2.6)
+            a.line([(-24, -74), (tx, ty)], bark_d, 1.2)
+    # the trunk: wider at the roots, bark grooves, moss
+    a.poly([(-11, -16), (11, -16), (9, -56), (-9, -58)], bark, INK, 1.5)
+    a.poly([(1, -16), (11, -16), (9, -56), (1, -57)], bark_d, stroke=None, opacity=0.6)
+    for gx, top, bot in ((-6, -54, -20), (-1.5, -56, -24), (5, -53, -19)):
+        a.line([(gx, bot), (gx + 1.2, (top + bot) / 2), (gx - 0.6, top)], "#2c1f13", 1.1)
+    a.ellipse(-6, -22, 4.5, 2.4, moss, opacity=0.85)
+    a.ellipse(7, -46, 3, 1.8, moss, opacity=0.75)
+    # the face: a heavy brow, glowing amber eyes, a hollow mouth
+    a.line([(-1, -46), (9, -45)], INK, 2.6)
+    a.line([(-1, -46), (9, -45)], bark_l, 1.2)
+    for ex in (1.5, 7):
+        a.ellipse(ex, -42.5, 1.9, 1.5, "#1a120a")
+        a.ellipse(ex, -42.5, 1.1, 0.9, "#ffb340")
+    a.ellipse(4.5, -35, 3, 2.2 if not grip else 3, "#1a120a", INK, 0.9)
+    # the crown: oak clumps on its head
+    for cx, cy, r, c in ((-12, -64, 13, leaf[0]), (10, -64, 12, leaf[1]), (-1, -76, 16, leaf[2]), (-6, -82, 8, leaf[3])):
+        a.ellipse(cx, cy - (2 if grip else 0), r, r * 0.85, c, INK, 1.3)
+    a.ellipse(-4, -80, 3.5, 2.6, "#3d6a42", opacity=0.8)
+    # the near arm
+    if grip:
+        a.line([(9, -50), (20, -34), (19, -10), (23, 0)], INK, 7.5)
+        a.line([(9, -50), (20, -34), (19, -10), (23, 0)], bark, 5)
+    else:
+        a.line([(8, -48), (19, -50), (27, -40)], INK, 7.5)
+        a.line([(8, -48), (19, -50), (27, -40)], bark, 5)
+        for tx, ty in ((33, -42), (31, -35), (26, -33)):
+            a.line([(27, -40), (tx, ty)], INK, 2.8)
+            a.line([(27, -40), (tx, ty)], bark, 1.3)
+        a.ellipse(20, -51, 3, 2, leaf[2], INK, 0.8)  # a twig of leaves on the arm
+
+
+def wrathwood():
+    """A tree woken up under the axe (side view, facing right; the game flips it),
+    and its root grip: arms plunged into the ground, roots spreading round it."""
+    a = Art()
+    a.shadow(26, 9, opacity=0.45)
+    _wrathwood_body(a)
+    a.save("unit_wrathwood")
+    g = Art()
+    g.shadow(26, 9, opacity=0.45)
+    for ang in (0.3, 1.4, 2.3, 3.5, 4.6, 5.6):  # roots spreading on the ground
+        x, y = math.cos(ang) * 30, math.sin(ang) * 12
+        g.line([(0, 0), (x * 0.5, y * 0.5 + 1), (x, y)], INK, 3.6)
+        g.line([(0, 0), (x * 0.5, y * 0.5 + 1), (x, y)], "#6b4a2c", 2)
+    _wrathwood_body(g, grip=True)
+    g.pts = a.pts[:] + g.pts  # (one canvas, so the two line up)
+    g.save("unit_wrathwood_grip")
+
+
+def corpse_wrathwood():
+    """A felled wrathwood: a log of living wood with its crown spilled out."""
+    a = Art()
+    a.ellipse(0, 1, 30, 8, "#000", opacity=0.3)
+    for cx, cy, r, c in ((22, -6, 9, "#1b331d"), (28, -1, 7, "#203a22"), (17, 1, 6, "#26442a")):
+        a.ellipse(cx, cy, r, r * 0.7, c, INK, 1.1)
+    a.poly([(-24, -9), (14, -12), (16, -1), (-22, 3)], "#5e4129", INK, 1.4)
+    a.poly([(-23, -3), (15, -6), (16, -1), (-22, 3)], "#43301e", stroke=None, opacity=0.7)
+    for gx in (-15, -6, 3, 10):
+        a.line([(gx, -10), (gx + 2, -3)], "#2c1f13", 1.0)
+    a.ellipse(-23, -3, 3.5, 6, "#c9a878", INK, 1.2)  # the cut end, with its rings
+    a.ellipse(-23, -3, 2, 3.6, "#a8865a", opacity=0.8)
+    a.ellipse(-23, -3, 0.8, 1.4, "#7a5738")
+    a.ellipse(-2, -7, 1.3, 1.0, "#1a120a")  # its eyes, gone dark
+    a.ellipse(4, -7.5, 1.3, 1.0, "#1a120a")
+    a.line([(-8, 2), (-14, 7)], INK, 3)  # a broken branch
+    a.line([(-8, 2), (-14, 7)], "#43301e", 1.6)
+    a.ellipse(-10, -10, 3.5, 1.6, "#4d6b37", opacity=0.85)
+    a.save("corpse_wrathwood")
+
+
 def spiderling():
     """A small brown spider, side view, facing right (the game flips it)."""
     a = Art()
@@ -4138,6 +4231,8 @@ def main():
     corpse_spider_mother()
     spiderling()
     spider_eggs()
+    wrathwood()
+    corpse_wrathwood()
     gatherer()
     forester()
     worker_camp()

@@ -52,6 +52,11 @@ target for a melee unit only if it can stand on a non-deep tile next to it (§2.
 use their range. Submerged mobs are never targets. Implementation: the hero's and soldiers'
 target scans use `targetable()` plus a reachable-neighbour check.
 
+### 2.1b Fire
+
+Every water monster (crab, siren, leviathan, octopus and its arms) takes ×0.5 *fire* damage
+(fireballs and their splash, fire elementals; `resist` "fire", docs/enemies-design.md §4).
+
 ### 2.2 Corpses *(decided)*
 
 Every aquatic mob leaves a corpse and it can be raised or gathered like any other, with two
@@ -131,7 +136,7 @@ A support monster: she doesn't storm in.
 | | |
 |---|---|
 | HP / speed | 24 / 0.9 |
-| Resist | melee ×1.5, magical ×0.67 (`resist`) |
+| Resist | melee ×1.5, magical ×0.67, fire ×0.5 (`resist`) |
 | Song | radius 4.5 tiles, no damage |
 | Kill gold | 14; corpse: 1 food |
 | From wave | 8, share 0.06 |
@@ -295,7 +300,7 @@ now and then (`chance`, `max_count` 1).
 ## 15. As built
 
 **Code.** `Enemy` (`habitat()`, `dive` with `Dive.UP / DIVING / DOWN / SURFACING`,
-`targetable()`, `melee_ok(from, magical)`, `melee_reach(base)`, `fx` for what a behavior shows:
+`targetable()`, `melee_ok(from, flame)`, `melee_reach(base)`, `fx` for what a behavior shows:
 the song ring, the water column, the arms), behaviors `leviathan_behavior`, `siren_behavior`,
 `octopus_behavior` and `arm_behavior` on a shared base `aqua_behavior` (who of ours they go for,
 swimming over deep water); the crab is `melee_behavior` with `"auto_submerge"`. `Pathing`: the

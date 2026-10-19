@@ -57,12 +57,16 @@ func _tick(delta: float) -> void:
 				var dx := Iso.to_world(Vector2(tree) - grid_pos).x
 				sprite.flip_h = dx < 0.0
 		State.CHOPPING:
+			if game.world.tree_progress(tree) <= 0.0 and game.wrathwoods.on_first_blow(self, tree) != null:
+				_go_village()  # (it woke up: run)
+				return
 			_timer -= delta
 			_bob += delta * 10.0
 			sprite.rotation = sin(_bob) * 0.25
 			var felled := game.world.chop_tree(tree, delta)
 			if felled:
 				village.events.debug("%s cut down %s" % [label(), game.world.tree_label(tree)])
+				game.wrathwoods.on_felled(village)
 			if felled or _timer <= 0.0:
 				carrying = Config.FORESTER_MATERIAL_PER_TRIP
 				if felled:

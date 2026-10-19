@@ -271,6 +271,13 @@ static func _enemies() -> Array[Dictionary]:
 		if from > 0:
 			f.append("In the waves from wave %d%s" % [from, " (in packs)" if kind == "rat" else ""])
 		f.append("HP %s · speed %s tiles/s" % [_n(Config.enemy_stat(kind, "hp")), _n(Config.enemy_stat(kind, "speed"))])
+		if kind == Wrathwoods.KIND:
+			var lt := Config.WRATHWOOD
+			var ch: Dictionary = lt["chance"]
+			f.append("Never in a wave: from wave %d, a tree may wake up when a forester starts on it (oaks %s %%, pines %s %%; %s %% more for every tree the village has felled, at most %s %%)" % [int(lt["from_wave"]), _n(float(ch["tree_oak"]) * 100.0), _n(float(ch["tree_pine_0"]) * 100.0), _n(float(lt["remember"]) * 100.0), _n(float(lt["max_chance"]) * 100.0)])
+			f.append("Walks through forest. Chases its forester, smashes his camp, then guards its old spot (attacks within %s tiles)" % _n(e["territory"]))
+			f.append("Heals %s %% of its HP per second near trees; now and then its roots hold everyone close by in place for %s s" % [_n(float(e["regrow"]) * 100.0), _n(e["grip_time"])])
+			f.append("Blows on buildings x%s" % _n(e["siege"]))
 		if e.has("lays"):
 			var egg: Dictionary = Config.ENEMIES[e["lays"]]
 			f.append("Lays %d-%d eggs as she walks, the first time %s s after she comes, then every %s s; each has %s HP and hatches into a %s after %s s" % [e["clutch"][0], e["clutch"][1], _n(e["first_lay"]), _n(e["lay_every"]), _n(egg["hp"]), str(Config.ENEMIES[egg["hatch_into"]]["name"]).to_lower(), _n(egg["hatch_time"])])
@@ -300,10 +307,10 @@ static func _enemies() -> Array[Dictionary]:
 		var loot := "Killed: %d gold" % Config.enemy_stat_int(kind, "gold_on_kill")
 		if e.get("corpse", true):
 			var c := PackedStringArray()
-			for res in ["gold", "food"]:
-				var v := Config.enemy_stat_int(kind, res + "_on_collect")
+			for res in ["gold", "food", "materials"]:
+				var v := Config.enemy_stat_int(kind, res + "_on_collect") if e.has(res + "_on_collect") else 0
 				if v > 0:
-					c.append("%d %s" % [v, res])
+					c.append("%d %s" % [v, "building material" if res == "materials" else res])
 			loot += "; its corpse, brought home: %s" % (", ".join(c) if not c.is_empty() else "nothing")
 		else:
 			loot += "; leaves no corpse"

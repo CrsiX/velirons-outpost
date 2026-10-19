@@ -316,7 +316,7 @@ func _water_defence() -> void:
 	var foes: Array[Enemy] = []
 	for n in get_tree().get_nodes_in_group("enemies"):
 		var e := n as Enemy
-		if not e.dead and not (e.behavior is CampBehavior):
+		if not e.dead and not e.wild():
 			foes.append(e)
 	if not _in_wave() or foes.is_empty() or not foes.all(func(e: Enemy) -> bool: return e.habitat() == "water"):
 		_water_only_since = -1.0

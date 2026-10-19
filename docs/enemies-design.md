@@ -17,6 +17,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   - `witch_behavior.gd` + `spell_bolt.gd`;
   - `rat_behavior.gd`, `thief_behavior.gd`, `necromancer_behavior.gd`, `vampire_behavior.gd`;
   - `spider_mother_behavior.gd` (extends `MeleeBehavior`) and `egg_behavior.gd` (her eggs);
+  - `wrathwood_behavior.gd`: the wrathwood (§15c), woken by `scripts/systems/wrathwoods.gd`;
   - `camp_behavior.gd`: monster-camp and lair guards (set by the camp, not by config).
 - `scripts/systems/waves.gd` (`Waves`): countdown, wave make-up, spawning, rat packs, lair
   themes, the co-op extra, raising corpses, slime splits, spider eggs (laying, hatching), kill gold.
@@ -99,8 +100,12 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 
 ## 4. Damage categories and resistances
 
-- Every hit has a category (`DAMAGE_CATEGORIES`): `melee`, `projectile`, `magical`, `holy`,
-  `pure` (a raised enemy's drain; never scaled).
+- Every hit has exactly one category (`DAMAGE_CATEGORIES`): `melee`, `projectile`, `magical`,
+  `fire`, `holy`, `pure` (a raised enemy's drain; never scaled).
+- **Fire** is its own category, not magical: the fire mage's fireball and its splash, and the
+  fire elementals' blows. Orbs, frost, warp and the witch's and leviathan's spells stay magical.
+  Fire factors: the wrathwood ×2; the water monsters (crab, siren, leviathan, octopus and its
+  arms) ×0.5; the vampire ×0.67 (as it took fireballs before fire was split off); others ×1.
 - Enemy blows are `melee`, except a kind's `attack_category` (the witch: `magical`).
 - `resist` maps a category to a factor on the damage taken (`Enemy.take_damage`); missing = ×1.
 - **Holy** (the acolyte line, docs/acolyte-design.md §3): goblin, ork, thief, gargoyle, spider
@@ -110,7 +115,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   spiderlings), takes another ×2 (`raised_holy`).
 - **Unholy** (`"unholy": true`): skeleton, necromancer, vampire. Raised and undead enemies count
   as unholy too (`Enemy.is_unholy`). Only the Inquisitor's targeting uses it.
-- The vampire takes ×0.67 magical damage.
+- The vampire takes ×0.67 magical (and fire) damage. The wrathwood takes ×0.5 projectile damage.
 
 ## 5. Flyers
 
@@ -352,6 +357,81 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   It walks from where it hatched to the nearest road and on to its egg's village.
 - Library: one entry for the mother (with the eggs) and one for the spiderling; eggs have
   `"library": false`.
+
+## 15c. Wrathwood (Wilderness, very rare)
+
+A tree that wakes up under a forester's axe and goes after him. It never comes with a wave:
+it is woken on the map (`Wrathwoods`, `scripts/systems/wrathwoods.gd`; numbers in
+`Config.WRATHWOOD`), its fight is `ENEMIES.wrathwood` and `WrathwoodBehavior`.
+
+| Kind | HP | Speed | Damage / cooldown | Kill gold | Corpse | Resist |
+|---|---|---|---|---|---|---|
+| Wrathwood | 220 | 0.45 | 22 / 2.5 s (×3 against buildings) | 35 | 40 building material, no gold or food | projectile ×0.5, fire ×2, holy ×0.75 |
+
+- **Waking up** (`Wrathwoods.on_first_blow`): when a forester starts on a tree that nobody has
+  chopped yet (its first blow; one roll per tree), it may wake.
+  - Chance: `chance` by tree kind (oak 1.5 %, pines 0.3 %; dead trees and charred stumps never),
+    plus **"the forest remembers"**: `remember` (0.05 %) for every tree that village's foresters
+    have felled so far, together at most `max_chance` (3 %). Kinds with no base chance stay at 0.
+  - Never before wave `from_wave` (8) has begun, never while the village already has one, and
+    not for `quiet_waves` (3) waves after its last one died (`Wrathwoods.calm_until`).
+  - Only where the game allows it (`Wrathwoods.allowed`): never in the tutorial or the title
+    backdrop. Scenarios (not built yet) will have it off unless they turn it on.
+  - The tile becomes meadow at once (the tree's sprite goes without falling,
+    `World.remove_tree(t, false)`; `tree_woke` for co-op clients) and the wrathwood stands
+    there, still looking like its tree (the tree's own art), shuddering for `wake_time` (3 s).
+    It can be hit meanwhile, but doesn't move or strike. Then it bursts out in a shower of
+    leaves (`leaves` burst) and shows its own art. Logged at Important to its village:
+    "Tree 482 woke up as a wrathwood! It is after forester 2."
+  - It belongs to the forester's village (`target_village`) and counts for no wave
+    (`Enemy.wild`: like camp guards, it is ignored by the wave's count, the rats' and water
+    monsters' checks, the warning lights and the timeline's enemy count).
+- **Strength:** its HP grows with the waves like a wave's enemies (×`WAVE_HP_GROWTH`^(n−1), n the
+  wave running or the last one); difficulty scales it like any enemy.
+- **Walking:** it walks its own A* paths (`Pathing.wood_path`) over walkable ground **and forest
+  tiles** (not mountains, water, lava or solid buildings). It never takes a road to a gate and
+  never breaks into a village (`"entry": "none"`).
+- **Regrowth:** within `regrow_radius` (2.5 tiles) of a tree it heals `regrow` (4 %) of its max
+  HP per second. Back home (see *Guard*) it heals ×`home_boost` (2) that for `home_boost_time`
+  (10 s), trees around or not.
+- **What it does** (`WrathwoodBehavior.State`, saved with it):
+  1. *Chase:* it goes for the forester who woke it, re-planning every 0.5 s. It ends when the
+     forester is dead, gone, or safe (`Civilian.is_exposed()` false: at home or inside the walls).
+  2. *Camp:* then it walks to that forester's worker camp and hits it until it is devastated
+     (skipped when the camp is gone or already devastated).
+  3. *Wander:* `wander_time` (20 s) of strolling within `wander_radius` (3) tiles of where it
+     is.
+  4. *Home:* it walks back to its old tile.
+  5. *Guard* (territorial, for good): it stays on its tile. Anyone of ours within `territory`
+     (4 tiles) of it (an exposed villager, the hero, a soldier, an elemental) is attacked and
+     chased, but no farther than `leash` (6 tiles) from home; then it walks back.
+  - *Swing-by blows* in every state but Guard: whenever its blow is ready, something within
+    `reach` (1 tile) is hit as it passes, without stopping: what it is after first (the
+    forester, the camp), else one of ours (an exposed villager, the hero, a soldier, an
+    elemental; flyers only when they hit it), else a building of any village that isn't a hut
+    (`damage` × `siege`, 3). It never stops chasing to fight.
+  - *Defending itself* (Wander, Home, Guard): whoever hurts it becomes its foe. A unit or the hero
+    is chased and hit (staying within `leash` of where it started defending, or of home when
+    guarding); a tower that shoots it is walked to and smashed when it is within that leash.
+    The foe gone, out of reach of the leash, or safe, it goes on with what it was doing (the
+    wander time keeps running).
+- **Root grip:** every `grip_every` (8 s; the first `grip_every` s after waking), when at least
+  one of ours on the ground (an exposed villager, the hero, a soldier, an earth elemental;
+  never flyers or units on posts) is within `grip_radius` (1.6 tiles), it stops for
+  `grip_cast` (0.6 s, arms down into the ground) and roots grow up around every one of them:
+  they can't move for `grip_time` (2 s; `Unit.force_move` with no step each frame), but can
+  still fight. Roots coil up round each held one (`fx["grip"]`, drawn on every machine).
+- **Killed:** 35 gold to the killer's village, and a corpse: a log of living wood
+  (`corpse_wrathwood`) worth `materials_on_collect` (40) building material and nothing else,
+  which a necromancer can't raise (`"revivable": false`). It belongs to the wave running then
+  (or the last one) and rots like any corpse. `Wrathwoods.calm_until` is set.
+- **Explorers** avoid it like camp guards (`ExploreJob._camp_danger`, `Enemy.wild`).
+- **Debug:** *Spawn enemy...* → wrathwood wakes the explored tree nearest to one of the
+  village's foresters (else the nearest to the village), whatever the odds and wave.
+- **Saving** (docs/save-design.md): every wrathwood is saved with its state, HP, HP scale,
+  position, home tile, the forester and camp it is after (nids), wander time and home boost
+  left, plus per village the trees its foresters felled and `calm_until`.
+- Library: one entry ("Wakes when a forester starts on a tree, from wave 8, rarely").
 
 ## 16. Monster-camp guards
 

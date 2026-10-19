@@ -118,6 +118,8 @@ var _ids: Dictionary = {}
 var stats: Stats
 ## Enemies breaking into villages (docs/siege-design.md).
 var siege: Siege
+## Trees waking up as wrathwoods (docs/enemies-design.md §15c).
+var wrathwoods: Wrathwoods
 
 
 func _ready() -> void:
@@ -182,6 +184,10 @@ func _ready() -> void:
 	siege.name = "Siege"
 	siege.setup(self)
 	$Systems.add_child(siege)
+	wrathwoods = Wrathwoods.new()
+	wrathwoods.name = "Wrathwoods"
+	wrathwoods.setup(self)
+	$Systems.add_child(wrathwoods)
 	_slice_from = Time.get_ticks_usec()
 	_use_custom_map()
 	if backdrop:

@@ -64,6 +64,7 @@ ended while any of them lives. What may still be there, and is saved:
 
 - monster-camp and lair guards (`CampBehavior`; their lost HP doesn't heal,
   so it is kept);
+- wrathwoods (docs/enemies-design.md §15c: never part of a wave);
 - corpses (with their age);
 - every unit of the players wherever it is, doing whatever it does: villagers
   at work or on their way, units marching, walking back, travelling to
@@ -215,6 +216,7 @@ the saved position and loads.
 | **Fog** | `explored_of` per village | surveillance (recomputed every 0.2 s) |
 | **Map objects** | `found_by`, and what each kind sends a co-op client (`net_state`): treasure `looted`, camp `cleared`, lair `awake` and `quiet_until`, unlock site `awake` / `used`, ruined tower's claiming village; lair `woke_at`; every living guard (kind, HP, position, home spot, colour, ids); a mine's miner (from the miner) | `claimed_by` (hero, gatherer), lair `wake_wave` (seeded from the map) |
 | **Waves** | `wave`, `countdown` | the waves' RNG |
+| **Wrathwoods** | per village the trees its foresters felled and `calm_until` (`Wrathwoods`); every wrathwood: village, HP, `hp_scale`, wave, position, home tile, the tree's art, state (`WrathwoodBehavior.State`), the forester and camp it is after (nids), waking, wandering and home-boost time left, uid / nid | its foe, path, blow and grip timers, who its roots hold (a tree wandering wanders round where it stands) |
 | **Corpses** | kind, wave, tile, time left, stolen gold, `hp_scale`, uid / nid | who claimed it |
 | **Village** | name, colour, `fallen`, relics, `corpses_delivered`, resources, the log level shown | the log's lines (a loaded game starts with "Game loaded: wave N") |
 | **Buildings** | kind, tile, uid / nid, `complete`, progress, `paid_share`, level (gates and walls too), HP, `devastated`, upgrade (and its progress), repair (progress, time, HP, what it cost), tear-down (and its progress); hut `ruined` and resident; workplace worker; farm `stored`; post slots; the build queue in order | builders' claims |
@@ -243,7 +245,7 @@ session).
 Each file:
 ```
 "VOSV"            4 bytes, magic
-format            u32, SaveGame.FORMAT (3: buildings hold HP, devastation and repairs)
+format            u32, SaveGame.FORMAT (4: wrathwoods)
 header length     u32
 header            var_to_bytes(Dictionary), uncompressed
 body              zstd(var_to_bytes(Dictionary)), its raw size first (as MapData.to_bytes)
@@ -303,7 +305,8 @@ only in the lobby.
    other buildings are built anew with theirs (`register_as`), then the
    build queues, villagers (into their huts and workplaces), heroes, units
    (onto their posts' slots, or walking on), elementals (into their
-   summoners' lists), caravans, corpses, camp guards, the waves' counter;
+   summoners' lists), caravans, corpses, camp guards, wrathwoods
+   (`Wrathwoods.load_state`), the waves' counter;
    then everyone out in the field asks once what to do (`resume_work`), and
    last the label counters (`_ids`) are set.
 4. Statistics are restored instead of `Stats.start()`, the waves' `wave` and

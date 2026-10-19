@@ -190,16 +190,21 @@ func _deliver() -> void:
 		return
 	var gold := carried_gold
 	var food := 0
+	var wood := 0  # (a wrathwood's log)
 	carried_gold = 0
 	for k in carried:
 		gold += Config.enemy_stat_int(k, "gold_on_collect")
 		food += Config.enemy_stat_int(k, "food_on_collect")
+		if Config.ENEMIES[k].has("materials_on_collect"):
+			wood += Config.enemy_stat_int(k, "materials_on_collect")
 	w.village.economy.add("gold", gold, "corpses")
 	w.village.economy.add("food", food, "corpses")
+	if wood > 0:
+		w.village.economy.add("materials", wood, "corpses")
 	w.game.stats.credit(w.village, "gatherers", w.label(), carried.size())
 	w.village.corpses_delivered += carried.size()
-	w.village.events.debug("%s brings %d corpse%s home: +%d gold, +%d food" % [w.label(), carried.size(), "" if carried.size() == 1 else "s", gold, food])
-	w.float_text("+%d {gold}  +%d {food}" % [gold, food], Color("c9a24a"))
+	w.village.events.debug("%s brings %d corpse%s home: +%d gold, +%d food%s" % [w.label(), carried.size(), "" if carried.size() == 1 else "s", gold, food, ", +%d building material" % wood if wood > 0 else ""])
+	w.float_text("+%d {gold}  +%d {food}%s" % [gold, food, "  +%d {materials}" % wood if wood > 0 else ""], Color("c9a24a"))
 	Sfx.play("coin")
 	carried.clear()
 	_sack.visible = false
