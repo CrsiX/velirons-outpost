@@ -50,7 +50,7 @@ static func _json_files(dir: String) -> PackedStringArray:
 static func summary(path: String, builtin: bool = false) -> Dictionary:
 	var e := {"path": path, "name": path.get_file().get_basename(), "size": 0, "villages": 0, "map_type": "", "builtin": builtin,
 		"modified": FileAccess.get_modified_time(path) if FileAccess.file_exists(path) else 0, "error": ""}
-	var d = JSON.parse_string(FileAccess.get_file_as_string(path).trim_prefix("﻿"))
+	var d = JSON.parse_string(MapJson.without_bom(FileAccess.get_file_as_string(path)))
 	if not (d is Dictionary) or d.get("format") != MapJson.FORMAT:
 		e["error"] = "not a map file"
 		return e

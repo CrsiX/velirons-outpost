@@ -33,6 +33,7 @@
 - The title backdrop's maps are baked into `data/title_maps/` (`BakedMap`). After changing the map generator or the scenes' map type / seed, rebake: `gd --headless --path . res://tools/bake_title_maps.tscn` (title_bot fails while they are stale). Tools that need autoloads must be run as a scene, not with `-s`.
 - A lambda can't assign the caller's local variables (they are captured by value): let it fill an Array or Dictionary the caller holds.
 - Warnings are errors here (a variable inferred from a Variant, a local shadowing a signal such as `changed`, a coroutine called without `await`): give the type, rename, `await` in plain `if` branches.
+- In an exported game a BOM in a string literal (`"\uFEFF"`, or the raw character) comes out empty, so `begins_with` it is always true: test a code point instead (`MapJson.without_bom`: `text.unicode_at(0) == 0xFEFF`), build one with `String.chr(0xFEFF)`. The bots run in the editor binary and don't see this; check a release export (`--export-release` into the scratchpad, an autoload probe) when file reading behaves differently there.
 - Writing into a packed array held inside an Array or Dictionary (`arr[i][k] = x`) can copy the whole packed array: fill a local one and store it once.
 
 **Test baseline:** all bots pass except these known failures, which predate current work:

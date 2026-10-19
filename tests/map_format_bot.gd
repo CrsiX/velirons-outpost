@@ -199,7 +199,7 @@ func _tolerant(m: MapData) -> void:
 		"minified with sorted keys": JSON.stringify(d),
 		"tab-indented": JSON.stringify(d, "\t"),
 		"\\r\\n line ends": text.replace("\n", "\r\n"),
-		"a UTF-8 BOM": "﻿" + text,
+		"a UTF-8 BOM": String.chr(0xFEFF) + text,
 		"whole numbers as floats": text.replace("\"size\": %d," % m.size, "\"size\": %d.0," % m.size).replace("\"tier\": 1,", "\"tier\": 1.0,"),
 	}
 	for what in variants:

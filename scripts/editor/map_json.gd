@@ -278,6 +278,12 @@ static func object_art(o: Dictionary) -> String:
 
 # --- reading ---------------------------------------------------------------------------------
 
+## `text` without a leading UTF-8 byte order mark. (By its code: in an exported
+## game a "\uFEFF" literal comes out empty, and every text "begins with" it.)
+static func without_bom(text: String) -> String:
+	return text.substr(1) if not text.is_empty() and text.unicode_at(0) == 0xFEFF else text
+
+
 ## Reads a map file's text. Returns {"map": MapData, "errors": []} or, when the
 ## file breaks the format, {"map": null, "errors": [every problem, with where]}.
 static func read(text: String) -> Dictionary:
@@ -295,8 +301,7 @@ class _Reader:
 			errors.append("%s: %s" % [where, what] if where != "" else what)
 
 	func run(text: String) -> MapData:
-		if text.begins_with("﻿"):
-			text = text.substr(1)
+		text = MapJson.without_bom(text)
 		var json := JSON.new()
 		if json.parse(text) != OK:
 			err("", "not valid JSON (line %d: %s)" % [json.get_error_line(), json.get_error_message()])
