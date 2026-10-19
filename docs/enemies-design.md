@@ -108,6 +108,8 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   arms) ×0.5; the vampire ×0.67 (as it took fireballs before fire was split off); others ×1.
 - Enemy blows are `melee`, except a kind's `attack_category` (the witch: `magical`).
 - `resist` maps a category to a factor on the damage taken (`Enemy.take_damage`); missing = ×1.
+- The library's *Damage* tab shows all of this, read from Config (`Library._damage`,
+  `Config.DAMAGE_INFO`; docs/tutorial-design.md §4).
 - **Holy** (the acolyte line, docs/acolyte-design.md §3): goblin, ork, thief, gargoyle, spider
   mother, spider egg, spiderling ×0.75;
   skeleton ×1.25; necromancer and vampire (bat too) ×1.5; witch, rat, slimes ×1. Anything a

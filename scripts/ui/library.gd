@@ -1,7 +1,7 @@
 class_name Library
 extends Control
 ## The library (docs/tutorial-design.md §4): reference pages in tabs
-## (enemies, units, buildings, villagers, hero, places). Every entry is built
+## (enemies, units, buildings, villagers, hero, places, damage). Every entry is built
 ## from Config when its tab opens, so the numbers never go out of date. Used
 ## by the HUD (book icon in the top bar) and the title screen; whoever opens
 ## it pauses the game if it should (Hud.open_library). It shows
@@ -9,8 +9,8 @@ extends Control
 
 signal closed
 
-const TABS: Array[String] = ["enemies", "units", "buildings", "villagers", "hero", "places"]
-const TAB_NAMES := {"enemies": "Enemies", "units": "Units", "buildings": "Buildings", "villagers": "Villagers", "hero": "Hero", "places": "Places"}
+const TABS: Array[String] = ["enemies", "units", "buildings", "villagers", "hero", "places", "damage"]
+const TAB_NAMES := {"enemies": "Enemies", "units": "Units", "buildings": "Buildings", "villagers": "Villagers", "hero": "Hero", "places": "Places", "damage": "Damage"}
 ## Unit stats (Config.MILITARY "stats") in words.
 const STAT_NAMES := {
 	"hp": "HP", "damage": "Damage per hit", "cooldown": "Seconds between attacks",
@@ -239,6 +239,8 @@ static func tab_note(key: String) -> String:
 			return "Numbers for %s difficulty, in wave 1. Enemies get %s %% more HP with every wave." % [Settings.difficulty_name(), _n((Config.WAVE_HP_GROWTH - 1.0) * 100.0)]
 		"units":
 			return "Values go from level 1 to level %d. On a tower a unit shoots as far as the tower reaches." % Config.MAX_UNIT_LEVEL
+		"damage":
+			return "Every hit is one kind of damage. Some enemies take more or less of a kind (x the damage); buildings take every kind the same."
 	return ""
 
 
@@ -257,6 +259,8 @@ static func entries(key: String) -> Array[Dictionary]:
 			return _hero()
 		"places":
 			return _places()
+		"damage":
+			return _damage()
 	return []
 
 
@@ -636,6 +640,67 @@ static func _places() -> Array[Dictionary]:
 				"Awakens at wave %d" % s["wave"],
 				"The hero unlocks the %s there for every village (Explore mode, %s s)" % [str(Config.MILITARY[s["unlocks"]]["name"]).to_lower(), _n(s["visit_time"])],
 			])})
+	return out
+
+
+## One entry per damage category (Config.DAMAGE_INFO): who deals it (units,
+## elementals, the hero, enemies) and which enemies take more or less of it.
+static func _damage() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for cat in Config.DAMAGE_CATEGORIES:
+		var info: Dictionary = Config.DAMAGE_INFO.get(cat, {"name": cat.capitalize(), "art": "", "text": ""})
+		var f := PackedStringArray()
+		var ours := PackedStringArray()
+		if str(Config.HERO["category"]) == cat:
+			ours.append("the hero's sword")
+		for kind in Config.MILITARY_TREE:
+			var m: Dictionary = Config.MILITARY[kind]
+			if m["role"] != "healer" and m.has("attack") and str(Config.ATTACKS[m["attack"]].get("category", "pure")) == cat:
+				ours.append(str(m["name"]).to_lower() + (" (counter-strike)" if m["role"] == "support" else ""))
+		for s: String in Config.SUMMONS:
+			if str(Config.SUMMONS[s]["category"]) == cat:
+				ours.append(_plural(str(Config.SUMMONS[s]["name"]).to_lower()))
+		if not ours.is_empty():
+			f.append("Ours: " + ", ".join(ours))
+		var theirs := PackedStringArray()
+		var others := PackedStringArray()
+		for kind: String in Config.ENEMIES:
+			var e: Dictionary = Config.ENEMIES[kind]
+			if not e.get("library", true):
+				continue
+			var c := str(e.get("attack_category", "melee"))
+			var hurts := float(e["damage"]) > 0.0 or e.has("attack_category")
+			if c == cat and hurts:
+				theirs.append(str(e.get("library_name", e["name"])).to_lower())
+			elif c != "melee" and cat == "melee":
+				others.append(str(e.get("library_name", e["name"])).to_lower() + "'s")
+		if cat == "melee" and not theirs.is_empty():
+			f.append("Enemies: every blow%s" % (" (not the %s spells)" % " or ".join(others) if not others.is_empty() else ""))
+		elif not theirs.is_empty():
+			f.append("Enemies: the " + ", the ".join(theirs))
+		var more := PackedStringArray()
+		var less := PackedStringArray()
+		for kind: String in Config.ENEMIES:
+			var e: Dictionary = Config.ENEMIES[kind]
+			var k := float(e.get("resist", {}).get(cat, 1.0))
+			if not e.get("library", true) or is_equal_approx(k, 1.0):
+				continue
+			var line := "%s x%s" % [e.get("library_name", e["name"]), _n(k)]
+			if k > 1.0:
+				more.append(line)
+			else:
+				less.append(line)
+		if not more.is_empty():
+			f.append("Hurts more: " + ", ".join(more))
+		if not less.is_empty():
+			f.append("Hurts less: " + ", ".join(less))
+		if cat == "holy":
+			f.append("Whatever a necromancer raised, and undead spiders, take x%s more on top" % _n(Config.ENEMIES["necromancer"]["raised_holy"]))
+		if cat == "pure":
+			f.append("Nothing resists it")
+		elif more.is_empty() and less.is_empty() and cat != "holy":
+			f.append("Every enemy takes it in full")
+		out.append({"name": info["name"], "art": info["art"], "text": info["text"], "facts": f})
 	return out
 
 

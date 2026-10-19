@@ -1005,13 +1005,25 @@ const ATTACKS := {
 ## x2, water monsters x0.5). Every hit has exactly one category.
 ## "pure" (a raised enemy's drain, a flame burning itself up) is never scaled.
 const DAMAGE_CATEGORIES: Array[String] = ["melee", "projectile", "magical", "fire", "holy", "pure"]
+## The library's Damage page (Library._damage), one entry per category: its
+## name, picture and a short text. Who deals it and who resists it are read
+## from ATTACKS, SUMMONS, HERO and ENEMIES, so only a new category needs a line here.
+const DAMAGE_INFO := {
+	"melee": {"name": "Melee", "art": "unit_shield_bearer", "text": "Close combat: blades, hammers, fists, claws and teeth."},
+	"projectile": {"name": "Projectile", "art": "unit_archer", "text": "Arrows and bolts."},
+	"magical": {"name": "Magical", "art": "unit_apprentice", "text": "Spells: arcane orbs, frost and warp, a witch's bolt, a leviathan's water."},
+	"fire": {"name": "Fire", "art": "unit_fire_mage", "text": "Fireballs and living flame. Wood burns well; what lives in the water hardly at all."},
+	"holy": {"name": "Holy", "art": "unit_acolyte", "text": "The light of the acolyte line. It sears the undead."},
+	"pure": {"name": "Pure", "art": "unit_necromancer", "text": "Nothing makes it stronger or weaker: a raised enemy draining away, a fire elemental burning itself up."},
+}
 
 ## Summoned elementals: "hp" and "damage" multiply the summoner's summon_hp
-## and summon_damage; "speed" is in tiles per second.
+## and summon_damage; "speed" is in tiles per second; "category": what their
+## blows do (DAMAGE_CATEGORIES).
 const SUMMONS := {
-	"earth": {"name": "Earth Elemental", "art": "unit_earth_elemental", "hp": 1.0, "damage": 1.0, "speed": 1.1, "self_damage": 0.0, "hover": false},
+	"earth": {"name": "Earth Elemental", "art": "unit_earth_elemental", "hp": 1.0, "damage": 1.0, "speed": 1.1, "self_damage": 0.0, "hover": false, "category": "melee"},
 	# Fire elementals hover and flicker; they lose self_damage x the damage they deal, as HP.
-	"fire": {"name": "Fire Elemental", "art": "unit_fire_elemental", "hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "hover": true},
+	"fire": {"name": "Fire Elemental", "art": "unit_fire_elemental", "hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "hover": true, "category": "fire"},
 }
 
 ## Barracks levels: benches (unit slots) and how near enemies must come before
@@ -1071,6 +1083,7 @@ const HERO := {
 	# game speed) before training on, so his mode can be changed to keep his XP.
 	"train_pause": 4.0,
 	"damage": 8.0, "attack_cooldown": 0.9, "attack_range": 0.8,
+	"category": "melee",  # his sword's damage (DAMAGE_CATEGORIES)
 	"sight": 4.0,  # surveillance while outside
 	"alert_radius": 6.0,  # Defend: enemies this close to a gate draw him out
 	"leash": 14.0,  # Defend: he won't chase farther than this from the centre

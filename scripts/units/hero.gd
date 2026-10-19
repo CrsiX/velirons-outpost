@@ -443,7 +443,7 @@ func counter_strike(e: Enemy) -> void:
 
 
 func _strike(foe: Enemy) -> void:
-	foe.take_damage(Config.hero_stat("damage", level) * (1.0 + Combat.holy_bonus(game, grid_pos)), self, "melee")  # (a High Priest blesses him)
+	foe.take_damage(Config.hero_stat("damage", level) * (1.0 + Combat.holy_bonus(game, grid_pos)), self, str(Config.HERO["category"]))  # (a High Priest blesses him)
 	on_action("hit")
 	if foe.dead:  # the last hit: a bonus
 		on_action("kill")

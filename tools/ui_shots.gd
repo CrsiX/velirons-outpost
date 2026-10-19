@@ -16,7 +16,7 @@ extends Node
 ## clutch, an acolyte's holy beams on undead spiderlings, her crumbling, her
 ## library entry (with the log at Debug; it prints what it sees), and
 ## (`--only=wrathwood`) a tree waking up under a forester's axe, the living
-## tree chasing him, its roots holding the hero, smashing the camp, and its log.
+## tree chasing him, its roots holding the hero, smashing the camp, its log, and the library's Damage tab.
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -1035,5 +1035,9 @@ func _wrathwood() -> void:
 	e.take_damage(1e9, h)
 	await _frames(20)
 	await shot("wrathwood_log")
+	g.hud.open_library("damage")
+	await _frames(10)
+	await shot("wrathwood_library_damage")
+	g.hud.library.close()
 	g.queue_free()
 	await _frames(3)

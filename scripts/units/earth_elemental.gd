@@ -167,7 +167,7 @@ func counter_strike(e: Enemy) -> void:
 
 
 func _strike(foe: Enemy) -> void:
-	foe.take_damage(damage * (1.0 + Combat.holy_bonus(game, grid_pos)), self, "fire" if flies() else "melee")  # (a flame burns; a High Priest blesses it)
+	foe.take_damage(damage * (1.0 + Combat.holy_bonus(game, grid_pos)), self, str(Config.SUMMONS[summon]["category"]))  # (a High Priest blesses it)
 	var burn: float = Config.SUMMONS[summon]["self_damage"]
 	if burn > 0.0:
 		take_damage(damage * burn, self, "pure")  # fire burns itself up
