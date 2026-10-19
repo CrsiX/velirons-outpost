@@ -13,8 +13,13 @@ war brought worse things after it.
 The elder claimant, a **woman** (*heir 1*, **Fiona**), is alive and now in **exile**. The younger, a **man** (*heir 2*, **Rhodri**), was gradually
 corrupted and is now **evil** (section 4).
 
-The player is **neutral**. The outpost is a remote village that sided with neither claimant. It is the hero's home town, which is why it is remote
-and why it still stands.
+The player **starts neutral**. The outpost is a remote village that sided with neither claimant. It is the hero's home town, which is why it is remote
+and why it still stands. Neutral lasts until Brenna learns what Rhodri did to her company (scenario 5): from then on she, and with her the
+village, stand with Fiona (section 2).
+
+**Why "the outpost".** The village was founded as the Wardline's outpost on the north road: the walled supply post where the knights of the
+border towers around it were fed, housed and relieved (that is why a village this small has walls, gates and wall towers). The towers emptied in
+the war, the knights went, and the village kept the name. It is the last post of the line still held, Veliron's outpost.
 
 ## 2. The characters
 
@@ -42,13 +47,21 @@ The royal family is **House Aldmoor**. Text always refers to a person by first n
 library and journals. A new named character is added only if a scenario needs one.
 
 **The hero** (**Brenna**) is a **woman**. One of the royal knights. She was in the military, so she served heir 2, who later became **evil**. She
-was **betrayed by that side**: Rhodri had the pass held with no relief so that her company could be given to his ritual and bound, and she escaped
-it (scenario 5, section 4). She left and went back to her home town, the outpost. The game's hero (see `hero-design.md`) is this character. Her
+was **betrayed by that side**: Rhodri had the pass held with no relief so that her company could be given to the crown's ritual and bound to him
+(scenario 5, section 4). She escaped it only because she was not there: her captain, **Lysa**, uneasy about the order, sent her down the pass by
+night with a plea for relief. Brenna came back the next evening without it and saw the ritual from the ridge, too late and alone. She could tell
+no one who would believe a deserter against the crown, the roll of the fallen lists her with the whole company, and she went back to her home
+town, the outpost. The game's hero (see `hero-design.md`) is this character. Her
 mode-based behaviour stays as it is; the story gives it a face. (The game's texts, its code comments and `hero-design.md` call the hero "she".)
 
 The military's distrust of heir 1 was about a woman **ruling and commanding the realm**, not about women serving in the ranks. The hero is a
 knight who earned her place, which makes her an exception worth a line of story: she served the side whose officers would not have accepted a
 woman as their queen. The betrayal explains why she stays away from court, and the last scenarios carry a personal stake for her.
+
+**Why she helps Fiona.** Once she knows what was done to her company (scenario 5), staying neutral is no longer possible for her: Rhodri gave her
+comrades to his crown, and the only other claimant is his sister. Fiona is the obvious counter-choice, not a cause Brenna believed in before.
+Fiona and her side first reject her because she is from the military, the side that refused Fiona. Earning their trust is part of scenarios 7
+(Fiona) and 9 (the priests of the abbey).
 
 **The merchant** (**Pell**) is a man. An old friend of the hero. When everything went wrong, he came back to the remote village, and that is why
 the outpost has a trader. He arrives at the end of scenario 1, belongs to the **neutral guild** (section 6), and is with her from then on.
@@ -71,24 +84,37 @@ manpower and stone, not magic.
 **The claimants**
 
 - **The old king** is **Orsin**. His queen, **Aislyn**, died giving birth to heir 2. Both heirs are their children.
-- **Heir 1** (**Fiona**, woman, the elder): supported by the **court mages and the church**. The old king never confirmed her as heir, because the
-  military distrusted her ("a woman can't lead"). He waited, and waited too long: he died too early.
+- **Heir 1** (**Fiona**, woman, the elder): supported by the **court mages and the church**. By the old law the elder inherits, and Orsin meant
+  the crown for her. He never confirmed her (why: below).
 - **Heir 2** (**Rhodri**, man, the younger): supported by the **military**. He was not the rightful heir, but wanted the power. His greed is the
   root of his fall.
+
+**Why Orsin named no heir.** He had two choices and saw that each one would start the war he feared:
+- **Naming Fiona** was the law and his wish. But the military, the realm's whole armed force, would not serve a woman ruling and commanding the
+  realm. Crowned against them, she would have had an army that might not obey her, or that turned to her brother. Orsin did not want to leave
+  her a crown and a rebellion.
+- **Naming Rhodri** would have pleased the army. But he was the younger, so it broke the law of succession, and the church and the court mages,
+  who uphold that law, would have stood against the crown. And Orsin knew his son: Rhodri was already greedy for power, and Orsin did not trust
+  him with it.
+- **So he waited.** He meant to win the officers over to Fiona slowly, through the years he expected to have left, and to name her once the army
+  would follow. He kept it to himself, so as not to force either side's hand. He died first, suddenly, with nothing written down, and each side
+  read his silence as it liked. The war began over what he had not said.
 
 **The sequence**
 
 1. The king dies without having confirmed an heir. The military backs heir 2, the court mages and the church back heir 1. The two sides are not
    aligned, and the war begins.
-2. **Spies from the neighbouring countries** (below) offer heir 2 help, in some form, and that help slowly corrupts him. One of them, posing as a
-   **goldsmith**, is a very powerful mage: he works on the old king's crown for Rhodri (see the crown, below). The story makes clear that the
+2. **Spies from the neighbouring countries** (below) offer heir 2 help, and that help slowly corrupts him. One of them, posing as a
+   **goldsmith**, is a very powerful mage: he works on the old king's crown for Rhodri (see the crown, below). The crown's enchantment is the
+   help. The story makes clear that the
    spies were the reason. It stays **unclear whom they belonged to**.
 3. Both sides pull knights off the Wardline and the towers empty.
 4. The wilderness walks in: goblins and orks first.
 5. Renegades (deserters, unpaid soldiers, ruined merchants) prey on the roads.
-6. Heir 2's corruption grows. To keep winning he sacrifices his own towns and soldiers for power, and that becomes part of the corruption. The
-   hero is betrayed in this step (scenario 5). The soldiers he gives to the ritual are not killed but **bound** by it, a will-bending like
-   brainwashing, and become the **Dread Legion**, his army.
+6. Heir 2's corruption grows. To keep winning he gives his own towns and soldiers to the crown's ritual, and that becomes part of the corruption.
+   The hero is betrayed in this step (scenario 5). The soldiers given to it are not killed but **bound to Rhodri**: the ritual takes their free
+   will, a will-bending like brainwashing, and they become the **Dread Legion**, his army. What it takes from them feeds the crown, and the crown
+   feeds on its wearer in turn.
 7. The war's unburied dead rise. The evil is drawn by a kingdom full of death and gathers around heir 2. He does not create it: monsters still
    have no single source.
 8. Heir 1 flees into exile, with what is left of the court mages and the church. The capital burns, but the palace stands: Rhodri holds court in
@@ -111,7 +137,10 @@ and the split, and it is on **Rhodri's side**. It is "pale" because the corrupti
 
 **The crown and the First King's Hand**
 - **The crown** is the old king's own, a typical crown. Rhodri had a foreign "goldsmith" (really one of the spies, a very powerful mage) work on
-  it, and it now glows and sends out malice. It is clearly an artifact. What exactly the goldsmith did is unclear: he cursed it.
+  it, and it now glows and sends out malice. It is clearly an artifact. The goldsmith laid an enchantment on it: the **ritual** that binds
+  whoever is given to it to the crown's wearer, taking their will. It is part of the crown now, not a gift beside it, and every binding makes
+  Rhodri stronger and paler: the ritual and his corruption are one thing. Why the goldsmith made it, and for whom, stays unclear: he cursed it.
+  The ritual needs the crown near: Rhodri came to the pass himself (scenario 5).
 - **The First King's Hand** is a sword, a relic of the first king, who founded the Wardline. It is ornate and clearly a relic, not a weapon for
   battle. It is said to "cleanse the blood" and to "rule with righteousness", so the story assumes it helps against Rhodri. **Nobody actually
   knows if it does.** Some priests hid it and sank their abbey to keep it from Rhodri, because they feared he could rise over Fiona (scenario 9:
@@ -121,7 +150,10 @@ and the split, and it is on **Rhodri's side**. It is "pale" because the corrupti
 - The **mage's tower** (apprentice) and the **ruined chapel** (acolyte) belong to heir 1's supporters, the court mages and the church. Unlocking a
   unit means finding what is left of them (the chapel in scenario 6, the tower in Fiona's refuge in scenario 7).
 - The **stone circle** (summoner) belongs to **druids**. They stayed out of the question of the succession and kept their distance from the whole
-  conflict. They are not part of heir 1's alliance (scenario 7).
+  conflict. They are not part of heir 1's alliance (scenario 7). Why: their pact with the first king, as old as the Wardline, says the druids keep
+  the land and the crown keeps the border, and neither meddles in the other's affairs. A quarrel over who wears the crown is the crown's affair.
+  The church that backs Fiona also once drove the druids out of the towns, so they owe her side nothing. They defend their own grove, and they
+  let the refuge stand beside it.
 
 **The neighbouring countries**
 

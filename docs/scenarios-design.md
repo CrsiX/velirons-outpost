@@ -241,14 +241,19 @@ attacks one only on the player's order). The fort is hard to expand because of t
   of the neighbouring courts (an object that does not settle whose).
 - At the last wave the gargoyles of the fort's old gate come alive, fly out and then attack.
 
-**Story covered:** how Brenna was **betrayed**. Rhodri ordered the pass held with no relief, so that her company could be given to a ritual. She
-saw it: the ritual did not kill them, it **bound** them, and the foreign gift fed on it (the first trace of what it is). She left to warn someone
-and was thought dead, and the roll of the fallen lists the whole company. They are alive, and they are the core of the **Dread Legion**.
+**Story covered:** how Brenna was **betrayed**. Rhodri ordered the pass held with no relief, so that her company could be given to the crown's
+ritual. She saw it: Rhodri came to the pass himself, the crown on his head glowing pale, and the ritual did not kill them, it **bound them to
+Rhodri**, taking their will (the first trace of what the crown is: `story-design.md` section 4). **Why she was not bound:** she was not in the
+fort. Her captain, **Lysa**, uneasy about the order, had sent her down the pass the night before with a plea for relief; Brenna came back without
+it and watched from the ridge, too late and alone. Nobody would have believed a deserter against the crown, so she went home and was thought
+dead: the roll of the fallen lists the whole company, her too. They are alive, and they are the core of the **Dread Legion**. Lysa saved her and
+is bound herself, which is why Brenna wants to free them (scenario 10). This is where Brenna stops being neutral (`story-design.md` section 2).
 
 **Intro cutscene:** Brenna sees the fort again for the first time since she left. The gate, the barracks, the field where the company stood.
 
-**Outro cutscene:** she reads the order aloud: *"Hold until the last. Do not ask for relief."* Pell says nothing. Brenna says the dead of this
-pass were never buried, and the next place to go is the field where the armies met.
+**Outro cutscene:** she reads the order aloud: *"Hold until the last. Do not ask for relief."* Pell says nothing. Brenna: Rhodri gave her company
+to his crown, and the only one left who can stand against him is his sister. She will find Fiona. Pell knows Fiona's court fled east; the way
+there crosses the field where the armies met, and Brenna says the dead of this pass were never buried either.
 
 ### 6. The Dead
 
@@ -271,13 +276,14 @@ acolyte's holy damage is the answer to the Undead, but the player must find and 
 - Wave 3 brings the first necromancer.
 - The chapel awakens when the hero visits it, and the acolyte becomes available.
 
-**Story covered:** the war's scale. The unburied dead are why the Undead rise. These were Fiona's soldiers and mages, who fell here, and Rhodri's.
+**Story covered:** the war's scale. The unburied dead are why the Undead rise. These were Fiona's soldiers and mages, who fell here, and Rhodri's soldiers.
 The church tried to bury them and could not. Why the dead rising is not Rhodri's will alone: he feeds on the war, but everyone's dead rise.
 
 **Intro cutscene:** an open plain of bones under a pale sky. The priest, alone, digging a grave.
 
 **Outro cutscene:** the last grave is filled. The priest tells Brenna that Fiona's court and the church went east, to a valley where the druids
-keep their distance from the war. He gives her a token that will get her through.
+keep their distance from the war. He gives her a token that will get her through: a priest's word for a knight of Rhodri's army, which will get
+her in, but not trusted.
 
 ### 7. The Exile
 
@@ -302,14 +308,23 @@ be hired.
 a bit outside in a tent.
 - After wave 2 completes, Fiona opens up a little. Villagers can be commanded and recruited. Buildings may be repaired and/or rebuilt
 but no new buildings may be constructed.
-- At wave 5 the druids' grove is attacked, and the summoner is unlocked. The druids' elder calls for help. During this wave, no druid
-  must die.
-- After wave 7 completes, Fiona has opened up enough that she permits the player to build new buildings. She will introduce a few more story parts.
+- At wave 5 the druids' grove is attacked, and the summoner is unlocked. The druids' elder calls for help, and says why the druids stayed
+  out of the war (`story-design.md` section 4, the unlock sites): their pact with the first king (the druids keep the land, the crown keeps the
+  border, neither meddles in the other's affairs; who wears the crown is the crown's affair), and the church on Fiona's side once drove them from
+  the towns, so they owe her side nothing. They fight for their grove, not for her. During this wave, no druid must die.
+- After wave 7 completes, Fiona has opened up enough that she permits the player to build new buildings. She tells Brenna, in a scene, why
+  their father never named her (`story-design.md` section 4, *Why Orsin named no heir*): the law and his wish were hers, but the army would not
+  follow a queen, and crowning her against it would have left her a crown and a rebellion; naming Rhodri would have broken the law, set the
+  church and the mages against the crown, and put power in the hands of a son he knew was greedy for it. So he waited to win the officers over,
+  told no one, and died first. Her line to end it: "He was waiting for your side to change its mind. I was his answer, and he never gave it."
 - At the end of the waves the working completes.
 
-**Story covered:** Fiona's side. Why the old king waited (the military's distrust of a woman ruling). What the court mages and the church saw:
-Rhodri changed after the **envoys came**, but Fiona cannot say from where. Why the druids stayed out. A parallel: two women, both rejected by the
-same side.
+**Story covered:** Fiona's side. Why the old king named no heir, told by Fiona after wave 7 (above): neither Fiona (the army would not follow
+her) nor Rhodri (against the law, the church and the mages, and greedy) without a war, so he waited and died first. What the court mages and the church saw: Rhodri changed after the **envoys came**, but Fiona cannot
+say from where. Why the druids stayed out: their elder tells it at wave 5, the druids' old pact with the first king (they keep the land, the
+crown keeps the border, neither meddles in the other's affairs), and the church on Fiona's side once drove them from the towns. A parallel: two
+women, both rejected by the same side, and Fiona now rejects Brenna for having served it. Brenna came because of what was done to her company:
+Fiona learns that her brother's crown binds people, and that Brenna has nowhere else to go.
 
 **Intro cutscene:** Brenna and Pell come out of the trees into the valley. Fiona waits at the gate with two mages.
 
@@ -392,11 +407,16 @@ last wave is the hardest.
 
 **Events:**
 - Waves 1 to 3: crabs, to teach the water side (the octopus is not part of the waves). Pell's guild boats ferry in a few supplies at fixed waves.
-- At wave 4 the priests tell, afraid, what the abbey hides: the relic and how to reach the crypt. They support Fiona but hid the sword, because
-  they feared Rhodri could rise over her.
-- At wave 6 the first Legion force arrives on the causeway. Its captain, **Lysa**, Brenna's old captain, demands the relic. Brenna recognises her.
-- When the leviathan is slain, the priests agree that the sword goes to Fiona, and the scenario ends.
-- The hero's trip is on the player's order. The relic can be taken from wave 7 on (earlier: the crypt is still sealed).
+- At the start the priests do not trust Brenna: she is military, a knight of the army that serves Rhodri, and Fiona's word (from scenario 7)
+  does not change what she wore. They hide and say nothing.
+- At wave 4 the priests tell, afraid, what the abbey hides: the relic and how to reach the crypt, but not that they will give it up. They support
+  Fiona but hid the sword, because they feared Rhodri could rise over her.
+- At wave 6 the first Legion force arrives on the causeway. Its captain, **Lysa**, Brenna's old captain, demands the relic. Brenna recognises her
+  and refuses her own old company. The priests see it.
+- The hero's trip is on the player's order. The relic can be taken from wave 7 on: the priests unseal the crypt then, because the Legion at the
+  causeway is the worse risk, but they still do not give the sword to Brenna.
+- When the leviathan is slain, the priests agree that the sword goes to Fiona, and the scenario ends: Brenna has risked her life for their
+  village, and they see the goodwill in her.
 - When the relic is taken, the leviathan rises. The last wave is its attack, with the Legion's rest on the causeway at the same time.
 
 **Story covered:** the **First King's Hand**: a ceremonial sword of the first king, who founded the Wardline, obviously a relic and not a weapon
@@ -404,11 +424,14 @@ for battle. It can "cleanse the blood" and "rule with righteousness", so the chu
 it does**. Some priests hid it and sank the abbey to keep it from Rhodri. Only someone of House Aldmoor can wield it (Fiona's line from scenario
 7). The Legion's
 captain hunts the sword while the main force marches home. This is not the church's stance (the church supports Fiona) but that of the priests of
-this place: they support Fiona, but feared Rhodri could rise over her, and they give up the sword only once the leviathan is slain.
+this place: they support Fiona, but feared Rhodri could rise over her. They distrust Brenna because she is military, from the side that serves
+Rhodri, and they give up the sword only once the leviathan is slain: not because of the kill, but because they have seen her defend their
+village and refuse her own company for it. Earning their trust is the scenario's thread, as Fiona's was in 7.
 
 **Intro cutscene:** Brenna and Pell arrive by ferry in mist. The abbey's spires stand out of the water, and a bell rings under it.
 
-**Outro cutscene:** the leviathan sinks. The priests come out of hiding and agree that the sword goes to Fiona. The relic glows in Brenna's hands.
+**Outro cutscene:** the leviathan sinks. The priests come out of hiding; the eldest says they took her for one of Rhodri's, and were wrong. They
+agree that the sword goes to Fiona. The relic glows in Brenna's hands.
 **Lysa**, the Legion's captain, dying, says the force at the abbey was
 only
 meant to hold her here: the main force of the Legion, led by the marshal Halvard, is already marching on her **home village**. She turns to Pell:
@@ -439,8 +462,9 @@ before the fight, a gimmick: whether he survives does not matter and is not trac
   get added to the military stock of the player.
 - The mid-boss wave at the end: Rhodri's marshal, Halvard, leads the legion.
 
-**Story covered:** what the outpost means. The villagers' loyalty. The first time the kingdom's last line holds against its fallen. Brenna's
-choice to stay and defend rather than chase Rhodri.
+**Story covered:** the villagers' loyalty: the village sided with no one in scenario 1; now it stands with **Fiona**, as Brenna does, and the
+Legion comes because of it. The restored Wardline, built to keep the wilderness out, now has to hold against the kingdom's own bound soldiers.
+Brenna's choice to stay and defend rather than chase Rhodri.
 
 **Intro cutscene:** Brenna and Pell on the home wall at dusk, the horizon full of torches. Brenna tells Pell who is out there: **Lysa**, her
 captain, and **Torben**, a comrade of her company. "I will free them."
