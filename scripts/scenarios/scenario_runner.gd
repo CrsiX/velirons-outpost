@@ -48,6 +48,8 @@ var mark := {}
 var start_villagers := 0
 ## Each objective's last state (id -> done), so a change is logged once.
 var _goal_state := {}
+## Objectives with "shown" that have appeared (id -> true).
+var _goal_shown := {}
 var _hints_shown := {}
 var _hint_left := 0.0
 var _poll := 0.0
@@ -111,6 +113,11 @@ func apply_baseline() -> void:
 			var h := huts[i] as Hut
 			h.ruined = true
 			h.refresh()
+	for kind: String in spec.piece_levels:
+		for b in v.buildings().filter(func(x: Building) -> bool: return x.kind == kind):
+			b.level = int(spec.piece_levels[kind])
+			b.hp = b.max_hp()
+			b.refresh()
 	for kind: String in spec.pieces_standing:
 		var list := v.buildings().filter(func(b: Building) -> bool: return b.kind == kind)
 		list.sort_custom(func(a: Building, b: Building) -> bool: return MapData.row_order(a.tile, b.tile))
@@ -142,7 +149,9 @@ func _prebuild() -> void:
 			b = _restore_ruin(kind, int(p["ruin"]))
 		else:
 			var t: Vector2i = p.get("tile", Vector2i(-1, -1))
-			if p.get("near_water", false):
+			if p.has("offset"):
+				t = _spot_near(kind, v.center + (p["offset"] as Vector2i), taken)
+			elif p.get("near_water", false):
 				t = _spot_by_water(kind, taken)
 			elif p.has("near_site"):
 				t = _spot_by_site(kind, str(p["near_site"]), taken)
@@ -185,6 +194,25 @@ func _restore_ruin(kind: String, i: int) -> Building:
 	var b := game.player_village.construction._new_building(kind, t, true)
 	game.fog.reveal(Vector2(t), 3.0, game.player_village.id)
 	return b
+
+
+## Where a `kind` goes near `want`: there, else the free spot nearest it
+## (off the roads, within 6 tiles); (-1, -1) if there is none.
+func _spot_near(kind: String, want: Vector2i, taken: Array[Vector2i]) -> Vector2i:
+	var v := game.player_village
+	var size := int(Config.BUILDINGS[kind]["size"])
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for dy in range(-6, 7):
+		for dx in range(-6, 7):
+			var t := want + Vector2i(dx, dy)
+			var d := Vector2(dx, dy).length()
+			if d >= best_d or Building.footprint(t, size).any(func(q: Vector2i) -> bool: return taken.has(q) or not game.map.in_bounds(q) or game.map.is_road(q)):
+				continue
+			if v.construction.placement_error(kind, t, true) == "":
+				best_d = d
+				best = t
+	return best
 
 
 ## Where a `kind` goes by the water: a free spot next to the walls (within
@@ -780,6 +808,12 @@ func _poll_now() -> void:
 	var all := not objectives.is_empty()
 	for o in objectives:
 		var id := str(o["id"])
+		if o.has("shown") and not _goal_shown.has(id):
+			if not (o["shown"] as Callable).call():
+				card.show_objective(id, false)
+				continue
+			_goal_shown[id] = true
+			card.show_objective(id, true)
 		var done: bool = (o["done"] as Callable).call()
 		var detail := str((o["detail"] as Callable).call()) if o.has("detail") else ""
 		card.set_objective(id, done, detail)
@@ -989,6 +1023,20 @@ func merchant() -> Merchant:
 		if c is Merchant:
 			return c
 	return null
+
+
+## A named villager of `role` joins: made in a free hut (none free: null),
+## standing on `at`, from where they go to work or home.
+func join_villager(role: String, who: String, at: Vector2i) -> Civilian:
+	var civ := game.population.spawn(role)
+	if civ == null:
+		return null
+	civ.given_name = who
+	civ.set_grid_pos(Vector2(at))
+	civ._set_home(false)
+	civ.resume_work()
+	game.events.info("%s joins the village" % who)
+	return civ
 
 
 ## The village's trade stalls.

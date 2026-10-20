@@ -470,7 +470,8 @@ func _approaches(v: Dictionary) -> int:
 static func approaches(map: MapData, v: Dictionary) -> int:
 	var n := 0
 	for g in v["gates"]:
-		var dir: Vector2i = (g - (v["center"] as Vector2i)).sign()
+		var off: Vector2i = g - (v["center"] as Vector2i)
+		var dir := Vector2i(signi(off.x), 0) if absi(off.x) > absi(off.y) else Vector2i(0, signi(off.y))  # (outward, also off the centre's line)
 		if map.is_road(g + dir * 2):
 			n += 1
 	return n

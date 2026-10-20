@@ -15,8 +15,9 @@ extends Node
 ## scenarios 2 and 3: Pell's arrival, his stall and its panel, a talk between
 ## waves, the Wardline's start, a journal page, a restored ruin and the road;
 ## (`--only=away`) scenarios 4 and 5: Wenna, the warehouse and the guild
-## house, the rival's offer (a choice), a plundering goblin; Sigmund, the
-## evidence card and a page, the Legion with its named captains;
+## house, the rival's offer (a choice), a plundering goblin; the empty fort,
+## the citadel in its pass, Sigmund found by his tent, a page (the game grey
+## behind it), the Legion with its named captains;
 ## (`--only=exile`) scenarios 6 and 7: Anselm, the field of the fallen, the
 ## graveyard filling; Fiona at the gate, Brenna's tent, the druids' grove and
 ## its panel, Fiona's house;
@@ -988,11 +989,27 @@ func _away() -> void:
 	await _frames(3)
 	g = await _scenario_game(5)
 	sc = g.scenario
+	await _cut_to_line(sc, "pell")
+	await shot("away_s5_empty_fort")
+	sc.cutscene.skip()
+	await _frames(30)
+	await shot("away_s5_fort_card")
+	g.camera.focus(Iso.to_world(Vector2(g.player_village.center)))
+	g.camera.zoom = Vector2(0.9, 0.9)
+	await _frames(20)
+	await shot("away_s5_citadel")
+	g.camera.zoom = Vector2(0.35, 0.35)
+	await _frames(20)
+	await shot("away_s5_pass")
+	g.fog.reveal(Vector2(sc.spec.SIGMUND_TENT), 3.0, g.player_village.id)
+	for i in 120:
+		await _frames(1)
+		if sc.cutscene != null:
+			break
 	await _cut_to_line(sc, "sigmund")
 	await shot("away_s5_sigmund")
 	sc.cutscene.skip()
 	await _frames(30)
-	await shot("away_s5_evidence_card")
 	(sc.spec._evidence(sc)[0] as Treasure).mark_looted()
 	for i in 120:
 		await _frames(1)

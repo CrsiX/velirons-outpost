@@ -39,7 +39,7 @@ func placement_error(kind: String, tile: Vector2i, free: bool = false) -> String
 			return "Outside the map"
 		if not free and not game.fog.is_explored_by(village.id, t):
 			return "Unexplored land"
-		if map.in_village(t):
+		if map.in_village(t) and not (game.scenario and game.scenario.spec.build_inside):
 			return "Must be outside the village walls"
 		if map.building_at(t) != null:
 			return "Something is already built here"

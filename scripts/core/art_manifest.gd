@@ -261,5 +261,6 @@ const SPRITES := {
 	"watchtower_front_2": {"ax": 51.64, "ay": 126.68, "w": 117.5, "h": 157},
 	"watchtower_front_3": {"ax": 51.64, "ay": 126.68, "w": 117.5, "h": 157},
 	"watchtower_ruin": {"ax": 51.64, "ay": 107.32, "w": 101, "h": 137.5},
+	"well_dry": {"ax": 27, "ay": 56, "w": 54, "h": 72},
 	"worker_camp": {"ax": 54.2, "ay": 64.68, "w": 108.5, "h": 93.5},
 }

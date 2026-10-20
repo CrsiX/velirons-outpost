@@ -4406,6 +4406,48 @@ def boulder():
     a.save("boulder")
 
 
+def well_dry():
+    """A dried-up well (scenario 5's fort): a ring of stones, the shaft dark
+    and dry, a weathered frame with a little roof and a frayed rope. Decor only."""
+    rng = random.Random(530)
+    a = Art()
+    rx, ry, h = 17, 8.5, 13
+    a.shadow(24, 10, cy=3)
+    stone, stone_d, stone_l = "#78726a", "#5c574f", "#928c82"
+    # The drum: its front half from the rim down to the ground.
+    n = 16
+    front = [(math.cos(math.pi * i / n) * rx, math.sin(math.pi * i / n) * ry) for i in range(n + 1)]
+    body = [(x, y - h) for (x, y) in front] + [(x, y) for (x, y) in reversed(front)]
+    a.poly(body, stone, INK, 1.4)
+    for k, yy in enumerate([-h * 0.66, -h * 0.33]):  # stone courses and joints
+        a.line([(x, y + yy) for (x, y) in front[1:-1]], stone_d, 1.0, opacity=0.8)
+        for i in range(1 + k, n, 3):
+            x, y = front[i]
+            a.line([(x, y + yy), (x, y + yy + h * 0.33)], stone_d, 0.9, opacity=0.7)
+    # The rim and the dry shaft.
+    a.ellipse(0, -h, rx, ry, stone_l, INK, 1.4)
+    a.ellipse(0, -h + 0.5, rx * 0.72, ry * 0.66, "#241c15", INK, 1.0)
+    a.ellipse(1.5, -h + 2.2, rx * 0.42, ry * 0.3, "#5a4630", opacity=0.55)
+    a.line([(-3, -h + 2), (0, -h + 3), (2, -h + 1.8), (5, -h + 3)], "#3a2c1e", 0.8)
+    for _ in range(5):  # chipped stones on the rim
+        ang = rng.uniform(0, math.pi * 2)
+        a.ellipse(math.cos(ang) * rx * 0.86, -h + math.sin(ang) * ry * 0.86, 2.4, 1.3, stone_d, opacity=0.8)
+    # The frame: two posts, a beam, a small gabled roof with a missing shingle.
+    wood, wood_d = "#7a5a3a", "#5a4028"
+    for x in (-rx * 0.82, rx * 0.82):
+        a.line([(x, -h + 2), (x, -h - 30)], INK, 5.2)
+        a.line([(x, -h + 2), (x, -h - 30)], wood, 3.0)
+    a.line([(-rx * 0.82 - 2, -h - 27), (rx * 0.82 + 2, -h - 27)], INK, 4.6)
+    a.line([(-rx * 0.82 - 2, -h - 27), (rx * 0.82 + 2, -h - 27)], wood_d, 2.6)
+    a.poly([(-rx - 3, -h - 29), (0, -h - 40), (rx + 3, -h - 29), (rx - 1, -h - 27), (0, -h - 36), (-rx + 1, -h - 27)], "#6a4a2e", INK, 1.3)
+    a.line([(4, -h - 34.5), (8, -h - 32)], "#2a1e14", 1.6)
+    # The rope, frayed short of the water that isn't there.
+    a.line([(0.5, -h - 27), (0.5, -h - 11)], "#b89a6a", 1.4)
+    a.line([(0.5, -h - 11), (-1.2, -h - 8.5)], "#b89a6a", 0.9)
+    a.line([(0.5, -h - 11), (2.2, -h - 8.8)], "#b89a6a", 0.9)
+    a.save("well_dry")
+
+
 def cactus():
     a = Art()
     a.shadow(12, 5)
@@ -5451,6 +5493,7 @@ def biome_art():
             bridge(style, axis)
     reeds()
     boulder()
+    well_dry()
     cactus()
     stump_charred()
     lava_rock()

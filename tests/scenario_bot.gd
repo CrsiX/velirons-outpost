@@ -902,21 +902,67 @@ func _scenario_5() -> void:
 	print("-- scenario 5: setup")
 	await _new_game(5)
 	var v := game.player_village
+	var c := v.center
 	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Old Fort", "scenario 5 runs on the old fort's map")
-	var sig := game.population.civilians.filter(func(c: Civilian) -> bool: return c.given_name == "Sigmund")
-	check(sig.size() == 1 and (sig[0] as Civilian).role == "builder", "Sigmund is there, a builder")
-	check(v.intact_huts().size() == 6, "six huts stand (%d)" % v.intact_huts().size())
-	check(sc.pieces("wall").filter(func(b: Building) -> bool: return not b.devastated).size() == 2, "two walls stand")
-	check(sc.stalls().size() == 1 and sc.stalls()[0].level == 1, "Pell's wagon: a peddler's stall")
+	check(game.map.is_mountain(c + Vector2i(-4, 0)) and game.map.is_mountain(c + Vector2i(4, 0)) and game.map.is_mountain(Vector2i(4, c.y)) and game.map.is_mountain(Vector2i(game.map.size - 5, c.y)),
+		"the fort fills a pass through a range across the map")
+	check(sc.pieces("gate").size() == 2 and sc.pieces("wall_tower").size() == 4 and sc.pieces("wall").size() == 8 and sc.pieces("gate").all(func(b: Building) -> bool: return absi(b.tile.x - c.x) <= 1),
+		"two walls across the pass, a gate in each and a tower at each end")
+	check(sc.pieces("gate").all(func(b: Building) -> bool: return b.level == 2 and b.hp == b.max_hp()), "both gates at level 2")
+	check(v.buildings().all(func(b: Building) -> bool: return not b.devastated) and v.intact_huts().size() == 4 and v.huts().size() == 4, "everything stands whole, 4 huts")
+	check(game.population.count() == 1 and game.population.civilians[0] is Merchant and game.population.civilians[0].given_name == "Pell", "only Pell lives there")
+	var inside := v.buildings().filter(func(b: Building) -> bool: return (b.kind == "barracks" or b.kind == "training") and v.rect.has_point(b.tile))
+	check(inside.size() == 3 and inside.all(func(b: Building) -> bool: return b.complete and (b as MilitaryPost).units().is_empty()), "two barracks and training grounds inside, empty")
+	check(game.map.decor.get(c + Vector2i(-2, -1), "") == "well_dry" and game.world.is_tree(c + Vector2i(-3, 0)), "a dried-up well and one dead tree inside")
+	check(v.huts().all(func(h: Building) -> bool: return game.world.pathing.is_walkable(h.tile + Vector2i(1, 0)) and v.huts().all(func(o: Building) -> bool: return o == h or Vector2(o.tile).distance_to(Vector2(h.tile)) >= 2.0)),
+		"the huts a tile apart, and a tile clear of the mountains")
+	check(sc.farms().filter(func(b: Building) -> bool: return not (b is Stall)).is_empty(), "no farm")
+	check(sc.stalls().size() == 1 and sc.stalls()[0].tile.y > v.rect.end.y and (sc.stalls()[0] as Stall).farmer == sc.merchant(), "Pell's stall outside the south gate, Pell at it")
+	var north := game.map.edge_spawns.filter(func(t: Vector2i) -> bool: return t.y < c.y)
+	check(game.map.edge_spawns.size() == 6 and north.size() == 3, "six roads in, three from each side (%d, %d north)" % [game.map.edge_spawns.size(), north.size()])
+	var camps := game.world.map_objects.filter(func(o: Node) -> bool: return o is MonsterCamp)
+	check(not camps.is_empty() and camps.all(func(o: MonsterCamp) -> bool: return o.tile.y < c.y), "the monster camps are all in the north")
+	check(["oak", "pine"].has(game.map.zone(Vector2i(c.x, 8))) and ["meadow", "steppe"].has(game.map.zone(Vector2i(c.x + 6, game.map.size - 8))), "forest to the north, meadow and steppe to the south")
+	check(v.construction.placement_error("tower", c + Vector2i(3, 0), true) == "", "buildings may go inside the fort")
+	check(game.population.retire_error(game.population.civilians[0]) != "", "Pell can't retire")
 	check(game.hero.level == 6 and not sc.spec.hero_revives, "Brenna at level 7, no revive")
 	var ev: Array = sc.spec._evidence(sc)
-	check(ev.size() == 3, "three treasures hold the evidence")
-	check(ev.all(func(o: Treasure) -> bool: return game.fog.is_explored_by(v.id, o.tile)), "their places are known")
+	check(ev.size() == 3 and ev.filter(func(o: Treasure) -> bool: return o.tile.y < c.y).size() == 2, "three treasures hold the evidence, two north and one south")
+	check(not ev.any(func(o: Treasure) -> bool: return game.fog.is_explored_by(v.id, o.tile)), "their places are hidden in the fog")
+	check(sc.spec.steps(sc).all(func(st: Dictionary) -> bool: return not st.has("point") or not (st["point"] as Callable).call().has("tiles")), "no card marks where they lie")
+	var tent := sc.spec.SIGMUND_TENT as Vector2i
+	check(tent.y > c.y and game.world.pathing.is_walkable(tent) and not game.fog.is_explored_by(v.id, tent) and not (sc.mark["sigmund actor"] as Node2D).visible, "Sigmund's tent in the south, hidden")
+	check(game.waves.hold and not game.waves.can_call(), "wave 1 waits for Sigmund, and can't be called")
 	check(game.waves.scripted.size() == 10, "ten waves")
 	await wait(1.0)
 	var said := await _watch(sc.cutscene)
-	check(said.has("sigmund") and said.has("brenna"), "the intro: Sigmund and Brenna (%s)" % str(said))
-	check(sc.card.lesson_title() == "The evidence", "the evidence card")
+	check(said.has("pell") and said.has("brenna"), "the intro: Brenna and Pell (%s)" % str(said))
+	check(sc.card.lesson_title() == "An empty fort", "the empty fort card")
+	check(not (sc.card._rows["roof"]["tick"] as Control).get_parent().visible, "Sigmund's roof isn't an objective yet")
+
+	print("-- scenario 5: Sigmund, the huts full")
+	for role in ["farmer", "forester", "gatherer"]:
+		cmd("recruit_villager", {"role": role})
+	check(game.population.count() == 4 and game.population.free_huts().is_empty(), "three recruits fill the fort")
+	check(await wait_until(func() -> bool: return sc.card.lesson_title() == "Man the fort", 5.0), "then: man the fort")
+	game.fog.reveal(Vector2(tent), 2.0, v.id)
+	check(await wait_until(func() -> bool: return sc.mark.has("sigmund found"), 3.0), "his tent uncovered: Sigmund is found")
+	check((sc.mark["sigmund actor"] as Node2D).visible and sc.cutscene != null, "he shows by his tent, and tells Brenna why")
+	await _skip_scene()
+	check(not game.waves.hold and game.waves.countdown > 0.0, "wave 1 is on its way (%.0f s)" % game.waves.countdown)
+	await wait(1.0)
+	check(not sc.mark.has("sigmund in") and game.population.count() == 4, "no hut free, no builder: he waits")
+	check((sc.card._rows["roof"]["tick"] as Control).get_parent().visible and not sc._goal_state.get("roof", true), "the objective: give Sigmund a roof")
+	check(sc._hints_shown.has("roof"), "a hint: retire someone")
+	var gath: Civilian = game.population.civilians.filter(func(x: Civilian) -> bool: return x.role == "gatherer")[0]
+	cmd("retire_villager", {"civilian": gath.nid})
+	check(await wait_until(func() -> bool: return sc.mark.has("sigmund in"), 3.0), "a gatherer retired: Sigmund moves in")
+	var sig := game.population.civilians.filter(func(x: Civilian) -> bool: return x.given_name == "Sigmund")
+	check(sig.size() == 1 and (sig[0] as Civilian).role == "builder" and game.population.count() == 4, "Sigmund, a builder, in the fort")
+	check(not is_instance_valid(sc.mark["tent"]), "his tent is packed up")
+	check(await wait_until(func() -> bool: return sc._goal_state.get("roof", false), 3.0), "the roof objective is met")
+	check(await wait_until(func() -> bool: return game.waves.in_progress(), 30.0), "wave 1 comes")
+	_kill_wave()
 
 	print("-- scenario 5: the Dread Legion")
 	cmd("hero_mode", {"mode": Hero.Mode.REST})
@@ -945,8 +991,11 @@ func _scenario_5() -> void:
 	for o: Treasure in ev:
 		o.mark_looted()
 		check(await wait_until(func() -> bool: return sc.journal != null and sc.journal.visible, 10.0), "a found piece: its page")
+		if pages == 0:
+			check(get_tree().paused and sc.journal._gray.visible, "the game waits behind it, grey")
 		pages += 1
 		_close_journal()
+		check(not sc.journal._gray.visible, "closed, the game has its colours back")
 	check(pages == 3 and int(sc.mark.get("found", 0)) == 3, "all three found (%d)" % int(sc.mark.get("found", 0)))
 	check(await wait_until(func() -> bool: return sc._goal_state.get("evidence", false), 5.0), "the evidence objective is met")
 
@@ -959,7 +1008,7 @@ func _scenario_5() -> void:
 	var legion := false
 	var captains := {}
 	var fell_back := false
-	var gate := sc.spec._old_gate(sc) as Vector2i
+	var gate := sc.spec._gargoyle_rock(sc) as Vector2i
 	var gargoyles := [0]
 	var seen := func(n: Node) -> void:  # (the guard kills them before the next look; a beaten captain leaves)
 		if n is Enemy and (n as Enemy).given_name != "":
@@ -1001,6 +1050,21 @@ func _scenario_5() -> void:
 	check(said.has("brenna") and said.has("pell"), "Brenna reads the order (%s)" % str(said))
 	await frames(3)
 	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Betrayal: complete", "won: %s" % game.hud._overlay_title.text)
+
+	print("-- scenario 5: Sigmund, a builder makes room")
+	await _new_game(5)
+	await wait(1.0)
+	await _skip_scene()
+	for role in ["builder", "farmer", "forester"]:
+		cmd("recruit_villager", {"role": role})
+	game.fog.reveal(Vector2(sc.spec.SIGMUND_TENT), 2.0, game.player_village.id)
+	await wait_until(func() -> bool: return sc.cutscene != null, 3.0)
+	check(not sc.mark.has("sigmund in"), "found: he waits by his tent while he talks")
+	await _skip_scene()
+	check(await wait_until(func() -> bool: return sc.mark.has("sigmund in"), 5.0), "then, the huts full: he moves in at once")
+	var builders := game.population.civilians.filter(func(x: Civilian) -> bool: return x.role == "builder")
+	check(builders.size() == 1 and builders[0].given_name == "Sigmund" and game.population.count() == 4, "the builder left, Sigmund took his hut")
+	check(not sc._hints_shown.has("roof") and await wait_until(func() -> bool: return sc._goal_state.get("roof", false), 3.0), "no hint, the roof objective met at once")
 
 
 # --- scenario 6: The Dead ---------------------------------------------------------------------

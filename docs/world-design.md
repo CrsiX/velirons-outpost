@@ -257,8 +257,9 @@ patch 8 tiles east of the centre.
 - **Gates:** a road leaves by the gate facing where it goes. A gate that
   already has a road counts as a little worse (−1.5 in the choice), so roads
   spread over the gates, but two roads may still leave by the same gate. A
-  gate with a road leading away is an **approach**; every village needs at
-  least 2 (§5.3).
+  gate with a road leading away is an **approach** (a road two tiles out from
+  the gate, along the gate's main direction from the centre); every village
+  needs at least 2 (§5.3).
 - Roads never pass through a village's walls.
 - **Mines** get a short road spur to the nearest road; **lairs** get a
   winding road (§9.6).

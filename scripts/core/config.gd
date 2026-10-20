@@ -403,6 +403,9 @@ const MAP_TYPES := {
 ## stands on the zone's mountain tiles instead of peaks (the city's houses),
 ## drawn on the zone's own ground. The city is never generated: only map files
 ## (the campaign's capital) have it.
+## Decorations no zone scatters, for hand-made maps (the map editor offers
+## them with the zones' own): the dried-up well in scenario 5's fort.
+const EXTRA_DECOR: Array[String] = ["well_dry"]
 const ZONE_ORDER: Array[String] = ["meadow", "oak", "pine", "heath", "steppe", "swamp", "ash", "city"]
 const ZONES := {
 	"meadow": {"name": "Meadow", "ground": ["tile_meadow_0", "tile_meadow_1", "tile_meadow_2"], "trees": 0.06, "mix": {"tree_oak": 1}, "decor": 0.0, "decor_mix": {}, "farm_bonus": 0.2},

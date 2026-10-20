@@ -147,6 +147,8 @@ func retire_error(civ: Civilian) -> String:
 		return "That isn't your villager"
 	if civilians.size() <= 1:
 		return "Your last villager can't retire"
+	if civ is Merchant or civ is Resident:
+		return "%s stays" % civ.label()
 	return ""
 
 
