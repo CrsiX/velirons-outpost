@@ -851,6 +851,9 @@ const FARM_WATER_BONUS := 0.1  # a farm next to water (meadow: ZONES.meadow.farm
 const FARM_CAPACITY := 40.0
 const EXPLORER_REVEAL := 2.6
 const EVADE_RADIUS := 4.5  # civilians run home when an enemy gets this close
+## A villager (or the hero) fleeing from a monster camp's guards uncovers the
+## camp this far round its tile (Civilian._reveal_camps), so it can be attacked.
+const CAMP_REVEAL := 1.5
 const EVADE_REST := 6.0
 const FORESTER_CHOP_SESSION := 4.0  # seconds of chopping per trip
 const FORESTER_REST := 3.0  # rest at the camp between trips

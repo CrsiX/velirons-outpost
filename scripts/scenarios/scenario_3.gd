@@ -66,8 +66,8 @@ func _init() -> void:
 const PAGES: Array[String] = [
 	"Third week of the thaw. Quiet on the line. Goblins in the far hills, but they know better than to come within bowshot of a manned tower. Mended the brazier.",
 	"Orders came today: half the garrison to march for the capital. Nobody says for whom. The tower next along has its lamp out tonight. Without it the road between us is blind.",
-	"Down to four men. We light the stones between the towers ourselves now. A tower alone sees its own stretch of road; a lit road between them is what makes them a line.",
-	"Last page. They called the rest of us in. If anyone reads this: the Wardline was never the stone. It was the lights between the stones, and the people who kept them burning.",
+	"Down to four men, too few to walk the road at night. So we set rune stones along it, between the towers: their glow shows us the stretch no tower can see. A tower alone sees its own bit of road; a lit road between them is what makes them a line.",
+	"Last page. They called the rest of us in, and the rune stones have gone dark behind us. If anyone reads this: the Wardline was never the towers. It was the light between them, and the people who kept it burning.",
 ]
 const LOGBOOK := "Garrison logbook, last entry:\n\n\"By order of the crown: abandon the post and march for the capital. The border will hold itself.\"\n\nIt is signed twice, once in Fiona's name and once in Rhodri's, as if either would do. The hand that wrote it is careful and square."
 
@@ -183,11 +183,12 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 			"done": func() -> bool: return g.army.units.any(func(u: MilitaryUnit) -> bool: return u.post is TrainingGrounds and r.mark.get("units", {}).has(u) and u.level > int(r.mark["units"][u][1])),
 			"point": func() -> Dictionary: return {} if g.hero.mode == Hero.Mode.TRAIN else {"hud": ["hero_mode:%d" % Hero.Mode.TRAIN, "hero"]}},
 		{"title": "Light the road",
+			"ready": func() -> bool: return not _known_dark_road(r).is_empty() or g.player_village.buildings().any(func(b: Building) -> bool: return b is LightStone),
+			"wait_title": "Explore the line",
+			"wait_text": "Keep Brenna (or an explorer) exploring north along the road. Once the road between a restored tower and the village is known, you can light it.",
 			"text": "A tower sees its own stretch of road. Light stones light the rest: place them where the road between the towers lies dark.",
 			"done": func() -> bool: return g.player_village.buildings().any(func(b: Building) -> bool: return b is LightStone and b.complete),
-			"point": func() -> Dictionary:
-				var dark := _dark_road(r)
-				return r.place_point("lightstone", [] if dark.is_empty() else [dark[dark.size() / 2]])},
+			"point": func() -> Dictionary: return r.place_point("lightstone", [])},  # (where: the player sees the dark road)
 	]
 
 
@@ -199,6 +200,12 @@ func hints(r: ScenarioRunner) -> Array[Dictionary]:
 		{"id": "pell",
 			"when": func() -> bool: return r.merchant() != null and r.merchant().evading,
 			"text": "Pell flees from an enemy! He must not die."},
+		{"id": "camp",
+			"when": func() -> bool: return _camps_found(r),
+			"text": "A monster camp! Its guards stay by it, and explorers (Brenna too) keep away from them, so the land around it stays dark. Brenna can attack it on your order (tap the camp: Attack with the hero), and towers and barracks within range fight its guards on their own."},
+		{"id": "explorer",
+			"when": func() -> bool: return (r.game.waves.wave > 3 or (r.game.waves.wave == 3 and not r.game.waves.in_progress())) and r.game.population.count("explorer") == 0,
+			"text": "No explorer in the village. Recruit one (Village tab; it needs a free hut): explorers uncover the land on their own, and Brenna is free for other work."},
 	]
 
 
@@ -265,6 +272,25 @@ func _line(r: ScenarioRunner) -> Array[Vector2i]:
 				seen[t] = true
 				out.append(t)
 	r.mark["line"] = out
+	return out
+
+
+## A monster camp the village has found, not yet cleared.
+func _camps_found(r: ScenarioRunner) -> bool:
+	return r.game.world.map_objects.any(func(o: MapObject) -> bool: return o is MonsterCamp and not (o is MonsterLair) and not (o as MonsterCamp).cleared and o.is_found_by(r.game.player_village))
+
+
+## The dark road of the line between the village and a restored tower that the
+## village has explored (where a light stone makes sense now).
+func _known_dark_road(r: ScenarioRunner) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var line := _line(r)
+	for s in r.ruin_sites:
+		if r.restored(s) == null:
+			continue
+		for t in r.road_to_village(s["tile"]):
+			if line.has(t) and not r.lit(t) and r.game.map.is_explored(t) and not out.has(t):
+				out.append(t)
 	return out
 
 

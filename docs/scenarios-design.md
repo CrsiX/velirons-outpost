@@ -766,13 +766,16 @@ The game has none of this yet, except where noted:
   big slimes and 6 rats), then the last again with 2 goblins, an ork and a thief more each time, until the objectives are met. The first wave comes
   after the usual 90 s; 45 s between waves.
 - **Story:** the intro (Brenna and Pell walk the north road to the first ruin; Pell explains the Wardline, Brenna served on it); each restored
-  watchtower gives up a page of its garrison's journal (four pages; the third says what the light stones between the towers are for), one at a
+  watchtower gives up a page of its garrison's journal (four pages; the third says what the light stones are for: rune stones the last garrison set along the road between the towers, whose glow shows the stretch no tower sees; the fourth that they have gone dark), one at a
   time; the restored barracks its logbook: the order to abandon the post, signed in both Fiona's and Rhodri's names, in a careful square hand,
   and Brenna knows it: Lysa's, her old captain's; the outro (the first guild caravan comes down the lit road; word from the border town: the
   guild's store there is under pressure; Brenna leaves home with Pell; from here on nobody can bring her back).
 - **Cards:** claim the ruins (Explore), restore a tower, specialise an archer, training grounds with a unit, Train mode (a level from Brenna's XP),
-  light the road (a light stone where the road is dark).
-- **Hints:** thieves on the road, Pell fleeing. **Objectives:** every ruined watchtower restored and manned (4); the barracks restored and manned;
+  light the road (a light stone where the road is dark; no spot is marked, only the Build tab's entry: the dark road shows where). The light card
+  waits (titled *Explore the line*) until a stretch of the line's road between the village and a restored tower is explored and still dark
+  (`_known_dark_road`), or a light stone was placed already.
+- **Hints:** thieves on the road, Pell fleeing, a monster camp found (its guards keep explorers and Brenna away; Brenna attacks it on order,
+  towers and barracks in range fight its guards by themselves), no explorer once wave 3 is over (recruit one). **Objectives:** every ruined watchtower restored and manned (4); the barracks restored and manned;
   the road of the line lit: every road tile from the village out to every ruin site watched by one of the village's buildings (what towers and
   light stones see, not where people walk; `ScenarioRunner.lit`).
 

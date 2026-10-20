@@ -86,11 +86,27 @@ func enemy_nearby() -> bool:
 
 func _evade() -> void:
 	village.events.debug("%s flees home from enemies" % label())
+	_reveal_camps()
 	evading = true
 	_on_evade()
 	sprite.rotation = 0.0
 	float_text("Enemies!", Color("ff7a6a"))
 	head_home()
+
+
+## Fleeing from a monster camp's guards: the camp is uncovered (and found) for
+## our village, so the hero can be sent to attack it even while the fog by it
+## stays (explorers keep away from camps).
+func _reveal_camps() -> void:
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var g := node as Enemy
+		if g.dead or g.grid_pos.distance_to(grid_pos) >= Config.EVADE_RADIUS or not (g.behavior is CampBehavior):
+			continue
+		var camp := (g.behavior as CampBehavior).camp as MapObject
+		if is_instance_valid(camp) and not camp.is_found_by(village):
+			game.fog.reveal(Vector2(camp.tile), Config.CAMP_REVEAL, village.id)
+			camp.on_found(village.id, false)
+			village.events.info("%s fled from %s" % [label().capitalize(), camp.label()])
 
 
 ## A loaded game (docs/save-design.md): out in the field (state, carried

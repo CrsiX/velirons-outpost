@@ -564,6 +564,11 @@ walk to:
 - Explorers (and the hero in Explore mode) keep away from camp guards (and
   awake lairs' guards). They would only flee home from them again and again,
   so the fog right by a camp waits until it's cleared.
+- **Fleeing uncovers the camp:** whoever flees from a camp's guards (an
+  explorer, any villager, the hero in Build / Explore / Gather; every game
+  type) uncovers the camp (`CAMP_REVEAL`, 1.5 tiles round its tile) and finds
+  it for their village (`Civilian._reveal_camps`, logged), so the hero can be
+  sent to attack it at once.
 
 ### 9.4 Unit-unlock sites
 

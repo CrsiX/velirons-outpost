@@ -331,6 +331,21 @@ func _test_game() -> void:
 	var guarded: Treasure = game.world.map_object(int(camp.data["guards"]))
 	check(guarded.guard() == camp and not guarded.lootable(), "a guarded treasure can't be looted before its camp is cleared")
 	check(camp.alive().size() == (camp.data["monsters"] as Array).size(), "the camp's monsters stand by their camp")
+	# Someone fleeing from a camp's guards uncovers the camp (so the hero can be sent).
+	var hidden := w.map_objects.filter(func(o: MapObject) -> bool: return o is MonsterCamp and not (o is MonsterLair) and not o.is_found_by(v) and not (o as MonsterCamp).alive().is_empty())
+	if not hidden.is_empty():
+		var far_camp: MonsterCamp = hidden[0]
+		var guard_e: Enemy = far_camp.alive()[0]
+		var runner: Civilian = game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "explorer")[0] if game.population.count("explorer") > 0 else game.population.civilians[0]
+		runner.at_home = false
+		runner.evading = false
+		runner.hp = 1e6  # (the guards hit it as it runs; it must live for the tests after)
+		runner.set_grid_pos(Vector2(game.world.pathing.nearest_walkable(Vector2i((guard_e.grid_pos + Vector2(3.0, 0)).round()))))
+		var fled := await wait_until(func() -> bool: return runner.evading, 5.0)
+		check(fled and far_camp.is_found_by(v) and game.map.is_explored(far_camp.tile), "a villager fleeing from a camp's guards uncovers the camp (fled %s)" % fled)
+		await wait_until(func() -> bool: return runner.at_home, 60.0)
+		runner.hp = runner.max_hp
+		check(far_camp.info()["actions"].any(func(a: Dictionary) -> bool: return a["label"] == "Attack with the hero"), "and its panel offers Attack with the hero")
 	hero.set_mode(Hero.Mode.DEFEND)
 	await wait_until(func() -> bool: return hero.at_home, 60.0)
 	logs.clear()

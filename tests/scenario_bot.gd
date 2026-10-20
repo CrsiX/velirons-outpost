@@ -586,6 +586,18 @@ func _scenario_3() -> void:
 	await _skip_scene()
 	check(sc.card.lesson_title() == "Claim the ruins", "the first card: claim the ruins")
 	check(not sc.spec._dark_road(sc).is_empty(), "the road out to the ruins is dark")
+	check(sc.spec._known_dark_road(sc).is_empty(), "no tower restored yet: no road to light (the light card would wait)")
+	var camps := game.world.map_objects.filter(func(o: MapObject) -> bool: return o is MonsterCamp and not (o is MonsterLair) and not (o as MonsterCamp).cleared)
+	check(not camps.is_empty(), "monster camps by the road")
+	if not camps.is_empty():
+		(camps[0] as MapObject).on_found(v.id, true)
+		check(await wait_until(func() -> bool: return sc._hints_shown.has("camp"), 10.0) and sc.card.hint().contains("Attack with the hero"), "a camp found: a hint on attacking it (%s)" % sc.card.hint())
+	var explorer_hint: Callable = sc.spec.hints(sc).filter(func(h: Dictionary) -> bool: return h["id"] == "explorer")[0]["when"]
+	var wave_was := game.waves.wave
+	check(not explorer_hint.call(), "no explorer hint before wave 3 is over")
+	game.waves.wave = 3
+	check(game.population.count("explorer") == 0 and (game.waves.in_progress() or explorer_hint.call()), "after wave 3, without an explorer: the hint to recruit one")
+	game.waves.wave = wave_was
 
 	print("-- scenario 3: claiming and restoring")
 	kill_camps = true  # (the builders would flee from the camps by the road)
@@ -661,6 +673,11 @@ func _scenario_3() -> void:
 		cmd("recruit_unit", {"kind": "shield_bearer" if post is Barracks else "archer"})
 		cmd("station_unit", {"unit": game.army.reserve()[0].nid, "post": post.nid})
 	check(await wait_until(func() -> bool: return sc._goal_state.get("towers", false) and sc._goal_state.get("barracks", false), 300.0), "every restored post is manned (%s)" % str(sc._goal_state))
+
+	print("-- scenario 3: the light card")
+	check(sc.spec._known_dark_road(sc).all(func(tt: Vector2i) -> bool: return game.map.is_explored(tt)), "the light card counts only road the village has explored")
+	if sc.step == sc.steps.size() - 1:
+		check(sc.highlight.tiles.is_empty(), "the light card marks no spot on the road")
 
 	print("-- scenario 3: lighting the road")
 	var stones := 0
