@@ -25,8 +25,7 @@ func _init() -> void:
 	enemy_scale = {"hp": 1.15, "damage": 1.15, "spell_damage": 1.15}
 	resources = {"gold": 300, "food": 170, "materials": 260}
 	civilians = ["builder", "builder", "farmer", "forester", "gatherer", "merchant", "priest", "priest"]
-	names = {"merchant": "Pell", "priest": "Mother Hilde"}
-	homes = {"Mother Hilde": {"art": "priest_house", "name": "The Priests' House"}}
+	names = {"merchant": "Pell"}
 	buildings = ["farm", "camp"]
 	huts_standing = 9
 	pieces_standing = {"wall": 6, "gate": 3, "wall_tower": 3}
@@ -74,7 +73,7 @@ func _init() -> void:
 	speakers = {
 		"brenna": {"name": "Brenna", "portrait": "portrait_brenna", "color": Color("e0b46a")},
 		"pell": {"name": "Pell", "portrait": "portrait_pell", "color": Color("e8c890")},
-		"hilde": {"name": "Mother Hilde", "portrait": "portrait_hilde", "color": Color("e0d4b8")},
+		"eldest": {"name": "The eldest priest", "portrait": "portrait_eldest_priest", "color": Color("e0d4b8")},
 		"lysa": {"name": "Lysa", "portrait": "portrait_lysa", "color": Color("c8ccd8")},
 	}
 
@@ -131,8 +130,8 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 	return [
 		{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.15, "time": 2.0},
 		{"say": "", "text": "The priests come out of their house, all of them, for the first time since Brenna came."},
-		{"say": "hilde", "text": "We took you for one of his. We were wrong. You stood on our shore against your own company, and against the deep."},
-		{"say": "hilde", "text": "The Hand goes to Fiona. Take it to her."},
+		{"say": "eldest", "text": "We took you for one of his. We were wrong. You stood on our shore against your own company, and against the deep."},
+		{"say": "eldest", "text": "The Hand goes to Fiona. Take it to her."},
 		{"say": "", "text": "In Brenna's hands the old sword glows, faintly, like a coal under ash."},
 		{"camera": r.at(abbey) + Vector2(0, -40), "zoom": 1.05, "time": 2.5},
 		{"say": "", "text": "On the causeway Lysa stops on her way back into the mist, and turns. For a moment her eyes are her own."},
@@ -168,11 +167,11 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 		TELL_WAVE:
 			r.mark["told"] = true
 			lines = [
-				{"say": "", "text": "Mother Hilde, the eldest of the priests, comes to the gate at last, and keeps her distance."},
-				{"say": "hilde", "text": "You want to know what the abbey hides. The First King's Hand: his own sword, a relic. We hid it there and let the water in over it, before the war."},
+				{"say": "", "text": "The eldest of the priests comes to the gate at last, and keeps her distance."},
+				{"say": "eldest", "text": "You want to know what the abbey hides. The First King's Hand: his own sword, a relic. We hid it there and let the water in over it, before the war."},
 				{"say": "brenna", "text": "Why hide it from your own side?"},
-				{"say": "hilde", "text": "We are with Fiona. But we feared he could rise over her. What he would do with it, we couldn't bear to think."},
-				{"say": "hilde", "text": "Its crypt is sealed, and vampires nest in it now. And in the deep water beside it lives something bigger. That is all I will say."},
+				{"say": "eldest", "text": "We are with Fiona. But we feared he could rise over her. What he would do with it, we couldn't bear to think."},
+				{"say": "eldest", "text": "Its crypt is sealed, and vampires nest in it now. And in the deep water beside it lives something bigger. That is all I will say."},
 			]
 		LEGION_WAVE:
 			r.mark["unsealed"] = true
@@ -182,8 +181,8 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 				ab.refresh()
 			g.events.info("The priests have unsealed the abbey's crypt")
 			lines = [
-				{"say": "hilde", "text": "We saw you refuse her. Your own captain."},
-				{"say": "hilde", "text": "The Legion knows where the Hand lies. Better you than them: we've unsealed the crypt. But the sword is not yours to keep, knight."},
+				{"say": "eldest", "text": "We saw you refuse her. Your own captain."},
+				{"say": "eldest", "text": "The Legion knows where the Hand lies. Better you than them: we've unsealed the crypt. But the sword is not yours to keep, knight."},
 				{"say": "brenna", "text": "I don't want it. I want it out of their reach."},
 			]
 	if lines.is_empty():
@@ -239,7 +238,7 @@ func on_poll(r: ScenarioRunner) -> void:
 			g.events.info("The leviathan is slain")
 			r.play_scene([
 				{"say": "", "text": "The leviathan sinks, and does not come up again. The lake goes still."},
-				{"say": "hilde", "text": "Knight. When this is over, come to our door."},
+				{"say": "eldest", "text": "Knight. When this is over, come to our door."},
 			])
 
 

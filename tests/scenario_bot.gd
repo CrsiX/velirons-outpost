@@ -1204,7 +1204,7 @@ func _scenario_8() -> void:
 	guard.queue_free()
 	Engine.time_scale = 1.0
 	said = await _watch(sc.cutscene)
-	check(said.has("tomas") and said.has("rhodri"), "the Hand, and Rhodri laughing (%s)" % str(said))
+	check(said.has("priest") and said.has("rhodri"), "the Hand, and Rhodri laughing (%s)" % str(said))
 	await frames(3)
 	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Pale Court: complete", "won: %s" % game.hud._overlay_title.text)
 
@@ -1272,7 +1272,7 @@ func _scenario_9() -> void:
 	var drowned := game.corpses.fallen().filter(func(c: Corpse) -> bool: return c.grid_pos.distance_to(Vector2(ab.tile)) < 5.0)
 	check(drowned.size() == sc.spec.DROWNED, "the drowned dead lie on the island (%d)" % drowned.size())
 	var priests := game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "priest")
-	check(priests.size() == 2 and priests.all(func(c: Civilian) -> bool: return c is Resident) and priests.any(func(c: Civilian) -> bool: return c.given_name == "Mother Hilde"), "two priests hide in their house, Mother Hilde the eldest")
+	check(priests.size() == 2 and priests.all(func(c: Civilian) -> bool: return c is Resident and c.given_name == ""), "two priests, unnamed, hide in their huts")
 	check(game.available("archer") and game.available("summoner") and game.army.reserve().size() == 2, "recruiting is open; two of the band in the reserve")
 	await wait(1.0)
 	var said := await _watch(sc.cutscene)
@@ -1345,6 +1345,6 @@ func _scenario_9() -> void:
 	guard.queue_free()
 	Engine.time_scale = 1.0
 	said = await _watch(sc.cutscene)
-	check(said.has("hilde") and said.has("lysa"), "the priests agree, and Lysa warns her (%s)" % str(said))
+	check(said.has("eldest") and said.has("lysa"), "the priests agree, and Lysa warns her (%s)" % str(said))
 	await frames(3)
 	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Drowned Abbey: complete", "won: %s" % game.hud._overlay_title.text)

@@ -83,7 +83,7 @@ func _init() -> void:
 		"idris": {"name": "Idris", "portrait": "portrait_mage", "color": Color("c0a8f0")},
 		"lothar": {"name": "Lothar", "portrait": "portrait_lothar", "color": Color("d8d4e4")},
 		"rurik": {"name": "Rurik", "portrait": "portrait_rurik", "color": Color("c8ccd8")},
-		"tomas": {"name": "Brother Tomas", "portrait": "portrait_tomas", "color": Color("d8c8a0")},
+		"priest": {"name": "A priest", "portrait": "portrait_church_priest", "color": Color("d8c8a0")},
 		"rhodri": {"name": "Rhodri", "portrait": "portrait_rhodri", "color": Color("b8c0d8")},
 	}
 
@@ -134,8 +134,8 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"say": "", "text": "On the throne sits Rhodri. On his head the old king's crown, reworked, glowing cold, and his face as pale as the light it gives."},
 		{"say": "brenna", "text": "It isn't a gift he wears. It's feeding on him."},
 		{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.15, "time": 2.0},
-		{"say": "tomas", "text": "Knight. I'm of the church, what's left of it here. Some of our priests hid something from him, long before the war: the First King's Hand."},
-		{"say": "tomas", "text": "A sword of the first king's, kept in the abbey that sank in the delta. It's said to cleanse the blood. Whether it can break such a thing as that crown, nobody knows."},
+		{"say": "priest", "text": "Knight. I'm of the church, what's left of it here. Some of our priests hid something from him, long before the war: the First King's Hand."},
+		{"say": "priest", "text": "A sword of the first king's, kept in the abbey that sank in the delta. It's said to cleanse the blood. Whether it can break such a thing as that crown, nobody knows."},
 		{"say": "idris", "text": "A rider from Fiona, just now. She has heard of it too. The Hand is real, she writes, and the priests of the delta still keep it."},
 		{"say": "brenna", "text": "Then we go to the delta, Pell."},
 		{"say": "pell", "text": "Of course we do."},

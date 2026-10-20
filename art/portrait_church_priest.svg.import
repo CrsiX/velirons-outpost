@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b6hylrib4uvj6"
-path="res://.godot/imported/portrait_hilde.svg-68a0f8cf200565f63db67c9898681c5d.ctex"
+uid="uid://dhs5jc01wibna"
+path="res://.godot/imported/portrait_church_priest.svg-5d8d775a3d0ec51d338bea76a2c78720.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/portrait_hilde.svg"
-dest_files=["res://.godot/imported/portrait_hilde.svg-68a0f8cf200565f63db67c9898681c5d.ctex"]
+source_file="res://art/portrait_church_priest.svg"
+dest_files=["res://.godot/imported/portrait_church_priest.svg-5d8d775a3d0ec51d338bea76a2c78720.ctex"]
 
 [params]
 

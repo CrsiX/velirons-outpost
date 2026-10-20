@@ -942,7 +942,7 @@ The game has none of this yet, except where noted:
 - **Maps:** `tools/make_scenario_map.gd` places lairs (`"add_lairs"`, their doors on the road), treasures with a camp beside them
   (`"add_camps"`) and an island (`"island"`: a road's stretch in a lake, bridges over it, a treasure and its camp on the island, a water
   spawn on the lake).
-- Portraits: `portrait_lothar`, `portrait_rurik`, `portrait_rhodri`, `portrait_tomas` (Brother Tomas), `portrait_hilde` (Mother Hilde).
+- Portraits: `portrait_lothar`, `portrait_rurik`, `portrait_rhodri`, `portrait_church_priest` (an unnamed priest, scenario 8), `portrait_eldest_priest` (the drowned shore's eldest priest, unnamed).
 
 ### 7.14 Scenario 8 as built (`scenario_8.gd`)
 
@@ -962,7 +962,7 @@ The game has none of this yet, except where noted:
 - **Story:** the intro (the capital by night; Lothar under a white flag greets Brenna and will come again; Idris: the Evil gathers in the
   crypts under the court); after wave 1 Idris on the Pale Court; after wave 3 Lothar's **offer** (a choice: *Go back to Rhodri's side* loses:
   "Brenna went back to Rhodri's side..."; *Refuse* goes on); after wave 5 the crown and the foreign goldsmith; wave 7 Rurik at the third
-  crypt ("I don't remember you."); his fall (released); the outro (the throne hall's gate; the crown feeds on Rhodri; Brother Tomas tells of
+  crypt ("I don't remember you."); his fall (released); the outro (the throne hall's gate; the crown feeds on Rhodri; a priest of the church tells of
   the First King's Hand in the sunken abbey; a rider from Fiona confirms it; Lothar reports the refusal and Rhodri laughs).
 - **Cards:** your band (station four), better, not more (upgrade a unit), the first crypt (waits for wave 1). **Hints:** vampire,
   necromancer, gargoyle, Legion archer, banner-bearer, guardsman, a Legion camp found, Rurik, Brenna badly hurt. **Objectives:** clear the
@@ -974,7 +974,7 @@ The game has none of this yet, except where noted:
   stretch 28 road tiles from the gate made an island in a lake (land 4.2, water 9.5 tiles), crossed on stone bridges; the abbey and a camp of
   2 vampires and a skeleton on the island; a water spawn on the lake).
 - **Baseline:** Easy, enemies at 1.15; 300 gold, 170 food, 260 material; two builders, a farmer, a forester, a gatherer, Pell and two
-  priests (residents, **Mother Hilde** the eldest, in *The Priests' House*); the farm and the camp; all huts stand, 6 walls, 3 gates, 3 wall
+  priests (residents, unnamed; the eldest speaks for them); the farm and the camp; all huts stand, 6 walls, 3 gates, 3 wall
   towers at 80 %; Pell's wagon, barracks (level 2) with a shield bearer (7) and an archer (6), two watchtowers (an archer 7 by the causeway
   road, an apprentice 6), a wall tower with an archer (6); a summoner and an acolyte (6) in the reserve. Brenna is level 14.
 - **Rules:** all five base kinds, unlocked, recruiting open; specialising, training grounds; no revive; Pell must not die.
@@ -988,7 +988,7 @@ The game has none of this yet, except where noted:
   is done. **Wave 6** brings **Lysa** with a column down the causeway (5 footmen, 2 archers, a banner-bearer, a guardsman). Pell's guild
   boats bring 40 gold, 60 food and 80 material after waves 2, 5 and 8. Wave 1 waits to be called; 45 s between waves.
 - **Story:** the intro (the ferry in the mist, the bell under the water; the priests shut their door on Rhodri's colours); after wave 1 Pell;
-  after wave 4 Mother Hilde tells what the abbey hides (the Hand; they hid it from Rhodri, fearing he could rise over Fiona; vampires and
+  after wave 4 the eldest priest tells what the abbey hides (the Hand; they hid it from Rhodri, fearing he could rise over Fiona; vampires and
   something bigger in the deep); wave 6 Lysa demands the relic and Brenna refuses her own captain; after wave 6 the priests unseal the crypt
   (better her than the Legion; the sword is not hers to keep); the relic taken (the bell stops, the leviathan rises); the leviathan slain;
   the outro (the priests come out: they were wrong, the Hand goes to Fiona; on the causeway Lysa, herself for a moment: they were only to

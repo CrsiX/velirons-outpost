@@ -1,7 +1,7 @@
 # Story design
 
 Status: **scenarios 1 to 9 are built** (Brenna, Einar, Pell, Wenna, Sigmund, Lysa and Torben, Anselm, Fiona, Elder Oren and Idris, Lothar,
-Rurik, Rhodri, Brother Tomas and Mother Hilde, the portraits, the cutscene format, the Legion's footman, captain, archer, guardsman,
+Rurik, Rhodri, the portraits, the cutscene format, the Legion's footman, captain, archer, guardsman,
 banner-bearer and champion: `scenarios-design.md` §7); the rest is planned. This page holds the story the game's scenarios, library texts and event log will draw on. It changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
 *open* is not decided.
 
@@ -38,8 +38,6 @@ nothing in the story depends on them.
 | **Fiona Aldmoor** | Heir 1, in exile | Scenarios 7 and 11 |
 | **Elder Oren** | The druids' elder at the refuge's grove | Scenario 7 |
 | **Idris** | A court mage at Fiona's refuge, who goes with Brenna | Scenarios 7 and 8 |
-| **Brother Tomas** | A church survivor in the capital | Scenario 8 |
-| **Mother Hilde** | The eldest of the priests on the drowned shore | Scenario 9 |
 | **Rhodri Aldmoor** | Heir 2, corrupted | Scenarios 8 to 11 |
 | **Orsin Aldmoor**, **Aislyn Aldmoor** | The old king and queen (the queen died giving birth to Rhodri) | Told, not seen |
 | **Lothar** | The Pale Court's herald; not killed until he is last needed | Scenarios 8, 10, 11 |

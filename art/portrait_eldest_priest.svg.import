@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ctbcftww78hvy"
-path="res://.godot/imported/portrait_tomas.svg-47ee938f2afcf76f8f702d4861e42ba2.ctex"
+uid="uid://5tk6sh827uej"
+path="res://.godot/imported/portrait_eldest_priest.svg-50cf9cc6d1ac3847b2b12224fc416866.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/portrait_tomas.svg"
-dest_files=["res://.godot/imported/portrait_tomas.svg-47ee938f2afcf76f8f702d4861e42ba2.ctex"]
+source_file="res://art/portrait_eldest_priest.svg"
+dest_files=["res://.godot/imported/portrait_eldest_priest.svg-50cf9cc6d1ac3847b2b12224fc416866.ctex"]
 
 [params]
 

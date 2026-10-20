@@ -1856,9 +1856,9 @@ def portraits_89():
   <ellipse cx="27" cy="25.8" rx="1.7" ry="1.2" fill="#b8d0ff" stroke="{INK}" stroke-width="0.6"/>
   <ellipse cx="37" cy="25.8" rx="1.7" ry="1.2" fill="#b8d0ff" stroke="{INK}" stroke-width="0.6"/>
   <path d="M28 33 Q32 35 37 32.5" fill="none" stroke="#8a7a8a" stroke-width="1.3" stroke-linecap="round"/>""", bg="#16141e")
-    # Brother Tomas, a church survivor in the capital: a young, thin face, a
+    # A priest of the church, a survivor in the capital: a young, thin face, a
     # brown habit with its hood down, a wooden cross on a cord.
-    portrait_svg("portrait_tomas", f"""
+    portrait_svg("portrait_church_priest", f"""
   <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#6a5238" stroke="{INK}" stroke-width="2.4"/>
   <path d="M14 46 Q32 38 50 46 Q44 50 32 50 Q20 50 14 46Z" fill="#5a4430" stroke="{INK}" stroke-width="1.6"/>
   <path d="M28 44 L32 52 L36 44" fill="none" stroke="#3a2a1a" stroke-width="1"/>
@@ -1869,9 +1869,9 @@ def portraits_89():
   <path d="M24 23 L29 22.5 M35 22.5 L40 23" stroke="#4a3220" stroke-width="1.4" stroke-linecap="round"/>
   <circle cx="27" cy="26" r="1.3" fill="{INK}"/><circle cx="37" cy="26" r="1.3" fill="{INK}"/>
   <path d="M29 33.5 Q32 34.5 35 33.5" fill="none" stroke="#8a5a4a" stroke-width="1.3" stroke-linecap="round"/>""", bg="#2a241c")
-    # Mother Hilde, the eldest priest of the drowned shore: a deeply lined
+    # The eldest priest of the drowned shore: a deeply lined
     # face, a white wimple under a dark-blue veil, wary eyes.
-    portrait_svg("portrait_hilde", f"""
+    portrait_svg("portrait_eldest_priest", f"""
   <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#26324a" stroke="{INK}" stroke-width="2.4"/>
   <path d="M10 44 Q8 6 32 4 Q56 6 54 44 L46 44 Q46 16 32 15 Q18 16 18 44Z" fill="#26324a" stroke="{INK}" stroke-width="2.2"/>
   <path d="M19 40 Q18 16 32 15 Q46 16 45 40 Q40 44 32 44 Q24 44 19 40Z" fill="#f0ece2" stroke="{INK}" stroke-width="1.8"/>

@@ -22,7 +22,7 @@ extends Node
 ## its panel, Fiona's house;
 ## (`--only=court`) scenarios 8 and 9: Lothar under his flag, a crypt and its
 ## guards, a Legion camp and its panel, the Legion's kinds on a road, Rurik;
-## the drowned abbey on its island with the octopus, Mother Hilde, the leviathan.
+## the drowned abbey on its island with the octopus, the eldest priest, the leviathan.
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -1125,9 +1125,9 @@ func _court() -> void:
 	await _frames(60)
 	await shot("court_s9_abbey")
 	g.deselect()
-	sc.play_scene([{"say": "hilde", "text": "You want to know what the abbey hides. The First King's Hand."}])
+	sc.play_scene([{"say": "eldest", "text": "You want to know what the abbey hides. The First King's Hand."}])
 	await _frames(40)
-	await shot("court_s9_hilde")
+	await shot("court_s9_eldest_priest")
 	sc.cutscene.skip()
 	await _frames(10)
 	var lev := g.waves.spawn_at("leviathan", sc.spec._lake_spawn(sc), v, 7)
