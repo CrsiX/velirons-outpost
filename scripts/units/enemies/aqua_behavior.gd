@@ -5,7 +5,8 @@ extends EnemyBehavior
 ## deep tiles of their own body of water towards a spot near the village.
 
 ## Deep tiles of its body near its village (where it looks for a spot), and
-## the one nearest the village centre (where it comes up with nobody about).
+## the one nearest the village centre (where it comes up with nobody about);
+## a guard's (Enemy.post): near its post, and the one nearest that.
 var _near: Array[Vector2i] = []
 var _home := Vector2i(-1, -1)
 var _goal := Vector2i(-1, -1)
@@ -67,8 +68,11 @@ func _cache(enemy: Enemy) -> void:
 	if enemy.body < 0:
 		return
 	var c := Vector2(home_village(enemy).center)
-	_home = pathing.nearest_deep(enemy.body, c)
 	var r := float(Config.AQUA["threat_radius"]) + float(enemy.spec().get("reach", 5.0))
+	if enemy.post.x >= 0:  # (a guard keeps to its post's water)
+		c = Vector2(enemy.post)
+		r = enemy.post_leash
+	_home = pathing.nearest_deep(enemy.body, c)
 	for t: Vector2i in pathing.bodies[enemy.body]["tiles"]:
 		if enemy.game.map.is_deep(t) and Vector2(t).distance_to(c) <= r:  # (never a spot under a bridge)
 			_near.append(t)

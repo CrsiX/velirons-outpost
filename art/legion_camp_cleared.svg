@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="233" height="123" viewBox="-58.04 -30.52 116.5 61.5">
+  <polygon points="0,-27.52 55.04,0 0,27.52 -55.04,0" fill="#3e3a36" opacity="0.5"/>
+  <polygon points="-2.56,-23.04 27.52,-9.28 17.28,-8.96 2.56,7.68 -26.24,-8 -16,-22.6" fill="#a6a49e" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
+  <polygon points="-16,-22.6 1.92,-18.36 17.28,-8.96 2.56,7.68 -26.24,-8" fill="#c8c6c0" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
+  <polyline points="20,0.08 46,-7.92" fill="none" stroke="#6a5a48" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="24,1.08 49,-5.92" fill="none" stroke="#6a5a48" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="28,2.08 52,-3.92" fill="none" stroke="#6a5a48" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-47.12,2.08 0.88,-11.92" fill="none" stroke="#15110d" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-47.12,2.08 0.88,-11.92" fill="none" stroke="#43301e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="-13.12,-8.92 0.88,-13.92 4.88,-2.92 -9.12,0.08" fill="#c0c3ca" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
+  <ellipse cx="14.12" cy="15.36" rx="2.6" ry="1.8" fill="#6b665e" stroke="#15110d" stroke-width="0.8"/>
+  <ellipse cx="10.73" cy="18.88" rx="2.6" ry="1.8" fill="#6b665e" stroke="#15110d" stroke-width="0.8"/>
+  <ellipse cx="3.12" cy="19.75" rx="2.6" ry="1.8" fill="#6b665e" stroke="#15110d" stroke-width="0.8"/>
+  <ellipse cx="-2.99" cy="17.31" rx="2.6" ry="1.8" fill="#6b665e" stroke="#15110d" stroke-width="0.8"/>
+  <ellipse cx="-2.99" cy="13.41" rx="2.6" ry="1.8" fill="#6b665e" stroke="#15110d" stroke-width="0.8"/>
+  <ellipse cx="3.12" cy="10.97" rx="2.6" ry="1.8" fill="#6b665e" stroke="#15110d" stroke-width="0.8"/>
+  <ellipse cx="10.73" cy="11.84" rx="2.6" ry="1.8" fill="#6b665e" stroke="#15110d" stroke-width="0.8"/>
+  <ellipse cx="5.12" cy="15.36" rx="6.5" ry="3" fill="#1e1a16"/>
+</svg>

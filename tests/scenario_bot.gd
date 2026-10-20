@@ -22,7 +22,7 @@ extends "res://tests/bot_base.gd"
 ## The Exile: Fiona, the druids in their grove (no orders), Brenna at her tent,
 ## Fiona's trust in steps (what is refused when), the mages' tower, wave 5's
 ## band at the grove, the circle, the win, a druid falling in wave 5.
-##   -- --only=1|2|3|4|5|6|7   one scenario only (the title screen with 1)
+##   -- --only=1|2|...|9   one scenario only (the title screen with 1)
 
 var sc: ScenarioRunner
 
@@ -52,6 +52,10 @@ func _run() -> void:
 		await _scenario_6()
 	if only in ["", "7"]:
 		await _scenario_7()
+	if only in ["", "8"]:
+		await _scenario_8()
+	if only in ["", "9"]:
+		await _scenario_9()
 	if is_instance_valid(game):
 		game.queue_free()
 		await frames(2)
@@ -286,12 +290,16 @@ func _play_through() -> void:
 ## Every enemy of the waves dies (with `kill_camps`, the camps' guards too).
 func _kill_wave() -> void:
 	for e: Enemy in get_tree().get_nodes_in_group("enemies"):
+		if e.given_name != "" and e.given_name == spare:
+			continue
 		if kill_camps or not (e.behavior is CampBehavior):
 			kill(e, game.hero)
 
 
 ## _kill_wave kills the camps' guards too (scenario 3: two camps by the north road).
 var kill_camps := false
+## _kill_wave leaves the enemy of this name alone (scenario 9's leviathan, for a while).
+var spare := ""
 
 
 func _total(d: Dictionary) -> int:
@@ -351,7 +359,7 @@ func _title() -> void:
 	await frames(1)
 	check(t._campaign_page.visible and not t._main_page.visible, "it opens the campaign page")
 	var names: Array = t.scenario_buttons.map(func(b: Button) -> String: return b.text)
-	check(names == ["1. Homecoming", "2. The Old Friend", "3. The Wardline", "4. The Split", "5. The Betrayal", "6. The Dead", "7. The Exile"], "scenarios 1 to 7 are there: %s" % str(names))
+	check(names == ["1. Homecoming", "2. The Old Friend", "3. The Wardline", "4. The Split", "5. The Betrayal", "6. The Dead", "7. The Exile", "8. The Pale Court", "9. The Drowned Abbey"], "scenarios 1 to 9 are there: %s" % str(names))
 	check(t._campaign_page.get_children().any(func(c: Node) -> bool: return c is Label and (c as Label).text.contains("still to come")), "and the rest are to come")
 	t.show_page(t._main_page)
 	t.queue_free()
@@ -821,8 +829,9 @@ func _scenario_5() -> void:
 	check(is_equal_approx(lysa.hp, lysa.max_hp * 0.3), "with 30 % of her HP")
 	Engine.time_scale = 4.0
 	check(await wait_until(func() -> bool: return not is_instance_valid(lysa) or lysa.dead, 120.0), "she walks back up her road and leaves the map")
-	var lib := Library.entries("enemies").filter(func(e: Dictionary) -> bool: return str(e["name"]).begins_with("Legion"))
-	check(lib.size() == 2 and lib.all(func(e: Dictionary) -> bool: return (e["facts"] as PackedStringArray).has("The Dread Legion: people, bound to Rhodri. Only in the campaign")), "the library has the footman and the captain, as people")
+	var legion_names: Array = Config.ENEMIES.keys().filter(func(k: String) -> bool: return k.begins_with("legion_")).map(func(k: String) -> String: return str(Config.ENEMIES[k]["name"]))
+	var lib := Library.entries("enemies").filter(func(e: Dictionary) -> bool: return legion_names.has(str(e["name"])))
+	check(lib.size() == legion_names.size() and lib.size() == 6 and lib.all(func(e: Dictionary) -> bool: return (e["facts"] as PackedStringArray).has("The Dread Legion: people, bound to Rhodri. Only in the campaign")), "the library has every Legion kind, as people (%d)" % lib.size())
 
 	print("-- scenario 5: the evidence")
 	cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
@@ -1099,3 +1108,243 @@ func _scenario_7() -> void:
 	game.army.down(_druids()[0], null)
 	check(await wait_until(func() -> bool: return game.game_over, 3.0), "a druid downed while the grove is attacked: lost")
 	check(game.hud._overlay_sub.text.contains("A druid fell"), "it says why (%s)" % game.hud._overlay_sub.text)
+
+
+# --- scenario 8: The Pale Court ----------------------------------------------------------------
+
+## Plays the scene running now through, picking choice `pick` (Refuse).
+func _through_scene(pick := 1) -> void:
+	if sc.cutscene != null:
+		await _watch(sc.cutscene, pick)
+		await frames(2)
+
+
+func _scenario_8() -> void:
+	print("-- scenario 8: setup")
+	await _new_game(8)
+	var v := game.player_village
+	var h := game.hero
+	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Pale Court", "scenario 8 runs on the Pale Court's map")
+	check(game.army.reserve().size() == 8 and game.army.units.size() == 8, "the band waits in the reserve (%d)" % game.army.reserve().size())
+	check(not game.available("archer") and not cmd("recruit_unit", {"kind": "archer"})["ok"], "nobody can be recruited")
+	check(game.is_unlocked("apprentice") and game.is_unlocked("summoner") and game.is_unlocked("acolyte"), "the band's kinds are unlocked")
+	var crypts := sc.lairs()
+	check(crypts.size() == 3 and crypts.all(func(o: Node) -> bool: return str((o as MonsterLair).data["art"]).begins_with("lair_crypt") and not (o as MonsterLair).awake), "three crypts, asleep")
+	check(crypts.all(func(o: Node) -> bool: return game.map.is_road((o as MonsterLair).door())), "their doors on the roads")
+	check([1, 4, 7] == crypts.map(func(o: Node) -> int: return (o as MonsterLair).wake_wave), "they wake at waves 1, 4 and 7")
+	var camps: Array = sc.spec._legion_camps(sc)
+	check(camps.size() == 2 and camps.all(func(o: MonsterCamp) -> bool: return o.art() == "legion_camp" and o.alive().all(func(e: Enemy) -> bool: return e.kind.begins_with("legion_"))), "two Legion camps at the court's gates")
+	check(h.level == 12 and not sc.spec.hero_revives, "Brenna at level 13, no revive")
+	await wait(1.0)
+	var said := await _watch(sc.cutscene)
+	check(said.has("lothar") and said.has("idris") and said.has("brenna"), "the intro: Lothar under his white flag (%s)" % str(said))
+	check(not sc.mark.has("actors"), "the herald is gone after it")
+
+	print("-- scenario 8: the band")
+	var posts: Array = sc.towers(true).filter(func(b: Building) -> bool: return b.working() and (b as Tower).garrison == null)
+	posts.append_array(sc.pieces("barracks"))
+	var i := 0
+	for post in posts:
+		if game.army.reserve().is_empty():
+			break
+		var u: MilitaryUnit = game.army.reserve().filter(func(m: MilitaryUnit) -> bool: return m.fits(post.post_kind()))[0] if game.army.reserve().any(func(m: MilitaryUnit) -> bool: return m.fits(post.post_kind())) else null
+		if u:
+			cmd("station_unit", {"unit": u.nid, "post": post.nid})
+			i += 1
+	check(await _at_card(1, 60.0), "stationed: on to the next card (%d sent)" % i)
+	game.economy.add("gold", 500)
+	var unit: MilitaryUnit = game.army.units[0]
+	cmd("upgrade_unit", {"unit": unit.nid, "to": unit.kind})
+	check(await wait_until(func() -> bool: return sc.step == 1 and sc._next_in >= 0.0, 30.0), "an upgrade: that card is done")
+	await wait(2.0)
+	check(sc.card.lesson_text().begins_with("The first crypt wakes"), "the crypt card waits for wave 1 (%s)" % sc.card.lesson_text())
+
+	print("-- scenario 8: the crypts")
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	Engine.time_scale = 4.0
+	cmd("call_wave")
+	await frames(2)
+	var c1 := crypts[0] as MonsterLair
+	check(c1.awake and c1.alive().size() == 4 and c1.alive().any(func(e: Enemy) -> bool: return e.kind == "vampire"), "wave 1 wakes the first crypt, with its guards")
+	check(await wait_until(func() -> bool: return get_tree().get_nodes_in_group("enemies").any(func(e: Node) -> bool: return (e as Enemy).home_tile == c1.door() and not ((e as Enemy).behavior is CampBehavior)), 30.0), "its monsters come out of it with the wave")
+	guard.start()
+	var offer := false
+	var rurik := false
+	var scenes := 0
+	var t := 0.0
+	while not sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER] and not game.game_over and t < 1800.0:
+		if sc.cutscene != null:
+			scenes += 1
+			if sc.cutscene.steps.any(func(s: Dictionary) -> bool: return s.has("choices")):
+				offer = true
+			await _through_scene(1)
+		var ru = sc.mark.get("rurik")
+		if is_instance_valid(ru):
+			rurik = rurik or ((ru as Enemy).kind == "legion_champion" and (crypts[2] as MonsterLair).monsters.has(ru))
+		for l in crypts:
+			var lair := l as MonsterLair
+			if lair.awake and game.waves.wave >= 3:
+				for e in lair.alive():
+					kill(e, h)
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+		t += 0.5
+	check(not game.game_over and sc.phase == ScenarioRunner.Phase.OUTRO, "the three crypts cleared%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	check(crypts.all(func(o: Node) -> bool: return (o as MonsterLair).cleared and not (o as MonsterLair).awake), "they stay cleared")
+	check(offer, "Lothar's offer came, and was refused")
+	check(rurik and sc.mark.has("rurik down"), "Rurik stood at the third crypt, and fell")
+	check(scenes >= 4, "the scenes between the waves (%d)" % scenes)
+	if sc.cutscene != null and not sc._outro_started:
+		await _through_scene()  # (Rurik's fall)
+	check(await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 120.0), "the outro plays after it")
+	guard.queue_free()
+	Engine.time_scale = 1.0
+	said = await _watch(sc.cutscene)
+	check(said.has("tomas") and said.has("rhodri"), "the Hand, and Rhodri laughing (%s)" % str(said))
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Pale Court: complete", "won: %s" % game.hud._overlay_title.text)
+
+	print("-- scenario 8: taking the offer")
+	await _new_game(8)
+	sc.cutscene.skip()
+	await frames(2)
+	sc.spec._offer(sc)
+	await frames(2)
+	await _watch(sc.cutscene, 0)
+	check(await wait_until(func() -> bool: return game.game_over, 3.0) and game.hud._overlay_sub.text.contains("Rhodri's side"), "going back to Rhodri loses (%s)" % game.hud._overlay_sub.text)
+
+	print("-- scenario 8: the Legion's kinds")
+	await _new_game(8)
+	sc.cutscene.skip()
+	await frames(2)
+	v = game.player_village
+	h = game.hero
+	var road := sc.road_in(v.center + Vector2i(0, 30), 9)
+	var at: Vector2i = road[0]
+	var foot := game.waves.spawn_at("legion_footman", at, v, 1)
+	var flag := game.waves.spawn_at("legion_banner", at, v, 1)
+	await frames(2)
+	foot._haste_at = -INF
+	check(is_equal_approx(foot.haste(), 1.25), "a footman by a banner strikes 1.25x as fast (%s)" % foot.haste())
+	flag.set_grid_pos(Vector2(at) + Vector2(4, 0))
+	foot._haste_at = -INF
+	check(is_equal_approx(foot.haste(), 1.0) and is_equal_approx(game.waves.spawn_at("goblin", at, v, 1).haste(), 1.0), "not away from it, and never a goblin (%s at %.1f)" % [foot.haste(), foot.grid_pos.distance_to(flag.grid_pos)])
+	var shield := game.waves.spawn_at("legion_guard", at, v, 1)
+	var hp0 := shield.hp
+	shield.take_damage(10.0, null, "projectile")
+	check(is_equal_approx(hp0 - shield.hp, 5.0), "a guardsman takes half from arrows")
+	await clear_enemies()
+	h.set_mode(Hero.Mode.EXPLORE)
+	var archer := game.waves.spawn_at("legion_archer", at, v, 1)
+	h.set_grid_pos(archer.grid_pos + Vector2(1.5, 0.5))
+	h.set_process(false)
+	var hp1 := h.hp
+	check(await wait_until(func() -> bool: return h.hp < hp1, 8.0), "a Legion archer shoots Brenna out in the open")
+	h.set_process(true)
+	var champ := game.waves.spawn_at("legion_champion", at, v, 1)
+	check(champ.max_hp >= 500.0 and champ.spec()["cleave"] > 0.0 and champ.spec()["release"], "the court champion: a boss whose blows cleave")
+	await clear_enemies()
+
+
+# --- scenario 9: The Drowned Abbey -------------------------------------------------------------
+
+func _scenario_9() -> void:
+	print("-- scenario 9: setup")
+	await _new_game(9)
+	var v := game.player_village
+	var h := game.hero
+	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Drowned Abbey", "scenario 9 runs on the drowned abbey's map")
+	var ab: Treasure = sc.spec._abbey(sc)
+	check(ab != null and ab.sealed and not ab.lootable() and ab.reward().get("item", "") == sc.spec.RELIC, "the abbey holds the relic, sealed")
+	check(ab != null and ab.guard() != null and ab.guard().alive().filter(func(e: Enemy) -> bool: return e.kind == "vampire").size() == 2, "vampires hold its crypt")
+	var bridges := 0
+	for t in game.map.crossings:
+		if game.map.is_bridge(t) and Vector2(t).distance_to(Vector2(ab.tile)) < 11.0:
+			bridges += 1
+	check(bridges >= 4, "the road crosses the lake to the island on bridges (%d)" % bridges)
+	var octo = sc.mark.get("octopus")
+	check(octo is Enemy and (octo as Enemy).kind == "octopus" and (octo as Enemy).post == ab.tile and game.waves.enemies_left() == 0, "a gigantic octopus guards it, outside the waves")
+	check(octo is Enemy and (octo as Enemy).max_hp > Config.enemy_stat("octopus", "hp") * 1.4, "stronger than a wave one (%d HP)" % int((octo as Enemy).max_hp))
+	var drowned := game.corpses.fallen().filter(func(c: Corpse) -> bool: return c.grid_pos.distance_to(Vector2(ab.tile)) < 5.0)
+	check(drowned.size() == sc.spec.DROWNED, "the drowned dead lie on the island (%d)" % drowned.size())
+	var priests := game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "priest")
+	check(priests.size() == 2 and priests.all(func(c: Civilian) -> bool: return c is Resident) and priests.any(func(c: Civilian) -> bool: return c.given_name == "Mother Hilde"), "two priests hide in their house, Mother Hilde the eldest")
+	check(game.available("archer") and game.available("summoner") and game.army.reserve().size() == 2, "recruiting is open; two of the band in the reserve")
+	await wait(1.0)
+	var said := await _watch(sc.cutscene)
+	check(said.has("pell") and said.has("brenna"), "the intro: the ferry in the mist (%s)" % str(said))
+	await wait(1.0)
+	var o := octo as Enemy
+	var far := 0.0
+	for k in 20:
+		await wait(0.5)
+		far = maxf(far, o.grid_pos.distance_to(Vector2(ab.tile)))
+	check(far <= sc.spec.GUARD_LEASH + 1.0, "the octopus keeps to the water by the abbey (%.1f)" % far)
+
+	print("-- scenario 9: the waves, the priests, the Legion")
+	o.take_damage(1e9, h)  # (the test's towers)
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	Engine.time_scale = 4.0
+	guard.start()
+	var gold0 := game.economy.amount("gold")
+	var lysa := false
+	var boats := false
+	var t := 0.0
+	while not sc.mark.has("unsealed") and not game.game_over and t < 1200.0:
+		if sc.cutscene != null:
+			await _through_scene()
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if (e as Enemy).given_name == "Lysa" and (e as Enemy).home_tile == sc.spec._causeway_spawn(sc):
+				lysa = true
+		if game.waves.wave >= 3 and not boats:
+			boats = game.events.entries.any(func(en) -> bool: return str(en["text"]).contains("guild boats"))
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+		t += 0.5
+	check(sc.mark.has("told"), "after wave 4 the priests tell what the abbey hides")
+	check(lysa, "wave 6: Lysa leads the Legion down the causeway")
+	check(boats and game.economy.amount("gold") > gold0, "Pell's guild boats bring supplies")
+	check(sc.mark.has("unsealed") and not ab.sealed, "after wave 6 the crypt is unsealed")
+
+	print("-- scenario 9: the relic and the leviathan")
+	await wait_until(func() -> bool: return not game.waves.in_progress(), 120.0)
+	kill_camps = true
+	await wait(1.0)
+	kill_camps = false
+	check(ab.guard() == null and ab.lootable(), "its vampires cleared: the relic can be taken")
+	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
+	spare = "Leviathan"
+	check(await wait_until(func() -> bool: return ab.looted, 300.0), "Brenna goes to the abbey and takes it")
+	check(await wait_until(func() -> bool: return sc.mark.has("risen"), 3.0) and game.waves.in_progress(), "the leviathan rises with a wave")
+	await wait_until(func() -> bool: return sc.named_enemy("Leviathan") != null, 30.0)
+	var lev := sc.named_enemy("Leviathan")
+	check(lev != null and lev.max_hp >= Config.enemy_stat("leviathan", "hp") * 4.9 and lev.power == sc.spec.LEVIATHAN_POWER, "a boss: five times the HP, harder blasts")
+	check(await wait_until(func() -> bool: return v.items.has(sc.spec.RELIC), 300.0), "she carries the relic home")
+	await wait_until(func() -> bool: return sc.mark.has("leviathan"), 5.0)
+	spare = ""
+	t = 0.0
+	while not sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER] and not game.game_over and t < 1200.0:
+		if sc.cutscene != null:
+			await _through_scene()
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+		t += 0.5
+	check(sc.mark.has("slain") and sc.mark.has("held") and not game.game_over, "the leviathan slain, ten waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	while sc.cutscene != null and not sc._outro_started:
+		await _through_scene()
+	check(await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 120.0), "the outro plays")
+	guard.queue_free()
+	Engine.time_scale = 1.0
+	said = await _watch(sc.cutscene)
+	check(said.has("hilde") and said.has("lysa"), "the priests agree, and Lysa warns her (%s)" % str(said))
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Drowned Abbey: complete", "won: %s" % game.hud._overlay_title.text)

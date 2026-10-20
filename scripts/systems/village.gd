@@ -33,6 +33,8 @@ var hero: Hero
 var fallen := false
 ## Relics found (Config.RELICS keys): small permanent bonuses.
 var relics: Array[String] = []
+## Campaign items brought home (a treasure's "item": scenario 9's relic sword).
+var items: Array[String] = []
 ## Corpses brought home so far (by gatherers or the hero).
 var corpses_delivered := 0
 

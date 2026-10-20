@@ -15,6 +15,13 @@ extends Node
 ## from ("north", "south", "west", "east"), "at": road tiles from the gate,
 ## "building": "tower" or "barracks"}. "add_sites": unit-unlock sites placed
 ## the same way, {"edge", "at", "site": a Config.UNLOCK_SITES key}.
+## "add_lairs": monster lairs by a road, {"edge", "at", "art": a lair art},
+## their door on the road. "add_camps": a treasure by a road with a camp
+## beside it, {"edge", "at", "treasure", "reward", "monsters": [kinds]}.
+## "island": a road's stretch turned into an island in a lake ("abbey"),
+## {"edge", "at": its middle, road tiles from the gate, "land": its radius,
+## "water": the lake's, "treasure", "monsters": the camp beside it}: the road
+## crosses the lake on bridges, a water spawn on the far side.
 
 const MAPS := {
 	1: {"map_type": "highlands", "seed": 1337, "name": "Homecoming",
@@ -42,6 +49,16 @@ const MAPS := {
 		"description": "Scenario 7: Fiona's hidden valley in the forest, with the druids' stone circle and the court mages' tower.",
 		"drop": ["unlock", "lair"], "ruins": 0,
 		"add_sites": [{"edge": "north", "at": 11, "site": "stone_circle"}, {"edge": "west", "at": 8, "site": "mage_tower"}]},
+	8: {"map_type": "volcanic", "seed": 808, "name": "The Pale Court",
+		"description": "Scenario 8: a camp in the burned capital's outskirts. Three crypts lie under the old court, and the Legion holds its gates.",
+		"drop": ["unlock", "lair", "camp"], "ruins": 0,
+		"add_lairs": [{"edge": "north", "at": 11, "art": "lair_crypt"}, {"edge": "south", "at": 17, "art": "lair_crypt_big"}, {"edge": "west", "at": 24, "art": "lair_crypt_big"}],
+		"add_camps": [{"edge": "west", "at": 12, "treasure": "chest", "reward": {"gold": 140}, "monsters": ["legion_footman", "legion_footman", "legion_archer", "legion_banner"]},
+			{"edge": "south", "at": 28, "treasure": "chest", "reward": {"gold": 180, "materials": 60}, "monsters": ["legion_footman", "legion_guard", "legion_archer", "legion_archer", "legion_banner"]}]},
+	9: {"map_type": "coast", "seed": 909, "name": "The Drowned Abbey",
+		"description": "Scenario 9: a pilgrims' ferry village on a drowned shore. Out in the lake the church's old abbey stands half-sunk on its island.",
+		"drop": ["unlock", "lair"], "ruins": 0,
+		"island": {"edge": "north", "at": 28, "land": 4.2, "water": 9.5, "treasure": "abbey", "monsters": ["vampire", "vampire", "skeleton"]}},
 }
 
 
@@ -80,6 +97,18 @@ func _ready() -> void:
 		var err := _add_site(m, si)
 		if err != "":
 			printerr("site %s: %s" % [str(si), err])
+	for la in spec.get("add_lairs", []):
+		var err := _add_lair(m, la)
+		if err != "":
+			printerr("lair %s: %s" % [str(la), err])
+	for ca in spec.get("add_camps", []):
+		var err := _add_camp(m, ca)
+		if err != "":
+			printerr("camp %s: %s" % [str(ca), err])
+	if spec.has("island"):
+		var err := _island(m, spec["island"])
+		if err != "":
+			printerr("island: %s" % err)
 	m.meta = {"name": spec["name"], "author": "", "description": spec["description"],
 		"origin": {"generator_seed": gen_seed, "edited": true, "game_version": MapJson.game_version()}}
 	var text := MapJson.write(m)
@@ -235,9 +264,154 @@ func _add_site(m: MapData, si: Dictionary) -> String:
 	return ""
 
 
+## A monster lair by a road, its door on the road. "" or why not.
+func _add_lair(m: MapData, la: Dictionary) -> String:
+	var art := str(la["art"])
+	var res = _add_by_road(m, la, "lair", 2 if art.ends_with("_big") else 1, true)
+	if res is String:
+		return res
+	m.objects[res]["art"] = art
+	return ""
+
+
+## A treasure by a road and a camp guarding it, beside it. "" or why not.
+func _add_camp(m: MapData, ca: Dictionary) -> String:
+	var res = _add_by_road(m, ca, "treasure", 1)
+	if res is String:
+		return res
+	var tr: Dictionary = m.objects[res]
+	tr["treasure"] = str(ca["treasure"])
+	tr["tier"] = 3
+	tr["reward"] = ca.get("reward", {"gold": 100})
+	tr["art"] = MapJson.object_art(tr)
+	return _camp_by(m, res, ca["monsters"])
+
+
+## A camp with `monsters` on open land next to treasure `ti`. "" or why not.
+func _camp_by(m: MapData, ti: int, monsters: Array) -> String:
+	var t0: Vector2i = m.objects[ti]["tile"]
+	var size := int(m.objects[ti].get("size", 1))
+	var free := EditorTools.MapCheckFree.new(m)
+	for r in [2, 3, 4]:
+		for dy in range(-r, r + size):
+			for dx in range(-r, r + size):
+				var t := t0 + Vector2i(dx, dy)
+				if not _open(m, free, [t]) or MapData.neighbors4(t).any(func(n: Vector2i) -> bool: return m.is_road(n)) or not _near_road(m, t, 8):
+					continue
+				var o := {"kind": "camp", "tile": t, "size": 1, "tier": 3, "guards": ti, "monsters": monsters.duplicate()}
+				o["art"] = MapJson.object_art(o)
+				m.objects.append(o)
+				m.objects[ti]["guard"] = m.objects.size() - 1
+				return ""
+	return "no open land for the camp"
+
+
+## A road within `steps` walking steps of `t` (over open land).
+func _near_road(m: MapData, t: Vector2i, steps: int) -> bool:
+	var seen := {t: 0}
+	var q: Array[Vector2i] = [t]
+	var i := 0
+	while i < q.size():
+		var c := q[i]
+		i += 1
+		if m.is_road(c):
+			return true
+		if int(seen[c]) >= steps:
+			continue
+		for n in MapData.neighbors4(c):
+			if m.in_bounds(n) and not seen.has(n) and m.is_passable(n) and not m.props.has(n):
+				seen[n] = int(seen[c]) + 1
+				q.append(n)
+	return false
+
+
+## The road from `isl.edge` through an island in a lake, `isl.at` road tiles
+## from the gate: open land within `land` of that road tile, deep water out to
+## `water` (bridges where the roads cross it, a shallow rim round the land),
+## a treasure on the island guarded by a camp, a water spawn on the lake. "" or why not.
+func _island(m: MapData, isl: Dictionary) -> String:
+	var road := _road_from(m, str(isl["edge"]))
+	if road.is_empty():
+		return "no road from that edge"
+	var c := road[clampi(road.size() - 1 - int(isl["at"]), 0, road.size() - 1)]
+	var land := float(isl["land"])
+	var water := float(isl["water"])
+	var r := ceili(water)
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			var t := c + Vector2i(dx, dy)
+			var d := Vector2(t).distance_to(Vector2(c))
+			if not m.in_bounds(t) or d > water or m.in_village(t):
+				continue
+			m.props.erase(t)
+			m.decor.erase(t)
+			m.beaches.erase(t)
+			if d <= land:
+				if not m.is_road(t):
+					m.set_terrain(t, MapData.Terrain.GRASS)
+					m.set_zone(t, "meadow")
+				continue
+			var under := MapData.Terrain.SHALLOW if d <= land + 0.9 else MapData.Terrain.WATER
+			if m.is_road(t):
+				var along_x := m.is_road(t + Vector2i(1, 0)) or m.is_road(t - Vector2i(1, 0))
+				m.crossings[t] = ["bridge_stone_%s" % ("x" if along_x else "y"), under] if under == MapData.Terrain.WATER else ["tile_ford", under]
+			else:
+				m.set_terrain(t, under)
+	m.derive()
+	# The treasure on the island, off the road; its camp beside it.
+	var free := EditorTools.MapCheckFree.new(m)
+	var spot := Vector2i(-1, -1)
+	var best := INF
+	for dy in range(-3, 4):
+		for dx in range(-3, 4):
+			var t := c + Vector2i(dx, dy)
+			var fp := Building.footprint(t, 2)
+			if fp.any(func(q: Vector2i) -> bool: return Vector2(q).distance_to(Vector2(c)) > land - 0.6 or MapData.neighbors4(q).any(func(n: Vector2i) -> bool: return m.is_road(n))):
+				continue
+			if not _open(m, free, fp):
+				continue
+			var dd := Vector2(t).distance_to(Vector2(c))
+			if dd < best:
+				best = dd
+				spot = t
+	if spot == Vector2i(-1, -1):
+		return "no room for the treasure on the island"
+	var res = EditorTools.add_object(m, "treasure", spot, 2)
+	if res is String:
+		return res
+	var tr: Dictionary = m.objects[res]
+	tr["treasure"] = str(isl["treasure"])
+	tr["tier"] = 3
+	tr["reward"] = {}
+	tr["art"] = MapJson.object_art(tr)
+	var err := _camp_by(m, res, isl["monsters"])
+	if err != "":
+		return err
+	# A water spawn on the lake, on the side away from the village.
+	var vc := Vector2(m.villages[0]["center"])
+	var far := Vector2i(-1, -1)
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			var t := c + Vector2i(dx, dy)
+			if m.is_deep(t) and (far.x < 0 or Vector2(t).distance_to(vc) > Vector2(far).distance_to(vc)):
+				far = t
+	if far.x >= 0:
+		m.water_spawns.append(far)
+	return ""
+
+
+## The road tiles from the edge spawn on map edge `e` to the village, in order.
+func _road_from(m: MapData, e: String) -> Array[Vector2i]:
+	for t in m.edge_spawns:
+		if (e == "north" and t.y == 0) or (e == "south" and t.y == m.size - 1) or (e == "west" and t.x == 0) or (e == "east" and t.x == m.size - 1):
+			return _road_to_village(m, t)
+	return [] as Array[Vector2i]
+
+
 ## An object of `kind` and `size` by the road from map edge `at.edge`,
-## `at.at` road tiles from the gate: its index, or why not.
-func _add_by_road(m: MapData, at: Dictionary, kind: String, size: int) -> Variant:
+## `at.at` road tiles from the gate (`touch`: right beside the road, its door
+## on it): its index, or why not.
+func _add_by_road(m: MapData, at: Dictionary, kind: String, size: int, touch := false) -> Variant:
 	var sp := Vector2i(-1, -1)
 	var e := str(at["edge"])
 	for t in m.edge_spawns:
@@ -254,7 +428,10 @@ func _add_by_road(m: MapData, at: Dictionary, kind: String, size: int) -> Varian
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):
 				var t: Vector2i = road[k] + Vector2i(dx, dy)
-				if _open(m, free, Building.footprint(t, size)):
+				var fp := Building.footprint(t, size)
+				if touch and not fp.any(func(q: Vector2i) -> bool: return MapData.neighbors4(q).any(func(n: Vector2i) -> bool: return m.is_road(n))):
+					continue
+				if _open(m, free, fp):
 					var res = EditorTools.add_object(m, kind, t, size)
 					if res is int:
 						return res

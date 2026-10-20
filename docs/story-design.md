@@ -1,7 +1,8 @@
 # Story design
 
-Status: **scenarios 1 to 7 are built** (Brenna, Einar, Pell, Wenna, Sigmund, Lysa and Torben, Anselm, Fiona, Elder Oren and Idris, the
-portraits, the cutscene format, the Legion's footman and captain: `scenarios-design.md` §7); the rest is planned. This page holds the story the game's scenarios, library texts and event log will draw on. It changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
+Status: **scenarios 1 to 9 are built** (Brenna, Einar, Pell, Wenna, Sigmund, Lysa and Torben, Anselm, Fiona, Elder Oren and Idris, Lothar,
+Rurik, Rhodri, Brother Tomas and Mother Hilde, the portraits, the cutscene format, the Legion's footman, captain, archer, guardsman,
+banner-bearer and champion: `scenarios-design.md` §7); the rest is planned. This page holds the story the game's scenarios, library texts and event log will draw on. It changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
 *open* is not decided.
 
 ## 1. Premise
@@ -36,13 +37,15 @@ nothing in the story depends on them.
 | **Anselm** | The priest of the battlefield village | Scenario 6 |
 | **Fiona Aldmoor** | Heir 1, in exile | Scenarios 7 and 11 |
 | **Elder Oren** | The druids' elder at the refuge's grove | Scenario 7 |
-| **Idris** | A court mage at Fiona's refuge | Scenario 7 |
+| **Idris** | A court mage at Fiona's refuge, who goes with Brenna | Scenarios 7 and 8 |
+| **Brother Tomas** | A church survivor in the capital | Scenario 8 |
+| **Mother Hilde** | The eldest of the priests on the drowned shore | Scenario 9 |
 | **Rhodri Aldmoor** | Heir 2, corrupted | Scenarios 8 to 11 |
 | **Orsin Aldmoor**, **Aislyn Aldmoor** | The old king and queen (the queen died giving birth to Rhodri) | Told, not seen |
 | **Lothar** | The Pale Court's herald; not killed until he is last needed | Scenarios 8, 10, 11 |
 | **Halvard** | Rhodri's marshal, commands the Dread Legion | Scenarios 9 (named), 10 |
-| **Rurik** | The court champion | Scenario 8 |
-| **Lysa** | Brenna's old captain, now the Legion's captain | Scenarios 5, 9, 10 |
+| **Rurik** | The court champion; killed at the third crypt (released) | Scenario 8 |
+| **Lysa** | Brenna's old captain, now the Legion's captain; beaten in 9 she falls back and is herself for a moment | Scenarios 5, 9, 10 |
 | **Torben** | A comrade of Brenna's company, now in the Legion | Scenarios 5, 10 |
 
 The royal family is **House Aldmoor**. Text always refers to a person by first name. Last names show only in places like cutscene title cards, the
@@ -181,7 +184,7 @@ the library marks them as such.
 | **Renegades** (*Abtrünnige*) | thief | bandit, deserter, assassin | **Fully human**, ordinary criminals who saw the chance when the order collapsed: bad people, but not evil. |
 | **Undead** | skeleton | ghost, wraith, zombie | The war's dead, unburied. |
 | **Evil** | vampire, necromancer | demon | Intelligent and malicious, drawn by the death. |
-| **Dread Legion** | footman, captain (campaign only: `scenarios-design.md` §7.7) | archer, banner-bearer, the marshal (a mid-boss); unit names *open* | Rhodri's own army: human soldiers under the corruption's influence, like brainwashing. See below. |
+| **Dread Legion** | footman, captain, archer, guardsman, banner-bearer, the court champion (campaign only: `scenarios-design.md` §7.7, §7.13) | the marshal (a mid-boss) | Rhodri's own army: human soldiers under the corruption's influence, like brainwashing. See below. |
 | **Arcane** (*open*) | witch, gargoyle | siren, wisp, golem | Magic-made or magic-using. Goes with neither Wilderness nor Evil. |
 
 Library and log text should use the category name ("a Renegade", "the Undead"), not a person's backstory.

@@ -231,6 +231,8 @@ func _treasure_kind(t: Vector2i) -> String:
 	var z := m.zone(t)
 	var weights := {}
 	for kind in Config.TREASURES:
+		if Config.TREASURES[kind].get("campaign", false):
+			continue
 		var zones: Array = Config.TREASURES[kind]["zones"]
 		var fits := zones.is_empty() or zones.has(z) or (zones.has("beach") and c.beaches.has(t)) or (zones.has("hills") and c.h(t) > 0.65)
 		if kind == "shipwreck" and not c.beaches.has(t):

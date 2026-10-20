@@ -1,6 +1,6 @@
 # Scenarios design
 
-Status: **scenarios 1 to 7 and the scenario system are built** (§7 says how, and what was decided for them); scenarios 8 to 11 are planned. This
+Status: **scenarios 1 to 9 and the scenario system are built** (§7 says how, and what was decided for them); scenarios 10 and 11 are planned. This
 page outlines the campaign: eleven scenarios that tell the story in `story-design.md` (read that first; names, places and the cause of the war are
 explained there). Everything about the scenarios not yet built is a draft. Numbers marked *target* are starting points to tune; a scenario's own
 numbers and texts go into its own file (`scripts/scenarios/scenario_<n>.gd`), not into `config.gd`. *Open* means not decided.
@@ -377,6 +377,16 @@ King's Hand**, a
 relic sword, in the abbey that sank in the delta. Nobody knows whether it will. Fiona's messenger confirms it. Rhodri hears that Brenna refused
 the offer to join his side and starts laughing devilish.
 
+**Decided:** "no army" means **no recruiting**: Brenna's band (archers, shield bearers, apprentices, acolytes, a summoner) waits in the reserve
+at the start (`Scenario.reserve`), and gold only levels and specialises it (`Scenario.recruiting` false). The three crypts are **monster lairs**
+(crypt art) that the scenario wakes one by one (`Scenario.lairs`: the nearest at wave 1, the next at wave 4, the farthest at wave 7), with their
+own guards and kinds; awake, each is one more spawn point of the scripted waves (`"lairs": true`), and a cleared one stays cleared. The hero
+clears one as a camp (*Attack with the hero*). **Rurik**, the court champion, is a guard of the third crypt and a boss that can be killed (a
+new Legion kind, `legion_champion`: heavy blows that cleave). The Legion gets three more kinds, all campaign-only: the **archer** (shoots our
+people outside from a little less than a watchtower's range), the **guardsman** (a tower shield: half damage from arrows and bolts) and the
+**banner-bearer** (Legion soldiers near its banner strike faster). Two **Legion camps** hold the court's gates (camps of Legion soldiers, each
+guarding a treasure: optional). Lothar's offer is a choice after wave 3. Built as §7.14.
+
 ### 9. The Drowned Abbey
 
 **Where:** a pilgrims' ferry village on a drowned shore, with the church's old abbey half-sunk in the delta beyond it, reached by a causeway.
@@ -446,6 +456,14 @@ agree that the sword goes to Fiona. The relic glows in Brenna's hands.
 only
 meant to hold her here: the main force of the Legion, led by the marshal Halvard, is already marching on her **home village**. She turns to Pell:
 they must go back.
+
+**Decided:** Lysa does not die: beaten on the causeway (a captain, she falls back), she is herself for a moment in the outro and warns Brenna,
+then the binding pulls her away (scenario 10 stays as planned). The abbey is a treasure on its island (`abbey`, campaign-only), held by a
+camp of vampires; the priests keep it **sealed** until wave 6 is over (`Treasure.sealed`); then the hero clears the camp on the player's order
+and loots the relic in Explore mode, and carries it home. The **octopus** is a guard (`Enemy.post`: it keeps to the deep water near its post
+and doesn't count for the waves), stronger than a wave one. Taking the relic raises the **leviathan** at once (a boss: several times the HP,
+harder blasts, counted for the wave; between waves the next wave starts with it), and the Legion's rest comes by the causeway with it. The
+objectives: bring the relic home, slay the leviathan, hold 10 waves. Built as §7.15.
 
 ### 10. The Last Wardline
 
@@ -889,3 +907,93 @@ The game has none of this yet, except where noted:
 - **Cards:** outside the walls (hire a soldier and station it), the court mages' tower (waits for trust 1), mend the refuge (rebuild the
   ruined hut), the stone circle (waits for wave 5). **Hints:** the druids turning out, the grove's wave, a witch, a necromancer, Brenna badly
   hurt. **Objectives:** hold the refuge for 12 waves; earn Fiona's trust (outside, let in, trusted).
+
+### 7.13 What scenarios 8 and 9 added to the engine
+
+- **More of the Dread Legion** (`Config.ENEMIES`, all `"campaign": true`, `"release": true`, no corpse):
+  - *Legion Archer* (`legion_archer`, `LegionArcherBehavior`): 26 HP, speed 0.95, 5 projectile damage every 1.6 s. It stops on its road
+    to shoot the nearest of our people out in the open (`AquaBehavior.people`: the hero outside the walls, soldiers out, summons, villagers
+    outside; never a tower's unit) within `shoot_range` 3.2, below a level 1 watchtower's 3.6. Its arrows are `EnemyArrow`s. Breaking in,
+    it shoots the barrier in its way (`siege` 0.6). 6 gold.
+  - *Legion Guardsman* (`legion_guard`): 70 HP, speed 0.75, 6 damage every 1.3 s, a tower shield: projectile damage ×0.5; `siege` 1.5. 7 gold.
+  - *Legion Banner-bearer* (`legion_banner`): 45 HP, 3 damage every 1.2 s. Every Legion soldier (a `legion_` kind) within its
+    `banner_radius` 2.5 strikes and shoots 1 + `banner_haste` (1.25) times as fast (`Enemy.haste`, checked every 0.5 s; the strongest
+    banner counts; melee, camp guards, archers, siege blows). A faint pale ring on the ground shows how far its banner reaches. 8 gold.
+  - *Court Champion* (`legion_champion`; scenario 8's Rurik): 520 HP, speed 0.8, 15 damage every 1.5 s, projectile ×0.75; every blow also
+    hits everyone else of ours within `cleave_radius` 1.3 of its target for `cleave` 0.6 of it (`EnemyBehavior.cleave`, in `MeleeBehavior`
+    and `CampBehavior`). 60 gold. It can be killed.
+  - Art: `unit_legion_archer`, `unit_legion_guard`, `unit_legion_banner`, `unit_legion_champion`; Lothar's `unit_herald` (a pale tabard, a
+    white flag).
+- **Legion camps:** a monster camp whose monsters are all Legion kinds is a *Legion camp* (`MonsterCamp.display_name`, art `legion_camp`:
+  an army's pale tent, a spear rack, the pale banner, a cold fire). `MonsterCamp.add_guard(kind, hp_scale)` adds a guard (Rurik).
+- **A scenario's lairs** (`Scenario.lairs`, applied by `ScenarioRunner._set_lairs`; `ScenarioRunner.lairs()`: the map's lairs, nearest
+  first): per lair the wave it wakes at, its guards and their HP scale (`MonsterLair.guard_kinds`, `guard_hp`), and the kinds it sends
+  whatever the wave (`kinds_any`); cleared, a scenario's lair stays cleared (`stays_cleared`). Lairs past the list never wake. A scripted
+  wave with `"lairs": true` has the awake lairs as spawn points too, each sending its kinds (`Waves._theme_lairs`).
+- **The band:** `Scenario.reserve` (units in the reserve at the start) and `Scenario.recruiting` (false: nobody can be recruited; the Army
+  tab shows no recruit entries).
+- **Treasures:** `Treasure.sealed` (can't be looted until the scenario opens it). A reward's `"item"` is a campaign item: it is paid as
+  `Village.items` (the relic sword). The `abbey` treasure (`Config.TREASURES`, `"campaign": true`: never generated, not in the library; art
+  `abbey` / `abbey_looted`, 2x2: a church half under water, a broken spire, a gold light from the crypt until it is looted).
+- **Guards and bosses:** `Enemy.post` / `post_leash`: a water monster keeps to the deep tiles within the leash of its post
+  (`AquaBehavior._cache`; scenario 9's octopus, spawned with `Waves.spawn_at`, outside the waves). A queue entry's `"hp_x"` multiplies an
+  enemy's HP and `"power"` its damage and spell damage (`Enemy.power`; the leviathan).
+- **The outro waits** for a scene that is playing to end first.
+- **Maps:** `tools/make_scenario_map.gd` places lairs (`"add_lairs"`, their doors on the road), treasures with a camp beside them
+  (`"add_camps"`) and an island (`"island"`: a road's stretch in a lake, bridges over it, a treasure and its camp on the island, a water
+  spawn on the lake).
+- Portraits: `portrait_lothar`, `portrait_rurik`, `portrait_rhodri`, `portrait_tomas` (Brother Tomas), `portrait_hilde` (Mother Hilde).
+
+### 7.14 Scenario 8 as built (`scenario_8.gd`)
+
+- **Map:** `data/maps/pale_court.json` (*The Pale Court*; `make_scenario_map.gd -- 8`: Volcanic, seed 808, its camps and lairs taken out;
+  three crypts by the north, south and west roads, 11, 17 and 24 road tiles from the gate; two Legion camps by the west and south roads).
+- **Baseline:** Easy, enemies at 1.1; 320 gold, 160 food, 260 material; two builders, a farmer, a forester, a gatherer, Pell; the farm and
+  the camp; 5 of 9 huts stand, 4 walls, 2 gates and 2 wall towers at 60 %; Pell's wagon (a peddler's stall), empty barracks (level 2) and an
+  empty watchtower. **The band** in the reserve: archers (6, 5), shield bearers (6, 5), apprentices (6, 5), an acolyte (6), a summoner (5).
+  Brenna is level 13.
+- **Rules:** **no recruiting** (`recruiting` false); the band's kinds can specialise; training grounds; no revive; Pell must not die.
+- **The crypts** (`lairs`): the nearest wakes at wave 1 (3 skeletons and a vampire, HP ×1.5; it sends skeletons and vampires), the next at
+  wave 4 (2 skeletons, 2 vampires, a gargoyle, ×1.7; skeletons, vampires, necromancers), the farthest at wave 7 (2 vampires, a gargoyle,
+  ×1.9; vampires, necromancers, gargoyles) with **Rurik** (a court champion, HP ×1.2) at its door. The hero clears them as camps.
+- **Waves:** nine listed, all from the awake crypts too: skeletons and a few goblins, vampires from wave 2, necromancers and witches from 3,
+  gargoyles and Legion footmen from 4, archers from 5, banner-bearers from 6, guardsmen from 7; then the last again with a skeleton and a
+  footman more each time (`repeat_last`) until the crypts are cleared. Wave 1 waits to be called; 45 s between waves.
+- **Story:** the intro (the capital by night; Lothar under a white flag greets Brenna and will come again; Idris: the Evil gathers in the
+  crypts under the court); after wave 1 Idris on the Pale Court; after wave 3 Lothar's **offer** (a choice: *Go back to Rhodri's side* loses:
+  "Brenna went back to Rhodri's side..."; *Refuse* goes on); after wave 5 the crown and the foreign goldsmith; wave 7 Rurik at the third
+  crypt ("I don't remember you."); his fall (released); the outro (the throne hall's gate; the crown feeds on Rhodri; Brother Tomas tells of
+  the First King's Hand in the sunken abbey; a rider from Fiona confirms it; Lothar reports the refusal and Rhodri laughs).
+- **Cards:** your band (station four), better, not more (upgrade a unit), the first crypt (waits for wave 1). **Hints:** vampire,
+  necromancer, gargoyle, Legion archer, banner-bearer, guardsman, a Legion camp found, Rurik, Brenna badly hurt. **Objectives:** clear the
+  three crypts; break the Legion's camps (optional).
+
+### 7.15 Scenario 9 as built (`scenario_9.gd`)
+
+- **Map:** `data/maps/drowned_abbey.json` (*The Drowned Abbey*; `make_scenario_map.gd -- 9`: Coast, seed 909; the north road's straight
+  stretch 28 road tiles from the gate made an island in a lake (land 4.2, water 9.5 tiles), crossed on stone bridges; the abbey and a camp of
+  2 vampires and a skeleton on the island; a water spawn on the lake).
+- **Baseline:** Easy, enemies at 1.15; 300 gold, 170 food, 260 material; two builders, a farmer, a forester, a gatherer, Pell and two
+  priests (residents, **Mother Hilde** the eldest, in *The Priests' House*); the farm and the camp; all huts stand, 6 walls, 3 gates, 3 wall
+  towers at 80 %; Pell's wagon, barracks (level 2) with a shield bearer (7) and an archer (6), two watchtowers (an archer 7 by the causeway
+  road, an apprentice 6), a wall tower with an archer (6); a summoner and an acolyte (6) in the reserve. Brenna is level 14.
+- **Rules:** all five base kinds, unlocked, recruiting open; specialising, training grounds; no revive; Pell must not die.
+- **The abbey:** sealed (`Treasure.sealed`) until wave 6 is over; its reward is the item *the First King's Hand*. Its camp must be cleared
+  first; then the hero loots it in Explore mode and carries it home. **The octopus** guards it: HP ×1.5, its post the abbey, leash 6 tiles,
+  not part of the waves. **The drowned dead:** 8 of the fallen on the island (`Corpses.spawn_fallen`), for the necromancers.
+- **Taking the relic** raises the **leviathan** from the lake's water spawn (named, HP ×5, damage ×1.5, counted for the wave; between waves
+  the next wave starts at once) and sends the Legion's rest down the causeway (Lysa, 6 footmen, 3 archers, a banner-bearer, 2 guardsmen).
+- **Waves:** ten listed: crabs and goblins first, skeletons from 3, necromancers from 4, vampires and gargoyles from 5, the Legion from 7
+  (footmen, then archers, a banner-bearer, guardsmen), a siren in 9; then the last again (a crab and a skeleton more each) until everything
+  is done. **Wave 6** brings **Lysa** with a column down the causeway (5 footmen, 2 archers, a banner-bearer, a guardsman). Pell's guild
+  boats bring 40 gold, 60 food and 80 material after waves 2, 5 and 8. Wave 1 waits to be called; 45 s between waves.
+- **Story:** the intro (the ferry in the mist, the bell under the water; the priests shut their door on Rhodri's colours); after wave 1 Pell;
+  after wave 4 Mother Hilde tells what the abbey hides (the Hand; they hid it from Rhodri, fearing he could rise over Fiona; vampires and
+  something bigger in the deep); wave 6 Lysa demands the relic and Brenna refuses her own captain; after wave 6 the priests unseal the crypt
+  (better her than the Legion; the sword is not hers to keep); the relic taken (the bell stops, the leviathan rises); the leviathan slain;
+  the outro (the priests come out: they were wrong, the Hand goes to Fiona; on the causeway Lysa, herself for a moment: they were only to
+  hold her here, Halvard marches on her home; Brenna and Pell go back).
+- **Cards:** a watch on the water (a manned tower within 3 tiles of deep water), the guardian (waits for the priests' telling; done when the
+  octopus is dead or the crypt opens), the First King's Hand (waits for the unsealing; done when it is home). **Hints:** crab, someone in the
+  octopus's arm, necromancer, vampire, the Legion, siren, the leviathan, Brenna badly hurt. **Objectives:** bring the Hand home; slay the
+  leviathan; hold the village for 10 waves.

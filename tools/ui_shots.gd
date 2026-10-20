@@ -19,7 +19,10 @@ extends Node
 ## evidence card and a page, the Legion with its named captains;
 ## (`--only=exile`) scenarios 6 and 7: Anselm, the field of the fallen, the
 ## graveyard filling; Fiona at the gate, Brenna's tent, the druids' grove and
-## its panel, Fiona's house.
+## its panel, Fiona's house;
+## (`--only=court`) scenarios 8 and 9: Lothar under his flag, a crypt and its
+## guards, a Legion camp and its panel, the Legion's kinds on a road, Rurik;
+## the drowned abbey on its island with the octopus, Mother Hilde, the leviathan.
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -108,6 +111,8 @@ func _run() -> void:
 		await _away()
 	if only in ["", "exile"]:
 		await _exile()
+	if only in ["", "court"]:
+		await _court()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -1060,5 +1065,77 @@ func _exile() -> void:
 		g.camera.zoom = Vector2(1.3, 1.3)
 		await _frames(20)
 		await shot("exile_s7_fiona_house")
+	g.queue_free()
+	await _frames(3)
+
+
+func _court() -> void:
+	var g := await _scenario_game(8)
+	var sc := g.scenario
+	await _cut_to_line(sc, "lothar", "welcome home")
+	await shot("court_s8_lothar")
+	sc.cutscene.skip()
+	await _frames(30)
+	var v := g.player_village
+	var crypt := sc.lairs()[0] as MonsterLair
+	g.fog.reveal(Vector2(crypt.tile), 5.0, v.id)
+	crypt.on_wave(1)
+	g.camera.focus(Iso.to_world(Vector2(crypt.tile)))
+	g.camera.zoom = Vector2(1.2, 1.2)
+	g.select(crypt)
+	await _frames(30)
+	await shot("court_s8_crypt")
+	g.deselect()
+	var camp: MonsterCamp = sc.spec._legion_camps(sc)[0]
+	g.fog.reveal(Vector2(camp.tile), 5.0, v.id)
+	g.camera.focus(Iso.to_world(Vector2(camp.tile)))
+	g.select(camp)
+	await _frames(30)
+	await shot("court_s8_legion_camp")
+	g.deselect()
+	var road := sc.road_in(v.center + Vector2i(0, 30), 12)
+	var at: Vector2i = road[0]
+	g.fog.reveal(Vector2(at), 6.0, v.id)
+	for k in ["legion_footman", "legion_archer", "legion_guard", "legion_banner", "legion_footman", "legion_champion"]:
+		var e := g.waves.spawn_at(k, at, v, 1)
+		if k == "legion_champion":
+			e.set_identity("Rurik", "")
+		await _frames(25)
+	g.camera.focus(Iso.to_world(Vector2(road[4])))
+	g.camera.zoom = Vector2(1.4, 1.4)
+	await _frames(40)
+	await shot("court_s8_legion")
+	g.queue_free()
+	await _frames(3)
+	g = await _scenario_game(9)
+	sc = g.scenario
+	await _cut_to_line(sc, "", "Mist on the delta")
+	await shot("court_s9_mist")
+	sc.cutscene.skip()
+	await _frames(30)
+	v = g.player_village
+	var ab: Treasure = sc.spec._abbey(sc)
+	g.fog.reveal(Vector2(ab.tile), 9.0, v.id)
+	var octo = sc.mark.get("octopus")
+	if octo:
+		(octo as Enemy).surface()
+	g.camera.focus(Iso.to_world(Vector2(ab.tile)))
+	g.camera.zoom = Vector2(0.9, 0.9)
+	g.select(ab)
+	await _frames(60)
+	await shot("court_s9_abbey")
+	g.deselect()
+	sc.play_scene([{"say": "hilde", "text": "You want to know what the abbey hides. The First King's Hand."}])
+	await _frames(40)
+	await shot("court_s9_hilde")
+	sc.cutscene.skip()
+	await _frames(10)
+	var lev := g.waves.spawn_at("leviathan", sc.spec._lake_spawn(sc), v, 7)
+	lev.set_identity("Leviathan", "")
+	await _frames(20)
+	lev.surface()
+	g.camera.focus(lev.position)
+	await _frames(40)
+	await shot("court_s9_leviathan")
 	g.queue_free()
 	await _frames(3)

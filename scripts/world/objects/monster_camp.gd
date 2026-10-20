@@ -16,11 +16,19 @@ var left := 0
 
 
 func art() -> String:
+	if _legion():
+		return "legion_camp_cleared" if cleared else "legion_camp"
 	return "camp_cleared" if cleared else "camp"
 
 
+## Held by the Dread Legion (the campaign's camps at the court's gates)?
+func _legion() -> bool:
+	var kinds: Array = data.get("monsters", [])
+	return not kinds.is_empty() and kinds.all(func(k) -> bool: return str(k).begins_with("legion_"))
+
+
 func display_name() -> String:
-	return "Monster camp"
+	return "Legion camp" if _legion() else "Monster camp"
 
 
 ## Host: the monsters come out at the start.
@@ -34,25 +42,31 @@ func attackable() -> bool:
 
 
 func _spawn_guards(kinds: Array, hp_scale: float) -> void:
-	left = kinds.size()
+	for k in kinds.size():
+		add_guard(str(kinds[k]), hp_scale)
+
+
+## One more guard of `kind` by the camp (on the next free spot round it).
+func add_guard(kind: String, hp_scale: float) -> Enemy:
 	var spots: Array[Vector2i] = []
 	for dy in range(-1, 2):
 		for dx in range(-1, 2):
 			var t := tile + Vector2i(dx, dy)
 			if t != tile and game.world.pathing.is_walkable(t):
 				spots.append(t)
-	for k in kinds.size():
-		var home: Vector2i = spots[k % spots.size()] if not spots.is_empty() else tile
-		var e: Enemy = ENEMY_SCRIPT.new()
-		var route: Array[Vector2i] = [home]
-		e.setup(game, route, hp_scale, kinds[k])
-		e.behavior = CAMP_BEHAVIOR.new()
-		(e.behavior as CampBehavior).setup(self, Vector2(home))
-		e.uid = game.next_id(e.kind)
-		e.nid = game.register(e)
-		e.killed.connect(_on_killed)
-		game.world.objects.add_child(e)
-		monsters.append(e)
+	var home: Vector2i = spots[monsters.size() % spots.size()] if not spots.is_empty() else tile
+	var e: Enemy = ENEMY_SCRIPT.new()
+	var route: Array[Vector2i] = [home]
+	e.setup(game, route, hp_scale, kind)
+	e.behavior = CAMP_BEHAVIOR.new()
+	(e.behavior as CampBehavior).setup(self, Vector2(home))
+	e.uid = game.next_id(e.kind)
+	e.nid = game.register(e)
+	e.killed.connect(_on_killed)
+	game.world.objects.add_child(e)
+	monsters.append(e)
+	left = monsters.size()
+	return e
 
 
 ## A loaded game (docs/save-design.md): one guard as it was saved
@@ -107,7 +121,7 @@ func alive() -> Array[Enemy]:
 func found_message(_v: Village) -> String:
 	if cleared:
 		return ""
-	return "Found a monster camp guarding a treasure. Tap it and order: Attack with the hero."
+	return "Found a %s guarding a treasure. Tap it and order: Attack with the hero." % display_name().to_lower()
 
 
 func info() -> Dictionary:
@@ -116,7 +130,7 @@ func info() -> Dictionary:
 	if cleared:
 		lines.append("Cleared. Nothing left to fear here.")
 		return d
-	lines.append("%d monster%s guard a treasure here." % [left, "" if left == 1 else "s"])
+	lines.append("%d %s%s guard a treasure here." % [left, "Legion soldier" if _legion() else "monster", "" if left == 1 else "s"])
 	_attack_lines(d)
 	return d
 

@@ -566,6 +566,8 @@ static func _places() -> Array[Dictionary]:
 	var scale_top: float = Config.TREASURE_TIER_SCALE[-1]
 	for kind: String in Config.TREASURES:
 		var t: Dictionary = Config.TREASURES[kind]
+		if t.get("campaign", false):
+			continue
 		var f := PackedStringArray()
 		f.append("Found %s" % _zones_text(t["zones"]))
 		var r := PackedStringArray()

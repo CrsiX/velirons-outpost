@@ -28,7 +28,8 @@ var call_locked := false
 ## Scripted waves (the tutorial's, a scenario's), used up first:
 ## [{"kinds": {kind: count}, "spawn": tile}] (all from that road tile), or
 ## without "spawn": spread over "spawns" edge spawns (default: as many as a
-## normal wave n uses), with "rat_packs": [sizes] (a pack from one spawn each).
+## normal wave n uses), with "rat_packs": [sizes] (a pack from one spawn each);
+## "lairs": true adds the awake lairs as spawn points (each sending its kinds).
 var scripted: Array[Dictionary] = []
 ## Seconds from a wave's end to the next one (a scenario may set its own).
 var buffer := Config.WAVE_BUFFER
@@ -204,8 +205,13 @@ func _scripted_wave(sw: Dictionary, n: int, hp_scale: float) -> Array:
 		for i in int(sw["kinds"][kind]):
 			kinds.append(kind)
 	kinds.shuffle()
+	var pool: Array = []  # (untyped: edge tiles and lairs)
+	pool.append_array(points)
+	if sw.get("lairs", false):
+		pool.append_array(game.world.awake_lairs())
 	for i in kinds.size():
-		out.append(_spec(kinds[i], points[i % points.size()], hp_scale, target))
+		out.append(_spec(kinds[i], pool[i % pool.size()], hp_scale, target))
+	_theme_lairs(out, n)
 	for size in sw.get("rat_packs", []):
 		_insert_pack(out, points[_rng.randi() % points.size()], int(size), hp_scale, target)
 	_water_spawns(out, target)
@@ -417,6 +423,10 @@ func _spawn(spec: Dictionary) -> Enemy:
 	g.setup(game, route, spec["hp_scale"], kind)
 	if spec.has("name") or spec.has("art"):
 		g.set_identity(str(spec.get("name", "")), str(spec.get("art", "")))
+	if spec.has("hp_x"):  # (a scenario's boss)
+		g.max_hp *= float(spec["hp_x"])
+		g.hp = g.max_hp
+	g.power = float(spec.get("power", 1.0))
 	if habitat != "land" and not _aqua_logged.has(kind) and not _uncounted_next:
 		_aqua_logged[kind] = true
 		target.events.add(EventLog.Level.IMPORTANT if kind == "octopus" else EventLog.Level.INFO, str(Config.AQUA_FIRST.get(kind, "A %s comes out of the water!" % str(g.spec()["name"]).to_lower())))
@@ -441,7 +451,8 @@ func _add(g: Enemy, target: Village) -> void:
 
 ## A scenario's extra enemies for the wave under way (they count for it):
 ## `count` of `kind` from road tile `tile`, at the end of its queue; `extra`
-## goes into each one's queue entry ("name", "art": Enemy.set_identity).
+## goes into each one's queue entry ("name", "art": Enemy.set_identity;
+## "hp_x": its HP times that, "power": its damage, Enemy.power).
 func add_to_wave(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary = {}) -> void:
 	var hp_scale := pow(Config.WAVE_HP_GROWTH, maxi(wave, 1) - 1)
 	for i in count:

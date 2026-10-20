@@ -8,6 +8,8 @@ extends MapObject
 var looted := false
 ## The hero looting it right now (so two don't pick the same one).
 var claimed_by: Node = null
+## Can't be looted yet (a scenario opens it: the drowned abbey's crypt).
+var sealed := false
 
 
 func art() -> String:
@@ -43,14 +45,16 @@ func guard() -> MonsterCamp:
 
 ## Can the hero go for it now?
 func lootable() -> bool:
-	return not looted and guard() == null and (claimed_by == null or not is_instance_valid(claimed_by))
+	return not looted and not sealed and guard() == null and (claimed_by == null or not is_instance_valid(claimed_by))
 
 
 func found_message(_v: Village) -> String:
 	if looted:
 		return ""
 	if guard() != null:
-		return "Found %s, guarded by a monster camp. Clear the camp first (tap it: Attack with the hero)." % _a_name()
+		return "Found %s, guarded by a %s. Clear the camp first (tap it: Attack with the hero)." % [_a_name(), guard().display_name().to_lower()]
+	if sealed:
+		return "Found %s. It is sealed for now." % _a_name()
 	return "Found %s. The hero loots it in Explore mode." % _a_name()
 
 
@@ -94,6 +98,11 @@ static func pay(v: Village, r: Dictionary) -> String:
 				for u in v.army.units:
 					u.heal(u.max_hp())
 				parts.append("units healed")
+			"item":  # (a campaign's: the relic sword)
+				if not v.items.has(str(r[k])):
+					v.items.append(str(r[k]))
+				v.events.important("%s is home with %s." % [v.hero.label() if v.hero else "The hero", r[k]])
+				parts.append(str(r[k]))
 			"relic":
 				var key: String = r[k]
 				if not v.relics.has(key):
@@ -117,6 +126,8 @@ static func reward_text(r: Dictionary) -> String:
 				parts.append("every unit healed")
 			"relic":
 				parts.append("a relic")
+			"item":
+				parts.append(str(r[k]))
 	return ", ".join(parts)
 
 
@@ -128,7 +139,9 @@ func info() -> Dictionary:
 	else:
 		lines.append("Treasure: %s." % ("something valuable" if reward().is_empty() else "worth looting"))
 		if guard() != null:
-			lines.append("Guarded by a monster camp nearby.")
+			lines.append("Guarded by a %s nearby." % guard().display_name().to_lower())
+		elif sealed:
+			lines.append("Sealed: it can't be looted yet.")
 		else:
 			lines.append("The hero loots it in Explore mode (%.0f s)." % loot_time())
 	return d

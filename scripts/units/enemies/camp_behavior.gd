@@ -42,11 +42,12 @@ func tick(enemy: Enemy, delta: float) -> bool:
 				enemy.set_grid_pos(step)
 				enemy.moving = true
 		elif _attack_timer <= 0.0:
-			_attack_timer = float(enemy.spec().get("attack_cooldown", 1.2))
+			_attack_timer = float(enemy.spec().get("attack_cooldown", 1.2)) / enemy.haste()
 			var dmg := enemy.stat("damage") if float(enemy.spec().get("damage", 0.0)) > 0.0 else 0.0
 			if dmg <= 0.0:  # (a witch at a camp hits with her spell)
 				dmg = enemy.stat("spell_damage")
 			enemy.swing(_foe.grid_pos)
+			cleave(enemy, _foe)
 			_foe.take_damage(dmg, enemy, enemy.attack_category())
 		return true
 	# Nobody around: back to its spot by the fire.

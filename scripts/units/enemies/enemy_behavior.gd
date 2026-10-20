@@ -9,6 +9,22 @@ static func _sheltered(node) -> bool:
 	return node is Civilian and not (node is Hero) and not (node as Civilian).is_exposed()
 
 
+## A blow that cleaves (the court champion's: "cleave", "cleave_radius"):
+## everyone else of ours within cleave_radius of `foe` takes cleave x its
+## damage (soldiers, summons, the hero, villagers outside).
+static func cleave(enemy: Enemy, foe: Node) -> void:
+	var share := float(enemy.spec().get("cleave", 0.0))
+	if share <= 0.0 or not is_instance_valid(foe):
+		return
+	var r := float(enemy.spec()["cleave_radius"])
+	var at: Vector2 = foe.grid_pos
+	var tree := enemy.get_tree()
+	for node in tree.get_nodes_in_group("melee_defenders") + tree.get_nodes_in_group("villagers"):
+		if node == foe or node.dead or _sheltered(node) or (node.grid_pos as Vector2).distance_to(at) > r:
+			continue
+		node.take_damage(enemy.stat("damage") * share, enemy, enemy.attack_category())
+
+
 ## Called every frame. Return true to hold the enemy in place this frame
 ## (e.g. while fighting or casting), false to let it keep walking.
 func tick(_enemy: Enemy, _delta: float) -> bool:
@@ -24,7 +40,7 @@ func siege_attack(enemy: Enemy, b: Building) -> float:
 		return 0.0
 	enemy.swing(Vector2(b.tile))
 	b.take_damage(dmg, enemy)
-	return enemy.stat("attack_cooldown")
+	return enemy.stat("attack_cooldown") / enemy.haste()
 
 
 ## Called when the enemy is hurt by `source` (a Tower, or a melee defender).

@@ -256,6 +256,47 @@ func _man_prebuilt() -> void:
 	army.changed.emit()
 
 
+## The scenario's units in the reserve at the start (Scenario.reserve).
+func _fill_reserve() -> void:
+	for u in spec.reserve:
+		var unit := MilitaryUnit.new(str(u["kind"]))
+		unit.village = game.player_village
+		unit.original_owner = game.player_village
+		unit.nid = game.register(unit)
+		unit.uid = game.next_id(unit.kind)
+		unit.level = clampi(int(u.get("level", 1)) - 1, 0, Config.MAX_UNIT_LEVEL - 1)
+		unit.hp = unit.max_hp()
+		game.army.units.append(unit)
+	if not spec.reserve.is_empty():
+		game.army.changed.emit()
+
+
+## The map's lairs as the scenario has them (Scenario.lairs), nearest first.
+func _set_lairs() -> void:
+	if spec.lairs.is_empty():
+		return
+	var list := lairs()
+	for i in list.size():
+		var l := list[i] as MonsterLair
+		l.stays_cleared = true
+		if i >= spec.lairs.size():
+			l.wake_wave = 0
+			continue
+		var d: Dictionary = spec.lairs[i]
+		l.wake_wave = int(d.get("wake", 0))
+		l.guard_kinds = d.get("guards", [])
+		l.guard_hp = float(d.get("guard_hp", 0.0))
+		l.kinds_any.assign(d.get("kinds", []))
+
+
+## The map's monster lairs, nearest the village first.
+func lairs() -> Array:
+	var c := Vector2(game.player_village.center)
+	var list := game.world.map_objects.filter(func(o: Node) -> bool: return o is MonsterLair)
+	list.sort_custom(func(a: Node, b: Node) -> bool: return Vector2((a as MonsterLair).tile).distance_to(c) < Vector2((b as MonsterLair).tile).distance_to(c))
+	return list
+
+
 ## A RoadSpots on road `which` (0: the one nearest the village by road), kept.
 func road_spots(which: int) -> RoadSpots:
 	if not _roads.has(which):
@@ -278,6 +319,8 @@ func start() -> void:
 			awaken_site(kind, false)
 	_name_villagers()
 	_man_prebuilt()
+	_fill_reserve()
+	_set_lairs()
 	if spec.hero_name != "":
 		h.given_name = spec.hero_name
 	if spec.hero_level > 1:
@@ -656,7 +699,7 @@ func _process(delta: float) -> void:
 			if _poll <= 0.0:
 				_poll_now()
 		Phase.OUTRO:
-			if not _outro_started and not game.waves.in_progress():
+			if not _outro_started and not game.waves.in_progress() and cutscene == null:  # (a scene playing ends first)
 				_outro_started = true
 				card.visible = false
 				highlight.clear()
@@ -705,7 +748,7 @@ func _poll_now() -> void:
 ## Whether this scenario lets the village have `key` (a military kind or a villager role).
 func allows(key: String) -> bool:
 	if Config.MILITARY.has(key):
-		return spec.units.is_empty() or spec.units.has(key)
+		return spec.recruiting and (spec.units.is_empty() or spec.units.has(key))
 	return true
 
 

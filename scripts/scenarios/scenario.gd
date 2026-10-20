@@ -56,6 +56,8 @@ var pieces_hp := 1.0
 ## "level", "fixed": takes no orders (MilitaryUnit.bound)}] (one per slot)}.
 ## A workplace among them takes its worker (the stall: the merchant).
 var prebuilt: Array[Dictionary] = []
+## Units waiting in the reserve at the start: [{"kind", "level"}] (scenario 8's band).
+var reserve: Array[Dictionary] = []
 ## The hero: a name, the level (1 = the first), and where she starts (a tile;
 ## (-1, -1): the village centre; from there she walks to the village after
 ## the intro). A tent stands on `tent_tile` ((-1, -1): none).
@@ -74,6 +76,8 @@ var walk_text := ""
 
 ## Military kinds that can be recruited ([]: all, as unlocked on the map).
 var units: Array[String] = []
+## Units can be recruited at all (false: only those the scenario gives).
+var recruiting := true
 ## Buildings that can be placed ([]: all).
 var build: Array[String] = []
 ## Units may specialise (from Config.BRANCH_MIN_LEVEL).
@@ -95,6 +99,12 @@ var corpses_rot := true
 var sites := {}
 ## Units and roles unlocked from the start (Config.LOCKED keys), as if found.
 var unlocked: Array[String] = []
+## The map's monster lairs, nearest the village first: {"wake": the wave it
+## wakes up at, "guards": [kinds] (its theme's if left out), "guard_hp": their
+## HP scale (the waking wave's if left out), "kinds": [kinds it sends, whatever
+## the wave] (its theme's if left out)}. Cleared, a scenario's lair stays
+## cleared. Lairs past the list never wake. [] leaves them as in a normal game.
+var lairs: Array[Dictionary] = []
 
 # --- waves --------------------------------------------------------------------------------
 

@@ -22,6 +22,7 @@ const BEHAVIORS := {
 	"octopus": preload("res://scripts/units/enemies/octopus_behavior.gd"),
 	"arm": preload("res://scripts/units/enemies/arm_behavior.gd"),
 	"captain": preload("res://scripts/units/enemies/captain_behavior.gd"),
+	"legion_archer": preload("res://scripts/units/enemies/legion_archer_behavior.gd"),
 }
 
 ## Water monsters (docs/aquatic-design.md §2): up (targetable), diving, down
@@ -107,6 +108,15 @@ var _slip := 0.0
 var raid_hut: Hut = null
 ## The raid target it got to instead (a guild warehouse): it plunders that.
 var raid_store: Warehouse = null
+## A guard of a place, not a wave member (the campaign's octopus at the
+## abbey): a water monster keeps to the deep tiles within `post_leash` of
+## `post` ((-1, -1): none; AquaBehavior).
+var post := Vector2i(-1, -1)
+var post_leash := 0.0
+## Its damage and spell damage x this (a scenario's boss: the leviathan).
+var power := 1.0
+var _haste := 1.0
+var _haste_at := -INF
 
 
 func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: String) -> void:
@@ -563,9 +573,31 @@ func label() -> String:
 	return "%s %d" % [str(spec()["name"]).to_lower(), uid]
 
 
-## A config value for this kind, difficulty-scaled where appropriate.
+## A config value for this kind, difficulty-scaled where appropriate (and
+## `power` for a boss's damage).
 func stat(key: String) -> float:
+	if power != 1.0 and (key == "damage" or key == "spell_damage"):
+		return Config.enemy_stat(kind, key) * power
 	return Config.enemy_stat(kind, key)
+
+
+## How much faster its blows and shots come: a Dread Legion soldier within a
+## living banner-bearer's banner_radius strikes 1 + banner_haste times as
+## fast (the strongest banner counts); everyone else 1. Checked every 0.5 s.
+func haste() -> float:
+	if not kind.begins_with("legion_"):
+		return 1.0
+	if game.clock - _haste_at < 0.5:
+		return _haste
+	_haste_at = game.clock
+	_haste = 1.0
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var b := e as Enemy
+		if b.dead or not b.spec().has("banner_haste"):
+			continue
+		if b.grid_pos.distance_to(grid_pos) <= float(b.spec()["banner_radius"]):
+			_haste = maxf(_haste, 1.0 + float(b.spec()["banner_haste"]))
+	return _haste
 
 
 ## Tiles left until the gate (lower = more dangerous); breaking in: tiles to
@@ -926,6 +958,10 @@ func _fly(delta: float) -> void:
 func _draw() -> void:
 	if not dead:
 		_draw_water()
+	if not dead and spec().has("banner_radius"):
+		# A banner-bearer: a faint pale ring on the ground, as far as its banner reaches.
+		var r := float(spec()["banner_radius"]) * Iso.HALF_W * 1.414
+		_ring(Vector2.ZERO, r, r * 0.5, Color(0.86, 0.88, 0.95, 0.22), 2.0)
 	if _root_left > 0.0 and not dead:
 		_draw_roots()
 	if channel_to != Vector2.INF and not dead:

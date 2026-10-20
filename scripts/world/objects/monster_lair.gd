@@ -18,6 +18,14 @@ var awake := false
 var woke_at := -1
 ## Cleared: the wave it wakes up again at.
 var quiet_until := -1
+## A scenario's lair (Scenario.lairs): the kinds it sends whatever the wave
+## ([]: its theme's, as their waves come), its guards ([]: its theme's) and
+## their HP scale (<= 0: the waking wave's), and whether a cleared one stays
+## cleared for good.
+var kinds_any: Array[String] = []
+var guard_kinds: Array = []
+var guard_hp := 0.0
+var stays_cleared := false
 var _glow: Polygon2D = null
 
 
@@ -59,6 +67,8 @@ func door() -> Vector2i:
 ## The kinds it sends in wave `n` (those whose wave has come; rats come in
 ## packs, not here), at least goblins.
 func kinds_for(n: int) -> Array[String]:
+	if not kinds_any.is_empty():
+		return kinds_any.duplicate()
 	var out: Array[String] = []
 	for k: String in theme()["kinds"]:
 		if k == Config.WAVE_FILLER or (Config.WAVE_MIX.has(k) and n >= int(Config.WAVE_MIX[k]["from_wave"])):
@@ -73,7 +83,7 @@ func on_wave(n: int) -> void:
 	if awake:
 		return
 	if cleared:
-		if n < quiet_until:
+		if stays_cleared or n < quiet_until:
 			return
 		cleared = false
 	elif wake_wave <= 0 or n < wake_wave:
@@ -81,7 +91,7 @@ func on_wave(n: int) -> void:
 	var again := woke_at >= 0
 	awake = true
 	woke_at = n
-	_spawn_guards(theme()["guards"], pow(Config.WAVE_HP_GROWTH, n - 1))
+	_spawn_guards(guard_kinds if not guard_kinds.is_empty() else theme()["guards"], guard_hp if guard_hp > 0.0 else pow(Config.WAVE_HP_GROWTH, n - 1))
 	for e in monsters:
 		e.wave = n
 	refresh()
@@ -121,7 +131,10 @@ func _on_cleared(v: Village) -> void:
 	awake = false
 	quiet_until = game.waves.wave + 1 + Config.LAIR_QUIET_WAVES
 	var who := v.village_name if v else "Someone"
-	game.log_all(EventLog.Level.INFO, "%s cleared a monster lair: it left a sack of loot at its door, and it stays quiet until wave %d." % [who, quiet_until])
+	if stays_cleared:
+		game.log_all(EventLog.Level.INFO, "%s cleared the %s: it left a sack of loot at its door, and it stays quiet for good." % [who, theme()["name"]])
+	else:
+		game.log_all(EventLog.Level.INFO, "%s cleared a monster lair: it left a sack of loot at its door, and it stays quiet until wave %d." % [who, quiet_until])
 	game.world.add_dropped_loot(_loot_tile(), _loot(v))
 
 
@@ -160,10 +173,13 @@ func info() -> Dictionary:
 	var lines: Array[String] = d["lines"]
 	if awake:
 		lines.append("Awake: %s come out of it with every wave." % _plural_list(kinds_for(game.waves.wave)).to_lower())
-		lines.append("%d guard%s stand by it. Clear it to make it sleep for %d waves (and take its loot)." % [left, "" if left == 1 else "s", Config.LAIR_QUIET_WAVES])
+		if stays_cleared:
+			lines.append("%d guard%s stand by it. Clear it to close it for good (and take its loot)." % [left, "" if left == 1 else "s"])
+		else:
+			lines.append("%d guard%s stand by it. Clear it to make it sleep for %d waves (and take its loot)." % [left, "" if left == 1 else "s", Config.LAIR_QUIET_WAVES])
 		_attack_lines(d)
 	elif cleared:
-		lines.append("Cleared. It stays quiet until wave %d." % quiet_until)
+		lines.append("Cleared for good." if stays_cleared else "Cleared. It stays quiet until wave %d." % quiet_until)
 	else:
 		lines.append("Something lives in there. It's asleep, for now.")
 	return d

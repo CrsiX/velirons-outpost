@@ -331,6 +331,12 @@ released (`"release"`: no corpse, the colour warms, a pale breath). The captain
 (`CaptainBehavior`) is never killed: below `retreat_below` (30 %) it falls back, untargetable, off
 the map the way it came. Named ones (Lysa, Torben) carry a name and art of their own
 (`Enemy.set_identity`). Numbers and the rest: docs/scenarios-design.md §7.7.
+- The **archer** (`LegionArcherBehavior`) stops to shoot our people out in the open within `shoot_range`
+  (3.2, below a level 1 watchtower), arrows as projectiles; the **guardsman** takes half from projectiles;
+  the **banner-bearer** hastes every Legion soldier within `banner_radius` (`Enemy.haste`: ×1.25); the
+  **court champion** (scenario 8's Rurik) cleaves (`EnemyBehavior.cleave`). docs/scenarios-design.md §7.13.
+- A camp of Legion soldiers only is a *Legion camp* (its own look). A scenario can set a lair's guards,
+  kinds and waking wave and keep it cleared (`Scenario.lairs`).
 
 ## 17. Open ideas / not built
 

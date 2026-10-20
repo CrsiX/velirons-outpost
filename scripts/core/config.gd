@@ -502,6 +502,9 @@ const TREASURES := {
 	"standing_stones": {"name": "Standing stones", "zones": ["heath", "hills"], "weight": 1.5, "loot_time": 6.0, "reward": {"gold": [50, 90]}, "relic": true},
 	"shipwreck": {"name": "Shipwreck", "zones": ["beach"], "weight": 5.0, "loot_time": 8.0, "reward": {"gold": [60, 120], "food": [20, 40]}},
 	"dragon_bones": {"name": "Dragon bones", "zones": ["ash"], "weight": 5.0, "loot_time": 10.0, "reward": {"gold": [100, 150]}, "relic": true},
+	# The campaign's drowned abbey (scenario 9), placed by its map file: never
+	# generated, not in the library. Its reward is an item (the relic sword).
+	"abbey": {"name": "Drowned abbey", "zones": [], "weight": 0.0, "loot_time": 8.0, "reward": {}, "campaign": true},
 }
 const RELIC_MAX := 2  # per map
 ## Relics: a small permanent bonus for the village that finds one.
@@ -1590,6 +1593,56 @@ const ENEMIES := {
 		"damage": 12.0, "attack_cooldown": 1.2,
 		"gold_on_kill": 0, "gold_on_collect": 0, "food_on_collect": 0,
 		"retreat_below": 0.3, "retreat_speed": 1.4, "hp_bar_y": -52.0,
+	},
+	# A Legion archer: stops on its road to shoot our people out in the open
+	# (the hero, soldiers out, summons, villagers outside) within shoot_range,
+	# a little less than a level 1 watchtower's range, so towers outrange it;
+	# never a tower's unit. Its arrows are projectiles. At a barrier it shoots
+	# that (damage x siege). LegionArcherBehavior.
+	"legion_archer": {
+		"name": "Legion Archer", "art": "legion_archer", "behavior": "legion_archer", "corpse": false,
+		"siege": 0.6, "campaign": true, "release": true, "attack_category": "projectile",
+		"desc": "A bowman of the Dread Legion. It stops to shoot whoever of ours is out in the open, from a little less than a watchtower's range.",
+		"hp": 26.0, "speed": 0.95,
+		"damage": 5.0, "attack_cooldown": 1.6,
+		"gold_on_kill": 6, "gold_on_collect": 0, "food_on_collect": 0,
+		"shoot_range": 3.2, "arrow_speed": 9.0,
+	},
+	# A Legion guardsman behind a tower shield: slow and tough, and arrows and
+	# bolts (projectile damage) do half to it. Breaks gates and walls well.
+	"legion_guard": {
+		"name": "Legion Guardsman", "art": "legion_guard", "behavior": "melee", "corpse": false,
+		"siege": 1.5, "campaign": true, "release": true,
+		"desc": "A Legion soldier behind a tall tower shield. Slow, tough, and arrows and bolts do only half to it.",
+		"hp": 70.0, "speed": 0.75,
+		"damage": 6.0, "attack_cooldown": 1.3,
+		"gold_on_kill": 7, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"projectile": 0.5},
+	},
+	# A Legion banner-bearer: weak with its spear, but every Legion soldier
+	# within banner_radius of its banner (itself too) strikes and shoots
+	# 1 + banner_haste times as fast (Enemy.haste; several banners: one counts).
+	"legion_banner": {
+		"name": "Legion Banner-bearer", "art": "legion_banner", "behavior": "melee", "corpse": false,
+		"siege": 0.5, "campaign": true, "release": true,
+		"desc": "Carries the Legion's pale banner. Legion soldiers near it strike and shoot faster: kill it first.",
+		"hp": 45.0, "speed": 0.9,
+		"damage": 3.0, "attack_cooldown": 1.2,
+		"gold_on_kill": 8, "gold_on_collect": 0, "food_on_collect": 0,
+		"banner_radius": 2.5, "banner_haste": 0.25, "hp_bar_y": -58.0,
+	},
+	# The Pale Court's champion (the campaign's Rurik, named by the scenario):
+	# a boss. Each blow also hits every other one of ours within cleave_radius
+	# of its target for cleave x the damage (MeleeBehavior, CampBehavior).
+	"legion_champion": {
+		"name": "Court Champion", "art": "legion_champion", "behavior": "melee", "corpse": false,
+		"siege": 2.0, "campaign": true, "release": true,
+		"desc": "The Pale Court's champion in pale plate, with a greatsword whose blows cleave through everyone around its target.",
+		"hp": 520.0, "speed": 0.8,
+		"damage": 15.0, "attack_cooldown": 1.5,
+		"gold_on_kill": 60, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"projectile": 0.75},
+		"cleave": 0.6, "cleave_radius": 1.3, "hp_bar_y": -62.0,
 	},
 }
 ## The water monsters' shared rules (docs/aquatic-design.md):

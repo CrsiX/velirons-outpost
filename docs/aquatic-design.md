@@ -78,6 +78,9 @@ necromancer's own corpse already used). A raised crab or siren never submerges.
   uses the same field and dives into a river only when that is the shorter way.
 - **Water-bound kinds** don't follow routes. A behavior moves them (submerged or surfaced) over
   the deep tiles of their own body, towards the best target (§5, §8).
+- **Guards** (`Enemy.post`, `post_leash`; the campaign's octopus at the drowned abbey): a
+  water-bound monster with a post looks for its spots only among the deep tiles within the
+  leash of the post, and comes up at the one nearest it (instead of near the village).
 
 ## 4. Crab (amphibian)
 

@@ -55,7 +55,7 @@ func _pages() -> void:
 	for m in Hero.MODE_NAMES:
 		modes.append("Mode: %s" % m + (" (co-op)" if m == "Support" else ""))
 	_all_in(_names("hero"), ["Hero", "Earning XP"] + modes, "the hero and her modes")
-	_all_in(_names("places"), Config.TREASURES.values().map(func(t: Dictionary) -> String: return t["name"]) + ["Relics", "Monster camp", "Monster lair", "Mine", "Ruined watchtower"], "treasures and places")
+	_all_in(_names("places"), Config.TREASURES.values().filter(func(t: Dictionary) -> bool: return not t.get("campaign", false)).map(func(t: Dictionary) -> String: return t["name"]) + ["Relics", "Monster camp", "Monster lair", "Mine", "Ruined watchtower"], "treasures and places")
 	_all_in(_names("places"), Config.UNLOCK_SITES.values().map(func(s: Dictionary) -> String: return s["name"]), "unit-unlock sites")
 	# The numbers are Config's.
 	var gob := _facts("enemies", "Goblin")

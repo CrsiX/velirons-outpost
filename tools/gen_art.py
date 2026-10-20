@@ -1584,6 +1584,305 @@ def legion_captain(name, plume, hair=None):
     person(name, ("#3a3a42", "#2c2c34"), hat=hat, skin="#c4c6c8", extra=extra)
 
 
+# ------------------------------------------------- scenarios 8 and 9: the Legion, the abbey
+
+LEGION_HELM = '<path d="M-6.5,-31 Q-7,-41 0,-41 Q7,-41 6.5,-31 L4,-31 L4,-34 L-4,-34 L-4,-31Z" fill="%s" stroke="%s" stroke-width="1.2"/>'
+
+
+def _legion_hat(steel="#7a7e86", plume=None):
+    def hat(a):
+        a.raw(LEGION_HELM % (steel, INK), [(-7, -42), (7, -30)])
+        a.line([(-1, -34), (-1, -29)], "#5a5e66", 1.4)  # nose guard
+        if plume:
+            a.raw('<path d="M0,-41 Q-4,-50 -12,-49 Q-6,-46 -4,-41Z" fill="%s" stroke="%s" stroke-width="1"/>' % (plume, INK), [(-13, -51), (1, -40)])
+        a.ellipse(3, -33, 1.1, 0.8, "#d8e0f0")  # empty, pale eye
+    return hat
+
+
+def legion_archer():
+    """A Legion archer: the footman's pallor and helm, a quiver on the back,
+    a longbow held out in front, the faded tabard."""
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-9, -14), (-4, -15), (-2, -34), (-7, -34)], "#5a4630", INK, 1)  # quiver
+            for x in (-6.5, -4.5):
+                a.line([(x, -34), (x - 1, -40)], "#c8c0a8", 1.2)
+                a.poly([(x - 2.2, -40), (x + 0.2, -40), (x - 1, -43)], "#b8bcc4", INK, 0.5)
+        else:
+            a.poly([(-6, -12), (6, -12), (5, -26), (-5, -26)], "#6a4e50", INK, 1)  # faded tabard
+            a.line([(0, -26), (0, -12)], "#5a4446", 1)
+            a.line([(4, -22), (10, -21)], INK, 3.4)  # bow arm
+            a.raw('<path d="M10,-40 Q17,-22 10,-4" fill="none" stroke="%s" stroke-width="3.2"/>' % INK, [(9, -41), (17, -3)])
+            a.raw('<path d="M10,-40 Q17,-22 10,-4" fill="none" stroke="%s" stroke-width="1.8"/>' % "#6a5038", [(9, -41), (17, -3)])
+            a.line([(10, -40), (10, -4)], "#d8d4c8", 0.7)  # string
+    person("unit_legion_archer", ("#4a4c54", "#3a3c44"), hat=_legion_hat(), skin="#c4c6c8", extra=extra)
+
+
+def legion_guard():
+    """A Legion guardsman: a tall rectangular tower shield in front, the grey
+    helm, a short spear over it."""
+    def extra(a, layer):
+        if layer == "back":
+            a.line([(-4, -4), (4, -50)], INK, 3.2)  # spear
+            a.line([(-4, -4), (4, -50)], "#6a5a48", 1.6)
+            a.poly([(2.6, -50), (4.4, -57), (6, -49.6)], "#b8bcc4", INK, 0.8)
+        else:
+            a.poly([(-1, -3), (12, -6), (12, -36), (-1, -33)], "#5a5e66", INK, 1.4)  # tower shield
+            a.poly([(1, -6), (10, -8), (10, -33), (1, -31)], "#6a6e76", stroke=None)
+            a.line([(5.5, -8), (5.5, -32)], "#8a8e96", 1.4)
+            a.line([(1, -20), (10, -21)], "#8a8e96", 1.4)
+            a.ellipse(5.5, -20.5, 2.2, 2.4, "#9a9ea6", INK, 0.8)
+            a.line([(-1, -3), (12, -6), (12, -36), (-1, -33), (-1, -3)], INK, 1.4)
+    person("unit_legion_guard", ("#44464e", "#34363e"), hat=_legion_hat("#8a8e96"), skin="#c4c6c8", extra=extra)
+
+
+def legion_banner():
+    """A Legion banner-bearer: a tall pole with a long pale banner, the crown's
+    sigil faded on it; a short spear-point on top."""
+    def extra(a, layer):
+        if layer == "back":
+            a.line([(-6, -4), (-6, -66)], INK, 3.4)  # the banner pole
+            a.line([(-6, -4), (-6, -66)], WOOD_D, 1.8)
+            a.poly([(-7.4, -66), (-6, -72), (-4.6, -66)], "#b8bcc4", INK, 0.7)
+            a.line([(-12, -62), (6, -62)], WOOD_D, 1.8)  # crossbar
+            a.poly([(-11, -62), (5, -62), (5, -36), (-3, -40), (-11, -36)], "#d4d6dc", INK, 1.2)  # the pale banner
+            a.poly([(-11, -62), (-3, -62), (-3, -40), (-11, -36)], "#c0c3ca", stroke=None)
+            a.poly([(-7, -54), (-5, -57), (-3, -54), (-1, -57), (1, -54), (1, -50), (-7, -50)], "#8a8e9a", INK, 0.6)  # a faded crown
+            a.line([(-11, -62), (5, -62)], INK, 1.2)
+        else:
+            a.poly([(-6, -12), (6, -12), (5, -26), (-5, -26)], "#6a4e50", INK, 1)
+            a.line([(-4, -22), (-7, -26)], INK, 3.4)  # arm on the pole
+    person("unit_legion_banner", ("#4a4c54", "#3a3c44"), hat=_legion_hat(), skin="#c4c6c8", extra=extra)
+
+
+def legion_champion():
+    """The court's champion (Rurik): pale plate with broad pauldrons, a white
+    plume, a greatsword over the shoulder, a pale cloak."""
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-8, -27), (-14, -1), (2, -3), (7, -27)], "#c8ccd4", INK, 1.2)  # pale cloak
+            a.line([(10, -14), (-10, -56)], INK, 5)  # greatsword over the shoulder
+            a.line([(10, -14), (-10, -56)], "#d8dce4", 3)
+            a.line([(5, -21), (11, -24)], INK, 3)  # cross-guard
+            a.line([(5, -21), (11, -24)], GOLD_D, 1.6)
+        else:
+            a.poly([(-7, -11), (7, -11), (6, -27), (-6, -27)], "#b8bcc4", INK, 1.2)  # breastplate
+            a.poly([(0, -11), (7, -11), (6, -27), (0, -27)], "#9a9ea6", stroke=None)
+            a.line([(-6, -19), (6, -19)], "#7a7e86", 1)
+            a.ellipse(-7, -26, 4.4, 3.2, "#c8ccd4", INK, 1.1)  # pauldrons
+            a.ellipse(7, -26, 4.4, 3.2, "#a8acb4", INK, 1.1)
+            a.line([(7, -24), (10, -16)], INK, 4)  # arm to the hilt
+    person("unit_legion_champion", ("#9a9ea6", "#7a7e86"), hat=_legion_hat("#b8bcc4", "#eceef2"), skin="#c4c6c8", extra=extra)
+
+
+def herald():
+    """Lothar, the court's herald: a pale tabard over a long coat, a feathered
+    cap, a white flag on a staff."""
+    def extra(a, layer):
+        if layer == "back":
+            a.line([(8, -2), (8, -58)], INK, 3)
+            a.line([(8, -2), (8, -58)], "#d8d0bc", 1.6)
+            a.raw('<path d="M8,-58 Q16,-60 22,-56 Q18,-50 24,-44 Q16,-46 8,-42 Z" fill="#f2f0ea" stroke="%s" stroke-width="1"/>' % INK, [(7, -61), (25, -41)])
+        else:
+            a.poly([(-6, -10), (6, -10), (5, -27), (-5, -27)], "#d8d6de", INK, 1)  # pale tabard
+            a.poly([(-3, -21), (0, -24), (3, -21), (0, -18)], GOLD_D, INK, 0.6)
+            a.line([(4, -22), (8, -26)], INK, 3.4)  # hand on the staff
+
+    def hat(a):
+        a.raw('<path d="M-7,-35 Q-6,-42 1,-42 Q8,-41 8,-35 Z" fill="#5a5470" stroke="%s" stroke-width="1.2"/>' % INK, [(-8, -43), (9, -34)])
+        a.raw('<path d="M-4,-41 Q-12,-50 -16,-46 Q-10,-45 -6,-39 Z" fill="#eceae4" stroke="%s" stroke-width="0.9"/>' % INK, [(-17, -51), (-3, -38)])
+    person("unit_herald", ("#4a4660", "#3a3650"), hat=hat, skin="#d8ccc4", robe=True, extra=extra)
+
+
+def legion_camp(cleared=False):
+    """A Dread Legion camp at the court's gates: an orderly pale canvas tent,
+    a rack of spears, the Legion's pale banner; cleared, the tent down and the
+    banner fallen."""
+    a = Art()
+    a.poly(diamond(0.86), "#3e3a36", stroke=None, opacity=0.5)
+    can, can_d, can_s = "#c8c6c0", "#a6a49e", "#b6b4ae"
+    x0, x1, y0, y1, ridge = -0.38, 0.12, -0.36, 0.06, 40
+    ym = (y0 + y1) / 2
+    if not cleared:
+        a.poly([P(x0, y0, 0), P(x1, y0, 0), P(x1, ym, ridge), P(x0, ym, ridge)], can_d)
+        a.poly([P(x1, y0, 0), P(x1, ym, ridge), P(x1, y1, 0)], can_s)
+        a.poly([P(x1, ym - 0.07, 0), P(x1, ym, ridge * 0.7), P(x1, ym + 0.07, 0)], "#24262c", stroke=None)  # opening
+        a.poly([P(x0, ym, ridge), P(x1, ym, ridge), P(x1, y1, 0), P(x0, y1, 0)], can)
+        a.line([P(x0, ym, ridge), P(x1, ym, ridge)], "#6a6e76", 2)
+        for t in (0.25, 0.5, 0.75):  # seams, straight: an army's tent
+            gx = x0 + (x1 - x0) * t
+            a.line([P(gx, ym, ridge), P(gx, y1, 0)], "#9a9892", 0.9)
+        # a rack of spears
+        rx, ry = P(0.22, -0.28)
+        a.line([(rx - 9, ry), (rx + 9, ry - 4)], WOOD_D, 2.4)
+        for k in range(4):
+            sx = rx - 7 + k * 5
+            sy = ry - k * 1.1
+            a.line([(sx, sy + 2), (sx + 1, sy - 30)], INK, 2.2)
+            a.line([(sx, sy + 2), (sx + 1, sy - 30)], "#6a5a48", 1.1)
+            a.poly([(sx - 0.6, sy - 30), (sx + 1, sy - 35), (sx + 2.4, sy - 30)], "#b8bcc4", INK, 0.5)
+    else:
+        a.poly([P(x0, y0 + 0.02, 0), P(x1 - 0.05, y0, 0), P(x1, ym, 8), P(x1 + 0.02, y1 + 0.04, 0), P(x0 + 0.05, y1 + 0.02, 0), P(x0 - 0.02, ym, 5)], can_d)
+        a.poly([P(x0 - 0.02, ym, 5), P(-0.1, ym + 0.02, 11), P(x1, ym, 8), P(x1 + 0.02, y1 + 0.04, 0), P(x0 + 0.05, y1 + 0.02, 0)], can)
+        rx, ry = P(0.22, -0.28)
+        for k in range(3):
+            a.line([(rx - 12 + k * 4, ry + 2 + k), (rx + 14 + k * 3, ry - 6 + k * 2)], "#6a5a48", 1.4)
+    bx, by = P(-0.32, 0.26)
+    if not cleared:
+        a.line([(bx, by), (bx, by - 58)], INK, 3.4)
+        a.line([(bx, by), (bx, by - 58)], WOOD_D, 1.8)
+        a.line([(bx - 4, by - 54), (bx + 18, by - 54)], WOOD_D, 2)
+        a.poly([(bx + 1, by - 54), (bx + 17, by - 54), (bx + 17, by - 30), (bx + 9, by - 34), (bx + 1, by - 30)], "#d4d6dc", INK, 1.1)
+        a.poly([(bx + 5, by - 46), (bx + 7, by - 49), (bx + 9, by - 46), (bx + 11, by - 49), (bx + 13, by - 46), (bx + 13, by - 42), (bx + 5, by - 42)], "#8a8e9a", INK, 0.6)
+    else:
+        a.line([(bx - 10, by + 4), (bx + 38, by - 10)], INK, 3.4)
+        a.line([(bx - 10, by + 4), (bx + 38, by - 10)], WOOD_D, 1.8)
+        a.poly([(bx + 24, by - 7), (bx + 38, by - 12), (bx + 42, by - 1), (bx + 28, by + 2)], "#c0c3ca", INK, 0.9)
+    # a cold fire, ringed with stones
+    fx, fy = P(0.28, 0.2)
+    for k in range(7):
+        ang = k * math.pi * 2 / 7
+        a.ellipse(fx + math.cos(ang) * 9, fy + math.sin(ang) * 4.5, 2.6, 1.8, "#6b665e", INK, 0.8)
+    a.ellipse(fx, fy, 6.5, 3, "#1e1a16")
+    if not cleared:
+        _glow(a, fx, fy - 6, 30, 18, "#c8d8ff", 0.3)
+        a.poly([(fx - 4, fy - 1), (fx - 1, fy - 11), (fx + 1, fy - 6), (fx + 3, fy - 13), (fx + 5, fy - 1)], "#9ab0e0", "#4a5a8a", 0.9)
+    a.save("legion_camp_cleared" if cleared else "legion_camp")
+
+
+def abbey(looted=False):
+    """The drowned abbey (scenario 9), a 2x2 treasure: a stone church half
+    under water, its nave sunk to the windows, a broken spire and a bell
+    tower standing out of the lake, water lapping round it. Before it is
+    looted a faint gold light shines up through the water from the crypt."""
+    k = 2.0
+    a = Art()
+    water, water_d, foam = "#3a6a8a", "#2a5070", "#a8c8d8"
+    a.ellipse(0, 4 * k, 60 * k, 27 * k, water_d, INK, 1.2)
+    a.ellipse(0, 3 * k, 54 * k, 23 * k, water)
+    if not looted:
+        _glow(a, -4 * k, 4 * k, 26 * k, 12 * k, "#ffe08a", 0.45)
+    sl, sr, st = "#8a857c", "#66625b", "#9c978d"
+    w, l, H, R = 0.42, 0.62, 30, 26
+
+    def p(gx, gy, z=0.0):
+        return P(gx * 1.5, gy * 1.5, z * 1.1)
+    # the nave, sunk: its walls stand from the water up
+    a.poly([p(-w, l), p(w, l), p(w, l, H), p(0, l, H + R), p(-w, l, H)], sl, INK, 1.3)
+    a.poly([p(w, l), p(w, -l), p(w, -l, H), p(w, l, H)], sr, INK, 1.3)
+    for z in (10, 20):
+        a.line([p(-w, l, z), p(w, l, z), p(w, -l, z)], "#3e3b37", 0.8, opacity=0.7)
+    a.poly([p(w + 0.04, l + 0.04, H - 2), p(w + 0.04, -l - 0.04, H - 2), p(0, -l - 0.04, H + R), p(0, l + 0.04, H + R)], "#3e4650", INK, 1.2)  # slate roof
+    a.poly([p(w, 0.1, H), p(w, -0.22, H), p(0, -0.16, H + R), p(0, 0.16, H + R)], "#15181c", INK, 1.0)  # a hole in it
+    for gy in (0.02, -0.12):
+        a.line([p(w, gy, H), p(0, gy, H + R)], WOOD_D, 2.2)
+    # arched windows on the long side, the water halfway up them
+    for gy in (0.38, -0.4):
+        wx, wy = p(w, gy, 16)
+        a.raw('<path d="M%s,%s L%s,%s Q%s,%s %s,%s L%s,%s Z" fill="#141110" stroke="%s" stroke-width="1.1"/>'
+              % (fmt(wx - 4), fmt(wy + 2), fmt(wx - 4), fmt(wy - 10), fmt(wx), fmt(wy - 17), fmt(wx + 4), fmt(wy - 12), fmt(wx + 4), fmt(wy), INK),
+              [(wx - 5, wy - 17), (wx + 5, wy + 3)])
+    # the bell tower at the far end, its spire broken off
+    tx0, tx1, ty0, ty1 = -0.3, 0.06, -0.86, -0.5
+    th = 62
+    a.poly([p(tx0, ty1), p(tx1, ty1), p(tx1, ty1, th), p(tx0, ty1, th)], st, INK, 1.3)
+    a.poly([p(tx1, ty1), p(tx1, ty0), p(tx1, ty0, th), p(tx1, ty1, th)], sr, INK, 1.3)
+    bx, by = p((tx0 + tx1) / 2, ty1, th - 14)
+    a.raw('<path d="M%s,%s L%s,%s Q%s,%s %s,%s L%s,%s Z" fill="#141110" stroke="%s" stroke-width="1.1"/>'
+          % (fmt(bx - 5), fmt(by + 6), fmt(bx - 5), fmt(by - 6), fmt(bx), fmt(by - 13), fmt(bx + 5), fmt(by - 6), fmt(bx + 5), fmt(by + 6), INK),
+          [(bx - 6, by - 13), (bx + 6, by + 6)])
+    a.raw('<path d="M%s,%s Q%s,%s %s,%s Q%s,%s %s,%s Z" fill="%s" stroke="%s" stroke-width="0.9"/>'
+          % (fmt(bx - 3.5), fmt(by + 4), fmt(bx - 3), fmt(by - 6), fmt(bx), fmt(by - 6), fmt(bx + 3), fmt(by - 6), fmt(bx + 3.5), fmt(by + 4),
+             GOLD_D, INK), [(bx - 4, by - 7), (bx + 4, by + 5)])
+    sx, sy = p((tx0 + tx1) / 2 + 0.06, (ty0 + ty1) / 2, th)
+    a.poly([(sx - 13, sy + 2), (sx + 12, sy + 4), (sx + 4, sy - 22), (sx - 1, sy - 14), (sx - 5, sy - 18)], "#3e4650", INK, 1.2)  # the broken spire
+    # the lake over the foot of the walls: they stand in it
+    a.raw('<path d="M%s,%s A%s,%s 0 0 0 %s,%s Z" fill="%s" opacity="0.8"/>'
+          % (fmt(-54 * k), fmt(3 * k), fmt(54 * k), fmt(23 * k), fmt(54 * k), fmt(3 * k), water),
+          [(-54 * k, 3 * k), (54 * k, 26 * k)])
+    # the water's edge against the walls, with foam
+    a.raw('<path d="M%s,%s Q%s,%s %s,%s Q%s,%s %s,%s" fill="none" stroke="%s" stroke-width="2"/>'
+          % (fmt(p(-w, l)[0] - 6), fmt(p(-w, l)[1] + 2), fmt(p(0, l)[0]), fmt(p(0, l)[1] + 6), fmt(p(w, l)[0] + 2), fmt(p(w, l)[1] + 2),
+             fmt(p(w, 0)[0] + 8), fmt(p(w, 0)[1] + 2), fmt(p(w, -l)[0] + 6), fmt(p(w, -l)[1] + 2), foam),
+          [(p(-w, l)[0] - 7, p(-w, -l)[1] - 2), (p(w, -l)[0] + 9, p(0, l)[1] + 8)])
+    for (x, y) in [(-40, 14), (36, 18), (10, 30), (-20, 26)]:
+        _arc(a, x * k * 0.8, y * k * 0.7, 10 * k, 2.4, foam, 1.0, 0.7)
+    a.save("abbey_looted" if looted else "abbey")
+
+
+def portraits_89():
+    """The speakers of scenarios 8 and 9 (docs/story-design.md section 2)."""
+    # Lothar, the court's herald: a long pale face, a neat silver beard, a
+    # feathered cap, a pale tabard with a gold crown; courteous, cold.
+    portrait_svg("portrait_lothar", f"""
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#d8d6de" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M27 52 L30 48 L32 51 L34 48 L37 52 L37 56 L27 56Z" fill="{GOLD}" stroke="{INK}" stroke-width="1.2"/>
+  <rect x="27" y="35" width="10" height="9" fill="#d8ccc4" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M21 24 Q20 11 32 10 Q44 11 43 24 Q43 37 32 40 Q21 37 21 24Z" fill="#e2d6ce" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M24 31 Q25 42 32 43 Q39 42 40 31 Q37 36 32 36 Q27 36 24 31Z" fill="#c8c8cc" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M15 17 Q18 5 32 5 Q46 5 48 17Z" fill="#5a5470" stroke="{INK}" stroke-width="2"/>
+  <path d="M40 9 Q52 0 60 8 Q52 8 46 14Z" fill="#eceae4" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M24 22.5 L29 22 M35 22 L40 22.5" stroke="#9a9894" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="27" cy="25.5" r="1.3" fill="{INK}"/><circle cx="37" cy="25.5" r="1.3" fill="{INK}"/>
+  <path d="M28.5 33 Q32 34 35.5 33" fill="none" stroke="#8a6a6a" stroke-width="1.3" stroke-linecap="round"/>""", bg="#2a2836")
+    # Rurik, the court's champion: a pale square face, a scar over the brow,
+    # empty pale eyes, a white plume over a pale steel helm, broad pauldrons.
+    portrait_svg("portrait_rurik", f"""
+  <path d="M2 66 Q2 44 18 40 L46 40 Q62 44 62 66Z" fill="#b8bcc4" stroke="{INK}" stroke-width="2.4"/>
+  <ellipse cx="12" cy="46" rx="10" ry="7" fill="#c8ccd4" stroke="{INK}" stroke-width="2"/>
+  <ellipse cx="52" cy="46" rx="10" ry="7" fill="#a8acb4" stroke="{INK}" stroke-width="2"/>
+  <rect x="26" y="34" width="12" height="9" fill="#bcc0c4" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M19 24 Q18 12 32 11 Q46 12 45 24 Q45 37 32 40 Q19 37 19 24Z" fill="#c8cccf" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M17 24 Q16 5 32 4 Q48 5 47 24 L43 24 L43 17 Q32 14 21 17 L21 24Z" fill="#b8bcc4" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M31 17 L31 27 L33 27 L33 17Z" fill="#8a8e96" stroke="{INK}" stroke-width="1.2"/>
+  <path d="M36 6 Q48 -2 60 10 Q50 6 42 10Z" fill="#eceef2" stroke="{INK}" stroke-width="1.8"/>
+  <ellipse cx="27" cy="25.5" rx="2" ry="1.4" fill="#e4ecf8" stroke="#8a9aaa" stroke-width="0.8"/>
+  <ellipse cx="37" cy="25.5" rx="2" ry="1.4" fill="#e4ecf8" stroke="#8a9aaa" stroke-width="0.8"/>
+  <path d="M38 19 L42 27" stroke="#9a8a8a" stroke-width="1.2"/>
+  <path d="M27.5 33.5 L36.5 33.5" stroke="#7a7e86" stroke-width="1.6" stroke-linecap="round"/>""", bg="#22242a")
+    # Rhodri: the king, paler than anyone, the old king's crown reworked and
+    # glowing cold over dark hair, a high collar, a thin smile.
+    portrait_svg("portrait_rhodri", f"""
+  <circle cx="32" cy="10" r="20" fill="#b8d0ff" opacity="0.18"/>
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#1e1a2a" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M18 44 L24 36 L32 46 L40 36 L46 44" fill="#3a3450" stroke="{INK}" stroke-width="1.8"/>
+  <rect x="27" y="35" width="10" height="9" fill="#d4d8e0" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M20 25 Q19 13 32 12 Q45 13 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#e0e4ec" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M19 27 Q16 12 32 11 Q48 12 45 27 Q44 19 39 17 Q32 18 25 17 Q20 20 19 27Z" fill="#2a2430" stroke="{INK}" stroke-width="2"/>
+  <path d="M19 15 L21 4 L26 10 L32 2 L38 10 L43 4 L45 15Z" fill="#c8d8f0" stroke="{INK}" stroke-width="1.8"/>
+  <circle cx="32" cy="10" r="2" fill="#eaf4ff" stroke="{INK}" stroke-width="0.8"/>
+  <circle cx="24" cy="12" r="1.2" fill="#9ac0ff"/><circle cx="40" cy="12" r="1.2" fill="#9ac0ff"/>
+  <path d="M24 22.5 L29 23 M35 23 L40 22.5" stroke="#3a3440" stroke-width="1.5" stroke-linecap="round"/>
+  <ellipse cx="27" cy="25.8" rx="1.7" ry="1.2" fill="#b8d0ff" stroke="{INK}" stroke-width="0.6"/>
+  <ellipse cx="37" cy="25.8" rx="1.7" ry="1.2" fill="#b8d0ff" stroke="{INK}" stroke-width="0.6"/>
+  <path d="M28 33 Q32 35 37 32.5" fill="none" stroke="#8a7a8a" stroke-width="1.3" stroke-linecap="round"/>""", bg="#16141e")
+    # Brother Tomas, a church survivor in the capital: a young, thin face, a
+    # brown habit with its hood down, a wooden cross on a cord.
+    portrait_svg("portrait_tomas", f"""
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#6a5238" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M14 46 Q32 38 50 46 Q44 50 32 50 Q20 50 14 46Z" fill="#5a4430" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M28 44 L32 52 L36 44" fill="none" stroke="#3a2a1a" stroke-width="1"/>
+  <path d="M32 52 L32 61 M28.5 55 L35.5 55" stroke="{WOOD_L}" stroke-width="2.2"/>
+  <rect x="27" y="35" width="10" height="8" fill="#d0a684" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M21 25 Q20 12 32 11 Q44 12 43 25 Q43 36 32 39 Q21 36 21 25Z" fill="#dab08e" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M20 22 Q19 9 32 8 Q45 9 44 22 Q40 14 32 14 Q24 14 20 22Z" fill="#5a3e28" stroke="{INK}" stroke-width="2"/>
+  <path d="M24 23 L29 22.5 M35 22.5 L40 23" stroke="#4a3220" stroke-width="1.4" stroke-linecap="round"/>
+  <circle cx="27" cy="26" r="1.3" fill="{INK}"/><circle cx="37" cy="26" r="1.3" fill="{INK}"/>
+  <path d="M29 33.5 Q32 34.5 35 33.5" fill="none" stroke="#8a5a4a" stroke-width="1.3" stroke-linecap="round"/>""", bg="#2a241c")
+    # Mother Hilde, the eldest priest of the drowned shore: a deeply lined
+    # face, a white wimple under a dark-blue veil, wary eyes.
+    portrait_svg("portrait_hilde", f"""
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#26324a" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M10 44 Q8 6 32 4 Q56 6 54 44 L46 44 Q46 16 32 15 Q18 16 18 44Z" fill="#26324a" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M19 40 Q18 16 32 15 Q46 16 45 40 Q40 44 32 44 Q24 44 19 40Z" fill="#f0ece2" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M22 26 Q21 15 32 15 Q43 15 42 26 Q42 36 32 38 Q22 36 22 26Z" fill="#d6ae8e" stroke="{INK}" stroke-width="2"/>
+  <path d="M25 30 Q27 31 29 30 M35 30 Q37 31 39 30 M27 35 Q32 36.5 37 35" fill="none" stroke="#a87858" stroke-width="0.9"/>
+  <path d="M25 24 L29.5 24.5 M34.5 24.5 L39 24" stroke="#8a7a6a" stroke-width="1.4" stroke-linecap="round"/>
+  <circle cx="27.5" cy="27" r="1.3" fill="{INK}"/><circle cx="36.5" cy="27" r="1.3" fill="{INK}"/>
+  <path d="M29 33 L35 33" stroke="#8a5a4a" stroke-width="1.3" stroke-linecap="round"/>
+  <path d="M32 50 L32 60 M28 54 L36 54" stroke="{GOLD}" stroke-width="2"/>""", bg="#1e2432")
+
+
 def light_stone(glow_only=False):
     """Carved pillar on a plinth; runes glow dim yellow. Glow is a separate
     layer (same canvas) so the game can pulse it."""
@@ -4885,6 +5184,16 @@ def main():
     princess()
     campaign_houses()
     portraits_67()
+    legion_archer()
+    legion_guard()
+    legion_banner()
+    legion_champion()
+    herald()
+    legion_camp()
+    legion_camp(True)
+    abbey()
+    abbey(True)
+    portraits_89()
     campaign_icon()
     write_manifest()
     print("generated %d sprites" % len(manifest))
