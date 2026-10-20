@@ -172,7 +172,7 @@ func _layout() -> void:
 	var title_bottom := _title.anchor_top * vp.y + (64.0 if portrait else 84.0) * 1.35
 	# Short screens: the main and Singleplayer pages' buttons get lower, so they fit under the title.
 	for page in [_main_page, _sp_page, _campaign_page]:
-		var tall: bool = page.get_child_count() * (64.0 + 14.0) + title_bottom + 20.0 <= vp.y
+		var tall: bool = (page as Node).get_children().filter(func(c: Node) -> bool: return (c as CanvasItem).visible).size() * (64.0 + 14.0) + title_bottom + 20.0 <= vp.y
 		page.add_theme_constant_override("separation", 14 if tall else 8)
 		for c in page.get_children():
 			if c is Button:
@@ -283,23 +283,38 @@ func _start_save(path: String) -> void:
 
 
 ## The campaign page: one button per scenario (its line as the tooltip), and how many are still to come (if any).
+## Completed scenarios carry a check, the next one to play is highlighted, and
+## (release builds) a scenario shows only once it is unlocked (Campaign.unlocked).
 func _build_campaign_page() -> void:
 	_campaign_page = _page()
+	var done := Campaign.completed()
+	var next := Campaign.next_to_play(done)
+	var locked := 0
 	for n in range(1, Campaign.count() + 1):
 		var spec := Campaign.scenario(n)
-		var b := _menu_button(_campaign_page, "%d. %s" % [n, spec.title], play_scenario.bind(n))
+		var b := _menu_button(_campaign_page, "%d. %s" % [n, spec.title], play_scenario.bind(n), "icon_check" if Campaign.is_completed(n, done) else "")
 		b.tooltip_text = spec.blurb
-		if n == 1:
+		if n == next:
 			UiTheme.style_primary(b)
+		b.visible = Campaign.unlocked(n, done)
+		if not b.visible:
+			locked += 1
 		scenario_buttons.append(b)
+	if locked > 0:
+		_campaign_note("Complete a scenario to unlock the next (%d still locked)." % locked)
 	if Campaign.count() < Campaign.PLANNED:
-		var more := Label.new()
-		more.text = "Scenarios %d to %d are still to come." % [Campaign.count() + 1, Campaign.PLANNED]
-		more.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		more.add_theme_font_size_override("font_size", 16)
-		more.add_theme_color_override("font_color", UiTheme.MUTED)
-		_campaign_page.add_child(more)
+		_campaign_note("Scenarios %d to %d are still to come." % [Campaign.count() + 1, Campaign.PLANNED])
 	_menu_button(_campaign_page, "Back", func() -> void: show_page(_main_page))
+
+
+func _campaign_note(text: String) -> void:
+	var l := Label.new()
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_size_override("font_size", 16)
+	l.add_theme_color_override("font_color", UiTheme.MUTED)
+	_campaign_page.add_child(l)
 
 
 ## Scenario `n` of the campaign (docs/scenarios-design.md): its own map, village and story.

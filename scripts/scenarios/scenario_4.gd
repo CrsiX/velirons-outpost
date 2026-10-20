@@ -1,6 +1,6 @@
 extends Scenario
 ## Scenario 4: The Split (docs/scenarios-design.md §3.4, docs/story-design.md).
-## Away from home for the first time: the neutral guild's walled market town
+## Away from home for the first time: the Silver Thread Guild's walled market town
 ## on the coast. Its master, Wenna, keeps the books in the guild house; its
 ## warehouse stands by the harbour and must not fall while the convoy is
 ## loaded (nine waves). Crabs come out of the sea, at most one siren; thieves
@@ -13,7 +13,7 @@ extends Scenario
 func _init() -> void:
 	number = 4
 	title = "The Split"
-	blurb = "The neutral guild's last market town is under pressure. Hold it, and its harbour warehouse, until the convoy is loaded and away."
+	blurb = "The Silver Thread Guild's last market town is under pressure. Hold it, and its harbour warehouse, until the convoy is loaded and away."
 	map_path = "res://data/maps/guildtown.json"
 
 	# The baseline: the guild's town, its staff in the huts, the full guild
@@ -80,11 +80,11 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"fade": "out", "time": 0.01},
 		{"camera": store + Vector2(0, -40), "zoom": 1.0, "time": 0.01},
 		{"title": "The Split", "sub": "Scenario 4", "time": 3.0},
-		{"say": "", "text": "The guild town on the coast. Half its harbour lies behind a rival guild's chains; the other half is all the neutral guild has left."},
+		{"say": "", "text": "The guild town on the coast. Half its harbour lies behind a rival guild's chains; the other half is all the Silver Thread Guild has left."},
 		{"fade": "in", "time": 1.2},
 		{"say": "pell", "text": "My old guild house. I kept the books there once, before the guild broke apart."},
 		{"say": "wenna", "text": "Pell Dunmore. You took your time. And you brought a knight."},
-		{"say": "pell", "text": "Wenna, master of the neutral guild. Brenna Hale, the best friend I have."},
+		{"say": "pell", "text": "Wenna, master of the Silver Thread Merchant Guild. Brenna Hale, the best friend I have."},
 		{"say": "wenna", "text": "The convoy is loading in the warehouse by the harbour. Everything we own is in it. If the warehouse falls, the guild falls with it."},
 		{"say": "brenna", "text": "Then it won't fall. How long do you need?"},
 		{"say": "wenna", "text": "Nine days, if the weather holds. Nine nights of whatever comes up the roads and out of the sea."},
@@ -128,7 +128,7 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 				{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.1, "time": 1.0},
 				{"say": "brenna", "text": "Pell told me the guild broke apart in the war. How?"},
 				{"say": "wenna", "text": "Every master had to choose. Most picked an heir: the old masters in the capital went for Rhodri and his army's contracts, the church towns for Fiona."},
-				{"say": "wenna", "text": "A few of us tried to stay out of it. Trade with whoever pays, carry what's needed. That's the neutral guild now: the ones who wouldn't choose."},
+				{"say": "wenna", "text": "A few of us tried to stay out of it. Trade with whoever pays, carry what's needed. That's the Silver Thread now: the ones who wouldn't choose. The Leftovers, the others call us."},
 				{"say": "pell", "text": "And the others don't forgive us for it."},
 			])
 		3:
@@ -148,7 +148,7 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 					"choices": [
 						{"text": "Take the gold and leave", "do": func() -> void:
 							_cleanup(who)
-							r.lose("Brenna took the rival guild's gold and rode away. Without her the town fell, and the neutral guild with it.")},
+							r.lose("Brenna took the rival guild's gold and rode away. Without her the town fell, and the Silver Thread Guild with it.")},
 						{"text": "Refuse", "do": func() -> void: pass},
 					]},
 				{"say": "brenna", "text": "Keep your gold. And tell your masters the warehouse has a guard now."},
@@ -237,7 +237,7 @@ func death_text(civ: Civilian, reason: String) -> String:
 
 
 func fallen_text(_b: Building) -> String:
-	return "The warehouse was plundered and lies in ruins. The convoy will never leave, and the neutral guild is finished."
+	return "The warehouse was plundered and lies in ruins. The convoy will never leave, and the Silver Thread Guild is finished."
 
 
 # --- helpers -----------------------------------------------------------------------------

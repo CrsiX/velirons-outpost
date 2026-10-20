@@ -599,8 +599,8 @@ func move_actor(n: Node2D, tiles: Array, time: float) -> void:
 	var tw := n.create_tween()
 	tw.set_ignore_time_scale(true)
 	var per := time / float(tiles.size() - 1)
-	if Iso.to_world(Vector2(tiles[-1])).x < Iso.to_world(Vector2(tiles[0])).x:
-		n.scale.x = -1.0  # (art faces right)
+	var left := Iso.to_world(Vector2(tiles[-1])).x < Iso.to_world(Vector2(tiles[0])).x
+	n.scale.x = -absf(n.scale.x) if left else absf(n.scale.x)  # (art faces right)
 	for i in range(1, tiles.size()):
 		tw.tween_property(n, "position", Iso.to_world(Vector2(tiles[i])), per)
 
@@ -680,7 +680,10 @@ func _poll_steps(delta: float) -> void:
 			var next: Dictionary = steps[step + 1]
 			if next.has("ready") and not (next["ready"] as Callable).call():
 				_next_in = 0.0  # (keeps waiting)
-				card.set_lesson_text(str(next.get("wait_text", card.lesson_text())))
+				if next.has("wait_title") and card.lesson_title() != str(next["wait_title"]):
+					card.show_lesson(str(next["wait_title"]), str(next.get("wait_text", "")))
+				else:
+					card.set_lesson_text(str(next.get("wait_text", card.lesson_text())))
 			else:
 				_begin(step + 1)
 		return
@@ -905,6 +908,7 @@ func lose(why: String) -> void:
 func _win() -> void:
 	phase = Phase.OVER
 	game.events.info("Scenario %d complete" % spec.number)
+	Campaign.complete(spec.number)
 	won.emit()
 	game.end_game("%s: complete" % spec.title, "Scenario %d of the campaign is done." % spec.number, true)
 

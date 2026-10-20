@@ -41,9 +41,15 @@ Big touch targets everywhere, so mouse and fingers work the same.
   (`user://player.cfg`).
 - **Multiplayer page:** `MultiplayerMenu` (docs/multiplayer-design.md). The title screen opens on it
   when a LAN session is still open (coming back from a game).
-- **Campaign page:** one button per built scenario ("1. Homecoming", the first in primary style) (its line,
-  `Scenario.blurb`, only as the tooltip: nothing under the buttons), "Scenarios 10 to 11 are still to come.", Back (Esc too). A scenario
-  button sets `Settings.scenario_next` and starts the game scene (docs/scenarios-design.md §7).
+- **Campaign page:** one button per built scenario ("1. Homecoming") (its line, `Scenario.blurb`, only as the tooltip: nothing under
+  the buttons), a "still to come" line while scenarios are missing, Back (Esc too). A scenario button sets `Settings.scenario_next`
+  and starts the game scene (docs/scenarios-design.md §7).
+  - **Progress** (`Campaign.completed`, `user://campaign.json`): a won scenario is remembered as completed, by its title, on this
+    device. Completed ones carry a check (`icon_check`); the next to play (the one after the highest completed, `next_to_play`) is in
+    primary style. In a release build a scenario shows only once it is unlocked (`Campaign.unlocked`: the first, one after a completed
+    one, or one before a completed one, so a scenario added later never locks out what was played), with a line saying how many are still
+    locked; debug builds show them all. The file holds `format` (`PROGRESS_FORMAT`; another format is read as no progress), `campaign`
+    (the titles in order when it was written) and `completed`.
 - **In a scenario** (docs/scenarios-design.md §7): its **card** sits top left where the tutorial's does
   (`ScenarioCard`): a heading ("Scenario 1: Homecoming ▾", a tap folds the card to it), the teaching
   card (title, text, a tick when done), a hint in orange when one comes up (14 s), and the objectives,

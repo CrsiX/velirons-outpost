@@ -151,7 +151,8 @@ func arrival(_r: ScenarioRunner) -> Array[Dictionary]:
 ## The teaching cards, in order. Each: "title", "text", "done" (Callable ->
 ## bool, polled), optional "point" (Callable -> Dictionary, as the tutorial's:
 ## "hud", "tab", "tiles", "units"), "start" (Callable), "ready" + "wait_text"
-## (the card waits for it), "id".
+## (the card waits for it; "wait_title": the card's title meanwhile, else the
+## last card's stays), "id".
 func steps(_r: ScenarioRunner) -> Array[Dictionary]:
 	return []
 

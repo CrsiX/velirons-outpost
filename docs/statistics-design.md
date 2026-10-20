@@ -164,7 +164,7 @@ begins once the villages are set up (`Stats.start`) and stops at game over
 - **Timeline tab:**
   - A metric picker at the top (Gold, Food, Material, Villagers, Huts, Army,
     Army HP %, Buildings, Explored, Enemies, Corpses, Hero XP, Hero level,
-    Hero HP): a small button with only the metric's icon and a chevron, its
+    Hero HP; Army HP % has two hearts, `icon_hp_army`, Hero HP the single heart): a small button with only the metric's icon and a chevron, its
     name beside it. A tap opens a grid of icons only (each the same small
     size; the name on hover), in as many columns as fit, placed under the
     button (above it when there's no room) and kept wholly on the screen, so

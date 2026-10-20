@@ -166,12 +166,12 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 			"done": func() -> bool: return g.population.count("gatherer") > 0 and g.player_village.corpses_delivered > 0,
 			"point": func() -> Dictionary: return {} if g.population.count("gatherer") > 0 else {"hud": ["village:gatherer", "tab:village", "dock"], "tab": "village"}},
 		{"title": "Unit levels",
-			"text": "Units get better with levels. Tap your archer on its tower and promote it with gold.",
+			"text": "Units get better with levels. Tap your archer on its tower and upgrade it: Upgrade, paid with gold.",
 			"start": r.mark_units,
 			"done": r.unit_promoted,
 			"point": func() -> Dictionary: return {"units": g.army.stationed().filter(func(u: MilitaryUnit) -> bool: return is_instance_valid(u.post) and u.post.unit_rect(u).has_area())}},
-		{"title": "Gates and wall towers",
-			"text": "With the walls broken, enemies walk straight in. A gate holds them for a while, and wall towers can be manned. Tap a broken gate or wall tower and repair it.",
+		{"title": "Mend the walls",
+			"text": "With the walls broken, enemies walk straight in. Gates and walls hold them for a while, and wall towers can be manned. Tap a broken gate, wall or wall tower and repair it.",
 			"start": func() -> void: r.mark["repairs"] = _repairs_done(r),
 			"done": func() -> bool: return _repairs_done(r) > int(r.mark["repairs"]) or _pieces_to_fix(r).any(func(b: Building) -> bool: return b.repairing),
 			"point": func() -> Dictionary: return {"tiles": _pieces_to_fix(r).map(func(b: Building) -> Vector2i: return b.tile)}},
@@ -197,7 +197,7 @@ func hints(r: ScenarioRunner) -> Array[Dictionary]:
 			"text": "Food is falling. At 0 food a villager starves every 15 seconds. Make sure every farm has its farmer, or build another farm."},
 		{"id": "breach",
 			"when": func() -> bool: return g.siege.breached(g.player_village.id),
-			"text": "Enemies are inside the walls! They burn the huts, and whoever lives there dies. Repair the gates and wall towers to keep them out."},
+			"text": "Enemies are inside the walls! They burn the huts, and whoever lives there dies. Repair the gates, walls and wall towers to keep them out."},
 	]
 
 
@@ -213,6 +213,9 @@ func objectives(r: ScenarioRunner) -> Array[Dictionary]:
 		{"id": "gates", "text": "Repair the gates",
 			"done": func() -> bool: return r.pieces("gate").all(r.whole),
 			"detail": func() -> String: return "%d / %d" % [r.pieces("gate").filter(r.whole).size(), r.pieces("gate").size()]},
+		{"id": "walls", "text": "Repair the walls",
+			"done": func() -> bool: return r.pieces("wall").all(r.whole),
+			"detail": func() -> String: return "%d / %d" % [r.pieces("wall").filter(r.whole).size(), r.pieces("wall").size()]},
 		{"id": "towers", "text": "Repair the wall towers",
 			"done": func() -> bool: return r.pieces("wall_tower").all(r.whole),
 			"detail": func() -> String: return "%d / %d" % [r.pieces("wall_tower").filter(r.whole).size(), r.pieces("wall_tower").size()]},
@@ -250,13 +253,17 @@ func _ruined_huts(r: ScenarioRunner) -> Array[Vector2i]:
 	return out
 
 
-## Gates and wall towers that aren't whole.
+## Gates, walls and wall towers that aren't whole.
 func _pieces_to_fix(r: ScenarioRunner) -> Array:
-	return (r.pieces("gate") + r.pieces("wall_tower")).filter(func(b: Building) -> bool: return not r.whole(b))
+	return _pieces(r).filter(func(b: Building) -> bool: return not r.whole(b))
 
 
 func _repairs_done(r: ScenarioRunner) -> int:
-	return (r.pieces("gate") + r.pieces("wall_tower")).filter(r.whole).size()
+	return _pieces(r).filter(r.whole).size()
+
+
+func _pieces(r: ScenarioRunner) -> Array:
+	return r.pieces("gate") + r.pieces("wall") + r.pieces("wall_tower")
 
 
 ## Villagers out in the field.

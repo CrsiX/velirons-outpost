@@ -949,7 +949,7 @@ def portraits():
 
 def portraits_away():
     """The speakers of scenarios 4 and 5 (docs/story-design.md section 2)."""
-    # Wenna: the neutral guild's master; grey hair in a bun, a dark-blue coat,
+    # Wenna: the Silver Thread Guild's master; grey hair in a bun, a dark-blue coat,
     # a gold chain of office, a sharp look over half-moon spectacles.
     portrait_svg("portrait_wenna", f"""
   <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#2f3e5a" stroke="{INK}" stroke-width="2.4"/>
@@ -1123,7 +1123,7 @@ def barracks_ruin():
 
 def warehouse():
     """The guild's 2x2 warehouse (scenario 4): a long timber-and-stone store
-    with a slate roof, a wide loading door, a hoist beam, the neutral guild's
+    with a slate roof, a wide loading door, a hoist beam, the Silver Thread Guild's
     sign (gold scales on blue) and crates and sacks in its yard."""
     a = Art()
     s = 0.98
@@ -3686,6 +3686,16 @@ def icons():
   <path d="M32 56 C20 46 6 36 6 22 C6 13 13 7 21 7 C26 7 30 10 32 14 C34 10 38 7 43 7 C51 7 58 13 58 22 C58 36 44 46 32 56Z" fill="#d8342c" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M32 50 C24 43 14 35 13 25" fill="none" stroke="#a82420" stroke-width="3" stroke-linecap="round"/>
   <path d="M14 20 Q15 13 22 13" fill="none" stroke="#ff9a8a" stroke-width="4" stroke-linecap="round"/>""")
+    # Army HP: two red hearts, one behind the other (the statistics' "Army HP %";
+    # the hero's HP is the single heart).
+    icon_svg("icon_hp_army", f"""
+  <g transform="translate(24 2) scale(0.62)">
+    <path d="M32 56 C20 46 6 36 6 22 C6 13 13 7 21 7 C26 7 30 10 32 14 C34 10 38 7 43 7 C51 7 58 13 58 22 C58 36 44 46 32 56Z" fill="#9c2420" stroke="{INK}" stroke-width="5.5" stroke-linejoin="round"/>
+  </g>
+  <g transform="translate(1 17) scale(0.72)">
+    <path d="M32 56 C20 46 6 36 6 22 C6 13 13 7 21 7 C26 7 30 10 32 14 C34 10 38 7 43 7 C51 7 58 13 58 22 C58 36 44 46 32 56Z" fill="#d8342c" stroke="{INK}" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M14 20 Q15 13 22 13" fill="none" stroke="#ff9a8a" stroke-width="5" stroke-linecap="round"/>
+  </g>""")
     icon_svg("icon_gold", f'''
   <circle cx="32" cy="35" r="24" fill="{GOLD_D}" stroke="{INK}" stroke-width="3.5"/>
   <circle cx="32" cy="31" r="24" fill="{GOLD}" stroke="{INK}" stroke-width="3.5"/>

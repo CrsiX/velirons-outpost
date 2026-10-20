@@ -232,10 +232,18 @@ func _test_barracks() -> void:
 	var foe := spawn_dummy("goblin", c + Vector2(out_dir) * (barracks.activation_range() - 0.5), 2.0)
 	var went := await wait_until(func() -> bool: return sb.out and ar.out, 5.0)
 	check(went and is_instance_valid(sb.walker) and is_instance_valid(ar.walker), "an enemy within range: everyone turns out")
+	if went:
+		check(sb.walker.grid_pos.distance_to(barracks.bench_point(sb)) < 0.3 and sb.walker.mode in [Soldier.Mode.LEAVE, Soldier.Mode.SORTIE], "it steps down from its bench (%s, bench %s)" % [sb.walker.grid_pos, barracks.bench_point(sb)])
 	var killed := await wait_until(func() -> bool: return foe.dead, 60.0)
 	check(killed, "they kill it (hp %.0f, sb %s at %s, ar %s, foe at %s)" % [foe.hp, sb.state_text(), sb.walker.grid_pos if is_instance_valid(sb.walker) else Vector2.ZERO, ar.state_text(), foe.grid_pos])
-	var back := await wait_until(func() -> bool: return not sb.out and not ar.out, 60.0)
+	var seat := {}
+	var back := await wait_until(func() -> bool:
+		if is_instance_valid(sb.walker) and sb.walker.mode == Soldier.Mode.SEAT:
+			seat["seen"] = true
+			seat["last"] = sb.walker.grid_pos
+		return not sb.out and not ar.out, 60.0)
 	check(back and sb.state == MilitaryUnit.State.STATIONED and barracks._bench_sprites[0].visible, "no enemy left: they walk back to their benches")
+	check(seat.get("seen", false) and Vector2(seat["last"]).distance_to(barracks.bench_point(sb)) < 0.2, "up onto the bench itself before it sits there (%s)" % str(seat))
 	# Swapping posts (one unit dragged onto another): only when each fits the other's post.
 	var tw_ar: MilitaryUnit = tower.garrison
 	if tw_ar == null:
@@ -274,6 +282,11 @@ func _test_downing() -> void:
 	var h0 := sb.hp
 	await wait(2.0)
 	check(sb.hp > h0, "units heal on the bench (%.1f -> %.1f, %s)" % [h0, sb.hp, sb.state_text()])
+	await frames(2)
+	check(barracks._bars_shown, "a hurt unit on its bench shows its HP bar")
+	sb.hp = sb.max_hp()
+	await frames(3)
+	check(not barracks._bars_shown, "healed: the bar is gone")
 	# Downed during a sortie: back on its bench after the revive time.
 	sb.hp = sb.max_hp()
 	var c := barracks.act_center()

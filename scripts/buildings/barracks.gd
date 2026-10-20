@@ -14,6 +14,8 @@ const BENCH_SPOTS: Array[Vector2] = [Vector2(-0.35, 0.45), Vector2(0.45, 0.35), 
 var _bench_sprites: Array[Sprite2D] = []
 var _site_sprite: Sprite2D
 var _scan := 0.0
+## A sitter's HP bar was drawn (redrawn until it is gone).
+var _bars_shown := false
 
 
 func _build_visuals() -> void:
@@ -73,8 +75,19 @@ func _art() -> String:
 	return "barracks" if level == 1 else "barracks_%d" % level
 
 
+## Where `unit`'s bench is (grid position: where its sitter is drawn), or
+## Vector2.INF if it has none here.
+func bench_point(unit: MilitaryUnit) -> Vector2:
+	var i := slots.find(unit)
+	if i < 0 or i >= _bench_sprites.size():
+		return Vector2.INF
+	return Iso.to_grid(position + _bench_sprites[i].position)
+
+
 ## Enemies near? Everyone who's sitting on a bench (and not downed) goes out.
 func _process(delta: float) -> void:
+	if _hurt_on_bench() or _bars_shown:
+		queue_redraw()  # (their HP bars, while they heal)
 	if game.is_client or not working():
 		return
 	_scan -= delta
@@ -220,6 +233,32 @@ func info() -> Dictionary:
 
 func pick_rect() -> Rect2:
 	return Rect2(-110, -80, 220, 130)
+
+
+
+## A unit sitting on a bench (shown) with less than full HP.
+func _hurt_on_bench() -> bool:
+	for i in mini(_bench_sprites.size(), slots.size()):
+		var u: MilitaryUnit = slots[i]
+		if u != null and _bench_sprites[i].visible and not u.is_downed() and u.hp < u.max_hp():
+			return true
+	return false
+
+
+## The bars, and an HP bar over every hurt sitter (as over a soldier out), until it has healed.
+func _draw() -> void:
+	super._draw()
+	_bars_shown = false
+	for i in mini(_bench_sprites.size(), slots.size()):
+		var u: MilitaryUnit = slots[i]
+		var spr := _bench_sprites[i]
+		if u == null or not spr.visible or u.is_downed() or u.hp >= u.max_hp():
+			continue
+		_bars_shown = true
+		var r := Rect2(spr.position + Vector2(-13.0, -50.0), Vector2(26.0, 4.0))
+		draw_rect(r.grow(1.5), Color("15110d"))
+		draw_rect(r, Color("3a2a10"))
+		draw_rect(Rect2(r.position, Vector2(26.0 * clampf(u.hp / u.max_hp(), 0.0, 1.0), 4.0)), Color("e0c050"))
 
 
 func _bar_y() -> float:

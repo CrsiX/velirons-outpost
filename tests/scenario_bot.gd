@@ -238,7 +238,7 @@ func _play_through() -> void:
 	check(archer.upgrade_options().all(func(o: Dictionary) -> bool: return o["to"] == "archer"), "no specialisations offered")
 	check(cmd("upgrade_unit", {"unit": archer.nid})["ok"], "the archer is promoted")
 
-	print("-- card 9: gates and wall towers")
+	print("-- card 9: mending the walls")
 	check(await _at_card(8, 10.0), "card 9")
 	var gate: Building = sc.pieces("gate").filter(func(b: Building) -> bool: return b.devastated)[0]
 	check(cmd("repair", {"building": gate.nid})["ok"], "a gate repair is ordered")
@@ -255,13 +255,13 @@ func _play_through() -> void:
 	v.economy.add("gold", 500)
 	v.economy.add("food", 300)
 	cmd("rebuild_all_huts")
-	for b: Building in sc.pieces("gate") + sc.pieces("wall_tower"):
+	for b: Building in sc.pieces("gate") + sc.pieces("wall") + sc.pieces("wall_tower"):
 		if not sc.whole(b) and not b.repairing:
 			cmd("repair", {"building": b.nid})
 	game.hero.set_mode(Hero.Mode.BUILD)
 	check(await wait_until(func() -> bool: return sc.pieces("hut").all(sc.whole), 600.0), "every hut rebuilt")
 	cmd("recruit_villager", {"role": "builder"})
-	check(await wait_until(func() -> bool: return (sc.pieces("gate") + sc.pieces("wall_tower")).all(sc.whole), 600.0), "every gate and wall tower repaired")
+	check(await wait_until(func() -> bool: return (sc.pieces("gate") + sc.pieces("wall") + sc.pieces("wall_tower")).all(sc.whole), 600.0), "every gate, wall and wall tower repaired")
 	game.hero.set_mode(Hero.Mode.DEFEND)
 	for n in range(game.waves.wave + 1, 6):
 		await wait_until(func() -> bool: return game.waves.can_call(), 300.0)
@@ -361,6 +361,24 @@ func _hints() -> void:
 
 
 func _title() -> void:
+	print("-- campaign progress")
+	Campaign.reset_progress()
+	var none := Campaign.completed()
+	check(none.is_empty() and Campaign.next_to_play(none) == 1, "no progress: scenario 1 is next")
+	check(Campaign.unlocked(1, none, false) and not Campaign.unlocked(2, none, false), "release: only scenario 1 is open")
+	check(Campaign.unlocked(5, none, true), "debug builds: every scenario")
+	Campaign.complete(1)
+	Campaign.complete(2)
+	Campaign.complete(1)
+	var done := Campaign.completed()
+	check(done == ["Homecoming", "The Old Friend"], "completed scenarios are kept by their titles (%s)" % str(done))
+	var file: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(Campaign.PROGRESS_FILE))
+	check(int(file["format"]) == Campaign.PROGRESS_FORMAT and file["campaign"] == Array(Campaign.titles()), "the file records its format and the campaign it was written for")
+	check(Campaign.next_to_play(done) == 3 and Campaign.unlocked(3, done, false) and not Campaign.unlocked(4, done, false), "then 3 is next and open, 4 locked")
+	done.append("A scenario that is gone")
+	check(Campaign.next_to_play(done) == 3, "a title no longer in the campaign changes nothing")
+	var later: Array[String] = ["The Split"]
+	check(Campaign.unlocked(2, later, false) and Campaign.unlocked(5, later, false), "a scenario before a completed one stays open (one added later)")
 	print("-- title screen")
 	var t = load("res://scenes/title.tscn").instantiate()
 	add_child(t)
@@ -373,8 +391,11 @@ func _title() -> void:
 	var names: Array = t.scenario_buttons.map(func(b: Button) -> String: return b.text)
 	check(names == ["1. Homecoming", "2. The Old Friend", "3. The Wardline", "4. The Split", "5. The Betrayal", "6. The Dead", "7. The Exile", "8. The Pale Court", "9. The Drowned Abbey", "10. The Last Wardline", "11. The Crown"], "all eleven scenarios are there: %s" % str(names))
 	check(not t._campaign_page.get_children().any(func(c: Node) -> bool: return c is Label and (c as Label).text.contains("still to come")), "none still to come")
+	check(t.scenario_buttons[0].icon == Art.tex("icon_check") and t.scenario_buttons[1].icon == Art.tex("icon_check") and t.scenario_buttons[2].icon == null, "completed ones carry a check")
+	check(t.scenario_buttons[2].get_theme_stylebox("normal") != t.scenario_buttons[0].get_theme_stylebox("normal") and t.scenario_buttons.all(func(b: Button) -> bool: return b.visible), "the next one (3) is highlighted; a debug build shows all")
 	t.show_page(t._main_page)
 	t.queue_free()
+	Campaign.reset_progress()
 	await frames(1)
 
 
@@ -413,7 +434,7 @@ func _scenario_2() -> void:
 	var r := cmd("place_building", {"kind": "stall", "tile": spot})
 	check(r["ok"], "the stall goes on the marked spot %s" % spot)
 	Engine.time_scale = 4.0
-	check(await wait_until(func() -> bool: return sc.step == 1, 240.0), "the trade card once it stands")
+	check(await wait_until(func() -> bool: return sc.step == 1, 240.0) and sc.card.lesson_title() == "Brenna explores", "the hero's card once it stands (%s)" % sc.card.lesson_title())
 	var stall: Stall = sc.stalls()[0]
 	check(stall.size == 2 and stall.display_name() == "Peddler's Stall" and stall.worker == pell, "a 2x2 peddler's stall, Pell's")
 	check(not game.waves.hold and not game.waves.call_locked and game.waves.countdown > 30.0, "the first wave's countdown runs (%.0f s)" % game.waves.countdown)
@@ -427,14 +448,15 @@ func _scenario_2() -> void:
 	check(not cmd("trade", {"building": stall.nid, "good": "gold"})["ok"], "he doesn't sell gold")
 	stall.stored = 5.0
 	check(not cmd("trade", {"building": stall.nid, "good": "food"})["ok"], "sold out: no trade")
-	stall.stored = 30.0
-	check(await wait_until(func() -> bool: return sc.step == 2, 5.0), "the hero's card")
+	stall.stored = 0.0
+	stall.sold = 0  # (the trade card comes later; these buys don't count for it)
 
 	print("-- scenario 2: rats at the stall")
 	var road_t := sc.road_to_village(stall.tile)
 	var near: Vector2i = road_t[0] if not road_t.is_empty() else stall.tile
 	game.population.unassign_worker(stall)  # (Pell goes home: a rat would go for him first)
 	check(await wait_until(func() -> bool: return pell.at_home, 60.0) and not stall.is_open(), "Pell away: the stall is closed")
+	stall.stored = 30.0
 	var rat := game.waves.spawn_at("rat", near, v, 1)
 	rat.max_hp = 1e6  # (the watchtower by the road shoots it, but this one lives)
 	rat.hp = rat.max_hp
@@ -446,15 +468,36 @@ func _scenario_2() -> void:
 		kill(rat)
 	game.population.assign_worker(stall)
 	check(await wait_until(func() -> bool: return stall.is_open(), 60.0), "Pell back at his stall")
-	stall.stored = 30.0
+	stall.stored = 0.0
 
-	print("-- scenario 2: the ruin, levels, barracks, a tower upgrade")
+	print("-- scenario 2: the ruin, trade after wave 2, levels, barracks, a tower upgrade")
 	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
 	var site: Dictionary = sc.ruin_sites[0]
 	check(await wait_until(func() -> bool: return sc.claimed(site), 400.0), "Brenna claims the broken watchtower")
-	check(await wait_until(func() -> bool: return sc.step == 3, 5.0), "the restore card")
+	check(await wait_until(func() -> bool: return sc.step == 2, 5.0), "the restore card")
 	var ruin = sc.on_site(site)
 	check(cmd("restore_ruin", {"ruin": ruin.nid})["ok"], "it is restored")
+	await wait(3.0)
+	check(sc.step == 2 and sc.card.lesson_title() == "Pell's goods" and sc.highlight.tiles.is_empty(), "the trade card waits for wave 2 and the goods; nothing is marked (%s)" % sc.card.lesson_title())
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	guard.start()
+	while game.waves.wave < 2 or game.waves.in_progress():
+		stall.stored = 0.0  # (no goods yet: the card waits for both)
+		if sc.cutscene != null:
+			await _skip_scene()
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+	stall.stored = 0.0
+	await wait(1.0)
+	check(sc.step == 2, "after wave 2, still waiting while the stall is empty")
+	stall.stored = 30.0
+	check(await wait_until(func() -> bool: return sc.step == 3, 10.0) and sc.card.lesson_title() == "Trade", "the goods are in: the trade card")
+	check(await wait_until(func() -> bool: return sc.highlight.tiles.has(stall.tile), 5.0), "the stall is marked")
+	check(cmd("trade", {"building": stall.nid, "good": "food"})["ok"], "a lot of food bought")
 	check(await wait_until(func() -> bool: return sc.step == 4, 5.0), "the level card")
 	check(game.hero.can_level_up() and cmd("hero_level_up")["ok"], "Brenna has the XP and levels up")
 	check(await wait_until(func() -> bool: return sc.step == 5, 5.0), "the barracks card")
@@ -471,11 +514,7 @@ func _scenario_2() -> void:
 	check(await wait_until(func() -> bool: return sc.step >= sc.steps.size(), 240.0), "the cards are over")
 
 	print("-- scenario 2: the waves and the talks")
-	var guard := Timer.new()
-	guard.wait_time = 0.5
-	guard.timeout.connect(_kill_wave)
-	add_child(guard)
-	guard.start()
+	check(sc._goal_state.get("walls", false), "the walls hold (an optional objective)")
 	var scenes := 0
 	while not game.waves.all_done() and not game.game_over:
 		if sc.cutscene != null:
@@ -485,7 +524,7 @@ func _scenario_2() -> void:
 			cmd("call_wave")
 		await wait(0.5)
 	guard.queue_free()
-	check(scenes >= 3 and not game.game_over, "seven waves, with talks between them (%d scenes)" % scenes)
+	check(scenes >= 2 and not game.game_over, "seven waves, with talks between them (%d scenes after wave 2)" % scenes)
 	check(await wait_until(func() -> bool: return sc.phase == ScenarioRunner.Phase.OUTRO or sc.cutscene != null, 30.0), "the objectives are met (%s)" % str(sc._goal_state))
 	check(await wait_until(func() -> bool: return sc.cutscene != null, 120.0), "the outro plays")
 	Engine.time_scale = 1.0
@@ -500,6 +539,21 @@ func _scenario_2() -> void:
 	game.population.kill(sc.merchant(), "from the attack of goblin 3", "enemies")
 	await frames(2)
 	check(game.game_over and game.hud._overlay_title.text == "The Old Friend failed" and game.hud._overlay_sub.text.contains("Pell must not die"), "Pell dies: the scenario is lost (%s)" % game.hud._overlay_sub.text)
+
+	for how in ["torn down", "destroyed"]:
+		print("-- scenario 2: the stall %s" % how)
+		await _new_game(2)
+		await _skip_scene()
+		Engine.time_scale = 4.0
+		check(cmd("place_building", {"kind": "stall", "tile": sc.highlight.tiles[0]})["ok"], "the stall is placed")
+		check(await wait_until(func() -> bool: return sc.stalls().any(func(b: Stall) -> bool: return b.complete), 240.0), "and stands")
+		var st: Stall = sc.stalls()[0]
+		if how == "torn down":
+			check(cmd("tear_down", {"building": st.nid})["ok"], "a tear-down is ordered")
+		else:
+			st.take_damage(1e6)
+		check(await wait_until(func() -> bool: return game.game_over, 120.0) and game.hud._overlay_sub.text.contains("stall was %s" % how), "the stall %s: the scenario is lost (%s)" % [how, game.hud._overlay_sub.text])
+		Engine.time_scale = 1.0
 
 
 # --- scenario 3: The Wardline -------------------------------------------------------------------

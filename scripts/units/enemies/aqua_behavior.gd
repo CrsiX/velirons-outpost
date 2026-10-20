@@ -32,7 +32,7 @@ static func people(game: Game, sortie_only := false) -> Array[Node]:
 		var s := node as Soldier
 		if s.dead or game.map.in_village(s.current_tile()):
 			continue
-		if sortie_only and s.mode != Soldier.Mode.SORTIE:
+		if sortie_only and not s.out_fighting():
 			continue
 		out.append(s)
 	for node in tree.get_nodes_in_group("summons"):

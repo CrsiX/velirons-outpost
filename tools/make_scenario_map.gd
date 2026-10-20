@@ -43,7 +43,7 @@ const MAPS := {
 			{"edge": "north", "at": 46, "building": "barracks"},
 		]},
 	4: {"map_type": "coast", "seed": 42, "name": "The Guild Town",
-		"description": "Scenario 4: the neutral guild's walled market town on the coast, its harbour on the inlet beside the walls.",
+		"description": "Scenario 4: the Silver Thread Guild's walled market town on the coast, its harbour on the inlet beside the walls.",
 		"drop": ["unlock", "lair"], "ruins": 0},
 	5: {"map_type": "highlands", "seed": 11, "name": "The Old Fort",
 		"description": "Scenario 5: Brenna's old fort, where the road comes down out of the northern pass. The evidence lies in the hills around it.",

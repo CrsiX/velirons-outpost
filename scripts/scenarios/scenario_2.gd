@@ -1,12 +1,14 @@
 extends Scenario
 ## Scenario 2: The Old Friend (docs/scenarios-design.md §3.2, docs/story-design.md).
-## A few weeks later: the village stands again. Pell Dunmore, an old friend of
-## Brenna's, comes up the road with his cart and wants to set up a stall. Once
-## it stands the waves come: seven of them, Wilderness only. Between them Pell
-## tells what became of the kingdom, and a stranger from a rival guild asks
-## questions. Pell must not die. Teaches: placing a building (the stall),
-## trade, the hero exploring (she claims the broken watchtower) and levelling
-## up, barracks with a shield bearer, tower upgrades.
+## A few weeks later: the village stands again. Pell Dunmore, Brenna's old
+## friend (he came at the end of scenario 1), has helped rebuild it and now
+## wants a place for his wares: a stall. Once it stands the waves come: seven
+## of them, Wilderness only. Between them Pell tells what became of the kingdom,
+## and a stranger from a rival guild asks questions. Pell must not die, and
+## neither may his stall (devastated or torn down: lost). Teaches: placing a
+## building (the stall), the hero exploring (she claims the broken watchtower),
+## trade (once wave 2 is over and the goods are in), levelling up, barracks
+## with a shield bearer, tower upgrades.
 
 
 func _init() -> void:
@@ -73,15 +75,17 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 			p.position = Iso.to_world(Vector2(-0.6, 0.9))
 			(cart[0] as Node2D).add_child(p)},
 		{"title": "The Old Friend", "sub": "Scenario 2", "time": 3.0},
-		{"say": "", "text": "A few weeks later. The huts stand again, the walls hold, and the north road has been quiet. Until a cart comes up it."},
+		{"say": "", "text": "A few weeks later. The huts stand again, the walls hold, and the north road has been quiet."},
 		{"fade": "in", "time": 1.2},
-		{"say": "pell", "text": "So this is the famous outpost. You did say it was the end of the world."},
-		{"say": "brenna", "text": "Pell. You look like you walked here on an empty stomach."},
-		{"say": "pell", "text": "Most of the way. The roads aren't kind to a lone cart any more."},
-		{"say": "pell", "text": "I went looking for you in the capital, you know. Nobody there had seen you."},
+		{"say": "pell", "text": "There. The last stone of that wall, carried by a merchant. My back will never forgive you, Brenna."},
+		{"say": "brenna", "text": "You did more than your share, Pell. We wouldn't be done without you."},
+		{"say": "pell", "text": "Then may a humble trader finally have a place for his wares? My cart has stood by this gate since the night I came, and goods don't sell themselves from under a tarp."},
+		{"say": "brenna", "text": "You'll have your stall. Somewhere by the road, where people pass."},
+		{"say": "pell", "text": "Where people pass. Out here. Ha! Then I'll send word down the road, and the goods will follow."},
+		{"say": "pell", "text": "One more thing. I went looking for you in the capital, you know. Nobody there had seen you."},
 		{"say": "brenna", "text": "I wasn't at the capital. That's all there is to tell. For now."},
-		{"say": "pell", "text": "Then I won't ask. But if I'm to stay a while, I need a place to sell my wares. Where can I set up my stall?"},
-		{"say": "", "text": "Pell must not die. Place his stall: once it stands, the first wave will not be far behind."},
+		{"say": "pell", "text": "Then I won't ask. Show me where my stall goes."},
+		{"say": "", "text": "Pell must not die, and his stall must not be lost. Place it: once it stands, the first wave will not be far behind."},
 		{"do": func() -> void:
 			if is_instance_valid(cart[0]):
 				(cart[0] as Node).queue_free()},
@@ -126,21 +130,29 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 				{"camera": r.at(road[road.size() - 5]) if road.size() > 4 else r.at(r.game.player_village.center), "zoom": 1.1, "time": 2.0},
 				{"wait": 3.0},
 				{"say": "scout", "text": "Good day. A trade stall, out here? Whose colours does your merchant fly?"},
-				{"say": "pell", "text": "The neutral guild's. Same as ever."},
-				{"say": "scout", "text": "The neutral guild. Is that what's left of it. And who supplies you, this far from anywhere?"},
+				{"say": "pell", "text": "The Silver Thread's. Same as ever."},
+				{"say": "scout", "text": "The Silver Thread. The Leftovers, out here. And who supplies you, this far from anywhere?"},
 				{"say": "brenna", "text": "Nobody you need to know. Buy something, or walk on."},
 				{"say": "scout", "text": "Another time, perhaps."},
 				{"do": func() -> void:
 					if is_instance_valid(who[0]):
-						(who[0] as Node).queue_free()},
+						var back := road.slice(0, road.size() - 4)
+						back.reverse()
+						r.move_actor(who[0], back, 6.0)},
 				{"say": "pell", "text": "A rival guild's man. They're counting stalls now. That's never good."},
+				{"wait": 3.0},
+				{"do": func() -> void:
+					if is_instance_valid(who[0]):
+						(who[0] as Node).queue_free()},  # (off down the road by now)
 			])
 		5:
 			r.play_scene([
 				{"camera": r.at(r.game.player_village.center), "zoom": 1.1, "time": 1.0},
 				{"say": "brenna", "text": "That stranger. You said rival guild. Since when does the guild have rivals?"},
-				{"say": "pell", "text": "Since the war. Every master picked an heir, or tried to stay out of it. The guild broke into pieces, and the pieces don't like each other."},
-				{"say": "pell", "text": "What's left of us that stayed out is the neutral guild. Smaller every season."},
+				{"say": "pell", "text": "Since the war. Every master had to pick an heir. Most did, and the guild broke into pieces. Each piece made its own alliances: with Fiona's court, with Rhodri's army, with each other."},
+				{"say": "pell", "text": "A few of us stayed neutral. No side, no alliances, no friends at court. We're the Silver Thread Merchant Guild now: the one thread that still runs through the whole kingdom."},
+				{"say": "pell", "text": "The others call us the Leftovers. What was left once everyone worth having had chosen. Smaller every season."},
+				{"say": "brenna", "text": "Leftovers who still come up this road when nobody else does."},
 				{"say": "einar", "text": "Neutral, like this village. Maybe that's why we're both still standing."},
 			])
 
@@ -156,18 +168,21 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 			"text": "Choose a place for Pell's stall: Build tab, Trade Stall, then the marked spot (or anywhere you like). Your builder puts it up, and Pell moves in.",
 			"done": func() -> bool: return r.stalls().any(func(b: Stall) -> bool: return b.complete),
 			"point": func() -> Dictionary: return r.place_point("stall", Building.footprint(r.spots.spot("stall", stall_tile), 2)) if r.stalls().is_empty() else {"tiles": r.first_tiles(r.stalls())}},
-		{"title": "Trade",
-			"text": "The stall stands, and the first wave is on its way. Tap Pell's stall and buy something with gold: building material or food. He has only a few goods, and new ones come slowly.",
-			"done": func() -> bool: return r.stalls().any(func(b: Stall) -> bool: return b.sold > 0),
-			"point": func() -> Dictionary: return {"tiles": r.first_tiles(r.stalls())}},
 		{"title": "Brenna explores",
-			"text": "Tap Brenna in the top bar and send her exploring. She uncovers the land, earns XP, and claims the broken watchtower out by the road.",
+			"text": "The stall stands, and the first wave is on its way. Tap Brenna in the top bar and send her exploring. She uncovers the land, earns XP, and claims the broken watchtower out by the road.",
 			"done": func() -> bool: return ruin.is_empty() or r.claimed(ruin),
 			"point": func() -> Dictionary: return {} if g.hero.mode == Hero.Mode.EXPLORE else {"hud": ["hero_mode:%d" % Hero.Mode.EXPLORE, "hero"]}},
 		{"title": "Restore the watchtower",
 			"text": "The ruin is yours. Tap it and restore it: a builder repairs it for half a watchtower's price. It has a part to play later.",
 			"done": func() -> bool: return ruin.is_empty() or r.on_site(ruin) is Tower,
 			"point": func() -> Dictionary: return {"tiles": [] if ruin.is_empty() else [ruin["tile"]]}},
+		{"title": "Trade", "id": "trade",
+			"ready": func() -> bool: return _goods_in(r) or r.stalls().any(func(b: Stall) -> bool: return b.sold > 0),
+			"wait_title": "Pell's goods",
+			"wait_text": "Pell has sent word down the road: his goods come in slowly while he tends the stall. Once the second wave is over, there will be something to buy.",
+			"text": "Pell's first goods are in. Tap his stall and buy something with gold: building material or food. New goods come slowly.",
+			"done": func() -> bool: return r.stalls().any(func(b: Stall) -> bool: return b.sold > 0),
+			"point": func() -> Dictionary: return {"tiles": r.first_tiles(r.stalls().filter(_can_buy))}},
 		{"title": "Brenna's levels",
 			"text": "Brenna has XP for a level: more HP and a harder sword. Level her up in her panel.",
 			"start": func() -> void:
@@ -198,6 +213,19 @@ func on_card_done(r: ScenarioRunner, id: String) -> void:
 		r.game.events.info("Pell's stall stands. The first wave is coming")
 
 
+## Once the stall has stood, losing it (devastated, or torn down) loses the scenario.
+func on_poll(r: ScenarioRunner) -> void:
+	var stalls := r.stalls()
+	if stalls.any(func(b: Stall) -> bool: return b.complete):  # (finished, also if devastated before the next poll)
+		r.mark["stall stood"] = true
+	if not r.mark.get("stall stood", false):
+		return
+	if stalls.is_empty():
+		r.lose("Pell's stall was torn down. Without it Pell has nothing to trade, and the guild has no reason to send anything this way.")
+	elif stalls.all(func(b: Stall) -> bool: return b.devastated):
+		r.lose("Pell's stall was destroyed. Without it Pell has nothing to trade, and the guild has no reason to send anything this way.")
+
+
 func hints(r: ScenarioRunner) -> Array[Dictionary]:
 	var g := r.game
 	return [
@@ -219,11 +247,14 @@ func objectives(r: ScenarioRunner) -> Array[Dictionary]:
 		{"id": "waves", "text": "Survive %d waves" % waves.size(),
 			"done": func() -> bool: return g.waves.all_done(),
 			"detail": func() -> String: return "%d / %d" % [g.waves.wave - (1 if g.waves.in_progress() else 0), waves.size()]},
-		{"id": "stall", "text": "Keep Pell's stall standing",
+		{"id": "stall", "text": "Build Pell's stall, and don't lose it",
 			"done": func() -> bool: return r.stalls().any(func(b: Stall) -> bool: return b.working()),
-			"detail": func() -> String: return "not built" if r.stalls().is_empty() else ("devastated: repair it" if r.stalls().all(func(b: Stall) -> bool: return b.devastated) else "being built")},
+			"detail": func() -> String: return "not built" if r.stalls().is_empty() else "being built"},
 		{"id": "trade", "text": "Buy something from Pell", "optional": true,
 			"done": func() -> bool: return r.stalls().any(func(b: Stall) -> bool: return b.sold > 0)},
+		{"id": "walls", "text": "The walls hold", "optional": true,
+			"done": func() -> bool: return _village_walls(r).all(func(b: Building) -> bool: return not b.devastated),
+			"detail": func() -> String: return "%d / %d standing" % [_village_walls(r).filter(func(b: Building) -> bool: return not b.devastated).size(), _village_walls(r).size()]},
 	]
 
 
@@ -241,6 +272,25 @@ func _north_gate(r: ScenarioRunner) -> Vector2i:
 		if best == r.game.player_village.center or t.y < best.y:
 			best = t
 	return best
+
+
+## The trade card's time: wave 2 is over and the stall has a lot to sell.
+func _goods_in(r: ScenarioRunner) -> bool:
+	var g := r.game
+	return (g.waves.wave > 2 or (g.waves.wave == 2 and not g.waves.in_progress())) and r.stalls().any(_can_buy)
+
+
+## Pell's stall is open and has goods for a lot (gold aside).
+func _can_buy(b: Stall) -> bool:
+	if not b.is_open():
+		return false
+	var lots: Dictionary = b.spec_level()["lots"]
+	return lots.values().any(func(l: Dictionary) -> bool: return b.stored >= float(l["amount"]))
+
+
+## The village's gates, walls and wall towers.
+func _village_walls(r: ScenarioRunner) -> Array:
+	return r.pieces("gate") + r.pieces("wall") + r.pieces("wall_tower")
 
 
 ## The card on Brenna's levels: she gets the XP her next level costs, if she has less.

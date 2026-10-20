@@ -33,7 +33,7 @@ nothing in the story depends on them.
 | **Pell Dunmore** | The merchant, an old friend of Brenna's | From scenario 2 on |
 | **Einar** | Brenna's father, the village's lumberjack | Scenario 1; a short cameo in 10 |
 | **Sigmund** | The veteran at Brenna's old fort | Scenario 5 |
-| **Wenna** | The neutral guild's master | Scenario 4 |
+| **Wenna** | The Silver Thread Guild's master | Scenario 4 |
 | **Anselm** | The priest of the battlefield village | Scenario 6 |
 | **Fiona Aldmoor** | Heir 1, in exile | Scenarios 7 and 11 |
 | **Elder Oren** | The druids' elder at the refuge's grove | Scenario 7 |
@@ -67,7 +67,7 @@ Fiona and her side first reject her because she is from the military, the side t
 (Fiona) and 9 (the priests of the abbey).
 
 **The merchant** (**Pell**) is a man. An old friend of the hero. When everything went wrong, he came back to the remote village, and that is why
-the outpost has a trader. He arrives at the end of scenario 1, belongs to the **neutral guild** (section 6), and is with her from then on.
+the outpost has a trader. He arrives at the end of scenario 1, belongs to the **Silver Thread Guild** (section 6), and is with her from then on.
 
 ## 3. The Wardline
 
@@ -216,7 +216,9 @@ orders.
 A market that trades with the outside (planned) is how the story shows that the world beyond Veliron still exists.
 
 - **The guild split.** The merchant guild tried to stay neutral in the war, but it was hit hard and broke apart. It split into several guilds that
-  are now somewhat hostile to each other. Only a smaller version of the original remains: the **neutral guild**. The outpost and its merchant
+  are now somewhat hostile to each other. The pieces that picked a side made alliances (with Fiona's court, with Rhodri's army, with each other). Only a smaller version of
+  the original stayed neutral, with no alliances: the **Silver Thread Merchant Guild** (short: the Silver Thread Guild; "the one thread
+  that still runs through the whole kingdom"). The guilds that chose call it the **Leftovers**. The outpost and its merchant
   belong to it.
 - **Why they deal with the outpost:** its walls make it the only safe stop on its stretch of road, it sits near the old kingdom's ruins where
   relics and salvage are worth coin, and the merchant is the hero's friend.
@@ -230,7 +232,7 @@ A market that trades with the outside (planned) is how the story shows that the 
 |---|---|---|
 | Peddler | A few goods in small amounts. | The merchant arrives alone, the first outsider in months (scenario 2). |
 | Stall | More goods. | The merchant comes back. |
-| Neutral guild market | Full trade, caravans. | The roads are safe enough (scenarios 3 and 4). |
+| Silver Thread market | Full trade, caravans. | The roads are safe enough (scenarios 3 and 4). |
 
 ## 7. Scenarios: a campaign
 

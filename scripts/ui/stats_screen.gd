@@ -14,7 +14,7 @@ const TAB_NAMES := {"summary": "Summary", "timeline": "Timeline", "awards": "Awa
 const METRICS: Array = [
 	["Gold", "gold", "icon_gold"], ["Food", "food", "icon_food"], ["Material", "materials", "icon_materials"],
 	["Villagers", "villagers", "icon_population"], ["Huts", "huts", "hut"], ["Army", "units", "icon_army"],
-	["Army HP %", "army_hp", "icon_hp"], ["Buildings", "buildings", "watchtower"], ["Explored", "explored", "mode_explore"],
+	["Army HP %", "army_hp", "icon_hp_army"], ["Buildings", "buildings", "watchtower"], ["Explored", "explored", "mode_explore"],
 	["Enemies", "enemies", "icon_enemies"], ["Corpses", "corpses", "mode_gather"],
 	["Hero XP", "hero_xp", "icon_xp"], ["Hero level", "hero_level", "icon_hero"], ["Hero HP", "hero_hp", "icon_hp"],
 ]

@@ -279,6 +279,12 @@ Their level 1 (85-90 HP, 5.2-7.2 DPS) is above the shield bearer's level 3
   4. They re-target (nearest first) and never chase beyond the activation
      range + `SORTIE_LEASH` (2 tiles).
   5. When no enemy has been in reach for 1 s, they walk back to their benches.
+  6. They step down from their bench to the yard's way out (`Soldier.Mode.LEAVE`, `Barracks.bench_point`)
+     and, back at the barracks, up onto it again (`SEAT`), so nobody pops in or out of sight there. Stepping
+     down counts as out on the sortie (`Soldier.out_fighting`: auras, war cries, counter-strikes); walking
+     back does not.
+- A unit on its bench with less than full HP shows its HP bar over its head (as out on a sortie) until it
+  has healed.
 - **Farm defence:** with no enemy in range, barracks also turn out for rats on
   one of their village's farms within `BARRACKS_FARM_RANGE_FACTOR` (2) × their
   range. Units out for a farm stay within `FARM_DEFENSE_LEASH` (4 tiles) of it,

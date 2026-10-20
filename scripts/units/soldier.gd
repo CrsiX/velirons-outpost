@@ -12,7 +12,9 @@ extends Unit
 ## the post); healers stay with their comrades; summoners step outside and
 ## summon; a High Priest (support) keeps with its comrades and blesses them.
 ## They never chase beyond the barracks' range + SORTIE_LEASH and walk back to
-## their bench once no enemy is left in range. An Inquisitor picks its target
+## their bench once no enemy is left in range. They step down from their bench
+## to the yard's way out (LEAVE) and back onto it (SEAT), so nobody pops in or
+## out of sight at the barracks. An Inquisitor picks its target
 ## by its "hunt" priorities (witches, then the unholy; see _hunt_distance).
 ## A warrior shouts his war cry while out (Combat.war_cry); a halberdier goes
 ## for flyers too; a berserker turns redder as it loses HP (its rage:
@@ -20,7 +22,7 @@ extends Unit
 
 signal arrived(soldier: Soldier)
 
-enum Mode { WALK, SORTIE, BACK }
+enum Mode { WALK, LEAVE, SORTIE, BACK, SEAT }
 
 var unit: MilitaryUnit
 var mode := Mode.WALK
@@ -86,6 +88,11 @@ func start_sortie(b: Barracks, p_farm: Farm = null) -> void:
 	_calm = 0.0
 	_cry_cd = 0.0  # (a warrior shouts as soon as he is out)
 	UnitFx.show_unit(sprite, unit.kind)
+	var bench := b.bench_point(unit)
+	if bench.is_finite():
+		set_grid_pos(bench)
+		follow(PackedVector2Array([bench, Vector2(b.work_tile())]))
+		mode = Mode.LEAVE
 
 
 func _process(delta: float) -> void:
@@ -103,14 +110,35 @@ func _process(delta: float) -> void:
 			var entered := unit.state == MilitaryUnit.State.TRAVELLING and unit.travel_to.rect.has_point(current_tile())
 			if step_path(delta) or entered:
 				arrived.emit(self)
+		Mode.LEAVE:
+			if step_path(delta):
+				mode = Mode.SORTIE
 		Mode.SORTIE:
 			_sortie(delta)
 		Mode.BACK:
+			if step_path(delta):
+				_to_bench()
+		Mode.SEAT:
 			if step_path(delta):
 				arrived.emit(self)
 
 
 # --- barracks sortie ------------------------------------------------------------------------
+
+## Out on a sortie (stepping down from its bench counts; walking back doesn't).
+func out_fighting() -> bool:
+	return mode == Mode.SORTIE or mode == Mode.LEAVE
+
+
+## Back at the barracks: up onto its bench (then it is home).
+func _to_bench() -> void:
+	var bench := barracks.bench_point(unit) if is_instance_valid(barracks) else Vector2.INF
+	if not bench.is_finite():
+		arrived.emit(self)
+		return
+	follow(PackedVector2Array([grid_pos, bench]))
+	mode = Mode.SEAT
+
 
 func _sortie(delta: float) -> void:
 	if not is_instance_valid(barracks):
@@ -131,7 +159,7 @@ func _sortie(delta: float) -> void:
 		if _calm >= 1.0:  # nobody left in range: back to the bench
 			mode = Mode.BACK
 			if not walk_to(barracks.work_tile()):
-				arrived.emit(self)
+				_to_bench()
 		elif unit.role() in ["healer", "summoner", "support"]:
 			unit.behavior.tick(self, unit, delta)
 		return
@@ -235,7 +263,7 @@ func _war_cry(delta: float) -> void:
 
 ## A flyer hit it: a melee unit whose blow is ready strikes back at once.
 func counter_strike(e: Enemy) -> void:
-	if dead or mode != Mode.SORTIE or unit.role() != "melee" or _strike_cd > 0.0 or e.dead:
+	if dead or not out_fighting() or unit.role() != "melee" or _strike_cd > 0.0 or e.dead:
 		return
 	_strike_cd = unit.stat("cooldown")
 	face(e.grid_pos)
@@ -268,7 +296,7 @@ func _comrades_center() -> Vector2:
 	var n := 0
 	for s in get_tree().get_nodes_in_group("field_units"):
 		var so := s as Soldier
-		if so != self and so.barracks == barracks and so.mode == Mode.SORTIE and not so.dead:
+		if so != self and so.barracks == barracks and so.out_fighting() and not so.dead:
 			sum += so.grid_pos
 			n += 1
 	return sum / n if n > 0 else Vector2(barracks.work_tile())
@@ -281,7 +309,7 @@ func take_damage(amount: float, source = null, category: String = "pure") -> voi
 		return
 	unit.hp -= amount
 	# A High Priest hit in melee on a sortie strikes back once its blow is ready.
-	if unit.role() == "support" and category == "melee" and source is Enemy and mode == Mode.SORTIE \
+	if unit.role() == "support" and category == "melee" and source is Enemy and out_fighting() \
 			and _strike_cd <= 0.0 and unit.hp > 0.0 and not source.dead:
 		_strike_cd = unit.stat("cooldown")
 		face(source.grid_pos)

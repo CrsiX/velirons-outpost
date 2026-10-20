@@ -197,7 +197,7 @@ static func war_cry(game: Game, center: Vector2, radius: float, bonus: float, du
 			holders.append(u)
 	for node in game.get_tree().get_nodes_in_group("field_units"):
 		var so := node as Soldier
-		if not so.dead and so.mode == Soldier.Mode.SORTIE and so.grid_pos.distance_to(center) <= radius:
+		if not so.dead and so.out_fighting() and so.grid_pos.distance_to(center) <= radius:
 			holders.append(so.unit)
 	for node in game.get_tree().get_nodes_in_group("heroes"):
 		var h := node as Hero

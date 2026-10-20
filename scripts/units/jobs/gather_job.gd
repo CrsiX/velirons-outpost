@@ -259,8 +259,15 @@ func _deliver() -> void:
 		w.village.economy.add("materials", wood, "corpses")
 	w.game.stats.credit(w.village, "gatherers", w.label(), carried.size())
 	w.village.corpses_delivered += carried.size()
-	w.village.events.debug("%s brings %d corpse%s home: +%d gold, +%d food%s" % [w.label(), carried.size(), "" if carried.size() == 1 else "s", gold, food, ", +%d building material" % wood if wood > 0 else ""])
-	w.float_text("+%d {gold}  +%d {food}%s" % [gold, food, "  +%d {materials}" % wood if wood > 0 else ""], Color("c9a24a"))
+	var parts: Array[String] = []  # (only what came in: no "+0")
+	var said: Array[String] = []
+	for got: Array in [[gold, "gold"], [food, "food"], [wood, "materials"]]:
+		if int(got[0]) > 0:
+			parts.append("+%d {%s}" % got)
+			said.append("+%d %s" % [got[0], "building material" if got[1] == "materials" else got[1]])
+	w.village.events.debug("%s brings %d corpse%s home: %s" % [w.label(), carried.size(), "" if carried.size() == 1 else "s", ", ".join(said) if not said.is_empty() else "nothing"])
+	if not parts.is_empty():
+		w.float_text("  ".join(parts), Color("c9a24a"))
 	Sfx.play("coin")
 	carried.clear()
 	_sack.visible = false

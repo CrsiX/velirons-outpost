@@ -122,10 +122,12 @@ old friend.
 **Where:** the home village again, now in a scripted state a few weeks later.
 
 **Starting point:** the village repaired (huts, walls, gates, wall towers), a farm, a camp, two towers with archers, **no barracks yet**. The
-broken watchtower from scenario 1 still lies outside. Pell arrives with his cart at the start. He will then ask where he can set up a stall,
-player needs to put a place. Hero level 2. Specialisations are still locked.
+broken watchtower from scenario 1 still lies outside. Pell (he came at the end of scenario 1) has helped rebuild, and now asks for a place for
+his wares: the player places his stall. Hero level 2. Specialisations are still locked.
 
-**Objective:** survive *7* waves while keeping Pell's stall running. Pell must not die. *Secondary:* buy something from him (a first use of trade).
+**Objective:** survive *7* waves while keeping Pell's stall running: once it has stood, losing it (devastated, or torn down) loses the scenario.
+Pell must not die. *Secondary:* buy something from him (a first use of trade); the walls hold (every gate, wall and wall tower standing at the
+end, as at the start).
 
 **Tutorial pieces:** setting a building (the stall), the hero (exploring, which claims the broken watchtower, and levelling up), the barracks with
 a shield bearer, tower upgrades, and trade through Pell.
@@ -192,7 +194,7 @@ living in
 the guild house. A small garrison (a few archers and a shield bearer), little gold. The full guild market is here. Brenna arrives with a few
 units, level about 5. **No revive.**
 
-**Objective:** hold the town for 9 waves until the neutral guild's convoy is loaded and leaves. The **warehouse** must survive (defeat if it
+**Objective:** hold the town for 9 waves until the Silver Thread Guild's convoy is loaded and leaves. The **warehouse** must survive (defeat if it
 falls). The guild master, Wenna, must not die.
 
 **Monsters:** Wilderness and **Renegades** in numbers: thieves (bandits: decided against for now, thieves only). The harbour adds the first
@@ -659,7 +661,10 @@ The game has none of this yet, except where noted:
   road. Named villagers (`names`, by role; `Civilian.given_name`).
 - **During play:** `play_scene` (a short scene between waves: a talk, a visitor; one after the other; cutscenes hold the wave countdown),
   `on_poll` (a scenario's own events every 0.25 s), `on_wave_started` / `on_wave_finished`, `on_card_done`, and `show_journal` (a page found:
-  a journal, a letter, a logbook, on parchment over the paused game, `Journal`). Objectives can be `optional` (shown, not needed to win).
+  a journal, a letter, a logbook, on parchment over the paused game, `Journal`). Objectives can be `optional` (shown, not needed to win). A
+  card can wait (`ready`), showing `wait_text` meanwhile under its own `wait_title` (else the last card's title stays).
+- **Progress:** a won scenario is remembered as completed (`Campaign.complete`, by its title, `user://campaign.json`); the campaign page marks
+  the completed ones, highlights the next and, in release builds, shows only the unlocked ones (docs/ui-design.md, the campaign page).
 - **Not built yet:** saving a scenario (`Game.save_error` refuses it, there is no autosave; the stall, the merchant, the guild master, the graveyard, the fallen, the grove, the druids and the
   warehouse aren't in saves either), upgrading the stall in play, guard mobs, bosses, scripted caravans, the Legion's other kinds (archers,
   banner-bearers, the marshal) and a captain's commanding abilities, anything carried between scenarios (by design: nothing carries over).
@@ -696,10 +701,10 @@ The game has none of this yet, except where noted:
   the ruined village and its smoke); the walk home (no orders for her meanwhile; the camera follows her); the arrival (Einar greets her and
   tells what happened; the rule that nobody may die); the outro (dusk, a cart with a lantern on the north road: Pell).
 - **Cards** (the tutorial's steps 1-7 and 11, and the rebuilding): rebuild a hut, a watchtower on the marked spot, the builder at work, an archer
-  on the tower, a second farm (food), call wave 1, a gatherer, promote the archer, repair a gate or wall tower.
+  on the tower, a second farm (food), call wave 1, a gatherer, upgrade the archer, mend the walls (repair a gate, wall or wall tower).
 - **Hints** (once each, on the card and in the log): a villager fleeing an enemy, a villager hurt, food falling below 60, enemies inside the walls.
-- **Objectives:** survive the 5 waves; every hut rebuilt; every gate and every wall tower whole (walls are not required); more villagers than at
-  the start; food not falling. All at once win it.
+- **Objectives:** survive the 5 waves; every hut rebuilt; every gate, wall and wall tower whole; more villagers than at the start; food not
+  falling. All at once win it.
 - **The old tutorial stays** as it is for now (title screen *Tutorial*); scenarios 1 to 3 now cover all of its steps, so it can be retired when
   you decide.
 
@@ -728,14 +733,20 @@ The game has none of this yet, except where noted:
 - **Waves:** seven, Wilderness only: 1: 4 goblins; 2: 5 goblins, 4 rats; 3: 5 goblins, an ork; 4: 4 goblins, an ork and two rat packs (6, 5: the
   farm test); 5: 6 goblins, 2 orks, a big slime; 6: 7 goblins, 2 orks, 5 rats; 7: 8 goblins, 3 orks, 2 big slimes, 5 rats. Wave 1 can't be called:
   its 45 s countdown starts once the stall stands. 40 s between waves.
-- **Story:** the intro (a title card; a few weeks later; Pell's cart at the north gate; the reunion: she wasn't at the capital, and they leave it at
-  that; where can he set up his stall); after wave 1 Pell tells of King Orsin's death and the war of his children, Fiona and Rhodri; after wave 3 a
-  stranger from a rival guild walks up the road and asks questions; after wave 5 Pell tells of the guild's split; the outro (dusk at the stall:
-  the road to the border town is cut where the Wardline stood; help restore it and the guild can send caravans).
-- **Cards:** Pell's stall (placed on a marked spot by the road, or anywhere), trade (buy a lot), Brenna explores (she claims the broken
-  watchtower), restore it, her level, barracks with a shield bearer, a tower upgrade.
-- **Hints:** Pell fleeing, rats on the farm or the stall, food low. **Objectives:** survive the 7 waves; Pell's stall standing; *optional:* buy
-  something from Pell.
+- **Story:** the intro (a title card; a few weeks later; Pell's cart by the north gate, where it has stood since he came; he has carried the
+  last stone of the wall, and asks for a place for his wares; she wasn't at the capital, and they leave it at that); after wave 1 Pell tells of
+  King Orsin's death and the war of his children, Fiona and Rhodri; after wave 3 a stranger from a rival guild walks up the road, asks questions
+  (Pell flies the Silver Thread's colours; the stranger calls them the Leftovers) and walks off down the road again; after wave 5 Pell tells
+  of the guild's split (the pieces made alliances with Fiona's court, Rhodri's army and each other; the few who stayed neutral, with no
+  alliances, are the Silver Thread Merchant Guild, called the Leftovers by the others); the outro (dusk at the stall: the road to the border town is cut where the Wardline stood; help restore it and the
+  guild can send caravans).
+- **Cards:** Pell's stall (placed on a marked spot by the road, or anywhere), Brenna explores (she claims the broken watchtower), restore it,
+  trade (it waits, titled *Pell's goods*, until wave 2 is over and the open stall has goods for a lot, or something was bought already; the stall
+  is marked only while a lot can be bought), her level, barracks with a shield bearer, a tower upgrade.
+- **Hints:** Pell fleeing, rats on the farm or the stall, food low. **Objectives:** survive the 7 waves; build Pell's stall and don't lose it
+  (once it has stood, devastated or torn down is a defeat: "Pell's stall was torn down / destroyed ..."; nothing in its waves attacks
+  buildings, rats only eat its goods, so in practice only a tear-down loses it); *optional:* buy something from Pell; the walls hold (no gate,
+  wall or wall tower devastated).
 
 ### 7.6 Scenario 3 as built (`scenario_3.gd`)
 
@@ -811,7 +822,7 @@ The game has none of this yet, except where noted:
 - **Waves:** nine. Goblins and orks; **thieves** in every wave (2 to 5; bandits are not built: thieves only, as decided); **crabs** from wave 2
   (out of the sea: the water spawns); **one siren** in wave 7; rat packs and big slimes now and then. Wave 1 waits to be called; 40 s between waves.
 - **Story:** the intro (the harbour half closed by a rival guild's chains; Pell's old guild house; Wenna: the convoy is loading in the warehouse,
-  nine days; the rules); after wave 1 Wenna tells how the guild broke apart (every master had to choose an heir; the neutral guild is the ones who
+  nine days; the rules); after wave 1 Wenna tells how the guild broke apart (every master had to choose an heir; the Silver Thread Guild is the ones who
   wouldn't); after wave 3 a **rival guild's master** comes up the road and offers Brenna gold to leave: a **choice** (*Take the gold and leave*
   loses the scenario: "Brenna took the rival guild's gold and rode away..."; *Refuse* goes on); wave 7 starts the convoy's loading; after wave 6 a
   captured thief's **coins of three mints** (Karmere, Lyrenne, Aurelith; a journal page); the outro (the convoy rolls out; that night Pell reads
