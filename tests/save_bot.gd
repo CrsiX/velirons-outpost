@@ -248,6 +248,21 @@ func _single() -> void:
 	builder.job.state = BuildJob.State.RESTING
 	builder.set_grid_pos(Vector2(barracks.work_tile()))
 	builder._set_home(false)
+	# A wrathwood out wandering, hurt, after the forester (docs/enemies-design.md §15c).
+	var lt_tile := Vector2i(-1, -1)
+	for t: Vector2i in game.map.props:
+		if w.is_tree(t) and not trees.has(t) and Vector2(t).distance_to(Vector2(c)) < 16.0:
+			lt_tile = t
+			break
+	game.wrathwoods.felled[v.id] = 4
+	game.wrathwoods.calm_until[v.id] = 2
+	var living := game.wrathwoods.wake(lt_tile, v, forester)
+	var lb := living.behavior as WrathwoodBehavior
+	lb.state = WrathwoodBehavior.State.WANDER
+	lb.wander_left = 7.5
+	living.fx.erase("wake")
+	living.hp = living.max_hp * 0.6
+	living.set_grid_pos(Vector2(lt_tile) + Vector2(0.4, 0.2))
 	get_tree().paused = true
 	var err := game.save_named("Bot game")
 	check(err == "", "Save: written (%s)" % err)
@@ -266,7 +281,8 @@ func _single() -> void:
 	var site_progress := site.progress
 	var ids := {"site": site.nid, "tower": tower.nid, "barracks": barracks.nid, "archer": archer.nid, "wall0": walls[0].nid,
 		"marching": marching.nid, "spare": spare.nid, "downed": downed.nid, "summoner": summoner.nid, "gath": gath.nid, "guard": guard.nid,
-		"forester": forester.nid, "builder": builder.nid}
+		"forester": forester.nid, "builder": builder.nid, "living": living.nid}
+	var living_hp := living.hp
 	var guard_hp := guard.hp
 	var stats_time := game.stats.time
 	var nid_before := game._next_nid
@@ -310,6 +326,12 @@ func _single() -> void:
 	check(bui2 != null and bui2.job.state == BuildJob.State.TO_SITE and bui2.job.site != null and bui2.job.site.builder == bui2 and not bui2.evading,
 		"the builder out in the field walks from there to a site (state %d)" % bui2.job.state)
 	check(game.corpses.corpses.size() == 1 and game.corpses.corpses[0].kind == "ork", "the corpse lies there")
+	var living2 := game.entity(ids["living"]) as Enemy
+	var lb2 := living2.behavior as WrathwoodBehavior if living2 else null
+	check(living2 != null and lb2 != null and absf(living2.hp - living_hp) < 0.01 and lb2.state == WrathwoodBehavior.State.WANDER and is_equal_approx(lb2.wander_left, 7.5)
+		and lb2.home == lt_tile and living2.grid_pos.distance_to(Vector2(lt_tile) + Vector2(0.4, 0.2)) < 0.001 and lb2.forester == for2 and lb2.camp == for2.camp,
+		"the wrathwood is back: where it was, as hurt, wandering, its home and its forester and camp")
+	check(game.wrathwoods.felled[v.id] == 4 and game.wrathwoods.calm_until[v.id] == 2 and not w.is_tree(lt_tile), "what the forest remembers is kept")
 	var guard2 := game.entity(ids["guard"]) as Enemy
 	check(guard2 != null and absf(guard2.hp - guard_hp) < 0.01 and guard2.behavior is CampBehavior, "the hurt camp guard is still hurt")
 	check(not w.is_tree(trees[0]) and absf(w.tree_progress(trees[1]) - 2.5 / w.tree_chop_time(trees[1])) < 0.01, "the felled tree is gone, the chopped one as far chopped")

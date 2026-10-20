@@ -2934,6 +2934,202 @@ def rat():
     a.save("unit_rat")
 
 
+# ---------------------------------------------------------------- spiders (docs/enemies-design.md §15b)
+
+def _spider_leg(a, hip, knee, foot, color, sw):
+    a.line([hip, knee, foot], INK, sw + 1.6)
+    a.line([hip, knee, foot], color, sw)
+
+
+def spider_mother():
+    """A huge dark spider, side view, facing right: a bloated abdomen with a red
+    hourglass and a cluster of pale eggs underneath, eight jointed legs, red eyes."""
+    a = Art()
+    a.shadow(26, 8, opacity=0.45)
+    chitin, chitin_l, far = "#2e2433", "#4b3c55", "#1f1824"
+    # far-side legs (darker, behind the body)
+    for hx, kx, kz, fx in ((2, -20, -30, -34), (5, -8, -33, -18), (9, 16, -33, 14), (12, 28, -29, 36)):
+        _spider_leg(a, (hx, -16), (kx, kz), (fx, -2), far, 1.6)
+    # abdomen: bloated, with a lighter back and a red hourglass
+    a.ellipse(-11, -21, 16, 13, chitin, INK, 1.5)
+    a.ellipse(-13, -26, 10, 5.5, chitin_l, opacity=0.7)
+    a.poly([(-15, -28), (-9, -28), (-12, -23.5)], "#b3302a", INK, 0.8)
+    a.poly([(-15, -19), (-9, -19), (-12, -23.5)], "#b3302a", INK, 0.8)
+    for sx in (-22, -18, -4, -1):  # bristles
+        a.line([(sx, -31 + abs(sx + 11) * 0.35), (sx - 1.5, -35 + abs(sx + 11) * 0.35)], INK, 1.0)
+    # pale eggs clinging under the abdomen
+    for ex, ey in ((-18, -9), (-13, -8), (-8, -9), (-15.5, -11.5), (-10.5, -11.5)):
+        a.ellipse(ex, ey, 2.8, 2.4, "#e7dfc6", INK, 0.8)
+    # cephalothorax and head
+    a.ellipse(8, -17, 9.5, 7.5, chitin, INK, 1.4)
+    a.ellipse(7, -20.5, 6, 3, chitin_l, opacity=0.6)
+    a.ellipse(16, -15, 5, 4.5, chitin, INK, 1.2)
+    # fangs
+    a.poly([(18, -12), (21, -11), (19, -6)], "#d8cfb8", INK, 0.8)
+    a.poly([(15.5, -11.5), (18, -11), (16.5, -6.5)], "#d8cfb8", INK, 0.8)
+    # a cluster of red eyes
+    for ex, ey, r in ((17.5, -17.5, 1.5), (19.5, -16, 1.2), (15.5, -18.5, 1.1), (18, -19.8, 0.9), (20.5, -18.3, 0.8)):
+        a.ellipse(ex, ey, r, r, "#ff3a2a")
+    a.ellipse(17.2, -17.9, 0.5, 0.5, "#ffd0c0")
+    # near-side legs
+    for hx, kx, kz, fx in ((3, -22, -32, -37), (6, -6, -35, -21), (10, 19, -35, 18), (13, 31, -30, 40)):
+        _spider_leg(a, (hx, -14), (kx, kz), (fx, 0), chitin, 2.0)
+        a.ellipse(kx, kz, 1.4, 1.4, chitin_l, INK, 0.8)  # knee joint
+    a.save("unit_spider_mother")
+
+
+def corpse_spider_mother():
+    """On its back, legs curled up."""
+    a = Art()
+    a.ellipse(0, 0, 24, 7, "#000", opacity=0.3)
+    a.ellipse(2, 2, 20, 5, "#1e2a14", opacity=0.45)  # dark ichor
+    chitin = "#2e2433"
+    for hx, kx, ky, fx, fy in ((-6, -14, -16, -8, -18), (-1, -6, -20, 0, -21), (5, 6, -20, 11, -18), (10, 16, -15, 19, -10)):
+        _spider_leg(a, (hx, -6), (kx, ky), (fx, fy), chitin, 1.8)
+    a.ellipse(-8, -4, 14, 7.5, chitin, INK, 1.4)
+    a.ellipse(-8, -6, 8, 3, "#5a4a62", opacity=0.6)  # pale belly
+    a.ellipse(10, -3, 7.5, 5.5, chitin, INK, 1.2)
+    for ex in (-12, -7):  # crushed eggs
+        a.ellipse(ex, 3, 2.6, 1.6, "#cfc6aa", INK, 0.7)
+    a.save("corpse_spider_mother")
+
+
+def _wrathwood_body(a, grip=False):
+    """The trunk of a wrathwood, facing right: root legs, a bark body with a
+    face, branch arms (raised, or plunged into the ground for a root grip) and
+    an oak crown."""
+    bark, bark_d, bark_l = "#5e4129", "#43301e", "#7a5738"
+    moss = "#4d6b37"
+    leaf = ("#203a22", "#1b331d", "#26442a", "#2e5232")
+    # root legs, spread wide
+    for x0, x1, x2 in ((-6, -11, -17), (6, 10, 16)):
+        a.line([(x0, -18), (x1, -6), (x2, -1)], INK, 8.5)
+        a.line([(x0, -18), (x1, -6), (x2, -1)], bark_d, 6)
+        a.line([(x2, -1), (x2 + (-5 if x2 < 0 else 5), 1)], INK, 3.4)
+        a.line([(x2, -1), (x2 + (-5 if x2 < 0 else 5), 1)], bark_d, 1.8)
+    # the far arm (behind the body)
+    if grip:
+        a.line([(-8, -48), (-15, -30), (-14, -8), (-18, 0)], INK, 7)
+        a.line([(-8, -48), (-15, -30), (-14, -8), (-18, 0)], bark_d, 4.6)
+    else:
+        a.line([(-8, -50), (-19, -60), (-24, -74)], INK, 7)
+        a.line([(-8, -50), (-19, -60), (-24, -74)], bark_d, 4.6)
+        for tx, ty in ((-30, -78), (-24, -82), (-19, -79)):
+            a.line([(-24, -74), (tx, ty)], INK, 2.6)
+            a.line([(-24, -74), (tx, ty)], bark_d, 1.2)
+    # the trunk: wider at the roots, bark grooves, moss
+    a.poly([(-11, -16), (11, -16), (9, -56), (-9, -58)], bark, INK, 1.5)
+    a.poly([(1, -16), (11, -16), (9, -56), (1, -57)], bark_d, stroke=None, opacity=0.6)
+    for gx, top, bot in ((-6, -54, -20), (-1.5, -56, -24), (5, -53, -19)):
+        a.line([(gx, bot), (gx + 1.2, (top + bot) / 2), (gx - 0.6, top)], "#2c1f13", 1.1)
+    a.ellipse(-6, -22, 4.5, 2.4, moss, opacity=0.85)
+    a.ellipse(7, -46, 3, 1.8, moss, opacity=0.75)
+    # the face: a heavy brow, glowing amber eyes, a hollow mouth
+    a.line([(-1, -46), (9, -45)], INK, 2.6)
+    a.line([(-1, -46), (9, -45)], bark_l, 1.2)
+    for ex in (1.5, 7):
+        a.ellipse(ex, -42.5, 1.9, 1.5, "#1a120a")
+        a.ellipse(ex, -42.5, 1.1, 0.9, "#ffb340")
+    a.ellipse(4.5, -35, 3, 2.2 if not grip else 3, "#1a120a", INK, 0.9)
+    # the crown: oak clumps on its head
+    for cx, cy, r, c in ((-12, -64, 13, leaf[0]), (10, -64, 12, leaf[1]), (-1, -76, 16, leaf[2]), (-6, -82, 8, leaf[3])):
+        a.ellipse(cx, cy - (2 if grip else 0), r, r * 0.85, c, INK, 1.3)
+    a.ellipse(-4, -80, 3.5, 2.6, "#3d6a42", opacity=0.8)
+    # the near arm
+    if grip:
+        a.line([(9, -50), (20, -34), (19, -10), (23, 0)], INK, 7.5)
+        a.line([(9, -50), (20, -34), (19, -10), (23, 0)], bark, 5)
+    else:
+        a.line([(8, -48), (19, -50), (27, -40)], INK, 7.5)
+        a.line([(8, -48), (19, -50), (27, -40)], bark, 5)
+        for tx, ty in ((33, -42), (31, -35), (26, -33)):
+            a.line([(27, -40), (tx, ty)], INK, 2.8)
+            a.line([(27, -40), (tx, ty)], bark, 1.3)
+        a.ellipse(20, -51, 3, 2, leaf[2], INK, 0.8)  # a twig of leaves on the arm
+
+
+def wrathwood():
+    """A tree woken up under the axe (side view, facing right; the game flips it),
+    and its root grip: arms plunged into the ground, roots spreading round it."""
+    a = Art()
+    a.shadow(26, 9, opacity=0.45)
+    _wrathwood_body(a)
+    a.save("unit_wrathwood")
+    g = Art()
+    g.shadow(26, 9, opacity=0.45)
+    for ang in (0.3, 1.4, 2.3, 3.5, 4.6, 5.6):  # roots spreading on the ground
+        x, y = math.cos(ang) * 30, math.sin(ang) * 12
+        g.line([(0, 0), (x * 0.5, y * 0.5 + 1), (x, y)], INK, 3.6)
+        g.line([(0, 0), (x * 0.5, y * 0.5 + 1), (x, y)], "#6b4a2c", 2)
+    _wrathwood_body(g, grip=True)
+    g.pts = a.pts[:] + g.pts  # (one canvas, so the two line up)
+    g.save("unit_wrathwood_grip")
+
+
+def corpse_wrathwood():
+    """A felled wrathwood: a log of living wood with its crown spilled out."""
+    a = Art()
+    a.ellipse(0, 1, 30, 8, "#000", opacity=0.3)
+    for cx, cy, r, c in ((22, -6, 9, "#1b331d"), (28, -1, 7, "#203a22"), (17, 1, 6, "#26442a")):
+        a.ellipse(cx, cy, r, r * 0.7, c, INK, 1.1)
+    a.poly([(-24, -9), (14, -12), (16, -1), (-22, 3)], "#5e4129", INK, 1.4)
+    a.poly([(-23, -3), (15, -6), (16, -1), (-22, 3)], "#43301e", stroke=None, opacity=0.7)
+    for gx in (-15, -6, 3, 10):
+        a.line([(gx, -10), (gx + 2, -3)], "#2c1f13", 1.0)
+    a.ellipse(-23, -3, 3.5, 6, "#c9a878", INK, 1.2)  # the cut end, with its rings
+    a.ellipse(-23, -3, 2, 3.6, "#a8865a", opacity=0.8)
+    a.ellipse(-23, -3, 0.8, 1.4, "#7a5738")
+    a.ellipse(-2, -7, 1.3, 1.0, "#1a120a")  # its eyes, gone dark
+    a.ellipse(4, -7.5, 1.3, 1.0, "#1a120a")
+    a.line([(-8, 2), (-14, 7)], INK, 3)  # a broken branch
+    a.line([(-8, 2), (-14, 7)], "#43301e", 1.6)
+    a.ellipse(-10, -10, 3.5, 1.6, "#4d6b37", opacity=0.85)
+    a.save("corpse_wrathwood")
+
+
+def spiderling():
+    """A small brown spider, side view, facing right (the game flips it)."""
+    a = Art()
+    a.shadow(10, 3, opacity=0.35)
+    body, body_l, far = "#5a4232", "#7c6048", "#3e2e22"
+    for hx, kx, kz, fx in ((-1, -8, -10, -12), (1, -3, -11, -6), (3, 7, -11, 7), (4, 11, -9, 13)):
+        _spider_leg(a, (hx, -5), (kx, kz), (fx, -1), far, 0.7)
+    a.ellipse(-4, -7, 6.5, 5.2, body, INK, 1.1)
+    a.ellipse(-5, -8.5, 3, 1.6, body_l, opacity=0.7)
+    a.ellipse(-4, -6.8, 1.0, 1.4, "#c9a24a", opacity=0.85)  # a little gold spot
+    a.ellipse(3, -5, 3.4, 2.8, body, INK, 1.0)
+    a.ellipse(4.8, -5.6, 0.8, 0.8, "#ff3a2a")
+    a.ellipse(3.6, -6.2, 0.6, 0.6, "#ff3a2a")
+    for hx, kx, kz, fx in ((-1, -9, -11, -13), (1, -4, -12, -7), (3, 8, -12, 8), (4, 12, -10, 15)):
+        _spider_leg(a, (hx, -4), (kx, kz), (fx, 0), body, 0.8)
+    a.save("unit_spiderling")
+
+
+def spider_eggs():
+    """One spider egg (pale, veined, glistening) and the broken shell it leaves."""
+    shell, shell_d, vein = "#e9e1c8", "#c9bf9f", "#9fb08a"
+    a = Art()
+    a.shadow(6.5, 2.4, opacity=0.35)
+    a.ellipse(0, -6.5, 5.2, 6.5, shell, INK, 1.1)
+    a.ellipse(1.5, -4.5, 3.2, 3.6, shell_d, opacity=0.55)
+    a.raw('<path d="M-2,-11 Q-3.5,-7 -1.5,-3" fill="none" stroke="%s" stroke-width="0.8"/>' % vein, [(-4, -11), (-1, -3)])
+    a.raw('<path d="M2,-10 Q3.5,-7 2,-4.5" fill="none" stroke="%s" stroke-width="0.7"/>' % vein, [(1, -10), (4, -4)])
+    a.ellipse(-2, -9.5, 1.4, 1.0, "#ffffff", opacity=0.8)
+    a.save("unit_spider_egg")
+    b = Art()
+    b.shadow(6.5, 2.4, opacity=0.3)
+    # the lower half, a jagged rim, and the dark inside
+    b.poly([(-5.2, -5.5), (-3.5, -7.5), (-2, -5.8), (0, -8.2), (1.8, -6), (3.6, -7.8), (5.2, -5.5),
+            (4.6, -2.2), (2.5, -0.4), (-2.5, -0.4), (-4.6, -2.2)], shell, INK, 1.1)
+    b.ellipse(0, -5.6, 4.0, 1.4, "#4a4030", opacity=0.75)
+    b.ellipse(1.5, -2.6, 2.6, 1.6, shell_d, opacity=0.55)
+    # a few fragments beside it
+    b.poly([(-9, -1), (-7, -3), (-6, -0.5)], shell, INK, 0.8)
+    b.poly([(7, -0.5), (9.5, -2), (9.8, 0.3)], shell, INK, 0.8)
+    b.poly([(5.5, 1.5), (7, 0.8), (7.2, 2.2)], shell_d, INK, 0.6)
+    b.save("unit_spider_egg_shell")
+
+
 # ---------------------------------------------------------------- water monsters (docs/aquatic-design.md)
 
 def _waterline(a, rx, ry, cy=0.0):
@@ -5097,6 +5293,12 @@ def main():
     goblin()
     rat()
     slimes()
+    spider_mother()
+    corpse_spider_mother()
+    spiderling()
+    spider_eggs()
+    wrathwood()
+    corpse_wrathwood()
     gatherer()
     forester()
     worker_camp()

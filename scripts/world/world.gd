@@ -5,6 +5,8 @@ extends Node2D
 
 ## A tree fell (the tile is meadow now); the co-op host sends it to the clients.
 signal tree_felled(t: Vector2i)
+## A tree woke up as a wrathwood (gone from its tile without falling).
+signal tree_woke(t: Vector2i)
 
 const PIECE_SCRIPTS := {
 	"hut": preload("res://scripts/buildings/hut.gd"),
@@ -597,9 +599,13 @@ func restore_chopped(d: Dictionary) -> void:
 			s.modulate = Color.WHITE.lerp(Color(0.75, 0.65, 0.55), tree_progress(t))
 
 
-func remove_tree(t: Vector2i) -> void:
+## The tree on `t` is gone (felled; `fall` false: it woke up as a living
+## tree and is just not there any more, see Wrathwoods).
+func remove_tree(t: Vector2i, fall := true) -> void:
 	var s: Sprite2D = _props.get(t)
-	if s:
+	if s and not fall:
+		s.queue_free()
+	elif s:
 		var tw := s.create_tween()
 		tw.tween_property(s, "rotation", 1.3, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tw.parallel().tween_property(s, "modulate:a", 0.0, 0.6)
@@ -612,7 +618,10 @@ func remove_tree(t: Vector2i) -> void:
 	pathing.set_solid(t, false)
 	_village_dist_dirty = true
 	ground.redraw_tile(t)
-	tree_felled.emit(t)
+	if fall:
+		tree_felled.emit(t)
+	else:
+		tree_woke.emit(t)
 
 
 ## A short text rising from `at` (world position) and fading. Icon tokens

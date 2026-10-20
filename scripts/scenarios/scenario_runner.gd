@@ -899,9 +899,9 @@ func add_enemies(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary
 		game.waves.add_to_wave(kind, tile, count, extra)
 
 
-## Whether an enemy of `kind` is about now (not counting monster camps' guards).
+## Whether an enemy of `kind` is about now (not counting wild ones: camp guards, wrathwoods).
 func enemy_about(kind: String) -> bool:
-	return game.get_tree().get_nodes_in_group("enemies").any(func(e: Node) -> bool: return (e as Enemy).kind == kind and not ((e as Enemy).behavior is CampBehavior))
+	return game.get_tree().get_nodes_in_group("enemies").any(func(e: Node) -> bool: return (e as Enemy).kind == kind and not (e as Enemy).wild())
 
 
 ## The living enemy named `who` (a Legion captain), or null.

@@ -17,6 +17,10 @@ func setup(p_camp: Node, p_home: Vector2) -> void:
 	home = p_home
 
 
+func wild() -> bool:
+	return true
+
+
 ## Always holds the enemy (it has no road to walk); moves it by hand.
 func tick(enemy: Enemy, delta: float) -> bool:
 	_attack_timer -= delta

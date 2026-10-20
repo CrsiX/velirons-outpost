@@ -1,7 +1,7 @@
 # Veliron's Outpost: enemies (design)
 
 Status: **built; describes the current code**. Tested by tests/enemy_bot.gd (thief, gargoyle,
-necromancer, vampire, slimes), tests/rat_bot.gd (rats) and tests/sim_bot.gd (waves, raids, corpses).
+necromancer, vampire, slimes, spiders), tests/rat_bot.gd (rats) and tests/sim_bot.gd (waves, raids, corpses).
 Scope: every enemy kind, how waves are put together and escalate, difficulty, damage
 categories, flyers, corpses and raids. Every number lives in `scripts/core/config.gd`
 (`ENEMIES`, `WAVE_MIX`, `RAT_PACKS`, ...). The tables below give the Normal values at wave 1.
@@ -16,9 +16,11 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   - `melee_behavior.gd`: goblins, skeletons, orks, gargoyles, slimes (and the base of thief and vampire);
   - `witch_behavior.gd` + `spell_bolt.gd`;
   - `rat_behavior.gd`, `thief_behavior.gd`, `necromancer_behavior.gd`, `vampire_behavior.gd`;
+  - `spider_mother_behavior.gd` (extends `MeleeBehavior`) and `egg_behavior.gd` (her eggs);
+  - `wrathwood_behavior.gd`: the wrathwood (§15c), woken by `scripts/systems/wrathwoods.gd`;
   - `camp_behavior.gd`: monster-camp and lair guards (set by the camp, not by config).
 - `scripts/systems/waves.gd` (`Waves`): countdown, wave make-up, spawning, rat packs, lair
-  themes, the co-op extra, raising corpses, slime splits, kill gold.
+  themes, the co-op extra, raising corpses, slime splits, spider eggs (laying, hatching), kill gold.
 - `scripts/systems/corpses.gd` (`Corpses`) + `scripts/units/corpse.gd`: corpses, rotting, clearing.
 - `Game.on_enemy_reached_gate`, `Game.thief_steals`, `Game.raid_roll`: what happens once an
   enemy gets in (the hut it reached burns: `Enemy.raid_hut`).
@@ -59,6 +61,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 | Gargoyle | 10 | 6 % | 1 % | 15 % |
 | Necromancer | 13 | 4 % | 0.5 % | 8 % |
 | Vampire | 13 | 5 % | 1 % | 12 % |
+| Spider mother | 9 | 4 % | 0.5 % | 8 % (at most 2, +1 every 5 waves: `max_count`, `max_count_every`) |
 
 - **Rat packs** (`RAT_PACKS`): from wave 3, with chance 60 %, a wave gets 1-2 packs, plus one
   more every 5 waves after wave 3. Each pack has 4-7 rats from one spawn (an edge spawn or a
@@ -97,16 +100,24 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 
 ## 4. Damage categories and resistances
 
-- Every hit has a category (`DAMAGE_CATEGORIES`): `melee`, `projectile`, `magical`, `holy`,
-  `pure` (a raised enemy's drain; never scaled).
+- Every hit has exactly one category (`DAMAGE_CATEGORIES`): `melee`, `projectile`, `magical`,
+  `fire`, `holy`, `pure` (a raised enemy's drain; never scaled).
+- **Fire** is its own category, not magical: the fire mage's fireball and its splash, and the
+  fire elementals' blows. Orbs, frost, warp and the witch's and leviathan's spells stay magical.
+  Fire factors: the wrathwood ×2; the water monsters (crab, siren, leviathan, octopus and its
+  arms) ×0.5; the vampire ×0.67 (as it took fireballs before fire was split off); others ×1.
 - Enemy blows are `melee`, except a kind's `attack_category` (the witch: `magical`).
 - `resist` maps a category to a factor on the damage taken (`Enemy.take_damage`); missing = ×1.
-- **Holy** (the acolyte line, docs/acolyte-design.md §3): goblin, ork, thief, gargoyle ×0.75;
+- The library's *Damage* tab shows all of this, read from Config (`Library._damage`,
+  `Config.DAMAGE_INFO`; docs/tutorial-design.md §4).
+- **Holy** (the acolyte line, docs/acolyte-design.md §3): goblin, ork, thief, gargoyle, spider
+  mother, spider egg, spiderling ×0.75;
   skeleton ×1.25; necromancer and vampire (bat too) ×1.5; witch, rat, slimes ×1. Anything a
-  necromancer raised takes another ×2 (`raised_holy`).
-- **Unholy** (`"unholy": true`): skeleton, necromancer, vampire. Raised enemies count as unholy
-  too. Only the Inquisitor's targeting uses it.
-- The vampire takes ×0.67 magical damage.
+  necromancer raised, and anything undead (`Enemy.undead`: a raised spider mother's eggs and
+  spiderlings), takes another ×2 (`raised_holy`).
+- **Unholy** (`"unholy": true`): skeleton, necromancer, vampire. Raised and undead enemies count
+  as unholy too (`Enemy.is_unholy`). Only the Inquisitor's targeting uses it.
+- The vampire takes ×0.67 magical (and fire) damage. The wrathwood takes ×0.5 projectile damage.
 
 ## 5. Flyers
 
@@ -123,7 +134,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 ## 6. Corpses
 
 - Killing an enemy pays its `gold_on_kill` at once to the killer's village (else the village it
-  attacked), and leaves a corpse unless its kind has `"corpse": false` (rats, slimes). Raised
+  attacked), and leaves a corpse unless its kind has `"corpse": false` (rats, slimes, spider eggs, spiderlings). Raised
   enemies (killed or decayed), camp and lair guards leave none.
 - A gatherer (or the hero in Gather mode) brings safe corpses home (no living enemy within
   `CORPSE_SAFE_RADIUS`, 6 tiles) for `gold_on_collect` and `food_on_collect`. A thief's corpse
@@ -149,7 +160,8 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   to it as to a hut, and an enemy that gets onto it plunders it (`WAREHOUSE.raid_damage` of its
   HP) and is gone; no hut burns for it (docs/scenarios-design.md §7.7).
 - Exceptions:
-  - kinds with `raid_chance` roll for it (small slimes); failed, they melt away;
+  - kinds with `raid_chance` roll for it (small slimes); failed, they melt away (`"gone"`: the
+    log's words for it); spiderlings have 0: they never burn a hut, they scuttle off;
   - rats eat food instead (§10);
   - thieves steal gold and run back (§11);
   - a vampire bat heals at a gate and turns back (§15); a vampire that turns into a bat
@@ -296,6 +308,135 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   flies back the way it came. Landed, the vampire takes the road to the village again; only on
   its feet does it break in.
 - A necromancer can raise it once.
+
+## 15b. Spider mother, spider eggs, spiderlings (Wilderness)
+
+| Kind | HP | Speed | Damage / cooldown | Kill gold | Corpse gold / food | Holy |
+|---|---|---|---|---|---|---|
+| Spider mother | 90 | 0.6 | 9 / 1.3 s | 10 | 8 / 0 | ×0.75 |
+| Spider egg | 1 (always) | 0 | none | 0 | no corpse | ×0.75 |
+| Spiderling | 8 | 1.8 | 1.5 / 1.0 s | 1 | no corpse | ×0.75 |
+
+- **Spider mother:** from wave 9 (`WAVE_MIX`; at most 2 per wave and village, one more every 5
+  waves after wave 9: 3 from wave 14, 4 from 19; `Config.wave_max_count`), and out of
+  hollow-tree lairs (`LAIR_THEMES.lair_tree`; a lair's entries aren't held to `max_count`).
+  Bigger than an ork. Otherwise a melee fighter like the ork (`SpiderMotherBehavior` extends
+  `MeleeBehavior`; breaks walls and gates, burns a hut when she gets in), plus her eggs:
+  - *On the way:* `first_lay` (25 s) after she comes onto the map, then every `lay_every`
+    (15 s), she lays a clutch (`Waves.lay_eggs`) of
+    `clutch` (4-6, at random) eggs around her (within `lay_spread`, 0.6 tiles; on ground one
+    can walk), without stopping.
+  - *Alarmed:* when a fighter of any village is within `alarm_range` (4 tiles: the hero, a
+    soldier or an elemental; or a manned tower that has her in range; units that can't hurt,
+    such as a Healing Mage, don't count: `EnemyBehavior._fighter_near`, shared with the
+    necromancer) or she is hurt, while fewer than `guard_count` (3) of her young (spiderlings
+    and unhatched eggs, any mother's) are within `guard_radius` (2.5), she stops, lays a clutch
+    and waits until every egg of it has hatched or been smashed. Meanwhile she still fights
+    whoever comes into reach (and doesn't hit walls). Then she isn't alarmed again for
+    `alarm_cooldown` (12 s, counted from the laying); the next clutch on the way comes
+    `lay_every` after it.
+  - Killed: 10 gold, a corpse worth 8 gold and no food. A necromancer can raise her; raised,
+    she lays a clutch at once and then every `lay_every` (15 s; she drains away in 20 s),
+    otherwise as before (same clutch, same hatch time, laying takes no time), but her eggs are **undead**
+    (`Enemy.undead`, pale like the raised): unholy and ×2 holy damage, and so are the
+    spiderlings out of them. Undead ones don't drain away (only the raised do).
+- **Spider egg** (`spider_egg`, behavior `egg`, `"entry": "none"`): `"fixed_hp"`: always 1 HP,
+  never scaled by difficulty or wave. It never moves and counts for the wave (an egg of a
+  debug mother doesn't). After `hatch_time` (6 s) it hatches (`Waves.hatch`) into
+  `hatch_into` (a spiderling with its mother's HP scale, undead from an undead egg); the
+  spiderling is counted before the egg is let go, so the wave can't end in between.
+  - It wobbles for the last `wobble_time` (2.5 s), faster and harder towards the end
+    (`EggBehavior.animate`, on every machine).
+  - Hatched, it becomes its broken shell (`unit_spider_egg_shell`, `Enemy.hatch_out`): out of
+    the `enemies` group (nothing targets or counts it), for `shell_time` (4 s), then it fades.
+    It shows on watched tiles like any enemy.
+    Co-op clients see the shell (`"sh"` in the enemy state).
+  - **Low priority** (`"low_priority"`): towers (`MilitaryBehavior.enemies_near` sorts them
+    last), soldiers (the Inquisitor too), elementals and the hero go for eggs only when no
+    other enemy is in reach (`Enemy.LOW_PRIORITY_TILES` on their distance).
+  - Smashed: no gold, no corpse. Villagers don't flee from eggs (`"scares": false`,
+    `Civilian.enemy_nearby`); once they hatch, they flee from the spiderlings.
+- **Spiderling** (`melee`): about a rat's strength, quick (1.8), fights like a goblin, breaks
+  gates and walls (`siege` 1) and goes round them where that is cheaper (the siege field),
+  but `raid_chance` 0: it never burns a hut, it scuttles off once inside. 1 gold, no corpse.
+  It walks from where it hatched to the nearest road and on to its egg's village.
+- Library: one entry for the mother (with the eggs) and one for the spiderling; eggs have
+  `"library": false`.
+
+## 15c. Wrathwood (Wilderness, very rare)
+
+A tree that wakes up under a forester's axe and goes after him. It never comes with a wave:
+it is woken on the map (`Wrathwoods`, `scripts/systems/wrathwoods.gd`; numbers in
+`Config.WRATHWOOD`), its fight is `ENEMIES.wrathwood` and `WrathwoodBehavior`.
+
+| Kind | HP | Speed | Damage / cooldown | Kill gold | Corpse | Resist |
+|---|---|---|---|---|---|---|
+| Wrathwood | 220 | 0.45 | 22 / 2.5 s (×3 against buildings) | 35 | 40 building material, no gold or food | projectile ×0.5, fire ×2, holy ×0.75 |
+
+- **Waking up** (`Wrathwoods.on_first_blow`): when a forester starts on a tree that nobody has
+  chopped yet (its first blow; one roll per tree), it may wake.
+  - Chance: `chance` by tree kind (oak 1.5 %, pines 0.3 %; dead trees and charred stumps never),
+    plus **"the forest remembers"**: `remember` (0.05 %) for every tree that village's foresters
+    have felled so far, together at most `max_chance` (3 %). Kinds with no base chance stay at 0.
+  - Never before wave `from_wave` (8) has begun, never while the village already has one, and
+    not for `quiet_waves` (3) waves after its last one died (`Wrathwoods.calm_until`).
+  - Only where the game allows it (`Wrathwoods.allowed`): never in the tutorial or the title
+    backdrop. Scenarios (not built yet) will have it off unless they turn it on.
+  - The tile becomes meadow at once (the tree's sprite goes without falling,
+    `World.remove_tree(t, false)`; `tree_woke` for co-op clients) and the wrathwood stands
+    there, still looking like its tree (the tree's own art), shuddering for `wake_time` (3 s).
+    It can be hit meanwhile, but doesn't move or strike. Then it bursts out in a shower of
+    leaves (`leaves` burst) and shows its own art. Logged at Important to its village:
+    "Tree 482 woke up as a wrathwood! It is after forester 2."
+  - It belongs to the forester's village (`target_village`) and counts for no wave
+    (`Enemy.wild`: like camp guards, it is ignored by the wave's count, the rats' and water
+    monsters' checks, the warning lights and the timeline's enemy count).
+- **Strength:** its HP grows with the waves like a wave's enemies (×`WAVE_HP_GROWTH`^(n−1), n the
+  wave running or the last one); difficulty scales it like any enemy.
+- **Walking:** it walks its own A* paths (`Pathing.wood_path`) over walkable ground **and forest
+  tiles** (not mountains, water, lava or solid buildings). It never takes a road to a gate and
+  never breaks into a village (`"entry": "none"`).
+- **Regrowth:** within `regrow_radius` (2.5 tiles) of a tree it heals `regrow` (4 %) of its max
+  HP per second. Back home (see *Guard*) it heals ×`home_boost` (2) that for `home_boost_time`
+  (10 s), trees around or not.
+- **What it does** (`WrathwoodBehavior.State`, saved with it):
+  1. *Chase:* it goes for the forester who woke it, re-planning every 0.5 s. It ends when the
+     forester is dead, gone, or safe (`Civilian.is_exposed()` false: at home or inside the walls).
+  2. *Camp:* then it walks to that forester's worker camp and hits it until it is devastated
+     (skipped when the camp is gone or already devastated).
+  3. *Wander:* `wander_time` (20 s) of strolling within `wander_radius` (3) tiles of where it
+     is.
+  4. *Home:* it walks back to its old tile.
+  5. *Guard* (territorial, for good): it stays on its tile. Anyone of ours within `territory`
+     (4 tiles) of it (an exposed villager, the hero, a soldier, an elemental) is attacked and
+     chased, but no farther than `leash` (6 tiles) from home; then it walks back.
+  - *Swing-by blows* in every state but Guard: whenever its blow is ready, something within
+    `reach` (1 tile) is hit as it passes, without stopping: what it is after first (the
+    forester, the camp), else one of ours (an exposed villager, the hero, a soldier, an
+    elemental; flyers only when they hit it), else a building of any village that isn't a hut
+    (`damage` × `siege`, 3). It never stops chasing to fight.
+  - *Defending itself* (Wander, Home, Guard): whoever hurts it becomes its foe. A unit or the hero
+    is chased and hit (staying within `leash` of where it started defending, or of home when
+    guarding); a tower that shoots it is walked to and smashed when it is within that leash.
+    The foe gone, out of reach of the leash, or safe, it goes on with what it was doing (the
+    wander time keeps running).
+- **Root grip:** every `grip_every` (8 s; the first `grip_every` s after waking), when at least
+  one of ours on the ground (an exposed villager, the hero, a soldier, an earth elemental;
+  never flyers or units on posts) is within `grip_radius` (1.6 tiles), it stops for
+  `grip_cast` (0.6 s, arms down into the ground) and roots grow up around every one of them:
+  they can't move for `grip_time` (2 s; `Unit.force_move` with no step each frame), but can
+  still fight. Roots coil up round each held one (`fx["grip"]`, drawn on every machine).
+- **Killed:** 35 gold to the killer's village, and a corpse: a log of living wood
+  (`corpse_wrathwood`) worth `materials_on_collect` (40) building material and nothing else,
+  which a necromancer can't raise (`"revivable": false`). It belongs to the wave running then
+  (or the last one) and rots like any corpse. `Wrathwoods.calm_until` is set.
+- **Explorers** avoid it like camp guards (`ExploreJob._camp_danger`, `Enemy.wild`).
+- **Debug:** *Spawn enemy...* → wrathwood wakes the explored tree nearest to one of the
+  village's foresters (else the nearest to the village), whatever the odds and wave.
+- **Saving** (docs/save-design.md): every wrathwood is saved with its state, HP, HP scale,
+  position, home tile, the forester and camp it is after (nids), wander time and home boost
+  left, plus per village the trees its foresters felled and `calm_until`.
+- Library: one entry ("Wakes when a forester starts on a tree, from wave 8, rarely").
 
 ## 16. Monster-camp guards
 

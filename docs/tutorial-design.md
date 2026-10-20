@@ -144,7 +144,7 @@ Notes on the list:
 ## 4. Part B: the library
 
 - **A sub-menu with tabs:** Enemies, Units, Buildings, Villagers, Hero,
-  Places. No Basics tab.
+  Places, Damage. No Basics tab.
 - **Opened by an open-book icon** (new art: `icon_book`):
   - in a game: in the top bar, left of the statistics icon (which is left
     of the settings gear);
@@ -167,6 +167,13 @@ Notes on the list:
   - Places: the things on the map: treasures (and relics), monster camps,
     monster lairs (when they wake, what they send, their loot), mines,
     ruined watchtowers, and the unit-unlock sites.
+  - Damage: one entry per damage category (`Config.DAMAGE_CATEGORIES`; name,
+    picture and text in `Config.DAMAGE_INFO`): who deals it (units by their
+    `ATTACKS` category, not the healing mage; elementals by `SUMMONS`
+    "category"; the hero by `HERO` "category"; enemies by "attack_category",
+    melee by default), which enemies take more or less of it (`resist`), the
+    raised's extra holy factor. All of it is read from Config, so a changed
+    attack, resistance or category shows up by itself.
 - It scrolls, and fits portrait and landscape like the other dialogs.
 - As built: on the title screen it is a *Library* button (with the
   book icon) on the main page, under *Tutorial* and above *Exit*, on

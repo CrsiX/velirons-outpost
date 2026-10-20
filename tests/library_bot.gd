@@ -74,6 +74,15 @@ func _pages() -> void:
 	check(("%d XP for level 2" % Config.hero_level_cost(0)) in _facts("hero", "Hero"), "hero: level cost")
 	var lair := _facts("places", "Monster lair")
 	check(("wave %d" % Config.LAIR_FROM_WAVE) in lair and "Crypt" in lair, "lairs: their wave and kinds\n%s" % lair)
+	# The Damage page: an entry per category, who deals it and who resists it, all from Config.
+	check(Config.DAMAGE_CATEGORIES.all(func(c: String) -> bool: return Config.DAMAGE_INFO.has(c)) and _names("damage").size() == Config.DAMAGE_CATEGORIES.size(), "damage: an entry for every category (Config.DAMAGE_INFO)")
+	var fire := _facts("damage", "Fire")
+	check("fire mage" in fire and "fire elementals" in fire and "Wrathwood x2" in fire and "Crab x0.5" in fire and "Vampire x0.67" in fire, "fire: the fire mage and fire elementals; the wrathwood x2, water monsters and the vampire less\n%s" % fire)
+	var melee := _facts("damage", "Melee")
+	check("the hero's sword" in melee and "shield bearer" in melee and "earth elementals" in melee and "every blow (not the witch's or leviathan's spells)" in melee and "Siren x1.5" in melee, "melee: the hero, the shield bearer line, earth elementals, enemy blows; the siren x1.5\n%s" % melee)
+	var holy := _facts("damage", "Holy")
+	check("acolyte" in holy and "inquisitor" in holy and not "healing mage" in holy and "Necromancer x1.5" in holy and "Goblin x0.75" in holy and "x2 more on top" in holy, "holy: the acolyte line (not the healer); the undead more, the wilderness less, the raised x2\n%s" % holy)
+	check("Enemies: the witch, the leviathan" in _facts("damage", "Magical") and "archer" in _facts("damage", "Projectile") and "Nothing resists it" in _facts("damage", "Pure"), "magical: the witch's and leviathan's spells; projectile: archers; pure: unresisted")
 	# Every entry has text or facts, and its art exists.
 	var bad: Array[String] = []
 	var empty: Array[String] = []
@@ -114,7 +123,7 @@ func _in_game() -> void:
 	await frames(2)
 	check(not lib.visible and not get_tree().paused and Game.SPEEDS[hud._speed_index] == 2.0, "Escape closes it; the game goes on at 2x")
 	hud.open_library()
-	check(lib.tab == "places", "it opens on the tab shown last")
+	check(lib.tab == Library.TABS.back(), "it opens on the tab shown last")
 	lib.close()
 	await frames(1)
 	hud.set_speed_index(Game.SPEEDS.find(0.0))

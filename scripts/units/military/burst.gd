@@ -3,8 +3,8 @@ extends Node2D
 ## sparks), a healing ring, a warp blink, a puff of dark smoke, an acolyte's
 ## beam of light from straight above, a flash of holy light from a blow, a
 ## warrior's war cry (red-orange rings rushing out to its reach), a water
-## monster's splash as it dives or comes up, or a Legion soldier's last
-## breath (release).
+## monster's splash as it dives or comes up, leaves flying off a tree that
+## wakes up as a wrathwood, or a Legion soldier's last breath (release).
 ## Fades out on its own.
 
 const LIFE := 0.55
@@ -81,6 +81,13 @@ func _draw() -> void:
 			for s in _sparks.slice(0, 5):
 				var p := Vector2(s.x * rx * 0.35, -26.0 * k - absf(s.y) * 8.0)
 				draw_circle(p, 3.5 + 5.0 * k, Color(0.92, 0.95, 1.0, 0.55 * fade))
+		"leaves":  # a tree waking up: leaves whirl out and drift down
+			for i in _sparks.size():
+				var s := _sparks[i]
+				var p := Vector2(s.x * rx * 1.2, s.y * rx * 0.6 - 30.0 * sin(k * PI) + 24.0 * k)
+				var col := Color(0.24, 0.42, 0.18, fade) if i % 3 else Color(0.55, 0.45, 0.16, fade)
+				var a := k * 9.0 + i
+				draw_line(p - Vector2.from_angle(a) * 4.0, p + Vector2.from_angle(a) * 4.0, col, 3.5)
 		"war_cry":  # a warrior's shout: rings rushing out to the cry's reach, short strokes on the way
 			var reach := radius * Iso.HALF_W * (0.15 + 0.85 * sqrt(k))
 			_ellipse(reach, Color(1.0, 0.45, 0.15, 0.85 * fade), 5.0)

@@ -1,6 +1,6 @@
 extends "res://tests/bot_base.gd"
-## Headless test of the thief, the gargoyle, the necromancer, the vampire
-## and the monster lairs. Run with:
+## Headless test of the thief, the gargoyle, the necromancer, the vampire,
+## the monster lairs, slimes, the spider mother and the wrathwood. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/enemy_bot.tscn
 ## Exits 0 when every check passes.
 
@@ -20,6 +20,7 @@ func _run() -> void:
 	for k in Config.LOCKED:
 		game.unlocks[k] = true
 	await frames(3)
+	game.wrathwoods.allowed = false  # (only _test_wrathwood wakes trees)
 	game.waves.countdown = 99999.0
 	game.waves.hold = true
 	game.player_village.events.logged.connect(func(l: int, text: String) -> void:
@@ -39,6 +40,8 @@ func _run() -> void:
 	await _test_vampire()
 	await _test_lairs()
 	await _test_slimes()
+	await _test_spiders()
+	await _test_wrathwood()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -374,19 +377,19 @@ func _test_necromancer() -> void:
 	var tw: Tower = game.world.towers()[0]
 	var back := nec.grid_pos
 	nec.set_grid_pos(Vector2(tw.tile) + Vector2(1.5, 0.0))
-	var none_near := not NecromancerBehavior._fighter_near(nec)
+	var none_near := not NecromancerBehavior._fighter_near(nec, float(nec.spec()["raise_range"]))
 	var held_by := {}
 	for kind in ["healing_mage", "high_priest", "archer"]:
 		var u := MilitaryUnit.new(kind)
 		u.village = v
 		u.state = MilitaryUnit.State.STATIONED
 		tw.garrison = u
-		var on_tower := NecromancerBehavior._fighter_near(nec)
+		var on_tower := NecromancerBehavior._fighter_near(nec, float(nec.spec()["raise_range"]))
 		tw.garrison = null
 		var so: Soldier = preload("res://scripts/units/soldier.gd").new()
 		so.setup(game, u, Vector2i(nec.grid_pos.round()))
 		game.world.objects.add_child(so)
-		var outside := NecromancerBehavior._fighter_near(nec)
+		var outside := NecromancerBehavior._fighter_near(nec, float(nec.spec()["raise_range"]))
 		so.free()
 		held_by[kind] = [on_tower, outside]
 	nec.set_grid_pos(back)
@@ -733,6 +736,10 @@ func _test_slimes() -> void:
 	check(_slimes("slime1").is_empty() and _slimes("slime2").is_empty() and game.corpses.corpses.is_empty() and game.waves._alive == alive0 - 1, "small slimes just die: no split, no corpse; all gone, the wave is clear of them")
 
 	# At the gate: a big slime burns a hut; the smaller ones may melt away.
+	# (Whoever lives in a burned hut dies: enough people, so the village stands.)
+	game.economy.add("food", 300)
+	while game.population.count() < 6 and not game.population.free_huts().is_empty():
+		game.population.recruit("builder")
 	for kind in ["slime1", "slime2", "slime3"]:
 		var huts := game.player_village.intact_huts().size()
 		var n_logs := logs.size()
@@ -755,3 +762,399 @@ func _test_slimes() -> void:
 	check(bigs.size() == 1 and e3["name"] == "Slime" and e3["art"] == "unit_slime3", "the library has one entry, \"Slime\", showing the big slime")
 	check(e3.get("text", "") == "Slain, it splits into two smaller slimes, and each of those into two more." and ("HP %s" % Library._n(Config.enemy_stat("slime3", "hp"))) in "\n".join(e3.get("facts", [])), "its text only tells of the split; its numbers are the big slime's")
 
+
+
+# --- spiders (docs/enemies-design.md §15b) -----------------------------------------------------------
+
+func _of_kind(kind: String) -> Array[Enemy]:
+	var out: Array[Enemy] = []
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if (node as Enemy).kind == kind and not node.dead:
+			out.append(node)
+	return out
+
+
+func _test_spiders() -> void:
+	print("-- spiders")
+	await clear_enemies()
+	await clear_corpses()
+	var en := Config.ENEMIES
+	var sm: Dictionary = en["spider_mother"]
+	var egg_cfg: Dictionary = en["spider_egg"]
+	var sl: Dictionary = en["spiderling"]
+	check(sm["hp"] == 90.0 and sm["hp"] > en["ork"]["hp"] and sm["speed"] < en["ork"]["speed"] and sm["behavior"] == "spider_mother", "a spider mother: more HP than an ork (90), slower")
+	check(sm.get("corpse", true) and sm["gold_on_collect"] > 0 and sm["food_on_collect"] == 0 and sm["resist"]["holy"] == 0.75, "her corpse brings gold, no food; holy x0.75 (Wilderness)")
+	check(not sl.get("corpse", true) and sl["raid_chance"] == 0.0 and sl["speed"] == 1.8 and sl["behavior"] == "melee" and sl["siege"] > 0.0 and sl["gold_on_kill"] == 1, "spiderlings: goblin-like, break walls, burn no huts, no corpse, 1 gold")
+	check(sl["hp"] <= 2.0 * en["rat"]["hp"] and sl["damage"] <= 3.0 * en["rat"]["damage"] and sl["speed"] < en["rat"]["speed"], "a spiderling is about a rat's strength (and rats stay the fastest)")
+	check(egg_cfg["hp"] == 1.0 and egg_cfg.get("fixed_hp", false) and not egg_cfg.get("library", true) and egg_cfg["entry"] == "none", "an egg: 1 HP, fixed; no library entry of its own")
+	var first := 0
+	for n in range(1, 30):
+		if Config.wave_composition(n).has("spider_mother"):
+			first = n
+			break
+	check(first == 9 and "spider_mother" in Config.LAIR_THEMES["lair_tree"]["kinds"], "spider mothers march from wave 9 (%d) and come out of hollow trees" % first)
+	var caps := [9, 13, 14, 19, 24].map(func(n: int) -> int: return Config.wave_max_count("spider_mother", n))
+	check(caps == [2, 2, 3, 4, 5] and Config.wave_max_count("goblin", 30) == -1 and Config.wave_max_count("leviathan", 40) == 2, "at most 2 a wave, one more every 5 waves (waves 9/13/14/19/24: %s)" % str(caps))
+	var art_ok := true
+	for a in ["unit_spider_mother", "corpse_spider_mother", "unit_spiderling", "unit_spider_egg", "unit_spider_egg_shell"]:
+		art_ok = art_ok and ResourceLoader.exists("res://art/%s.svg" % a)
+	check(art_ok and Art.tex("unit_spider_mother").get_width() > Art.tex("unit_ork").get_width(), "art for mother, corpse, spiderling, egg and shell; she is bigger than an ork")
+
+	# On her way she lays a clutch every lay_every s, without stopping.
+	var alive0: int = game.waves._alive
+	var m := spawn("spider_mother", Vector2(road_out(20)), 1.0, true)
+	var mb := m.behavior as SpiderMotherBehavior
+	m.speed = 0.25  # (slow, so she stays out on the road through all of this)
+	m.base_speed = 0.25
+	await frames(2)
+	check(absf(mb._lay - float(sm["first_lay"])) < 0.5 and float(sm["first_lay"]) == 25.0 and float(sm["lay_every"]) == 15.0, "her first clutch comes %s s after she enters the map (%.1f), then every %s s" % [sm["first_lay"], mb._lay, sm["lay_every"]])
+	mb._lay = 0.01
+	await frames(3)
+	var eggs := _of_kind("spider_egg")
+	check(eggs.size() >= 4 and eggs.size() <= 6, "she lays a clutch of 4-6 eggs (%d)" % eggs.size())
+	check(eggs.all(func(e: Enemy) -> bool: return e.grid_pos.distance_to(m.grid_pos) < 1.2 and e.max_hp == 1.0 and e.hp == 1.0), "around her, each with 1 HP")
+	check(game.waves._alive == alive0 + 1 + eggs.size(), "the eggs count for the wave")
+	var villager: Civilian = game.population.civilians[0]
+	var vpos := villager.grid_pos
+	var lone := spawn("spider_egg", Vector2(road_out(3)))
+	villager.grid_pos = lone.grid_pos + Vector2(0.5, 0.0)
+	var scared_by_egg := villager.enemy_nearby()
+	villager.grid_pos = vpos
+	kill(lone)
+	check(not mb.waiting() and m.moving and absf(mb._lay - float(sm["lay_every"])) < 0.5, "on her way she doesn't stop for them; the next clutch in %s s" % sm["lay_every"])
+	var hard := Enemy.new()
+	hard.setup(game, [Vector2i(game.player_village.center)] as Array[Vector2i], 50.0, "spider_egg")
+	check(hard.max_hp == 1.0, "an egg has 1 HP whatever the wave")
+	hard.free()
+	# Towers go for eggs last.
+	var gob := spawn("goblin", eggs[0].grid_pos + Vector2(0.3, 0.0))
+	var post := game.world.towers()[0]
+	var near := MilitaryBehavior.enemies_near(post, 1000.0)
+	var low := near.map(func(e: Enemy) -> bool: return e.low_priority())
+	var first_low := low.find(true)
+	check(near.has(gob) and first_low > near.find(gob) and not low.slice(first_low).has(false), "towers pick real enemies before eggs")
+	kill(gob)
+	await clear_corpses()
+	# The eggs wobble before they hatch, then a spiderling comes out of each.
+	var wobbled := false
+	var t := 0.0
+	var hatch_t := float(egg_cfg["hatch_time"])
+	while t < hatch_t + 1.0 and not eggs.all(func(e: Enemy) -> bool: return e.shell):
+		if eggs.any(func(e: Enemy) -> bool: return not e.shell and absf(e.sprite.rotation) > 0.05):
+			wobbled = true
+		await wait(0.1)
+		t += 0.1
+	check(wobbled, "eggs wobble before they hatch")
+	await frames(2)
+	var lings := _of_kind("spiderling")
+	check(eggs.all(func(e: Enemy) -> bool: return is_instance_valid(e) and e.shell and not e.is_in_group("enemies") and e.sprite.texture == Art.tex("unit_spider_egg_shell")), "hatched, each egg is a broken shell nothing can target")
+	check(lings.size() == eggs.size() and lings.all(func(e: Enemy) -> bool: return e.path.size() >= 2 and e.target_village == m.target_village), "a spiderling out of every egg (%d), walking to the village" % lings.size())
+	check(game.waves._alive == alive0 + 1 + lings.size(), "the spiderlings count for the wave instead of the eggs")
+	villager.grid_pos = lings[0].grid_pos + Vector2(0.5, 0.0)
+	var scared_by_ling := villager.enemy_nearby()
+	villager.grid_pos = vpos
+	check(not scared_by_egg and scared_by_ling, "villagers don't run from eggs, only from what hatches")
+	check(lings.all(func(e: Enemy) -> bool: return absf(e.hp_scale - m.hp_scale) < 0.001), "as strong as their mother's wave")
+	await wait(float(egg_cfg["shell_time"]) + 1.0)
+	check(eggs.all(func(e) -> bool: return not is_instance_valid(e)), "the shells are gone after %s s" % egg_cfg["shell_time"])
+	for e in lings:
+		kill(e, game.hero)
+	await frames(2)
+	check(game.corpses.corpses.is_empty(), "spiderlings leave no corpse")
+
+	# Hurt with too few of her young around: she stops, lays and waits.
+	mb._lay = 99.0
+	mb._alarm_cd = 0.0
+	m.take_damage(1.0, game.hero)
+	await frames(3)
+	eggs = _of_kind("spider_egg")
+	var pos := m.grid_pos
+	check(eggs.size() >= 4 and mb.waiting(), "attacked with no young near, she lays a clutch (%d) and guards it" % eggs.size())
+	await wait(hatch_t * 0.6)
+	check(m.grid_pos.distance_to(pos) < 0.05 and mb.waiting(), "she stays by her eggs until they hatch")
+	# Hit again while waiting (cooldown): no second clutch.
+	var n_eggs := eggs.size()
+	m.take_damage(1.0, game.hero)
+	await frames(3)
+	check(_of_kind("spider_egg").size() == n_eggs, "no new clutch while she waits / cools down")
+	await wait_until(func() -> bool: return not mb.waiting(), hatch_t + 2.0)
+	await wait(1.0)
+	check(m.grid_pos.distance_to(pos) > 0.1, "hatched: she walks on")
+	for e in _of_kind("spiderling"):
+		kill(e, game.hero)
+	await frames(2)
+	# Surrounded by her young, a hit makes her lay nothing.
+	var guards: Array[Enemy] = []
+	for i in int(sm["guard_count"]):
+		guards.append(spawn("spiderling", m.grid_pos + Vector2(0.3 * i - 0.3, 0.4)))
+	mb._alarm_cd = 0.0
+	m.take_damage(1.0, game.hero)
+	await frames(3)
+	check(SpiderMotherBehavior.guards(m) >= int(sm["guard_count"]) and _of_kind("spider_egg").is_empty() and not mb.waiting(), "surrounded by her young (%d), a hit doesn't make her lay" % SpiderMotherBehavior.guards(m))
+	for e in guards:
+		kill(e, game.hero)
+	await frames(2)
+	# Smashing the clutch ends her wait.
+	mb._alarm_cd = 0.0
+	m.take_damage(1.0, game.hero)
+	await frames(3)
+	eggs = _of_kind("spider_egg")
+	var gold0 := int(game.economy.amount("gold"))
+	var alive1: int = game.waves._alive
+	for e in eggs:
+		e.take_damage(1.0, game.hero)
+	await frames(3)
+	check(not mb.waiting() and game.corpses.corpses.is_empty() and game.waves._alive == alive1 - eggs.size() and int(game.economy.amount("gold")) == gold0, "smashed eggs (one hit each): no corpse, no gold, she stops waiting")
+	# Killed: a corpse with gold only.
+	kill(m, game.hero)
+	await frames(2)
+	var corpse: Corpse = null
+	for c in game.corpses.corpses:
+		if c.kind == "spider_mother":
+			corpse = c
+	check(corpse != null, "she leaves a corpse")
+
+	# Raised by a necromancer she lays undead eggs; their spiderlings are undead too.
+	var nec := spawn("necromancer", corpse.grid_pos + Vector2(0.5, 0.0))
+	var risen := game.waves.raise_corpse(corpse, nec)
+	kill(nec)
+	await frames(2)
+	var rb := risen.behavior as SpiderMotherBehavior
+	risen.speed = 0.0
+	await frames(3)
+	eggs = _of_kind("spider_egg")
+	check(eggs.size() >= 4 and absf(rb._lay - float(sm["lay_every"])) < 0.5, "raised, she lays a clutch at once (%d eggs), the next in %s s (%.1f)" % [eggs.size(), sm["lay_every"], rb._lay])
+	check(float(sm["lay_every"]) < float(en["necromancer"]["raise_decay"]), "raised, she lays at least once more before she drains away")
+	check(risen.raised and rb != null and eggs.size() >= 4 and eggs.all(func(e: Enemy) -> bool: return e.undead and e.is_unholy() and Soldier.hunt_class(e) == "unholy"), "a raised mother lays undead eggs: unholy, the Inquisitor hunts them")
+	var hp0 := eggs[0].hp
+	eggs[0].take_damage(0.1, null, "holy")
+	check(absf((hp0 - eggs[0].hp) - 0.1 * 0.75 * float(en["necromancer"]["raised_holy"])) < 0.001, "holy damage hurts undead eggs x%s more" % en["necromancer"]["raised_holy"])
+	await wait_until(func() -> bool: return eggs.all(func(e: Enemy) -> bool: return not is_instance_valid(e) or e.shell), hatch_t + 2.0)
+	await frames(2)
+	lings = _of_kind("spiderling")
+	check(not lings.is_empty() and lings.all(func(e: Enemy) -> bool: return e.undead and not e.raised and e.decay_rate == 0.0 and Soldier.hunt_class(e) == "unholy"), "their spiderlings are undead (unholy, no drain)")
+	hp0 = lings[0].hp
+	lings[0].take_damage(1.0, null, "holy")
+	check(absf((hp0 - lings[0].hp) - 0.75 * float(en["necromancer"]["raised_holy"])) < 0.001, "holy damage hurts undead spiderlings x%s more" % en["necromancer"]["raised_holy"])
+	var plain := spawn("spiderling", Vector2(road_out(12)))
+	check(Soldier.hunt_class(plain) == "" and not plain.is_unholy(), "an ordinary spiderling isn't unholy")
+	await clear_enemies()
+
+	# At the gate a spiderling burns nothing: it scuttles off.
+	var huts := game.player_village.intact_huts().size()
+	var n_logs := logs.size()
+	var ling := spawn("spiderling", Vector2(road_out(2)), 1.0, true)
+	(game.map.building_at(game.player_village.gates[0]) as Building).take_damage(1e6)
+	await wait_until(func() -> bool: return not is_instance_valid(ling) or ling.dead, 20.0)
+	await frames(2)
+	check(game.player_village.intact_huts().size() == huts and logs.slice(n_logs).any(func(l: String) -> bool: return "scuttled off" in l), "a spiderling that gets in burns no hut: it scuttles off")
+
+	var lib := Library.entries("enemies")
+	var names := lib.map(func(d: Dictionary) -> String: return d["name"])
+	check("Spider mother" in names and "Spiderling" in names and not ("Spider egg" in names), "the library has the spider mother and the spiderling (eggs are part of her entry)")
+	var facts := "\n".join(lib[names.find("Spider mother")]["facts"])
+	check("Lays 4-6 eggs" in facts and "from wave 9" in facts, "her entry tells of the eggs and her wave")
+
+
+# --- the wrathwood (docs/enemies-design.md §15c) ---------------------------------------------------
+
+## Trees near `f`'s camp that can wake (a chance above 0), nobody has chopped
+## yet and he can stand next to, nearest first.
+func _wakeable_trees(f: Forester) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var w := game.world
+	for t: Vector2i in game.map.props:
+		if w.is_tree(t) and game.wrathwoods.chance(f.village, t) > 0.0 and w.tree_progress(t) == 0.0 \
+				and Vector2(t).distance_to(Vector2(f.camp.tile)) <= Config.FORESTER_SEARCH_RADIUS:
+			for n in MapData.neighbors4(t):
+				if w.pathing.is_walkable(n) and w.pathing.can_reach(f.village.center, n):
+					out.append(t)
+					break
+	out.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return Vector2(a).distance_to(Vector2(f.camp.tile)) < Vector2(b).distance_to(Vector2(f.camp.tile)))
+	return out
+
+
+## `f` starts chopping the tree on `t` (standing next to it, out of the village).
+func _chop(f: Forester, t: Vector2i) -> void:
+	f._release_tree()
+	f.tree = t
+	game.world.claim_tree(t, f)
+	f.carrying = 0
+	f.visible = true
+	f.evading = false
+	f.set_grid_pos(Vector2(f._stand_tile()))
+	f._set_home(false)
+	f.state = Forester.State.CHOPPING
+	f._timer = Config.FORESTER_CHOP_SESSION
+
+
+func _test_wrathwood() -> void:
+	print("-- wrathwood")
+	await clear_enemies()
+	await clear_corpses()
+	var lt: Dictionary = Config.ENEMIES["wrathwood"]
+	var cfg := Config.WRATHWOOD
+	var trees := game.wrathwoods
+	var v := game.player_village
+	var wave0: int = game.waves.wave
+	check(Config.DAMAGE_CATEGORIES.has("fire") and Config.ATTACKS["fireball"]["category"] == "fire" and Config.ATTACKS["orb"]["category"] == "magical", "fire is a damage category of its own: fireballs do fire damage, orbs stay magical")
+	check(lt["resist"]["fire"] == 2.0 and lt["resist"]["projectile"] == 0.5 and ["crab", "siren", "leviathan", "octopus", "octopus_arm"].all(func(k: String) -> bool: return Config.ENEMIES[k]["resist"]["fire"] == 0.5), "a wrathwood takes x2 fire and x0.5 projectiles; water monsters x0.5 fire")
+	check(int(lt["gold_on_kill"]) == 35 and int(lt["materials_on_collect"]) == 40 and int(lt["gold_on_collect"]) == 0 and int(lt["food_on_collect"]) == 0 and not lt["revivable"], "35 gold a kill; its log: 40 building material, nothing else, and it can't be raised")
+	check(not Config.WAVE_MIX.has("wrathwood") and not Config.wave_composition(40).has("wrathwood"), "it never comes with a wave")
+	var art_ok := true
+	for a in ["unit_wrathwood", "unit_wrathwood_grip", "corpse_wrathwood"]:
+		art_ok = art_ok and ResourceLoader.exists("res://art/%s.svg" % a)
+	check(art_ok and Art.tex("unit_wrathwood").get_height() > Art.tex("unit_ork").get_height(), "art for it, its root grip and its log; it towers over an ork")
+	trees.allowed = true
+
+	# The odds.
+	var kinds := {}
+	for t: Vector2i in game.map.props:
+		kinds[game.map.props[t]] = t
+	trees.felled[v.id] = 0
+	if kinds.has("tree_oak"):
+		check(is_equal_approx(trees.chance(v, kinds["tree_oak"]), 0.015), "an oak wakes with 1.5 %")
+	if kinds.has("tree_pine_0"):
+		check(is_equal_approx(trees.chance(v, kinds["tree_pine_0"]), 0.003), "a pine with 0.3 %")
+	if kinds.has("tree_dead"):
+		trees.felled[v.id] = 50
+		check(trees.chance(v, kinds["tree_dead"]) == 0.0, "a dead tree never, whatever was felled")
+	if kinds.has("tree_oak"):
+		trees.felled[v.id] = 20
+		check(is_equal_approx(trees.chance(v, kinds["tree_oak"]), 0.015 + 20 * float(cfg["remember"])), "the forest remembers: +%s %% for each tree felled" % Library._n(float(cfg["remember"]) * 100.0))
+		trees.felled[v.id] = 1000
+		check(is_equal_approx(trees.chance(v, kinds["tree_oak"]), float(cfg["max_chance"])), "at most %s %%" % Library._n(float(cfg["max_chance"]) * 100.0))
+	trees.felled[v.id] = 0
+	game.waves.wave = int(cfg["from_wave"]) - 1
+	check(not trees.may_wake(v), "none before wave %d" % int(cfg["from_wave"]))
+	game.waves.wave = int(cfg["from_wave"])
+	check(trees.may_wake(v), "from wave %d on" % int(cfg["from_wave"]))
+
+	# A tree already chopped at doesn't roll; felling it counts for the forest's memory.
+	var f := ensure_role("forester") as Forester
+	check(f != null and is_instance_valid(f.camp), "a forester with his camp")
+	if f == null or not is_instance_valid(f.camp):
+		return
+	var cands := _wakeable_trees(f)
+	check(cands.size() >= 2, "trees near the camp that can wake (%d)" % cands.size())
+	if cands.size() < 2:
+		return
+	trees.always = true
+	var t1 := cands[1]
+	game.world._chopped[t1] = game.world.tree_chop_time(t1) - 0.05
+	_chop(f, t1)
+	await frames(10)
+	check(not game.world.is_tree(t1) and trees.of_village(v) == null and trees.felled[v.id] == 1, "a tree already chopped at falls as ever, and counts as felled (%d)" % trees.felled[v.id])
+
+	# The first blow on a fresh tree: it wakes.
+	var t0 := cands[0]
+	var art := str(game.map.props[t0])
+	var alive0: int = game.waves._alive
+	var n_logs := logs.size()
+	_chop(f, t0)
+	await frames(3)
+	var e := trees.of_village(v)
+	var b := e.behavior as WrathwoodBehavior if e else null
+	check(e != null and e.grid_pos.distance_to(Vector2(t0)) < 0.01 and not game.world.is_tree(t0) and game.map.terrain[game.map.index(t0)] == MapData.Terrain.GRASS, "at the first blow the tree wakes: meadow where it stood, a wrathwood on it")
+	if e == null:
+		trees.always = false
+		return
+	check(b.forester == f and b.camp == f.camp and b.home == t0 and b.state == WrathwoodBehavior.State.WAKING, "it is after the forester and his camp; its old tile is its home")
+	check(e.wild() and game.waves._alive == alive0 and game.waves.enemies_left() == 0, "it counts for no wave")
+	check(logs.slice(n_logs).any(func(l: String) -> bool: return "woke up as a wrathwood" in l and f.label() in l), "logged: it woke up, and whom it is after")
+	check(e.fx.has("wake") and e.sprite.texture == Art.tex(art), "while it wakes it still looks like its tree (%s)" % art)
+	check(f.state == Forester.State.GOING_HOME, "the forester runs")
+	check(absf(e.hp_scale - pow(Config.WAVE_HP_GROWTH, game.waves.wave - 1)) < 0.001 and not trees.may_wake(v), "as strong as the wave's enemies; one at a time")
+	var still := e.grid_pos
+	await wait(float(lt["wake_time"]) * 0.6)
+	check(e.grid_pos == still and absf(e.sprite.rotation) > 0.0, "it shudders where it stands while it wakes")
+	await wait_until(func() -> bool: return b.state != WrathwoodBehavior.State.WAKING, 5.0)
+	await frames(2)
+	check(not e.fx.has("wake") and e.sprite.texture == Art.tex("unit_wrathwood"), "awake: out of its tree")
+	check(b.state == WrathwoodBehavior.State.CHASE or (b.state == WrathwoodBehavior.State.CAMP and not f.is_exposed()), "after the forester (or, him home already, his camp: state %d)" % b.state)
+
+	# Chase, then the camp.
+	var camp := b.camp
+	await wait_until(func() -> bool: return b.state != WrathwoodBehavior.State.CHASE, 90.0)
+	check(b.state == WrathwoodBehavior.State.CAMP and (not f.is_exposed() or f.dead), "the forester is home (or dead): it turns to his camp")
+	await wait_until(func() -> bool: return camp.devastated, 120.0)
+	check(camp.devastated, "it smashes the camp (devastated)")
+	await frames(3)
+	check(b.state == WrathwoodBehavior.State.WANDER, "then it wanders about")
+	b.wander_left = 0.05
+	await wait_until(func() -> bool: return b.state == WrathwoodBehavior.State.GUARD, 120.0)
+	check(b.state == WrathwoodBehavior.State.GUARD and e.grid_pos.distance_to(Vector2(t0)) < 0.1 and b.boost_left > 0.0, "back on its old tile it guards it, healing faster for a while")
+
+	# Regrowth.
+	await wait(0.6)
+	b.boost_left = 0.0
+	e.hp = e.max_hp * 0.5
+	await wait(1.0)
+	var gain := (e.hp - e.max_hp * 0.5) / e.max_hp
+	check(WrathwoodBehavior._trees_near(e, float(lt["regrow_radius"])) and gain > 0.03 and gain < 0.06, "near trees it heals about %s %% of its HP a second (%.1f %%)" % [Library._n(float(lt["regrow"]) * 100.0), gain * 100.0])
+	b.boost_left = 5.0
+	e.hp = e.max_hp * 0.5
+	await wait(1.0)
+	gain = (e.hp - e.max_hp * 0.5) / e.max_hp
+	check(gain > 0.065, "with the home boost, twice that (%.1f %%)" % (gain * 100.0))
+
+	# Its territory, the root grip, and its leash.
+	var h := game.hero
+	h.add_to_group("melee_defenders")
+	h.hp = h.max_hp
+	h.set_grid_pos(Vector2(t0) + Vector2(1.0, 0.5))
+	b._grip = 0.0
+	await frames(3)
+	check(b._held.has(h) and h.is_forced() and e.fx.has("grip") and e.fx.has("cast") and e.sprite.texture == Art.tex("unit_wrathwood_grip"), "roots hold whoever is close (the hero) in place; it plunges its arms into the ground")
+	var hp0: float = h.hp
+	await wait(float(lt["grip_time"]) + 1.0)
+	check(b._foe == h and h.hp < hp0 and not b._held.has(h) and not e.fx.has("grip"), "it fights the intruder in its territory; the roots let go after %s s" % lt["grip_time"])
+	h.set_grid_pos(Vector2(t0) + Vector2(float(lt["leash"]) + 3.0, 0.0))
+	await wait(0.5)
+	check(b._foe == null, "it doesn't follow beyond its leash")
+	h.remove_from_group("melee_defenders")
+	h.hp = h.max_hp
+	h.set_grid_pos(Vector2(v.center))
+
+	# Fire and arrows.
+	var hp1 := e.hp
+	e.take_damage(10.0, null, "fire")
+	var by_fire := hp1 - e.hp
+	hp1 = e.hp
+	e.take_damage(10.0, null, "projectile")
+	check(is_equal_approx(by_fire, 20.0) and is_equal_approx(hp1 - e.hp, 5.0), "fire hurts it twice as much, arrows half")
+
+	# Killed: gold, a log, and quiet for a few waves.
+	var gold0 := int(v.economy.amount("gold"))
+	kill(e, game.hero)
+	await frames(2)
+	var log_corpse: Corpse = null
+	for c in game.corpses.corpses:
+		if c.kind == "wrathwood":
+			log_corpse = c
+	check(int(v.economy.amount("gold")) - gold0 == Config.enemy_stat_int("wrathwood", "gold_on_kill"), "killed: %d gold" % (int(v.economy.amount("gold")) - gold0))
+	check(log_corpse != null and not log_corpse.revivable, "it leaves a log of living wood no necromancer can raise")
+	check(trees.calm_until[v.id] == game.waves.wave + int(cfg["quiet_waves"]) and not trees.may_wake(v), "no other for %d waves" % int(cfg["quiet_waves"]))
+	var g := ensure_role("gatherer") as Gatherer
+	var res0 := [v.economy.amount("gold"), v.economy.amount("food"), v.economy.amount("materials")]
+	g.job.carried.assign(["wrathwood"])
+	g.job._deliver()
+	check(is_equal_approx(v.economy.amount("materials") - res0[2], float(lt["materials_on_collect"])) and v.economy.amount("gold") == res0[0] and v.economy.amount("food") == res0[1], "brought home, the log pays 40 building material, no gold or food")
+	await clear_corpses()
+
+	# Debug: wake one now.
+	trees.always = false
+	var r: Dictionary = game.command("debug", {"what": "spawn", "kind": "wrathwood"})
+	var e2 := trees.of_village(v)
+	check(r["ok"] and e2 != null, "Debug: Spawn enemy wakes a wrathwood (%s)" % str(r))
+	kill(e2)
+	await frames(2)
+	await clear_corpses()
+
+	var lib := Library.entries("enemies")
+	var names := lib.map(func(d: Dictionary) -> String: return d["name"])
+	var facts := "\n".join(lib[names.find("Wrathwood")]["facts"]) if names.has("Wrathwood") else ""
+	check("Never in a wave" in facts and "40 building material" in facts and "Takes 2 x fire damage" in facts, "the library has it, with its waking, its log and its fire weakness")
+	trees.calm_until[v.id] = 0
+	trees.allowed = false
+	game.waves.wave = wave0

@@ -404,8 +404,8 @@ static func rect_distance(r: Rect2i, p: Vector2) -> float:
 	return p.distance_to(Vector2(cx, cy))
 
 
-## Enemies near the walls (or near her, within her leash): inside the walls
-## first, then the nearest, then the strongest.
+## Enemies near the walls (or near him, within his leash): inside the walls
+## first, then the nearest, then the strongest; spider eggs last.
 func _pick_enemy() -> Enemy:
 	var best: Enemy = null
 	var best_key := Vector2(INF, INF)
@@ -425,7 +425,7 @@ func _pick_enemy() -> Enemy:
 		var near_walls := inside or Hero.rect_distance(base().rect, e.grid_pos) <= Config.HERO["alert_radius"]
 		if not (near_walls or near_me):
 			continue
-		var key := Vector2(floorf(e.grid_pos.distance_to(grid_pos)) - (1000.0 if inside else 0.0), -e.max_hp)
+		var key := Vector2(floorf(e.grid_pos.distance_to(grid_pos)) - (1000.0 if inside else 0.0) + (Enemy.LOW_PRIORITY_TILES * 3.0 if e.low_priority() else 0.0), -e.max_hp)
 		if key.x < best_key.x or (key.x == best_key.x and key.y < best_key.y):
 			best_key = key
 			best = e
@@ -468,7 +468,7 @@ func counter_strike(e: Enemy) -> void:
 
 
 func _strike(foe: Enemy) -> void:
-	foe.take_damage(Config.hero_stat("damage", level) * (1.0 + Combat.holy_bonus(game, grid_pos)), self, "melee")  # (a High Priest blesses her)
+	foe.take_damage(Config.hero_stat("damage", level) * (1.0 + Combat.holy_bonus(game, grid_pos)), self, str(Config.HERO["category"]))  # (a High Priest blesses him)
 	on_action("hit")
 	if foe.dead:  # the last hit: a bonus
 		on_action("kill")

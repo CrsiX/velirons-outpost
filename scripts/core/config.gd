@@ -206,7 +206,7 @@ const STATS := {
 	"sample_interval": 15.0,
 	"client_refresh": 5.0,
 	"unit_sent_value": 50,
-	"kill_kinds": ["goblin", "skeleton", "ork", "witch", "rat", "thief", "gargoyle", "necromancer"],
+	"kill_kinds": ["goblin", "skeleton", "ork", "witch", "rat", "thief", "gargoyle", "necromancer", "wrathwood"],
 }
 
 ## Saving and loading games (docs/save-design.md): where the save files go,
@@ -563,7 +563,7 @@ const LAIR_EVERY := 3
 const LAIR_QUIET_WAVES := 3
 const LAIR_THEMES := {
 	"lair_cave": {"name": "cave", "kinds": ["ork", "gargoyle"], "guards": ["ork", "ork", "goblin"]},
-	"lair_tree": {"name": "hollow tree", "kinds": ["goblin", "rat"], "guards": ["goblin", "goblin", "goblin"]},
+	"lair_tree": {"name": "hollow tree", "kinds": ["goblin", "rat", "spider_mother"], "guards": ["goblin", "goblin", "goblin"]},
 	"lair_ruin": {"name": "sunken ruin", "kinds": ["skeleton", "witch"], "guards": ["skeleton", "skeleton", "witch"]},
 	"lair_pit": {"name": "smoking pit", "kinds": ["ork", "gargoyle"], "guards": ["ork", "ork", "goblin"]},
 	"lair_crypt": {"name": "crypt", "kinds": ["skeleton", "necromancer", "vampire"], "guards": ["skeleton", "skeleton", "skeleton"]},
@@ -1088,7 +1088,7 @@ const ATTACKS := {
 	"swift_arrow": {"projectile": "swift_arrow", "arc": true, "sound": "shoot", "category": "projectile"},
 	"bolt": {"projectile": "crossbow_bolt", "arc": false, "speed": 900.0, "sound": "shoot", "category": "projectile"},
 	"orb": {"projectile": "arcane_orb", "whirl": true, "speed": 420.0, "sound": "hit", "category": "magical"},
-	"fireball": {"projectile": "fireball", "whirl": true, "speed": 380.0, "splash_share": 0.6, "explode": true, "sound": "hit", "category": "magical"},
+	"fireball": {"projectile": "fireball", "whirl": true, "speed": 380.0, "splash_share": 0.6, "explode": true, "sound": "hit", "category": "fire"},
 	"frost": {"projectile": "frost_orb", "whirl": true, "speed": 420.0, "sound": "hit", "category": "magical"},
 	"warp": {"projectile": "warp_orb", "whirl": true, "speed": 460.0, "push_immunity": 4.0, "sound": "hit", "category": "magical"},
 	"heal": {"projectile": "", "sound": "recruit", "category": "holy"},
@@ -1100,20 +1100,34 @@ const ATTACKS := {
 ## What kind of damage a hit does (ATTACKS "category"; enemies: "attack_category",
 ## melee if not given). An enemy's "resist" table scales what it takes by
 ## category (a vampire takes 0.67 x magical damage). The hero's sword, earth
-## elementals and soldiers' strikes are melee; fire elementals are magical.
+## elementals and soldiers' strikes are melee; fireballs (and their splash)
+## and fire elementals are fire, a category of its own (a wrathwood takes
+## x2, water monsters x0.5). Every hit has exactly one category.
 ## "pure" (a raised enemy's drain, a flame burning itself up) is never scaled.
-const DAMAGE_CATEGORIES: Array[String] = ["melee", "projectile", "magical", "holy", "pure"]
+const DAMAGE_CATEGORIES: Array[String] = ["melee", "projectile", "magical", "fire", "holy", "pure"]
+## The library's Damage page (Library._damage), one entry per category: its
+## name, picture and a short text. Who deals it and who resists it are read
+## from ATTACKS, SUMMONS, HERO and ENEMIES, so only a new category needs a line here.
+const DAMAGE_INFO := {
+	"melee": {"name": "Melee", "art": "unit_shield_bearer", "text": "Close combat: blades, hammers, fists, claws and teeth."},
+	"projectile": {"name": "Projectile", "art": "unit_archer", "text": "Arrows and bolts."},
+	"magical": {"name": "Magical", "art": "unit_apprentice", "text": "Spells: arcane orbs, frost and warp, a witch's bolt, a leviathan's water."},
+	"fire": {"name": "Fire", "art": "unit_fire_mage", "text": "Fireballs and living flame. Wood burns well; what lives in the water hardly at all."},
+	"holy": {"name": "Holy", "art": "unit_acolyte", "text": "The light of the acolyte line. It sears the undead."},
+	"pure": {"name": "Pure", "art": "unit_necromancer", "text": "Nothing makes it stronger or weaker: a raised enemy draining away, a fire elemental burning itself up."},
+}
 
 ## Summoned elementals: "hp" and "damage" multiply the summoner's summon_hp
-## and summon_damage; "speed" is in tiles per second.
+## and summon_damage; "speed" is in tiles per second; "category": what their
+## blows do (DAMAGE_CATEGORIES).
 const SUMMONS := {
-	"earth": {"name": "Earth Elemental", "art": "unit_earth_elemental", "hp": 1.0, "damage": 1.0, "speed": 1.1, "self_damage": 0.0, "hover": false},
+	"earth": {"name": "Earth Elemental", "art": "unit_earth_elemental", "hp": 1.0, "damage": 1.0, "speed": 1.1, "self_damage": 0.0, "hover": false, "category": "melee"},
 	# Fire elementals hover and flicker; they lose self_damage x the damage they deal, as HP.
-	"fire": {"name": "Fire Elemental", "art": "unit_fire_elemental", "hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "hover": true},
+	"fire": {"name": "Fire Elemental", "art": "unit_fire_elemental", "hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "hover": true, "category": "fire"},
 	# The druid's thornlings: slow and tough; each blow roots the enemy (the
 	# druid's "root" seconds); a rooted enemy is then immune to roots for
 	# root_immunity seconds. Flyers can't be rooted (nor reached).
-	"thorn": {"name": "Thornling", "art": "unit_thornling", "hp": 1.5, "damage": 0.8, "speed": 0.8, "self_damage": 0.0, "hover": false, "root_immunity": 2.0},
+	"thorn": {"name": "Thornling", "art": "unit_thornling", "hp": 1.5, "damage": 0.8, "speed": 0.8, "self_damage": 0.0, "hover": false, "category": "melee", "root_immunity": 2.0},
 }
 
 ## Barracks levels: benches (unit slots) and how near enemies must come before
@@ -1173,6 +1187,7 @@ const HERO := {
 	# game speed) before training on, so her mode can be changed to keep her XP.
 	"train_pause": 4.0,
 	"damage": 8.0, "attack_cooldown": 0.9, "attack_range": 0.8,
+	"category": "melee",  # his sword's damage (DAMAGE_CATEGORIES)
 	"sight": 4.0,  # surveillance while outside
 	"alert_radius": 6.0,  # Defend: enemies this close to a gate draw her out
 	"leash": 14.0,  # Defend: she won't chase farther than this from the centre
@@ -1257,22 +1272,29 @@ const CAMERA_KEY_ZOOM := 1.12
 ##   behavior ......... what it does besides walking to a gate (scripts/units/enemies/):
 ##                      "melee" (fights defenders in its way and villagers in reach),
 ##                      "witch", "rat", "thief", "necromancer", "vampire",
+##                      "spider_mother", "egg" (a spider egg),
 ##                      "leviathan", "siren", "octopus" or "arm" (an octopus's arm)
 ##   hp, speed ........ hit points; tiles per second along the road
 ##   damage ........... close-combat damage per hit (0 = never fights in melee)
 ##   attack_cooldown .. seconds between melee hits
 ##   gold_on_kill ..... paid the moment it dies
 ##   gold_on_collect, food_on_collect .. paid when a gatherer brings the corpse home
+##   (optional: materials_on_collect, building material, see "wrathwood")
 ## Behaviours may add their own keys (see "witch").
 ## Optional: corpse (false: none), raid_chance (of burning a hut at the gate; 1),
+## gone (the log's words when it doesn't: "melted away"),
 ## split_into / split_count, colors, level, hp_bar_y (see "slime3"),
 ## resist (damage taken by category, see DAMAGE_CATEGORIES; holy: docs/acolyte-design.md §3),
 ## unholy (true: the Inquisitor hunts it; everything a necromancer raises counts too),
 ## library (false: no library entry of its own), library_name (its name there),
 ## habitat, submerges and the other water keys (see "crab" and AQUA),
 ## revivable (false: a necromancer can't raise its corpse),
+## fixed_hp (true: its hp is never scaled by difficulty or wave, see "spider_egg"),
+## low_priority (true: towers and fighters go for it only when nothing else is in reach),
+## scares (false: villagers don't run from it, see "spider_egg"),
 ## entry ("siege", the default: breaks into the village; "slip": held a while
-## by an intact gate, then through it; docs/siege-design.md §5.1),
+## by an intact gate, then through it; docs/siege-design.md §5.1; "none":
+## never moves, see "spider_egg"),
 ## siege (damage factor against walls, gates and wall towers; 0 or missing:
 ## it can't hurt them, waits, and slips past after SIEGE.stuck_slip).
 ## Any enemy that gets into the village burns the nearest intact hut, on every
@@ -1455,9 +1477,99 @@ const ENEMIES := {
 		"hp": 40.0, "speed": 0.9,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 6, "gold_on_collect": 8, "food_on_collect": 0,
-		"resist": {"magical": 0.67, "holy": 1.5}, "unholy": true,
+		"resist": {"magical": 0.67, "fire": 0.67, "holy": 1.5}, "unholy": true,
 		"drain": 0.67,
 		"bat_below": 0.33, "bat_time": 10.0, "bat_speed": 1.8, "bat_gate_heal": 0.33,
+	},
+	# --- spiders (Wilderness; docs/enemies-design.md §15b) ---
+	# A huge, slow spider that fights like an ork and lays eggs (`lays`, a kind
+	# of its own): a clutch of clutch[0]..clutch[1] eggs around her
+	# (lay_spread tiles) as she walks, without stopping: the first first_lay s
+	# after she comes onto the map, then every lay_every s.
+	# Alarmed (one of ours who fights within alarm_range, or a manned tower
+	# with her in range, or she is hurt) while fewer than guard_count of her
+	# spiderlings and eggs are within guard_radius, she stops, lays a clutch
+	# and waits until it has hatched (or is gone), still fighting whoever
+	# comes close; then not again for alarm_cooldown s. Raised by a
+	# necromancer she lays too, at once when she rises and then every
+	# lay_every s (she drains away in the necromancer's raise_decay):
+	# those eggs and their spiderlings are undead (unholy, raised_holy x holy
+	# damage), but they don't drain away. Laying takes no time.
+	"spider_mother": {
+		"name": "Spider mother", "art": "spider_mother", "behavior": "spider_mother",
+		"siege": 1.0,
+		"desc": "A huge, slow spider. Now and then she lays a clutch of eggs; threatened while few of her young are around her, she stops and lays more, and waits for them to hatch.",
+		"hp": 90.0, "speed": 0.6,
+		"damage": 9.0, "attack_cooldown": 1.3,
+		"gold_on_kill": 10, "gold_on_collect": 8, "food_on_collect": 0,
+		"resist": {"holy": 0.75},
+		"hp_bar_y": -50.0,
+		"lays": "spider_egg", "clutch": [4, 6], "lay_spread": 0.6, "first_lay": 25.0, "lay_every": 15.0,
+		"alarm_range": 4.0, "guard_radius": 2.5, "guard_count": 3, "alarm_cooldown": 12.0,
+	},
+	# One egg of a clutch: always 1 HP (fixed_hp: no difficulty or wave
+	# scaling), never moves. After hatch_time s it hatches into `hatch_into`
+	# (as strong as its mother's wave); it wobbles for the last wobble_time s.
+	# The broken shell stays shell_time s (nothing can hit it). Towers and
+	# fighters go for eggs only when no other enemy is in reach
+	# (low_priority). Villagers don't run from eggs (scares false), only from
+	# what hatches. It counts for the wave; hatching or killed, no corpse.
+	"spider_egg": {
+		"name": "Spider egg", "art": "spider_egg", "behavior": "egg", "corpse": false, "library": false,
+		"entry": "none", "fixed_hp": true, "low_priority": true, "scares": false,
+		"desc": "A spider mother's egg. Smash it before it hatches.",
+		"hp": 1.0, "speed": 0.0,
+		"damage": 0.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 0, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"holy": 0.75},
+		"hp_bar_y": -18.0,
+		"hatch_into": "spiderling", "hatch_time": 6.0, "wobble_time": 2.5, "shell_time": 4.0,
+	},
+	# Hatched from a spider mother's egg: about a rat's strength, fights like
+	# a goblin and breaks walls and gates, but burns no huts (raid_chance 0:
+	# inside the walls it scuttles off).
+	"spiderling": {
+		"name": "Spiderling", "art": "spiderling", "behavior": "melee", "corpse": false, "raid_chance": 0.0, "gone": "scuttled off",
+		"siege": 1.0,
+		"desc": "Hatched from a spider mother's eggs. Weak and quick; it gnaws at gates and walls, but burns no huts.",
+		"hp": 8.0, "speed": 1.8,
+		"damage": 1.5, "attack_cooldown": 1.0,
+		"gold_on_kill": 1, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"holy": 0.75},
+		"hp_bar_y": -20.0,
+	},
+	# --- the wrathwood (Wilderness; docs/enemies-design.md §15c) ---
+	# Never in a wave: a tree a forester starts on may wake up as one
+	# (WRATHWOOD). It walks over forest too (Pathing.wood_path), never takes
+	# a road or breaks into a village (entry "none"). After its forester
+	# (chase), then his worker camp, then it wanders wander_time s within
+	# wander_radius, walks home to its old tile and guards it for good:
+	# anyone of ours within territory tiles is attacked, chased no farther
+	# than leash tiles from home. Whoever hurts it is its foe (while
+	# wandering, going home or guarding; within leash). In every state but
+	# guarding, a ready blow goes at what is within reach as it passes
+	# (its target first, then one of ours, then a building that isn't a hut),
+	# without stopping. Blows on buildings do damage x siege.
+	# Within regrow_radius of a tree it heals regrow x its max HP per s, x
+	# home_boost for home_boost_time s once back home. Root grip: every
+	# grip_every s (the first that long after waking), with one of ours on
+	# the ground within grip_radius, it stops grip_cast s and holds them all
+	# in place for grip_time s (they still fight). It wakes over wake_time s
+	# (still looking like its tree; it can be hit). Its corpse is a log of
+	# living wood: materials_on_collect building material, nothing else.
+	"wrathwood": {
+		"name": "Wrathwood", "art": "wrathwood", "behavior": "wrathwood", "revivable": false,
+		"entry": "none", "siege": 3.0,
+		"desc": "A tree that woke up under a forester's axe. It goes after him, then smashes his camp, and guards its old spot for good. Fire hurts it twice as much; arrows barely scratch it.",
+		"hp": 220.0, "speed": 0.45,
+		"damage": 22.0, "attack_cooldown": 2.5,
+		"gold_on_kill": 35, "gold_on_collect": 0, "food_on_collect": 0, "materials_on_collect": 40,
+		"resist": {"projectile": 0.5, "fire": 2.0, "holy": 0.75},
+		"hp_bar_y": -84.0,
+		"wake_time": 3.0, "reach": 1.0,
+		"regrow": 0.04, "regrow_radius": 2.5, "home_boost": 2.0, "home_boost_time": 10.0,
+		"wander_time": 20.0, "wander_radius": 3.0, "territory": 4.0, "leash": 6.0,
+		"grip_every": 8.0, "grip_radius": 1.6, "grip_cast": 0.6, "grip_time": 2.0,
 	},
 	# --- water monsters (docs/aquatic-design.md; the shared rules are in AQUA) ---
 	# Every kind has a "habitat": "land" (the default), "amphibian" (roads and
@@ -1476,6 +1588,7 @@ const ENEMIES := {
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 2,
+		"resist": {"fire": 0.5},
 		"habitat": "amphibian", "submerges": true, "auto_submerge": true,
 		"min_deep_tiles": 6, "min_width": 1, "reach": 2.0,
 	},
@@ -1495,6 +1608,7 @@ const ENEMIES := {
 		"hp": 220.0, "speed": 1.3,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 40, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"fire": 0.5},
 		"habitat": "water", "submerges": true,
 		"min_deep_tiles": 30, "min_width": 2, "reach": 5.6,
 		"blast_range": 4.6,  # below a level 3 watchtower's reach (5.2), above a level 2's (4.4)
@@ -1522,7 +1636,7 @@ const ENEMIES := {
 		"hp": 24.0, "speed": 0.9,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 14, "gold_on_collect": 0, "food_on_collect": 1,
-		"resist": {"melee": 1.5, "magical": 0.67},
+		"resist": {"melee": 1.5, "magical": 0.67, "fire": 0.5},
 		"habitat": "amphibian", "submerges": true,
 		"min_deep_tiles": 6, "min_width": 1, "reach": 5.5,
 		"song_radius": 4.5, "song_pull": 0.9, "song_slow": 0.6,
@@ -1549,6 +1663,7 @@ const ENEMIES := {
 		"hp": 1200.0, "speed": 0.5,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 250, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"fire": 0.5},
 		"habitat": "water", "submerges": true, "hp_bar_y": -70.0,
 		"min_deep_tiles": 80, "min_width": 3, "reach": 5.5,
 		"arms": 8, "arm_range": 4.5, "arm_cooldown": 6.0, "arm_stagger": 0.75,
@@ -1567,6 +1682,7 @@ const ENEMIES := {
 		"hp": 30.0, "speed": 0.0,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 0, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"fire": 0.5},
 		"habitat": "water", "hp_bar_y": -30.0,
 	},
 	# The Dread Legion (docs/story-design.md §5): Rhodri's soldiers, people
@@ -1645,6 +1761,24 @@ const ENEMIES := {
 		"cleave": 0.6, "cleave_radius": 1.3, "hp_bar_y": -62.0,
 	},
 }
+## When a tree wakes up as a wrathwood (docs/enemies-design.md §15c;
+## Wrathwoods). Rolled once per tree, at a forester's first blow on it:
+##   chance ........ by tree kind (a prop in TREE_CHOP_TIME); missing or 0: never
+##   remember ...... added for every tree that village's foresters felled so far
+##                   ("the forest remembers"; only for kinds with a chance)
+##   max_chance .... the chance never goes above this
+##   from_wave ..... none before this wave has begun
+##   quiet_waves ... none for this many waves after the village's last one died
+## A village has one at most at a time. Never in the tutorial or the title
+## backdrop (Game.wrathwoods).
+const WRATHWOOD := {
+	"chance": {"tree_oak": 0.015, "tree_pine_0": 0.003, "tree_pine_1": 0.003},
+	"remember": 0.0005,
+	"max_chance": 0.03,
+	"from_wave": 8,
+	"quiet_waves": 3,
+}
+
 ## The water monsters' shared rules (docs/aquatic-design.md):
 ##   dive_time / surface_time .. seconds of diving and of coming up (untargetable)
 ##   sink_time ....... a corpse on deep water sinks (fades) over this and is gone
@@ -1683,7 +1817,7 @@ const FARM_DEFENSE_LEASH := 4.0
 ## scaled (a bigger cooldown would make "hard" enemies weaker).
 const DIFFICULTY_SCALED: Array[String] = [
 	"hp", "speed", "damage", "spell_damage",
-	"gold_on_kill", "gold_on_collect", "food_on_collect",
+	"gold_on_kill", "gold_on_collect", "food_on_collect", "materials_on_collect",
 ]
 
 ## Which enemies march in wave n. Each kind joins from `from_wave`; its share of
@@ -1691,7 +1825,8 @@ const DIFFICULTY_SCALED: Array[String] = [
 ## WAVE_FILLER makes up the rest. Optional: "needs": "water" (only for a
 ## village its water monsters can reach, see Aqua; elsewhere the filler takes
 ## its share), "max_count" (at most this many per wave and village; the rest
-## go to the filler) and "chance" (it comes in a wave only with this chance,
+## go to the filler; with "max_count_every" it grows by 1 every that many
+## waves after from_wave) and "chance" (it comes in a wave only with this chance,
 ## rolled per wave and village by Waves).
 const WAVE_MIX := {
 	"skeleton": {"from_wave": 2, "share": 0.12, "growth": 0.06, "max_share": 0.35},
@@ -1702,6 +1837,7 @@ const WAVE_MIX := {
 	"gargoyle": {"from_wave": 10, "share": 0.06, "growth": 0.01, "max_share": 0.15},
 	"necromancer": {"from_wave": 13, "share": 0.04, "growth": 0.005, "max_share": 0.08},
 	"vampire": {"from_wave": 13, "share": 0.05, "growth": 0.01, "max_share": 0.12},
+	"spider_mother": {"from_wave": 9, "share": 0.04, "growth": 0.005, "max_share": 0.08, "max_count": 2, "max_count_every": 5},
 	"crab": {"from_wave": 6, "share": 0.08, "growth": 0.01, "max_share": 0.15, "needs": "water"},
 	"siren": {"from_wave": 8, "share": 0.06, "growth": 0.005, "max_share": 0.1, "needs": "water"},
 	"leviathan": {"from_wave": 10, "share": 0.03, "growth": 0.0, "max_share": 0.03, "needs": "water", "max_count": 2},
@@ -1740,6 +1876,17 @@ static func wave_composition(n: int, water := false, only: Array = []) -> Dictio
 			used += c
 	out[WAVE_FILLER] = out.get(WAVE_FILLER, 0) + total - used
 	return out
+
+
+## The most of `kind` in wave `n` (per village): WAVE_MIX "max_count", plus 1
+## every "max_count_every" waves after its from_wave; -1 without a cap.
+static func wave_max_count(kind: String, n: int) -> int:
+	var mix: Dictionary = WAVE_MIX.get(kind, {})
+	if not mix.has("max_count"):
+		return -1
+	var every := int(mix.get("max_count_every", 0))
+	var more := maxi(n - int(mix["from_wave"]), 0) / every if every > 0 else 0
+	return int(mix["max_count"]) + more
 
 
 ## Warning lights (easy/normal only) show where hidden enemies will emerge.

@@ -123,6 +123,8 @@ var _ids: Dictionary = {}
 var stats: Stats
 ## Enemies breaking into villages (docs/siege-design.md).
 var siege: Siege
+## Trees waking up as wrathwoods (docs/enemies-design.md §15c).
+var wrathwoods: Wrathwoods
 
 
 func _ready() -> void:
@@ -198,6 +200,10 @@ func _ready() -> void:
 	siege.name = "Siege"
 	siege.setup(self)
 	$Systems.add_child(siege)
+	wrathwoods = Wrathwoods.new()
+	wrathwoods.name = "Wrathwoods"
+	wrathwoods.setup(self)
+	$Systems.add_child(wrathwoods)
 	_slice_from = Time.get_ticks_usec()
 	_use_custom_map()
 	if backdrop:
@@ -771,7 +777,7 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 		v.toast("A rat ate %d food!" % eat, Color("ffb07a"))
 		return
 	if not raid_roll(g):
-		v.events.debug("%s got into the village and melted away" % g.label().capitalize())
+		v.events.debug("%s got into the village and %s" % [g.label().capitalize(), str(g.spec().get("gone", "melted away"))])
 		return
 	if is_instance_valid(g.raid_store):
 		g.raid_store.plunder(g)  # (rubble already: nothing more to take)

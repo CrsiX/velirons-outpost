@@ -303,7 +303,7 @@ func _sample() -> void:
 		var near := 0
 		for node in enemies:
 			var e := node as Enemy
-			if not e.dead and e.target_village == v and not (e.behavior is CampBehavior):
+			if not e.dead and e.target_village == v and not e.wild():
 				near += 1
 		row["enemies"] = near
 		var lying := 0

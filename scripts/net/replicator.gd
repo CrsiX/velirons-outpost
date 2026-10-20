@@ -46,13 +46,14 @@ func setup(p_game: Game, p_hosting: bool) -> void:
 			v.events.logged.connect(_on_logged.bind(v.id))
 		game.fog.explored_changed.connect(_on_explored)
 		game.world.tree_felled.connect(_on_tree_felled)
+		game.world.tree_woke.connect(_on_tree_woke)
 
 
 # --- host ------------------------------------------------------------------------------
 
 ## A client just (re)loaded the level: send it everything next time.
 func reset_peer(id: int) -> void:
-	_peers[id] = {"known": {}, "ev": [], "to": [], "ft": [], "fx": [], "ex": PackedInt32Array(), "full": true, "vd": {}, "tf": _felled.duplicate()}
+	_peers[id] = {"known": {}, "ev": [], "to": [], "ft": [], "fx": [], "ex": PackedInt32Array(), "full": true, "vd": {}, "tf": _felled.duplicate(), "tw": PackedInt32Array()}
 
 
 func _peers_of(vid: int) -> Array[int]:
@@ -75,6 +76,17 @@ func _on_explored(vid: int, tiles: Array[Vector2i]) -> void:
 		for t in tiles:
 			ex.append(game.map.index(t))
 		_peers[id]["ex"] = ex
+
+
+## A tree woke up as a wrathwood: gone without falling (a client joining
+## later just gets it among the felled ones).
+func _on_tree_woke(t: Vector2i) -> void:
+	var i := game.map.index(t)
+	_felled.append(i)
+	for id in _peers:
+		var tw: PackedInt32Array = _peers[id]["tw"]
+		tw.append(i)
+		_peers[id]["tw"] = tw
 
 
 func _on_tree_felled(t: Vector2i) -> void:
@@ -210,6 +222,9 @@ func _snapshot_for(id: int, all: Array) -> Dictionary:
 	if not p["tf"].is_empty():
 		out["tf"] = p["tf"]
 		p["tf"] = PackedInt32Array()
+	if not p["tw"].is_empty():
+		out["tw"] = p["tw"]
+		p["tw"] = PackedInt32Array()
 	out["wl"] = game.world.warnings.compute_spots(vid) if game.world.warnings.enabled() else []
 	return out
 
@@ -304,9 +319,9 @@ func _describe(n: Node) -> Array:
 		return [c.nid, "c", {"r": c.role, "v": vid, "u": c.uid}, _unit_state(c).merged({"h": c.at_home, "s": c.status_text(), "hut": game.id_of(c.hut), "hp": snappedf(c.hp, 0.5)}), c.current_tile(), vid, false]
 	if n is Enemy:
 		var e := n as Enemy
-		if e.dead:
+		if e.dead and not e.shell:  # (a hatched egg's shell stays a while)
 			return []
-		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0, "c": e.color}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "air": e.airborne, "ch": e.channel_to if e.channel_to != Vector2.INF else null, "dv": int(e.dive), "efx": e.fx}), e.current_tile(), -1, false]
+		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0, "c": e.color}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "ud": e.undead, "sh": e.shell, "air": e.airborne, "ch": e.channel_to if e.channel_to != Vector2.INF else null, "dv": int(e.dive), "efx": e.fx}), e.current_tile(), -1, false]
 	if n is Soldier:
 		var s := n as Soldier
 		vid = s.unit.village.id if s.unit.village else -1
@@ -357,6 +372,10 @@ func _apply(d: Dictionary) -> void:
 		var t := Vector2i(i % game.map.size, i / game.map.size)
 		if game.world.is_tree(t):
 			game.world.remove_tree(t)
+	for i in (d.get("tw", PackedInt32Array()) as PackedInt32Array):
+		var t := Vector2i(i % game.map.size, i / game.map.size)
+		if game.world.is_tree(t):
+			game.world.remove_tree(t, false)
 	# Buildings first: units refer to them (huts, posts).
 	var sp: Array = d.get("sp", [])
 	for s in sp:
@@ -606,6 +625,10 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		if st.get("rz", false) and not en.raised:
 			en.raised = true
 			en.modulate = Color(0.7, 1.0, 0.75, 0.8)
+		if st.get("ud", false) and not en.undead:
+			en.make_undead()
+		if st.get("sh", false):
+			en.net_shell()
 		if bool(st.get("air", false)) != en.airborne:
 			en.set_airborne(bool(st.get("air", false)))
 		var ch = st.get("ch")

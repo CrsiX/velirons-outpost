@@ -95,7 +95,9 @@ orders; each key is documented in config.gd.
 4.1 `by_kind[kind]`: `spawned`, `hp` (their HP together), `killed`, `reached` (got to the gate),
 `gone` (vanished: rats leaving, thieves escaping ...), `progress` (sum over the enemies that ended:
 the share of their road covered, 1 at the gate), `life` (sum of seconds from spawn to the end).
-Raised dead are `raised_<kind>`. Camp guards are not recorded.
+Raised dead are `raised_<kind>`. Camp guards are not recorded. A wrathwood (never part of a
+wave) is tallied in the row of the wave running when it woke (or the last one); the timeline's
+enemy count leaves it out, as it does camp guards.
 
 *Nominal DPS* of a unit is damage / cooldown from its curves (a summoner: its cap of elementals x
 their damage / the elementals' cooldown). It ignores range, misses, splash and healing.

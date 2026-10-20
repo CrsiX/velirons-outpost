@@ -114,9 +114,10 @@ func _pick_target() -> void:
 		if e.dead or not _can_hit(e):
 			continue
 		var d := e.grid_pos.distance_to(grid_pos)
-		# Only enemies it can see, and not too far from its post.
-		if d <= Config.SUMMON["sight"] and e.grid_pos.distance_to(Vector2(home)) <= Config.SUMMON["leash"] + Config.SUMMON["sight"] and d < best_d:
-			best_d = d
+		# Only enemies it can see, and not too far from its post; eggs last.
+		var k := d + (Enemy.LOW_PRIORITY_TILES if e.low_priority() else 0.0)
+		if d <= Config.SUMMON["sight"] and e.grid_pos.distance_to(Vector2(home)) <= Config.SUMMON["leash"] + Config.SUMMON["sight"] and k < best_d:
+			best_d = k
 			best = e
 	if best != null and best != target:
 		village.events.debug("%s attacks %s" % [label(), best.label()])
@@ -169,7 +170,7 @@ func counter_strike(e: Enemy) -> void:
 
 
 func _strike(foe: Enemy) -> void:
-	foe.take_damage(damage * (1.0 + Combat.holy_bonus(game, grid_pos)), self, "magical" if flies() else "melee")  # (a flame is magic; a High Priest blesses it)
+	foe.take_damage(damage * (1.0 + Combat.holy_bonus(game, grid_pos)), self, str(Config.SUMMONS[summon]["category"]))  # (a High Priest blesses it)
 	if root_time > 0.0 and not foe.dead and foe.root(root_time):
 		village.events.debug("%s roots %s for %.1f s" % [label(), foe.label(), root_time])
 	var burn: float = Config.SUMMONS[summon]["self_damage"]

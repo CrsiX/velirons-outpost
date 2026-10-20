@@ -79,7 +79,7 @@ func _process(delta: float) -> void:
 func enemy_nearby() -> bool:
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var g := node as Enemy
-		if not g.dead and g.grid_pos.distance_to(grid_pos) < Config.EVADE_RADIUS:
+		if not g.dead and g.spec().get("scares", true) and g.grid_pos.distance_to(grid_pos) < Config.EVADE_RADIUS:
 			return true
 	return false
 
