@@ -156,9 +156,8 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   - Flyers (gargoyles) fly over walls and gates to the nearest hut.
 - Inside, an enemy walks to the nearest intact hut and burns it (huts have 1 HP), on every
   difficulty. Only the villager living there dies.
-- A campaign scenario's guild warehouse (scenario 4) is a raid target too: the siege field leads
-  to it as to a hut, and an enemy that gets onto it plunders it (`WAREHOUSE.raid_damage` of its
-  HP) and is gone; no hut burns for it (docs/scenarios-design.md §7.7).
+- A campaign scenario's guild warehouse (scenario 4) is no target for breaking in: only thieves
+  go for it (§11; docs/scenarios-design.md §7.7).
 - Exceptions:
   - kinds with `raid_chance` roll for it (small slimes); failed, they melt away (`"gone"`: the
     log's words for it); spiderlings have 0: they never burn a hut, they scuttle off;
@@ -242,6 +241,9 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   runs back along its road with a coin sack.
 - Back at the map edge it vanishes with the gold (logged). Killed on the way, its corpse holds
   the stolen gold as well.
+- Where its village has a standing guild warehouse (scenario 4) it goes for that instead: along
+  its road to where it passes nearest, then across (never through the walls), plunders it
+  (`WAREHOUSE.raid_damage` HP), steals as at a gate and runs back the way it came.
 
 ## 12. Gargoyle
 

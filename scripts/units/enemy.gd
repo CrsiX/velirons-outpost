@@ -118,8 +118,6 @@ var _stuck := 0.0
 var _slip := 0.0
 ## The hut it got to: Game.on_enemy_reached_gate burns this one.
 var raid_hut: Hut = null
-## The raid target it got to instead (a guild warehouse): it plunders that.
-var raid_store: Warehouse = null
 ## A guard of a place, not a wave member (the campaign's octopus at the
 ## abbey): a water monster keeps to the deep tiles within `post_leash` of
 ## `post` ((-1, -1): none; AquaBehavior).
@@ -893,11 +891,6 @@ func _siege_tick(delta: float) -> bool:
 	var hut := game.siege.hut_at(v, here)
 	if hut != null:
 		raid_hut = hut
-		_get_in()
-		return true
-	var store := game.siege.store_at(v, here)
-	if store != null:
-		raid_store = store
 		_get_in()
 		return true
 	if not air:

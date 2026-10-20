@@ -737,10 +737,11 @@ func station_unit_name(t: MilitaryPost) -> String:
 
 # --- raids and defeat -----------------------------------------------------------------
 
-## A thief at a gate steals max(a random whole number from wave to 2 x
-## wave, steal_share of the gold), never more than the village has.
-## Returns the amount (it carries it away, see ThiefBehavior).
-func thief_steals(g: Enemy) -> int:
+## A thief at a gate (or, `store`, at the guild warehouse it plundered)
+## steals max(a random whole number from wave to 2 x wave, steal_share of
+## the gold), never more than the village has. Returns the amount (it
+## carries it away, see ThiefBehavior).
+func thief_steals(g: Enemy, store: Building = null) -> int:
 	var v: Village = g.target_village if is_instance_valid(g.target_village) else player_village
 	var gold := int(v.economy.amount("gold"))
 	var w := maxi(1, waves.wave)
@@ -748,7 +749,10 @@ func thief_steals(g: Enemy) -> int:
 	n = mini(n, gold)
 	v.economy.add("gold", -n)
 	stats.count(v, "stolen", n)
-	v.events.info("%s got into the village and stole %d gold" % [g.label().capitalize(), n])
+	if store != null:
+		v.events.info("%s ran off from %s with %d gold" % [g.label().capitalize(), store.label(), n])
+	else:
+		v.events.info("%s got into the village and stole %d gold" % [g.label().capitalize(), n])
 	v.toast("A thief stole %d gold!" % n, Color("ffb07a"))
 	return n
 
@@ -778,9 +782,6 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 		return
 	if not raid_roll(g):
 		v.events.debug("%s got into the village and %s" % [g.label().capitalize(), str(g.spec().get("gone", "melted away"))])
-		return
-	if is_instance_valid(g.raid_store):
-		g.raid_store.plunder(g)  # (rubble already: nothing more to take)
 		return
 	v.events.debug("%s broke into the village" % g.label())
 	# The hut it got to (docs/siege-design.md §5.3); one at random if it came

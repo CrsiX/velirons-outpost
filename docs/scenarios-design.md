@@ -203,7 +203,8 @@ falls). The guild master, Wenna, must not die.
 while she is in the water. The map needs a water body big enough for them (6 deep tiles) and water spawns, made in the map editor.
 
 **Problems:** two threats. Raids from the wilderness and Renegades on the roads, and a rival guild whose caravans block the south road and whose
-hired fighters raid the warehouse. Thieves go for the stock. The town is small and cannot grow far. Brenna is exposed and cannot be revived.
+hired fighters raid the warehouse. Thieves go for the stock (only they: the monsters go for the huts), more of them once the coins are found;
+crabs and the siren come out of the sea only. The town is small and cannot grow far. Brenna is exposed and cannot be revived.
 
 **Events:**
 - At wave 4 a rival guild's master offers Brenna gold to leave (flavour). If accepted, instant loss of the scenario.
@@ -778,10 +779,10 @@ The game has none of this yet, except where noted:
 ### 7.7 What scenarios 4 and 5 added to the engine
 
 - **The guild warehouse** (`warehouse`, `Warehouse`, 2x2, 400 HP; `"campaign": true`, never placed by the player: a scenario prebuilds it). It
-  is a **raid target**: its tiles are targets of the siege field (`Siege.store_at`) as intact huts are, so enemies that leave their road near the
-  village go for it when it is the cheaper way (it stands outside the walls: nothing to break through first). An enemy that gets onto it plunders
-  it (`Enemy.raid_store`, `Game.on_enemy_reached_gate`, `Warehouse.plunder`): it loses `Config.WAREHOUSE.raid_damage` (50) HP and the enemy is
-  gone, as after burning a hut (no hut burns for it). At 0 HP it is devastated, and a builder repairs it like any building; it can't be torn down.
+  is the **thieves' target**, and only theirs (the siege field leads the rest to the huts): a thief (`ThiefBehavior`) whose village has a
+  standing warehouse follows its road to where it passes nearest the warehouse, then goes across to it (`Pathing.find_path`; never a way through
+  the walls: then the gate as usual), plunders it (`Warehouse.plunder`: it loses `Config.WAREHOUSE.raid_damage` (50) HP; no hut burns), steals
+  gold as at a gate (`Game.thief_steals`) and runs back the way it came with the sack. At 0 HP it is devastated, and a builder repairs it like any building; it can't be torn down.
   Art: `warehouse` (timber and stone, a slate roof, a loading door with a hoist, the guild's sign: gold scales on blue).
 - **`must_stand`** (Scenario): building kinds that must not fall; once every one of a kind is devastated the scenario is lost
   (`Scenario.fallen_text`).
@@ -819,16 +820,19 @@ The game has none of this yet, except where noted:
   (stall level 3), barracks with a level 3 shield bearer, two watchtowers with archers (level 3 and 2). Brenna is level 5.
 - **Rules:** archers and shield bearers, specialising, training grounds; Brenna **can't be revived** (downed is a defeat); Pell and Wenna must
   not die; the warehouse must not fall (`must_stand`).
-- **Waves:** nine. Goblins and orks; **thieves** in every wave (2 to 5; bandits are not built: thieves only, as decided); **crabs** from wave 2
-  (out of the sea: the water spawns); **one siren** in wave 7; rat packs and big slimes now and then. Wave 1 waits to be called; 40 s between waves.
+- **Waves:** nine, about 2.5 times a home wave (17 enemies in wave 1, 64 and three rat packs in wave 9). Goblins and orks, which go for the
+  huts; **thieves** in every wave, which go for the warehouse (4 to 8 in waves 1-6; once the foreign coins are found after wave 6 the
+  paymasters send about twice as many: 16, 18, 22; bandits are not built: thieves are the Renegades, as decided); **crabs** from wave 2 and
+  **one siren** in wave 7, out of the sea only (`amphibians_from_water`: never from the map edge); rat packs and big slimes now and then.
+  Wave 1 waits to be called; 40 s between waves.
 - **Story:** the intro (the harbour half closed by a rival guild's chains; Pell's old guild house; Wenna: the convoy is loading in the warehouse,
   nine days; the rules); after wave 1 Wenna tells how the guild broke apart (every master had to choose an heir; the Silver Thread Guild is the ones who
   wouldn't); after wave 3 a **rival guild's master** comes up the road and offers Brenna gold to leave: a **choice** (*Take the gold and leave*
   loses the scenario: "Brenna took the rival guild's gold and rode away..."; *Refuse* goes on); wave 7 starts the convoy's loading; after wave 6 a
-  captured thief's **coins of three mints** (Karmere, Lyrenne, Aurelith; a journal page); the outro (the convoy rolls out; that night Pell reads
+  captured thief's **coins of three mints** (Karmere, Lyrenne, Aurelith; a journal page; Wenna expects twice the thieves now); the outro (the convoy rolls out; that night Pell reads
   the Renegades' ledger: payments to a quartermaster of Rhodri's army from three sources, "someone bought him"; Brenna will go back to her fort).
 - **Cards:** the warehouse (tap it), guard the harbour (a manned watchtower within 5 tiles of the warehouse), call the first wave.
-- **Hints:** crabs, the siren, the warehouse hit (repair it), Brenna badly hurt (no revive: send her to rest), thieves. **Objectives:** hold until
+- **Hints:** crabs, the siren, the warehouse hit (repair it), Brenna badly hurt (no revive: send her to rest), thieves (after the warehouse). **Objectives:** hold until
   the convoy leaves (9 waves); keep the warehouse standing (its HP share shown).
 
 ### 7.9 Scenario 5 as built (`scenario_5.gd`)

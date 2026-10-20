@@ -120,9 +120,8 @@ Each enemy kind has an `"entry"`:
 The siege field (`Siege`, `scripts/systems/siege.gd`; one per village, rebuilt on demand)
 covers the village and a band of `SIEGE.approach` (3) tiles around its pieces.
 
-- **Its targets** are the village's intact huts, and a standing guild warehouse (a campaign
-  building, scenario 4: an enemy that gets onto it plunders it, `WAREHOUSE.raid_damage` HP, and
-  is gone; docs/scenarios-design.md §7.7).
+- **Its targets** are the village's intact huts (never the campaign's guild warehouse: only
+  thieves go for that, docs/scenarios-design.md §7.7).
 - **Its costs:** a 4-connected Dijkstra field, counted in tenths of a step:
   - open ground counts 10 per step (shallow water and swamp 20);
   - a ruined hut, a devastated piece or an open gate counts as ground;
@@ -193,8 +192,8 @@ Raised enemies keep their kind's values.
 ### 5.5 Other buildings
 
 Farms, worker camps, light stones, barracks, training grounds and watchtowers can be
-devastated the same way. No enemy goes for them yet (the campaign's guild warehouse aside, see
-§5.2), except the octopus: an arm with nobody
+devastated the same way. No enemy goes for them yet (thieves and the campaign's guild warehouse
+aside, see docs/scenarios-design.md §7.7), except the octopus: an arm with nobody
 in reach smashes a building of ours within `arm_range` instead. That deals `spell_damage` ×
 `arm_smash` every `smash_cooldown`, and the arm is shown slamming down on it. This is the hook
 for scenario tactics later.

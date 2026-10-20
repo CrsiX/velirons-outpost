@@ -346,7 +346,8 @@ eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`)
   along); amphibians are thrown back along their route like anyone.
 - *Ice* slows them like anyone (the leviathan doesn't move while up, so it doesn't matter there).
 - *Spawning:* water-bound monsters always come from the village's water spawns (or §9's picked
-  deep tile); an amphibian half of the time, else from the edge like the rest of the wave. A
+  deep tile); an amphibian half of the time, else from the edge like the rest of the wave (a
+  scenario may send them from the water only: `Scenario.amphibians_from_water`, `Waves.amphibians_from_water`). A
   co-op wave's shared extra (25 % x villages) brings no water monsters. Lairs never send them.
 - *The leviathan* arrives under water; with nobody about it goes to the deep tile nearest the
   village and comes up there every `idle_surface` s. After an early dive the next surfacing must

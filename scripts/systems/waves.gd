@@ -35,6 +35,8 @@ var scripted: Array[Dictionary] = []
 var buffer := Config.WAVE_BUFFER
 ## The last wave (a scenario's): after it no more waves come. 0: endless.
 var last_wave := 0
+## A scenario's rule: amphibians come from the water spawns only, never the edge.
+var amphibians_from_water := false
 ## Co-op client: [wave, countdown, in progress, enemies left, can call].
 var _net: Array = [0, 0.0, false, 0, true]
 var _queue: Array[Dictionary] = []
@@ -509,7 +511,8 @@ func aqua(v: Village) -> Dictionary:
 
 
 ## Water monsters in a share come from the village's water spawns (water-bound
-## ones always; amphibians half of the time, else from the edge, as rolled).
+## ones always; amphibians half of the time, else from the edge, as rolled;
+## always with `amphibians_from_water`, a scenario's rule).
 func _water_spawns(out: Array, target: Village) -> void:
 	var elig := aqua(target)
 	for spec in out:
@@ -518,7 +521,7 @@ func _water_spawns(out: Array, target: Village) -> void:
 			continue
 		var spawns: Array = elig[kind]
 		var water_bound := str(Config.ENEMIES[kind].get("habitat", "land")) == "water"
-		if spawns.is_empty() or (not water_bound and _rng.randf() < 0.5):
+		if spawns.is_empty() or (not water_bound and not amphibians_from_water and _rng.randf() < 0.5):
 			continue
 		spec["spawn"] = spawns[_rng.randi() % spawns.size()]
 		spec.erase("lair")

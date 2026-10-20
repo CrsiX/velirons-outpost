@@ -3,8 +3,10 @@ extends Scenario
 ## Away from home for the first time: the Silver Thread Guild's walled market town
 ## on the coast. Its master, Wenna, keeps the books in the guild house; its
 ## warehouse stands by the harbour and must not fall while the convoy is
-## loaded (nine waves). Crabs come out of the sea, at most one siren; thieves
-## in numbers. Before wave 4 a rival guild's master offers Brenna gold to
+## loaded (nine waves). Crabs come out of the sea (only the sea), at most one
+## siren; thieves in numbers, and they go for the warehouse (the Wilderness
+## goes for the huts); more of them once the foreign coins are found (after
+## wave 6). Before wave 4 a rival guild's master offers Brenna gold to
 ## leave (a choice: taking it loses the scenario); after wave 6 a captured
 ## Renegade carries coins of three foreign mints. Brenna can't be brought
 ## back here; Pell and Wenna must not die.
@@ -42,19 +44,22 @@ func _init() -> void:
 	must_live = ["Pell", "Wenna"]
 	must_stand = ["warehouse"]
 
-	# Wilderness and Renegades in numbers: thieves on every road. Crabs from
-	# wave 2 come out of the sea; one siren, in wave 7.
+	# Wilderness and Renegades in numbers (about 2.5 x a home wave): thieves
+	# on every road, going for the warehouse. Crabs from wave 2 come out of
+	# the sea; one siren, in wave 7. Once the foreign coins are found (after
+	# wave 6) the paymasters send about twice the thieves.
 	waves = [
-		{"kinds": {"goblin": 5, "thief": 2}, "spawns": 2},
-		{"kinds": {"goblin": 5, "crab": 2, "thief": 1}, "rat_packs": [5], "spawns": 2},
-		{"kinds": {"goblin": 5, "ork": 1, "thief": 3, "crab": 2}, "spawns": 3},
-		{"kinds": {"goblin": 6, "ork": 2, "thief": 3}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"goblin": 6, "ork": 2, "crab": 3, "thief": 3, "slime3": 1}, "spawns": 3},
-		{"kinds": {"goblin": 7, "ork": 2, "thief": 4, "crab": 2}, "rat_packs": [6], "spawns": 3},
-		{"kinds": {"goblin": 7, "ork": 3, "thief": 3, "crab": 3, "siren": 1}, "spawns": 3},
-		{"kinds": {"goblin": 8, "ork": 3, "thief": 4, "crab": 3, "slime3": 2}, "rat_packs": [6], "spawns": 3},
-		{"kinds": {"goblin": 10, "ork": 4, "thief": 5, "crab": 4}, "rat_packs": [6, 5], "spawns": 3},
+		{"kinds": {"goblin": 12, "thief": 5}, "spawns": 2},
+		{"kinds": {"goblin": 12, "crab": 4, "thief": 4}, "rat_packs": [5, 5], "spawns": 2},
+		{"kinds": {"goblin": 12, "ork": 3, "thief": 6, "crab": 5}, "spawns": 3},
+		{"kinds": {"goblin": 14, "ork": 4, "thief": 7}, "rat_packs": [6, 5], "spawns": 3},
+		{"kinds": {"goblin": 14, "ork": 5, "crab": 6, "thief": 7, "slime3": 2}, "spawns": 3},
+		{"kinds": {"goblin": 16, "ork": 5, "thief": 8, "crab": 5}, "rat_packs": [6, 6], "spawns": 3},
+		{"kinds": {"goblin": 15, "ork": 6, "thief": 16, "crab": 6, "siren": 1}, "spawns": 3},
+		{"kinds": {"goblin": 16, "ork": 6, "thief": 18, "crab": 6, "slime3": 3}, "rat_packs": [6, 6], "spawns": 3},
+		{"kinds": {"goblin": 20, "ork": 8, "thief": 22, "crab": 8}, "rat_packs": [6, 6, 5], "spawns": 3},
 	]
+	amphibians_from_water = true
 	first_wave_waits = true
 	first_wave_call = true
 	wave_gap = 40.0
@@ -164,6 +169,8 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 					{"say": "pell", "text": "The gatherers caught one of the thieves alive. That purse was all he had on him."},
 					{"say": "wenna", "text": "Three mints, and none of them ours. They pay Renegades to choke the last free market on the coast."},
 					{"say": "brenna", "text": "Or someone wants us to think so. Keep the purse, Wenna. I'd like to know where it leads."},
+					{"say": "wenna", "text": "Whoever it is, they know we've seen it now. They'll send more. Twice as many thieves, if I know paymasters."},
+					{"do": func() -> void: r.game.events.info("The paymasters send more thieves: watch the warehouse")},
 				]), CONNECT_ONE_SHOT)
 
 
@@ -181,7 +188,7 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 	var g := r.game
 	return [
 		{"title": "The warehouse",
-			"text": "The guild's warehouse stands by the harbour, outside the walls. Enemies that break in go for it as for a hut: each one that gets there plunders it. Tap it to see its HP.",
+			"text": "The guild's warehouse stands by the harbour, outside the walls. The monsters go for the huts, but thieves go for the warehouse: each one that gets there plunders it and runs off with gold. Tap it to see its HP.",
 			"done": func() -> bool: return _warehouse(r) == null or g.selected == _warehouse(r),
 			"point": func() -> Dictionary: return {"tiles": [] if _warehouse(r) == null else _warehouse(r).tiles()}},
 		{"title": "Guard the harbour",
@@ -216,7 +223,7 @@ func hints(r: ScenarioRunner) -> Array[Dictionary]:
 			"text": "Brenna is badly hurt, and here nobody can bring her back. Send her home to rest (her panel: Rest) until she has healed."},
 		{"id": "thieves",
 			"when": func() -> bool: return g.waves.wave >= 1 and r.enemy_about("thief"),
-			"text": "Thieves on every road. They steal gold at the gates and run: kill them on the way back to get it."},
+			"text": "Thieves on every road, and they're after the warehouse: each one that gets there plunders it and runs off with gold. Kill them on the way back to get the gold."},
 	]
 
 

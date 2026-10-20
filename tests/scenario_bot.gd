@@ -771,11 +771,31 @@ func _scenario_4() -> void:
 	var gob := game.waves.spawn_at("goblin", road, v, 1)
 	gob.max_hp = 1e6
 	gob.hp = gob.max_hp
+	await wait(20.0)
+	check(w.hp == w.max_hp() and is_instance_valid(gob) and not gob.dead, "a goblin by the warehouse leaves it alone (it goes for the huts)")
+	kill(gob)
+	var edge: Vector2i = game.map.edge_spawns[0]
+	for sp: Vector2i in game.map.edge_spawns:
+		if Vector2(sp).distance_to(Vector2(w.tile)) < Vector2(edge).distance_to(Vector2(w.tile)):
+			edge = sp
+	var thief := game.waves.spawn_at("thief", edge, v, 1)
+	thief.max_hp = 1e6
+	thief.hp = thief.max_hp
+	await frames(2)
+	var tb := thief.behavior as ThiefBehavior
+	check(tb.store == w, "a thief goes for the warehouse")
+	var inside := v.rect.grow(-1)
+	check(not Array(thief.path).any(func(p: Vector2) -> bool: return inside.has_point(Vector2i(p.round()))), "its way never leads through the walls")
 	var huts := v.intact_huts().size()
-	check(await wait_until(func() -> bool: return w.hp < w.max_hp() or not is_instance_valid(gob) or gob.dead, 120.0), "a goblin by the warehouse goes for it")
+	var gold0 := v.economy.amount("gold")
+	Engine.time_scale = 4.0
+	check(await wait_until(func() -> bool: return w.hp < w.max_hp() or not is_instance_valid(thief) or thief.dead, 300.0), "it gets there")
 	check(is_equal_approx(w.hp, w.max_hp() - float(Config.WAREHOUSE["raid_damage"])), "and plunders it: %d HP (%d / %d)" % [int(Config.WAREHOUSE["raid_damage"]), w.hp, w.max_hp()])
-	check(not is_instance_valid(gob) or gob.dead, "the goblin is gone then")
+	check(is_instance_valid(thief) and tb.escaping and thief.loot_gold > 0 and v.economy.amount("gold") < gold0, "and runs off with gold (%d)" % (thief.loot_gold if is_instance_valid(thief) else -1))
 	check(v.intact_huts().size() == huts, "no hut burned for it")
+	if is_instance_valid(thief):
+		kill(thief)
+	Engine.time_scale = 1.0
 	check(await wait_until(func() -> bool: return sc.card.hint().begins_with("The warehouse is hit"), 5.0), "a hint: repair it")
 	check(w.can_repair() and cmd("repair", {"building": w.nid})["ok"], "it can be repaired")
 
@@ -797,6 +817,7 @@ func _scenario_4() -> void:
 	add_child(guard)
 	guard.start()
 	var crab_water := false
+	var from_edge: Array[String] = []
 	var offered := false
 	var coins := false
 	var t := 0.0
@@ -804,6 +825,8 @@ func _scenario_4() -> void:
 		for e: Enemy in get_tree().get_nodes_in_group("enemies"):
 			if e.kind == "crab" and game.map.is_water(e.home_tile):
 				crab_water = true
+			if e.kind in ["crab", "siren"] and not game.map.is_water(e.home_tile) and not from_edge.has(e.label()):
+				from_edge.append(e.label())
 		if sc.journal != null and sc.journal.visible:
 			coins = coins or sc.journal.title() == "Foreign coins"
 			_close_journal()
@@ -819,7 +842,7 @@ func _scenario_4() -> void:
 		await wait(0.5)
 		t += 0.5
 	check(not game.game_over and game.waves.all_done(), "nine waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
-	check(crab_water, "crabs come out of the sea (a water spawn)")
+	check(crab_water and from_edge.is_empty(), "crabs and the siren come out of the sea only, never from the edge (%s)" % str(from_edge))
 	check(offered, "the rival's offer was made, and refused")
 	check(coins, "the captured Renegade's coins")
 	check(await wait_until(func() -> bool: return sc.cutscene != null, 120.0), "the outro plays")

@@ -123,6 +123,8 @@ var repeat_last := false
 var more_each_wave := {}
 ## Seconds between a wave's end and the next (the countdown).
 var wave_gap := 30.0
+## Amphibians (crabs, sirens) come out of the water only, never from the map edge.
+var amphibians_from_water := false
 
 # --- who speaks ---------------------------------------------------------------------------
 

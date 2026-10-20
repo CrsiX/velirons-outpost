@@ -1,11 +1,11 @@
 class_name Warehouse
 extends Building
 ## The guild's warehouse (2x2; docs/scenarios-design.md §7.7), only in the
-## campaign's scenarios (scenario 4: it must not fall). Enemies breaking into
-## the village go for it as for a hut (Siege: its tiles are targets of the
-## siege field); each one that gets to it plunders it, takes
-## Config.WAREHOUSE["raid_damage"] of its HP and is gone. At 0 HP it is
-## devastated; a builder repairs it like any building. It can't be torn down.
+## campaign's scenarios (scenario 4: it must not fall). Only thieves go for
+## it (ThiefBehavior; enemies breaking into the village go for the huts):
+## each one that gets to it plunders it, takes Config.WAREHOUSE["raid_damage"]
+## of its HP, and runs off with gold. At 0 HP it is devastated; a builder
+## repairs it like any building. It can't be torn down.
 
 var _site_spr: Sprite2D
 
@@ -32,7 +32,7 @@ func raidable() -> bool:
 	return working() and village != null
 
 
-## Enemy `g` got to it: it loses its raid damage, and `g` is gone.
+## Thief `g` got to it (ThiefBehavior): it loses its raid damage.
 func plunder(g: Enemy) -> void:
 	if not raidable():
 		return
