@@ -11,7 +11,8 @@ extends Node
 ## goblins hitting a gate, the library's gate entry and the statistics, and
 ## (`--only=scenario`) scenario 1: the campaign page, the intro cutscene, the
 ## walk home, the arrival, the cards and objectives, the outro and the end
-## (landscape, and the intro and a card in portrait); (`--only=campaign`)
+## (landscape, and the intro and a card in portrait; the campaign map: all
+## open, a release build's progress with seals, a card, portrait); (`--only=campaign`)
 ## scenarios 2 and 3: Pell's arrival, his stall and its panel, a talk between
 ## waves, the Wardline's start, a journal page, a restored ruin and the road;
 ## (`--only=away`) scenarios 4 and 5: Wenna, the warehouse and the guild
@@ -736,9 +737,28 @@ func _scenario() -> void:
 	var t: TitleScreen = load("res://scenes/title.tscn").instantiate()
 	add_child(t)
 	await _frames(30)
-	t.show_page(t._campaign_page)
+	var cm := t.campaign_map
+	t.open_campaign()
 	await _frames(10)
-	await shot("scenario_campaign_page")
+	await shot("scenario_campaign_map")
+	# A release build's view with 1 to 4 completed: only what is open, seals, the route.
+	cm.show_all = false
+	Campaign.reset_progress()
+	for n in [1, 2, 3, 4]:
+		Campaign.complete(n)
+	cm.open()
+	await _frames(10)
+	await shot("scenario_campaign_progress")
+	cm.show_card(4)
+	await _frames(4)
+	await shot("scenario_campaign_card")
+	var win := get_window().size
+	await _size(Vector2i(540, 960))
+	cm.open()
+	await _frames(10)
+	await shot("scenario_campaign_portrait")
+	await _size(win)
+	Campaign.reset_progress()
 	t.queue_free()
 	await _frames(3)
 	Settings.scenario_next = 1
@@ -812,7 +832,8 @@ func _scenario() -> void:
 	await _cut_to_line(sc, "pell")
 	await _frames(120)
 	await shot("scenario_outro_pell")
-	sc.cutscene.skip()
+	if sc.cutscene:
+		sc.cutscene.skip()
 	await _frames(30)
 	await shot("scenario_complete")
 	g.queue_free()

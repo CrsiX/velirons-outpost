@@ -22,8 +22,32 @@ const SCENARIOS: Array[Script] = [
 	preload("res://scripts/scenarios/scenario_11.gd"),
 ]
 
-## How many the campaign will have (the menu lists the rest as to come).
+## How many the campaign will have (the map says the rest are to come).
 const PLANNED := 11
+
+## The campaign map's picture (art "campaign_map"), in its own units.
+const MAP_SIZE := Vector2(1200, 750)
+## The places on it (docs/story-design.md §4a): id -> {"name", "at": a share
+## of MAP_SIZE, "pin": its symbol (art "pin_<pin>")}. Each scenario names its
+## place (Scenario.place); scenarios on the same map share one.
+const PLACES := {
+	"outpost": {"name": "The outpost", "at": Vector2(0.35, 0.2), "pin": "outpost"},
+	"guild_town": {"name": "The guild town", "at": Vector2(0.14, 0.47), "pin": "guild"},
+	"old_fort": {"name": "The old fort", "at": Vector2(0.69, 0.22), "pin": "fort"},
+	"battlefield": {"name": "The battlefield", "at": Vector2(0.54, 0.44), "pin": "battlefield"},
+	"refuge": {"name": "Fiona's refuge", "at": Vector2(0.73, 0.63), "pin": "grove"},
+	"capital": {"name": "The capital", "at": Vector2(0.42, 0.6), "pin": "palace"},
+	"abbey": {"name": "The drowned abbey", "at": Vector2(0.36, 0.8), "pin": "abbey"},
+}
+## The map's region names, laid over the picture: [text, at (share), font size (map units)].
+const REGIONS: Array = [
+	["VELIRON", Vector2(0.56, 0.78), 30],
+	["THE WILDERNESS", Vector2(0.5, 0.045), 18],
+	["KINGDOM OF\nKARMERE", Vector2(0.91, 0.27), 16],
+	["REPUBLIC OF\nLYRENNE", Vector2(0.91, 0.62), 16],
+	["THE HOLY DOMINION OF AURELITH", Vector2(0.55, 0.94), 18],
+	["THE\nWESTERN\nOCEAN", Vector2(0.045, 0.3), 13],
+]
 
 const PROGRESS_FILE := "user://campaign.json"
 ## The progress file's layout; a file of another format is ignored (read as no progress).

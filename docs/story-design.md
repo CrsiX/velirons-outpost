@@ -170,6 +170,25 @@ Veliron is a kingdom. Around it lie three rivals, each a different form of state
 
 Any of them, or several, could have sent the spies. The story never settles it. It may point at one in one scenario and at another in the next.
 
+## 4a. The map of Veliron
+
+Where things lie (the campaign map on the title screen, `ui-design.md`; `Campaign.PLACES`):
+
+- **Borders:** the ocean to the west; the **wilderness** to the north, beyond the **Wardline**, the chain of towers along the whole northern
+  border; the **Kingdom of Karmere** to the north-east, the **Republic of Lyrenne** along the middle and the south-east, the **Holy Dominion
+  of Aurelith** across the south. Veliron shares land borders with all three.
+- **The outpost** (scenarios 1, 2, 3 and 10): on the north road just below the Wardline, the middle of the north. The Wardline's ruins run
+  north from it to the border.
+- **The guild town** (4): the Silver Thread's harbour on the west coast.
+- **The old fort** (5): in the pass through the north-eastern mountains, on the inner Wardline, near Karmere.
+- **The battlefield** (6): the plain in the middle of the kingdom, where the armies met; the way east crosses it.
+- **Fiona's refuge** (7): in the eastern forest, near the border with Lyrenne.
+- **The capital and the Pale Court** (8, 11): in the heart of the kingdom, south of the middle.
+- **The drowned abbey** (9): on an island in the great lake in the south, near the Dominion's border.
+
+The places leave room between them for more later. Brenna's road: the outpost, the guild town, the old fort, the battlefield, the refuge,
+the court, the abbey, home again, the capital.
+
 ## 5. Monster categories
 
 There is **no single source** of monsters. Categories exist because each arrived for its own reason, and the library can group by them. The

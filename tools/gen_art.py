@@ -4448,6 +4448,188 @@ def well_dry():
     a.save("well_dry")
 
 
+# ---------------------------------------------------------------- the campaign map (title screen)
+
+MAP_W, MAP_H = 1200, 750  # Campaign.MAP_SIZE: the places are shares of this
+MAP_INK = "#4a3220"
+PARCH = "#dcc89c"
+PARCH_D = "#c9b183"
+
+
+def _map_mountain(a, x, y, s, rng):
+    h = s * rng.uniform(0.9, 1.25)
+    a.poly([(x - s, y), (x, y - h), (x + s, y)], "#cdb68a", MAP_INK, 1.3)
+    a.poly([(x, y - h), (x + s, y), (x + s * 0.25, y)], "#b39a6c", stroke=None)
+    a.line([(x - s * 0.35, y - h * 0.35), (x - s * 0.1, y - h * 0.62)], MAP_INK, 0.8, opacity=0.6)
+
+
+def _map_tree(a, x, y, s, pine):
+    if pine:
+        a.poly([(x - s * 0.6, y), (x, y - s * 1.6), (x + s * 0.6, y)], "#7d8a5a", MAP_INK, 1.0)
+    else:
+        a.line([(x, y), (x, y - s * 0.7)], MAP_INK, 1.0)
+        a.ellipse(x, y - s, s * 0.7, s * 0.6, "#8a9462", MAP_INK, 1.0)
+
+
+def _map_tower(a, x, y):
+    a.poly([(x - 4, y), (x - 4, y - 11), (x - 5.5, y - 11), (x - 5.5, y - 15), (x - 2, y - 15), (x - 2, y - 13), (x + 2, y - 13),
+            (x + 2, y - 15), (x + 5.5, y - 15), (x + 5.5, y - 11), (x + 4, y - 11), (x + 4, y)], "#cdb68a", MAP_INK, 1.1)
+
+
+def campaign_map():
+    """The parchment map of Veliron for the campaign page (docs/story-design.md §4a).
+    No writing: the names are labels laid over it in the game."""
+    rng = random.Random(9001)
+    a = Art()
+    W, H = MAP_W, MAP_H
+    a.poly([(0, 0), (W, 0), (W, H), (0, H)], PARCH, stroke=None)
+    for _ in range(40):  # stains and wear
+        a.ellipse(rng.uniform(0, W), rng.uniform(0, H), rng.uniform(30, 140), rng.uniform(20, 90), rng.choice([PARCH_D, "#e6d6ae"]), opacity=0.18)
+    # The neighbours: beyond dotted borders, a darker, quieter land.
+    east, south, split = 985, 668, 330
+    a.poly([(east, 78), (W, 78), (W, H), (0, H), (0, south), (east, south)], "#c4ab7c", stroke=None, opacity=0.55)
+    for (p0, p1) in [((east, 78), (east, south)), ((112, south), (W, south)), ((east, split), (W, split))]:
+        n = int(math.dist(p0, p1) / 14)
+        for i in range(n):
+            t0, t1 = i / n, (i + 0.45) / n
+            a.line([(p0[0] + (p1[0] - p0[0]) * t0, p0[1] + (p1[1] - p0[1]) * t0), (p0[0] + (p1[0] - p0[0]) * t1, p0[1] + (p1[1] - p0[1]) * t1)], MAP_INK, 2.0, opacity=0.7)
+    # The ocean in the west: a ragged coast, a bay for the guild's harbour, waves.
+    coast = []
+    for i in range(41):
+        y = H * i / 40
+        x = 118 + 10 * math.sin(i * 1.7) + rng.uniform(-6, 6)
+        if 330 < y < 380:
+            x -= 14  # the harbour's bay
+        coast.append((x, y))
+    a.poly([(0, 0)] + coast + [(0, H)], "#9fb0a6", stroke=None)
+    a.line(coast, MAP_INK, 2.0)
+    a.line([(x - 7, y) for (x, y) in coast], MAP_INK, 0.8, opacity=0.4)
+    for _ in range(26):
+        x, y = rng.uniform(14, 90), rng.uniform(20, H - 20)
+        a.line([(x, y), (x + 5, y - 3), (x + 10, y)], MAP_INK, 0.9, opacity=0.55)
+    # The wilderness in the north, hatched, with dead trees.
+    a.poly([(coast[0][0], 0), (W, 0), (W, 70), (coast[0][0], 70)], "#a8936a", stroke=None, opacity=0.6)
+    for k in range(int(W / 9)):
+        x = 125 + k * 9
+        a.line([(x, 70), (x + 26, 0)], MAP_INK, 0.8, opacity=0.35)
+    for _ in range(14):
+        x, y = rng.uniform(150, W - 30), rng.uniform(18, 60)
+        a.line([(x, y), (x, y - 12), (x - 4, y - 17)], MAP_INK, 1.0, opacity=0.7)
+        a.line([(x, y - 8), (x + 4, y - 13)], MAP_INK, 1.0, opacity=0.7)
+    # The Wardline: a chain of towers along the whole northern border.
+    a.line([(132, 82), (east, 82)], MAP_INK, 1.4, opacity=0.8)
+    for k in range(13):
+        _map_tower(a, 150 + k * 68, 88)
+    # Mountains: the north-east, round the fort's pass, and a few ranges elsewhere.
+    pts = []
+    for _ in range(60):
+        x, y = rng.uniform(720, 965), rng.uniform(115, 290)
+        if abs(x - 828) < 16 and y < 230:
+            continue  # the pass
+        pts.append((x, y, rng.uniform(10, 17)))
+    for _ in range(14):
+        pts.append((rng.uniform(1000, 1180), rng.uniform(110, 300), rng.uniform(9, 14)))
+    for _ in range(10):
+        pts.append((rng.uniform(230, 330), rng.uniform(520, 600), rng.uniform(8, 12)))
+    for (x, y, sz) in sorted(pts, key=lambda p: p[1]):
+        _map_mountain(a, x, y, sz, rng)
+    # Forests: the east (the refuge's), north woods, and the neighbours'.
+    trees = []
+    for _ in range(80):
+        trees.append((rng.uniform(800, 965), rng.uniform(390, 600), rng.random() < 0.5))
+    for _ in range(36):
+        trees.append((rng.uniform(170, 330), rng.uniform(115, 230), rng.random() < 0.7))
+    for _ in range(30):
+        trees.append((rng.uniform(1005, 1190), rng.uniform(360, 620), rng.random() < 0.4))
+    for _ in range(18):
+        trees.append((rng.uniform(560, 760), rng.uniform(560, 640), False))
+    for (x, y, pine) in sorted(trees, key=lambda t: t[1]):
+        _map_tree(a, x, y, 7, pine)
+    # A river from the north-eastern mountains down to the great lake, the lake and its island.
+    river = [(800, 270), (760, 320), (705, 360), (650, 400), (590, 455), (520, 520), (470, 560)]
+    a.line(river, "#7f9a94", 4.0)
+    a.line(river, MAP_INK, 0.8, opacity=0.5)
+    a.ellipse(432, 600, 118, 50, "#9fb0a6", MAP_INK, 1.6)
+    a.ellipse(432, 600, 106, 42, "#a8b8ae", stroke=None, opacity=0.6)
+    a.ellipse(432, 598, 22, 11, PARCH, MAP_INK, 1.2)
+    # A compass rose in the ocean, and the frame.
+    cx, cy = 58, 690
+    a.ellipse(cx, cy, 26, 26, "none", MAP_INK, 1.0)
+    for ang, ln in [(0, 30), (90, 30), (180, 30), (270, 30), (45, 16), (135, 16), (225, 16), (315, 16)]:
+        r = math.radians(ang)
+        tip = (cx + math.sin(r) * ln, cy - math.cos(r) * ln)
+        side = (cx + math.sin(r + 1.57) * 4, cy - math.cos(r + 1.57) * 4)
+        a.poly([(cx, cy), side, tip], "#e6d6ae" if ang % 90 else MAP_INK, MAP_INK, 0.8)
+    a.line([(cx - 3, cy - 40), (cx - 3, cy - 48), (cx + 3, cy - 40), (cx + 3, cy - 48)], MAP_INK, 1.4)
+    a.poly([(3, 3), (W - 3, 3), (W - 3, H - 3), (3, H - 3)], "none", MAP_INK, 3.0)
+    a.poly([(10, 10), (W - 10, 10), (W - 10, H - 10), (10, H - 10)], "none", MAP_INK, 1.0)
+    a.save("campaign_map", fixed=(0, 0, W, H))
+
+
+def _pin_base(a):
+    a.ellipse(0, 1.5, 22, 22, "#000", opacity=0.3)
+    a.ellipse(0, 0, 21, 21, "#efe2bf", MAP_INK, 2.2)
+    a.ellipse(0, 0, 17.5, 17.5, "none", MAP_INK, 0.8)
+
+
+def campaign_pins():
+    """The places on the campaign map: a parchment disc with an inked symbol each."""
+    a = Art(); _pin_base(a)  # the outpost: a walled village
+    a.poly([(-12, 8), (-12, -2), (12, -2), (12, 8)], "#cdb68a", MAP_INK, 1.4)
+    for x in (-12, -4, 4):
+        a.poly([(x, -2), (x, -5), (x + 3, -5), (x + 3, -2)], "#cdb68a", MAP_INK, 1.0)
+    a.poly([(-6, -2), (0, -12), (6, -2)], "#a0522d", MAP_INK, 1.4)
+    a.poly([(-2, 8), (-2, 3), (2, 3), (2, 8)], MAP_INK, stroke=None)
+    a.save("pin_outpost")
+    a = Art(); _pin_base(a)  # the guild town: an anchor
+    a.ellipse(0, -11, 3, 3, "none", MAP_INK, 1.8)
+    a.line([(0, -8), (0, 11)], MAP_INK, 2.4)
+    a.line([(-7, -4), (7, -4)], MAP_INK, 2.2)
+    a.line([(-10, 3), (-8, 9), (0, 12), (8, 9), (10, 3)], MAP_INK, 2.2)
+    a.save("pin_guild")
+    a = Art(); _pin_base(a)  # the old fort: a tower between peaks
+    a.poly([(-15, 10), (-8, -4), (-2, 10)], "#b39a6c", MAP_INK, 1.2)
+    a.poly([(2, 10), (9, -6), (15, 10)], "#b39a6c", MAP_INK, 1.2)
+    a.poly([(-4, 10), (-4, -6), (-6, -6), (-6, -11), (-2, -11), (-2, -8), (2, -8), (2, -11), (6, -11), (6, -6), (4, -6), (4, 10)], "#cdb68a", MAP_INK, 1.3)
+    a.save("pin_fort")
+    a = Art(); _pin_base(a)  # the battlefield: crossed swords
+    for sgn in (-1, 1):
+        a.line([(-11 * sgn, 11), (10 * sgn, -11)], MAP_INK, 2.6)
+        a.line([(-11 * sgn, 11), (10 * sgn, -11)], "#d8d0c0", 1.0)
+        a.line([(-9 * sgn, 4), (-3 * sgn, 10)], MAP_INK, 2.4)
+    a.save("pin_battlefield")
+    a = Art(); _pin_base(a)  # the refuge: a grove
+    for (x, s) in [(-7, 8), (7, 8), (0, 10)]:
+        a.line([(x, 12), (x, 3)], MAP_INK, 1.6)
+        a.ellipse(x, -2 if s == 10 else 1, s, s * 0.85, "#7d8a5a", MAP_INK, 1.3)
+    a.save("pin_grove")
+    a = Art(); _pin_base(a)  # the capital and the court: a crown
+    a.poly([(-12, 8), (-13, -8), (-6, -1), (0, -12), (6, -1), (13, -8), (12, 8)], "#c9a24a", MAP_INK, 1.5)
+    for x in (-13, 0, 13):
+        a.ellipse(x, -10 if x else -14, 2, 2, "#c94a3a", MAP_INK, 0.8)
+    a.line([(-12, 4), (12, 4)], MAP_INK, 1.0)
+    a.save("pin_palace")
+    a = Art(); _pin_base(a)  # the abbey: a chapel on water
+    a.line([(-15, 11), (-10, 9), (-5, 11), (0, 9), (5, 11), (10, 9), (15, 11)], "#5f7f7a", 1.6)
+    a.poly([(-8, 7), (-8, -3), (0, -9), (8, -3), (8, 7)], "#cdb68a", MAP_INK, 1.4)
+    a.line([(0, -9), (0, -17)], MAP_INK, 1.6)
+    a.line([(-3, -14), (3, -14)], MAP_INK, 1.6)
+    a.poly([(-2, 7), (-2, 1), (2, 1), (2, 7)], MAP_INK, stroke=None)
+    a.save("pin_abbey")
+    # A completed place: a red wax seal with a check.
+    rng = random.Random(77)
+    a = Art()
+    rim = []
+    for i in range(18):
+        ang = math.pi * 2 * i / 18
+        r = 13 + rng.uniform(-1.5, 1.5)
+        rim.append((math.cos(ang) * r, math.sin(ang) * r))
+    a.poly(rim, "#9a2a22", MAP_INK, 1.2)
+    a.ellipse(0, 0, 9, 9, "#b33a2e", "#7a1e18", 1.0)
+    a.line([(-5, 0), (-1.5, 4), (5.5, -4.5)], "#f0d8b0", 2.4)
+    a.save("map_seal")
+
+
 def cactus():
     a = Art()
     a.shadow(12, 5)
@@ -5494,6 +5676,8 @@ def biome_art():
     reeds()
     boulder()
     well_dry()
+    campaign_map()
+    campaign_pins()
     cactus()
     stump_charred()
     lava_rock()

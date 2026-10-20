@@ -19,6 +19,8 @@ func _init() -> void:
 	title = "The Betrayal"
 	blurb = "Brenna goes back to the fort in the pass where her company was left to its fate. Find out what happened there, and hold the pass while you do."
 	map_path = "res://data/maps/old_fort.json"
+	place = "old_fort"
+	portrait = "portrait_sigmund"
 
 	# The baseline: the fort whole and empty, its four huts, two barracks and
 	# training grounds inside; only Pell, his wagon (a peddler's stall again)

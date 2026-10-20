@@ -15,6 +15,8 @@ func _init() -> void:
 	title = "The Dead"
 	blurb = "On the plain where the armies met, the dead were never buried, and something is raising them. Help the old priest lay them to rest."
 	map_path = "res://data/maps/battlefield.json"
+	place = "battlefield"
+	portrait = "portrait_anselm"
 
 	# The baseline: a village of survivors on dry land (food is short), two
 	# gravediggers, Anselm in his house, a small garrison, Pell's wagon, the

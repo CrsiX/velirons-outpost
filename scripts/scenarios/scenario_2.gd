@@ -16,6 +16,8 @@ func _init() -> void:
 	title = "The Old Friend"
 	blurb = "Pell Dunmore, an old friend, comes up the road with his cart. Help him set up his stall, and hold the village while he tells you what became of the kingdom."
 	map_path = "res://data/maps/homecoming.json"  # (home, as in scenario 1)
+	place = "outpost"
+	portrait = "portrait_pell"
 
 	# The baseline: the village rebuilt, a farm and a camp, two manned
 	# watchtowers, no barracks yet; Pell lives in a hut; food is short.

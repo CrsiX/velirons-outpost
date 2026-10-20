@@ -71,7 +71,7 @@ func _run() -> void:
 		game.queue_free()
 		await frames(2)
 	check(Settings.difficulty == Settings.Difficulty.HARD and Settings.enemy_scale.is_empty(), "the player's difficulty is back, no scenario scale left, once the game is gone")
-	if only in ["", "1"]:
+	if only in ["", "1", "title"]:
 		await _title()
 	Settings.difficulty = diff
 	Engine.time_scale = 1.0
@@ -386,14 +386,50 @@ func _title() -> void:
 	var cb: Button = t.campaign_button
 	check(cb.is_visible_in_tree() and cb.get_index() == 0 and cb.icon == Art.tex("icon_campaign"), "Campaign comes first on the main page, with its banner")
 	cb.pressed.emit()
-	await frames(1)
-	check(t._campaign_page.visible and not t._main_page.visible, "it opens the campaign page")
-	var names: Array = t.scenario_buttons.map(func(b: Button) -> String: return b.text)
-	check(names == ["1. Homecoming", "2. The Old Friend", "3. The Wardline", "4. The Split", "5. The Betrayal", "6. The Dead", "7. The Exile", "8. The Pale Court", "9. The Drowned Abbey", "10. The Last Wardline", "11. The Crown"], "all eleven scenarios are there: %s" % str(names))
-	check(not t._campaign_page.get_children().any(func(c: Node) -> bool: return c is Label and (c as Label).text.contains("still to come")), "none still to come")
-	check(t.scenario_buttons[0].icon == Art.tex("icon_check") and t.scenario_buttons[1].icon == Art.tex("icon_check") and t.scenario_buttons[2].icon == null, "completed ones carry a check")
-	check(t.scenario_buttons[2].get_theme_stylebox("normal") != t.scenario_buttons[0].get_theme_stylebox("normal") and t.scenario_buttons.all(func(b: Button) -> bool: return b.visible), "the next one (3) is highlighted; a debug build shows all")
-	t.show_page(t._main_page)
+	await frames(2)
+	var cm: CampaignMap = t.campaign_map
+	check(cm.visible and not t._menu.visible, "it opens the campaign map over the whole screen")
+	var places := {}
+	for n in range(1, Campaign.count() + 1):
+		var sp := Campaign.scenario(n)
+		check(Campaign.PLACES.has(sp.place) and ResourceLoader.exists("res://art/%s.svg" % sp.portrait), "scenario %d has a place on the map and a portrait (%s)" % [n, sp.place])
+		places[sp.place] = true
+	check(places.size() == Campaign.PLACES.size(), "every place has a scenario")
+	check(cm.scenarios_at("outpost") == [1, 2, 3, 10] and cm.scenarios_at("capital") == [8, 11], "scenarios on the same map share a place")
+	var view := Rect2(Vector2.ZERO, cm.size)
+	check(Campaign.PLACES.keys().all(func(id: String) -> bool: return view.encloses(cm.pin(id).get_global_rect())), "the whole map and every pin fit the screen")
+	check(cm.card_open() and cm.selected == 3, "the card opens on the next to play (3)")
+	check(cm.rows.has(1) and cm.rows[1].icon == Art.tex("icon_check") and cm.rows[3].icon == null and not cm.play_button.disabled, "its place's scenarios: completed ones carry a check")
+	check(Campaign.PLACES.keys().all(func(id: String) -> bool: return not cm.unknown(id)), "a debug build: every place shown")
+	cm.step(1)
+	check(cm.selected == 4 and cm.rows.has(4) and not cm.rows.has(3), "a step: the next scenario, at its own place")
+	cm.pin("old_fort").pressed.emit()
+	check(cm.selected == 5, "a tap on a pin: its scenario")
+	var started := [0]
+	cm.play.connect(func(n: int) -> void: started[0] = n)
+	t.campaign_map.play.disconnect(t.play_scenario)
+	cm.play_button.pressed.emit()
+	check(started[0] == 5, "Play starts it")
+	cm.show_all = false
+	cm.open()
+	await frames(2)
+	check(cm.unknown("battlefield") and not cm.pin("battlefield").visible and not cm.unknown("outpost") and cm.unknown("guild_town"), "a release build: places not open aren't shown (1 and 2 done: only the outpost)")
+	check(cm.sealed("guild_town") == false and not cm.sealed("outpost"), "no seal where something is left to play")
+	Campaign.complete(4)
+	cm.open()
+	await frames(2)
+	check(cm.sealed("guild_town") and cm.selected == 5 and not cm.unknown("old_fort"), "4 done: the guild town sealed, the old fort open and next")
+	cm.show_card(10)
+	check(cm.play_button.disabled and cm.rows[10].text == "10. Locked", "a locked scenario: shown as locked, no Play")
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	Input.parse_input_event(esc)
+	await frames(2)
+	check(not cm.card_open() and cm.visible, "Esc: the card closes first")
+	Input.parse_input_event(esc)
+	await frames(2)
+	check(not cm.visible and t._menu.visible and t._main_page.visible, "then the map, back to the menu")
 	t.queue_free()
 	Campaign.reset_progress()
 	await frames(1)

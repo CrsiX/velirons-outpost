@@ -4,15 +4,15 @@ extends Control
 const EDITOR_SCENE := "res://scenes/map_editor.tscn"
 ## Title screen: a game playing itself behind (TitleBackdrop), game name and a menu in pages:
 ##   main         - Campaign, Singleplayer, Multiplayer, Tutorial, Library, Map Editor, Exit;
-##   Campaign     - the campaign's scenarios (Campaign), each with a line about it, Back;
+##   Campaign     - the campaign's map of Veliron (CampaignMap, over the whole screen);
 ##   Singleplayer - Continue (the newest single-player save, when there is one),
 ##                  Play, Load..., Difficulty, Map (a type, or a map file: Custom...),
 ##                  the village (a map file with several), seed, Back;
 ##   Multiplayer  - village name and colour, host / join, lobby (MultiplayerMenu).
 
 var campaign_button: Button
-## The campaign page's button per scenario (index 0: scenario 1).
-var scenario_buttons: Array[Button] = []
+## The campaign's map of Veliron (Campaign opens it).
+var campaign_map: CampaignMap
 var singleplayer_button: Button
 var multiplayer_button: Button
 var exit_button: Button
@@ -40,7 +40,6 @@ var backdrop: TitleBackdrop
 var _menu: VBoxContainer
 var _main_page: VBoxContainer
 var _sp_page: VBoxContainer
-var _campaign_page: VBoxContainer
 var _title: Label
 
 
@@ -82,7 +81,7 @@ func _ready() -> void:
 	add_child(_menu)
 
 	_main_page = _page()
-	campaign_button = _menu_button(_main_page, "Campaign", func() -> void: show_page(_campaign_page), "icon_campaign")
+	campaign_button = _menu_button(_main_page, "Campaign", open_campaign, "icon_campaign")
 	campaign_button.tooltip_text = "The story of Veliron's last outpost, scenario by scenario"
 	singleplayer_button = _menu_button(_main_page, "Singleplayer", func() -> void: show_page(_sp_page), "icon_singleplayer")
 	multiplayer_button = _menu_button(_main_page, "Multiplayer", func() -> void: show_page(mp_menu), "icon_multiplayer")
@@ -122,7 +121,6 @@ func _ready() -> void:
 	_sp_page.add_child(seed_edit)
 	_sp_page.move_child(seed_edit, map_button.get_index() + 1)
 	back_button = _menu_button(_sp_page, "Back", func() -> void: show_page(_main_page))
-	_build_campaign_page()
 	mp_menu = MultiplayerMenu.new()
 	_menu.add_child(mp_menu)
 	mp_menu.back_pressed.connect(func() -> void: show_page(_main_page))
@@ -141,6 +139,12 @@ func _ready() -> void:
 	save_list = SaveList.new()
 	add_child(save_list)
 	save_list.closed.connect(_update_sp_buttons)
+	campaign_map = CampaignMap.new()
+	add_child(campaign_map)
+	campaign_map.play.connect(play_scenario)
+	campaign_map.closed.connect(func() -> void:
+		_title.visible = true
+		_menu.visible = true)
 	mp_menu.save_list = save_list
 	get_viewport().size_changed.connect(_layout)
 	# Pages change height (Singleplayer, the multiplayer join page and lobby): fit again.
@@ -171,7 +175,7 @@ func _layout() -> void:
 	var want := ((0.28 if mp else 0.5) if portrait else (0.22 if mp else 0.42)) * vp.y
 	var title_bottom := _title.anchor_top * vp.y + (64.0 if portrait else 84.0) * 1.35
 	# Short screens: the main and Singleplayer pages' buttons get lower, so they fit under the title.
-	for page in [_main_page, _sp_page, _campaign_page]:
+	for page in [_main_page, _sp_page]:
 		var tall: bool = (page as Node).get_children().filter(func(c: Node) -> bool: return (c as CanvasItem).visible).size() * (64.0 + 14.0) + title_bottom + 20.0 <= vp.y
 		page.add_theme_constant_override("separation", 14 if tall else 8)
 		for c in page.get_children():
@@ -196,7 +200,6 @@ func _page() -> VBoxContainer:
 func show_page(page: VBoxContainer) -> void:
 	_main_page.visible = page == _main_page
 	_sp_page.visible = page == _sp_page
-	_campaign_page.visible = page == _campaign_page
 	if mp_menu:
 		mp_menu.visible = page == mp_menu
 	_layout.call_deferred()
@@ -282,39 +285,11 @@ func _start_save(path: String) -> void:
 		continue_label.add_theme_color_override("font_color", UiTheme.BAD)
 
 
-## The campaign page: one button per scenario (its line as the tooltip), and how many are still to come (if any).
-## Completed scenarios carry a check, the next one to play is highlighted, and
-## (release builds) a scenario shows only once it is unlocked (Campaign.unlocked).
-func _build_campaign_page() -> void:
-	_campaign_page = _page()
-	var done := Campaign.completed()
-	var next := Campaign.next_to_play(done)
-	var locked := 0
-	for n in range(1, Campaign.count() + 1):
-		var spec := Campaign.scenario(n)
-		var b := _menu_button(_campaign_page, "%d. %s" % [n, spec.title], play_scenario.bind(n), "icon_check" if Campaign.is_completed(n, done) else "")
-		b.tooltip_text = spec.blurb
-		if n == next:
-			UiTheme.style_primary(b)
-		b.visible = Campaign.unlocked(n, done)
-		if not b.visible:
-			locked += 1
-		scenario_buttons.append(b)
-	if locked > 0:
-		_campaign_note("Complete a scenario to unlock the next (%d still locked)." % locked)
-	if Campaign.count() < Campaign.PLANNED:
-		_campaign_note("Scenarios %d to %d are still to come." % [Campaign.count() + 1, Campaign.PLANNED])
-	_menu_button(_campaign_page, "Back", func() -> void: show_page(_main_page))
-
-
-func _campaign_note(text: String) -> void:
-	var l := Label.new()
-	l.text = text
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.add_theme_font_size_override("font_size", 16)
-	l.add_theme_color_override("font_color", UiTheme.MUTED)
-	_campaign_page.add_child(l)
+## The campaign's map, over the whole screen (the title and menu hidden meanwhile).
+func open_campaign() -> void:
+	_title.visible = false
+	_menu.visible = false
+	campaign_map.open()
 
 
 ## Scenario `n` of the campaign (docs/scenarios-design.md): its own map, village and story.

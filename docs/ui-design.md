@@ -41,9 +41,24 @@ Big touch targets everywhere, so mouse and fingers work the same.
   (`user://player.cfg`).
 - **Multiplayer page:** `MultiplayerMenu` (docs/multiplayer-design.md). The title screen opens on it
   when a LAN session is still open (coming back from a game).
-- **Campaign page:** one button per built scenario ("1. Homecoming") (its line, `Scenario.blurb`, only as the tooltip: nothing under
-  the buttons), a "still to come" line while scenarios are missing, Back (Esc too). A scenario button sets `Settings.scenario_next`
-  and starts the game scene (docs/scenarios-design.md §7).
+- **Campaign map** (`CampaignMap`, `scripts/ui/campaign_map.gd`): *Campaign* opens a full-screen map of the kingdom over the darkened
+  backdrop instead of a list, so it scales to any number of scenarios and any screen. The places are in docs/story-design.md §4a.
+  - *The map:* one parchment picture (`campaign_map`, made by `gen_art.py`: coast and ocean in the west, the hatched wilderness beyond
+    the Wardline's towers in the north, the neighbours beyond dotted borders, mountains, forests, rivers, the great lake), always shown
+    whole, scaled to fit with dark edges round it (`Campaign.MAP_SIZE`). Region names (Veliron, the neighbours, the ocean, the
+    wilderness) are labels laid over it, so they stay sharp and can be translated.
+  - *Places* (`Campaign.PLACES`: a name, a spot on the map as a share of its size, a symbol): each scenario names its place
+    (`Scenario.place`); scenarios on the same map share one (the outpost: 1, 2, 3 and 10; the capital: 8 and 11). A place is a round
+    pin (`pin_<symbol>`, at least a finger's size) with its name and its scenarios' numbers under it. Brenna's route joins the places
+    in the scenarios' order: ink where the later scenario is completed, dashes where it is still ahead.
+  - *Progress on the map:* a place none of whose scenarios is unlocked isn't shown at all: no pin, no name, no route to it, just the
+    empty map there (release builds; debug builds show everything); a place whose scenarios are all completed carries a red wax seal (`map_seal`); the place of the next
+    scenario to play pulses.
+  - *Choosing:* a tap on a pin opens a parchment card beside it (portrait: a sheet along the bottom): the place, its scenarios as rows
+    ("3. The Wardline", a check when completed, "Locked" when not yet open), and for the chosen one its portrait
+    (`Scenario.portrait`), its line (`Scenario.blurb`) and **Play** (sets `Settings.scenario_next` and starts the game scene). It
+    opens on the next scenario to play. The arrow keys step through the open scenarios in order, Enter plays, Esc closes the card,
+    then the map; *Back* in the corner.
   - **Progress** (`Campaign.completed`, `user://campaign.json`): a won scenario is remembered as completed, by its title, on this
     device. Completed ones carry a check (`icon_check`); the next to play (the one after the highest completed, `next_to_play`) is in
     primary style. In a release build a scenario shows only once it is unlocked (`Campaign.unlocked`: the first, one after a completed
