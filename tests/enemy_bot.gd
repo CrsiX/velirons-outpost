@@ -42,6 +42,7 @@ func _run() -> void:
 	await _test_slimes()
 	await _test_spiders()
 	await _test_wrathwood()
+	await _test_vultures()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -1189,3 +1190,125 @@ func _test_wrathwood() -> void:
 	trees.calm_until[v.id] = 0
 	trees.allowed = false
 	game.waves.wave = wave0
+
+
+# --- vultures (docs/enemies-design.md §15d) ---------------------------------------------------
+
+func _test_vultures() -> void:
+	await clear_enemies()
+	await clear_corpses()
+	var w := game.waves
+	var vc: Dictionary = Config.VULTURES
+	var sp: Dictionary = Config.ENEMIES["vulture"]
+	check(sp["flying"] and sp.get("own_way", false) and sp["gold_on_kill"] == 2 and sp["gold_on_collect"] == 0 and sp["food_on_collect"] == 3 and not Config.WAVE_MIX.has("vulture"), "a vulture: a flyer with its own way, 2 gold; its corpse 3 food, no gold; not in the wave mix")
+	var s6: Scenario = load("res://scripts/scenarios/scenario_6.gd").new()
+	check(int(vc["from_wave"]) == 6 and w.vultures_from == 6 and s6.vultures_from_wave == 4, "vultures from wave 6 (scenario 6: from wave 4)")
+	# Packs: one per per_corpses edible corpses at the wave's start, at most max_packs.
+	var spot := Vector2(road_out(12))
+	var lay := func(n: int, kind: String = "goblin") -> void:
+		for i in n:
+			game.corpses.spawn(kind, w.wave, spot + Vector2(0.2 * (i % 5), 0.2 * floorf(i / 5.0)))
+	lay.call(4)
+	lay.call(3, "vulture")
+	lay.call(1, "wrathwood")
+	var none := w._vulture_packs(6, 1.0)
+	lay.call(1)
+	var early := w._vulture_packs(5, 1.0)
+	var one := w._vulture_packs(6, 1.0)
+	var packs := {}
+	for e in one:
+		packs[e["pack"]] = true
+	var edge_ok := one.all(func(e: Dictionary) -> bool:
+		var t: Vector2i = e["spawn"]
+		return e["kind"] == "vulture" and (t.x == 0 or t.y == 0 or t.x == game.map.size - 1 or t.y == game.map.size - 1))
+	check(none.is_empty() and early.is_empty() and packs.size() == 1 and one.size() >= int(vc["pack"][0]) and one.size() <= int(vc["pack"][1]) and edge_ok, "4 edible corpses (vultures' and the log don't count): none; 5: one pack of %d at the map's edge; none before wave 6" % one.size())
+	lay.call(20)
+	packs.clear()
+	for e in w._vulture_packs(6, 1.0):
+		packs[e["pack"]] = true
+	check(packs.size() == int(vc["max_packs"]), "25 corpses: %d packs at most (%d)" % [int(vc["max_packs"]), packs.size()])
+	await clear_corpses()
+	# The sky: open land and deep water, never forest or mountains.
+	var pathing := game.world.pathing
+	var deep := Vector2i(-1, -1)
+	var wood := Vector2i(-1, -1)
+	for y in game.map.size:
+		for x in game.map.size:
+			var t := Vector2i(x, y)
+			if deep.x < 0 and game.map.is_deep(t) and game.map.building_at(t) == null:
+				deep = t
+			if wood.x < 0 and (game.map.is_forest(t) or game.map.get_terrain(t) == MapData.Terrain.MOUNTAIN):
+				wood = t
+	var edge := pathing.sky_edge(Vector2i(spot.round()))
+	var way := pathing.sky_path(edge, Vector2i(spot.round()))
+	var way_ok := way.size() > 1
+	for p in way:
+		way_ok = way_ok and pathing.sky_open(Vector2i(p.round())) and not game.map.is_forest(Vector2i(p.round()))
+	check((deep.x < 0 or pathing.sky_open(deep)) and (wood.x < 0 or not pathing.sky_open(wood)) and way_ok, "vultures fly over open land and deep water, never forest or mountains (a way of %d tiles from the edge)" % way.size())
+	# Flying in, landing, eating.
+	var meal := game.corpses.spawn("goblin", w.wave, spot)
+	var v := spawn("vulture", Vector2(edge))
+	v.speed = v.base_speed
+	var vb := v.behavior as VultureBehavior
+	var alive0: int = w._alive
+	check(vb != null and v.flies() and not v.landed, "a vulture flies")
+	var landed := await wait_until(func() -> bool: return v.landed or v.dead, 90.0)
+	check(landed and v.landed and not v.flies() and v.grid_pos.distance_to(meal.grid_pos) < 0.6 and vb.pack.target == meal, "it flies to the corpse and lands on it: a ground target now")
+	var base_hp := v.max_hp
+	vb.finish_meal(v, 0.9)
+	check(v.fed == 1 and absf(v.max_hp - base_hp * 1.25) < 0.01 and absf(v.power - 1.25) < 0.01 and game.corpses.corpses.has(meal), "a meal: +25 %% HP and damage; this time the corpse stays (%d meals, %.1f HP)" % [v.fed, v.max_hp])
+	for i in 6:
+		vb.finish_meal(v, 0.9)
+	check(v.fed == int(vc["max_meals"]) and absf(v.max_hp - base_hp * 2.0) < 0.01 and absf(v.power - 2.0) < 0.01, "at most %d meals: twice as strong (%.1f HP)" % [int(vc["max_meals"]), v.max_hp])
+	vb.finish_meal(v, 0.1)
+	await frames(3)
+	check(not is_instance_valid(meal) or not game.corpses.corpses.has(meal), "after a meal the corpse may be gone (vanish_chance)")
+	await frames(5)
+	check(not v.landed, "nothing left to eat: it takes off")
+	# Hurt by a tower it flees; hurt by one of ours in the field it turns on them.
+	var tw: Tower = game.world.towers()[0]
+	vb.on_damaged(v, tw)
+	check(vb._flee_until > game.clock and vb._flee_to.distance_to(tw.act_center()) >= tw.range_tiles(), "shot at by a tower it flees out of its range")
+	vb._flee_until = -INF
+	game.hero.add_to_group("melee_defenders")  # (benched: out of it)
+	vb.on_damaged(v, game.hero)
+	game.hero.remove_from_group("melee_defenders")
+	check(vb.state == VultureBehavior.State.CHASE and vb._foe_hit == game.hero, "hurt by the hero it turns on her")
+	vb.state = VultureBehavior.State.FLY
+	vb._foe_hit = null
+	# No corpse anywhere: it searches, then leaves the map (no corpse, no gold).
+	var how := []
+	v.killed.connect(func(_e: Enemy) -> void: how.append("killed"))
+	v.vanished.connect(func(_e: Enemy) -> void: how.append("vanished"))
+	var seen := [v]
+	var gone := await wait_until(func() -> bool: return not is_instance_valid(seen[0]) or (seen[0] as Enemy).dead, float(vc["search_time"]) + 120.0)
+	await frames(2)
+	check(gone and how == ["vanished"] and w._alive == alive0 - 1 and game.corpses.corpses.is_empty(), "with nothing left it searches, then flies off the map: gone, not killed (no gold), no corpse (%s)" % str(how))
+	# Killed: a corpse vultures never eat; a necromancer raises it, and it is a vulture again.
+	var v2 := spawn("vulture", spot)
+	kill(v2, game.hero)
+	await frames(2)
+	var vc2: Corpse = null
+	for c in game.corpses.corpses:
+		if c.kind == "vulture":
+			vc2 = c
+	check(vc2 != null and not VulturePack.edible(vc2), "a dead vulture leaves a corpse that vultures never eat")
+	var nec := spawn("necromancer", spot + Vector2(0.5, 0.0))
+	var risen := w.raise_corpse(vc2, nec)
+	kill(nec)
+	await frames(3)
+	check(risen != null and risen.raised and risen.behavior is VultureBehavior and (risen.behavior as VultureBehavior).pack != null, "raised, it is a vulture with a pack of its own")
+	kill(risen)
+	await frames(2)
+	# The campaign's fallen are food too: an eaten one is lost.
+	var fallen := game.corpses.spawn_fallen(spot)
+	var v3 := spawn("vulture", spot)
+	var vb3 := v3.behavior as VultureBehavior
+	vb3._land(v3, fallen)
+	var n_logs := logs.size()
+	vb3.finish_meal(v3, 0.1)
+	await frames(2)
+	check(VulturePack.edible(fallen) == false and logs.slice(n_logs).any(func(l: String) -> bool: return "eaten one of the fallen" in l), "the fallen are edible: an eaten one is lost (logged)")
+	kill(v3)
+	await clear_enemies()
+	await clear_corpses()

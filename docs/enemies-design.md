@@ -18,6 +18,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   - `rat_behavior.gd`, `thief_behavior.gd`, `necromancer_behavior.gd`, `vampire_behavior.gd`;
   - `spider_mother_behavior.gd` (extends `MeleeBehavior`) and `egg_behavior.gd` (her eggs);
   - `wrathwood_behavior.gd`: the wrathwood (§15c), woken by `scripts/systems/wrathwoods.gd`;
+  - `vulture_behavior.gd` + `vulture_pack.gd`: vultures (§15d), sent by `Waves._vulture_packs`;
   - `camp_behavior.gd`: monster-camp and lair guards (set by the camp, not by config).
 - `scripts/systems/waves.gd` (`Waves`): countdown, wave make-up, spawning, rat packs, lair
   themes, the co-op extra, raising corpses, slime splits, spider eggs (laying, hatching), kill gold.
@@ -123,7 +124,9 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 
 - A flyer is a kind with `"flying": true` (the gargoyle) or a vampire in bat form
   (`Enemy.airborne`). `Enemy.flies()` covers both.
-- It keeps to the roads, but no ground slows it (swamp, shallow water, fords).
+- It keeps to the roads, but no ground slows it (swamp, shallow water, fords). Vultures fly
+  their own way instead (§15d), and while one has landed to eat (`Enemy.landed`) it is no
+  flyer: melee reaches it.
 - It's drawn bobbing with beating wings (`unit_<art>_flap`) over a shadow on the ground.
 - Only ranged attacks (towers, archers, mages, with their slows and pushes) and fire elementals
   can go for it. The hero, ground soldiers and earth elementals don't target flyers. Barracks
@@ -142,6 +145,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 - Corpses rot after `CORPSE_LIFETIME` (240 s). All corpses of wave N and older go once wave N+1
   is finished. In the tutorial they don't rot.
 - Necromancers can raise corpses (§14), except a necromancer's own (`"revivable": false`).
+- Corpses left lying at a wave's start draw vultures (§15d), which eat them.
 
 ## 7. At the village (raids)
 
@@ -445,6 +449,68 @@ it is woken on the map (`Wrathwoods`, `scripts/systems/wrathwoods.gd`; numbers i
   position, home tile, the forester and camp it is after (nids), wander time and home boost
   left, plus per village the trees its foresters felled and `calm_until`.
 - Library: one entry ("Wakes when a forester starts on a tree, from wave 8, rarely").
+
+## 15d. Vultures (Wilderness, animals)
+
+Carrion birds drawn by the dead the last wave left lying. They come for the corpses, not the
+village: every corpse they eat is loot the player loses, and they leave when there is nothing
+left to eat. Numbers: `Config.VULTURES` (the packs) and `ENEMIES.vulture` (the bird); code:
+`scripts/units/enemies/vulture_behavior.gd` (`VultureBehavior`, extends `MeleeBehavior`) and
+`vulture_pack.gd` (`VulturePack`: the pack's shared target and mode), `Waves._vulture_packs`.
+
+| Kind | HP | Speed | Damage / cooldown | Kill gold | Corpse | Resist |
+|---|---|---|---|---|---|---|
+| Vulture | 18 | 1.6 | 3 / 1.0 s | 2 | 3 food, no gold | projectile ×1.25, fire ×1.25, holy ×0.75 |
+
+- **When and how many** (`Waves._vulture_packs`, at the start of a wave, after the wave's mix,
+  rat packs and lairs: they never take a share of `WAVE_MIX`): from wave `from_wave` (6; a
+  scenario may set its own, `Scenario.vultures_from_wave`: scenario 6 from wave 4), per village,
+  count the **edible corpses** lying nearest that village (§ below). Packs = min(`max_packs`
+  (3), corpses / `per_corpses` (5), rounded down): fewer corpses, fewer vultures (0-4 corpses:
+  none). Each pack has `pack` (2-4) vultures, the wave's HP scale, and counts for the wave.
+- **Edible:** any corpse on the map except a vulture's (`never_eats`: vultures, the wrathwood's
+  log) and one sinking in deep water. The campaign's fallen (scenario 6) are edible: an eaten one
+  is lost like one that rose (logged at Important, "A vulture has eaten one of the fallen").
+- **Target and spawn:** each pack gets one target corpse (different ones while there are enough,
+  at random among its village's). It comes from the map's edge: the open edge tile nearest its
+  target from which it can fly there; its birds spawn there `gap` (0.4) s apart.
+- **Flight** (`Pathing.sky_path`): near-straight lines (A*, no road), over every tile a ground
+  unit can walk on plus deep water; never over forest, mountains (volcanoes), lava, buildings
+  or solid map objects (lairs, camps). No ground slows it. A flyer (§5) while in the air: only
+  ranged attacks, fire elementals and halberdiers reach it.
+- **The pack:** every bird flies to the pack's target. When the target is gone (eaten, gathered,
+  raised, rotted), the pack picks the edible corpse nearest to it (its birds' middle) and they
+  all fly there. None left: **search** for `search_time` (10) s, the birds spreading out within
+  `search_spread` (3) tiles; a corpse turning up meanwhile (a fresh kill) ends the search. Still
+  none: the pack **leaves**: it picks the edge tile nearest by flight (a flood fill over the
+  sky grid) and flies there; a bird is gone (`Enemy.vanish`: no corpse, no gold, it no longer
+  counts for the wave) once it has been out of every village's sight for `hidden_time` (3) s,
+  or once it has reached that edge tile and waited `hidden_time` there. Vultures never have to
+  be killed. A leaving pack doesn't turn back.
+- **Eating:** at its corpse a bird **lands** (`Enemy.landed`: a ground target now, melee can hit
+  it) and eats for `eat_time` (4) s; all of the pack try to eat the same corpse, each on its own
+  timer. When a bird's meal is done and the corpse is still there, it gets its share and then
+  the corpse goes with `vanish_chance` (50 %); otherwise it stays for the next. A bird whose
+  corpse went before its meal was done gets nothing and takes off with its pack. Each share
+  adds `grow` (25 %) of its starting max HP (and as much HP) and damage (`Enemy.power`), at most
+  `max_meals` (4) shares: twice as strong; it is drawn a little bigger with each.
+- **Fights only for itself and its corpse:**
+  - On its corpse it fights whoever comes within reach (`MeleeBehavior`: our fighters, a
+    villager outside), its meal paused meanwhile.
+  - Hurt by one of ours out in the field (the hero, a soldier on a sortie or walking, an
+    elemental: `melee_defenders`), it flies at that one and fights back until it or the foe
+    is down, or the foe is `chase` (6) tiles from the pack's target; then back to the pack.
+  - Hurt by what it can't reach (a tower: a `Building`), only that bird **flees**: out of the
+    tower's range plus `flee_margin` (1) tiles, and back to its pack once `flee_time` (8) s have
+    passed since its last such hit.
+  - It never breaks walls or gates, never goes for a gate, never burns a hut. Villagers run from
+    it like from any enemy (gatherers keep off corpses with vultures near: `Corpses.is_safe`).
+- **Killed:** `gold_on_kill` 2; its corpse brings 3 food and no gold. A necromancer can raise a
+  vulture's corpse: the raised bird is a pack of its own and does what vultures do. Vultures
+  never eat a vulture's corpse.
+- Co-op: each village's packs come for the corpses nearest it; clients see `landed` and the
+  growth (`Enemy.fed`) through the replicator.
+- Library: its own entry (from wave 6, the pack rule, eating and growth, leaving).
 
 ## 16. Monster-camp guards
 

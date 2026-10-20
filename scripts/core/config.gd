@@ -1587,6 +1587,21 @@ const ENEMIES := {
 		"wander_time": 20.0, "wander_radius": 3.0, "territory": 4.0, "leash": 6.0,
 		"grip_every": 8.0, "grip_radius": 1.6, "grip_cast": 0.6, "grip_time": 2.0,
 	},
+	# Carrion birds (Wilderness, animals; docs/enemies-design.md §15d): in packs
+	# for the corpses left lying (VULTURES: how many, eating, leaving). It flies
+	# its own way (`own_way`: no road; Pathing.sky_path) and lands to eat
+	# (`landed_art` while on the ground: melee can hit it then). It fights only
+	# for itself and its corpse; hurt by a tower it flees. Never at a gate.
+	# Each meal makes it stronger (VULTURES grow / max_meals).
+	"vulture": {
+		"name": "Vulture", "art": "vulture", "behavior": "vulture", "flying": true, "own_way": true,
+		"landed_art": "vulture_landed", "entry": "none", "siege": 0.0,
+		"desc": "Carrion birds that come for the dead left on the field. Every corpse they eat is loot lost, and each meal makes them stronger. They leave once nothing is left to eat.",
+		"hp": 18.0, "speed": 1.6,
+		"damage": 3.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 2, "gold_on_collect": 0, "food_on_collect": 3,
+		"resist": {"projectile": 1.25, "fire": 1.25, "holy": 0.75},
+	},
 	# --- water monsters (docs/aquatic-design.md; the shared rules are in AQUA) ---
 	# Every kind has a "habitat": "land" (the default), "amphibian" (roads and
 	# water: deep, shallow, fords, bridges; it leaves the water only onto a
@@ -1830,6 +1845,37 @@ const WRATHWOOD := {
 	"max_chance": 0.03,
 	"from_wave": 8,
 	"quiet_waves": 3,
+}
+
+## Vulture packs (docs/enemies-design.md §15d; Waves._vulture_packs,
+## VulturePack, VultureBehavior). At a wave's start, after its mix:
+##   from_wave ...... none before this wave (a scenario may set its own:
+##                    Scenario.vultures_from_wave)
+##   per_corpses .... one pack per this many edible corpses lying nearest the
+##                    village (rounded down) ...
+##   max_packs ...... ... at most this many
+##   pack ........... vultures per pack (from, to)
+##   gap ............ seconds between a pack's birds spawning
+##   never_eats ..... corpse kinds they leave alone (sinking ones too)
+##   eat_time ....... seconds a meal takes (landed on the corpse)
+##   vanish_chance .. after a finished meal the corpse is gone with this chance
+##   grow ........... each meal adds this share of its starting max HP (and as
+##                    much HP) and damage ...
+##   max_meals ...... ... for at most this many meals (4 x 25 %: twice as strong)
+##   search_time .... no corpse left: the pack searches this long ...
+##   search_spread .. ... spreading out this far, then leaves for the map's edge
+##   hidden_time .... leaving, a bird is gone after this long out of every
+##                    village's sight (or this long at the edge)
+##   chase .......... it fights back at one of ours in the field until that one
+##                    is this far from the pack's corpse
+##   flee_time ...... hurt by a tower it flees out of its range (+ flee_margin)
+##                    and comes back this long after the last hit
+const VULTURES := {
+	"from_wave": 6, "per_corpses": 5, "max_packs": 3, "pack": [2, 4], "gap": 0.4,
+	"never_eats": ["vulture", "wrathwood"],
+	"eat_time": 4.0, "vanish_chance": 0.5, "grow": 0.25, "max_meals": 4,
+	"search_time": 10.0, "search_spread": 3.0, "hidden_time": 3.0,
+	"chase": 6.0, "flee_time": 8.0, "flee_margin": 1.0,
 }
 
 ## The water monsters' shared rules (docs/aquatic-design.md):

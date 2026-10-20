@@ -3000,6 +3000,63 @@ def gargoyle(frame):
     a.save("unit_gargoyle" if frame == 0 else "unit_gargoyle_flap", fixed=(-31, -50, 31, 3))
 
 
+def vulture(frame):
+    """A vulture in flight: dark brown plumage, broad wings with spread finger
+    feathers, a white ruff, bald red head, hooked pale beak (the game draws
+    the shadow). Two frames: wings up / wings down."""
+    a = Art()
+    dark, mid, light = "#3a2a20", "#5a4232", "#7a5a44"
+    if frame == 0:  # wings up, wide
+        l = [(-5, -26), (-16, -38), (-28, -42), (-31, -39), (-33, -35), (-30, -33), (-31, -29), (-26, -28), (-18, -26), (-8, -21)]
+    else:  # wings down
+        l = [(-5, -24), (-16, -20), (-27, -14), (-30, -10), (-31, -6), (-27, -6), (-26, -2), (-21, -5), (-14, -12), (-7, -18)]
+    r = [(-x, y) for x, y in l]
+    for pts in (l, r):
+        a.poly(pts, dark, INK, 1.3)
+        a.line([pts[0], pts[3]], mid, 1.8)  # the wing's leading edge
+        for i in (4, 6):  # finger feathers
+            a.line([pts[i - 1], pts[i]], light, 0.9)
+    a.poly([(-6, -28), (6, -28), (4, -14), (0, -11), (-4, -14)], mid, INK, 1.3)  # body
+    a.poly([(-3, -14), (3, -14), (0, -8)], dark, INK, 1)  # tail
+    a.ellipse(0, -28, 5.5, 2.6, "#e8e0d0", INK, 0.9)  # white ruff
+    a.ellipse(0, -32.5, 3.6, 3.3, "#c86a5a", INK, 1.1)  # bald head
+    a.poly([(1.5, -32), (5.5, -31), (4, -28.5), (2, -30)], "#e0d4a8", INK, 0.8)  # hooked beak
+    a.ellipse(-0.6, -33.4, 0.8, 0.8, "#1a0f0a")
+    a.save("unit_vulture" if frame == 0 else "unit_vulture_flap", fixed=(-34, -50, 34, 3))
+
+
+def vulture_landed():
+    """A vulture on the ground, eating: hunched, wings half folded, bald red
+    head down at its meal."""
+    a = Art()
+    dark, mid = "#3a2a20", "#5a4232"
+    a.poly([(-13, -10), (-7, -24), (-2, -20), (-4, -8)], dark, INK, 1.3)  # wing, half folded
+    a.poly([(13, -10), (7, -24), (2, -20), (4, -8)], dark, INK, 1.3)
+    a.poly([(-7, -22), (6, -22), (8, -9), (0, -5), (-8, -9)], mid, INK, 1.4)  # body
+    a.poly([(-3, -7), (3, -7), (0, -1)], dark, INK, 1)  # tail
+    a.line([(-3, -6), (-4, 0)], INK, 1.6)  # legs
+    a.line([(3, -6), (4, 0)], INK, 1.6)
+    a.ellipse(5, -20, 4.5, 2.4, "#e8e0d0", INK, 0.9)  # ruff
+    a.line([(6, -20), (10, -14)], "#c86a5a", 2.6)  # neck bent down
+    a.ellipse(11, -12.5, 3.2, 2.8, "#c86a5a", INK, 1.1)  # bald head
+    a.poly([(12.5, -11.5), (15.5, -9.5), (13.5, -8.5), (12, -10)], "#e0d4a8", INK, 0.8)  # beak
+    a.ellipse(10.6, -13.4, 0.7, 0.7, "#1a0f0a")
+    a.save("unit_vulture_landed", fixed=(-34, -50, 34, 3))
+
+
+def corpse_vulture():
+    a = Art()
+    a.ellipse(0, 0, 18, 5.5, "#000", opacity=0.3)
+    a.poly([(-17, -1), (-6, -5), (-2, 1), (-14, 4)], "#3a2a20", INK, 1.1)  # spread wing
+    a.poly([(15, -1), (4, -5), (1, 1), (12, 4)], "#3a2a20", INK, 1.1)
+    a.ellipse(0, -1, 6, 3.6, "#5a4232", INK, 1.1)  # body
+    a.ellipse(7, -4, 3, 2.4, "#c86a5a", INK, 1)  # head
+    a.poly([(9, -4), (12, -3), (9.5, -2.5)], "#e0d4a8", INK, 0.7)
+    for x, y in ((-10, 6), (8, 6), (-3, 7)):  # loose feathers
+        a.line([(x, y), (x + 3, y - 1)], "#5a4232", 1.2)
+    a.save("corpse_vulture")
+
+
 def necromancer():
     """Black robe and hood, pale face, a staff with a skull and a green glow."""
     def extra(a, layer):
@@ -5596,6 +5653,10 @@ def main():
     vampire_bat(0)
     vampire_bat(1)
     corpse_vampire()
+    vulture(0)
+    vulture(1)
+    vulture_landed()
+    corpse_vulture()
     crab()
     corpse_crab()
     leviathan()

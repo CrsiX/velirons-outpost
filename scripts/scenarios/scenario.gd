@@ -125,6 +125,8 @@ var more_each_wave := {}
 var wave_gap := 30.0
 ## Amphibians (crabs, sirens) come out of the water only, never from the map edge.
 var amphibians_from_water := false
+## Vultures come for the corpses from this wave (-1: Config.VULTURES from_wave).
+var vultures_from_wave := -1
 
 # --- who speaks ---------------------------------------------------------------------------
 

@@ -367,6 +367,8 @@ func start() -> void:
 	w.buffer = spec.wave_gap
 	w.last_wave = 0 if spec.repeat_last else spec.waves.size()
 	w.amphibians_from_water = spec.amphibians_from_water
+	if spec.vultures_from_wave >= 0:
+		w.vultures_from = spec.vultures_from_wave
 	w.call_locked = spec.first_wave_waits and not spec.first_wave_call
 	for wave in spec.waves:
 		w.scripted.append(wave.duplicate(true))

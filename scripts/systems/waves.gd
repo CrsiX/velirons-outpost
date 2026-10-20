@@ -37,6 +37,8 @@ var buffer := Config.WAVE_BUFFER
 var last_wave := 0
 ## A scenario's rule: amphibians come from the water spawns only, never the edge.
 var amphibians_from_water := false
+## Vultures come for the corpses from this wave (Config.VULTURES; a scenario's own).
+var vultures_from: int = Config.VULTURES["from_wave"]
 ## Co-op client: [wave, countdown, in progress, enemies left, can call].
 var _net: Array = [0, 0.0, false, 0, true]
 var _queue: Array[Dictionary] = []
@@ -157,11 +159,61 @@ func _start_wave() -> void:
 				if i < sh.size():
 					_queue.append(sh[i])
 			i += 1
+	var vultures := _vulture_packs(n, hp_scale)  # (on top of the mix: first, they smell the dead)
+	vultures.append_array(_queue)
+	_queue.assign(vultures)
 	_spawn_timer = 0.5
 	game.log_all(EventLog.Level.INFO, "Wave %d begins: %d enemies" % [n, _queue.size()])
 	Sfx.play("horn", 0.0)
 	wave_started.emit(wave)
 	changed.emit()
+
+
+## Vulture packs for wave `n` (docs/enemies-design.md §15d), on top of the
+## wave's mix: per village, one pack per VULTURES per_corpses edible corpses
+## lying nearest it (at most max_packs), each pack with a target corpse of
+## its own (while there are enough) and coming from the map's edge nearest it
+## by flight, its birds `gap` s apart.
+func _vulture_packs(n: int, hp_scale: float) -> Array:
+	var out: Array = []
+	var vc: Dictionary = Config.VULTURES
+	if n < vultures_from:
+		return out
+	var by_village := {}
+	for c in game.corpses.corpses:
+		if not VulturePack.edible(c):
+			continue
+		var best: Village = null
+		for v in game.villages:
+			if best == null or c.grid_pos.distance_squared_to(Vector2(v.center)) < c.grid_pos.distance_squared_to(Vector2(best.center)):
+				best = v
+		var list: Array = by_village.get(best, [])
+		list.append(c)
+		by_village[best] = list
+	for v: Village in by_village:
+		var list: Array = by_village[v]
+		for i in range(list.size() - 1, 0, -1):  # (shuffled with the waves' own dice)
+			var j := _rng.randi_range(0, i)
+			var t = list[i]
+			list[i] = list[j]
+			list[j] = t
+		var packs := mini(int(vc["max_packs"]), list.size() / int(vc["per_corpses"]))
+		var sent := 0
+		for i in packs:
+			var target: Corpse = list[i % list.size()]
+			var edge := game.world.pathing.sky_edge(target.tile())
+			if edge == Vector2i(-1, -1):
+				continue
+			var pack := VulturePack.new(game, target)
+			for j in _rng.randi_range(int(vc["pack"][0]), int(vc["pack"][1])):
+				var sp := _spec("vulture", edge, hp_scale, v)
+				sp["pack"] = pack
+				sp["gap"] = float(vc["gap"])
+				out.append(sp)
+			sent += 1
+		if sent > 0:
+			v.events.info("Vultures are coming for the dead (%d pack%s)" % [sent, "" if sent == 1 else "s"])
+	return out
 
 
 ## One village's share of wave `n`: Config.wave_composition, shuffled so the
@@ -446,7 +498,7 @@ func _spawn(spec: Dictionary) -> Enemy:
 	var habitat := str(Config.ENEMIES[kind].get("habitat", "land"))
 	var amph := habitat == "amphibian"
 	var route: Array[Vector2i] = [spec["spawn"]]
-	if habitat != "water":  # (water-bound monsters have no route: their behavior moves them)
+	if habitat != "water" and not Config.ENEMIES[kind].get("own_way", false):  # (water-bound monsters and vultures have no route: their behavior moves them)
 		# Single player: the nearest gate, as ever. Co-op: the target village's gates.
 		var field := target.id if coop and game.world.pathing.enemy_distance(spec["spawn"], target.id, amph) < Pathing.UNREACHABLE else -1
 		route = game.world.pathing.enemy_route(spec["spawn"], _rng, field, amph)
@@ -458,6 +510,9 @@ func _spawn(spec: Dictionary) -> Enemy:
 		g.max_hp *= float(spec["hp_x"])
 		g.hp = g.max_hp
 	g.power = float(spec.get("power", 1.0))
+	if spec.has("pack") and g.behavior is VultureBehavior:
+		(g.behavior as VultureBehavior).pack = spec["pack"]
+		(spec["pack"] as VulturePack).members.append(g)
 	if habitat != "land" and not _aqua_logged.has(kind) and not _uncounted_next:
 		_aqua_logged[kind] = true
 		target.events.add(EventLog.Level.IMPORTANT if kind == "octopus" else EventLog.Level.INFO, str(Config.AQUA_FIRST.get(kind, "A %s comes out of the water!" % str(g.spec()["name"]).to_lower())))

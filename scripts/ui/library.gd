@@ -283,6 +283,12 @@ static func _enemies() -> Array[Dictionary]:
 			f.append("Walks through forest. Chases its forester, smashes his camp, then guards its old spot (attacks within %s tiles)" % _n(e["territory"]))
 			f.append("Heals %s %% of its HP per second near trees; now and then its roots hold everyone close by in place for %s s" % [_n(float(e["regrow"]) * 100.0), _n(e["grip_time"])])
 			f.append("Blows on buildings x%s" % _n(e["siege"]))
+		if kind == "vulture":
+			var vc := Config.VULTURES
+			f.append("From wave %d, for the corpses left lying at a wave's start: a pack of %d-%d for every %d corpses, at most %d packs (on top of the wave)" % [int(vc["from_wave"]), int(vc["pack"][0]), int(vc["pack"][1]), int(vc["per_corpses"]), int(vc["max_packs"])])
+			f.append("Flies its own way, over open land and water, never over forest or mountains. Lands to eat: on the ground melee reaches it")
+			f.append("A meal takes %s s; after each one the corpse is gone with a %d %% chance. Each meal: +%d %% HP and damage, at most %d meals" % [_n(vc["eat_time"]), roundi(100.0 * float(vc["vanish_chance"])), roundi(100.0 * float(vc["grow"])), int(vc["max_meals"])])
+			f.append("Fights only for itself and its corpse; shot at by a tower it flies off for %s s. With nothing left to eat it leaves the map" % _n(vc["flee_time"]))
 		if e.has("lays"):
 			var egg: Dictionary = Config.ENEMIES[e["lays"]]
 			f.append("Lays %d-%d eggs as she walks, the first time within %s tiles of a manned tower or barracks, then every %s s, %d clutches at most; each has %s HP and hatches into a %s after %s s" % [e["clutch"][0], e["clutch"][1], _n(e["lay_near"]), _n(e["lay_every"]), e["max_clutches"], _n(egg["hp"]), str(Config.ENEMIES[egg["hatch_into"]]["name"]).to_lower(), _n(egg["hatch_time"])])

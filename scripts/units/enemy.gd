@@ -27,6 +27,7 @@ const BEHAVIORS := {
 	"spider_mother": preload("res://scripts/units/enemies/spider_mother_behavior.gd"),
 	"egg": preload("res://scripts/units/enemies/egg_behavior.gd"),
 	"wrathwood": preload("res://scripts/units/enemies/wrathwood_behavior.gd"),
+	"vulture": preload("res://scripts/units/enemies/vulture_behavior.gd"),
 }
 ## How many tiles farther a low_priority enemy (a spider egg) counts for
 ## whoever picks a target: anything else in reach comes first.
@@ -87,6 +88,10 @@ var undead := false
 var shell := false
 ## Flying for now (a vampire in bat form): see set_airborne.
 var airborne := false
+## A flyer on the ground for now (a vulture eating): see set_landed.
+var landed := false
+## Meals eaten (a vulture: each one makes it bigger and stronger).
+var fed := 0
 ## A necromancer's spell on a corpse there (grid position; INF = none).
 var channel_to := Vector2.INF
 var _fly_t := 0.0
@@ -258,7 +263,7 @@ func attack_category() -> String:
 ## Flies (gargoyles; a vampire in bat form): keeps to the roads, but no
 ## ground slows it, and only ranged attacks and other flyers can go for it.
 func flies() -> bool:
-	return airborne or spec().get("flying", false)
+	return (airborne or spec().get("flying", false)) and not landed
 
 
 # --- water monsters (docs/aquatic-design.md) -------------------------------------------
@@ -503,6 +508,8 @@ func _set_moving(v: bool) -> void:
 func art_base() -> String:
 	if airborne:
 		return "vampire_bat"
+	if landed and spec().has("landed_art"):
+		return str(spec()["landed_art"])
 	return art_override if art_override != "" else str(spec()["art"])
 
 
@@ -525,6 +532,28 @@ func set_airborne(on: bool) -> void:
 			_land()
 		sprite.scale = Vector2(0.15, 0.15))
 	tw.tween_property(sprite, "scale", Vector2(0.5, 0.5), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## A flyer comes down (`on`: a vulture landing at its meal, a ground target
+## then) or takes off again.
+func set_landed(on: bool) -> void:
+	if landed == on:
+		return
+	landed = on
+	var flip := sprite.flip_h
+	Art.apply(sprite, "unit_" + art_base())
+	sprite.flip_h = flip
+	if landed:
+		_land()
+	else:
+		_take_off()
+	set_fed(fed)  # (Art.apply resets the size)
+
+
+## `n` meals eaten: drawn a little bigger with each (the stats: VultureBehavior).
+func set_fed(n: int) -> void:
+	fed = n
+	sprite.scale = Vector2(0.5, 0.5) * (1.0 + 0.08 * fed)
 
 
 ## Starts flying: a shadow on the ground under it (drawn first), bobbing.

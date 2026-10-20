@@ -65,6 +65,8 @@ func _init() -> void:
 	# (the waves come by themselves: the field is only safe for so long)
 	first_wave_waits = false
 	wave_gap = 45.0
+	# Vultures come for the fallen too (an eaten one is lost): bury them quickly.
+	vultures_from_wave = 4
 
 	speakers = {
 		"brenna": {"name": "Brenna", "portrait": "portrait_brenna", "color": Color("e0b46a")},

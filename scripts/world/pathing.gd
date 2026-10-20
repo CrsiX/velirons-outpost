@@ -36,6 +36,8 @@ var water_astar := AStarGrid2D.new()
 ## Walkable ground and forest (wrathwoods; docs/enemies-design.md §15c):
 ## made the first time one asks (wood_path), then kept in step by set_solid.
 var _wood: AStarGrid2D = null
+## The vultures' sky (sky_path): built on first use, kept up by set_solid.
+var _sky: AStarGrid2D = null
 
 
 func _init(p_map: MapData) -> void:
@@ -69,6 +71,8 @@ func set_solid(t: Vector2i, solid: bool) -> void:
 	astar.set_point_solid(t, blocked)
 	if _wood and map.in_bounds(t):
 		_wood.set_point_solid(t, blocked and not map.is_forest(t))
+	if _sky and map.in_bounds(t):
+		_sky.set_point_solid(t, not sky_open(t))
 	if map.in_bounds(t) and _walk[map.index(t)] != (0 if blocked else 1):
 		_walk[map.index(t)] = 0 if blocked else 1
 		version += 1
@@ -151,6 +155,80 @@ func _wood_open_near(t: Vector2i, near: Vector2) -> Vector2i:
 				best_d = Vector2(n).distance_squared_to(near)
 				best = n
 	return best
+
+
+## Can a vulture fly over `t` (docs/enemies-design.md §15d)? Any tile a
+## ground unit can walk on, and deep water; never forest, mountains, lava,
+## buildings or solid map objects.
+func sky_open(t: Vector2i) -> bool:
+	return map.in_bounds(t) and (not astar.is_point_solid(t) or (map.is_deep(t) and map.building_at(t) == null))
+
+
+func _sky_grid() -> AStarGrid2D:
+	if _sky == null:
+		_sky = AStarGrid2D.new()
+		_sky.region = Rect2i(0, 0, map.size, map.size)
+		_sky.cell_size = Vector2.ONE
+		_sky.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+		_sky.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+		_sky.default_estimate_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+		_sky.update()
+		for y in map.size:
+			for x in map.size:
+				_sky.set_point_solid(Vector2i(x, y), not sky_open(Vector2i(x, y)))
+	return _sky
+
+
+## A vulture's flight from `from` to `to` (near-straight, no roads; from and
+## to moved to the nearest open tile next to them). Empty when there's no way.
+func sky_path(from: Vector2i, to: Vector2i) -> PackedVector2Array:
+	var g := _sky_grid()
+	from = _sky_open_near(from, Vector2(to))
+	to = _sky_open_near(to, Vector2(from))
+	if from == Vector2i(-1, -1) or to == Vector2i(-1, -1):
+		return PackedVector2Array()
+	return g.get_point_path(from, to, false)
+
+
+## `t` if open sky, else its open neighbour nearest `near`, else (-1, -1).
+func _sky_open_near(t: Vector2i, near: Vector2) -> Vector2i:
+	if sky_open(t):
+		return t
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var n := t + Vector2i(dx, dy)
+			if sky_open(n) and Vector2(n).distance_squared_to(near) < best_d:
+				best_d = Vector2(n).distance_squared_to(near)
+				best = n
+	return best
+
+
+## The map-edge tile nearest `from` by flight (a flood fill over the open sky,
+## 8 neighbours), or (-1, -1): where vultures come from and leave to.
+func sky_edge(from: Vector2i) -> Vector2i:
+	var start := _sky_open_near(from, Vector2(from))
+	if start == Vector2i(-1, -1):
+		return start
+	var n := map.size
+	var seen := PackedByteArray()
+	seen.resize(n * n)
+	var queue: Array[Vector2i] = [start]
+	seen[start.y * n + start.x] = 1
+	var head := 0
+	while head < queue.size():
+		var t := queue[head]
+		head += 1
+		if t.x == 0 or t.y == 0 or t.x == n - 1 or t.y == n - 1:
+			return t
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var c := t + Vector2i(dx, dy)
+				if (dx != 0 or dy != 0) and map.in_bounds(c) and seen[c.y * n + c.x] == 0 and sky_open(c):
+					seen[c.y * n + c.x] = 1
+					queue.append(c)
+	return Vector2i(-1, -1)
 
 
 ## Can a wrathwood stand on `t` (walkable ground or forest)?
