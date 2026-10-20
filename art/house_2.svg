@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="253" height="209" viewBox="-63.16 -72.44 126.5 104.5">
+  <polygon points="0,-28.8 57.6,0 0,28.8 -57.6,0" fill="#3a3733" opacity="0.45"/>
+  <polygon points="-53.76,0 0,26.88 0,4.88 -53.76,-22" fill="#c2b49c" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
+  <polygon points="0,26.88 53.76,0 53.76,-22 0,4.88" fill="#9c8f7a" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
+  <polygon points="0,-48.88 53.76,-22 0,4.88 -53.76,-22" fill="#c2b49c" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
+  <polygon points="-44.8,-3.52 -38.4,-0.32 -38.4,-10.32 -44.8,-13.52" fill="#f0b04a" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
+  <polygon points="-10.24,13.76 -3.84,16.96 -3.84,6.96 -10.24,3.76" fill="#1c1916" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
+  <polygon points="11.52,13.12 17.92,9.92 17.92,-0.08 11.52,3.12" fill="#1c1916" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
+  <polygon points="30.72,3.52 37.12,0.32 37.12,-9.68 30.72,-6.48" fill="#1c1916" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
+  <polygon points="-32,10.88 -23.04,15.36 -23.04,0.36 -32,-4.12" fill="#2b1e14" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="0,-50.08 60.16,-20 30.08,-32.96 -30.08,-63.04" fill="#5a3228" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="53.76,-22 26.88,-34.56 0,4.88" fill="#9c8f7a" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="-30.08,-63.04 30.08,-32.96 0,10.08 -60.16,-20" fill="#6a3e30" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="-19.2,-43.6 -11.52,-39.76 -11.52,-61.76 -19.2,-65.6" fill="#77736c" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
+  <polygon points="-11.52,-39.76 -3.84,-43.6 -3.84,-65.6 -11.52,-61.76" fill="#5a5751" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
+  <polygon points="-11.52,-69.44 -3.84,-65.6 -11.52,-61.76 -19.2,-65.6" fill="#8b877f" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
+</svg>

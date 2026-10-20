@@ -13,6 +13,8 @@ const SCENARIOS: Array[Script] = [
 	preload("res://scripts/scenarios/scenario_7.gd"),
 	preload("res://scripts/scenarios/scenario_8.gd"),
 	preload("res://scripts/scenarios/scenario_9.gd"),
+	preload("res://scripts/scenarios/scenario_10.gd"),
+	preload("res://scripts/scenarios/scenario_11.gd"),
 ]
 
 ## How many the campaign will have (the menu lists the rest as to come).

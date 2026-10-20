@@ -1,6 +1,6 @@
 # Scenarios design
 
-Status: **scenarios 1 to 9 and the scenario system are built** (§7 says how, and what was decided for them); scenarios 10 and 11 are planned. This
+Status: **the whole campaign (scenarios 1 to 11) and the scenario system are built** (§7 says how, and what was decided for them). This
 page outlines the campaign: eleven scenarios that tell the story in `story-design.md` (read that first; names, places and the cause of the war are
 explained there). Everything about the scenarios not yet built is a draft. Numbers marked *target* are starting points to tune; a scenario's own
 numbers and texts go into its own file (`scripts/scenarios/scenario_<n>.gd`), not into `config.gd`. *Open* means not decided.
@@ -500,6 +500,15 @@ captain, and **Torben**, a comrade of her company. "I will free them."
 **Outro cutscene:** the legion stopped, only corpses remained. The marshal, dying, holds Brenna's hand: "Thank you." A messenger from Fiona
 arrives: she, the priests and the mages ride for the capital.
 
+
+**Decided:** the home map grown for scenario 3 (`wardline.json`), with every Wardline ruin standing restored and manned at the start (a
+prebuilt post can be a restored ruin: `"ruin"`). Sixteen waves; the Legion comes from wave 4 on, by every road. Lothar's demand after wave 3 is a
+choice again (surrendering loses). Fiona's word comes after wave 2, and Idris brings her three mages after wave 4 (a fire, an ice and a healing
+mage, into the reserve: `ScenarioRunner.give_units`). Torben leads wave 8 and Lysa wave 12 (captains: they fall back); wave 16 is Halvard's,
+with both of them. **Halvard** is a **commander** (a new Legion kind, `legion_marshal`, `CommanderBehavior`): Legion soldiers near him strike
+faster and take less damage (his command aura), and every so often he **rallies** fresh footmen down the roads while he lives; he can be killed.
+**Guild caravans** (`ScenarioRunner.caravan`: a cart along a road, which halts while an enemy is near it and pays its cargo at the gate) set out
+down the Wardline road at waves 3, 6, 9, 12 and 15. Einar is the named forester; whether he lives is not tracked. Built as §7.17.
 ### 11. The Crown
 
 **Where:** the capital's throne hall district: a **city**, with cobblestone streets and ruined and standing buildings, next to the throne hall.
@@ -539,6 +548,17 @@ which Rhodri is himself for a moment, she takes the First King's Hand and behead
 pieces, and a visible curse spreads through the throne hall, finds Fiona and goes through her whole body. She lets go of the sword and her eyes
 turn black. Cut: end of the campaign. What happens next is **open**. There is no branching.
 
+
+**Decided:** a hand-made map (`capital.json`, from Volcanic by the tool) with a new zone, the **city** (`Config.ZONES.city`: cobblestone
+ground; its blocked tiles are **houses**, standing and ruined, instead of peaks: mountain terrain with a house prop, `"peaks"`), ash land
+around it and a few steppe spots with trees. The **throne hall** is a landmark at the north road's end (a campaign treasure that can never be
+looted, `throne_hall`). The final camp: the village's walls half broken, Fiona at home in her house (a resident; her death is a defeat),
+Pell's stall, towers manned by Fiona's mages (bound: they take no orders). No farms (none can be built); a food caravan comes after every wave.
+Twelve waves, all categories, the Legion at full strength. **Rhodri** (`legion_king`) is a commander like Halvard, with a cleave like Rurik's;
+at 0 HP he is **downed**, not killed (`"downed"`): he keeps 1 HP, nothing can target him, and he falls back along his road into the throne hall
+and is gone. He comes out in wave 12 with **Lothar** (a named court champion with the herald's look), who can be killed. Won when wave 12 is
+over with Rhodri downed (the game's win sound). The outro's curse is an effect in the throne hall (`curse`) and Fiona's portrait with black eyes
+(`portrait_fiona_cursed`). Built as §7.18.
 ## 4. The tutorial inside scenarios 1 to 3
 
 The 13 steps of the current tutorial (`tutorial-design.md` section 3.3) are spread over the first three scenarios. The cards and highlights are
@@ -997,3 +1017,86 @@ The game has none of this yet, except where noted:
   octopus is dead or the crypt opens), the First King's Hand (waits for the unsealing; done when it is home). **Hints:** crab, someone in the
   octopus's arm, necromancer, vampire, the Legion, siren, the leviathan, Brenna badly hurt. **Objectives:** bring the Hand home; slay the
   leviathan; hold the village for 10 waves.
+
+### 7.16 What scenarios 10 and 11 added to the engine
+
+- **Commanders** (`Config.ENEMIES`, `CommanderBehavior`, campaign-only):
+  - *Legion Marshal* (`legion_marshal`; scenario 10's Halvard): 760 HP, speed 0.8, 16 damage every 1.4 s, projectile ×0.75, `siege` 2.
+    Every Legion soldier within `command_radius` 3 (himself too) strikes and shoots 1.3× as fast (`command_haste`) and takes ×0.75 damage
+    (`command_guard`, not on pure damage): `Enemy.haste` / `Enemy.guard` (`Enemy._lead`, every 0.5 s; the strongest banner or commander
+    counts). A double gold ring on the ground shows how far. Every 30 s (`rally_every`, the first after 20 s) while he lives and a wave
+    runs, he sends 2 footmen (`rally`) for the wave from a random edge spawn, logged. He can be killed (released). 80 gold.
+  - *The Crowned King* (`legion_king`; scenario 11's Rhodri): 1000 HP, speed 0.85, 18 damage every 1.4 s, cleave 0.6 within 1.3, command
+    radius 3.5 (×1.35 haste, ×0.7 damage), a rally of 2 footmen and a guardsman every 25 s (first after 15 s). `"downed"`: at 0 HP he keeps
+    1 HP, falls back (`Enemy.retreating`: untargetable) along his road ×1.4 as fast and vanishes at its end (no release).
+  - Art: `unit_legion_marshal` (dark plate, a pale mantle, a baton), `unit_legion_king` (the cold crown, a royal coat, a long sword).
+- **A restored ruin as a prebuilt post** (`Scenario.prebuilt`'s `"ruin": i`: the map's i-th ruin of that kind, nearest the village first,
+  in the map's order; `ScenarioRunner._restore_ruin`).
+- **Reinforcements:** `ScenarioRunner.give_units(list)` puts units into the reserve (and returns them).
+- **Scripted caravans** (`ScenarioRunner.caravan(near, cargo)`, `ScenarioCaravan`): a cart along the road from the edge spawn nearest
+  `near` to the gate, 1.2 tiles/s in game time; it halts while a wave's enemy is within 3.5 tiles of it (on again once none is within
+  4.5; greyed, logged at most every 20 s) and at the gate
+  pays its cargo (`delivered`). Enemies don't attack it.
+- **The city zone** (`Config.ZONES.city`, map format version 4, zone code `c`; never generated): cobblestone ground (`tile_cobble_0..2`),
+  rubble as decor (`city_rubble`), no farms; a zone's `"peaks"` stand on its mountain tiles instead of peaks (standing and ruined houses,
+  `house_0..2`, `house_ruin_0..1`), drawn on its own ground (`GroundLayer`), kept by the tidy-up (`MapTidy.peaks`) and offered by the
+  editor. Its roads never look like passes.
+- **Landmarks:** a campaign treasure with `"landmark"` (its panel line) can never be looted (`Treasure.landmark`): the `throne_hall` (3x3,
+  art `throne_hall`: a pale stone hall, a slate gable, cold-lit lancet windows, a tower with the crown's banner).
+- The burst `curse` (black-violet tendrils creeping out and a shadow rising, 2.4 s). Portraits: `portrait_halvard`,
+  `portrait_fiona_cursed`. The campaign page shows no "still to come" line once every planned scenario is built.
+- **Maps:** `tools/make_scenario_map.gd` makes a city (`"city"`: zones by distance, natural mountains in it levelled, houses in 3x3 blocks
+  between lanes every fourth row and column, off the roads and 4 tiles clear of the walls, steppe spots with trees, the throne hall by a
+  road near the edge).
+
+### 7.17 Scenario 10 as built (`scenario_10.gd`)
+
+- **Map:** `data/maps/wardline.json` (scenario 3's).
+- **Baseline:** Easy, enemies at 1.15; 450 gold, 260 food, 360 material; two builders, two farmers, Einar the forester, two gatherers,
+  Pell; every hut and piece standing; Pell's guild market (level 3), a second farm, barracks (level 3: a warrior 6, a halberdier 5, a
+  berserker 5), training grounds; the four Wardline towers restored and manned (a crossbowman 6, a swiftbowman 6, an archer 8, a swiftbowman
+  5; the first two at level 2) and the Wardline barracks (level 2: a shield bearer 7, an inquisitor 4); a watchtower on each road (a High
+  Priest 4, a crossbowman 5, a fire summoner 5); two wall towers (an archer 7, an acolyte 6); an archer and a shield bearer (5) in the
+  reserve. Brenna is level 16.
+- **Rules:** everything unlocked, recruiting open; specialising, training grounds; **no revive**; Pell must not die.
+- **Waves:** sixteen, from 3-4 roads: Wilderness first (goblins, orks, rats, thieves), witches, gargoyles and a slime in 3; the Legion
+  from wave 4 (footmen, archers, banner-bearers, guardsmen) with Undead and Evil (vampires, necromancers, spider mothers) growing to wave
+  16. **Torben** (a captain) leads wave 8, **Lysa** wave 12; wave 16 brings **Halvard** down the Wardline road with 2 guardsmen and a
+  banner-bearer, Torben and Lysa with him. Wave 1 waits to be called; 40 s between waves.
+- **Caravans:** a guild caravan (80 gold, 60 food, 100 material) sets out down the Wardline road when waves 3, 6, 9, 12 and 15 start.
+- **Story:** the intro (dusk on the wall, torches on every road; Lysa and Torben: "I will free them"; Einar: "Ah, my girl! How goes it?" /
+  "Father, the Legion is coming. Get everyone inside!"); after wave 1 Pell; after wave 2 Fiona's rider (her mages are coming); after wave 3
+  Lothar's **demand** (a choice: *Open the gates* loses); wave 4 the Legion's drums; after wave 4 Idris brings **Fiona's three mages** (a
+  fire, an ice and a healing mage, level 5, into the reserve); waves 8 and 12 Torben and Lysa; after wave 8 Brenna on Torben; wave 16
+  Halvard ("Then hold it."); his fall; the outro (Halvard, dying, holds Brenna's hand: "Thank you."; Fiona rides for the capital with the
+  priests, the mages and the Hand).
+- **Cards:** the line is manned (upgrade a unit), the guild's caravans (waits for the first; done when one is in), Fiona's mages (station
+  two), the marshal (bring him down). **Hints:** Legion archer, banner-bearer, captain, a caravan halted, the marshal's rally, spider
+  mother, Brenna badly hurt. **Objectives:** hold the village through 16 waves; bring down Halvard; bring in the guild's caravans
+  (optional).
+
+### 7.18 Scenario 11 as built (`scenario_11.gd`)
+
+- **Map:** `data/maps/capital.json` (*The Capital*; `make_scenario_map.gd -- 11`: Temperate, seed 1111, its unlock sites, lairs, camps
+  and mines taken out; a city 24 tiles round the village and 9 round the throne hall, ash land beyond, four steppe spots with oaks and
+  pines; the throne hall by the north road 3 road tiles from the edge).
+- **Baseline:** Easy, enemies at HP 1.25, damage 1.2; 520 gold, 240 food, 380 material; two builders, two foresters, two gatherers, Pell,
+  **Fiona** (a resident in her house); every hut; 5 walls, 3 gates, 2 wall towers at 70 %; Pell's stall (level 2), barracks (level 3: a
+  warrior 7, a halberdier 6, an inquisitor 6), a watchtower on each road manned by **Fiona's mages** (fire 7, ice 7, healing 6; bound:
+  no orders), a crossbowman 7 and an archer 8 on the wall towers; an archer, a shield bearer, an acolyte, a summoner and an apprentice (6)
+  in the reserve. Brenna is level 18.
+- **Rules:** **no farms** (none can be built, the city and ash land grow nothing); no worker camp at the start (no trees by the walls: the
+  player builds one by a grove); everything unlocked; no revive; Pell and Fiona must not die.
+- **Waves:** twelve, every category with the Legion at full strength. **Wave 12:** **Rhodri** (the king) comes out of the throne hall's
+  road with **Lothar** (a court champion with the herald's look, HP ×0.8), 3 guardsmen and a banner-bearer. Wave 1 waits to be called; 45
+  s between waves. After every wave but the last a **food cart** (70 food, 30 material) comes down the road farthest from the throne hall.
+- **Story:** the intro (Brenna gives Fiona the First King's Hand; the mages hold the ward, Pell the food; Rhodri on his throne smiles);
+  after wave 1 Pell on the carts; after wave 4 Rhodri's voice over the city ("I followed a man. Not a crown."); after wave 8 Fiona on her
+  brother; wave 12 Rhodri and Lothar come out ("Enough. I'll do it myself."); Rhodri at half HP ("Why does it hurt?"); Rhodri beaten,
+  fleeing into the throne hall; Lothar, the last of the court, falling; the outro (the empty throne hall; Rhodri, himself for a moment,
+  asks Fiona to do it; she beheads him with the Hand; the crown breaks, the curse spreads and goes into her; her eyes turn black; the end
+  of the campaign). Won with the game's win sound when wave 12 is over and Rhodri beaten.
+- **Cards:** the last camp (station the army: ten on posts), timber (a worker camp by a grove), no fields here (done with the first cart),
+  the king (beat him). **Hints:**
+  food short, banner-bearer, guardsman, spider mother, material short (the steppe trees), Brenna badly hurt. **Objectives:** hold the camp
+  for 12 waves; beat Rhodri.

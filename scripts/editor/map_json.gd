@@ -8,11 +8,11 @@ extends RefCounted
 ## of every problem and where it is.
 
 const FORMAT := "velirons-outpost-map"
-const VERSION := 3
+const VERSION := 4
 ## One character per tile; the index is the MapData.Terrain value.
 const TERRAIN_CODES := ".RFDMWSL"
 ## One character per tile; the index is the Config.ZONE_ORDER index.
-const ZONE_CODES := "mophswa"
+const ZONE_CODES := "mophswac"
 const PALETTE_LETTERS := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const UNDER := {"water": MapData.Terrain.WATER, "shallow": MapData.Terrain.SHALLOW, "lava": MapData.Terrain.LAVA}
 const PIECE_KINDS: Array[String] = ["wall", "gate", "wall_tower", "hut"]
@@ -42,7 +42,7 @@ const RUIN_BUILDINGS: Array[String] = ["tower", "barracks"]
 
 const LEGEND := {
 	"terrain": ". grass, R road, F forest, D desert, M mountain, W deep water, S shallow water, L lava",
-	"zone": "m meadow, o oak, p pine, h heath, s steppe, w swamp, a ash",
+	"zone": "m meadow, o oak, p pine, h heath, s steppe, w swamp, a ash, c city",
 	"slice": "0-7 the slice (village area) a tile belongs to",
 	"beach": "b beach, . none",
 	"props": ". none, else a letter of props.palette",

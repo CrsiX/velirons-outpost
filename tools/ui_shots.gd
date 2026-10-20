@@ -121,6 +121,8 @@ func _run() -> void:
 		await _exile()
 	if only in ["", "court"]:
 		await _court()
+	if only in ["", "crown"]:
+		await _crown()
 	if only in ["", "spiders"]:
 		await _spiders()
 	if only in ["", "undead_spiders"]:
@@ -1151,6 +1153,67 @@ func _court() -> void:
 	g.camera.focus(lev.position)
 	await _frames(40)
 	await shot("court_s9_leviathan")
+	g.queue_free()
+	await _frames(3)
+
+
+# --- scenarios 10 and 11: the marshal, the capital, the king ----------------------------------
+
+func _crown() -> void:
+	var g := await _scenario_game(10)
+	var sc := g.scenario
+	await _cut_to_line(sc, "einar")
+	await shot("crown_s10_einar")
+	sc.cutscene.skip()
+	await _frames(30)
+	var v := g.player_village
+	var road: Array[Vector2i] = sc.spec._north_road(sc)
+	var at: Vector2i = road[road.size() - 14]
+	g.fog.reveal(Vector2(at), 6.0, v.id)
+	var cv := sc.caravan(sc.spec._north_spawn(sc), {"gold": 80})
+	cv.progress = float(road.size() - 18)
+	for k in ["legion_footman", "legion_banner", "legion_footman", "legion_marshal", "legion_guard"]:
+		var e := g.waves.spawn_at(k, at, v, 1)
+		if k == "legion_marshal":
+			e.set_identity("Halvard", "")
+		await _frames(25)
+	g.camera.focus(Iso.to_world(Vector2(road[road.size() - 11])))
+	g.camera.zoom = Vector2(1.3, 1.3)
+	await _frames(40)
+	await shot("crown_s10_halvard")
+	g.queue_free()
+	await _frames(3)
+	g = await _scenario_game(11)
+	sc = g.scenario
+	await _cut_to_line(sc, "", "He smiles")
+	await shot("crown_s11_throne")
+	sc.cutscene.skip()
+	await _frames(30)
+	v = g.player_village
+	g.fog.reveal(Vector2(v.center), 16.0, v.id)
+	g.camera.focus(Iso.to_world(Vector2(v.center) + Vector2(-6, -6)))
+	g.camera.zoom = Vector2(0.6, 0.6)
+	await _frames(60)
+	await shot("crown_s11_city")
+	var hall: Treasure = sc.spec._hall(sc)
+	g.fog.reveal(Vector2(hall.tile), 9.0, v.id)
+	var king := g.waves.spawn_at("legion_king", sc.spawn_near(hall.tile), v, 12)
+	king.set_identity("Rhodri", "")
+	var lothar := g.waves.spawn_at("legion_champion", sc.spawn_near(hall.tile), v, 12)
+	lothar.set_identity("Lothar", "herald")
+	await _frames(90)
+	g.camera.focus(Iso.to_world(Vector2(hall.tile) + Vector2(1, 3)))
+	g.camera.zoom = Vector2(1.0, 1.0)
+	g.select(hall)
+	await _frames(30)
+	await shot("crown_s11_rhodri")
+	g.deselect()
+	Combat.burst(g, "curse", Iso.to_world(Vector2(hall.tile) + Vector2(1, 3.2)), 3.0)
+	await _frames(40)
+	await shot("crown_s11_curse")
+	sc.play_scene([{"say": "cursed", "text": "..."}])
+	await _frames(40)
+	await shot("crown_s11_fiona")
 	g.queue_free()
 	await _frames(3)
 

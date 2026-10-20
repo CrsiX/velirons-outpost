@@ -43,14 +43,21 @@ func guard() -> MonsterCamp:
 	return camp if camp and not camp.cleared else null
 
 
+## What it is if it is no treasure but a place to see (the throne hall), or "".
+func landmark() -> String:
+	return "" if data.get("sack", false) else str(Config.TREASURES[data["treasure"]].get("landmark", ""))
+
+
 ## Can the hero go for it now?
 func lootable() -> bool:
-	return not looted and not sealed and guard() == null and (claimed_by == null or not is_instance_valid(claimed_by))
+	return not looted and not sealed and landmark() == "" and guard() == null and (claimed_by == null or not is_instance_valid(claimed_by))
 
 
 func found_message(_v: Village) -> String:
 	if looted:
 		return ""
+	if landmark() != "":
+		return "Found the %s." % display_name().to_lower()
 	if guard() != null:
 		return "Found %s, guarded by a %s. Clear the camp first (tap it: Attack with the hero)." % [_a_name(), guard().display_name().to_lower()]
 	if sealed:
@@ -134,7 +141,9 @@ static func reward_text(r: Dictionary) -> String:
 func info() -> Dictionary:
 	var d := super.info()
 	var lines: Array[String] = d["lines"]
-	if looted:
+	if landmark() != "":
+		lines.append(landmark())
+	elif looted:
 		lines.append("Looted.")
 	else:
 		lines.append("Treasure: %s." % ("something valuable" if reward().is_empty() else "worth looting"))

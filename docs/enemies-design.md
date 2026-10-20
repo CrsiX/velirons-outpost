@@ -476,6 +476,12 @@ the map the way it came. Named ones (Lysa, Torben) carry a name and art of their
   (3.2, below a level 1 watchtower), arrows as projectiles; the **guardsman** takes half from projectiles;
   the **banner-bearer** hastes every Legion soldier within `banner_radius` (`Enemy.haste`: ×1.25); the
   **court champion** (scenario 8's Rurik) cleaves (`EnemyBehavior.cleave`). docs/scenarios-design.md §7.13.
+- **Commanders** (`CommanderBehavior`; scenario 10's marshal Halvard, `legion_marshal`, and scenario 11's
+  king Rhodri, `legion_king`): bosses whose Legion soldiers within `command_radius` strike faster
+  (`command_haste`) and take less damage (`command_guard`; `Enemy.haste`, `Enemy.guard`), and who send
+  `rally` soldiers for the wave from an edge spawn every `rally_every` seconds while they live. The king's
+  blows cleave, and he is `"downed"` at 0 HP: 1 HP left, untargetable, back along his road and gone.
+  docs/scenarios-design.md §7.16.
 - A camp of Legion soldiers only is a *Legion camp* (its own look). A scenario can set a lair's guards,
   kinds and waking wave and keep it cleared (`Scenario.lairs`).
 

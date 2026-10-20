@@ -10,6 +10,21 @@ extends RefCounted
 const PEAK_ARTS: Array[String] = ["mountain_0", "mountain_1", "mountain_2"]
 
 
+## What stands on mountain tile `t`: its zone's "peaks" (the city's houses), else PEAK_ARTS.
+static func peaks(m: MapData, t: Vector2i) -> Array:
+	return Config.ZONES[m.zone(t)].get("peaks", PEAK_ARTS)
+
+
+## Every mountain prop there is (peaks and every zone's own).
+static func all_peaks() -> Array[String]:
+	var out: Array[String] = PEAK_ARTS.duplicate()
+	for z in Config.ZONE_ORDER:
+		for a in Config.ZONES[z].get("peaks", []):
+			if not out.has(a):
+				out.append(a)
+	return out
+
+
 ## The ground a zone's open tiles have (steppe: desert, else grass).
 static func ground(m: MapData, t: Vector2i) -> int:
 	return MapData.Terrain.DESERT if m.zone(t) == "steppe" else MapData.Terrain.GRASS
@@ -63,8 +78,9 @@ static func _tidy_tile(m: MapData, t: Vector2i, pieces: Dictionary, objects: Dic
 		if in_volcano(m, t):
 			if prop != "volcano":
 				m.props.erase(t)
-		elif prop == "" or not PEAK_ARTS.has(prop):
-			m.props[t] = PEAK_ARTS[_hash(t) % PEAK_ARTS.size()]
+		elif prop == "" or not peaks(m, t).has(prop):
+			var list := peaks(m, t)
+			m.props[t] = list[_hash(t) % list.size()]
 	elif prop != "":
 		m.props.erase(t)
 	# Decor only on open, walkable land, off roads and objects.

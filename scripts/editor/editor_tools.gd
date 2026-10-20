@@ -73,9 +73,10 @@ static func paint_prop(m: MapData, tiles: Array, art: String) -> Array[Vector2i]
 			continue
 		var want := ""
 		if m.is_forest(t):
-			want = MapTidy.tree_for(m, t) if art == "auto" or MapTidy.PEAK_ARTS.has(art) else art
+			want = MapTidy.tree_for(m, t) if art == "auto" or MapTidy.all_peaks().has(art) else art
 		elif m.is_mountain(t):
-			want = MapTidy.PEAK_ARTS[absi(hash(t)) % MapTidy.PEAK_ARTS.size()] if art == "auto" or not MapTidy.PEAK_ARTS.has(art) else art
+			var list := MapTidy.peaks(m, t)
+			want = list[absi(hash(t)) % list.size()] if art == "auto" or not list.has(art) else art
 		if want != "" and m.props.get(t, "") != want:
 			m.props[t] = want
 			out.append(t)

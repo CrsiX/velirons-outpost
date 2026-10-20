@@ -148,8 +148,8 @@ func _tile_arts(t: Vector2i) -> PackedStringArray:
 	var zname := map.zone(t)
 	var zone: Dictionary = Config.ZONES[zname]
 	var base := ""
-	if v == MapData.Terrain.MOUNTAIN:
-		base = "tile_rock"
+	if v == MapData.Terrain.MOUNTAIN and not zone.has("peaks"):
+		base = "tile_rock"  # (a city's houses stand on its cobbles)
 	elif v == MapData.Terrain.FOREST and zone.has("forest_floor"):
 		base = zone["forest_floor"]
 	elif zname == "steppe" or map.beaches.has(t):
@@ -164,7 +164,7 @@ func _tile_arts(t: Vector2i) -> PackedStringArray:
 		sand = "tile_desert_%d" % (h % 2)
 	var road := ""
 	if v == MapData.Terrain.ROAD and not map.crossings.has(t):
-		road = "tile_road_pass" if _mountains_beside(t) >= 2 else "tile_road"
+		road = "tile_road_pass" if _mountains_beside(t) >= 2 and not zone.has("peaks") else "tile_road"
 	return PackedStringArray([base, sand, road])
 
 

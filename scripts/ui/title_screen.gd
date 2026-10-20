@@ -282,7 +282,7 @@ func _start_save(path: String) -> void:
 		continue_label.add_theme_color_override("font_color", UiTheme.BAD)
 
 
-## The campaign page: one button per scenario (its line as the tooltip), and how many are still to come.
+## The campaign page: one button per scenario (its line as the tooltip), and how many are still to come (if any).
 func _build_campaign_page() -> void:
 	_campaign_page = _page()
 	for n in range(1, Campaign.count() + 1):
@@ -292,12 +292,13 @@ func _build_campaign_page() -> void:
 		if n == 1:
 			UiTheme.style_primary(b)
 		scenario_buttons.append(b)
-	var more := Label.new()
-	more.text = "Scenarios %d to %d are still to come." % [Campaign.count() + 1, Campaign.PLANNED]
-	more.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	more.add_theme_font_size_override("font_size", 16)
-	more.add_theme_color_override("font_color", UiTheme.MUTED)
-	_campaign_page.add_child(more)
+	if Campaign.count() < Campaign.PLANNED:
+		var more := Label.new()
+		more.text = "Scenarios %d to %d are still to come." % [Campaign.count() + 1, Campaign.PLANNED]
+		more.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		more.add_theme_font_size_override("font_size", 16)
+		more.add_theme_color_override("font_color", UiTheme.MUTED)
+		_campaign_page.add_child(more)
 	_menu_button(_campaign_page, "Back", func() -> void: show_page(_main_page))
 
 

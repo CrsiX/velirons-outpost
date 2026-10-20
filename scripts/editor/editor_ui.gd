@@ -373,10 +373,10 @@ func _build_options() -> void:
 			_choices(_options, items, o["zone"], func(v: Variant) -> void: set_option("zone", v))
 		"props":
 			var items := [["auto", "Auto (the zone's)"]]
-			for a in _tree_arts() + MapTidy.PEAK_ARTS:
+			for a in _tree_arts() + MapTidy.all_peaks():
 				items.append([a, a.replace("_", " ").capitalize()])
 			_choices(_options, items, o["prop"], func(v: Variant) -> void: set_option("prop", v), 1)
-			_options.add_child(_label("Trees grow on forest, peaks on mountains.", 14, UiTheme.MUTED))
+			_options.add_child(_label("Trees grow on forest, peaks on mountains (houses on a city's).", 14, UiTheme.MUTED))
 		"decor":
 			var items := [["auto", "Auto (the zone's)"], ["", "Erase"]]
 			for a in _decor_arts():

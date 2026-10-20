@@ -4,20 +4,25 @@ extends Node2D
 ## beam of light from straight above, a flash of holy light from a blow, a
 ## warrior's war cry (red-orange rings rushing out to its reach), a water
 ## monster's splash as it dives or comes up, leaves flying off a tree that
-## wakes up as a wrathwood, or a Legion soldier's last breath (release).
-## Fades out on its own.
+## wakes up as a wrathwood, a Legion soldier's last breath (release), or
+## the crown's curse breaking loose (curse: dark tendrils creeping out and a
+## shadow rising, slower). Fades out on its own.
 
 const LIFE := 0.55
+## Kinds that last longer than LIFE.
+const LIVES := {"curse": 2.4}
 
 var kind := "explosion"
 var radius := 1.0
 var _t := 0.0
+var _life := LIFE
 var _sparks: Array[Vector2] = []
 
 
 func setup(p_kind: String, p_radius: float) -> void:
 	kind = p_kind
 	radius = p_radius
+	_life = float(LIVES.get(kind, LIFE))
 	z_index = 6
 	for i in 14:
 		_sparks.append(Vector2.from_angle(TAU * i / 14.0 + randf() * 0.3) * randf_range(0.6, 1.0))
@@ -26,12 +31,12 @@ func setup(p_kind: String, p_radius: float) -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	queue_redraw()
-	if _t >= LIFE:
+	if _t >= _life:
 		queue_free()
 
 
 func _draw() -> void:
-	var k := _t / LIFE
+	var k := _t / _life
 	var rx := radius * Iso.HALF_W * (0.3 + 0.7 * k)
 	var fade := 1.0 - k
 	match kind:
@@ -88,6 +93,19 @@ func _draw() -> void:
 				var col := Color(0.24, 0.42, 0.18, fade) if i % 3 else Color(0.55, 0.45, 0.16, fade)
 				var a := k * 9.0 + i
 				draw_line(p - Vector2.from_angle(a) * 4.0, p + Vector2.from_angle(a) * 4.0, col, 3.5)
+		"curse":  # black-violet tendrils creeping out along the floor, a shadow rising
+			var reach := radius * Iso.HALF_W * (0.2 + 0.8 * sqrt(k))
+			var fade_in := minf(1.0, k * 4.0) * (1.0 - k * k)
+			for i in _sparks.size():
+				var s := _sparks[i]
+				var pts := PackedVector2Array()
+				for j in 6:
+					var f := float(j) / 5.0
+					var wob := sin(f * 6.0 + i + k * 5.0) * 6.0 * f
+					pts.append(Vector2(s.x * reach * f + wob, s.y * reach * 0.5 * f))
+				draw_polyline(pts, Color(0.16, 0.04, 0.2, 0.85 * fade_in), 4.0 - 2.0 * k, true)
+				draw_polyline(pts, Color(0.45, 0.12, 0.55, 0.5 * fade_in), 1.5, true)
+			draw_circle(Vector2(0.0, -30.0 * k), 14.0 + 18.0 * k, Color(0.1, 0.02, 0.12, 0.45 * fade_in))
 		"war_cry":  # a warrior's shout: rings rushing out to the cry's reach, short strokes on the way
 			var reach := radius * Iso.HALF_W * (0.15 + 0.85 * sqrt(k))
 			_ellipse(reach, Color(1.0, 0.45, 0.15, 0.85 * fade), 5.0)

@@ -59,6 +59,8 @@ var _smoke := {}
 var _outro_started := false
 ## Prebuilt posts and their units: [[post, [{"kind", "level"}]]].
 var _prebuilt: Array = []
+## The map's ruins by kind, nearest the village first, as they were (_restore_ruin).
+var _ruin_order := {}
 ## RoadSpots per road index (road_spots).
 var _roads := {}
 ## The map's ruined towers and barracks at the start: [{"tile", "building"}].
@@ -136,6 +138,8 @@ func _prebuild() -> void:
 		var b: Building = null
 		if kind == "wall_tower":
 			b = _wall_tower_by(road_spots(int(p.get("road", 0))))
+		elif p.has("ruin"):
+			b = _restore_ruin(kind, int(p["ruin"]))
 		else:
 			var t: Vector2i = p.get("tile", Vector2i(-1, -1))
 			if p.get("near_water", false):
@@ -161,6 +165,26 @@ func _prebuild() -> void:
 			b.refresh()
 		if p.has("units"):
 			_prebuilt.append([b, p["units"]])
+
+
+## The map's ruin of a `kind` ("tower", "barracks") number `i` (nearest the
+## village first), standing restored and finished; null if there is none.
+func _restore_ruin(kind: String, i: int) -> Building:
+	if not _ruin_order.has(kind):  # (in the map's order, before any is restored)
+		var c := Vector2(game.player_village.center)
+		var all := game.world.map_objects.filter(func(o: Node) -> bool: return o is RuinedTower and (o as RuinedTower).building() == kind)
+		all.sort_custom(func(a: Node, b: Node) -> bool: return Vector2((a as RuinedTower).tile).distance_to(c) < Vector2((b as RuinedTower).tile).distance_to(c))
+		_ruin_order[kind] = all
+	var list: Array = _ruin_order[kind]
+	if i < 0 or i >= list.size() or not is_instance_valid(list[i]) or not game.world.map_objects.has(list[i]):
+		push_warning("scenario %d: no ruined %s number %d" % [spec.number, kind, i])
+		return null
+	var ruin := list[i] as RuinedTower
+	var t := ruin.tile
+	game.world.remove_map_object(ruin)
+	var b := game.player_village.construction._new_building(kind, t, true)
+	game.fog.reveal(Vector2(t), 3.0, game.player_village.id)
+	return b
 
 
 ## Where a `kind` goes by the water: a free spot next to the walls (within
@@ -258,7 +282,14 @@ func _man_prebuilt() -> void:
 
 ## The scenario's units in the reserve at the start (Scenario.reserve).
 func _fill_reserve() -> void:
-	for u in spec.reserve:
+	give_units(spec.reserve)
+
+
+## Units into the reserve: [{"kind", "level"}] (a scenario's band,
+## reinforcements); returns them.
+func give_units(list: Array[Dictionary]) -> Array[MilitaryUnit]:
+	var out: Array[MilitaryUnit] = []
+	for u in list:
 		var unit := MilitaryUnit.new(str(u["kind"]))
 		unit.village = game.player_village
 		unit.original_owner = game.player_village
@@ -267,8 +298,10 @@ func _fill_reserve() -> void:
 		unit.level = clampi(int(u.get("level", 1)) - 1, 0, Config.MAX_UNIT_LEVEL - 1)
 		unit.hp = unit.max_hp()
 		game.army.units.append(unit)
-	if not spec.reserve.is_empty():
+		out.append(unit)
+	if not list.is_empty():
 		game.army.changed.emit()
+	return out
 
 
 ## The map's lairs as the scenario has them (Scenario.lairs), nearest first.
@@ -588,6 +621,20 @@ func road_in(near: Vector2i, n: int) -> Array[Vector2i]:
 	rng.seed = spec.number
 	var full := game.world.pathing.enemy_route(best, rng)
 	return full.slice(maxi(0, full.size() - n))
+
+
+## A guild caravan (ScenarioCaravan) down the road from the edge spawn
+## nearest `near` to the gate, bringing `cargo` ({"gold", "food",
+## "materials"}); it halts while an enemy is near it.
+func caravan(near: Vector2i, cargo: Dictionary) -> ScenarioCaravan:
+	var road := road_in(near, 100000)
+	if road.size() < 2:
+		return null
+	var c := ScenarioCaravan.new()
+	c.setup(game, road, cargo)
+	game.world.objects.add_child(c)
+	game.events.info("A guild caravan is on the road with %s" % Config.cost_text(cargo))
+	return c
 
 
 ## The map darkens to dusk over `time` seconds (a cutscene's evening).

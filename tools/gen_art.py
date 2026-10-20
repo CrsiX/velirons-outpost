@@ -1883,6 +1883,248 @@ def portraits_89():
   <path d="M32 50 L32 60 M28 54 L36 54" stroke="{GOLD}" stroke-width="2"/>""", bg="#1e2432")
 
 
+# ------------------------------------------------- scenarios 10 and 11: the marshal, the king, the capital
+
+def legion_marshal():
+    """The Legion's marshal (Halvard): dark steel plate under a pale mantle with
+    a gold-trimmed collar, a red-white plume, a marshal's baton raised and a
+    long sword at his side."""
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-9, -28), (-15, 0), (4, -2), (8, -28)], "#d4d2dc", INK, 1.2)  # pale mantle
+            a.poly([(-15, 0), (-9, -28), (-6, -28), (-10, 0)], "#b8b6c2", stroke=None)
+            a.line([(-6, -12), (-12, 2)], INK, 3.4)  # sword at the hip
+            a.line([(-6, -12), (-12, 2)], "#c8ccd4", 1.8)
+        else:
+            a.poly([(-7, -11), (7, -11), (6, -27), (-6, -27)], "#5e626c", INK, 1.2)  # dark breastplate
+            a.poly([(0, -11), (7, -11), (6, -27), (0, -27)], "#4a4e58", stroke=None)
+            a.line([(-6, -24), (0, -20), (6, -24)], GOLD, 1.4)  # gold trim
+            a.ellipse(-7, -26, 4.2, 3.0, "#6e727c", INK, 1.1)
+            a.ellipse(7, -26, 4.2, 3.0, "#5a5e68", INK, 1.1)
+            a.line([(7, -24), (12, -34)], INK, 4)  # arm up, the baton
+            a.line([(11, -32), (15, -42)], INK, 3.6)
+            a.line([(11, -32), (15, -42)], GOLD, 2)
+            a.ellipse(15, -42, 1.6, 1.6, GOLD, INK, 0.8)
+    person("unit_legion_marshal", ("#5e626c", "#4a4e58"), hat=_legion_hat("#6e727c", "#e8e4ea"), skin="#c6c6ca", extra=extra)
+
+
+def legion_king():
+    """Rhodri on the field: a long dark royal coat over pale plate, the
+    reworked crown glowing cold on his head, a heavy sword, a halo of cold light."""
+    def extra(a, layer):
+        if layer == "back":
+            _glow(a, 0, -34, 14, 12, "#b8d0ff", 0.35)
+            a.poly([(-10, -28), (-17, 0), (6, -1), (9, -28)], "#2a2236", INK, 1.2)  # royal coat
+            a.poly([(-17, 0), (-10, -28), (-7, -28), (-12, 0)], "#3a3050", stroke=None)
+            a.line([(-16, -1), (5, -2)], "#c8d0e0", 1.4)  # ermine hem
+            a.line([(11, -12), (-8, -58)], INK, 5.5)  # the sword
+            a.line([(11, -12), (-8, -58)], "#dce4f0", 3.2)
+            a.line([(4, -19), (12, -22)], INK, 3)
+            a.line([(4, -19), (12, -22)], GOLD, 1.6)
+        else:
+            a.poly([(-7, -11), (7, -11), (6, -27), (-6, -27)], "#c4c8d2", INK, 1.2)  # pale plate
+            a.poly([(0, -11), (7, -11), (6, -27), (0, -27)], "#a4a8b2", stroke=None)
+            a.poly([(-4, -27), (0, -22), (4, -27)], "#2a2236", INK, 0.8)
+            a.line([(7, -24), (10, -15)], INK, 4)
+
+    def crown(a):
+        a.raw('<path d="M-7,-37 L-7,-44 L-3.5,-40 L0,-46 L3.5,-40 L7,-44 L7,-37 Z" fill="#c8d8f0" stroke="%s" stroke-width="1.2"/>' % INK, [(-8, -47), (8, -36)])
+        a.ellipse(0, -40, 1.3, 1.3, "#eaf4ff", INK, 0.6)
+        a.raw('<path d="M-6,-31 Q-7,-38 0,-39 Q7,-38 6,-31 Q5,-35 0,-35 Q-5,-35 -6,-31 Z" fill="#2a2430"/>', [(-7, -40), (7, -30)])
+    person("unit_legion_king", ("#c4c8d2", "#a4a8b2"), hat=crown, skin="#e0e4ec", extra=extra)
+
+
+def tile_cobble(i):
+    """The capital's cobblestone ground (the city zone): grey setts in rows,
+    ash in the joints, here and there a sett missing."""
+    rng = random.Random(260 + i)
+    a = Art()
+    a.poly(diamond(1.03), ["#6a655e", "#67625b", "#6d6861"][i], stroke=None)
+    for row in range(-5, 6):
+        for col in range(-5, 6):
+            gx, gy = (col + (0.5 if row % 2 else 0.0)) * 0.11, row * 0.11
+            if max(abs(gx), abs(gy)) > 0.44 or rng.random() < 0.08:
+                continue
+            x, y = P(gx, gy)
+            w = rng.uniform(4.5, 6.0)
+            shade = rng.choice(["#7d776f", "#76716a", "#837d74", "#706b64"])
+            a.poly([(x - w, y), (x, y - w * 0.5), (x + w, y), (x, y + w * 0.5)], shade, "#4c4842", 0.8)
+    for _ in range(5):  # soot and ash
+        x, y = rand_in_diamond(rng, 0.75)
+        a.ellipse(x, y, rng.uniform(6, 13), rng.uniform(3, 6), "#3e3b37", opacity=0.3)
+    a.save("tile_cobble_%d" % i, pad=0, fixed=(-66, -34, 66, 34))
+
+
+def _opening(a, face, at, g0, g1, z0, z1, fill, arch=0.0, sw=0.9, opacity=None):
+    """A window or door on a wall face ("front": the y = at face, along x;
+    "side": the x = at face, along y) from g0 to g1, z0 to z1 high; `arch`:
+    a pointed top that much higher in the middle."""
+    def q(g, z):
+        return P(g, at, z) if face == "front" else P(at, g, z)
+    pts = [q(g0, z0), q(g1, z0), q(g1, z1)]
+    if arch > 0:
+        pts.append(q((g0 + g1) / 2, z1 + arch))
+    pts.append(q(g0, z1))
+    a.poly(pts, fill, INK, sw, opacity=opacity)
+
+
+def city_house(name, ruin, seed, wall, roof, roof_front, storeys):
+    """A town house on one tile of the capital (the city's blocked tiles): one
+    to three storeys of plaster and timber, a steep roof; ruined, the roof
+    gone and the walls broken, beams charred."""
+    rng = random.Random(seed)
+    a = Art()
+    x0, x1, y0, y1 = -0.42, 0.42, -0.42, 0.42
+    a.poly(diamond(0.9, 0.9), "#3a3733", stroke=None, opacity=0.45)
+    h = 22 * storeys
+    wl, wr = wall
+    if ruin:
+        # broken walls: a jagged top, a gap, charred beams sticking out
+        tops = [h * rng.uniform(0.45, 0.95) for _ in range(5)]
+        pts_l = [P(x0, y1, 0), P(x1, y1, 0)]
+        for k in range(4, -1, -1):
+            pts_l.append(P(x0 + (x1 - x0) * k / 4.0, y1, tops[k]))
+        a.poly(pts_l, wl, INK, 1.3)
+        tops_r = [h * rng.uniform(0.35, 0.9) for _ in range(5)]
+        pts_r = [P(x1, y1, 0), P(x1, y0, 0)]
+        for k in range(4, -1, -1):
+            pts_r.append(P(x1, y1 + (y0 - y1) * k / 4.0, tops_r[k]))
+        a.poly(pts_r, wr, INK, 1.3)
+        for k in range(3):
+            gx = x0 + 0.15 + 0.25 * k
+            a.line([P(gx, y1, tops[k + 1] - 4), P(gx + 0.12, y1 + 0.2, tops[k + 1] + 10)], INK, 4)
+            a.line([P(gx, y1, tops[k + 1] - 4), P(gx + 0.12, y1 + 0.2, tops[k + 1] + 10)], "#2a1e15", 2.4)
+        for _ in range(6):
+            x, y = P(rng.uniform(-0.3, 0.5), rng.uniform(0.35, 0.6))
+            _block(a, rng, x, y, rng.uniform(3, 5.5))
+        _opening(a, "side", x1, 0.05, -0.12, h * 0.15, h * 0.15 + 12, "#15120f")
+        a.save(name)
+        return
+    a.box(x0, x1, y0, y1, 0, h, wl, wl, wr)
+    for k in range(1, storeys):  # timber bands between the storeys
+        a.line([P(x0, y1, 22 * k), P(x1, y1, 22 * k), P(x1, y0, 22 * k)], WOOD_D, 2)
+    for k in range(storeys):
+        z = 22 * k + 8
+        for gx in ((-0.28, 0.26) if k == 0 else (-0.28, -0.04, 0.2)):
+            lit = rng.random() < 0.25
+            _opening(a, "front", y1, gx, gx + 0.1, z, z + 10, GLOW if lit else "#1c1916")
+        for gy in (0.24, -0.06):
+            _opening(a, "side", x1, gy, gy - 0.1, z, z + 10, "#1c1916")
+    _opening(a, "front", y1, -0.08, 0.06, 0, 15, "#2b1e14", sw=1)
+    ridge = h + 26
+    ym = 0.0
+    a.poly([P(x0 - 0.05, y0 - 0.05, h - 2), P(x1 + 0.05, y0 - 0.05, h - 2), P(x1 + 0.05, ym, ridge), P(x0 - 0.05, ym, ridge)], roof, INK, 1.2)
+    a.poly([P(x1, y0, h), P(x1, ym, ridge), P(x1, y1, h)], wr, INK, 1.2)
+    a.poly([P(x0 - 0.05, ym, ridge), P(x1 + 0.05, ym, ridge), P(x1 + 0.05, y1 + 0.05, h - 2), P(x0 - 0.05, y1 + 0.05, h - 2)], roof_front, INK, 1.2)
+    a.box(-0.3, -0.18, -0.12, 0.0, ridge - 14, ridge + 8, STONE_T, STONE_L, STONE_R, sw=1.1)  # chimney
+    a.save(name)
+
+
+def city_houses():
+    city_house("house_0", False, 801, ("#b8ad98", "#958b78"), "#4a3c34", "#5a4a40", 2)
+    city_house("house_1", False, 802, ("#a69a86", "#857a68"), "#3e4650", "#4c5662", 3)
+    city_house("house_2", False, 803, ("#c2b49c", "#9c8f7a"), "#5a3228", "#6a3e30", 1)
+    city_house("house_ruin_0", True, 804, ("#8e8578", "#6e665c"), None, None, 2)
+    city_house("house_ruin_1", True, 805, ("#9a907f", "#776f63"), None, None, 3)
+
+
+def city_rubble():
+    """Decor in the city: a small heap of broken setts and a charred beam (walkable)."""
+    rng = random.Random(806)
+    a = Art()
+    a.line([P(-0.15, 0.05, 1), P(0.18, -0.05, 4)], INK, 4)
+    a.line([P(-0.15, 0.05, 1), P(0.18, -0.05, 4)], "#2a1e15", 2.4)
+    for _ in range(6):
+        x, y = rand_in_diamond(rng, 0.35)
+        _block(a, rng, x, y, rng.uniform(2.5, 4.5))
+    a.save("city_rubble")
+
+
+def throne_hall():
+    """The throne hall of Veliron (scenario 11), a 3x3 landmark: a great dark
+    hall of pale stone, a high gabled roof of slate, tall lancet windows lit
+    cold blue from within, a tower with the crown's banner, broad steps up to
+    an open gate."""
+    k = 3.0
+    a = Art()
+    a.poly(diamond(k * 0.92), "#2e2b28", stroke=None, opacity=0.5)
+    sl, sr, st = "#a8a49c", "#827e77", "#bcb8b0"
+    x0, x1, y0, y1 = -1.15, 1.15, -1.15, 1.15
+    H = 62
+    a.box(x0, x1, y0, y1, 0, H, st, sl, sr, sw=1.6)
+    for z in (20, 40):
+        a.line([P(x0, y1, z), P(x1, y1, z), P(x1, y0, z)], "#5a5751", 1, opacity=0.6)
+    # lancet windows lit cold from within
+    for gx in (-0.95, -0.65, 0.5, 0.8):
+        _opening(a, "front", y1, gx, gx + 0.14, 14, 38, "#9ac0ff", arch=10, sw=1.1)
+    for gy in (0.75, 0.15, -0.45):
+        _opening(a, "side", x1, gy, gy - 0.14, 14, 38, "#6a88b8", arch=10, sw=1.1)
+    # the gate and its steps
+    for s_ in range(3):
+        a.box(-0.36 - 0.06 * s_, 0.36 + 0.06 * s_, y1, y1 + 0.1 + 0.1 * s_, 0, 6 - 2 * s_, "#9a968e", "#8a867f", "#6e6a64", sw=1.0)
+    _opening(a, "front", y1, -0.2, 0.2, 6, 34, "#0e0d10", arch=14, sw=1.4)
+    gx, gy = P(0.0, y1, 20)
+    _glow(a, gx, gy, 10, 14, "#b8d0ff", 0.35)
+    # the roof: a high slate gable along the hall
+    ridge = H + 52
+    a.poly([P(x0 - 0.06, y0 - 0.06, H - 3), P(x1 + 0.06, y0 - 0.06, H - 3), P(x1 + 0.06, 0, ridge), P(x0 - 0.06, 0, ridge)], "#2e3640", INK, 1.4)
+    a.poly([P(x1, y0, H), P(x1, 0, ridge), P(x1, y1, H)], sr, INK, 1.4)
+    a.poly([P(x0 - 0.06, 0, ridge), P(x1 + 0.06, 0, ridge), P(x1 + 0.06, y1 + 0.06, H - 3), P(x0 - 0.06, y1 + 0.06, H - 3)], "#3a4450", INK, 1.4)
+    a.line([P(x0 - 0.06, 0, ridge), P(x1 + 0.06, 0, ridge)], "#1e242a", 2.6)
+    # the tower at the back corner, with the crown's pale banner
+    tx0, tx1, ty0, ty1 = -1.15, -0.55, -1.15, -0.55
+    th = 150
+    a.box(tx0, tx1, ty0, ty1, H, th, st, sl, sr, sw=1.5)
+    a.poly([P(tx0 - 0.04, ty1 + 0.04, th), P(tx1 + 0.04, ty1 + 0.04, th), P(tx1 + 0.04, ty0 - 0.04, th), P((tx0 + tx1) / 2, (ty0 + ty1) / 2, th + 46)], "#2e3640", INK, 1.3)
+    wx, wy = P(tx1, (ty0 + ty1) / 2, th - 30)
+    a.poly([(wx - 3, wy + 2), (wx + 3, wy + 4), (wx + 3, wy - 12), (wx - 3, wy - 14)], "#9ac0ff", INK, 0.9)
+    bx, by = P((tx0 + tx1) / 2, (ty0 + ty1) / 2, th + 46)
+    a.line([(bx, by), (bx, by - 26)], INK, 2)
+    a.poly([(bx, by - 26), (bx + 18, by - 23), (bx + 14, by - 17), (bx + 18, by - 12), (bx, by - 14)], "#d8dce8", INK, 1)
+    a.raw('<path d="M%s,%s L%s,%s L%s,%s L%s,%s L%s,%s Z" fill="#9ab0d8"/>'
+          % (fmt(bx + 4), fmt(by - 17), fmt(bx + 5), fmt(by - 22), fmt(bx + 7), fmt(by - 19), fmt(bx + 9), fmt(by - 22), fmt(bx + 10), fmt(by - 17)),
+          [(bx + 3, by - 23), (bx + 11, by - 16)])
+    a.save("throne_hall")
+
+
+def portraits_1011():
+    """The speakers of scenarios 10 and 11."""
+    # Halvard, the Legion's marshal: an old soldier's square, weathered face,
+    # cropped grey hair and beard, a scar across the cheek, pale eyes under
+    # heavy brows, dark plate with a gold-trimmed collar.
+    portrait_svg("portrait_halvard", f"""
+  <path d="M2 66 Q2 44 18 40 L46 40 Q62 44 62 66Z" fill="#5e626c" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M14 44 L32 52 L50 44" fill="none" stroke="{GOLD}" stroke-width="2.4"/>
+  <ellipse cx="12" cy="47" rx="10" ry="7" fill="#6e727c" stroke="{INK}" stroke-width="2"/>
+  <ellipse cx="52" cy="47" rx="10" ry="7" fill="#5a5e68" stroke="{INK}" stroke-width="2"/>
+  <rect x="26" y="34" width="12" height="9" fill="#c0bcb8" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M19 24 Q18 11 32 10 Q46 11 45 24 Q45 37 32 40 Q19 37 19 24Z" fill="#cac4be" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M19 21 Q18 8 32 7 Q46 8 45 21 Q41 13 32 13 Q23 13 19 21Z" fill="#8e8c8a" stroke="{INK}" stroke-width="2"/>
+  <path d="M21 29 Q22 41 32 42 Q42 41 43 29 Q39 35 32 35 Q25 35 21 29Z" fill="#9a9896" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M23 21.5 L29.5 22.5 M34.5 22.5 L41 21.5" stroke="#6a6866" stroke-width="2.2" stroke-linecap="round"/>
+  <ellipse cx="27" cy="25.5" rx="1.8" ry="1.2" fill="#dce6f2" stroke="#7a8a9a" stroke-width="0.7"/>
+  <ellipse cx="37" cy="25.5" rx="1.8" ry="1.2" fill="#dce6f2" stroke="#7a8a9a" stroke-width="0.7"/>
+  <path d="M39 27 L44 33" stroke="#a07a72" stroke-width="1.3"/>
+  <path d="M28 33 L36 33" stroke="#6a5a56" stroke-width="1.5" stroke-linecap="round"/>""", bg="#22242a")
+    # Fiona at the end: as in scenario 7, but pale, the curse in her veins,
+    # her eyes gone black.
+    portrait_svg("portrait_fiona_cursed", f"""
+  <circle cx="32" cy="28" r="26" fill="#2a0e2e" opacity="0.5"/>
+  <path d="M20 24 Q10 40 14 58 L23 52 Q19 40 22 30Z" fill="#8a4a2a" stroke="{INK}" stroke-width="2"/>
+  <path d="M44 24 Q54 40 50 58 L41 52 Q45 40 42 30Z" fill="#8a4a2a" stroke="{INK}" stroke-width="2"/>
+  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#243a6a" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M20 44 Q32 54 44 44" fill="none" stroke="#c8ccd8" stroke-width="2.2"/>
+  <rect x="27" y="35" width="10" height="9" fill="#cfc2ba" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M28 37 Q30 41 29 44 M35 36 Q34 40 36 44" fill="none" stroke="#4a1e4e" stroke-width="1.2"/>
+  <path d="M20 25 Q19 12 32 11 Q45 12 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#dcd0ca" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M21 30 Q24 27 23 33 M43 29 Q40 28 41 34 M30 36 Q32 33 34 36" fill="none" stroke="#4a1e4e" stroke-width="1.1"/>
+  <path d="M19 27 Q15 8 32 7 Q49 8 45 27 Q44 16 36 14 Q30 18 21 17 Q20 22 19 27Z" fill="#8a4a2a" stroke="{INK}" stroke-width="2"/>
+  <path d="M20 15 Q32 10 44 15" fill="none" stroke="#d8dce8" stroke-width="2"/>
+  <path d="M24 23 L29 22.5 M35 22.5 L40 23" stroke="#5a2a1a" stroke-width="1.5" stroke-linecap="round"/>
+  <ellipse cx="27" cy="26" rx="2.4" ry="1.8" fill="#050306"/><ellipse cx="37" cy="26" rx="2.4" ry="1.8" fill="#050306"/>
+  <path d="M28.5 33.5 L35.5 33.5" stroke="#6a3a4a" stroke-width="1.4" stroke-linecap="round"/>""", bg="#140a16")
+
+
 def light_stone(glow_only=False):
     """Carved pillar on a plinth; runes glow dim yellow. Glow is a separate
     layer (same canvas) so the game can pulse it."""
@@ -5396,6 +5638,14 @@ def main():
     abbey()
     abbey(True)
     portraits_89()
+    legion_marshal()
+    legion_king()
+    for i in range(3):
+        tile_cobble(i)
+    city_houses()
+    city_rubble()
+    throne_hall()
+    portraits_1011()
     campaign_icon()
     write_manifest()
     print("generated %d sprites" % len(manifest))

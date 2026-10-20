@@ -22,6 +22,7 @@ const BEHAVIORS := {
 	"octopus": preload("res://scripts/units/enemies/octopus_behavior.gd"),
 	"arm": preload("res://scripts/units/enemies/arm_behavior.gd"),
 	"captain": preload("res://scripts/units/enemies/captain_behavior.gd"),
+	"commander": preload("res://scripts/units/enemies/commander_behavior.gd"),
 	"legion_archer": preload("res://scripts/units/enemies/legion_archer_behavior.gd"),
 	"spider_mother": preload("res://scripts/units/enemies/spider_mother_behavior.gd"),
 	"egg": preload("res://scripts/units/enemies/egg_behavior.gd"),
@@ -127,6 +128,7 @@ var post_leash := 0.0
 ## Its damage and spell damage x this (a scenario's boss: the leviathan).
 var power := 1.0
 var _haste := 1.0
+var _guard := 1.0
 var _haste_at := -INF
 
 
@@ -650,21 +652,42 @@ func stat(key: String) -> float:
 
 ## How much faster its blows and shots come: a Dread Legion soldier within a
 ## living banner-bearer's banner_radius strikes 1 + banner_haste times as
-## fast (the strongest banner counts); everyone else 1. Checked every 0.5 s.
+## fast, within a commander's command_radius 1 + command_haste times (the
+## strongest counts); everyone else 1. Checked every 0.5 s.
 func haste() -> float:
+	_lead()
+	return _haste
+
+
+## The share of damage it takes: a Dread Legion soldier within a living
+## commander's command_radius takes command_guard x (the strongest counts).
+func guard() -> float:
+	_lead()
+	return _guard
+
+
+## Who leads it (banners, commanders): sets _haste and _guard, every 0.5 s.
+func _lead() -> void:
 	if not kind.begins_with("legion_"):
-		return 1.0
+		_haste = 1.0
+		_guard = 1.0
+		return
 	if game.clock - _haste_at < 0.5:
-		return _haste
+		return
 	_haste_at = game.clock
 	_haste = 1.0
+	_guard = 1.0
 	for e in get_tree().get_nodes_in_group("enemies"):
 		var b := e as Enemy
-		if b.dead or not b.spec().has("banner_haste"):
+		if b.dead or b.retreating:
 			continue
-		if b.grid_pos.distance_to(grid_pos) <= float(b.spec()["banner_radius"]):
-			_haste = maxf(_haste, 1.0 + float(b.spec()["banner_haste"]))
-	return _haste
+		var sp := b.spec()
+		var d := b.grid_pos.distance_to(grid_pos)
+		if sp.has("banner_haste") and d <= float(sp["banner_radius"]):
+			_haste = maxf(_haste, 1.0 + float(sp["banner_haste"]))
+		if sp.has("command_haste") and d <= float(sp["command_radius"]):
+			_haste = maxf(_haste, 1.0 + float(sp["command_haste"]))
+			_guard = minf(_guard, float(sp["command_guard"]))
 
 
 ## Tiles left until the gate (lower = more dangerous); breaking in: tiles to
@@ -965,6 +988,8 @@ func take_damage(amount: float, source: Node = null, category: String = "pure") 
 	if dead:
 		return
 	amount *= float(spec().get("resist", {}).get(category, 1.0))
+	if category != "pure":
+		amount *= guard()  # (a commander's soldiers)
 	if (raised or undead) and category == "holy":
 		amount *= float(Config.ENEMIES["necromancer"]["raised_holy"])  # (the undead it raised)
 	hp -= amount
@@ -1032,6 +1057,11 @@ func _draw() -> void:
 		# A banner-bearer: a faint pale ring on the ground, as far as its banner reaches.
 		var r := float(spec()["banner_radius"]) * Iso.HALF_W * 1.414
 		_ring(Vector2.ZERO, r, r * 0.5, Color(0.86, 0.88, 0.95, 0.22), 2.0)
+	if not dead and not retreating and spec().has("command_radius"):
+		# A commander: a double ring, cold gold, as far as its command reaches.
+		var r := float(spec()["command_radius"]) * Iso.HALF_W * 1.414
+		_ring(Vector2.ZERO, r, r * 0.5, Color(0.92, 0.84, 0.6, 0.26), 2.0)
+		_ring(Vector2.ZERO, r * 0.94, r * 0.47, Color(0.92, 0.84, 0.6, 0.14), 1.5)
 	if _root_left > 0.0 and not dead:
 		_draw_roots()
 	if channel_to != Vector2.INF and not dead:

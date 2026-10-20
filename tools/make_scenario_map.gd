@@ -22,6 +22,13 @@ extends Node
 ## {"edge", "at": its middle, road tiles from the gate, "land": its radius,
 ## "water": the lake's, "treasure", "monsters": the camp beside it}: the road
 ## crosses the lake on bridges, a water spawn on the far side.
+## "city": the capital (scenario 11), {"radius": the city's around the
+## village, "houses": the share of a block's tiles with a house, "ruined": the
+## share of those in ruins, "steppe": how many steppe spots with trees,
+## "throne": {"edge", "from_edge": road tiles from the map edge}}: every open
+## tile city (near the village and the throne hall) or ash land, the trees
+## gone; houses (mountain tiles with a house) in blocks between lanes, off the
+## roads and away from the walls; the throne hall (a 3x3 landmark) by a road.
 
 const MAPS := {
 	1: {"map_type": "highlands", "seed": 1337, "name": "Homecoming",
@@ -59,6 +66,10 @@ const MAPS := {
 		"description": "Scenario 9: a pilgrims' ferry village on a drowned shore. Out in the lake the church's old abbey stands half-sunk on its island.",
 		"drop": ["unlock", "lair"], "ruins": 0,
 		"island": {"edge": "north", "at": 28, "land": 4.2, "water": 9.5, "treasure": "abbey", "monsters": ["vampire", "vampire", "skeleton"]}},
+	11: {"map_type": "temperate", "seed": 1111, "name": "The Capital",
+		"description": "Scenario 11: the final camp in the capital's streets, by the throne hall. Cobbles and ash, a few trees, no fields.",
+		"drop": ["unlock", "lair", "camp", "mine"], "ruins": 0,
+		"city": {"radius": 24.0, "houses": 0.62, "ruined": 0.35, "steppe": 4, "throne": {"edge": "north", "from_edge": 3}}},
 }
 
 
@@ -105,6 +116,10 @@ func _ready() -> void:
 		var err := _add_camp(m, ca)
 		if err != "":
 			printerr("camp %s: %s" % [str(ca), err])
+	if spec.has("city"):
+		var err := _city(m, spec["city"])
+		if err != "":
+			printerr("city: %s" % err)
 	if spec.has("island"):
 		var err := _island(m, spec["island"])
 		if err != "":
@@ -397,6 +412,133 @@ func _island(m: MapData, isl: Dictionary) -> String:
 				far = t
 	if far.x >= 0:
 		m.water_spawns.append(far)
+	return ""
+
+
+## The capital (MAPS' "city"). "" or why not.
+func _city(m: MapData, ci: Dictionary) -> String:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1111
+	var vc := Vector2(m.villages[0]["center"])
+	var vrect: Rect2i = m.villages[0]["rect"]
+	# The throne hall first, by its road near the map edge.
+	var th: Dictionary = ci["throne"]
+	var road := _road_from(m, str(th["edge"]))
+	if road.is_empty():
+		return "no road from the throne hall's edge"
+	var hall := Vector2i(-1, -1)
+	var k := int(th["from_edge"])
+	for r in [2, 3, 4, 5]:
+		if hall.x >= 0:
+			break
+		for dy in range(-r - 2, r + 1):
+			for dx in range(-r - 2, r + 1):
+				var t: Vector2i = road[k] + Vector2i(dx, dy)
+				var fp := Building.footprint(t, 3)
+				if fp.any(func(q: Vector2i) -> bool: return not m.in_bounds(q) or m.is_road(q) or m.in_village(q) or not (m.get_terrain(q) in [MapData.Terrain.GRASS, MapData.Terrain.FOREST, MapData.Terrain.DESERT])):
+					continue
+				if not fp.any(func(q: Vector2i) -> bool: return MapData.neighbors4(q).any(func(n: Vector2i) -> bool: return m.is_road(n))):
+					continue
+				hall = t
+				break
+			if hall.x >= 0:
+				break
+	if hall.x < 0:
+		return "no room for the throne hall"
+	for q in Building.footprint(hall, 3):
+		m.set_terrain(q, MapData.Terrain.GRASS)
+		m.props.erase(q)
+	var res = EditorTools.add_object(m, "treasure", hall, 3)
+	if res is String:
+		return "throne hall: " + res
+	var tr: Dictionary = m.objects[res]
+	tr["treasure"] = "throne_hall"
+	tr["tier"] = 3
+	tr["reward"] = {}
+	tr["art"] = MapJson.object_art(tr)
+	var hc := Vector2(hall) + Vector2(1, 1)
+	# Tiles kept open: the objects and a ring round them.
+	var keep := {}
+	for o in m.objects:
+		var sz := int(o.get("size", 1))
+		for dy in range(-2, sz + 2):
+			for dx in range(-2, sz + 2):
+				keep[(o["tile"] as Vector2i) + Vector2i(dx, dy)] = true
+	# Every open tile: city or ash, no trees, no decor.
+	var radius := float(ci["radius"])
+	for y in m.size:
+		for x in m.size:
+			var t := Vector2i(x, y)
+			if m.in_village(t) or m.is_road(t) or m.crossings.has(t):
+				continue
+			var v := m.get_terrain(t)
+			var city := Vector2(t).distance_to(vc) <= radius or Vector2(t).distance_to(hc) <= 9.0
+			if v == MapData.Terrain.MOUNTAIN and city and not MapTidy.in_volcano(m, t):
+				v = MapData.Terrain.GRASS  # (the city's ground is level: its houses stand there)
+			if v != MapData.Terrain.GRASS and v != MapData.Terrain.FOREST and v != MapData.Terrain.DESERT:
+				continue
+			m.set_zone(t, "city" if city else "ash")
+			m.set_terrain(t, MapData.Terrain.GRASS)
+			m.props.erase(t)
+			m.decor.erase(t)
+			m.beaches.erase(t)
+	# The steppe spots, with trees to cut.
+	var spots := 0
+	for i in 400:
+		if spots >= int(ci["steppe"]):
+			break
+		var c := Vector2i(rng.randi_range(4, m.size - 5), rng.randi_range(4, m.size - 5))
+		var d := Vector2(c).distance_to(vc)
+		if d < 11.0 or d > 30.0 or m.get_terrain(c) != MapData.Terrain.GRASS or keep.has(c) or _near_road(m, c, 2):
+			continue
+		spots += 1
+		for dy in range(-3, 4):
+			for dx in range(-3, 4):
+				var t := c + Vector2i(dx, dy)
+				if Vector2(dx, dy).length() > 2.7 or not m.in_bounds(t) or m.get_terrain(t) != MapData.Terrain.GRASS or m.in_village(t):
+					continue
+				m.set_zone(t, "steppe")
+				m.set_terrain(t, MapData.Terrain.DESERT)
+				keep[t] = true
+				if rng.randf() < 0.55 and not MapData.neighbors4(t).any(func(n: Vector2i) -> bool: return m.is_road(n)):
+					m.set_terrain(t, MapData.Terrain.FOREST)
+					m.props[t] = "tree_oak" if rng.randf() < 0.7 else "tree_pine_0"
+	# The houses: blocks of 3x3 between lanes every fourth row and column.
+	var walls := vrect.grow(4)
+	var peaks: Array = Config.ZONES["city"]["peaks"]
+	var standing := peaks.filter(func(a: String) -> bool: return not a.contains("ruin"))
+	var ruins := peaks.filter(func(a: String) -> bool: return a.contains("ruin"))
+	var blocks := {}
+	for y in m.size:
+		for x in m.size:
+			var t := Vector2i(x, y)
+			if m.zone(t) != "city" or m.get_terrain(t) != MapData.Terrain.GRASS or keep.has(t) or walls.has_point(t):
+				continue
+			if x % 4 == 0 or y % 4 == 0:
+				var art := "city_rubble" if rng.randf() < 0.05 else ""
+				if art != "":
+					m.decor[t] = art
+				continue
+			var near_road := false
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					near_road = near_road or m.is_road(t + Vector2i(dx, dy))
+			if near_road:
+				continue
+			var b := Vector2i(x / 4, y / 4)
+			if not blocks.has(b):
+				blocks[b] = rng.randf() < float(ci["houses"])
+			if not blocks[b] or rng.randf() < 0.12:
+				continue
+			m.set_terrain(t, MapData.Terrain.MOUNTAIN)
+			m.props[t] = ruins[rng.randi() % ruins.size()] if rng.randf() < float(ci["ruined"]) else standing[rng.randi() % standing.size()]
+	# Ash land's own bits.
+	for y in m.size:
+		for x in m.size:
+			var t := Vector2i(x, y)
+			if m.zone(t) == "ash" and m.get_terrain(t) == MapData.Terrain.GRASS and not keep.has(t) and rng.randf() < 0.04:
+				m.decor[t] = "lava_rock" if rng.randf() < 0.5 else "city_rubble"
+	m.derive()
 	return ""
 
 

@@ -172,6 +172,7 @@ looks and what grows there.
 | Steppe / desert | very dry (moisture < 0.2) | sand | dead trees, cacti | 3 % | no farms |
 | Swamp | very wet (> 0.7), low (< 0.45), within 5 tiles of water | dark wet grass, pools | reeds, dead trees | 20 % | walking × 0.7 off the road; no farms |
 | Ash land | only around volcanoes | grey ash, lava rock | charred stumps | 5 % | no farms; no building near the crater |
+| City | never generated: map files only (the campaign's capital) | cobblestones, rubble | none; houses on its mountain tiles | 0 % | no farms |
 
 - "Trees" is the base share of tiles with a tree; a clumping noise makes it
   denser in patches and thinner elsewhere. Tiles with trees are forest

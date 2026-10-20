@@ -399,8 +399,11 @@ const MAP_TYPES := {
 	"volcanic": {"name": "Volcanic", "height": 0.1, "moisture": -0.1, "coast_edges": [0, 0], "lakes": 0.5, "rivers": 0.0, "mountains": 1.2, "volcanoes": [1, 3], "mines": 1.0, "lava_rivers": true, "lagoon": 0.0},
 }
 ## Zones: ground art (variants), tree share and tree mix (weights), decoration
-## props (not trees; walkable; cleared by buildings) and rules.
-const ZONE_ORDER: Array[String] = ["meadow", "oak", "pine", "heath", "steppe", "swamp", "ash"]
+## props (not trees; walkable; cleared by buildings) and rules. "peaks": what
+## stands on the zone's mountain tiles instead of peaks (the city's houses),
+## drawn on the zone's own ground. The city is never generated: only map files
+## (the campaign's capital) have it.
+const ZONE_ORDER: Array[String] = ["meadow", "oak", "pine", "heath", "steppe", "swamp", "ash", "city"]
 const ZONES := {
 	"meadow": {"name": "Meadow", "ground": ["tile_meadow_0", "tile_meadow_1", "tile_meadow_2"], "trees": 0.06, "mix": {"tree_oak": 1}, "decor": 0.0, "decor_mix": {}, "farm_bonus": 0.2},
 	"oak": {"name": "Oak woods", "ground": ["tile_grass_0", "tile_grass_1", "tile_grass_2"], "forest_floor": "tile_forest_oak", "trees": 0.45, "mix": {"tree_oak": 6, "tree_pine_0": 1}, "decor": 0.01, "decor_mix": {"boulder": 1}},
@@ -409,6 +412,8 @@ const ZONES := {
 	"steppe": {"name": "Steppe", "ground": ["tile_desert_0", "tile_desert_1"], "trees": 0.03, "mix": {"tree_dead": 1}, "decor": 0.03, "decor_mix": {"cactus": 1}, "no_farms": true},
 	"swamp": {"name": "Swamp", "ground": ["tile_swamp_0", "tile_swamp_1"], "trees": 0.2, "mix": {"tree_dead": 1}, "decor": 0.18, "decor_mix": {"reeds": 1}, "no_farms": true, "walk": 0.7},
 	"ash": {"name": "Ash land", "ground": ["tile_ash_0", "tile_ash_1"], "trees": 0.05, "mix": {"stump_charred": 1}, "decor": 0.05, "decor_mix": {"lava_rock": 1}, "no_farms": true},
+	"city": {"name": "City", "ground": ["tile_cobble_0", "tile_cobble_1", "tile_cobble_2"], "trees": 0.0, "mix": {}, "decor": 0.05, "decor_mix": {"city_rubble": 1}, "no_farms": true,
+		"peaks": ["house_0", "house_1", "house_2", "house_ruin_0", "house_ruin_1"]},
 }
 ## Land shares of the zones from height x moisture (before map-type shifts);
 ## ash comes on top, around volcanoes.
@@ -439,7 +444,7 @@ const VILLAGE_SEA_DIST := 10.0
 ## Roads (A*, 4 directions, on a cost map by zone; see docs/world-design.md §5).
 const VILLAGE_MIN_LINKS := 2  # road links per village with 3+ players (1 with 2)
 const ROAD_DETOUR_MAX := 2.5  # a link longer than this x the straight distance is dropped
-const ROAD_COSTS := {"road": 0.3, "meadow": 1.0, "steppe": 1.0, "heath": 1.6, "oak": 1.6, "pine": 2.5, "swamp": 2.5, "ash": 2.0, "crossing": 4.0, "pass": 15.0}
+const ROAD_COSTS := {"road": 0.3, "meadow": 1.0, "steppe": 1.0, "heath": 1.6, "oak": 1.6, "pine": 2.5, "swamp": 2.5, "ash": 2.0, "city": 1.0, "crossing": 4.0, "pass": 15.0}
 const ROAD_COST_NOISE := 0.3
 const ROAD_BESIDE_COST := 2.0  # extra cost next to an existing road: merge or keep away
 const SP_SPAWNS := Vector2i(3, 5)  # single player: edge spawns
@@ -476,7 +481,7 @@ const LAGOON_DIST := 6.0
 const LAGOON_MIN_WIDTH := 3
 const WATER_SPAWNS := Vector2i(1, 2)
 ## Bridge look by the zone around it (the look only).
-const BRIDGE_STYLES := {"meadow": "stone", "oak": "stone", "pine": "timber", "heath": "timber", "steppe": "rope", "swamp": "stilts", "ash": "charred"}
+const BRIDGE_STYLES := {"meadow": "stone", "oak": "stone", "pine": "timber", "heath": "timber", "steppe": "rope", "swamp": "stilts", "ash": "charred", "city": "stone"}
 ## Mountains and volcanoes.
 const MOUNTAIN_SHARE := Vector2(0.05, 0.08)  # of the map, x the type's "mountains"
 const VOLCANO_ASH_RADIUS := 6.0
@@ -505,6 +510,10 @@ const TREASURES := {
 	# The campaign's drowned abbey (scenario 9), placed by its map file: never
 	# generated, not in the library. Its reward is an item (the relic sword).
 	"abbey": {"name": "Drowned abbey", "zones": [], "weight": 0.0, "loot_time": 8.0, "reward": {}, "campaign": true},
+	# The capital's throne hall (scenario 11), 3x3: a landmark, never looted
+	# ("landmark": what its panel says instead).
+	"throne_hall": {"name": "Throne hall", "zones": [], "weight": 0.0, "loot_time": 1.0, "reward": {}, "campaign": true,
+		"landmark": "The throne hall of Veliron. Rhodri sits within, with what is left of his court."},
 }
 const RELIC_MAX := 2  # per map
 ## Relics: a small permanent bonus for the village that finds one.
@@ -1759,6 +1768,43 @@ const ENEMIES := {
 		"gold_on_kill": 60, "gold_on_collect": 0, "food_on_collect": 0,
 		"resist": {"projectile": 0.75},
 		"cleave": 0.6, "cleave_radius": 1.3, "hp_bar_y": -62.0,
+	},
+	# A Legion commander (CommanderBehavior): a boss that fights like a
+	# champion and leads. Every Legion soldier within command_radius (itself
+	# too) strikes and shoots 1 + command_haste times as fast and takes
+	# command_guard x the damage (Enemy.haste, Enemy.guard; the strongest
+	# commander counts, a banner's haste doesn't add to it). Every rally_every
+	# seconds while it lives it sends `rally` (kind: count) more for the wave
+	# from an edge spawn (the first after first_rally). "downed": at 0 HP it
+	# isn't killed: it keeps 1 HP, can't be targeted, and falls back the way
+	# it came (faster by retreat_speed) and is gone.
+	# The marshal: scenario 10's Halvard; can be killed.
+	"legion_marshal": {
+		"name": "Legion Marshal", "art": "legion_marshal", "behavior": "commander", "corpse": false,
+		"siege": 2.0, "campaign": true, "release": true,
+		"desc": "The Dread Legion's marshal: he leads its soldiers in the field. Those near him strike faster and take less harm, and while he lives fresh soldiers keep coming down the roads.",
+		"hp": 760.0, "speed": 0.8,
+		"damage": 16.0, "attack_cooldown": 1.4,
+		"gold_on_kill": 80, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"projectile": 0.75},
+		"command_radius": 3.0, "command_haste": 0.3, "command_guard": 0.75,
+		"rally_every": 30.0, "first_rally": 20.0, "rally": {"legion_footman": 2},
+		"hp_bar_y": -64.0,
+	},
+	# The king (scenario 11's Rhodri): a commander whose blows cleave, downed
+	# at 0 HP instead of killed.
+	"legion_king": {
+		"name": "The Crowned King", "art": "legion_king", "behavior": "commander", "corpse": false,
+		"siege": 2.0, "campaign": true, "release": false,
+		"desc": "Rhodri on the field, the reworked crown on his head. His blows cleave, his soldiers fight harder near him, and he is not so easily killed.",
+		"hp": 1000.0, "speed": 0.85,
+		"damage": 18.0, "attack_cooldown": 1.4,
+		"gold_on_kill": 0, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"projectile": 0.75},
+		"cleave": 0.6, "cleave_radius": 1.3,
+		"command_radius": 3.5, "command_haste": 0.35, "command_guard": 0.7,
+		"rally_every": 25.0, "first_rally": 15.0, "rally": {"legion_footman": 2, "legion_guard": 1},
+		"downed": true, "retreat_speed": 1.4, "hp_bar_y": -66.0,
 	},
 }
 ## When a tree wakes up as a wrathwood (docs/enemies-design.md §15c;

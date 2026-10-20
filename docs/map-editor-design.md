@@ -160,8 +160,11 @@ stroke (a drag counts as one).
 - **Terrain brush:** grass, forest (trees), desert, mountain, deep water,
   shallow water, lava; sizes 1 / 3 / 5 / 9, square or round; a **fill** mode
   (flood fill of the same terrain).
-- **Zone brush:** meadow, oak, pine, heath, steppe, swamp, ash (changes look,
-  farm rules and walking speed, not terrain).
+- **Zone brush:** meadow, oak, pine, heath, steppe, swamp, ash, city (changes
+  look, farm rules and walking speed, not terrain). The city is never
+  generated (the campaign's capital): cobblestone ground, and on its
+  mountain tiles houses (`ZONES.city.peaks`: standing and ruined) in place of
+  peaks, drawn on the cobbles.
 - **Trees / props:** paint a specific prop art, or "auto" (picked from the
   zone's mix like the generator does). **Decor** the same. **Beach** on / off.
 - **Roads:** draw a road from tile to tile (a straight / A* path between two
@@ -279,7 +282,7 @@ All keys in this order on export.
 | key | type | |
 |---|---|---|
 | `format` | string | always `"velirons-outpost-map"` |
-| `format_version` | int | 3 (format 1: no `water_spawns`; 2: no ruin `building`) |
+| `format_version` | int | 4 (format 1: no `water_spawns`; 2: no ruin `building`; 3: no city zone `c`) |
 | `name` | string | 1-60 characters; shown in the map list and the lobby |
 | `author` | string | 0-60 characters |
 | `description` | string | 0-1000 characters |
@@ -299,7 +302,7 @@ All keys in this order on export.
 | layer | codes |
 |---|---|
 | `terrain` | `.` grass, `R` road, `F` forest, `D` desert, `M` mountain, `W` deep water, `S` shallow water, `L` lava |
-| `zone` | `m` meadow, `o` oak, `p` pine, `h` heath, `s` steppe, `w` swamp, `a` ash |
+| `zone` | `m` meadow, `o` oak, `p` pine, `h` heath, `s` steppe, `w` swamp, `a` ash, `c` city |
 | `slice` | `0`-`7` |
 | `beach` | `b` beach, `.` none |
 | `props` | `.` none, else a letter from the layer's own `palette` (art names) |
@@ -429,7 +432,7 @@ not format errors: the map loads, and the checks (§5.4) report them.
   },
   "legend": {
     "terrain": ". grass, R road, F forest, D desert, M mountain, W deep water, S shallow water, L lava",
-    "zone": "m meadow, o oak, p pine, h heath, s steppe, w swamp, a ash",
+    "zone": "m meadow, o oak, p pine, h heath, s steppe, w swamp, a ash, c city",
     "slice": "0-7 the slice (village area) a tile belongs to",
     "beach": "b beach, . none",
     "props": ". none, else a letter of props.palette",

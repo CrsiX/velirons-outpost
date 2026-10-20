@@ -22,12 +22,19 @@ extends "res://tests/bot_base.gd"
 ## The Exile: Fiona, the druids in their grove (no orders), Brenna at her tent,
 ## Fiona's trust in steps (what is refused when), the mages' tower, wave 5's
 ## band at the grove, the circle, the win, a druid falling in wave 5.
-##   -- --only=1|2|...|9   one scenario only (the title screen with 1)
+##   -- --only=1|2|...|11  one scenario only (the title screen with 1)
 
 var sc: ScenarioRunner
+## Every named enemy that came on the map (name -> kind), however soon it was gone.
+var named := {}
 
 
 func _run() -> void:
+	get_tree().node_added.connect(func(n: Node) -> void:
+		if n is Enemy:
+			(func() -> void:
+				if is_instance_valid(n) and (n as Enemy).given_name != "":
+					named[(n as Enemy).given_name] = (n as Enemy).kind).call_deferred())
 	var diff := Settings.difficulty
 	Settings.difficulty = Settings.Difficulty.HARD
 	var only := ""
@@ -56,6 +63,10 @@ func _run() -> void:
 		await _scenario_8()
 	if only in ["", "9"]:
 		await _scenario_9()
+	if only in ["", "10"]:
+		await _scenario_10()
+	if only in ["", "11"]:
+		await _scenario_11()
 	if is_instance_valid(game):
 		game.queue_free()
 		await frames(2)
@@ -78,6 +89,7 @@ func cmd(type: String, args: Dictionary = {}) -> Dictionary:
 
 
 func _new_game(n := 1) -> void:
+	named.clear()
 	if is_instance_valid(game):
 		game.queue_free()
 		await frames(2)
@@ -359,8 +371,8 @@ func _title() -> void:
 	await frames(1)
 	check(t._campaign_page.visible and not t._main_page.visible, "it opens the campaign page")
 	var names: Array = t.scenario_buttons.map(func(b: Button) -> String: return b.text)
-	check(names == ["1. Homecoming", "2. The Old Friend", "3. The Wardline", "4. The Split", "5. The Betrayal", "6. The Dead", "7. The Exile", "8. The Pale Court", "9. The Drowned Abbey"], "scenarios 1 to 9 are there: %s" % str(names))
-	check(t._campaign_page.get_children().any(func(c: Node) -> bool: return c is Label and (c as Label).text.contains("still to come")), "and the rest are to come")
+	check(names == ["1. Homecoming", "2. The Old Friend", "3. The Wardline", "4. The Split", "5. The Betrayal", "6. The Dead", "7. The Exile", "8. The Pale Court", "9. The Drowned Abbey", "10. The Last Wardline", "11. The Crown"], "all eleven scenarios are there: %s" % str(names))
+	check(not t._campaign_page.get_children().any(func(c: Node) -> bool: return c is Label and (c as Label).text.contains("still to come")), "none still to come")
 	t.show_page(t._main_page)
 	t.queue_free()
 	await frames(1)
@@ -831,7 +843,7 @@ func _scenario_5() -> void:
 	check(await wait_until(func() -> bool: return not is_instance_valid(lysa) or lysa.dead, 120.0), "she walks back up her road and leaves the map")
 	var legion_names: Array = Config.ENEMIES.keys().filter(func(k: String) -> bool: return k.begins_with("legion_")).map(func(k: String) -> String: return str(Config.ENEMIES[k]["name"]))
 	var lib := Library.entries("enemies").filter(func(e: Dictionary) -> bool: return legion_names.has(str(e["name"])))
-	check(lib.size() == legion_names.size() and lib.size() == 6 and lib.all(func(e: Dictionary) -> bool: return (e["facts"] as PackedStringArray).has("The Dread Legion: people, bound to Rhodri. Only in the campaign")), "the library has every Legion kind, as people (%d)" % lib.size())
+	check(lib.size() == legion_names.size() and lib.size() == 8 and lib.all(func(e: Dictionary) -> bool: return (e["facts"] as PackedStringArray).has("The Dread Legion: people, bound to Rhodri. Only in the campaign")), "the library has every Legion kind, as people (%d)" % lib.size())
 
 	print("-- scenario 5: the evidence")
 	cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
@@ -1196,7 +1208,7 @@ func _scenario_8() -> void:
 	check(not game.game_over and sc.phase == ScenarioRunner.Phase.OUTRO, "the three crypts cleared%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
 	check(crypts.all(func(o: Node) -> bool: return (o as MonsterLair).cleared and not (o as MonsterLair).awake), "they stay cleared")
 	check(offer, "Lothar's offer came, and was refused")
-	check(rurik and sc.mark.has("rurik down"), "Rurik stood at the third crypt, and fell (seen %s, %s, fell %s)" % [rurik, sc.mark.has("rurik"), sc.mark.has("rurik down")])
+	check((rurik or named.get("Rurik", "") == "legion_champion") and sc.mark.has("rurik down"), "Rurik stood at the third crypt, and fell (seen %s, %s, fell %s)" % [rurik, named.get("Rurik", ""), sc.mark.has("rurik down")])
 	check(scenes >= 4, "the scenes between the waves (%d)" % scenes)
 	if sc.cutscene != null and not sc._outro_started:
 		await _through_scene()  # (Rurik's fall)
@@ -1348,3 +1360,213 @@ func _scenario_9() -> void:
 	check(said.has("eldest") and said.has("lysa"), "the priests agree, and Lysa warns her (%s)" % str(said))
 	await frames(3)
 	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Drowned Abbey: complete", "won: %s" % game.hud._overlay_title.text)
+
+
+# --- scenario 10: The Last Wardline ------------------------------------------------------------
+
+func _scenario_10() -> void:
+	print("-- scenario 10: setup")
+	await _new_game(10)
+	var v := game.player_village
+	var h := game.hero
+	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Wardline", "scenario 10 runs on the home map, grown")
+	check(sc.ruin_sites.is_empty() and not game.world.map_objects.any(func(o: Node) -> bool: return o is RuinedTower), "every Wardline ruin stands restored")
+	var restored := v.buildings().filter(func(b: Building) -> bool: return b is MilitaryPost and (b as MilitaryPost).capacity() > 0 and b.complete and not b.devastated)
+	check(restored.size() >= 9, "a village at its strongest: many manned posts (%d)" % restored.size())
+	check(game.army.stationed().size() >= 14 and game.army.reserve().size() == 2, "its army on them, two in the reserve (%d stationed)" % game.army.stationed().size())
+	check(v.huts().all(func(b: Building) -> bool: return not (b as Hut).ruined), "every hut stands")
+	var einar := game.population.civilians.filter(func(c: Civilian) -> bool: return c.given_name == "Einar")
+	check(einar.size() == 1 and (einar[0] as Civilian).role == "forester", "Einar is the forester")
+	check(h.level == 15 and not sc.spec.hero_revives, "Brenna at level 16, no revive even at home")
+	await wait(1.0)
+	var said := await _watch(sc.cutscene)
+	check(said.has("einar") and said.has("pell") and said.has("brenna"), "the intro: torches on the horizon, Einar's greeting (%s)" % str(said))
+
+	print("-- scenario 10: the commander")
+	var at: Vector2i = game.map.edge_spawns[0]
+	var foot := game.waves.spawn_at("legion_footman", at, v, 1)
+	var marshal := game.waves.spawn_at("legion_marshal", at, v, 1)
+	await frames(2)
+	foot._haste_at = -INF
+	check(is_equal_approx(foot.haste(), 1.3) and is_equal_approx(foot.guard(), 0.75), "a footman near the marshal strikes 1.3x as fast and takes 0.75x (%s, %s)" % [foot.haste(), foot.guard()])
+	var hp0 := foot.hp
+	foot.take_damage(8.0, null, "melee")
+	check(is_equal_approx(hp0 - foot.hp, 6.0), "8 damage takes 6")
+	marshal.set_grid_pos(Vector2(at) + Vector2(6, 0))
+	foot._haste_at = -INF
+	check(is_equal_approx(foot.haste(), 1.0) and is_equal_approx(foot.guard(), 1.0), "away from him, as ever")
+	kill(marshal, h)
+	check(marshal.dead, "the marshal can be killed")
+	await clear_enemies()
+
+	print("-- scenario 10: the waves, the caravans, the mages, the marshal")
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	Engine.time_scale = 4.0
+	guard.start()
+	var demand := false
+	var torben := false
+	var lysa := false
+	var halvard := false
+	var rallied := false
+	var halted := false
+	spare = "Halvard"  # (alive a while when he comes: he rallies)
+	var t := 0.0
+	while not sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER] and not game.game_over and t < 2400.0:
+		if sc.cutscene != null:
+			if sc.cutscene.steps.any(func(s: Dictionary) -> bool: return s.has("choices")):
+				demand = true
+			await _through_scene(1)
+		for e in get_tree().get_nodes_in_group("enemies"):
+			var en := e as Enemy
+			torben = torben or en.given_name == "Torben"
+			lysa = lysa or en.given_name == "Lysa"
+			if en.given_name == "Halvard" and not halvard:
+				halvard = true
+				var near := game.waves.spawn_at("legion_footman", en.current_tile(), v, 1)
+				await frames(1)
+				near.set_grid_pos(en.grid_pos)
+				near._haste_at = -INF
+				check(near.guard() < 1.0, "his soldiers take less harm near him")
+				near.take_damage(1e9)
+		if halvard and spare == "Halvard":
+			rallied = rallied or game.events.entries.any(func(en) -> bool: return str(en["text"]).contains("rallies the Legion"))
+			if rallied:
+				spare = ""
+		for n in game.world.objects.get_children():
+			if is_instance_valid(n) and n is ScenarioCaravan and not halted and game.waves.in_progress() and not (n as ScenarioCaravan).arrived \
+					and (n as ScenarioCaravan).progress < (n as ScenarioCaravan).road.size() - 8:
+				halted = true
+				var cv := n as ScenarioCaravan
+				var stop := game.waves.spawn_at("goblin", cv.road[mini(int(cv.progress) + 2, cv.road.size() - 1)], v, 1)
+				stop.set_process(false)
+				stop.set_identity("Roadblock", "")
+				stop.max_hp = 1e8  # (the towers don't shoot it away meanwhile)
+				stop.hp = 1e8
+				var spared := spare
+				spare = "Roadblock"  # (nor the guard)
+				await wait(1.0)
+				check(cv.halted, "a caravan halts with an enemy on the road ahead")
+				var p0 := cv.progress
+				await wait(0.5)
+				check(is_equal_approx(cv.progress, p0), "and doesn't move")
+				if is_instance_valid(stop):
+					kill(stop)
+				spare = spared
+				await wait(1.0)
+				check(not cv.halted and cv.progress > p0, "the road clear, it goes on")
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+		t += 0.5
+	check(not game.game_over and sc.phase == ScenarioRunner.Phase.OUTRO, "sixteen waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	check(demand, "Lothar's demand came, and was refused")
+	check(sc.mark.has("mages") and game.army.units.filter(func(u: MilitaryUnit) -> bool: return u.kind in ["fire_mage", "ice_mage", "healing_mage"]).size() >= 3, "Fiona's three mages joined")
+	check((torben or named.get("Torben", "") == "legion_captain") and (lysa or named.get("Lysa", "") == "legion_captain"), "Torben and Lysa led attacks")
+	check(halvard and rallied and sc.mark.has("halvard down"), "Halvard came, rallied the Legion and fell")
+	check(int(sc.mark.get("caravans in", 0)) >= 4, "the guild's caravans came in (%d)" % int(sc.mark.get("caravans in", 0)))
+	while sc.cutscene != null and not sc._outro_started:
+		await _through_scene()
+	check(await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 120.0), "the outro plays")
+	guard.queue_free()
+	Engine.time_scale = 1.0
+	said = await _watch(sc.cutscene)
+	check(said.has("halvard") and said.has("idris"), "Halvard's thanks, and Fiona's word (%s)" % str(said))
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Last Wardline: complete", "won: %s" % game.hud._overlay_title.text)
+
+	print("-- scenario 10: opening the gates")
+	await _new_game(10)
+	sc.cutscene.skip()
+	await frames(2)
+	sc.spec._demand(sc)
+	await frames(2)
+	await _watch(sc.cutscene, 0)
+	check(await wait_until(func() -> bool: return game.game_over, 3.0) and game.hud._overlay_sub.text.contains("opened the gates"), "surrendering loses (%s)" % game.hud._overlay_sub.text)
+
+
+# --- scenario 11: The Crown --------------------------------------------------------------------
+
+func _scenario_11() -> void:
+	print("-- scenario 11: setup")
+	await _new_game(11)
+	var v := game.player_village
+	var h := game.hero
+	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Capital", "scenario 11 runs on the capital's map")
+	var city := 0
+	var houses := 0
+	var farmable := 0
+	for y in game.map.size:
+		for x in game.map.size:
+			var tt := Vector2i(x, y)
+			if game.map.zone(tt) == "city":
+				city += 1
+				if game.map.is_mountain(tt) and str(game.map.props.get(tt, "")).begins_with("house"):
+					houses += 1
+			if game.map.is_passable(tt) and not bool(Config.ZONES[game.map.zone(tt)].get("no_farms", false)):
+				farmable += 1
+	check(city > 1000 and houses > 150, "a city: cobbles and houses (%d city tiles, %d houses)" % [city, houses])
+	check(farmable < 200 and not sc.allows_building("farm"), "no fields: nothing to farm, no farms to build (%d)" % farmable)
+	var hall: Treasure = sc.spec._hall(sc)
+	check(hall != null and int(hall.data["size"]) == 3 and not hall.lootable() and hall.landmark() != "", "the throne hall: a landmark nobody loots")
+	var fiona := game.population.civilians.filter(func(c: Civilian) -> bool: return c.given_name == "Fiona")
+	check(fiona.size() == 1 and fiona[0] is Resident and sc.spec.must_live.has("Fiona"), "Fiona stays in her house and must not die")
+	var bound := game.army.units.filter(func(u: MilitaryUnit) -> bool: return u.bound)
+	check(bound.size() == 3 and bound.all(func(u: MilitaryUnit) -> bool: return u.state == MilitaryUnit.State.STATIONED and u.kind.ends_with("_mage")), "Fiona's three mages hold their towers, taking no orders")
+	check(h.level == 17 and game.army.reserve().size() == 5, "Brenna at level 18, the army in the reserve")
+	await wait(1.0)
+	var said := await _watch(sc.cutscene)
+	check(said.has("fiona") and said.has("pell"), "the intro: the Hand given to Fiona (%s)" % str(said))
+
+	print("-- scenario 11: the king")
+	var at := sc.spawn_near(hall.tile)
+	var king := game.waves.spawn_at("legion_king", at, v, 1)
+	await frames(2)
+	check(king.spec()["cleave"] > 0.0 and king.spec().has("command_radius"), "the king: a commander whose blows cleave")
+	kill(king, h)
+	await frames(2)
+	check(not king.dead and king.retreating and king.hp >= 1.0 and not king.targetable(), "at 0 HP he is downed, not killed, and can't be hit")
+	check(await wait_until(func() -> bool: return not is_instance_valid(king) or king.dead, 60.0), "he flees along his road and is gone")
+	await clear_enemies()
+
+	print("-- scenario 11: the waves, the carts, Rhodri")
+	var posts: Array = sc.towers(true).filter(func(b: Building) -> bool: return b.working() and (b as Tower).garrison == null)
+	posts.append_array(v.buildings().filter(func(b: Building) -> bool: return b is Barracks))
+	for post in posts:
+		var fit := game.army.reserve().filter(func(m: MilitaryUnit) -> bool: return m.fits(post.post_kind()))
+		if not fit.is_empty():
+			cmd("station_unit", {"unit": (fit[0] as MilitaryUnit).nid, "post": post.nid})
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	Engine.time_scale = 4.0
+	guard.start()
+	var food0 := game.economy.amount("food")
+	var fed := false
+	var rhodri := false
+	var t := 0.0
+	while not sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER] and not game.game_over and t < 2400.0:
+		if sc.cutscene != null:
+			await _through_scene()
+		if not fed and game.events.entries.any(func(en) -> bool: return str(en["text"]).begins_with("The guild caravan is in")):
+			fed = true
+		rhodri = rhodri or sc.named_enemy("Rhodri") != null
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+		t += 0.5
+	check(not game.game_over and sc.phase == ScenarioRunner.Phase.OUTRO, "twelve waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	check(fed and food0 > 0.0, "food came by the guild's carts")
+	check(rhodri and sc.mark.has("rhodri down") and sc.mark.has("lothar down"), "Rhodri came out, was beaten and fled; Lothar fell")
+	while sc.cutscene != null and not sc._outro_started:
+		await _through_scene()
+	check(await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 120.0), "the outro plays")
+	guard.queue_free()
+	Engine.time_scale = 1.0
+	said = await _watch(sc.cutscene)
+	check(said.has("rhodri") and said.has("cursed"), "Fiona and her brother; the curse (%s)" % str(said))
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Crown: complete", "won: %s" % game.hud._overlay_title.text)
