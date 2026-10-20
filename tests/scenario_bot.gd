@@ -1196,7 +1196,7 @@ func _scenario_8() -> void:
 	check(not game.game_over and sc.phase == ScenarioRunner.Phase.OUTRO, "the three crypts cleared%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
 	check(crypts.all(func(o: Node) -> bool: return (o as MonsterLair).cleared and not (o as MonsterLair).awake), "they stay cleared")
 	check(offer, "Lothar's offer came, and was refused")
-	check(rurik and sc.mark.has("rurik down"), "Rurik stood at the third crypt, and fell")
+	check(rurik and sc.mark.has("rurik down"), "Rurik stood at the third crypt, and fell (seen %s, %s, fell %s)" % [rurik, sc.mark.has("rurik"), sc.mark.has("rurik down")])
 	check(scenes >= 4, "the scenes between the waves (%d)" % scenes)
 	if sc.cutscene != null and not sc._outro_started:
 		await _through_scene()  # (Rurik's fall)

@@ -687,7 +687,7 @@ static func _damage() -> Array[Dictionary]:
 			var hurts := float(e["damage"]) > 0.0 or e.has("attack_category")
 			if c == cat and hurts:
 				theirs.append(str(e.get("library_name", e["name"])).to_lower())
-			elif c != "melee" and cat == "melee":
+			elif c == "magical" and cat == "melee":  # (the spells; an archer's arrows are under Projectile)
 				others.append(str(e.get("library_name", e["name"])).to_lower() + "'s")
 		if cat == "melee" and not theirs.is_empty():
 			f.append("Enemies: every blow%s" % (" (not the %s spells)" % " or ".join(others) if not others.is_empty() else ""))

@@ -78,6 +78,8 @@ func _pages() -> void:
 	check(Config.DAMAGE_CATEGORIES.all(func(c: String) -> bool: return Config.DAMAGE_INFO.has(c)) and _names("damage").size() == Config.DAMAGE_CATEGORIES.size(), "damage: an entry for every category (Config.DAMAGE_INFO)")
 	var fire := _facts("damage", "Fire")
 	check("fire mage" in fire and "fire elementals" in fire and "Wrathwood x2" in fire and "Crab x0.5" in fire and "Vampire x0.67" in fire, "fire: the fire mage and fire elementals; the wrathwood x2, water monsters and the vampire less\n%s" % fire)
+	var proj := _facts("damage", "Projectile")
+	check("legion archer" in proj and not ("legion archer" in _facts("damage", "Melee")), "projectile: the Legion archer's arrows (not a melee exception)\n%s" % proj)
 	var melee := _facts("damage", "Melee")
 	check("the hero's sword" in melee and "shield bearer" in melee and "earth elementals" in melee and "every blow (not the witch's or leviathan's spells)" in melee and "Siren x1.5" in melee, "melee: the hero, the shield bearer line, earth elementals, enemy blows; the siren x1.5\n%s" % melee)
 	var holy := _facts("damage", "Holy")
