@@ -673,7 +673,7 @@ func _test_slimes() -> void:
 	check(s3["hp"] == 2.0 * s2["hp"] and s2["hp"] == 2.0 * s1["hp"] and s3["damage"] == 2.0 * s2["damage"] and s2["damage"] == 2.0 * s1["damage"], "each level has twice the HP and damage of the one below")
 	check(s1["speed"] > s2["speed"] and s2["speed"] == enemies["goblin"]["speed"] and s2["speed"] > s3["speed"], "level 1 is fast, level 2 normal, level 3 slow")
 	check([s3, s2, s1].all(func(d: Dictionary) -> bool: return not d.get("corpse", true) and d["behavior"] == "melee"), "slimes leave no corpse (nothing to raise) and walk the roads like goblins and orks")
-	check(not s3.has("raid_chance") and s2["raid_chance"] == 0.5 and s1["raid_chance"] == 0.25, "at the gate: a big slime always burns a hut, a slime half, a small one a quarter of the time")
+	check(not s3.has("raid_chance") and s2["raid_chance"] == 0.25 and s1["raid_chance"] == 0.1, "at the gate: a big slime always burns a hut, a slime a quarter, a small one a tenth of the time")
 	var first := 0
 	for n in range(1, 30):
 		if Config.wave_composition(n).has("slime3"):
@@ -705,7 +705,7 @@ func _test_slimes() -> void:
 			hits += 1 if game.raid_roll(e) else 0
 		shares[kind] = hits / 4000.0
 		e.free()
-	check(shares["slime3"] == 1.0 and shares["goblin"] == 1.0 and absf(shares["slime2"] - 0.5) < 0.04 and absf(shares["slime1"] - 0.25) < 0.04, "the gate roll: big slime always, slime ~50 %%, small slime ~25 %% %s" % str(shares))
+	check(shares["slime3"] == 1.0 and shares["goblin"] == 1.0 and absf(shares["slime2"] - 0.25) < 0.04 and absf(shares["slime1"] - 0.1) < 0.03, "the gate roll: big slime always, slime ~25 %%, small slime ~10 %% %s" % str(shares))
 
 	# A big slime splits into 2 slimes, each into 2 small ones; those just die.
 	await clear_corpses()

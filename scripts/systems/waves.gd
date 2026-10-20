@@ -56,6 +56,9 @@ var _aqua_logged := {}
 ## that was announced (AQUA warn_after; once per wave).
 var _water_only := 0.0
 var _water_warned := false
+## Seconds that only water-bound ones (leviathan, octopus) have been left of
+## this wave with none of them in a fight (AQUA leave_after).
+var _water_idle := 0.0
 var _water_scan := 0.0
 
 
@@ -132,6 +135,7 @@ func _start_wave() -> void:
 	rats_leave = false
 	_water_only = 0.0
 	_water_warned = false
+	_water_idle = 0.0
 	wave += 1
 	countdown = -1.0
 	var n := wave
@@ -330,9 +334,10 @@ func _process(delta: float) -> void:
 
 ## Once nothing but water monsters is left of the wave (nothing more to
 ## come), the villages they came for hear about it after AQUA warn_after
-## seconds, once per wave: the wave ends only when those are dead.
+## seconds, once per wave: the wave ends only when those are dead (or gone,
+## _check_leave).
 func _check_water(delta: float) -> void:
-	if _water_warned or wave <= 0:
+	if wave <= 0:
 		return
 	_water_scan -= delta
 	if _water_scan > 0.0:
@@ -342,9 +347,10 @@ func _check_water(delta: float) -> void:
 	var left := _water_left()
 	if left.is_empty() or not _queue.is_empty():
 		_water_only = 0.0
+		_water_idle = 0.0
 		return
 	_water_only += step
-	if _water_only < float(Config.AQUA["warn_after"]):
+	if _check_leave(left, step) or _water_warned or _water_only < float(Config.AQUA["warn_after"]):
 		return
 	_water_warned = true
 	var per: Dictionary = {}  # village -> kind names
@@ -359,6 +365,28 @@ func _check_water(delta: float) -> void:
 		var what := ", ".join(per[v])
 		v.events.important("Water monsters are still out there (%s). The wave ends only when they are dead: build towers by the water" % what)
 		v.toast("Water monsters remain: %s" % what, Color("7ac8ff"))
+
+
+## When the wave's last ones (`left`) are all water-bound (habitat "water":
+## leviathan, octopus; no amphibian), none named (a scenario's boss) or on a
+## post, and none of them has been in a fight (AquaBehavior.engaged) for AQUA
+## leave_after s, they go back into the deep (Enemy.vanish: no corpse, no
+## gold) and the wave can end. True when they went.
+func _check_leave(left: Array[Enemy], step: float) -> bool:
+	for e in left:
+		var ab := e.behavior as AquaBehavior
+		if e.habitat() != "water" or e.given_name != "" or e.post.x >= 0 or ab == null or ab.engaged(e):
+			_water_idle = 0.0
+			return false
+	_water_idle += step
+	if _water_idle < float(Config.AQUA["leave_after"]):
+		return false
+	_water_idle = 0.0
+	for e in left:
+		var v: Village = e.target_village if is_instance_valid(e.target_village) else game.villages[0]
+		v.events.info("%s goes back into the deep" % e.label())
+		e.vanish()
+	return true
 
 
 ## The wave's living enemies if every one of them is a water monster (crab,

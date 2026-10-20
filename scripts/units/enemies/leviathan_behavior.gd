@@ -122,5 +122,10 @@ func _go_down(enemy: Enemy) -> void:
 	home_village(enemy).events.debug("%s dives" % enemy.label())
 
 
+## Blasting someone counts as a fight too.
+func engaged(enemy: Enemy) -> bool:
+	return super(enemy) or _blast_t >= 0.0
+
+
 func on_death(enemy: Enemy) -> void:
 	_end_blast(enemy)

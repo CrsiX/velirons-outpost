@@ -109,11 +109,11 @@ checks both rules for every specialisation (`_spec_rule_breaks`).
 | **Summoner** | summoner · tower, barracks | 18 → 50 | - | (summons) | - | - | fragile, no attack of its own (summon table below) |
 | **Fire Summoner** | summoner · tower, barracks | 26 → 55 | - | (summons) | - | - | fire elementals |
 | **Druid** | summoner · tower, barracks | 26 → 56 | - | (summons) | - | - | thornlings that root (§3b) |
-| **Apprentice** | ranged · tower, barracks | 20 → 60 | 2.8 | 7 → 38 | 1.0 → 0.55 | 7 → 69 | whirling dark-blue orb, plain damage |
-| **Fire Mage** | ranged · tower, barracks | 29 → 65 | 2.8 | 15 → 42 | 0.95 → 0.55 | 15.8 → 76 | fireball explodes: splash within 1.2 → 1.8 tiles (`splash`), 60 % of the damage (`splash_share`) |
+| **Apprentice** | ranged · tower, barracks | 20 → 60 | 2.8 | 8 → 40 | 1.0 → 0.55 | 8 → 73 | whirling dark-blue orb, plain damage |
+| **Fire Mage** | ranged · tower, barracks | 29 → 65 | 2.8 | 16 → 42 | 0.95 → 0.55 | 16.8 → 76 | fireball explodes: splash within 1.2 → 1.8 tiles (`splash`), 60 % of the damage (`splash_share`) |
 | **Ice Mage** | ranged · tower, barracks | 29 → 65 | 2.8 | 16 → 44 | 0.95 → 0.55 | 17 → 80 | hit enemy slowed to 70 % → 40 % speed for 2 → 3.5 s |
 | **Healing Mage** | healer · tower, barracks | 29 → 65 | heal radius 2.5 → 3.5 | no damage | 3.0 → 1.4 | - | heals 6 → 30 HP to every ally in reach |
-| **Spatial Mage** | ranged · tower, barracks | 29 → 65 | 2.8 | 15 → 42 | 0.95 → 0.55 | 15.8 → 76 | hit enemy is thrown back 1.5 → 4 road tiles, away from the village; the same enemy only once per 4 s (`push_immunity`) |
+| **Spatial Mage** | ranged · tower, barracks | 29 → 65 | 2.8 | 16 → 42 | 0.95 → 0.55 | 16.8 → 76 | hit enemy is thrown back 1.5 → 4 road tiles, away from the village; the same enemy only once per 4 s (`push_immunity`) |
 | **Acolyte** | ranged · tower, barracks | 30 → 90 | 1.6 | 6.5 → 36 | 1.0 → 0.48 | 6.5 → 75 | holy beam (docs/acolyte-design.md) |
 | **Inquisitor** | melee · barracks only | 45 → 140 | melee (0.8) | 17 → 57 | 1.1 → 0.75 | 15.5 → 76 | holy melee, hunts witches and the unholy |
 | **High Priest** | support · tower, barracks | 44 → 95 | aura 2.6 | counter-strike 3 → 10 | 1.4 → 1.0 | - | aura +2 % → +20 % damage to allies |
@@ -363,7 +363,7 @@ const MILITARY := {
         "name": "Fire Mage", "role": "ranged", "recruit": false,
         "branch_of": "apprentice", "branch_cost": {"gold": 120},
         "attack": "fireball", "range": 2.8,
-        "stats": {"hp": [29.0, 65.0], "damage": [15.0, 42.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
+        "stats": {"hp": [29.0, 65.0], "damage": [16.0, 42.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
         ...
     },
     ...

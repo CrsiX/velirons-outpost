@@ -57,6 +57,10 @@ rebuild huts / restore claimed ruins -> recruit villagers -> farms and camps -> 
 barracks, training grounds -> units onto empty posts -> training grounds' unit swapped into
 the field -> tower upgrades -> unit upgrades (lowest level first, the profile's
 specialisation as soon as possible) -> gold into material (essentials only) -> call the wave.
+Gold and material don't leak: tower upgrades wait while a building waits for material (or
+gold would buy material for them through it), and the gold put by for the unit upgrade it
+saves up for (`_saving`) isn't traded for material, except for a hut or a farm / camp
+(`_want_critical`). Huts are rebuilt for `Hut.rebuild_cost()` (40), not the full price.
 
 Where it builds: towers and barracks where they cover most road within `approach_steps` of
 a gate that no post covers yet (near the village preferred, `tower_spacing` apart); farms

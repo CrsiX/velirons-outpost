@@ -260,8 +260,8 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 | Kind | HP | Speed | Damage / cooldown | Kill gold | Splits into | Raid chance |
 |---|---|---|---|---|---|---|
 | Big slime (`slime3`) | 40 | 0.8 | 11 / 1.2 s | 3 | 2 × slime2 | 100 % |
-| Slime (`slime2`) | 20 | 1.1 | 5.5 / 1.2 s | 2 | 2 × slime1 | 50 % |
-| Small slime (`slime1`) | 10 | 1.4 | 2.75 / 1.2 s | 1 | none | 25 % |
+| Slime (`slime2`) | 20 | 1.1 | 5.5 / 1.2 s | 2 | 2 × slime1 | 25 % |
+| Small slime (`slime1`) | 10 | 1.4 | 2.75 / 1.2 s | 1 | none | 10 % |
 
 - From wave 4 (only big slimes are in `WAVE_MIX`). No corpses, so nothing to gather or raise.
 - Slain, a slime splits into `split_count` of `split_into` side by side, popping out of it.

@@ -996,7 +996,7 @@ const MILITARY := {
 		"name": "Apprentice", "role": "ranged", "posts": ["tower", "barracks"], "recruit": true,
 		"cost": {"gold": 55}, "speed": 1.6, "attack": "orb", "range": 2.8,
 		"desc": "A young mage: whirling dark-blue orbs. Grows into a specialised mage.",
-		"stats": {"hp": [20.0, 60.0], "damage": [7.0, 38.0], "cooldown": [1.0, 0.55]},
+		"stats": {"hp": [20.0, 60.0], "damage": [8.0, 40.0], "cooldown": [1.0, 0.55]},
 		"upgrade_cost": [50, 300], "train_xp": [35, 400],
 		"branches": ["fire_mage", "ice_mage", "healing_mage", "spatial_mage"],
 	},
@@ -1005,7 +1005,7 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "fireball", "range": 2.8,
 		"desc": "Fireballs that explode: an apprentice's damage, splashed over whole groups.",
-		"stats": {"hp": [29.0, 65.0], "damage": [15.0, 42.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
+		"stats": {"hp": [29.0, 65.0], "damage": [16.0, 42.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
 	"ice_mage": {
@@ -1029,7 +1029,7 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "warp", "range": 2.8,
 		"desc": "An apprentice's damage, and the enemy hit is thrown back along its road. At level %d it can become the Spatial Archmage." % ARCHMAGE_LEVEL,
-		"stats": {"hp": [29.0, 65.0], "damage": [15.0, 42.0], "cooldown": [0.95, 0.55], "push": [1.5, 4.0]},
+		"stats": {"hp": [29.0, 65.0], "damage": [16.0, 42.0], "cooldown": [0.95, 0.55], "push": [1.5, 4.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 		"archmage": true,
 	},
@@ -1364,7 +1364,7 @@ const ENEMIES := {
 		"colors": SLIME_COLORS, "hp_bar_y": -33.0,
 	},
 	"slime2": {
-		"name": "Slime", "art": "slime2", "behavior": "melee", "corpse": false, "level": 2, "raid_chance": 0.5, "library": false,
+		"name": "Slime", "art": "slime2", "behavior": "melee", "corpse": false, "level": 2, "raid_chance": 0.25, "library": false,
 		"siege": 1.0,
 		"desc": "Half of a big slime. Slain, it splits into two small slimes. In the village, it burns a hut only half of the time.",
 		"hp": 20.0, "speed": 1.1,
@@ -1374,7 +1374,7 @@ const ENEMIES := {
 		"colors": SLIME_COLORS, "hp_bar_y": -25.0,
 	},
 	"slime1": {
-		"name": "Small slime", "art": "slime1", "behavior": "melee", "corpse": false, "level": 1, "raid_chance": 0.25, "library": false,
+		"name": "Small slime", "art": "slime1", "behavior": "melee", "corpse": false, "level": 1, "raid_chance": 0.1, "library": false,
 		"siege": 1.0,
 		"desc": "The smallest and quickest slime. It just dies. In the village, it burns a hut only a quarter of the time.",
 		"hp": 10.0, "speed": 1.4,
@@ -1843,10 +1843,15 @@ const WRATHWOOD := {
 ##                     dead, nothing more to come), after this many seconds the log
 ##                     (Important) and a toast say so, once per wave: the wave ends
 ##                     only when they are dead, so towers by the water are needed
+##   leave_after ..... once only water-bound ones (leviathan, octopus: habitat
+##                     "water") are left in a wave, none named or on a post, and
+##                     none in a fight (hurt within 1 s, blasting, an arm out) for
+##                     this many seconds, they go back into the deep (no corpse,
+##                     no gold) and the wave can end
 const AQUA := {
 	"dive_time": 0.5, "surface_time": 0.5, "sink_time": 6.0,
 	"threat_radius": 12.0, "spawn_shore": 8.0, "melee_reach": 1.5,
-	"warn_after": 15.0,
+	"warn_after": 15.0, "leave_after": 3.0,
 }
 ## The log's line for the first of each water kind in a game (Info; the octopus: Important).
 const AQUA_FIRST := {

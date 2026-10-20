@@ -42,6 +42,12 @@ static func people(game: Game, sortie_only := false) -> Array[Node]:
 	return out
 
 
+## In a fight now: hurt within the last second, or (the kinds say) attacking
+## someone or something. Waves: water-bound monsters left alone leave.
+func engaged(enemy: Enemy) -> bool:
+	return enemy.game.clock - enemy.hurt_at < 1.0
+
+
 ## Still someone it can get at?
 static func reachable(n) -> bool:
 	if not is_instance_valid(n) or n.is_queued_for_deletion():

@@ -27,8 +27,14 @@ var _cheated := false
 var _turn := {"tower": 0, "wall": 0, "barracks": 0}
 ## Kind -> game seconds before which it isn't tried to place again (no spot).
 var _no_spot: Dictionary = {}
-## Material the building / upgrade held back by lack of it wants (0: nothing).
+## Material the building held back by lack of it wants (0: nothing), and
+## whether that is a hut or a farm / camp (the village's life: the gold kept
+## for a unit upgrade goes into it too).
 var _want_materials := 0
+var _want_critical := false
+## Gold put by for the unit upgrade it saves up for (_unit_upgrades; 0: none):
+## _trade doesn't spend it on material.
+var _saving := 0
 ## Game clock since when only water monsters have been left in the wave.
 var _water_only_since := -1.0
 var _approach: Array[Vector2i] = []
@@ -55,6 +61,8 @@ func _process(delta: float) -> void:
 
 func _think() -> void:
 	_want_materials = 0
+	_want_critical = false
+	_saving = 0
 	_cheats()
 	_hero()
 	_repairs()
@@ -150,12 +158,13 @@ func _can_afford(cost: Dictionary) -> bool:
 ## Notes what's missing when only material is (so _trade may buy it): only
 ## for what the village can't do without, never for upgrades (the foresters'
 ## material comes in by itself; gold is for the army).
-func _note_missing(cost: Dictionary, essential := true) -> void:
+func _note_missing(cost: Dictionary, essential := true, critical := false) -> void:
 	if not essential:
 		return
 	var lack := int(cost.get("materials", 0)) - int(_materials())
 	if lack > 0 and int(cost.get("gold", 0)) <= int(_gold()):
 		_want_materials = maxi(_want_materials, lack)
+		_want_critical = _want_critical or critical
 
 
 # --- cheats (what a test of one unit line needs) -------------------------------------------
@@ -220,10 +229,12 @@ func _camp_to_attack() -> MonsterCamp:
 # --- repairs -----------------------------------------------------------------------------
 
 func _repairs() -> void:
-	if not village.construction.ruined_huts().is_empty() and _materials() >= float(Config.BUILDINGS["hut"]["cost"]["materials"]):
-		_cmd("rebuild_all_huts")
-	elif not village.construction.ruined_huts().is_empty():
-		_want_materials = maxi(_want_materials, int(Config.BUILDINGS["hut"]["cost"]["materials"]) - int(_materials()))
+	var rebuild := Hut.rebuild_cost()
+	if not village.construction.ruined_huts().is_empty():
+		if _can_afford(rebuild):
+			_cmd("rebuild_all_huts")
+		else:
+			_note_missing(rebuild, true, true)
 	for o in game.world.map_objects:  # claimed ruins become watchtowers
 		if o is RuinedTower and o.village == village and _site_room() and _can_afford(RuinedTower.restore_cost()):
 			_cmd("restore_ruin", {"ruin": o.nid})
@@ -351,7 +362,7 @@ func _place(kind: String) -> void:
 		return
 	var cost: Dictionary = Config.BUILDINGS[kind]["cost"]
 	if not _can_afford(cost):
-		_note_missing(cost)
+		_note_missing(cost, true, kind in ["farm", "camp"])
 		return
 	if float(_no_spot.get(kind, -1.0)) > game.clock:
 		return
@@ -568,7 +579,11 @@ func _rotate_training() -> void:
 
 # --- upgrades ----------------------------------------------------------------------------------
 
+## (Not while a building waits for material: the material goes to that first,
+## or gold would buy material for upgrades through it.)
 func _tower_upgrades() -> void:
+	if _want_materials > 0:
+		return
 	var want_tower := _scheduled(profile["tower_levels"], 1)
 	var want_barracks := _scheduled(profile["barracks_levels"], 1)
 	for b in village.buildings():
@@ -602,7 +617,8 @@ func _unit_upgrades() -> void:
 			continue
 		var cost: Dictionary = opts[0]["cost"]
 		if float(cost.get("gold", 0)) > spare:
-			break  # (saving up for the lowest one)
+			_saving = int(cost.get("gold", 0))
+			break  # (saving up for the lowest one: _trade leaves it alone)
 		var r := _cmd("upgrade_unit", {"unit": u.nid, "to": to})
 		if r["ok"]:
 			spare -= float(cost.get("gold", 0))
@@ -640,6 +656,8 @@ func _trade() -> void:
 	var gold_per: int = Config.MATERIALS_TRADE["gold"]
 	# (A unit for an empty post comes first.)
 	var kept := _cheapest_unit() if _free_posts() > 0 else 0
+	if not _want_critical:
+		kept += _saving  # (a hut or the food come before the upgrade saved for, a tower not)
 	var spare := int(_gold() - float(_params["gold_reserve"])) - kept
 	bundles = mini(bundles, spare / gold_per)
 	if bundles >= 1:

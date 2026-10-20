@@ -280,6 +280,11 @@ func on_hurt(enemy: Enemy) -> void:
 		home_village(enemy).events.debug("%s dives, letting go of everything" % enemy.label())
 
 
+## An arm reaching, holding or smashing counts as a fight too.
+func engaged(enemy: Enemy) -> bool:
+	return super(enemy) or arms.any(func(a: Dictionary) -> bool: return a["state"] in [Arm.REACH, Arm.HOLD, Arm.SMASH])
+
+
 func on_death(enemy: Enemy) -> void:
 	for a in arms:
 		if a["state"] == Arm.REACH or a["state"] == Arm.HOLD or a["state"] == Arm.SMASH:

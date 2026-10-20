@@ -125,6 +125,8 @@ var post := Vector2i(-1, -1)
 var post_leash := 0.0
 ## Its damage and spell damage x this (a scenario's boss: the leviathan).
 var power := 1.0
+## Game.clock when it last took damage (-INF: never).
+var hurt_at := -INF
 var _haste := 1.0
 var _guard := 1.0
 var _haste_at := -INF
@@ -986,6 +988,7 @@ func take_damage(amount: float, source: Node = null, category: String = "pure") 
 	if (raised or undead) and category == "holy":
 		amount *= float(Config.ENEMIES["necromancer"]["raised_holy"])  # (the undead it raised)
 	hp -= amount
+	hurt_at = game.clock
 	behavior.on_hurt(self)
 	queue_redraw()
 	sprite.modulate = Color(1.0, 0.45, 0.45)

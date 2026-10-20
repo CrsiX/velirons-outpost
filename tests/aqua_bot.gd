@@ -578,7 +578,8 @@ func _test_waves() -> void:
 		out.append(w._spec(kind, game.map.edge_spawns[0], 1.0, v))
 	w._water_spawns(out, v)
 	check(out[0]["spawn"] == lake_mid and out[2]["spawn"] == game.map.edge_spawns[0], "a leviathan comes from the water spawn, a goblin from the edge")
-	# A wave with a leviathan ends only once it is dead.
+	# A wave with a leviathan ends only once it is dead, or once it has been
+	# left alone for AQUA leave_after s: then it goes back into the deep.
 	w.scripted.append({"kinds": {"leviathan": 1}, "spawn": lake_mid})
 	w.start_now()
 	await wait_until(func() -> bool: return not w._queue.is_empty() or w._alive > 0, 3.0)
@@ -587,16 +588,42 @@ func _test_waves() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e.kind == "leviathan":
 			lev = e
-	await wait(3.0)
-	check(lev != null and w.in_progress() and w.enemies_left() == 1, "the wave goes on while the leviathan lives (it counts in the top bar)")
+	var leave := float(Config.AQUA["leave_after"])
+	check(leave == 3.0 and lev != null and lev.behavior is AquaBehavior, "a leviathan is out (water-bound monsters left alone leave after %s s)" % leave)
+	# Kept in a fight (hurt now and then), it stays.
+	var poke := func() -> bool:
+		if is_instance_valid(lev) and not lev.dead:
+			lev.take_damage(0.001, null)
+		return false
+	await wait_until(poke, leave + 3.0)
+	check(is_instance_valid(lev) and not lev.dead and w.in_progress() and w.enemies_left() == 1, "the wave goes on while the leviathan lives and fights (it counts in the top bar)")
 	check(logs.any(func(l: String) -> bool: return l == Config.AQUA_FIRST["leviathan"]), "the first leviathan of the game is logged")
 	check(not logs.any(func(l: String) -> bool: return l.begins_with("Water monsters are still out there")), "no warning straight away")
-	var warned := await wait_until(func() -> bool: return logs.any(func(l: String) -> bool: return l.begins_with("Water monsters are still out there (leviathan)")), float(Config.AQUA["warn_after"]) + 5.0)
-	check(warned, "with only water monsters left, after %d s the log says so (and a toast)" % int(Config.AQUA["warn_after"]))
-	await wait(2.0)
+	var warned := await wait_until(func() -> bool:
+		poke.call()
+		return logs.any(func(l: String) -> bool: return l.begins_with("Water monsters are still out there (leviathan)")), float(Config.AQUA["warn_after"]) + 5.0)
+	check(warned, "with only water monsters left, still fighting, after %d s the log says so (and a toast)" % int(Config.AQUA["warn_after"]))
+	await wait_until(poke, 2.0)
 	check(logs.filter(func(l: String) -> bool: return l.begins_with("Water monsters are still out there")).size() == 1, "once per wave")
-	if lev:
-		kill(lev)
+	# Left alone, it goes after leave_after s; no corpse, the wave is over.
+	var corpses0: int = game.corpses.corpses.size()
+	var gone := await wait_until(func() -> bool: return not is_instance_valid(lev) or lev.dead, leave + 3.0)
+	await frames(3)
+	check(gone and not w.in_progress() and game.corpses.corpses.size() == corpses0 and logs.any(func(l: String) -> bool: return l.ends_with("goes back into the deep")), "left alone for %s s, it goes back into the deep: no corpse, the wave is over" % leave)
+	# A named one (a scenario's boss) never leaves.
+	w.scripted.append({"kinds": {"leviathan": 1}, "spawn": lake_mid})
+	w.start_now()
+	await wait_until(func() -> bool: return w._queue.is_empty() and w._alive > 0, 8.0)
+	var boss: Enemy = null
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.kind == "leviathan" and not e.dead:
+			boss = e
+	if boss:
+		boss.given_name = "Leviathan"
+	await wait(leave + 3.0)
+	check(boss != null and not boss.dead and w.in_progress(), "a named one (a scenario's boss) stays until it is slain")
+	if boss:
+		kill(boss)
 	await frames(3)
 	check(not w.in_progress(), "dead, the wave is over")
 

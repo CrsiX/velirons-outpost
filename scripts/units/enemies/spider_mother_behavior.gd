@@ -63,7 +63,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 
 ## Still waiting for her clutch: one of its eggs is there and hasn't hatched.
 func waiting() -> bool:
-	return clutch.any(func(e: Enemy) -> bool: return is_instance_valid(e) and not e.dead)
+	return clutch.any(func(e) -> bool: return is_instance_valid(e) and not (e as Enemy).dead)  # (untyped: an egg may be freed)
 
 
 func on_damaged(_enemy: Enemy, _source: Node) -> void:

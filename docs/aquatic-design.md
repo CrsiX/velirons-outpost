@@ -375,10 +375,18 @@ eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`)
   slowly, and while moving they throw a splash now and then round their body (on each machine
   by itself). The leviathan and the octopus always; the crab and the siren while in water (deep,
   shallow or a ford); on roads and land they walk like anyone.
-- *Water monsters left at the end of a wave:* a wave still ends only when they are dead (no
-  timeout). Once nothing but water monsters is left of it (the rest dead, nothing more to come),
-  after `AQUA.warn_after` (15) s the villages they came for hear it once per wave: the log
-  (Important) "Water monsters are still out there (leviathan, ...). The wave ends only when they
-  are dead: build towers by the water", and a toast.
+- *Water monsters left at the end of a wave:* once nothing but water monsters is left of it (the
+  rest dead, nothing more to come):
+  - *Water-bound ones left alone go:* when all that is left is water-bound (habitat `"water"`:
+    leviathans, octopuses; no crab or siren), none of them named (a scenario's boss, like
+    scenario 9's leviathan) or on a post (a guard), and none of them has been in a fight for
+    `AQUA.leave_after` (3) s, they go back into the deep (`Waves._check_leave`, `Enemy.vanish`:
+    no corpse, no gold; Info "leviathan 11 goes back into the deep") and the wave can end. In a
+    fight (`AquaBehavior.engaged`): hurt within the last second, a leviathan blasting someone,
+    an octopus with an arm reaching, holding or smashing.
+  - Otherwise the wave ends only when they are dead. After `AQUA.warn_after` (15) s the villages
+    they came for hear it once per wave: the log (Important) "Water monsters are still out
+    there (leviathan, ...). The wave ends only when they are dead: build towers by the water",
+    and a toast.
 - *Replication:* the dive state and `fx` travel with every enemy's state; arms are enemies, so
   they reach clients like any other.
