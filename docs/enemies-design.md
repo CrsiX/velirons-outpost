@@ -324,8 +324,11 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   hollow-tree lairs (`LAIR_THEMES.lair_tree`; a lair's entries aren't held to `max_count`).
   Bigger than an ork. Otherwise a melee fighter like the ork (`SpiderMotherBehavior` extends
   `MeleeBehavior`; breaks walls and gates, burns a hut when she gets in), plus her eggs:
-  - *On the way:* `first_lay` (25 s) after she comes onto the map, then every `lay_every`
-    (15 s), she lays a clutch (`Waves.lay_eggs`) of
+  - *On the way:* once she is within `lay_near` (7 tiles, a little more than a level 3 wall
+    tower's 6.4) of a manned tower or barracks of any village whose units fight (a unit
+    stationed there, a barracks' out on a sortie too; not a Healing Mage or High Priest; not
+    training grounds; `SpiderMotherBehavior.post_near`), or when she is first alarmed (below),
+    and from then on every `lay_every` (15 s), she lays a clutch (`Waves.lay_eggs`) of
     `clutch` (4-6, at random) eggs around her (within `lay_spread`, 0.6 tiles; on ground one
     can walk), without stopping.
   - *Alarmed:* when a fighter of any village is within `alarm_range` (4 tiles: the hero, a
@@ -337,6 +340,9 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
     whoever comes into reach (and doesn't hit walls). Then she isn't alarmed again for
     `alarm_cooldown` (12 s, counted from the laying); the next clutch on the way comes
     `lay_every` after it.
+  - *At most `max_clutches` (5)* clutches per mother, timed and alarmed together
+    (`SpiderMotherBehavior.clutches`). Laid out, she fights on like an ork: she no longer
+    stops to guard. A raised mother is a new enemy and counts afresh.
   - Killed: 10 gold, a corpse worth 8 gold and no food. A necromancer can raise her; raised,
     she lays a clutch at once and then every `lay_every` (15 s; she drains away in 20 s),
     otherwise as before (same clutch, same hatch time, laying takes no time), but her eggs are **undead**

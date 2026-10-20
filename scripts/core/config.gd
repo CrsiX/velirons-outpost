@@ -1496,8 +1496,12 @@ const ENEMIES := {
 	# --- spiders (Wilderness; docs/enemies-design.md §15b) ---
 	# A huge, slow spider that fights like an ork and lays eggs (`lays`, a kind
 	# of its own): a clutch of clutch[0]..clutch[1] eggs around her
-	# (lay_spread tiles) as she walks, without stopping: the first first_lay s
-	# after she comes onto the map, then every lay_every s.
+	# (lay_spread tiles) as she walks, without stopping: the first once she is
+	# within lay_near tiles of a manned tower or barracks of ours whose units
+	# fight (lay_near: a little more than a level 3 wall tower's range,
+	# TOWER_RANGE + TOWER_LEVELS: 6.4), or when she is first alarmed; then
+	# every lay_every s. She lays at most max_clutches clutches (timed and
+	# alarmed together; raised, she counts afresh); then she just fights.
 	# Alarmed (one of ours who fights within alarm_range, or a manned tower
 	# with her in range, or she is hurt) while fewer than guard_count of her
 	# spiderlings and eggs are within guard_radius, she stops, lays a clutch
@@ -1516,7 +1520,7 @@ const ENEMIES := {
 		"gold_on_kill": 10, "gold_on_collect": 8, "food_on_collect": 0,
 		"resist": {"holy": 0.75},
 		"hp_bar_y": -50.0,
-		"lays": "spider_egg", "clutch": [4, 6], "lay_spread": 0.6, "first_lay": 25.0, "lay_every": 15.0,
+		"lays": "spider_egg", "clutch": [4, 6], "lay_spread": 0.6, "lay_near": 7.0, "lay_every": 15.0, "max_clutches": 5,
 		"alarm_range": 4.0, "guard_radius": 2.5, "guard_count": 3, "alarm_cooldown": 12.0,
 	},
 	# One egg of a clutch: always 1 HP (fixed_hp: no difficulty or wave

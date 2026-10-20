@@ -1258,6 +1258,7 @@ func _spiders() -> void:
 	var gob: Enemy = spawn.call("goblin", Vector2(road) + Vector2(-0.6, 0.9), 50.0)
 	for e: Enemy in [m, ork, gob]:
 		e.speed = 0.0
+	(m.behavior as SpiderMotherBehavior).started = true
 	(m.behavior as SpiderMotherBehavior)._lay = 0.01
 	await _frames(5)
 	g.camera.focus(Iso.to_world(m.grid_pos))

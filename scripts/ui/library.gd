@@ -285,7 +285,7 @@ static func _enemies() -> Array[Dictionary]:
 			f.append("Blows on buildings x%s" % _n(e["siege"]))
 		if e.has("lays"):
 			var egg: Dictionary = Config.ENEMIES[e["lays"]]
-			f.append("Lays %d-%d eggs as she walks, the first time %s s after she comes, then every %s s; each has %s HP and hatches into a %s after %s s" % [e["clutch"][0], e["clutch"][1], _n(e["first_lay"]), _n(e["lay_every"]), _n(egg["hp"]), str(Config.ENEMIES[egg["hatch_into"]]["name"]).to_lower(), _n(egg["hatch_time"])])
+			f.append("Lays %d-%d eggs as she walks, the first time within %s tiles of a manned tower or barracks, then every %s s, %d clutches at most; each has %s HP and hatches into a %s after %s s" % [e["clutch"][0], e["clutch"][1], _n(e["lay_near"]), _n(e["lay_every"]), e["max_clutches"], _n(egg["hp"]), str(Config.ENEMIES[egg["hatch_into"]]["name"]).to_lower(), _n(egg["hatch_time"])])
 			f.append("Threatened (a fighter of ours within %s tiles, a tower, or a hit) while fewer than %d of her young are around her, she stops, lays a clutch and waits for it to hatch" % [_n(e["alarm_range"]), int(e["guard_count"])])
 			f.append("Raised by a necromancer she lays undead eggs at once: unholy, and holy damage hurts them twice as much")
 		if e.get("habitat", "land") == "land" and Config.WAVE_MIX.get(kind, {}).has("max_count"):

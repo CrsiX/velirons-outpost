@@ -807,7 +807,28 @@ func _test_spiders() -> void:
 	m.speed = 0.25  # (slow, so she stays out on the road through all of this)
 	m.base_speed = 0.25
 	await frames(2)
-	check(absf(mb._lay - float(sm["first_lay"])) < 0.5 and float(sm["first_lay"]) == 25.0 and float(sm["lay_every"]) == 15.0, "her first clutch comes %s s after she enters the map (%.1f), then every %s s" % [sm["first_lay"], mb._lay, sm["lay_every"]])
+	var lay_r := float(sm["lay_near"])
+	var wt3 := float(Config.TOWER_RANGE["wall_tower"] + Config.TOWER_LEVELS[-1]["range_bonus"])
+	check(lay_r > wt3 and lay_r < wt3 + 1.0 and float(sm["lay_every"]) == 15.0, "she lays her first clutch within %s tiles of a manned post (a level 3 wall tower: %.1f), then every %s s" % [sm["lay_near"], wt3, sm["lay_every"]])
+	check(not mb.started and _of_kind("spider_egg").is_empty() and not SpiderMotherBehavior.post_near(m, lay_r), "far out on the road, with no manned post near, she lays nothing")
+	var towers := game.world.towers()
+	towers.sort_custom(func(a: Building, b: Building) -> bool: return Vector2(a.tile).distance_to(m.grid_pos) > Vector2(b.tile).distance_to(m.grid_pos))
+	var tw := towers[0] as Tower  # (the one farthest from her)
+	var ar := game.army.recruit("archer")
+	game.army.station(ar, tw)
+	await wait_until(func() -> bool: return ar.state == MilitaryUnit.State.STATIONED, 60.0)
+	var road_pos := m.grid_pos
+	m.grid_pos = Vector2(tw.tile) + Vector2(lay_r - 0.3, 0.0)
+	var by_manned := SpiderMotherBehavior.post_near(m, lay_r)
+	m.grid_pos = Vector2(tw.tile) + Vector2(lay_r + 0.3, 0.0)
+	var beyond := SpiderMotherBehavior.post_near(m, lay_r)
+	game.army.unstation(ar)
+	m.grid_pos = Vector2(tw.tile) + Vector2(lay_r - 0.3, 0.0)
+	var by_empty := SpiderMotherBehavior.post_near(m, lay_r)
+	m.grid_pos = road_pos
+	check(by_manned and not beyond and not by_empty, "a manned tower counts within %s tiles (%s), not beyond (%s), an empty one not (%s)" % [sm["lay_near"], by_manned, beyond, by_empty])
+	check(not mb.started and _of_kind("spider_egg").is_empty(), "still nothing laid on the road")
+	mb.started = true
 	mb._lay = 0.01
 	await frames(3)
 	var eggs := _of_kind("spider_egg")
@@ -905,6 +926,16 @@ func _test_spiders() -> void:
 		e.take_damage(1.0, game.hero)
 	await frames(3)
 	check(not mb.waiting() and game.corpses.corpses.is_empty() and game.waves._alive == alive1 - eggs.size() and int(game.economy.amount("gold")) == gold0, "smashed eggs (one hit each): no corpse, no gold, she stops waiting")
+	# Laid out (max_clutches, timed and alarmed together): no more clutches.
+	var laid := mb.clutches
+	mb.clutches = int(sm["max_clutches"])
+	mb._lay = 0.01
+	await frames(3)
+	var timed_out := _of_kind("spider_egg").is_empty()
+	mb._alarm_cd = 0.0
+	m.take_damage(1.0, game.hero)
+	await frames(3)
+	check(laid == 3 and int(sm["max_clutches"]) == 5 and timed_out and _of_kind("spider_egg").is_empty() and not mb.waiting(), "she counts every clutch (%d so far) and lays no more after %s, timed or alarmed" % [laid, sm["max_clutches"]])
 	# Killed: a corpse with gold only.
 	kill(m, game.hero)
 	await frames(2)
@@ -923,7 +954,7 @@ func _test_spiders() -> void:
 	risen.speed = 0.0
 	await frames(3)
 	eggs = _of_kind("spider_egg")
-	check(eggs.size() >= 4 and absf(rb._lay - float(sm["lay_every"])) < 0.5, "raised, she lays a clutch at once (%d eggs), the next in %s s (%.1f)" % [eggs.size(), sm["lay_every"], rb._lay])
+	check(eggs.size() >= 4 and absf(rb._lay - float(sm["lay_every"])) < 0.5 and rb.clutches == 1, "raised, she lays a clutch at once (%d eggs; counted afresh: %d), the next in %s s (%.1f)" % [eggs.size(), rb.clutches, sm["lay_every"], rb._lay])
 	check(float(sm["lay_every"]) < float(en["necromancer"]["raise_decay"]), "raised, she lays at least once more before she drains away")
 	check(risen.raised and rb != null and eggs.size() >= 4 and eggs.all(func(e: Enemy) -> bool: return e.undead and e.is_unholy() and Soldier.hunt_class(e) == "unholy"), "a raised mother lays undead eggs: unholy, the Inquisitor hunts them")
 	var hp0 := eggs[0].hp
