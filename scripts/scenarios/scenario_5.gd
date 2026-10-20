@@ -51,17 +51,21 @@ func _init() -> void:
 	# Legion (on_wave_started adds it, down the pass, with its captains, and
 	# the gargoyles above the pass).
 	waves = [
-		{"kinds": {"goblin": 6}, "rat_packs": [4], "spawns": 2},
-		{"kinds": {"goblin": 6, "ork": 1, "thief": 2}, "spawns": 3},
-		{"kinds": {"goblin": 6, "ork": 2, "witch": 1}, "spawns": 3},
-		{"kinds": {"goblin": 6, "ork": 2, "witch": 1, "thief": 2}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"goblin": 7, "ork": 2, "witch": 2, "slime3": 1}, "spawns": 4},
-		{"kinds": {"goblin": 7, "ork": 3, "witch": 1, "gargoyle": 1, "thief": 2}, "rat_packs": [5], "spawns": 4},
-		{"kinds": {"goblin": 8, "ork": 3, "witch": 2, "gargoyle": 1}, "spawns": 4},
-		{"kinds": {"goblin": 8, "ork": 3, "witch": 2, "gargoyle": 2, "thief": 3}, "rat_packs": [6], "spawns": 4},
-		{"kinds": {"goblin": 9, "ork": 4, "witch": 2, "gargoyle": 2, "slime3": 2}, "rat_packs": [6], "spawns": 4},
-		{"kinds": {"goblin": 6, "ork": 2}, "spawns": 2},
+		{"kinds": {"goblin": 6}, "rat_packs": [4], "spawns": 2, "lairs": true},
+		{"kinds": {"goblin": 6, "ork": 1, "thief": 2}, "spawns": 3, "lairs": true},
+		{"kinds": {"goblin": 6, "ork": 2, "witch": 1}, "spawns": 3, "lairs": true},
+		{"kinds": {"goblin": 6, "ork": 2, "witch": 1, "thief": 2}, "rat_packs": [5], "spawns": 3, "lairs": true},
+		{"kinds": {"goblin": 7, "ork": 2, "witch": 2, "slime3": 1}, "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 7, "ork": 3, "witch": 1, "gargoyle": 1, "thief": 2}, "rat_packs": [5], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 8, "ork": 3, "witch": 2, "gargoyle": 1}, "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 8, "ork": 3, "witch": 2, "gargoyle": 2, "thief": 3}, "rat_packs": [6], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 9, "ork": 4, "witch": 2, "gargoyle": 2, "slime3": 2}, "rat_packs": [6], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 6, "ork": 2}, "spawns": 2, "lairs": true},
 	]
+	# The hollow tree in the northern forest (the map's only lair) wakes at
+	# wave 6, or as soon as it is found (on_poll), and sends its theme with
+	# every wave from then on; cleared, it stays cleared.
+	lairs = [{"wake": LAIR_WAVE}]
 	# Wave 1 waits until Sigmund is found (on_poll releases it).
 	first_wave_waits = true
 	first_wave_call = false
@@ -88,6 +92,8 @@ const CAPTAINS: Array[Dictionary] = [
 	{"name": "Torben", "art": "legion_captain"},
 ]
 const GATE_GARGOYLES := 3
+## The wave the lair wakes at, unless it is found before.
+const LAIR_WAVE := 6
 ## Seconds from Sigmund found to wave 1.
 const FIRST_WAVE_AFTER := 10.0
 
@@ -241,6 +247,12 @@ func on_poll(r: ScenarioRunner) -> void:
 			r.play_scene(_sigmund_scene(r))
 	if r.mark.has("sigmund found") and not r.mark.has("sigmund in") and r.cutscene == null:
 		_house_sigmund(r)  # (after his scene: he is seen by his tent)
+	for l in r.lairs():
+		var lair := l as MonsterLair
+		if not lair.awake and not lair.cleared and lair.is_found_by(g.player_village):
+			var n := maxi(1, g.waves.wave)
+			lair.wake_wave = n
+			lair.on_wave(n)  # (found: it wakes now)
 	if r.journal != null and r.journal.visible:
 		return
 	for t in _evidence(r):

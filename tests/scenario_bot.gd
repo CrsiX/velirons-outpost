@@ -926,6 +926,9 @@ func _scenario_5() -> void:
 	check(v.construction.placement_error("tower", c + Vector2i(3, 0), true) == "", "buildings may go inside the fort")
 	check(game.population.retire_error(game.population.civilians[0]) != "", "Pell can't retire")
 	check(game.hero.level == 6 and not sc.spec.hero_revives, "Brenna at level 7, no revive")
+	var lairs := sc.lairs()
+	check(lairs.size() == 1 and (lairs[0] as MonsterLair).tile.y < c.y and not (lairs[0] as MonsterLair).awake and (lairs[0] as MonsterLair).wake_wave == 6,
+		"a lair in the northern forest, asleep until wave 6")
 	var ev: Array = sc.spec._evidence(sc)
 	check(ev.size() == 3 and ev.filter(func(o: Treasure) -> bool: return o.tile.y < c.y).size() == 2, "three treasures hold the evidence, two north and one south")
 	check(not ev.any(func(o: Treasure) -> bool: return game.fog.is_explored_by(v.id, o.tile)), "their places are hidden in the fog")
@@ -1043,6 +1046,7 @@ func _scenario_5() -> void:
 	check(legion and captains.has("Lysa") and captains.has("Torben"), "the last wave: the Legion, with Lysa and Torben (%s)" % str(captains.keys()))
 	check(gargoyles[0] == 3, "and the old gate's three gargoyles (%d)" % gargoyles[0])
 	check(fell_back, "Brenna sees a captain fall back")
+	check((lairs[0] as MonsterLair).woke_at == 6, "the lair woke at wave 6 (%d)" % (lairs[0] as MonsterLair).woke_at)
 	check(await wait_until(func() -> bool: return sc.cutscene != null, 120.0), "the outro plays")
 	guard.queue_free()
 	Engine.time_scale = 1.0
@@ -1065,6 +1069,10 @@ func _scenario_5() -> void:
 	var builders := game.population.civilians.filter(func(x: Civilian) -> bool: return x.role == "builder")
 	check(builders.size() == 1 and builders[0].given_name == "Sigmund" and game.population.count() == 4, "the builder left, Sigmund took his hut")
 	check(not sc._hints_shown.has("roof") and await wait_until(func() -> bool: return sc._goal_state.get("roof", false), 3.0), "no hint, the roof objective met at once")
+	var lair := sc.lairs()[0] as MonsterLair
+	game.fog.reveal(Vector2(lair.tile), 2.0, game.player_village.id)
+	check(await wait_until(func() -> bool: return lair.awake, 3.0), "the lair found before wave 6: it wakes at once")
+	check(not lair.monsters.is_empty() and game.world.awake_lairs().has(lair), "its guards are out, and the waves come out of it too")
 
 
 # --- scenario 6: The Dead ---------------------------------------------------------------------

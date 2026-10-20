@@ -29,6 +29,8 @@ extends Node
 ## tile city (near the village and the throne hall) or ash land, the trees
 ## gone; houses (mountain tiles with a house) in blocks between lanes, off the
 ## roads and away from the walls; the throne hall (a 3x3 landmark) by a road.
+## Maps the user has edited by hand (CLAUDE.md): never run with --force for
+## them. So far: 5 (old_fort.json).
 ## "citadel": scenario 5's fort in a mountain pass, laid out by citadel_map.gd
 ## rather than generated ({"seed"}); it prints where Sigmund's tent goes
 ## (scenario_5.gd's SIGMUND_TENT).

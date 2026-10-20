@@ -857,7 +857,13 @@ The game has none of this yet, except where noted:
   south gate. Inside: 4 huts in two rows of two east of the road (a tile apart, a tile clear of the mountains), two barracks and training
   grounds (prebuilt, `Scenario.build_inside`), a dried-up well (decor, `well_dry`: no use) and one dead tree. Where two roads run side by side,
   the doubled tiles are taken out, and so are stubs, a road tile sticking out with one road neighbour (`_prune`). The map is the
-  tool's start: it is meant to be edited by hand in the map editor afterwards (the tool won't overwrite it without `--force`). North: oak woods with pine patches and clearings (the wilderness: both camps). South:
+  tool's start; the user has edited it by hand in the map editor since, so it is never made again with the tool (`--force` would
+  undo those edits). What the code ties to it: `SIGMUND_TENT`, the prebuilt posts' offsets from the village centre, the evidence (by
+  treasure tier: two tier 3 in the north, one tier 2 in the south; tier 1 small chests). The user's edit added a **hollow-tree lair** in
+  the northern forest (its road to the network) and reshaped forest and mountains.
+- **The lair:** asleep until wave 6 (`LAIR_WAVE`, `Scenario.lairs`), or until the village finds it (an explorer or Brenna uncovers it:
+  `on_poll` wakes it at once). Awake, it sends its theme (goblins, rats, spider mothers) with every wave (every wave has `"lairs": true`);
+  Brenna can clear it, and cleared it stays cleared. North: oak woods with pine patches and clearings (the wilderness: both camps). South:
   meadow with steppe spots, a few trees. Roads: one from the north edge and one from the south edge to their gates, and one from the west and
   one from the east edge on each side, joining them before the pass: six edge spawns, three a side. Objects: in the north, two treasures
   guarded by camps (the far evidence) and a small chest; in the south, one treasure (evidence) and a small chest. Sigmund's tent: a fixed tile in
