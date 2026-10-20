@@ -796,8 +796,8 @@ func _scenario_4() -> void:
 	if is_instance_valid(thief):
 		kill(thief)
 	Engine.time_scale = 1.0
-	check(await wait_until(func() -> bool: return sc.card.hint().begins_with("The warehouse is hit"), 5.0), "a hint: repair it")
-	check(w.can_repair() and cmd("repair", {"building": w.nid})["ok"], "it can be repaired")
+	check(await wait_until(func() -> bool: return sc.card.hint().begins_with("The warehouse is plundered"), 5.0), "a hint: it can't be repaired")
+	check(not w.can_repair() and not cmd("repair", {"building": w.nid})["ok"] and not w.info()["actions"].any(func(a: Dictionary) -> bool: return str(a["label"]).begins_with("Repair")), "it can't be repaired (no command, no button)")
 
 	print("-- scenario 4: guarding the harbour")
 	var spot := find_spot("tower", w.tile)

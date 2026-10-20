@@ -714,7 +714,7 @@ const BUILDING_HP := {
 	"lightstone": [80.0],
 	"training": [150.0],
 	"stall": [100.0, 150.0, 200.0],
-	"warehouse": [400.0],
+	"warehouse": [500.0],  # (10 thieves' plunder: WAREHOUSE.raid_damage)
 	"graveyard": [150.0],
 	"grove": [400.0, 400.0, 400.0],
 	"hut": [1.0],

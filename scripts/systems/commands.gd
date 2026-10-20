@@ -236,6 +236,8 @@ func _repair(v: Village, a: Dictionary) -> Dictionary:
 		return fail("That isn't yours")
 	if b is Hut:
 		return fail("Huts are rebuilt, not repaired")
+	if b is Warehouse:
+		return fail("The warehouse can't be repaired")
 	if not b.can_repair():
 		return fail("Nothing to repair there now")
 	if not v.economy.can_afford(b.repair_cost()):

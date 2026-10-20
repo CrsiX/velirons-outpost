@@ -188,7 +188,7 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 	var g := r.game
 	return [
 		{"title": "The warehouse",
-			"text": "The guild's warehouse stands by the harbour, outside the walls. The monsters go for the huts, but thieves go for the warehouse: each one that gets there plunders it and runs off with gold. Tap it to see its HP.",
+			"text": "The guild's warehouse stands by the harbour, outside the walls. The monsters go for the huts, but thieves go for the warehouse: each one that gets there plunders it and runs off with gold, and nothing can mend it. Tap it to see its HP.",
 			"done": func() -> bool: return _warehouse(r) == null or g.selected == _warehouse(r),
 			"point": func() -> Dictionary: return {"tiles": [] if _warehouse(r) == null else _warehouse(r).tiles()}},
 		{"title": "Guard the harbour",
@@ -217,7 +217,7 @@ func hints(r: ScenarioRunner) -> Array[Dictionary]:
 			"text": "A siren! Her song pulls our people towards the water and slows every unit. Only ranged attacks reach her in the water."},
 		{"id": "plundered",
 			"when": func() -> bool: return _warehouse(r) != null and _warehouse(r).hp < _warehouse(r).max_hp(),
-			"text": "The warehouse is hit! Repair it between waves (tap it): if it falls, the scenario is lost."},
+			"text": "The warehouse is plundered! It can't be repaired: every thief that gets there costs it for good. If it falls, the scenario is lost."},
 		{"id": "hurt",
 			"when": func() -> bool: return not g.hero.dead and g.hero.hp < g.hero.max_hp * 0.35,
 			"text": "Brenna is badly hurt, and here nobody can bring her back. Send her home to rest (her panel: Rest) until she has healed."},

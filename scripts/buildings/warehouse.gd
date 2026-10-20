@@ -4,8 +4,8 @@ extends Building
 ## campaign's scenarios (scenario 4: it must not fall). Only thieves go for
 ## it (ThiefBehavior; enemies breaking into the village go for the huts):
 ## each one that gets to it plunders it, takes Config.WAREHOUSE["raid_damage"]
-## of its HP, and runs off with gold. At 0 HP it is devastated; a builder
-## repairs it like any building. It can't be torn down.
+## of its HP, and runs off with gold. At 0 HP it is devastated. It can't be
+## repaired (what is plundered is gone) or torn down.
 
 var _site_spr: Sprite2D
 
@@ -45,11 +45,16 @@ func can_tear_down() -> bool:
 	return false
 
 
+## Plundered goods are gone: no repairs.
+func can_repair() -> bool:
+	return false
+
+
 func info() -> Dictionary:
 	var d := super.info()
 	var lines: Array[String] = d["lines"]
 	if complete:
-		lines.append("Enemies that get to it plunder it: %d HP each." % int(Config.WAREHOUSE["raid_damage"]))
+		lines.append("Thieves that get to it plunder it: %d HP each. What is plundered is gone: it can't be repaired." % int(Config.WAREHOUSE["raid_damage"]))
 	return d
 
 

@@ -778,11 +778,11 @@ The game has none of this yet, except where noted:
 
 ### 7.7 What scenarios 4 and 5 added to the engine
 
-- **The guild warehouse** (`warehouse`, `Warehouse`, 2x2, 400 HP; `"campaign": true`, never placed by the player: a scenario prebuilds it). It
+- **The guild warehouse** (`warehouse`, `Warehouse`, 2x2, 500 HP: ten plunders; `"campaign": true`, never placed by the player: a scenario prebuilds it). It
   is the **thieves' target**, and only theirs (the siege field leads the rest to the huts): a thief (`ThiefBehavior`) whose village has a
   standing warehouse follows its road to where it passes nearest the warehouse, then goes across to it (`Pathing.find_path`; never a way through
   the walls: then the gate as usual), plunders it (`Warehouse.plunder`: it loses `Config.WAREHOUSE.raid_damage` (50) HP; no hut burns), steals
-  gold as at a gate (`Game.thief_steals`) and runs back the way it came with the sack. At 0 HP it is devastated, and a builder repairs it like any building; it can't be torn down.
+  gold as at a gate (`Game.thief_steals`) and runs back the way it came with the sack. At 0 HP it is devastated. It can't be repaired (`Warehouse.can_repair` false: what is plundered is gone; the `repair` command refuses it) or torn down.
   Art: `warehouse` (timber and stone, a slate roof, a loading door with a hoist, the guild's sign: gold scales on blue).
 - **`must_stand`** (Scenario): building kinds that must not fall; once every one of a kind is devastated the scenario is lost
   (`Scenario.fallen_text`).
@@ -832,7 +832,7 @@ The game has none of this yet, except where noted:
   captured thief's **coins of three mints** (Karmere, Lyrenne, Aurelith; a journal page; Wenna expects twice the thieves now); the outro (the convoy rolls out; that night Pell reads
   the Renegades' ledger: payments to a quartermaster of Rhodri's army from three sources, "someone bought him"; Brenna will go back to her fort).
 - **Cards:** the warehouse (tap it), guard the harbour (a manned watchtower within 5 tiles of the warehouse), call the first wave.
-- **Hints:** crabs, the siren, the warehouse hit (repair it), Brenna badly hurt (no revive: send her to rest), thieves (after the warehouse). **Objectives:** hold until
+- **Hints:** crabs, the siren, the warehouse plundered (it can't be repaired), Brenna badly hurt (no revive: send her to rest), thieves (after the warehouse). **Objectives:** hold until
   the convoy leaves (9 waves); keep the warehouse standing (its HP share shown).
 
 ### 7.9 Scenario 5 as built (`scenario_5.gd`)
