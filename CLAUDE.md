@@ -48,7 +48,7 @@
 - scenario_bot: 1 in a full run ("the scenes between the waves (3)" in scenario 8); it passes with `-- --only=8`.
 - title_bot: 1 without `CI` set ("made over N frames in ... ms, the longest ... ms": the frame-time limit, too tight for this slow sandbox); with `CI` set it passes.
 
-Anything else failing is new. Last counts (with `CI=true`): stats 67, library 61, tutorial 104, scenario 518 (one or two fewer when a wave starts by itself while the bot rebuilds scenario 1), sim 376-377 (one check needs an empty hut left over), military 169, coop 69, build 85, title 124, enemy 249, aqua 100, siege 92, rat 139, world 83, mapgen 64, map_format 151, editor 123, save 62, net 19 + 28, (`--custom`) 12 + 12 and (`--resume`) 16 + 11. Lint (`tests/lint.sh`) is clean.
+Anything else failing is new. Last counts (with `CI=true`): stats 67, library 61, tutorial 104, scenario 518 (one or two fewer when a wave starts by itself while the bot rebuilds scenario 1), sim 376-377 (one check needs an empty hut left over), military 169, coop 69, build 86, title 124, enemy 249, aqua 100, siege 92, rat 139, world 83, mapgen 64, map_format 151, editor 123, save 62, net 19 + 28, (`--custom`) 12 + 12 and (`--resume`) 16 + 11. Lint (`tests/lint.sh`) is clean.
 
 **Gotchas learned the hard way:**
 - Game speed is `Engine.time_scale` (speed 0 pauses the tree instead and leaves `time_scale` as it was). Code that must run in real time (UI, `train_pause`, the title backdrop's clock and tweens) divides delta by `maxf(Engine.time_scale, 0.001)` or uses `set_ignore_time_scale(true)`. Anything that changes `time_scale` must reset it to 1 on exit.

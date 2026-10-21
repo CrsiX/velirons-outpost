@@ -33,6 +33,7 @@ func _run() -> void:
 	await _wheel_over_dock("landscape")
 	await _sheet()
 	await _cutout()
+	await _game_over_toggle()
 	Layout.touch = false
 	print("CHECKS %d  FAILURES %d" % [checks, failures.size()])
 	for f in failures:
@@ -495,3 +496,17 @@ func _cutout() -> void:
 	get_viewport().size = Vector2i(1280, 720)
 	await frames(4)
 	check(Layout.insets == Vector4.ZERO and hud._root.get_global_rect().size == get_viewport().get_visible_rect().size, "no cutout: the HUD has the whole screen again")
+
+
+## Game over (landscape, after a turn to portrait and back): the sidebar's
+## collapse button lies under the game-over screen, a tap on it does nothing.
+func _game_over_toggle() -> void:
+	print("-- game over")
+	await use_touch(false)
+	hud.show_game_over("Defeat", "Every hut lies in ruins.")
+	await frames(4)
+	var open: bool = hud._side_open
+	await tap(center(hud._sidebar_toggle))
+	await frames(4)
+	check(hud._sidebar_toggle.get_index() < hud._overlay.get_index() and hud._side_open == open, "game over: the sidebar's button lies under the end screen and does nothing")
+	hud._overlay.visible = false

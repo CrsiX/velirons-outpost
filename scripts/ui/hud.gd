@@ -1192,6 +1192,8 @@ func _build_sidebar() -> void:
 
 ## The collapse button: beside the sidebar in landscape, in the sheet's tab row in portrait.
 func _toggle_sidebar() -> void:
+	if _overlay.visible:
+		return  # (the game is over)
 	if _portrait:
 		set_sheet_open(not _sheet_open)
 	else:
@@ -1399,6 +1401,7 @@ func _relayout() -> void:
 		_sheet_h = 0.0
 		if _sidebar_toggle.get_parent() != _root:
 			_sidebar_toggle.reparent(_root, false)
+			_root.move_child(_sidebar_toggle, _sidebar.get_index() + 1)  # (under the dialogs and the game-over screen, as built)
 		_sidebar_toggle.custom_minimum_size = Vector2(40, 64)
 		_sidebar_toggle.icon = Art.tex("icon_collapse" if _side_open else "icon_expand")
 		_sidebar_toggle.tooltip_text = "Hide / show the sidebar"
