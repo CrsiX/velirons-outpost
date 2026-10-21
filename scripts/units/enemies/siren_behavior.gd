@@ -5,12 +5,16 @@ extends AquaBehavior
 ## building or a villager) is within hold_range she stops and sings. Her song
 ## (Combat.songs) pulls our mobile people towards her (Unit.force_move) and
 ## slows every unit's timers around her (Combat.song_rate); a High Priest's
-## aura shields from it. After `patience` s without luring anyone she walks
-## on to the gate and stops for nothing. Submerged while travelling in deep
+## aura shields from it. After `patience` s without luring anyone, or
+## `max_hold` s of holding in all (villagers passing by would otherwise keep
+## her, and the wave, there for good), she walks on to the gate and stops for
+## nothing. Submerged while travelling in deep
 ## water, up when one of ours is within her song; she dives for dive_time s
 ## after losing dive_loss of her max HP within dive_window s.
 
 var _patience := 0.0
+## Seconds she has held back in all (max_hold).
+var _held := 0.0
 var _march := false
 var _scan := 0.0
 var _hold := false
@@ -42,7 +46,9 @@ func tick(enemy: Enemy, delta: float) -> bool:
 		_patience = 0.0
 	else:
 		_patience += delta
-	if _patience >= enemy.stat("patience"):
+	if _hold:
+		_held += delta
+	if _patience >= enemy.stat("patience") or _held >= enemy.stat("max_hold"):
 		_march = true
 		home_village(enemy).events.debug("%s gives up waiting and heads for the gate" % enemy.label())
 		return false

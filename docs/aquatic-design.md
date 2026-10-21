@@ -160,8 +160,10 @@ A support monster: she doesn't storm in.
   song (strength 0) and may attack her in the water like on land, melee included.
 - **Behavior (witch-like).** She keeps to her max range: she holds at `hold_range` (4.0) from the
   nearest unit, building or villager of ours, sings, and lets them come. After `patience` (30 s)
-  without anyone lured she walks on towards the gate (the amphibian field). At a gate she raids
-  a hut like any other mob *(decided)*.
+  without anyone lured, or `max_hold` (60 s) of holding in all, luring or not, she walks on
+  towards the gate (the amphibian field): villagers walking past to their work can't keep her
+  out of the towers' reach, and the wave going, for good. At a gate she raids a hut like any
+  other mob *(decided)*.
 - **Diving.** Submerged while travelling in deep water; surfaces when one of ours is within her
   song radius; dives for 5 s when she loses 30 % of her HP within 6 s.
 - Ranged units are slowed by the song but can kill her: she is frail (24 HP) and takes ×1.5
@@ -353,8 +355,8 @@ eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`)
   village and comes up there every `idle_surface` s. After an early dive the next surfacing must
   last `flee_min_up` s before it can dive early again (after a normal dive: no minimum).
 - *The siren:* she holds once the nearest of ours (unit, building, villager) is within
-  `hold_range`; she comes up when one of ours is within her song; once her patience runs out she
-  walks to the gate, singing, and never holds again (so a wave can't stall on her). Each unit is
+  `hold_range`; she comes up when one of ours is within her song; once her patience runs out (or
+  she has held `max_hold` s in all) she walks to the gate, singing, and never holds again (so a wave can't stall on her). Each unit is
   pulled only by its strongest song; pulls stop 0.6 tiles from her.
 - *The octopus* is up except while it dives; it moves at its speed up or under. An arm takes 0.15
   s or so to reach (`arm_reach_speed` 8 tiles/s) and lets go when its catch gets out of reach

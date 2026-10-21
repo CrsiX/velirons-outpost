@@ -508,6 +508,20 @@ func _test_siren() -> void:
 	check(moved, "after her patience runs out she heads for the gate")
 	kill(s2)
 	await clear_enemies()
+	# Luring someone all along, she still goes once she has held max_hold s.
+	var s3 := spawn("siren", lake_near)
+	s3.speed = 0.0
+	s3.set_grid_pos(Vector2(lake_near))
+	var sb := s3.behavior as SirenBehavior
+	var lured := outside(Vector2(shore))
+	var luring := await wait_until(func() -> bool: return not sb._lured.is_empty(), 6.0)
+	check(luring and not sb._march, "she holds while she lures someone")
+	sb._held = float(Config.ENEMIES["siren"]["max_hold"]) - 0.5
+	var gone := await wait_until(func() -> bool: return sb._march, 3.0)
+	check(gone and sb._patience < float(Config.ENEMIES["siren"]["patience"]), "luring or not, after max_hold s of holding she heads for the gate (no stalled wave)")
+	home(lured)
+	kill(s3)
+	await clear_enemies()
 
 
 # --- the octopus --------------------------------------------------------------------------------

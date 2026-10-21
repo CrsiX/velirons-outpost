@@ -1659,10 +1659,12 @@ const ENEMIES := {
 	# fast (tower units too). A High Priest's aura makes a unit immune. Melee
 	# can't touch her while she stands in water (deep or shallow, a ford;
 	# a bridge is land), except from inside a High Priest's aura. After
-	# patience s without luring anyone she walks to the gate and stops for
-	# nothing. Submerged while travelling in deep water; up when one of ours
-	# is within song_radius; dives for dive_time s after losing dive_loss of
-	# her max HP within dive_window s.
+	# patience s without luring anyone, or max_hold s of holding in all
+	# (luring or not: our people passing by can't keep her there for good),
+	# she walks to the gate and stops for nothing. Submerged while
+	# travelling in deep water; up when one of ours is within song_radius;
+	# dives for dive_time s after losing dive_loss of her max HP within
+	# dive_window s.
 	"siren": {
 		"name": "Siren", "art": "siren", "behavior": "siren",
 		"siege": 0.0,
@@ -1674,7 +1676,7 @@ const ENEMIES := {
 		"habitat": "amphibian", "submerges": true,
 		"min_deep_tiles": 6, "min_width": 1, "reach": 5.5,
 		"song_radius": 4.5, "song_pull": 0.9, "song_slow": 0.6,
-		"hold_range": 4.0, "patience": 30.0,
+		"hold_range": 4.0, "patience": 30.0, "max_hold": 60.0,
 		"dive_loss": 0.3, "dive_window": 6.0, "dive_time": 5.0,
 		"melee_proof_in_water": true,
 	},

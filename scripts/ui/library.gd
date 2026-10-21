@@ -369,6 +369,7 @@ static func _water_facts(kind: String) -> PackedStringArray:
 		"siren":
 			f.append("Song (%s tiles): pulls our people towards her and slows every unit's attacks, by up to %d %%" % [_n(e["song_radius"]), roundi(100.0 * float(e["song_slow"]))])
 			f.append("In the water only ranged attacks reach her; a High Priest's aura shields from the song and lets melee strike her")
+			f.append("Holds back while she lures our people; after %s s without luring anyone, or %s s in all, she walks to the gate" % [_n(e["patience"]), _n(e["max_hold"])])
 		"octopus":
 			f.append("%d arms reaching %s tiles: each grabs one of ours and drags them into the deep (%s damage per second)" % [int(e["arms"]), _n(e["arm_range"]), _n(Config.enemy_stat(kind, "spell_damage"))])
 			f.append("Cut an arm (%s HP) to free whoever it holds; it grows back after %s s" % [_n(Config.enemy_stat("octopus_arm", "hp")), _n(e["arm_respawn"])])
