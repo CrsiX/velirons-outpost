@@ -206,7 +206,7 @@ const STATS := {
 	"sample_interval": 15.0,
 	"client_refresh": 5.0,
 	"unit_sent_value": 50,
-	"kill_kinds": ["goblin", "skeleton", "ork", "witch", "rat", "thief", "gargoyle", "necromancer", "wrathwood"],
+	"kill_kinds": ["goblin", "skeleton", "ork", "witch", "rat", "wolf", "goblin_raider", "thief", "gargoyle", "necromancer", "wrathwood"],
 }
 
 ## Saving and loading games (docs/save-design.md): where the save files go,
@@ -903,7 +903,10 @@ const EXPLORER_CLAIM_PENALTY := 30
 ## "cast_art" (sprite shown for a moment on every attack), "hunt" (melee
 ## target priorities, see "inquisitor"), "aura" stat and "necro_slow" (see
 ## "high_priest"), "range" on a melee unit (its reach, else UNIT_MELEE_RANGE),
-## "hits_flyers" (a melee unit that can go for flyers), the war cry (see
+## "hits_flyers" (a melee unit that can go for flyers), "vs_mounted" (its
+## damage factor against a mount, never the rider: docs/enemies-design.md
+## §15e) and "breaks_charge" (a charge on it gives no bonus; its blow halts a
+## mount for MOUNTED halt_time s and spends its charge), the war cry (see
 ## "warrior") and rage and lifesteal (see "berserker").
 const MAX_UNIT_LEVEL := 10
 ## From this level a base unit can also turn into level 1 of a specialisation.
@@ -982,7 +985,8 @@ const MILITARY := {
 		"name": "Halberdier", "role": "melee", "posts": ["barracks"], "recruit": false,
 		"branch_of": "shield_bearer", "branch_cost": {"gold": 100},
 		"speed": 1.3, "attack": "strike", "range": 1.2, "hits_flyers": true,
-		"desc": "Barracks only. A long halberd reaches farther than other blades, and up to flyers.",
+		"vs_mounted": 2.5, "breaks_charge": true,
+		"desc": "Barracks only. A long halberd reaches farther than other blades, up to flyers, and is the bane of riders.",
 		"stats": {"hp": [85.0, 200.0], "damage": [9.0, 76.0], "cooldown": [1.25, 0.85]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1295,6 +1299,7 @@ const CAMERA_KEY_ZOOM := 1.12
 ##                      "melee" (fights defenders in its way and villagers in reach),
 ##                      "witch", "rat", "thief", "necromancer", "vampire",
 ##                      "spider_mother", "egg" (a spider egg),
+##                      "mounted" (a rider: goblin raider, Legion cavalry), "flee" (the undead horse),
 ##                      "leviathan", "siren", "octopus" or "arm" (an octopus's arm)
 ##   hp, speed ........ hit points; tiles per second along the road
 ##   damage ........... close-combat damage per hit (0 = never fights in melee)
@@ -1304,6 +1309,10 @@ const CAMERA_KEY_ZOOM := 1.12
 ##   (optional: materials_on_collect, building material, see "wrathwood")
 ## Behaviours may add their own keys (see "witch").
 ## Optional: corpse (false: none), raid_chance (of burning a hut at the gate; 1),
+## raid ("maul": kills a villager in their hut instead of burning it, see "wolf"),
+## plural (its name for many, "Wolves"; default: name + "s"), first (logged
+## at Info when the first one of the game comes),
+## pack / pack_gap (comes in packs, see "wolf"), mount and the other mounted keys (see "goblin_raider"),
 ## gone (the log's words when it doesn't: "melted away"),
 ## split_into / split_count, colors, level, hp_bar_y (see "slime3"),
 ## resist (damage taken by category, see DAMAGE_CATEGORIES; holy: docs/acolyte-design.md §3),
@@ -1728,6 +1737,56 @@ const ENEMIES := {
 		"resist": {"fire": 0.5},
 		"habitat": "water", "hp_bar_y": -30.0,
 	},
+	# --- wolves and riders (docs/enemies-design.md §15e; MOUNTED) ---
+	# An animal (holy x1) that hunts in packs of pack[0]..pack[1] (Waves
+	# groups a wave's wolves, from one spawn, pack_gap s apart). It breaks
+	# gates weakly. Through ("raid": "maul") it kills the villager of the hut
+	# it got to (or of the nearest lived-in one), leaves the hut standing and
+	# is gone. Its corpse is also a fallen raider's mount's. Raised: an undead wolf.
+	"wolf": {
+		"name": "Wolf", "plural": "Wolves", "art": "wolf", "behavior": "melee",
+		"siege": 0.5, "raid": "maul",
+		"desc": "Hunts in packs. Through a gate it kills a villager in their hut and is gone.",
+		"hp": 13.0, "speed": 1.4,
+		"damage": 4.0, "attack_cooldown": 0.8,
+		"gold_on_kill": 2, "gold_on_collect": 0, "food_on_collect": 3,
+		"pack": [2, 3], "pack_gap": 0.3,
+		"first": "Wolves! They hunt in packs, and a wolf through the gate kills a villager in their hut.",
+	},
+	# A goblin on a wolf (MountedBehavior), alone. Mounted keys:
+	#   mount ..... the animal it rides (an ENEMIES kind: its corpse and resist)
+	#   mount_hp .. the mount's HP (scaled like hp); every hit lands on it
+	#               while it lives, and none carries over to the rider
+	#   rider ..... what it is once the mount falls (its hp is the rider's)
+	#   hunts ..... "all" (anything of ours outside) or "melee" (melee fighters only)
+	#   escort .... true: keeps near the Legion's soldiers on foot (MOUNTED)
+	# speed is the mounted speed, siege its blows on walls while mounted,
+	# gold_on_kill is paid when the mount falls (the rider pays its own).
+	"goblin_raider": {
+		"name": "Goblin Raider", "art": "goblin_raider", "behavior": "mounted", "corpse": false,
+		"siege": 0.3,
+		"desc": "A goblin on a wolf: fast, it rides round the village and runs down anyone outside. When the wolf falls, the goblin fights on.",
+		"hp": 20.0, "speed": 1.6,
+		"damage": 5.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 2, "gold_on_collect": 0, "food_on_collect": 0,
+		"mount": "wolf", "mount_hp": 18.0, "rider": "goblin", "hunts": "all",
+		"first": "A goblin raider! It rides round the village and runs down anyone outside. Halberdiers are the bane of riders.",
+		"hp_bar_y": -54.0,
+	},
+	# There is no living horse: only a fallen mount's corpse, and raised by a
+	# necromancer an undead horse (FleeBehavior) that never fights: it bolts
+	# to the quietest spot within flee_search tiles (again every flee_every s)
+	# and dies of the drain; an unraised one vanishes after flee_time s.
+	"horse": {
+		"name": "Horse", "plural": "Horses", "art": "horse", "behavior": "flee",
+		"siege": 0.0, "scares": false,
+		"desc": "A Legion rider's mount. Its corpse feeds a village; raised by a necromancer it bolts as an undead horse and soon falls apart.",
+		"hp": 45.0, "speed": 1.5,
+		"damage": 0.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 2, "gold_on_collect": 0, "food_on_collect": 8,
+		"flee_search": 8.0, "flee_every": 3.0, "flee_time": 20.0,
+		"hp_bar_y": -50.0,
+	},
 	# The Dread Legion (docs/story-design.md §5): Rhodri's soldiers, people
 	# bound by the crown's ritual, not monsters. Only in the campaign
 	# ("campaign": never in the normal waves). A fallen one is released
@@ -1840,6 +1899,41 @@ const ENEMIES := {
 		"rally_every": 25.0, "first_rally": 15.0, "rally": {"legion_footman": 2, "legion_guard": 1},
 		"downed": true, "retreat_speed": 1.4, "hp_bar_y": -66.0,
 	},
+	# A Legion rider (MountedBehavior; mounted keys: see "goblin_raider"):
+	# keeps with the soldiers on foot and rides down our melee fighters. When
+	# its horse falls it is a footman.
+	"legion_cavalry": {
+		"name": "Legion Cavalry", "art": "legion_cavalry", "behavior": "mounted", "corpse": false,
+		"siege": 0.3, "campaign": true, "release": true,
+		"desc": "A Legion soldier on a pale horse. It rides with the column and runs down our fighters; unhorsed, it fights on as a footman.",
+		"hp": 38.0, "speed": 1.5,
+		"damage": 8.0, "attack_cooldown": 1.1,
+		"gold_on_kill": 2, "gold_on_collect": 0, "food_on_collect": 0,
+		"mount": "horse", "mount_hp": 45.0, "rider": "legion_footman", "hunts": "melee", "escort": true,
+		"hp_bar_y": -62.0,
+	},
+}
+## Mounted enemies (docs/enemies-design.md §15e; Enemy.mount, MountedBehavior):
+##   approach ......... tiles from its village's walls at which a rider stops
+##                      following the road and starts circling the village
+##   ring ............. tiles outside the walls it circles at
+##   circle_time ...... seconds at the village without a blow; then it rides
+##                      to the nearest gate, gets off (the mount runs away)
+##                      and breaks in on foot
+##   hunt_radius ...... it rides at a target of ours within this many tiles
+##   chase ............ and gives up beyond this many tiles from it
+##   escort_radius .... a Legion rider keeps within this of the nearest Legion
+##                      soldier on foot (while there is one)
+##   charge_distance .. tiles ridden without a fight: its next blow is a charge,
+##   charge_x ......... doing this many times its damage
+##   halt_time ........ seconds a halberdier's blow halts a mount
+##   mounts ........... a mount a scenario gives (a queue entry's "mount"):
+##                      its HP (unless the entry has "mount_hp") and speed
+const MOUNTED := {
+	"approach": 5.0, "ring": 3.0, "circle_time": 40.0,
+	"hunt_radius": 5.0, "chase": 8.0, "escort_radius": 2.5,
+	"charge_distance": 3.0, "charge_x": 2.0, "halt_time": 0.5,
+	"mounts": {"horse": {"hp": 60.0, "speed": 1.5}},
 }
 ## When a tree wakes up as a wrathwood (docs/enemies-design.md §15c;
 ## Wrathwoods). Rolled once per tree, at a forester's first blow on it:
@@ -1949,6 +2043,8 @@ const WAVE_MIX := {
 	"ork": {"from_wave": 3, "share": 0.10, "growth": 0.03, "max_share": 0.25},
 	"slime3": {"from_wave": 4, "share": 0.06, "growth": 0.02, "max_share": 0.15},
 	"witch": {"from_wave": 5, "share": 0.10, "growth": 0.02, "max_share": 0.2},
+	"wolf": {"from_wave": 5, "share": 0.06, "growth": 0.02, "max_share": 0.15},
+	"goblin_raider": {"from_wave": 7, "share": 0.05, "growth": 0.015, "max_share": 0.125},
 	"thief": {"from_wave": 7, "share": 0.08, "growth": 0.01, "max_share": 0.15},
 	"gargoyle": {"from_wave": 10, "share": 0.06, "growth": 0.01, "max_share": 0.15},
 	"necromancer": {"from_wave": 13, "share": 0.04, "growth": 0.005, "max_share": 0.08},

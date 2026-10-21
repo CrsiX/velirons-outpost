@@ -1,6 +1,7 @@
 extends "res://tests/bot_base.gd"
 ## Headless test of the thief, the gargoyle, the necromancer, the vampire,
-## the monster lairs, slimes, the spider mother and the wrathwood. Run with:
+## the monster lairs, slimes, the spider mother, the wrathwood, vultures,
+## wolves and riders. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/enemy_bot.tscn
 ## Exits 0 when every check passes.
 
@@ -43,6 +44,7 @@ func _run() -> void:
 	await _test_spiders()
 	await _test_wrathwood()
 	await _test_vultures()
+	await _test_riders()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -1310,5 +1312,245 @@ func _test_vultures() -> void:
 	await frames(2)
 	check(VulturePack.edible(fallen) == false and logs.slice(n_logs).any(func(l: String) -> bool: return "eaten one of the fallen" in l), "the fallen are edible: an eaten one is lost (logged)")
 	kill(v3)
+	await clear_enemies()
+	await clear_corpses()
+
+
+# --- wolves and riders (docs/enemies-design.md §15e) ------------------------------------------------
+
+## Every gate, wall and wall tower of `v` whole again.
+func _mend_walls(v: Village) -> void:
+	for b in game.world.buildings:
+		if b is Building and b.village == v and Siege.BARRIERS.has(b.kind):
+			if b.devastated:
+				b.set_devastated(false)
+			b.hp = b.max_hp()
+	game.siege.mark_stale(v, true)
+
+func _test_riders() -> void:
+	await clear_enemies()
+	await clear_corpses()
+	var v := game.player_village
+	var w := game.waves
+	var en := Config.ENEMIES
+	var m := Config.MOUNTED
+	var first := {}
+	for n in range(1, 20):
+		for k in ["wolf", "goblin_raider"]:
+			if not first.has(k) and Config.wave_composition(n).has(k):
+				first[k] = n
+	check(first.get("wolf", 0) == 5 and first.get("goblin_raider", 0) == 7 and first["goblin_raider"] - first["wolf"] >= 2, "wolves join from wave 5, goblin raiders from wave 7 (two waves later)")
+	check(is_equal_approx(Config.WAVE_MIX["goblin_raider"]["share"], 0.5 * Config.WAVE_MIX["ork"]["share"]) and not Config.WAVE_MIX["goblin_raider"].has("max_count"), "the raider's share is half the ork's, no cap")
+	check(not en["wolf"].has("resist") and not en["horse"].has("resist") and not en["wolf"].get("unholy", false), "the wolf and the horse are animals: holy x1")
+	check(en["wolf"]["gold_on_collect"] == 0 and en["wolf"]["food_on_collect"] > 0 and en["horse"]["gold_on_collect"] == 0 and en["horse"]["food_on_collect"] > en["wolf"]["food_on_collect"], "corpses: a wolf's and a horse's give food, no gold (a horse more)")
+	check(en["goblin_raider"]["gold_on_kill"] < en["goblin"]["gold_on_kill"] and en["goblin_raider"]["gold_on_kill"] > en["rat"]["gold_on_kill"] and en["legion_cavalry"]["gold_on_kill"] == en["goblin_raider"]["gold_on_kill"], "a mount's kill gold: below a goblin's, above a rat's")
+	check(en["wolf"]["speed"] > en["goblin"]["speed"] and en["wolf"]["speed"] < en["rat"]["speed"] and en["goblin_raider"]["speed"] > en["wolf"]["speed"], "speeds: goblin < wolf < raider, wolf < rat")
+	# Packs: a share's wolves come in packs of 2-3 from one spawn, a lone one gets a second.
+	var sp0 := game.map.edge_spawns[0]
+	var lone: Array = [w._spec("goblin", sp0, 1.0, v), w._spec("wolf", sp0, 1.0, v), w._spec("goblin", sp0, 1.0, v)]
+	w._pack_up(lone, 1.0, v)
+	var wolves := lone.filter(func(e: Dictionary) -> bool: return e["kind"] == "wolf")
+	check(wolves.size() == 2 and lone.size() == 4, "a lone wolf in a share gets a second (%d)" % wolves.size())
+	var many: Array = []
+	for i in 7:
+		many.append(w._spec("wolf", game.map.edge_spawns[i % game.map.edge_spawns.size()], 1.0, v))
+		many.append(w._spec("goblin", sp0, 1.0, v))
+	w._pack_up(many, 1.0, v)
+	var packs: Array[int] = []
+	var same_spawn := true
+	var i := 0
+	while i < many.size():
+		if many[i]["kind"] == "wolf" and not many[i].has("gap"):
+			var n := 1
+			while i + n < many.size() and many[i + n]["kind"] == "wolf" and many[i + n].has("gap"):
+				same_spawn = same_spawn and many[i + n]["spawn"] == many[i]["spawn"]
+				n += 1
+			packs.append(n)
+			i += n
+		else:
+			i += 1
+	check(packs.reduce(func(a: int, b: int) -> int: return a + b, 0) == 7 and packs.all(func(n: int) -> bool: return n >= 2 and n <= 4) and same_spawn, "7 wolves: packs of 2-3 (%s), each from one spawn, a moment apart" % str(packs))
+	# A goblin raider: its mount takes every hit, none carries over.
+	var at := Vector2(road_out(10))
+	var r := spawn("goblin_raider", at)
+	check(r.mount == "wolf" and is_equal_approx(r.mount_hp, en["goblin_raider"]["mount_hp"]) and r.hp == r.max_hp and is_equal_approx(r.max_hp, en["goblin"]["hp"]), "a goblin raider rides a wolf (%.0f HP), the goblin's %.0f HP whole" % [r.mount_hp, r.max_hp])
+	var ar := MilitaryUnit.new("archer")
+	ar.village = v
+	Combat.hit(game, ar, r, 10.0, null, r.hit_point())
+	check(is_equal_approx(r.mount_hp, en["goblin_raider"]["mount_hp"] - 10.0) and r.hp == r.max_hp, "an arrow hits the wolf, not the goblin")
+	var acolyte := MilitaryUnit.new("acolyte")
+	acolyte.village = v
+	var mh := r.mount_hp
+	Combat.hit(game, acolyte, r, 4.0, null, r.hit_point())
+	check(is_equal_approx(mh - r.mount_hp, 4.0), "holy damage x1 on the wolf (%.2f of 4)" % (mh - r.mount_hp))
+	var gold0 := game.economy.amount("gold")
+	var kills0 := game.stats.value(v.id, "kill.goblin_raider")
+	r.take_damage(1e9, null, "projectile")
+	check(not r.dead and r.kind == "goblin" and r.mount == "" and r.hp == r.max_hp and r.behavior is MeleeBehavior and not (r.behavior is MountedBehavior), "a deadly blow kills only the wolf: the goblin fights on, unhurt (%s)" % r.label())
+	check(is_equal_approx(r.speed / Config.enemy_stat("goblin", "speed"), clampf(r.speed / Config.enemy_stat("goblin", "speed"), 0.9, 1.1)), "on foot it walks at a goblin's speed (%.2f)" % r.speed)
+	r.speed = 0.0  # (it stands where the bot put it)
+	await frames(2)
+	var wolf_corpse := game.corpses.corpses.filter(func(c: Corpse) -> bool: return c.kind == "wolf")
+	check(wolf_corpse.size() == 1 and wolf_corpse[0].grid_pos.distance_to(r.grid_pos) < 0.6 and game.economy.amount("gold") - gold0 == Config.enemy_stat_int("goblin_raider", "gold_on_kill"), "the wolf leaves its corpse where it fell and pays %d gold" % Config.enemy_stat_int("goblin_raider", "gold_on_kill"))
+	check(game.stats.value(v.id, "kill.goblin_raider") == kills0 + 1.0, "the mount counts as a raider killed")
+	kill(r)
+	await frames(2)
+	await clear_corpses()
+	# The halberdier: x vs_mounted on the mount only, it halts the mount and spends its charge.
+	var hb := MilitaryUnit.new("halberdier")
+	hb.village = v
+	var r2 := spawn("goblin_raider", at)
+	r2.charge_ready = true
+	mh = r2.mount_hp
+	Combat.hit(game, hb, r2, 4.0, null, r2.hit_point())
+	check(is_equal_approx(mh - r2.mount_hp, 4.0 * float(Config.MILITARY["halberdier"]["vs_mounted"])) and r2._halt_left > 0.0 and not r2.charge_ready, "a halberdier does x%s to a mount, halts it and breaks its charge" % str(Config.MILITARY["halberdier"]["vs_mounted"]))
+	r2.dismount(null, true)
+	var h0 := r2.hp
+	Combat.hit(game, hb, r2, 4.0, null, r2.hit_point())
+	check(is_equal_approx(h0 - r2.hp, 4.0 * float(en["goblin"]["resist"].get("melee", 1.0))), "but only x1 to the goblin on foot")
+	kill(r2)
+	await frames(2)
+	await clear_corpses()
+	var so: Soldier = load("res://scripts/units/soldier.gd").new()
+	so.unit = MilitaryUnit.new("halberdier")
+	var so2: Soldier = load("res://scripts/units/soldier.gd").new()
+	so2.unit = MilitaryUnit.new("shield_bearer")
+	check(MountedBehavior.breaks_charge(so) and not MountedBehavior.breaks_charge(so2), "a halberdier breaks charges, a shield bearer doesn't")
+	so.free()
+	so2.free()
+	# The charge: after charge_distance tiles ridden without a fight, x charge_x on the first blow.
+	var hero := game.hero
+	hero.add_to_group("melee_defenders")
+	hero.max_hp = 5000.0
+	hero.hp = 5000.0
+	var spot := Vector2(road_out(16))
+	hero.set_grid_pos(spot)
+	var r3 := spawn("goblin_raider", spot + Vector2(0.0, 0.0), 1.0, true)
+	r3.set_grid_pos(Vector2(road_out(10)))
+	var rb := r3.behavior as MountedBehavior
+	var hunted := await wait_until(func() -> bool: return rb.state == MountedBehavior.State.HUNT and rb._prey == hero, 10.0)
+	var hit := await wait_until(func() -> bool: return hero.hp < 5000.0, 20.0)
+	check(hunted and hit and is_equal_approx(5000.0 - hero.hp, Config.enemy_stat("goblin_raider", "damage") * float(m["charge_x"])), "it rides at the hero and charges: x%s on the first blow (%.1f)" % [str(m["charge_x"]), 5000.0 - hero.hp])
+	var hp1 := hero.hp
+	await wait_until(func() -> bool: return hero.hp < hp1, 5.0)
+	check(is_equal_approx(hp1 - hero.hp, Config.enemy_stat("goblin_raider", "damage")), "the next blow, standing: no charge (%.1f)" % (hp1 - hero.hp))
+	hero.remove_from_group("melee_defenders")
+	hero.set_grid_pos(Vector2(v.center))
+	# Who it hunts: the raider anything outside, Legion riders only melee fighters.
+	var vic: Civilian = ensure_role("gatherer")
+	vic.set_process(false)
+	vic.at_home = false
+	vic.visible = true
+	vic.set_grid_pos(r3.grid_pos + Vector2(1.0, 0.0))
+	rb._prey = null
+	check(rb._find_prey(r3, m) == vic, "a raider hunts a villager outside")
+	var cav := spawn("legion_cavalry", r3.grid_pos + Vector2(0.0, 1.0))
+	var cb := cav.behavior as MountedBehavior
+	check(cav.mount == "horse" and cb._find_prey(cav, m) == null, "Legion cavalry leaves villagers be")
+	hero.add_to_group("melee_defenders")
+	hero.set_grid_pos(cav.grid_pos + Vector2(1.0, 0.0))
+	check(cb._find_prey(cav, m) == hero, "but rides at the hero")
+	hero.remove_from_group("melee_defenders")
+	hero.set_grid_pos(Vector2(v.center))
+	vic.at_home = true
+	vic.set_process(true)
+	var foot := spawn("legion_footman", cav.grid_pos + Vector2(3.0, 0.0))
+	cb._think = 0.0
+	await frames(3)
+	check(cb.state == MountedBehavior.State.ESCORT and cb._lead == foot, "with a footman about it keeps with him")
+	kill(foot)
+	kill(cav)
+	kill(r3)
+	await frames(2)
+	await clear_corpses()
+	# Circling: mounted it never breaks in; it rides round the village, then gets off at a gate.
+	_mend_walls(v)  # (earlier tests left some broken: a breach it would ride through)
+	var r4 := spawn("goblin_raider", Vector2(road_out(12)), 1.0, true)
+	var b4 := r4.behavior as MountedBehavior
+	var circled := await wait_until(func() -> bool: return b4.state == MountedBehavior.State.CIRCLE, 30.0)
+	var inside := false
+	var t := 0.0
+	while t < 8.0 and r4.mount != "":
+		inside = inside or v.rect.has_point(r4.current_tile()) or r4.sieging
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	check(circled and not inside and Hero.rect_distance(v.rect, r4.grid_pos) <= float(m["approach"]) + 1.5, "mounted it circles the village and never breaks in")
+	gold0 = game.economy.amount("gold")
+	b4._calm = float(m["circle_time"])
+	var off := await wait_until(func() -> bool: return r4.mount == "", 40.0)
+	check(off and r4.kind == "goblin" and game.corpses.corpses.is_empty() and game.economy.amount("gold") == gold0, "after %s s without a fight it gets off at a gate: no corpse, no gold, a goblin on foot" % str(m["circle_time"]))
+	var broke := await wait_until(func() -> bool: return not is_instance_valid(r4) or r4.sieging or r4.dead, 20.0)
+	check(broke, "and breaks in on foot")
+	await clear_enemies()
+	await clear_corpses()
+	# Breached (a broken gate): it rides in like anyone on foot and burns a hut.
+	var gate_b: Building = game.map.building_at(v.gates[0])
+	gate_b.take_damage(1e9, null)
+	game.siege.mark_stale(v, true)
+	var huts0 := v.intact_huts().size()
+	var r5 := spawn("goblin_raider", Vector2(road_out(12)), 1.0, true)
+	var b5 := r5.behavior as MountedBehavior
+	var rode_in := await wait_until(func() -> bool: return b5.state == MountedBehavior.State.IN, 40.0)
+	var burned := await wait_until(func() -> bool: return v.intact_huts().size() < huts0, 40.0)
+	check(gate_b.devastated and rode_in and burned, "through a broken gate it rides in, mounted, and burns a hut")
+	_mend_walls(v)
+	for b in v.buildings():
+		if b is Hut and not (b as Hut).is_intact():
+			(b as Hut).ruined = false
+			(b as Hut).refresh()
+	await clear_enemies()
+	await clear_corpses()
+	# A wolf through the gate kills the villager of the hut it got to; the hut stands.
+	var hut: Hut = null
+	for b in v.intact_huts():
+		if is_instance_valid((b as Hut).resident):
+			hut = b
+			break
+	var victim: Civilian = hut.resident
+	var people := game.population.count()
+	var wf := spawn("wolf", Vector2(v.center))
+	wf.raid_hut = hut
+	wf.dead = true
+	wf.remove_from_group("enemies")
+	game.on_enemy_reached_gate(wf)
+	check(game.population.count() == people - 1 and (victim.dead or not is_instance_valid(victim)) and hut.is_intact(), "a wolf through the gate kills a villager in their hut; the hut stands")
+	w._enemy_gone(wf)
+	wf.queue_free()
+	await frames(2)
+	# Raised: an undead wolf (unholy, x2 holy); the undead horse bolts, never fights, and falls apart.
+	var nec := spawn("necromancer", Vector2(road_out(20)))
+	var wc := game.corpses.spawn("wolf", w.wave, Vector2(road_out(18)))
+	var uw := w.raise_corpse(wc, nec)
+	var hp_w := uw.hp
+	uw.take_damage(4.0, null, "holy")
+	check(uw.kind == "wolf" and uw.raised and uw.is_unholy() and is_equal_approx(hp_w - uw.hp, 8.0), "a raised wolf is an undead wolf: unholy, x2 holy damage")
+	kill(uw)
+	var hc := game.corpses.spawn("horse", w.wave, Vector2(road_out(18)))
+	var uh := w.raise_corpse(hc, nec)
+	check(uh.kind == "horse" and uh.behavior is FleeBehavior and uh.raised and float(en["horse"]["damage"]) == 0.0, "a raised horse is an undead horse that never fights")
+	vic.set_process(false)
+	vic.at_home = false
+	vic.visible = true
+	var vhp: float = vic.hp
+	vic.set_grid_pos(uh.grid_pos + Vector2(0.5, 0.0))
+	var start := uh.grid_pos
+	await wait(4.0)
+	check(vic.hp == vhp and uh.grid_pos.distance_to(start) > 1.0, "it bolts (%.1f tiles) and bites nobody" % uh.grid_pos.distance_to(start))
+	vic.at_home = true
+	vic.set_process(true)
+	var gone := await wait_until(func() -> bool: return not is_instance_valid(uh) or uh.dead, 40.0)
+	check(gone, "it falls apart of the drain")
+	kill(nec)
+	await frames(2)
+	await clear_corpses()
+	# A scenario's rider: a captain on a horse rides with its own look, and fights on on foot.
+	w._spawn({"kind": "legion_captain", "spawn": game.map.edge_spawns[0], "hp_scale": 1.0, "village": v, "name": "Torben", "mount": "horse", "mount_hp": 60.0})
+	var cap: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	check(cap.mount == "horse" and is_equal_approx(cap.mount_hp, 60.0) and cap.unit_art() == "unit_legion_captain_mounted" and cap.speed > Config.enemy_stat("legion_captain", "speed") * 1.2, "a captain a scenario puts on a horse: its HP, the mounted look, faster")
+	logs.clear()
+	cap.take_damage(1e9, null, "projectile")
+	await frames(2)
+	check(cap.mount == "" and cap.kind == "legion_captain" and not cap.dead and not cap.retreating and cap.unit_art() == "unit_legion_captain" and logs.any(func(l: String) -> bool: return "horse falls" in l), "its horse falls: Torben fights on on foot (logged)")
+	check(game.corpses.corpses.any(func(c: Corpse) -> bool: return c.kind == "horse"), "the horse's corpse lies there")
 	await clear_enemies()
 	await clear_corpses()

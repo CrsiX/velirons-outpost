@@ -6,7 +6,8 @@ extends Node2D
 ## monster's splash as it dives or comes up, leaves flying off a tree that
 ## wakes up as a wrathwood, a Legion soldier's last breath (release), or
 ## the crown's curse breaking loose (curse: dark tendrils creeping out and a
-## shadow rising, slower). Fades out on its own.
+## shadow rising, slower), or dust kicked up (a charging rider's hooves, a
+## mount falling). Fades out on its own.
 
 const LIFE := 0.55
 ## Kinds that last longer than LIFE.
@@ -113,6 +114,10 @@ func _draw() -> void:
 			for s in _sparks.slice(0, 10):
 				var p := Vector2(s.x * reach, s.y * reach * 0.5)
 				draw_line(p * 0.82 + Vector2(0, -18), p + Vector2(0, -18), Color(1.0, 0.55, 0.2, fade), 2.5)
+		"dust":  # brown-grey puffs low on the ground, drifting out and fading
+			for s in _sparks.slice(0, 8):
+				var p := Vector2(s.x * rx * 0.9, s.y * rx * 0.4 - 6.0 * k)
+				draw_circle(p, 4.0 + 6.0 * k, Color(0.52, 0.44, 0.34, 0.55 * fade))
 
 
 func _ellipse(rx: float, col: Color, w: float) -> void:

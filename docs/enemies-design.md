@@ -1,7 +1,7 @@
 # Veliron's Outpost: enemies (design)
 
 Status: **built; describes the current code**. Tested by tests/enemy_bot.gd (thief, gargoyle,
-necromancer, vampire, slimes, spiders), tests/rat_bot.gd (rats) and tests/sim_bot.gd (waves, raids, corpses).
+necromancer, vampire, slimes, spiders, the wrathwood, vultures, wolves and riders), tests/rat_bot.gd (rats) and tests/sim_bot.gd (waves, raids, corpses).
 Scope: every enemy kind, how waves are put together and escalate, difficulty, damage
 categories, flyers, corpses and raids. Every number lives in `scripts/core/config.gd`
 (`ENEMIES`, `WAVE_MIX`, `RAT_PACKS`, ...). The tables below give the Normal values at wave 1.
@@ -19,6 +19,8 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   - `spider_mother_behavior.gd` (extends `MeleeBehavior`) and `egg_behavior.gd` (her eggs);
   - `wrathwood_behavior.gd`: the wrathwood (§15c), woken by `scripts/systems/wrathwoods.gd`;
   - `vulture_behavior.gd` + `vulture_pack.gd`: vultures (§15d), sent by `Waves._vulture_packs`;
+  - `mounted_behavior.gd`: a rider while its mount lives (§15e; the base of `captain_behavior.gd` and
+    `commander_behavior.gd`), `flee_behavior.gd`: the undead horse;
   - `camp_behavior.gd`: monster-camp and lair guards (set by the camp, not by config).
 - `scripts/systems/waves.gd` (`Waves`): countdown, wave make-up, spawning, rat packs, lair
   themes, the co-op extra, raising corpses, slime splits, spider eggs (laying, hatching), kill gold.
@@ -58,6 +60,8 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 | Ork | 3 | 10 % | 3 % | 25 % |
 | Big slime | 4 | 6 % | 2 % | 15 % |
 | Witch | 5 | 10 % | 2 % | 20 % |
+| Wolf | 5 | 6 % | 2 % | 15 % (in packs of 2-3, §15e) |
+| Goblin raider | 7 | 5 % | 1.5 % | 12.5 % |
 | Thief | 7 | 8 % | 1 % | 15 % |
 | Gargoyle | 10 | 6 % | 1 % | 15 % |
 | Necromancer | 13 | 4 % | 0.5 % | 8 % |
@@ -511,6 +515,84 @@ left to eat. Numbers: `Config.VULTURES` (the packs) and `ENEMIES.vulture` (the b
 - Co-op: each village's packs come for the corpses nearest it; clients see `landed` and the
   growth (`Enemy.fed`) through the replicator.
 - Library: its own entry (from wave 6, the pack rule, eating and growth, leaving).
+
+## 15e. Wolves and riders (mounted enemies)
+
+Wolves hunt in packs; goblin raiders ride them. The Dread Legion has cavalry (campaign only), and
+its captains and commanders ride into battle too. A mount is a second HP pool: it has to fall
+before its rider can be hurt. Numbers: `ENEMIES.wolf`, `goblin_raider`, `legion_cavalry`, `horse`
+and `Config.MOUNTED`; code: `Enemy` (the mount: `mount`, `mount_hp`, `dismount`, the charge),
+`scripts/units/enemies/mounted_behavior.gd` (`MountedBehavior`, extends `MeleeBehavior`: how a
+rider moves and picks its fights; `CaptainBehavior` and `CommanderBehavior` extend it) and
+`flee_behavior.gd` (`FleeBehavior`: the undead horse).
+
+| Kind | HP | Speed | Damage / cooldown | Kill gold | Corpse | Holy |
+|---|---|---|---|---|---|---|
+| Wolf | 13 | 1.4 | 4 / 0.8 s | 2 | 3 food, no gold | ×1 (animal) |
+| Goblin raider | mount 18, then a goblin (20) | 1.6 mounted | 5 / 1.0 s | mount 2, then a goblin's | the wolf's, then a goblin's | mount ×1, then ×0.75 |
+| Legion cavalry | mount 45, then a footman (38) | 1.5 mounted | 8 / 1.1 s | mount 2, then a footman's | the horse's (8 food, no gold); the footman is released | mount ×1 |
+| Horse (only raised) | 45 (raised: half) | 1.5 | none | 2 (raised: 1) | 8 food, no gold | ×1, raised ×2 |
+
+- **The wolf** (from wave 5, `WAVE_MIX` like the big slime: 6 %, +2 %/wave, at most 15 %) is a
+  plain melee enemy (`MeleeBehavior`) that comes in **packs** of 2-3 (`"pack"`): the wave's
+  wolves are grouped into packs, each from one spawn, the wolves `pack_gap` (0.3 s) apart; a
+  wave's single wolf gets a second. It breaks gates and walls weakly (`siege` 0.5). Through
+  (`"raid": "maul"`, `Game.on_enemy_reached_gate`), it kills the villager of the hut it got to
+  (else of the intact, lived-in hut nearest it), leaves the hut standing, and is gone. Raised by
+  a necromancer it is an **undead wolf** (raised: unholy, ×2 holy, drains away in 20 s).
+- **Mounts** (`Enemy.mount`: `"wolf"` or `"horse"`, the animal's `ENEMIES` kind): a mounted kind
+  has `"mount"`, `"mount_hp"` and `"rider"` (what it is on foot); a scenario can put any enemy on
+  a horse (a queue entry's `"mount"`, `"mount_hp"`: the captains and commanders). While mounted:
+  - every hit lands on the mount (`mount_hp`, scaled like HP: wave and difficulty; the
+    animal's `resist`, a commander's `guard`); the rider's HP stays whole. A blow that kills the
+    mount never carries over. Two HP bars: the mount's (brown) over the rider's.
+  - it moves at the mounted speed (its kind's `speed`; a given horse: `MOUNTED.mounts.horse`),
+    and hits walls and gates with its kind's low `siege` (0.3) only when it rides into one.
+  - **Dismount** (`Enemy.dismount`): the mount falls (its kill gold, `gold_on_kill` of the
+    mounted kind, to whoever killed it; it counts as a kill of the mounted kind; a corpse of the
+    animal where it fell; a puff of dust), and a kind with `"rider"` turns into that kind in
+    place (a new number for the log, its own HP, speed, behavior and look; it keeps its wave and
+    its target). A captain or commander just goes on on foot (`on_dismount`).
+- **Riding** (`MountedBehavior`, while mounted):
+  - It runs to its village by road, but never hits a gate, wall or wall tower: within `approach`
+    (5) tiles of the walls it **circles** the village, about `ring` (3) tiles outside the walls,
+    round and round. Its ways (to a target, to its soldiers) never cross an intact barrier
+    (`MountedBehavior.open_way`); one it can't reach that way it leaves be for 5 s.
+  - **Breached:** when the way anyone on foot would break in (the siege field, from the edge of
+    its zone nearest the rider) reaches a hut with no intact barrier on it (a broken gate or
+    wall), it **rides in** like the others (`Enemy.ride_in`: the siege field, mounted) and burns
+    a hut. A barrier turning up in its way sends it back to circling for 5 s.
+  - It **hunts**: the goblin raider anything of ours within `hunt_radius` (5) tiles it can reach
+    that way (villagers out of shelter, the hero, soldiers walking or on a sortie, ranged ones
+    too, summons; not buildings); Legion riders (`"hunts": "melee"`) only melee fighters (the hero, melee
+    soldiers, summons). It rides at the nearest, fights it, and gives up beyond `chase` (8) tiles.
+  - Legion riders **escort** (`"escort"`): while a Legion soldier on foot is about, they keep
+    within `escort_radius` (2.5) tiles of the nearest one, hunting only from there; with none
+    left they circle like raiders.
+  - **Getting off at the gate:** after `circle_time` (40) s at the village without a blow, it
+    rides to the gate nearest it and gets off there: the mount runs off the map (no corpse, no
+    gold, a look only) and the rider breaks in on foot.
+  - **Charge:** after riding `charge_distance` (3) tiles without a fight (`Enemy.charge_ready`,
+    dust under its hooves, leaning forward), its next blow does `charge_x` (×2).
+- **Against cavalry:** the halberdier's blows do `vs_mounted` (×2.5) to a mount (only to the mount:
+  never to the rider on foot), and it **breaks a charge** (`"breaks_charge"`): a charge on a
+  halberdier gives no bonus, and its blow on a mounted enemy halts the mount for `halt_time`
+  (0.5) s and spends its charge.
+- **The undead horse** (`horse`, `FleeBehavior`): there is no living horse, only a fallen
+  mount's corpse. Raised, it never fights: it bolts to the spot within `flee_search` (8) tiles
+  with the fewest of our people and towers around, again every 3 s, and dies of the raised drain
+  (20 s); unraised (a debug one) it vanishes after `flee_time` (20) s. It counts for the wave.
+  Villagers don't run from it (`"scares": false`).
+- **Goblin raider** (from wave 7, alone, 5 %, +1.5 %/wave, at most 12.5 %, no cap); **Legion
+  cavalry** only where a scenario sends it (scenario 8 from wave 6, scenarios 10 and 11).
+- **Mounted captains and commanders** (docs/scenarios-design.md §7): Lysa and Torben ride
+  (scenarios 5, 9 and 10): they escort their column like cavalry and fall back faster while
+  mounted; a captain whose horse falls goes on (and falls back) on foot. Halvard rides
+  (scenario 10) and keeps rallying. Rhodri (scenario 11) fights in two phases: mounted, then on
+  foot once his horse falls ("Rhodri's horse falls! Rhodri fights on foot"). The mounted
+  art is `unit_<art>_mounted`.
+- Co-op: clients see the mount, its HP, the charge and the change of kind through the replicator.
+- Library: wolf, goblin raider, Legion cavalry (with the mount's HP and the charge) and the horse.
 
 ## 16. Monster-camp guards
 

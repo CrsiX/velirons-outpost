@@ -41,10 +41,16 @@ static func hit(game: Game, unit: MilitaryUnit, t, dmg: float, source: Node, at:
 	if is_instance_valid(t) and not t.dead:
 		var e := t as Enemy
 		center = e.grid_pos
-		var before := e.hp
+		var before := e.hp + e.mount_hp
+		var rider := e.mount != ""
+		if rider:  # (a halberdier's blow on a mount: docs/enemies-design.md §15e)
+			dmg *= float(unit.spec().get("vs_mounted", 1.0))
 		e.take_damage(dmg, source if is_instance_valid(source) else null, a.get("category", "pure"))
 		if unit.has_stat("lifesteal"):
-			_lifesteal(unit, before - maxf(e.hp, 0.0))
+			_lifesteal(unit, before - maxf(e.hp, 0.0) - maxf(e.mount_hp, 0.0))
+		if rider and e.mount != "" and unit.spec().get("breaks_charge", false):
+			e.halt(float(Config.MOUNTED["halt_time"]))
+			e.spend_charge()
 		if not e.dead:
 			if unit.has_stat("slow"):
 				e.slow(unit.stat("slow"), unit.stat("slow_time"))

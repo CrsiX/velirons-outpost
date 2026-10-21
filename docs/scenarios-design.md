@@ -1152,3 +1152,14 @@ The game has none of this yet, except where noted:
   the king (beat him). **Hints:**
   food short, banner-bearer, guardsman, spider mother, material short (the steppe trees), Brenna badly hurt. **Objectives:** hold the camp
   for 12 waves; beat Rhodri.
+
+### 7.19 Riders in the campaign (docs/enemies-design.md §15e)
+
+- **Legion cavalry** (`legion_cavalry`: a footman on a pale horse, `MountedBehavior`; unhorsed, a footman) rides in the waves from one wave
+  after the Legion archer first comes: scenario 8 from wave 6 (1, 1, 2, 2), scenario 10 from wave 5 (1 growing to 4), scenario 11 from
+  wave 2 (1 growing to 4). A hint in each tells what it does and that halberdiers are the answer.
+- **Mounted captains and commanders** (a queue entry's `"mount": "horse"`, `"mount_hp"`; art `unit_<art>_mounted`): Lysa and Torben ride
+  in scenario 5 (60 HP horses), Lysa in scenario 9 (70, `LYSA_HORSE_HP`), Torben, Lysa (70, `CAPTAIN_HORSE_HP`) and Halvard (250,
+  `HALVARD_HORSE_HP`) in scenario 10, Rhodri in scenario 11 (350, `RHODRI_HORSE_HP`). They ride with their soldiers (escort) and hunt our
+  melee fighters; when the horse falls (logged: "Rhodri's horse falls! Rhodri fights on foot") they go on on foot, and Rhodri's fight
+  has its two phases. A captain beaten while mounted falls back on its horse, faster. Rurik stays on foot.

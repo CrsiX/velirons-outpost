@@ -28,6 +28,8 @@ const BEHAVIORS := {
 	"egg": preload("res://scripts/units/enemies/egg_behavior.gd"),
 	"wrathwood": preload("res://scripts/units/enemies/wrathwood_behavior.gd"),
 	"vulture": preload("res://scripts/units/enemies/vulture_behavior.gd"),
+	"mounted": preload("res://scripts/units/enemies/mounted_behavior.gd"),
+	"flee": preload("res://scripts/units/enemies/flee_behavior.gd"),
 }
 ## How many tiles farther a low_priority enemy (a spider egg) counts for
 ## whoever picks a target: anything else in reach comes first.
@@ -135,6 +137,23 @@ var hurt_at := -INF
 var _haste := 1.0
 var _guard := 1.0
 var _haste_at := -INF
+## Riding (docs/enemies-design.md §15e): the animal it rides ("wolf",
+## "horse": an ENEMIES kind; "" on foot) and the mount's HP. While the mount
+## lives every hit lands on it (take_damage), none on the rider.
+var mount := ""
+var mount_hp := 0.0
+var mount_max := 0.0
+## Ridden MOUNTED charge_distance tiles without a fight: its next blow is a
+## charge (MountedBehavior).
+var charge_ready := false
+var _ridden := 0.0
+var _ride_from := Vector2.ZERO
+var _dust_in := 0.0
+## Seconds a halberdier's blow still halts its mount.
+var _halt_left := 0.0
+## Mounted, it rides into its village through an open breach (MountedBehavior
+## sets it): it may break in like anyone on foot, but hits no barrier.
+var ride_in := false
 
 
 func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: String) -> void:
@@ -160,6 +179,8 @@ func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: Stri
 	set_grid_pos(pts[0])
 	follow(pts)
 	behavior = BEHAVIORS[spec()["behavior"]].new()
+	if spec().has("mount"):
+		give_mount(str(spec()["mount"]), float(spec()["mount_hp"]))
 	if flies():
 		_take_off()
 	if habitat() == "water" and game.world and game.world.pathing:
@@ -450,9 +471,14 @@ func melee_reach(base: float) -> float:
 
 ## Its sprite: unit_<art>, or unit_<art>_<colour> for a slime.
 func unit_art() -> String:
-	if art_override != "":
-		return "unit_" + art_override
-	return "unit_%s%s" % [spec()["art"], "_" + color if color != "" else ""]
+	return "unit_%s%s" % [art_base(), "_" + color if color != "" else ""]
+
+
+## Its sprite again (a new look: identity, colour, mount), facing the same way.
+func _refresh_art() -> void:
+	var flip := sprite.flip_h
+	Art.apply(sprite, unit_art())
+	sprite.flip_h = flip
 
 
 ## A name and a look of its own (a named Legion captain).
@@ -460,9 +486,7 @@ func set_identity(p_name: String, p_art: String) -> void:
 	given_name = p_name
 	if p_art != "" and p_art != art_override:
 		art_override = p_art
-		var flip := sprite.flip_h
-		Art.apply(sprite, unit_art())
-		sprite.flip_h = flip
+		_refresh_art()
 	queue_redraw()
 
 
@@ -471,9 +495,7 @@ func set_color(c: String) -> void:
 	if c == "" or c == color:
 		return
 	color = c
-	var flip := sprite.flip_h
-	Art.apply(sprite, unit_art())
-	sprite.flip_h = flip
+	_refresh_art()
 
 
 ## Jelly (slimes): squashes and stretches as it walks.
@@ -492,6 +514,8 @@ func _animate(delta: float) -> void:
 		return  # (see _wade: no walking sway in the water)
 	if not is_jelly():
 		super._animate(delta)
+		if charge_ready and mount != "":
+			sprite.rotation += -0.12 if sprite.flip_h else 0.12
 		return
 	_bob += delta * 8.0
 	var q := sin(_bob) * 0.1
@@ -504,13 +528,157 @@ func _set_moving(v: bool) -> void:
 		sprite.scale = Vector2(0.5, 0.5)
 
 
-## The art it shows now: its own, or the bat's.
+## The art it shows now: its own, or the bat's; a rider its kind doesn't
+## mount by itself (a captain on a horse): its art + "_mounted".
 func art_base() -> String:
 	if airborne:
 		return "vampire_bat"
 	if landed and spec().has("landed_art"):
 		return str(spec()["landed_art"])
-	return art_override if art_override != "" else str(spec()["art"])
+	var base := art_override if art_override != "" else str(spec()["art"])
+	return base + "_mounted" if mount != "" and not spec().has("mount") else base
+
+
+# --- riding (docs/enemies-design.md §15e) ---------------------------------------------------
+
+## On a mount: `animal` (an ENEMIES kind) with `base_hp` HP, scaled like its
+## own HP (wave, difficulty). A kind that doesn't ride by itself (a captain
+## a scenario puts on a horse) gets MOUNTED mounts' speed.
+func give_mount(animal: String, base_hp: float) -> void:
+	mount = animal
+	mount_max = base_hp * hp_scale * Settings.enemy_multiplier("hp")
+	mount_hp = mount_max
+	_ridden = 0.0
+	_ride_from = grid_pos
+	if not spec().has("mount"):
+		var m: Dictionary = Config.MOUNTED["mounts"][animal]
+		_set_walk_speed(float(m["speed"]) * Settings.enemy_multiplier("speed") * randf_range(0.92, 1.08))
+		_refresh_art()
+	queue_redraw()
+
+
+## Its walking speed without slows is `v` now (a slow on it goes on).
+func _set_walk_speed(v: float) -> void:
+	base_speed = v
+	speed = v * (_slow if _slow_left > 0.0 else 1.0)
+
+
+## Its mount is gone: `slain` (killed by `source`: Waves.mount_fell pays its
+## gold and lays its corpse) or it got off (at a gate: the mount runs off).
+## A kind with a "rider" turns into that kind here, in place; anyone else
+## goes on on foot. Then its behavior hears of it (on_dismount).
+func dismount(source: Node = null, slain := true) -> void:
+	if mount == "" or dead:
+		return
+	var animal := mount
+	if slain:
+		killer = source
+		game.waves.mount_fell(self, animal)
+		killer = null
+	else:
+		_run_off(animal)
+		if is_instance_valid(target_village):
+			target_village.events.debug("%s gets off its %s" % [label(), animal])
+	mount = ""
+	mount_hp = 0.0
+	mount_max = 0.0
+	charge_ready = false
+	_halt_left = 0.0
+	Combat.burst(game, "dust", position, 0.7)
+	var rider := str(spec().get("rider", ""))
+	if rider != "":
+		_become(rider)
+	else:
+		_set_walk_speed(stat("speed") * randf_range(0.92, 1.08) * (float(spec().get("retreat_speed", 1.0)) if retreating else 1.0))
+		_refresh_art()
+	queue_redraw()
+	behavior.on_dismount(self, slain)
+
+
+## Turns into `new_kind` where it stands (a raider's goblin): a new number,
+## its HP (the same share of it), speed, behavior and look; its wave, road
+## and target stay.
+func _become(new_kind: String) -> void:
+	var share := hp / max_hp if max_hp > 0.0 else 1.0
+	var old := label()
+	kind = new_kind
+	uid = game.next_id(kind)
+	max_hp = stat("hp") * hp_scale
+	hp = max_hp * share
+	_set_walk_speed(stat("speed") * randf_range(0.92, 1.08))
+	behavior = BEHAVIORS[spec()["behavior"]].new()
+	_refresh_art()
+	if is_instance_valid(target_village):
+		target_village.events.debug("%s fights on as %s" % [old, label()])
+
+
+## The mount runs off the map: its picture galloping away and fading (a
+## look only: no corpse, no gold).
+func _run_off(animal: String) -> void:
+	var s := Art.sprite("unit_" + str(Config.ENEMIES[animal]["art"]))
+	var away := Vector2.RIGHT
+	if is_instance_valid(target_village):
+		away = (grid_pos - Vector2(target_village.center)).normalized()
+	s.flip_h = Iso.to_world(away).x < 0.0
+	s.position = position
+	game.world.effects.add_child(s)
+	var tw := s.create_tween().set_parallel()
+	tw.tween_property(s, "position", Iso.to_world(grid_pos + away * 4.0), 1.6)
+	tw.tween_property(s, "modulate:a", 0.0, 1.6).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(s.queue_free)
+
+
+## A halberdier's blow: the mount stops for `seconds`.
+func halt(seconds: float) -> void:
+	if mount != "":
+		_halt_left = maxf(_halt_left, seconds)
+
+
+## Its charge is used up (a blow, or a halberdier broke it): it has to ride
+## charge_distance tiles again.
+func spend_charge() -> void:
+	charge_ready = false
+	_ridden = 0.0
+	_ride_from = grid_pos
+
+
+## Counts the ground it rides: far enough without a fight, it charges.
+func _tick_ride(delta: float) -> void:
+	if _halt_left > 0.0:
+		_halt_left -= delta
+	_ridden += grid_pos.distance_to(_ride_from)
+	_ride_from = grid_pos
+	if not charge_ready and _ridden >= float(Config.MOUNTED["charge_distance"]):
+		charge_ready = true
+
+
+## Charging (every machine, for looks): dust under the hooves (and leaning
+## into it, see _animate).
+func _charge_look(delta: float) -> void:
+	if not (charge_ready and moving):
+		return
+	_dust_in -= delta
+	if _dust_in <= 0.0:
+		_dust_in = 0.22
+		Combat.local_burst(game, "dust", position + Vector2(-10.0 if not sprite.flip_h else 10.0, 0.0), 0.35)
+
+
+## Co-op client: the host's mount, its HP and the charge (and the kind it is now).
+func net_mount(p_kind: String, p_mount: String, p_hp: float, p_max: float, p_charge: bool) -> void:
+	var looks := false
+	if p_kind != kind:
+		kind = p_kind
+		looks = true
+	if p_mount != mount:
+		if p_mount == "":
+			Combat.local_burst(game, "dust", position, 0.7)
+		mount = p_mount
+		looks = true
+	mount_hp = p_hp
+	mount_max = p_max
+	charge_ready = p_charge
+	if looks:
+		_refresh_art()
 
 
 ## Into the air (`on`) as a bat, or back on its feet: a puff of dark smoke,
@@ -581,8 +749,8 @@ func _land() -> void:
 
 
 func _walk_factor() -> float:
-	if _root_left > 0.0:
-		return 0.0  # (held by roots)
+	if _root_left > 0.0 or _halt_left > 0.0:
+		return 0.0  # (held by roots, or a halberdier halted its mount)
 	return 1.0 if flies() or habitat() != "land" else super._walk_factor()
 
 
@@ -778,6 +946,8 @@ func _process(delta: float) -> void:
 	if _wades():
 		_wade(delta)
 	behavior.animate(self, delta)
+	if mount != "":
+		_charge_look(delta)
 	if game.is_client:
 		if dive == Dive.DIVING or dive == Dive.SURFACING:
 			_dive_t += delta
@@ -787,6 +957,8 @@ func _process(delta: float) -> void:
 	if spec().has("submerges"):
 		_tick_dive(delta)
 	_push_immune -= delta
+	if mount != "":
+		_tick_ride(delta)
 	if raised and decay_rate > 0.0:
 		hp -= decay_rate * delta
 		queue_redraw()
@@ -852,7 +1024,7 @@ func entry() -> String:
 
 ## May break into its village by the siege field now?
 func _may_siege() -> bool:
-	return entry() == "siege" and habitat() != "water" and not airborne and not retreating and not game.is_client \
+	return entry() == "siege" and habitat() != "water" and not airborne and not retreating and (mount == "" or ride_in) and not game.is_client \
 		and is_instance_valid(target_village) and not target_village.fallen and not wild()
 
 
@@ -1011,6 +1183,9 @@ func _update_visibility() -> void:
 func take_damage(amount: float, source: Node = null, category: String = "pure") -> void:
 	if dead:
 		return
+	if mount != "":
+		_hurt_mount(amount, source, category)
+		return
 	amount *= float(spec().get("resist", {}).get(category, 1.0))
 	if category != "pure":
 		amount *= guard()  # (a commander's soldiers)
@@ -1035,6 +1210,24 @@ func take_damage(amount: float, source: Node = null, category: String = "pure") 
 		tw.tween_property(self, "scale", Vector2(1.2, 0.3), 0.25)
 		tw.tween_property(self, "modulate:a", 0.0, 0.25)
 		tw.chain().tween_callback(queue_free)
+		return
+	if source != null:
+		behavior.on_damaged(self, source)
+
+
+## A hit on its mount (the animal's "resist"; a commander's guard): none of
+## it reaches the rider, also when it kills the mount (dismount).
+func _hurt_mount(amount: float, source: Node, category: String) -> void:
+	amount *= float(Config.ENEMIES[mount].get("resist", {}).get(category, 1.0))
+	if category != "pure":
+		amount *= guard()
+	mount_hp -= amount
+	hurt_at = game.clock
+	queue_redraw()
+	sprite.modulate = Color(1.0, 0.45, 0.45)
+	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
+	if mount_hp <= 0.0:
+		dismount(source, true)
 		return
 	if source != null:
 		behavior.on_damaged(self, source)
@@ -1100,12 +1293,24 @@ func _draw() -> void:
 	if given_name != "" and not dead:
 		var f := ThemeDB.fallback_font
 		var w := f.get_string_size(given_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
-		var y := float(spec().get("hp_bar_y", -46.0)) - 10.0
+		var y := _bar_y() - 10.0
 		draw_string_outline(f, Vector2(-w / 2.0, y), given_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, 4, Color(0.08, 0.06, 0.05, 0.9))
 		draw_string(f, Vector2(-w / 2.0, y), given_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color("e8d8b0"))
-	if dead or hp >= max_hp or dive == Dive.DOWN:
+	if dead or dive == Dive.DOWN:
 		return
-	_draw_hp_bar(28.0, -62.0 if flies() else float(spec().get("hp_bar_y", -46.0)), 5.0, hp / max_hp, Color("4a1510"), Color("d8412f"))
+	var bar_y := -62.0 if flies() else _bar_y()
+	if hp < max_hp:
+		_draw_hp_bar(28.0, bar_y, 5.0, hp / max_hp, Color("4a1510"), Color("d8412f"))
+		bar_y += 7.0
+	if mount != "" and mount_hp < mount_max:  # (its mount's, brown)
+		_draw_hp_bar(28.0, bar_y, 4.0, mount_hp / mount_max, Color("3a2614"), Color("b07a3a"))
+
+
+## Where its HP bar goes: its kind's hp_bar_y, higher on a horse it doesn't
+## ride by itself (a captain a scenario mounted).
+func _bar_y() -> float:
+	var y := float(spec().get("hp_bar_y", -46.0))
+	return y - 18.0 if mount != "" and not spec().has("mount") else y
 
 
 ## Water monsters: ripples and a trail of bubbles while under; a siren's song

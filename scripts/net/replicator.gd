@@ -321,7 +321,7 @@ func _describe(n: Node) -> Array:
 		var e := n as Enemy
 		if e.dead and not e.shell:  # (a hatched egg's shell stays a while)
 			return []
-		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0, "c": e.color}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "ud": e.undead, "sh": e.shell, "air": e.airborne, "ld": e.landed, "fd": e.fed, "ch": e.channel_to if e.channel_to != Vector2.INF else null, "dv": int(e.dive), "efx": e.fx}), e.current_tile(), -1, false]
+		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0, "c": e.color}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "ud": e.undead, "sh": e.shell, "air": e.airborne, "ld": e.landed, "fd": e.fed, "ch": e.channel_to if e.channel_to != Vector2.INF else null, "dv": int(e.dive), "efx": e.fx, "k": e.kind, "mt": e.mount, "mh": snappedf(e.mount_hp, 0.5), "mm": e.mount_max, "cg": e.charge_ready}), e.current_tile(), -1, false]
 	if n is Soldier:
 		var s := n as Soldier
 		vid = s.unit.village.id if s.unit.village else -1
@@ -639,6 +639,7 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		en.channel_to = Vector2(ch) if ch != null else Vector2.INF
 		en.net_dive(int(st.get("dv", 0)))
 		en.fx = st.get("efx", {})
+		en.net_mount(str(st.get("k", en.kind)), str(st.get("mt", "")), float(st.get("mh", 0.0)), float(st.get("mm", 0.0)), bool(st.get("cg", false)))
 
 
 func _apply_building(b: Building, st: Dictionary) -> void:

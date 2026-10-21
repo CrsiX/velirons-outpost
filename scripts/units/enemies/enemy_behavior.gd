@@ -67,6 +67,12 @@ func on_hurt(_enemy: Enemy) -> void:
 	pass
 
 
+## Called when its mount is gone (Enemy.dismount): `slain`, or it got off.
+## (A kind with a "rider" has its rider's behavior by then.)
+func on_dismount(_enemy: Enemy, _slain: bool) -> void:
+	pass
+
+
 ## Called once when the enemy dies or vanishes.
 func on_death(_enemy: Enemy) -> void:
 	pass

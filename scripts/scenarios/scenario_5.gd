@@ -89,9 +89,10 @@ const SIGMUND_TENT := Vector2i(24, 54)
 ## The Legion patrol of the last wave (down the pass), and the gargoyles that
 ## come alive on the rocks above the pass.
 const LEGION := {"legion_footman": 8}
+## They ride (docs/enemies-design.md §15e): their horses' HP.
 const CAPTAINS: Array[Dictionary] = [
-	{"name": "Lysa", "art": "legion_captain_lysa"},
-	{"name": "Torben", "art": "legion_captain"},
+	{"name": "Lysa", "art": "legion_captain_lysa", "mount": "horse", "mount_hp": 60.0},
+	{"name": "Torben", "art": "legion_captain", "mount": "horse", "mount_hp": 60.0},
 ]
 const GATE_GARGOYLES := 3
 ## The wave the lair wakes at, unless it is found before.

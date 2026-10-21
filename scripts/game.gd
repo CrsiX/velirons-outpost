@@ -780,6 +780,9 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 		v.events.info("%s got into the village and ate %d food" % [g.label().capitalize(), eat])
 		v.toast("A rat ate %d food!" % eat, Color("ffb07a"))
 		return
+	if str(g.spec().get("raid", "")) == "maul":
+		_maul(g, v)
+		return
 	if not raid_roll(g):
 		v.events.debug("%s got into the village and %s" % [g.label().capitalize(), str(g.spec().get("gone", "melted away"))])
 		return
@@ -796,6 +799,30 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 		Sfx.play("raid")
 	v.toast("Enemies broke into the village!", Color("ff7a6a"))
 	v.population.changed.emit()
+	_check_defeat()
+
+
+## A wolf got in ("raid": "maul"; docs/enemies-design.md §15e): it kills the
+## villager living in the hut it got to (or in the lived-in intact hut
+## nearest it); the hut stands. Then it is gone.
+func _maul(g: Enemy, v: Village) -> void:
+	var hut := g.raid_hut
+	if not (is_instance_valid(hut) and hut.is_intact() and hut.village == v and is_instance_valid(hut.resident)):
+		hut = null
+		var best := INF
+		for b in v.intact_huts():
+			var h := b as Hut
+			var d := Vector2(h.tile).distance_to(g.grid_pos)
+			if is_instance_valid(h.resident) and d < best:
+				best = d
+				hut = h
+	if hut == null:
+		v.events.info("%s got into the village and found nobody" % g.label().capitalize())
+		return
+	v.population.kill(hut.resident, "when %s got into their hut" % g.label(), "enemies")
+	if v.is_local():
+		Sfx.play("raid")
+	v.toast("A wolf got into the village and killed a villager!", Color("ff7a6a"))
 	_check_defeat()
 
 

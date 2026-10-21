@@ -274,8 +274,9 @@ static func _enemies() -> Array[Dictionary]:
 		var f := PackedStringArray()
 		var from := _enemy_from_wave(kind)
 		if from > 0:
-			f.append("In the waves from wave %d%s" % [from, " (in packs)" if kind == "rat" else ""])
+			f.append("In the waves from wave %d%s" % [from, " (in packs)" if kind == "rat" or e.has("pack") else ""])
 		f.append("HP %s · speed %s tiles/s" % [_n(Config.enemy_stat(kind, "hp")), _n(Config.enemy_stat(kind, "speed"))])
+		f.append_array(_mounted_facts(kind))
 		if kind == Wrathwoods.KIND:
 			var lt := Config.WRATHWOOD
 			var ch: Dictionary = lt["chance"]
@@ -320,7 +321,9 @@ static func _enemies() -> Array[Dictionary]:
 		if e.has("retreat_below"):
 			f.append("Never killed: below %d %% of its HP it falls back and leaves" % roundi(100.0 * float(e["retreat_below"])))
 		var loot := "Killed: %d gold" % Config.enemy_stat_int(kind, "gold_on_kill")
-		if e.get("corpse", true):
+		if e.has("mount"):
+			loot = "Its %s slain: %d gold and a corpse (%s)" % [str(Config.ENEMIES[e["mount"]]["name"]).to_lower(), Config.enemy_stat_int(kind, "gold_on_kill"), _corpse_text(str(e["mount"]))]
+		elif e.get("corpse", true):
 			var c := PackedStringArray()
 			for res in ["gold", "food", "materials"]:
 				var v := Config.enemy_stat_int(kind, res + "_on_collect") if e.has(res + "_on_collect") else 0
@@ -388,6 +391,40 @@ static func _max_count_text(kind: String) -> String:
 	return t
 
 
+## A rider's, a wolf's and the undead horse's lines (docs/enemies-design.md §15e).
+static func _mounted_facts(kind: String) -> PackedStringArray:
+	var e: Dictionary = Config.ENEMIES[kind]
+	var m := Config.MOUNTED
+	var f := PackedStringArray()
+	if e.has("mount"):
+		var rider: String = e["rider"]
+		f.append("Rides a %s with %s HP: every hit lands on it, and none carries over to the rider; then it fights on as a %s (%s HP)" % [str(Config.ENEMIES[e["mount"]]["name"]).to_lower(), _n(float(e["mount_hp"]) * Settings.enemy_multiplier("hp")), str(Config.ENEMIES[rider]["name"]).to_lower(), _n(Config.enemy_stat(rider, "hp"))])
+		if str(e.get("hunts", "melee")) == "all":
+			f.append("Mounted it never hits a gate or wall: it rides round the village and runs down anyone of ours outside within %s tiles, villagers too" % _n(m["hunt_radius"]))
+		else:
+			f.append("Mounted it never hits a gate or wall: it keeps with the Legion's soldiers on foot and rides down our melee fighters within %s tiles" % _n(m["hunt_radius"]))
+		f.append("Through a broken gate or wall it rides in like anyone and burns a hut")
+		f.append("After %s s at the village without a fight it gets off at a gate and breaks in on foot" % _n(m["circle_time"]))
+		f.append("Charges: after riding %s tiles without a fight its next blow does x%s (not on a halberdier, who also halts its mount)" % [_n(m["charge_distance"]), _n(m["charge_x"])])
+	if str(e.get("raid", "")) == "maul":
+		f.append("Through a gate it kills a villager in their hut (the hut stands), and is gone")
+	if e.has("mount") or kind == "wolf":
+		f.append("A halberdier does x%s damage to a mount" % _n(Config.MILITARY["halberdier"]["vs_mounted"]))
+	if str(e["behavior"]) == "flee":
+		f.append("There is no living one: only a fallen mount's corpse. Raised by a necromancer it never fights: it bolts away from our people and falls apart")
+	return f
+
+
+## What a corpse of `kind` brings home ("3 food"; "nothing").
+static func _corpse_text(kind: String) -> String:
+	var c := PackedStringArray()
+	for res in ["gold", "food", "materials"]:
+		var v := Config.enemy_stat_int(kind, res + "_on_collect") if Config.ENEMIES[kind].has(res + "_on_collect") else 0
+		if v > 0:
+			c.append("%d %s" % [v, "building material" if res == "materials" else res])
+	return ", ".join(c) if not c.is_empty() else "nothing"
+
+
 static func _enemy_from_wave(kind: String) -> int:
 	if kind == Config.WAVE_FILLER:
 		return 1
@@ -430,6 +467,8 @@ static func _units() -> Array[Dictionary]:
 			f.append("The more HP he has lost, the faster he strikes (time between blows x (1 - rage x share of HP lost)); below %d %% HP his blows heal him" % roundi(float(m["lifesteal_below"]) * 100.0))
 		if m.get("hits_flyers", false):
 			f.append("Reaches flyers")
+		if m.has("vs_mounted"):
+			f.append("The bane of riders: x%s damage to a mount (never to the rider on foot)%s" % [_n(m["vs_mounted"]), "; breaks their charges and halts the mount for %s s" % _n(Config.MOUNTED["halt_time"]) if m.get("breaks_charge", false) else ""])
 		if m.has("range"):
 			if m["role"] == "melee":
 				f.append("Reach: %s tiles" % _n(m["range"]))

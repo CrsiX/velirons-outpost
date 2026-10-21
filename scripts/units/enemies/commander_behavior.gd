@@ -1,5 +1,5 @@
 class_name CommanderBehavior
-extends MeleeBehavior
+extends MountedBehavior
 ## A Dread Legion commander (Config.ENEMIES "legion_marshal", "legion_king";
 ## the campaign's Halvard and Rhodri, docs/scenarios-design.md §7.16): fights
 ## like a champion (its blows may cleave, MeleeBehavior), leads the Legion
@@ -7,6 +7,8 @@ extends MeleeBehavior
 ## `rally_every` seconds while it lives sends `rally` more for the wave from
 ## an edge spawn. "downed": at 0 HP it isn't killed but keeps 1 HP and falls
 ## back the way it came (as a captain does, CaptainBehavior), and is gone.
+## A scenario may put it on a horse (MountedBehavior): it rides with its
+## soldiers, and fights on foot once the horse falls (Rhodri's two phases).
 
 var _rally := -1.0
 
@@ -59,6 +61,6 @@ func on_hurt(enemy: Enemy) -> void:
 ## Back at the map edge: gone.
 func on_path_end(enemy: Enemy) -> bool:
 	if not enemy.retreating:
-		return false
+		return super.on_path_end(enemy)
 	enemy.vanish()
 	return true

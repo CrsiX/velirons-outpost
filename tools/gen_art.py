@@ -6083,6 +6083,161 @@ def write_manifest():
         f.write("\n".join(lines) + "\n")
 
 
+# ---------------------------------------------------------------- wolves and riders (docs/enemies-design.md §15e)
+
+WOLF_FUR, WOLF_FUR_D, WOLF_FUR_L = "#5e5954", "#45413d", "#7a756e"
+
+
+def _wolf_body(a):
+    """A grey wolf, side view, facing right, paws at y=0, its back at about y=-22."""
+    a.shadow(22, 5, opacity=0.38)
+    for hip, foot in (((-12, -11), (-15, 0)), ((11, -11), (13, 0))):  # far legs
+        a.line([hip, foot], INK, 4.6)
+        a.line([hip, foot], WOLF_FUR_D, 2.8)
+    a.raw('<path d="M-17,-17 Q-26,-16 -30,-8 Q-25,-12 -18,-12Z" fill="%s" stroke="%s" stroke-width="1.2"/>' % (WOLF_FUR, INK), [(-31, -18), (-16, -7)])  # tail
+    a.ellipse(-1, -15, 18, 7.5, WOLF_FUR, INK, 1.3)  # body
+    a.ellipse(1, -11.5, 12, 3, WOLF_FUR_L, opacity=0.55)  # lighter belly
+    for x in (-10, -5, 0):  # hackles
+        a.line([(x, -21.5), (x - 2, -24)], WOLF_FUR_D, 1.3)
+    for hip, foot in (((-8, -11), (-10, 0)), ((14, -11), (16, 0))):  # near legs
+        a.line([hip, foot], INK, 4.8)
+        a.line([hip, foot], WOLF_FUR, 3.0)
+        a.ellipse(foot[0] + 1, foot[1] - 0.5, 2.6, 1.3, WOLF_FUR_D, INK, 0.8)
+    a.poly([(10, -19), (15, -26), (20, -24), (17, -15)], WOLF_FUR, INK, 1.2)  # neck
+    a.ellipse(19, -24, 6, 5, WOLF_FUR, INK, 1.2)  # head
+    a.poly([(22, -27), (31, -22.5), (30, -20), (22, -20)], WOLF_FUR_L, INK, 1.1)  # snout
+    a.ellipse(30.5, -21.7, 1.2, 1.0, INK)  # nose
+    a.line([(24, -20.5), (29.5, -20.2)], INK, 0.9)  # jaw
+    a.poly([(23, -19.6), (24, -18), (25, -19.6)], "#e8e0c8", INK, 0.5)  # fang
+    a.poly([(15, -28), (16.5, -34), (19.5, -29)], WOLF_FUR_D, INK, 1.0)  # ears
+    a.poly([(18, -28.5), (20.5, -33.5), (22, -28)], WOLF_FUR, INK, 1.0)
+    a.ellipse(21.5, -25, 1.3, 1.0, "#f0c040")  # eye
+
+
+def wolf():
+    a = Art()
+    _wolf_body(a)
+    a.save("unit_wolf")
+
+
+def corpse_wolf():
+    a = Art()
+    a.ellipse(0, 0, 22, 6, "#000", opacity=0.3)
+    a.ellipse(0, 1, 16, 4, "#3a1a14", opacity=0.5)  # dark stain
+    a.raw('<path d="M-16,-2 Q-24,0 -26,4 Q-20,3 -15,2Z" fill="%s" stroke="%s" stroke-width="1.1"/>' % (WOLF_FUR, INK), [(-27, -3), (-14, 5)])  # tail
+    a.ellipse(-2, -2, 15, 5, WOLF_FUR, INK, 1.2)  # body on its side
+    a.ellipse(-2, -0.5, 10, 2.2, WOLF_FUR_L, opacity=0.5)
+    for x0, x1 in ((-8, -12), (-3, -6), (6, 9), (10, 14)):  # legs stretched out
+        a.line([(x0, 1), (x1, 6)], INK, 3.4)
+        a.line([(x0, 1), (x1, 6)], WOLF_FUR_D, 2.0)
+    a.ellipse(15, -2, 5.5, 4, WOLF_FUR, INK, 1.1)  # head
+    a.poly([(18, -3.5), (25, -1), (18, 1)], WOLF_FUR_L, INK, 1.0)  # snout
+    a.poly([(12, -5), (13, -10), (16, -5.5)], WOLF_FUR_D, INK, 0.9)  # ear
+    a.line([(15, -3), (17, -1)], INK, 1.0)  # closed eye
+    a.save("corpse_wolf")
+
+
+def _horse_body(a, coat, coat_d, mane, cloth=None, trim=None):
+    """A horse, side view, facing right, hooves at y=0, the saddle at about
+    y=-40. `cloth`: a long caparison over it (the Legion's), `trim` its hem."""
+    a.shadow(30, 6, opacity=0.4)
+    for hip, knee, foot in (((-17, -24), (-19, -12), (-18, 0)), ((14, -24), (17, -12), (16, 0))):  # far legs
+        a.line([hip, knee, foot], INK, 5.4)
+        a.line([hip, knee, foot], coat_d, 3.6)
+    a.raw('<path d="M-23,-36 Q-33,-32 -34,-16 Q-29,-24 -24,-29Z" fill="%s" stroke="%s" stroke-width="1.2"/>' % (mane, INK), [(-35, -37), (-22, -15)])  # tail
+    a.ellipse(-2, -32, 24, 10, coat, INK, 1.4)  # barrel
+    for hip, knee, foot in (((-13, -24), (-14, -12), (-12, 0)), ((18, -24), (20, -12), (21, 0))):  # near legs
+        a.line([hip, knee, foot], INK, 5.6)
+        a.line([hip, knee, foot], coat, 3.8)
+        a.poly([(foot[0] - 2.5, -2.5), (foot[0] + 3, -2.5), (foot[0] + 3.5, 0.5), (foot[0] - 2.8, 0.5)], "#2a211a", INK, 0.8)  # hoof
+    a.poly([(14, -36), (22, -52), (29, -50), (24, -32)], coat, INK, 1.3)  # neck
+    a.poly([(23, -55), (37, -46), (36, -41), (30, -40), (22, -48)], coat, INK, 1.3)  # head
+    a.ellipse(35.5, -43.5, 1.1, 0.9, INK)  # nostril
+    a.ellipse(27.5, -50, 1.3, 1.1, "#1a1410")  # eye
+    a.poly([(23, -55), (24.5, -60), (26.5, -54)], coat_d, INK, 0.9)  # ear
+    a.raw('<path d="M23,-55 Q16,-48 13,-37 Q18,-44 22,-49Z" fill="%s" stroke="%s" stroke-width="1"/>' % (mane, INK), [(12, -56), (24, -36)])  # mane
+    if cloth:
+        a.raw('<path d="M-22,-40 Q-3,-45 16,-40 L18,-22 Q-3,-17 -24,-22Z" fill="%s" stroke="%s" stroke-width="1.3"/>' % (cloth, INK), [(-25, -46), (19, -16)])
+        if trim:
+            a.raw('<path d="M18,-22 Q-3,-17 -24,-22" fill="none" stroke="%s" stroke-width="1.8"/>' % trim, [(-25, -23), (19, -17)])
+        a.line([(26, -50), (30, -40)], "#3a2a1c", 1.4)  # bridle
+    a.poly([(-9, -42), (8, -42), (6, -37), (-7, -37)], "#3a2a1c", INK, 1.1)  # saddle
+
+
+LEGION_HORSE = ("#4a4a50", "#38383e", "#2a2a2e")
+
+
+def horse():
+    """The Legion's mount without its rider (a run-off horse, an undead horse)."""
+    a = Art()
+    _horse_body(a, *LEGION_HORSE, cloth="#6a6e7a")
+    a.save("unit_horse")
+
+
+def corpse_horse():
+    coat, coat_d, mane = LEGION_HORSE
+    a = Art()
+    a.ellipse(0, 0, 32, 8, "#000", opacity=0.3)
+    a.ellipse(-2, 1, 24, 5, "#3a1a14", opacity=0.5)
+    a.raw('<path d="M-24,-2 Q-32,0 -36,6 Q-29,4 -23,2Z" fill="%s" stroke="%s" stroke-width="1.1"/>' % (mane, INK), [(-37, -3), (-22, 7)])  # tail
+    a.ellipse(-4, -4, 22, 7.5, coat, INK, 1.3)  # barrel on its side
+    a.raw('<path d="M-18,-8 Q-4,-12 10,-8 L11,0 Q-4,3 -19,0Z" fill="#6a6e7a" stroke="%s" stroke-width="1.1"/>' % INK, [(-20, -13), (12, 3)])  # torn caparison
+    for x0, x1 in ((-14, -18), (-8, -11), (6, 10), (12, 17)):  # legs stretched out
+        a.line([(x0, 2), (x1, 9)], INK, 4.2)
+        a.line([(x0, 2), (x1, 9)], coat_d, 2.6)
+    a.poly([(14, -6), (30, -4), (31, 1), (15, 2)], coat, INK, 1.2)  # neck and head, lying
+    a.poly([(14, -6), (24, -7), (22, -5)], mane, INK, 0.8)
+    a.line([(26, -3), (28, -1)], INK, 1.0)  # closed eye
+    a.save("corpse_horse")
+
+
+def _seat(a, rider, seat_y, hip_y, leg, boot=INK):
+    """Puts the saved sprite `rider` (feet at its own (0, 0)) on a mount: cut
+    off below `hip_y` (its own coordinates), its hips at `seat_y`, and a leg
+    hanging down the mount's flank (`leg`: the near leg's colour)."""
+    with open(os.path.join(ART, rider + ".svg")) as f:
+        svg = f.read()
+    body = svg[svg.index(">", svg.index("<svg")) + 1:svg.rindex("</svg>")].strip()
+    lines = [l for l in body.split("\n") if l.strip()]
+    if lines and 'fill="#000"' in lines[0]:  # (its own shadow: the mount has one)
+        lines = lines[1:]
+    m = manifest[rider]
+    dy = seat_y - hip_y
+    cid = "seat_" + rider
+    inner = "\n  ".join(l.strip() for l in lines)
+    a.raw('<clipPath id="%s"><rect x="-80" y="-120" width="160" height="%s"/></clipPath><g transform="translate(0,%s)"><g clip-path="url(#%s)">%s</g></g>'
+          % (cid, fmt(120 + hip_y), fmt(dy), cid, inner),
+          [(-m["ax"], -m["ay"] + dy), (-m["ax"] + m["w"], hip_y + dy)])
+    a.line([(0, seat_y - 1), (3, seat_y + 9)], INK, 5)  # the near leg down the flank
+    a.line([(0, seat_y - 1), (3, seat_y + 9)], leg, 3)
+    a.ellipse(4, seat_y + 10, 3.2, 1.6, boot, INK, 0.8)
+
+
+def goblin_raider():
+    a = Art()
+    _wolf_body(a)
+    a.poly([(-7, -23), (5, -23), (4, -19.5), (-6, -19.5)], "#5a3a22", INK, 0.9)  # a crude saddle
+    _seat(a, "unit_goblin", -19, -8, "#4a6029", "#2a211a")
+    a.save("unit_goblin_raider")
+
+
+def mounted(rider, name, cloth, trim=None, coat=LEGION_HORSE, leg="#3a3128"):
+    """`rider` (a saved Legion sprite) on a horse: `name`."""
+    a = Art()
+    _horse_body(a, *coat, cloth=cloth, trim=trim)
+    _seat(a, rider, -40, -11, leg)
+    a.save(name)
+
+
+def riders():
+    goblin_raider()
+    mounted("unit_legion_footman", "unit_legion_cavalry", "#6a6e7a")
+    mounted("unit_legion_captain", "unit_legion_captain_mounted", "#3a3a42", "#b8bcc4")
+    mounted("unit_legion_captain_lysa", "unit_legion_captain_lysa_mounted", CRIMSON_D, GOLD_D)
+    mounted("unit_legion_marshal", "unit_legion_marshal_mounted", "#5e626c", GOLD)
+    mounted("unit_legion_king", "unit_legion_king_mounted", "#c4c8d2", GOLD, coat=("#d8d4cc", "#b4b0a8", "#e8e4dc"), leg="#a4a8b2")
+
+
 def main():
     os.makedirs(ART, exist_ok=True)
     os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
@@ -6251,6 +6406,11 @@ def main():
     throne_hall()
     portraits_1011()
     campaign_icon()
+    wolf()
+    corpse_wolf()
+    horse()
+    corpse_horse()
+    riders()  # (after the riders' own sprites: it seats them)
     write_manifest()
     print("generated %d sprites" % len(manifest))
 

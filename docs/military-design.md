@@ -211,11 +211,16 @@ Their level 1 (85-90 HP, 5.2-7.2 DPS) is above the shield bearer's level 3
   ~14 % at level 5) of the HP his blows really take, never above his max HP.
 - Looks: his figure turns redder the more HP he has lost.
 
-**Halberdier: reaches flyers** (`hits_flyers`, `range`)
-- Goes for gargoyles and vampire bats like any other enemy, with no bonus
-  (a later cavalry enemy may get one). Barracks with a halberdier turn out for
-  flyers.
+**Halberdier: reaches flyers, the bane of riders** (`hits_flyers`, `range`, `vs_mounted`, `breaks_charge`)
+- Goes for gargoyles and vampire bats like any other enemy, with no bonus.
+  Barracks with a halberdier turn out for flyers.
 - Reach 1.2 tiles (`range`) instead of the usual melee 0.8.
+- Against mounted enemies (docs/enemies-design.md §15e: goblin raiders, Legion
+  cavalry, mounted captains and commanders): its blows do `vs_mounted` (×2.5)
+  to the mount, never to the rider once on foot (`Combat.hit`). It breaks
+  charges (`breaks_charge`): a rider's charge on it gives no bonus, and each of
+  its blows on a mounted enemy halts the mount for `MOUNTED.halt_time` (0.5 s)
+  and spends its charge.
 
 ## 4. HP, downing and revival
 
@@ -489,5 +494,5 @@ The acolyte line's art is in docs/acolyte-design.md.
 | D19 | Shield bearer branches | Warrior, Berserker, Halberdier; like every branch (level 3, 100 gold), barracks only (§3a) |
 | D20 | War cry | Attack speed (every interval, also casting, summoning, healing) +10 % → +50 % for 3 → 5 s, every 10 s on a sortie, 2.5 tiles, also tower units; strict refresh, no stacking |
 | D21 | Berserker | Rage 0.3 → 0.8; lifesteal 10 % → 25 % (curve 1.5) below half HP; the high ceiling is wanted |
-| D22 | Halberdier | Reaches flyers, no bonus (a bonus waits for a cavalry enemy); reach 1.2 |
+| D22 | Halberdier | Reaches flyers, no bonus there; reach 1.2; ×2.5 to mounts and breaks charges (the riders, docs/enemies-design.md §15e) |
 | D23 | DPS of the damage dealers | Berserker (at full HP) and halberdier match the archer's level 10 DPS (89) |

@@ -58,18 +58,18 @@ func _init() -> void:
 		{"kinds": {"goblin": 6, "skeleton": 4, "ork": 2, "thief": 2}, "spawns": 3},
 		{"kinds": {"goblin": 6, "skeleton": 5, "witch": 2, "gargoyle": 1, "slime3": 1}, "rat_packs": [6], "spawns": 4},
 		{"kinds": {"skeleton": 5, "ork": 2, "witch": 1, "legion_footman": 6, "legion_archer": 2, "legion_banner": 1}, "spawns": 4},
-		{"kinds": {"goblin": 6, "vampire": 1, "necromancer": 1, "legion_footman": 6, "legion_archer": 2, "legion_guard": 1}, "rat_packs": [5], "spawns": 4},
-		{"kinds": {"skeleton": 6, "spider_mother": 1, "gargoyle": 2, "legion_footman": 7, "legion_archer": 3, "legion_banner": 1}, "spawns": 4},
-		{"kinds": {"goblin": 6, "thief": 3, "witch": 2, "vampire": 2, "legion_footman": 7, "legion_guard": 2, "legion_archer": 3}, "spawns": 4},
-		{"kinds": {"skeleton": 6, "necromancer": 2, "gargoyle": 2, "legion_footman": 8, "legion_guard": 2, "legion_archer": 3, "legion_banner": 1}, "spawns": 4},
-		{"kinds": {"goblin": 8, "ork": 3, "vampire": 2, "slime3": 2, "legion_footman": 8, "legion_archer": 4, "legion_banner": 1}, "rat_packs": [6], "spawns": 4},
-		{"kinds": {"skeleton": 8, "witch": 2, "gargoyle": 3, "spider_mother": 1, "legion_footman": 9, "legion_guard": 3, "legion_archer": 4}, "spawns": 4},
-		{"kinds": {"ork": 4, "vampire": 3, "necromancer": 2, "thief": 3, "legion_footman": 9, "legion_guard": 3, "legion_archer": 4, "legion_banner": 2}, "spawns": 4},
-		{"kinds": {"skeleton": 8, "gargoyle": 3, "witch": 2, "legion_footman": 10, "legion_guard": 3, "legion_archer": 5, "legion_banner": 2}, "rat_packs": [6], "spawns": 4},
-		{"kinds": {"goblin": 8, "ork": 4, "vampire": 3, "spider_mother": 1, "legion_footman": 10, "legion_guard": 4, "legion_archer": 5, "legion_banner": 2}, "spawns": 4},
-		{"kinds": {"skeleton": 10, "necromancer": 2, "gargoyle": 4, "witch": 3, "legion_footman": 11, "legion_guard": 4, "legion_archer": 5, "legion_banner": 2}, "rat_packs": [7], "spawns": 4},
-		{"kinds": {"ork": 5, "vampire": 4, "slime3": 2, "thief": 3, "legion_footman": 12, "legion_guard": 4, "legion_archer": 6, "legion_banner": 2}, "spawns": 4},
-		{"kinds": {"skeleton": 8, "gargoyle": 3, "vampire": 3, "legion_footman": 12, "legion_guard": 5, "legion_archer": 6, "legion_banner": 3}, "spawns": 4},
+		{"kinds": {"goblin": 6, "vampire": 1, "necromancer": 1, "legion_footman": 6, "legion_cavalry": 1, "legion_archer": 2, "legion_guard": 1}, "rat_packs": [5], "spawns": 4},
+		{"kinds": {"skeleton": 6, "spider_mother": 1, "gargoyle": 2, "legion_footman": 7, "legion_cavalry": 1, "legion_archer": 3, "legion_banner": 1}, "spawns": 4},
+		{"kinds": {"goblin": 6, "thief": 3, "witch": 2, "vampire": 2, "legion_footman": 7, "legion_cavalry": 1, "legion_guard": 2, "legion_archer": 3}, "spawns": 4},
+		{"kinds": {"skeleton": 6, "necromancer": 2, "gargoyle": 2, "legion_footman": 8, "legion_cavalry": 2, "legion_guard": 2, "legion_archer": 3, "legion_banner": 1}, "spawns": 4},
+		{"kinds": {"goblin": 8, "ork": 3, "vampire": 2, "slime3": 2, "legion_footman": 8, "legion_cavalry": 2, "legion_archer": 4, "legion_banner": 1}, "rat_packs": [6], "spawns": 4},
+		{"kinds": {"skeleton": 8, "witch": 2, "gargoyle": 3, "spider_mother": 1, "legion_footman": 9, "legion_cavalry": 2, "legion_guard": 3, "legion_archer": 4}, "spawns": 4},
+		{"kinds": {"ork": 4, "vampire": 3, "necromancer": 2, "thief": 3, "legion_footman": 9, "legion_cavalry": 2, "legion_guard": 3, "legion_archer": 4, "legion_banner": 2}, "spawns": 4},
+		{"kinds": {"skeleton": 8, "gargoyle": 3, "witch": 2, "legion_footman": 10, "legion_cavalry": 3, "legion_guard": 3, "legion_archer": 5, "legion_banner": 2}, "rat_packs": [6], "spawns": 4},
+		{"kinds": {"goblin": 8, "ork": 4, "vampire": 3, "spider_mother": 1, "legion_footman": 10, "legion_cavalry": 3, "legion_guard": 4, "legion_archer": 5, "legion_banner": 2}, "spawns": 4},
+		{"kinds": {"skeleton": 10, "necromancer": 2, "gargoyle": 4, "witch": 3, "legion_footman": 11, "legion_cavalry": 3, "legion_guard": 4, "legion_archer": 5, "legion_banner": 2}, "rat_packs": [7], "spawns": 4},
+		{"kinds": {"ork": 5, "vampire": 4, "slime3": 2, "thief": 3, "legion_footman": 12, "legion_cavalry": 3, "legion_guard": 4, "legion_archer": 6, "legion_banner": 2}, "spawns": 4},
+		{"kinds": {"skeleton": 8, "gargoyle": 3, "vampire": 3, "legion_footman": 12, "legion_cavalry": 4, "legion_guard": 5, "legion_archer": 6, "legion_banner": 3}, "spawns": 4},
 	]
 	first_wave_waits = true
 	first_wave_call = true
@@ -101,6 +101,9 @@ const CARAVAN := {"gold": 80, "food": 60, "materials": 100}
 const MAGES: Array[Dictionary] = [{"kind": "fire_mage", "level": 5}, {"kind": "ice_mage", "level": 5}, {"kind": "healing_mage", "level": 5}]
 ## Halvard's HP scale, and the soldiers marching with him.
 const HALVARD_HP := 1.0
+## Torben, Lysa and Halvard ride (docs/enemies-design.md §15e): their horses' HP.
+const CAPTAIN_HORSE_HP := 70.0
+const HALVARD_HORSE_HP := 250.0
 const HALVARD_GUARD := {"legion_guard": 2, "legion_banner": 1}
 
 
@@ -230,7 +233,7 @@ func on_wave_started(r: ScenarioRunner, n: int) -> void:
 			])
 		TORBEN_WAVE:
 			var at := _road_spawn(r, 1)
-			r.add_enemies("legion_captain", at, 1, {"name": "Torben"})
+			r.add_enemies("legion_captain", at, 1, {"name": "Torben", "mount": "horse", "mount_hp": CAPTAIN_HORSE_HP})
 			r.play_scene([
 				{"camera": r.at(at) + Vector2(0, -40), "zoom": 1.0, "time": 1.5},
 				{"say": "", "text": "At the head of a column rides a captain Brenna knows: broad, red-bearded, the scar she sewed up herself."},
@@ -238,7 +241,7 @@ func on_wave_started(r: ScenarioRunner, n: int) -> void:
 			])
 		LYSA_WAVE:
 			var at := _road_spawn(r, 2)
-			r.add_enemies("legion_captain", at, 1, {"name": "Lysa", "art": "legion_captain_lysa"})
+			r.add_enemies("legion_captain", at, 1, {"name": "Lysa", "art": "legion_captain_lysa", "mount": "horse", "mount_hp": CAPTAIN_HORSE_HP})
 			r.play_scene([
 				{"camera": r.at(at) + Vector2(0, -40), "zoom": 1.0, "time": 1.5},
 				{"say": "lysa", "text": "Hale. You should have stayed at the delta."},
@@ -246,11 +249,11 @@ func on_wave_started(r: ScenarioRunner, n: int) -> void:
 			])
 		HOLD:
 			var at := _north_spawn(r)
-			r.add_enemies("legion_marshal", at, 1, {"name": "Halvard", "hp_x": HALVARD_HP})
+			r.add_enemies("legion_marshal", at, 1, {"name": "Halvard", "hp_x": HALVARD_HP, "mount": "horse", "mount_hp": HALVARD_HORSE_HP})
 			for k: String in HALVARD_GUARD:
 				r.add_enemies(k, at, int(HALVARD_GUARD[k]))
-			r.add_enemies("legion_captain", _road_spawn(r, 1), 1, {"name": "Torben"})
-			r.add_enemies("legion_captain", _road_spawn(r, 2), 1, {"name": "Lysa", "art": "legion_captain_lysa"})
+			r.add_enemies("legion_captain", _road_spawn(r, 1), 1, {"name": "Torben", "mount": "horse", "mount_hp": CAPTAIN_HORSE_HP})
+			r.add_enemies("legion_captain", _road_spawn(r, 2), 1, {"name": "Lysa", "art": "legion_captain_lysa", "mount": "horse", "mount_hp": CAPTAIN_HORSE_HP})
 			r.mark["halvard sent"] = true
 			r.play_scene([
 				{"camera": r.at(at) + Vector2(0, -40), "zoom": 0.95, "time": 2.0},
@@ -313,6 +316,9 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 func hints(r: ScenarioRunner) -> Array[Dictionary]:
 	var g := r.game
 	return [
+		{"id": "legion_cavalry",
+			"when": func() -> bool: return r.enemy_about("legion_cavalry"),
+			"text": "Legion cavalry: fast riders that keep with their soldiers and run down our fighters. A charge hits twice as hard; halberdiers break it and hurt horses most. Unhorsed, the rider fights on as a footman."},
 		{"id": "legion_archer",
 			"when": func() -> bool: return r.enemy_about("legion_archer"),
 			"text": "Legion archers shoot whoever of ours is out in the open, from a little less than a watchtower's range. Towers outrange them."},

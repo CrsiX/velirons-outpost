@@ -1063,7 +1063,7 @@ func _scenario_5() -> void:
 	check(await wait_until(func() -> bool: return not is_instance_valid(lysa) or lysa.dead, 120.0), "she walks back up her road and leaves the map")
 	var legion_names: Array = Config.ENEMIES.keys().filter(func(k: String) -> bool: return k.begins_with("legion_")).map(func(k: String) -> String: return str(Config.ENEMIES[k]["name"]))
 	var lib := Library.entries("enemies").filter(func(e: Dictionary) -> bool: return legion_names.has(str(e["name"])))
-	check(lib.size() == legion_names.size() and lib.size() == 8 and lib.all(func(e: Dictionary) -> bool: return (e["facts"] as PackedStringArray).has("The Dread Legion: people, bound to Rhodri. Only in the campaign")), "the library has every Legion kind, as people (%d)" % lib.size())
+	check(lib.size() == legion_names.size() and lib.size() == 9 and lib.all(func(e: Dictionary) -> bool: return (e["facts"] as PackedStringArray).has("The Dread Legion: people, bound to Rhodri. Only in the campaign")), "the library has every Legion kind, as people (%d)" % lib.size())
 
 	print("-- scenario 5: the evidence")
 	cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
@@ -1797,13 +1797,15 @@ func _scenario_11() -> void:
 		if not fed and game.events.entries.any(func(en) -> bool: return str(en["text"]).begins_with("The guild caravan is in")):
 			fed = true
 		rhodri = rhodri or sc.named_enemy("Rhodri") != null
+		spare = "" if sc.mark.has("Rhodri") else "Rhodri"  # (seen by the scenario before he is beaten)
 		if game.waves.can_call():
 			cmd("call_wave")
 		await wait(0.5)
 		t += 0.5
+	spare = ""
 	check(not game.game_over and sc.phase == ScenarioRunner.Phase.OUTRO, "twelve waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
 	check(fed and food0 > 0.0, "food came by the guild's carts")
-	check(rhodri and sc.mark.has("rhodri down") and sc.mark.has("lothar down"), "Rhodri came out, was beaten and fled; Lothar fell")
+	check(rhodri and sc.mark.has("rhodri down") and sc.mark.has("lothar down"), "Rhodri came out, was beaten and fled; Lothar fell (seen %s, marks %s)" % [rhodri, str(sc.mark.keys())])
 	while sc.cutscene != null and not sc._outro_started:
 		await _through_scene()
 	check(await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 120.0), "the outro plays")

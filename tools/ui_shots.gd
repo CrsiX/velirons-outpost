@@ -32,7 +32,12 @@ extends Node
 ## clutch, an acolyte's holy beams on undead spiderlings, her crumbling, her
 ## library entry (with the log at Debug; it prints what it sees), and
 ## (`--only=wrathwood`) a tree waking up under a forester's axe, the living
-## tree chasing him, its roots holding the hero, smashing the camp, its log, and the library's Damage tab.
+## tree chasing him, its roots holding the hero, smashing the camp, its log, and the library's Damage tab;
+## (`--only=vultures`) vultures; (`--only=riders`) wolves and riders: a wolf
+## pack, a goblin raider charging a villager and circling the village, one
+## unhorsed by its wolf's corpse, Legion cavalry with its footmen, the mounted
+## captains and commanders (a hurt horse's bar), Rhodri on foot, an undead
+## horse bolting, and the library's raider and halberdier.
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -133,6 +138,8 @@ func _run() -> void:
 		await _wrathwood()
 	if only in ["", "vultures"]:
 		await _vultures()
+	if only in ["", "riders"]:
+		await _riders()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -1673,5 +1680,187 @@ func _vultures() -> void:
 	for e in birds:
 		if is_instance_valid(e) and not e.dead:
 			e.vanish()
+	g.queue_free()
+	await _frames(3)
+
+
+## Wolves and riders (docs/enemies-design.md §15e). Prints what it sees.
+func _riders() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	g.disable_fog = true
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	for t in g.world.towers():
+		if t.garrison:
+			g.army.unstation(t.garrison)
+	g.hero.process_mode = Node.PROCESS_MODE_DISABLED
+	g.hero.remove_from_group("melee_defenders")
+	var road: Array[Vector2i] = [v.gates[0]]
+	var seen := {v.gates[0]: true}
+	for i in 24:
+		for n in MapData.neighbors4(road.back()):
+			if g.map.is_road(n) and not seen.has(n) and not g.map.in_village(n):
+				seen[n] = true
+				road.append(n)
+				break
+	var spawn := func(kind: String, at: Vector2, walk: bool, extra := {}) -> Enemy:
+		var sp := {"kind": kind, "spawn": g.map.edge_spawns[0], "hp_scale": 1.0, "village": v}
+		sp.merge(extra)
+		g.waves._spawn(sp)
+		var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+		e.set_grid_pos(at)
+		if walk:
+			var route := g.world.pathing.enemy_route(g.world.pathing.nearest_road(Vector2i(at.round())), RandomNumberGenerator.new(), -1)
+			var pts := PackedVector2Array([at])
+			for t in route:
+				pts.append(Vector2(t))
+			e.follow(pts)
+		else:
+			e.speed = 0.0
+			e.base_speed = 0.0
+			e.follow(PackedVector2Array([at, at + Vector2(0.001, 0.0)]))
+		return e
+	var far := Vector2(road[mini(20, road.size() - 1)])
+	# A wolf pack on the road.
+	var pack: Array[Enemy] = []
+	for i in 3:
+		pack.append(spawn.call("wolf", far + Vector2(0.4 * i, -0.3 * i), true))
+	await _game_wait(2.0)
+	g.camera.focus(Iso.to_world(pack[1].grid_pos))
+	g.camera.zoom = Vector2(1.6, 1.6)
+	await _frames(6)
+	print("wolves: %s" % str(pack.map(func(e: Enemy) -> String: return "%s at %s" % [e.label(), str(e.grid_pos.snapped(Vector2(0.1, 0.1)))])))
+	await shot("riders_wolf_pack")
+	for e in pack:
+		e.vanish()
+	# A goblin raider charging a villager out in the open.
+	var vic: Civilian = null
+	for c in v.population.civilians:
+		if c.role in ["forester", "builder", "farmer"]:
+			vic = c
+	vic.set_process(false)
+	vic.at_home = false
+	vic.visible = true
+	var mid := Vector2(road[mini(9, road.size() - 1)])
+	var off := mid + Vector2(1.5, 1.5)
+	vic.set_grid_pos(Vector2(g.world.pathing.nearest_walkable(Vector2i(off.round()))))
+	var r: Enemy = spawn.call("goblin_raider", Vector2(road[mini(16, road.size() - 1)]), true)
+	var rb := r.behavior as MountedBehavior
+	for i in 900:
+		await get_tree().process_frame
+		if r.charge_ready and rb.state == MountedBehavior.State.HUNT and r.grid_pos.distance_to(vic.grid_pos) < 2.2:
+			break
+	g.camera.focus(Iso.to_world((r.grid_pos + vic.grid_pos) / 2.0))
+	await _frames(2)
+	print("raider: %s, state %d, charge %s, %.1f tiles from %s" % [r.label(), rb.state, r.charge_ready, r.grid_pos.distance_to(vic.grid_pos), vic.label()])
+	await shot("riders_raider_charge")
+	vic.at_home = true
+	vic.set_process(true)
+	# Round the village.
+	for i in 1800:
+		await get_tree().process_frame
+		if rb.state == MountedBehavior.State.CIRCLE and r.path_index > 1:
+			break
+	g.camera.focus(Iso.to_world(Vector2(v.center)))
+	g.camera.zoom = Vector2(0.9, 0.9)
+	await _frames(6)
+	print("circling: state %d at %s" % [rb.state, str(r.grid_pos.snapped(Vector2(0.1, 0.1)))])
+	await shot("riders_raider_circling")
+	# Unhorsed: the goblin by its wolf's corpse.
+	r.speed = 0.0
+	r.take_damage(1e9, null, "projectile")
+	r.speed = 0.0
+	r.base_speed = 0.0
+	r.follow(PackedVector2Array([r.grid_pos]))
+	g.camera.focus(Iso.to_world(r.grid_pos))
+	g.camera.zoom = Vector2(1.6, 1.6)
+	await _frames(20)
+	print("unhorsed: %s (%s), corpses %s" % [r.label(), r.kind, str(g.corpses.corpses.map(func(c: Corpse) -> String: return c.kind))])
+	await shot("riders_unhorsed")
+	r.vanish()
+	# Legion cavalry riding with its footmen.
+	var col: Array[Enemy] = []
+	for i in 4:
+		col.append(spawn.call("legion_footman", far + Vector2(0.3 * i, 0.2 * i), true))
+	for i in 2:
+		col.append(spawn.call("legion_cavalry", far + Vector2(1.5 + 0.5 * i, -0.8), true))
+	await _game_wait(4.0)
+	g.camera.focus(Iso.to_world((col[1].grid_pos + col[4].grid_pos) / 2.0))
+	await _frames(6)
+	print("column: %s" % str(col.map(func(e: Enemy) -> String: return "%s state %s" % [e.label(), str((e.behavior as MountedBehavior).state) if e.behavior is MountedBehavior else "-"])))
+	await shot("riders_cavalry_escort")
+	for e in col:
+		e.vanish()
+	# The mounted captains and commanders, side by side; Torben's horse hurt.
+	var line: Array[Enemy] = []
+	var who := [["legion_captain", {"name": "Lysa", "art": "legion_captain_lysa"}], ["legion_captain", {"name": "Torben"}], ["legion_marshal", {"name": "Halvard"}], ["legion_king", {"name": "Rhodri"}]]
+	for i in who.size():
+		var extra: Dictionary = who[i][1].duplicate()
+		extra["mount"] = "horse"
+		extra["mount_hp"] = 100.0
+		line.append(spawn.call(who[i][0], mid + Vector2(1.2 * i - 1.8, -1.2 * i + 1.8), false, extra))
+		line.back().set_process(false)  # (they stand still for the picture)
+	line[1].take_damage(40.0, null, "projectile")
+	g.camera.focus(Iso.to_world(mid) + Vector2(80, 0))
+	g.camera.zoom = Vector2(1.3, 1.3)
+	await _frames(20)
+	print("mounted: %s" % str(line.map(func(e: Enemy) -> String: return "%s %s horse %.0f" % [e.label(), e.unit_art(), e.mount_hp])))
+	await shot("riders_mounted_captains")
+	# Rhodri's horse falls: on foot by its corpse.
+	var king := line[3]
+	king.take_damage(1e9, null, "projectile")
+	king.speed = 0.0
+	king.base_speed = 0.0
+	for e in line.slice(0, 3):
+		e.vanish()
+	g.camera.focus(Iso.to_world(king.grid_pos))
+	g.camera.zoom = Vector2(1.6, 1.6)
+	await _frames(20)
+	print("Rhodri: %s, mount '%s'" % [king.unit_art(), king.mount])
+	await shot("riders_rhodri_on_foot")
+	king.vanish()
+	# An undead horse bolting away.
+	var horse: Corpse = null
+	for c in g.corpses.corpses:
+		if c.kind == "horse":
+			horse = c
+	var nec: Enemy = spawn.call("necromancer", horse.grid_pos + Vector2(1.0, -1.0), false)
+	var uh := g.waves.raise_corpse(horse, nec)
+	var wolf_c: Corpse = null
+	for c in g.corpses.corpses:
+		if c.kind == "wolf":
+			wolf_c = c
+	var uw: Enemy = null
+	if wolf_c:
+		wolf_c.grid_pos = uh.grid_pos + Vector2(1.2, 0.8)
+		wolf_c.position = Iso.to_world(wolf_c.grid_pos)
+		uw = g.waves.raise_corpse(wolf_c, nec)
+		uw.speed = 0.0
+		uw.base_speed = 0.0
+		uw.follow(PackedVector2Array([uw.grid_pos, uw.grid_pos + Vector2(0.001, 0.0)]))
+	await _game_wait(1.2)
+	g.camera.focus(Iso.to_world(uh.grid_pos))
+	await _frames(4)
+	print("undead horse: %s raised %s at %s; undead wolf: %s" % [uh.label(), uh.raised, str(uh.grid_pos.snapped(Vector2(0.1, 0.1))), uw.label() + (" raised, unholy %s" % uw.is_unholy()) if uw else "none"])
+	await shot("riders_undead_horse_and_wolf")
+	for node in get_tree().get_nodes_in_group("enemies"):
+		(node as Enemy).vanish()
+	# The library: the raider and the halberdier.
+	for pair in [["enemies", "Goblin Raider"], ["units", "Halberdier"]]:
+		g.hud.open_library(pair[0])
+		await _frames(10)
+		var lib := g.hud.library
+		for c in lib._list.get_children():
+			if str(c.get_meta("entry_name", "")) == pair[1]:
+				lib._scroll.scroll_vertical = int((c as Control).position.y)
+		await _frames(6)
+		await shot("riders_library_" + str(pair[1]).to_lower().replace(" ", "_"))
+		lib.close()
+		await _frames(3)
 	g.queue_free()
 	await _frames(3)

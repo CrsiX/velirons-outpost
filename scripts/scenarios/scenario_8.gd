@@ -68,10 +68,10 @@ func _init() -> void:
 		{"kinds": {"skeleton": 5, "vampire": 1, "necromancer": 1, "witch": 1}, "spawns": 2, "lairs": true},
 		{"kinds": {"skeleton": 5, "vampire": 1, "gargoyle": 1, "witch": 1, "legion_footman": 3}, "spawns": 3, "lairs": true},
 		{"kinds": {"skeleton": 6, "vampire": 2, "necromancer": 1, "gargoyle": 1, "legion_footman": 3, "legion_archer": 2}, "spawns": 3, "lairs": true},
-		{"kinds": {"skeleton": 6, "vampire": 2, "witch": 1, "gargoyle": 1, "legion_footman": 3, "legion_archer": 2, "legion_banner": 1}, "spawns": 3, "lairs": true},
-		{"kinds": {"skeleton": 6, "vampire": 2, "necromancer": 1, "gargoyle": 2, "legion_footman": 4, "legion_guard": 1, "legion_archer": 2, "legion_banner": 1}, "spawns": 3, "lairs": true},
-		{"kinds": {"skeleton": 7, "vampire": 2, "witch": 2, "gargoyle": 2, "legion_footman": 4, "legion_guard": 2, "legion_archer": 2, "legion_banner": 1}, "spawns": 3, "lairs": true},
-		{"kinds": {"skeleton": 7, "vampire": 3, "necromancer": 2, "gargoyle": 2, "legion_footman": 4, "legion_guard": 2, "legion_archer": 3, "legion_banner": 1}, "spawns": 3, "lairs": true},
+		{"kinds": {"skeleton": 6, "vampire": 2, "witch": 1, "gargoyle": 1, "legion_footman": 3, "legion_cavalry": 1, "legion_archer": 2, "legion_banner": 1}, "spawns": 3, "lairs": true},
+		{"kinds": {"skeleton": 6, "vampire": 2, "necromancer": 1, "gargoyle": 2, "legion_footman": 4, "legion_cavalry": 1, "legion_guard": 1, "legion_archer": 2, "legion_banner": 1}, "spawns": 3, "lairs": true},
+		{"kinds": {"skeleton": 7, "vampire": 2, "witch": 2, "gargoyle": 2, "legion_footman": 4, "legion_cavalry": 2, "legion_guard": 2, "legion_archer": 2, "legion_banner": 1}, "spawns": 3, "lairs": true},
+		{"kinds": {"skeleton": 7, "vampire": 3, "necromancer": 2, "gargoyle": 2, "legion_footman": 4, "legion_cavalry": 2, "legion_guard": 2, "legion_archer": 3, "legion_banner": 1}, "spawns": 3, "lairs": true},
 	]
 	repeat_last = true
 	more_each_wave = {"skeleton": 1, "legion_footman": 1}
@@ -273,6 +273,9 @@ func hints(r: ScenarioRunner) -> Array[Dictionary]:
 		{"id": "gargoyle",
 			"when": func() -> bool: return r.enemy_about("gargoyle"),
 			"text": "A gargoyle off the palace roofs: a flyer. Only towers, archers and mages reach it."},
+		{"id": "legion_cavalry",
+			"when": func() -> bool: return r.enemy_about("legion_cavalry"),
+			"text": "Legion cavalry: fast riders that keep with their soldiers and run down our fighters. A charge hits twice as hard; halberdiers break it and hurt horses most. Unhorsed, the rider fights on as a footman."},
 		{"id": "legion_archer",
 			"when": func() -> bool: return r.enemy_about("legion_archer"),
 			"text": "Legion archers shoot whoever of ours is out in the open, from a little less than a watchtower's range. Towers outrange them."},

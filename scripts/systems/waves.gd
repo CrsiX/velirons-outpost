@@ -52,7 +52,8 @@ var rats_leave := false
 var _rat_scan := 0.0
 ## Per village id: Aqua.eligibility (worked out at the first wave).
 var _aqua: Dictionary = {}
-## Water kinds whose first one was logged already (once per game).
+## Water kinds (and kinds with a "first" line) whose first one was logged
+## already (once per game).
 var _aqua_logged := {}
 ## Seconds that only water monsters have been left in this wave, and whether
 ## that was announced (AQUA warn_after; once per wave).
@@ -236,6 +237,7 @@ func _share(n: int, hp_scale: float, spawns: Array[Vector2i], target: Village) -
 	for i in kinds.size():
 		out.append(_spec(kinds[i], pool[i % pool.size()], hp_scale, target))
 	_theme_lairs(out, n)
+	_pack_up(out, hp_scale, target)
 	_water_spawns(out, target)
 	# Rat packs: whole packs, each from one spawn, the rats a moment apart.
 	var rp: Dictionary = Config.RAT_PACKS
@@ -270,20 +272,50 @@ func _scripted_wave(sw: Dictionary, n: int, hp_scale: float) -> Array:
 	for i in kinds.size():
 		out.append(_spec(kinds[i], pool[i % pool.size()], hp_scale, target))
 	_theme_lairs(out, n)
+	_pack_up(out, hp_scale, target)
 	for size in sw.get("rat_packs", []):
 		_insert_pack(out, points[_rng.randi() % points.size()], int(size), hp_scale, target)
 	_water_spawns(out, target)
 	return out
 
 
-## A pack of `size` rats from `at` into `out`, at a random place (never into
-## the middle of another pack), the rats a moment apart.
-func _insert_pack(out: Array, at, size: int, hp_scale: float, target: Village) -> void:
+## Kinds that come in packs (ENEMIES "pack": the wolf, docs/enemies-design.md
+## §15e): a share's ones (not a lair's) are taken out of `out` and put back
+## as packs of pack[0]..pack[1] (a lone one gets a second), each from the
+## spawn point of one of them.
+func _pack_up(out: Array, hp_scale: float, target: Village) -> void:
+	var groups := {}  # kind -> [spawn points]
+	for i in range(out.size() - 1, -1, -1):
+		var kind: String = out[i]["kind"]
+		if not Config.ENEMIES[kind].has("pack") or out[i].has("lair"):
+			continue
+		var at: Array = groups.get(kind, [])
+		at.append(out[i]["spawn"])
+		groups[kind] = at
+		out.remove_at(i)
+	for kind: String in groups:
+		var at: Array = groups[kind]
+		var size: Array = Config.ENEMIES[kind]["pack"]
+		var left := maxi(at.size(), int(size[0]))
+		var p := 0
+		while left > 0:
+			var n := mini(_rng.randi_range(int(size[0]), int(size[1])), left)
+			if left - n < int(size[0]):
+				n = left  # (no pack smaller than the smallest)
+			_insert_pack(out, at[p % at.size()], n, hp_scale, target, kind)
+			left -= n
+			p += 1
+
+
+## A pack of `size` of `kind` (rats, wolves) from `at` into `out`, at a
+## random place (never into the middle of another pack), a moment apart.
+func _insert_pack(out: Array, at, size: int, hp_scale: float, target: Village, kind := "rat") -> void:
 	var pack := []
+	var gap := float(Config.RAT_PACKS["gap"]) if kind == "rat" else float(Config.ENEMIES[kind]["pack_gap"])
 	for k in size:
-		var spec := _spec("rat", at, hp_scale, target)
+		var spec := _spec(kind, at, hp_scale, target)
 		if k > 0:
-			spec["gap"] = float(Config.RAT_PACKS["gap"])
+			spec["gap"] = gap
 		pack.append(spec)
 	var pos := _rng.randi_range(0, out.size())
 	while pos < out.size() and out[pos].has("gap"):
@@ -510,10 +542,16 @@ func _spawn(spec: Dictionary) -> Enemy:
 		g.max_hp *= float(spec["hp_x"])
 		g.hp = g.max_hp
 	g.power = float(spec.get("power", 1.0))
+	if spec.has("mount"):  # (a scenario's rider: a captain on a horse)
+		var animal := str(spec["mount"])
+		g.give_mount(animal, float(spec.get("mount_hp", Config.MOUNTED["mounts"][animal]["hp"])))
 	if spec.has("pack") and g.behavior is VultureBehavior:
 		(g.behavior as VultureBehavior).pack = spec["pack"]
 		(spec["pack"] as VulturePack).members.append(g)
-	if habitat != "land" and not _aqua_logged.has(kind) and not _uncounted_next:
+	if Config.ENEMIES[kind].has("first") and not _aqua_logged.has(kind) and not _uncounted_next:
+		_aqua_logged[kind] = true  # (a kind's own first words: the wolf's, the raider's)
+		target.events.info(str(Config.ENEMIES[kind]["first"]))
+	elif habitat != "land" and not _aqua_logged.has(kind) and not _uncounted_next:
 		_aqua_logged[kind] = true
 		target.events.add(EventLog.Level.IMPORTANT if kind == "octopus" else EventLog.Level.INFO, str(Config.AQUA_FIRST.get(kind, "A %s comes out of the water!" % str(g.spec()["name"]).to_lower())))
 	g.wave = wave
@@ -709,27 +747,48 @@ func hatch(egg: Enemy) -> Enemy:
 
 func _on_enemy_killed(g: Enemy) -> void:
 	game.stats.on_kill(g)
-	# The kill pays whoever made it (tower, elemental, hero); else the village it attacked.
 	var gold := Config.enemy_stat_int(g.kind, "gold_on_kill")
 	if g.raised:  # (its gold was paid once already; drained away: nothing)
 		gold = 0 if g.decayed else floori(gold * float(Config.ENEMIES["necromancer"]["raise_gold"]))
-	var v := game.village_of(g.killer)
-	if v == null:
-		v = g.target_village if is_instance_valid(g.target_village) else game.villages[0]
+	var v := _payee(g)
 	if g.decayed:
 		v.events.debug("%s crumbles to dust" % g.label())
 	else:
-		v.economy.add("gold", gold, "kills")
-		v.events.debug("killed %s (by %s, +%d gold)" % [g.label(), game.who(g.killer), gold])
-		if gold > 0:
-			game.world.float_text("+%d {gold}" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
-			Sfx.play("coin")
+		_pay_kill(g, v, gold, "killed %s" % g.label())
 	if g.spec().get("corpse", true) and not g.raised:  # (the raised leave none)
 		var c := game.corpses.spawn(g.kind, g.wave, g.grid_pos)
 		c.extra_gold = g.loot_gold
 		c.hp_scale = g.hp_scale
 	_split(g)
 	_enemy_gone(g)
+
+
+## The kill pays whoever made it (tower, elemental, hero); else the village
+## `g` attacked.
+func _payee(g: Enemy) -> Village:
+	var v := game.village_of(g.killer)
+	if v == null:
+		v = g.target_village if is_instance_valid(g.target_village) else game.villages[0]
+	return v
+
+
+func _pay_kill(g: Enemy, v: Village, gold: int, what: String) -> void:
+	v.economy.add("gold", gold, "kills")
+	v.events.debug("%s (by %s, +%d gold)" % [what, game.who(g.killer), gold])
+	if gold > 0:
+		game.world.float_text("+%d {gold}" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
+		Sfx.play("coin")
+
+
+## `g`'s mount (`animal`) was slain (Enemy.dismount; docs/enemies-design.md
+## §15e): a kill of `g`'s kind, its kill gold (a raised one's: none), and the
+## animal's corpse where it fell.
+func mount_fell(g: Enemy, animal: String) -> void:
+	game.stats.on_kill(g)
+	_pay_kill(g, _payee(g), 0 if g.raised else Config.enemy_stat_int(g.kind, "gold_on_kill"), "%s's %s falls" % [g.label(), animal])
+	if not g.raised:
+		var c := game.corpses.spawn(animal, g.wave, g.grid_pos)
+		c.hp_scale = g.hp_scale
 
 
 ## A slain slime splits into split_count smaller ones (Config "split_into"),

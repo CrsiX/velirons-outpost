@@ -57,17 +57,17 @@ func _init() -> void:
 	# Everything, the Legion at full strength; Rhodri comes out in the last.
 	waves = [
 		{"kinds": {"skeleton": 6, "vampire": 1, "legion_footman": 4, "legion_archer": 1}, "spawns": 3},
-		{"kinds": {"goblin": 6, "ork": 2, "witch": 1, "legion_footman": 5, "legion_archer": 2}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"skeleton": 6, "necromancer": 1, "gargoyle": 2, "legion_footman": 5, "legion_guard": 1, "legion_banner": 1}, "spawns": 3},
-		{"kinds": {"goblin": 6, "thief": 2, "vampire": 2, "spider_mother": 1, "legion_footman": 6, "legion_archer": 2}, "spawns": 3},
-		{"kinds": {"skeleton": 8, "witch": 2, "slime3": 2, "legion_footman": 6, "legion_guard": 2, "legion_archer": 2, "legion_banner": 1}, "rat_packs": [6], "spawns": 3},
-		{"kinds": {"ork": 4, "vampire": 2, "necromancer": 2, "gargoyle": 2, "legion_footman": 7, "legion_guard": 2, "legion_archer": 3, "legion_banner": 1}, "spawns": 3},
-		{"kinds": {"goblin": 8, "thief": 3, "spider_mother": 1, "witch": 2, "legion_footman": 8, "legion_guard": 2, "legion_archer": 3, "legion_banner": 1}, "spawns": 3},
-		{"kinds": {"skeleton": 8, "vampire": 3, "gargoyle": 3, "legion_footman": 8, "legion_guard": 3, "legion_archer": 4, "legion_banner": 2}, "rat_packs": [6], "spawns": 3},
-		{"kinds": {"ork": 5, "necromancer": 2, "witch": 3, "slime3": 2, "legion_footman": 9, "legion_guard": 3, "legion_archer": 4, "legion_banner": 2}, "spawns": 3},
-		{"kinds": {"skeleton": 10, "vampire": 3, "spider_mother": 1, "gargoyle": 3, "legion_footman": 10, "legion_guard": 3, "legion_archer": 5, "legion_banner": 2}, "spawns": 3},
-		{"kinds": {"goblin": 8, "ork": 5, "vampire": 4, "necromancer": 2, "legion_footman": 11, "legion_guard": 4, "legion_archer": 5, "legion_banner": 2}, "rat_packs": [7], "spawns": 3},
-		{"kinds": {"skeleton": 10, "vampire": 4, "gargoyle": 4, "witch": 3, "legion_footman": 12, "legion_guard": 5, "legion_archer": 6, "legion_banner": 3}, "spawns": 3},
+		{"kinds": {"goblin": 6, "ork": 2, "witch": 1, "legion_footman": 5, "legion_cavalry": 1, "legion_archer": 2}, "rat_packs": [5], "spawns": 3},
+		{"kinds": {"skeleton": 6, "necromancer": 1, "gargoyle": 2, "legion_footman": 5, "legion_cavalry": 1, "legion_guard": 1, "legion_banner": 1}, "spawns": 3},
+		{"kinds": {"goblin": 6, "thief": 2, "vampire": 2, "spider_mother": 1, "legion_footman": 6, "legion_cavalry": 1, "legion_archer": 2}, "spawns": 3},
+		{"kinds": {"skeleton": 8, "witch": 2, "slime3": 2, "legion_footman": 6, "legion_cavalry": 2, "legion_guard": 2, "legion_archer": 2, "legion_banner": 1}, "rat_packs": [6], "spawns": 3},
+		{"kinds": {"ork": 4, "vampire": 2, "necromancer": 2, "gargoyle": 2, "legion_footman": 7, "legion_cavalry": 2, "legion_guard": 2, "legion_archer": 3, "legion_banner": 1}, "spawns": 3},
+		{"kinds": {"goblin": 8, "thief": 3, "spider_mother": 1, "witch": 2, "legion_footman": 8, "legion_cavalry": 2, "legion_guard": 2, "legion_archer": 3, "legion_banner": 1}, "spawns": 3},
+		{"kinds": {"skeleton": 8, "vampire": 3, "gargoyle": 3, "legion_footman": 8, "legion_cavalry": 2, "legion_guard": 3, "legion_archer": 4, "legion_banner": 2}, "rat_packs": [6], "spawns": 3},
+		{"kinds": {"ork": 5, "necromancer": 2, "witch": 3, "slime3": 2, "legion_footman": 9, "legion_cavalry": 3, "legion_guard": 3, "legion_archer": 4, "legion_banner": 2}, "spawns": 3},
+		{"kinds": {"skeleton": 10, "vampire": 3, "spider_mother": 1, "gargoyle": 3, "legion_footman": 10, "legion_cavalry": 3, "legion_guard": 3, "legion_archer": 5, "legion_banner": 2}, "spawns": 3},
+		{"kinds": {"goblin": 8, "ork": 5, "vampire": 4, "necromancer": 2, "legion_footman": 11, "legion_cavalry": 3, "legion_guard": 4, "legion_archer": 5, "legion_banner": 2}, "rat_packs": [7], "spawns": 3},
+		{"kinds": {"skeleton": 10, "vampire": 4, "gargoyle": 4, "witch": 3, "legion_footman": 12, "legion_cavalry": 4, "legion_guard": 5, "legion_archer": 6, "legion_banner": 3}, "spawns": 3},
 	]
 	first_wave_waits = true
 	first_wave_call = true
@@ -91,6 +91,9 @@ const HOLD := 12
 const CARAVAN := {"food": 70, "materials": 30}
 ## Rhodri and Lothar: HP scales; the court that comes out with them.
 const RHODRI_HP := 1.0
+## Rhodri rides out, and fights on on foot once his horse falls
+## (docs/enemies-design.md §15e): its HP.
+const RHODRI_HORSE_HP := 350.0
 const LOTHAR_HP := 0.8
 const COURT := {"legion_guard": 3, "legion_banner": 1}
 
@@ -187,7 +190,7 @@ func on_wave_started(r: ScenarioRunner, n: int) -> void:
 	if n != HOLD:
 		return
 	var at := r.spawn_near(_hall_tile(r))
-	r.add_enemies("legion_king", at, 1, {"name": "Rhodri", "hp_x": RHODRI_HP})
+	r.add_enemies("legion_king", at, 1, {"name": "Rhodri", "hp_x": RHODRI_HP, "mount": "horse", "mount_hp": RHODRI_HORSE_HP})
 	r.add_enemies("legion_champion", at, 1, {"name": "Lothar", "art": "herald", "hp_x": LOTHAR_HP})
 	for k: String in COURT:
 		r.add_enemies(k, at, int(COURT[k]))
@@ -268,6 +271,9 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 func hints(r: ScenarioRunner) -> Array[Dictionary]:
 	var g := r.game
 	return [
+		{"id": "legion_cavalry",
+			"when": func() -> bool: return r.enemy_about("legion_cavalry"),
+			"text": "Legion cavalry: fast riders that keep with their soldiers and run down our fighters. A charge hits twice as hard; halberdiers break it and hurt horses most. Unhorsed, the rider fights on as a footman."},
 		{"id": "starving",
 			"when": func() -> bool: return g.economy.amount("food") < 40.0,
 			"text": "Food is short, and no farms can grow here. Buy food at Pell's stall, or recruit nobody new until the next cart comes."},

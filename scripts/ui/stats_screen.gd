@@ -214,7 +214,7 @@ func summary_sections() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var mil: Array = [_row("Enemies killed", "kills", "high", "icon_enemies")]
 	for k: String in Config.STATS["kill_kinds"]:
-		mil.append(_sub(Config.ENEMIES[k]["name"] + "s", "kill." + k, "high"))
+		mil.append(_sub(str(Config.ENEMIES[k].get("plural", Config.ENEMIES[k]["name"] + "s")), "kill." + k, "high"))
 	mil.append(_sub("Raised dead", "kill.raised", "high"))
 	mil.append(_sub("Others", "kill.other", "high"))
 	for by in [["by towers", "tower"], ["by barracks units", "units"], ["by summons", "summons"], ["by the hero", "hero"]]:

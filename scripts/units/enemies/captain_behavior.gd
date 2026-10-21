@@ -1,11 +1,13 @@
 class_name CaptainBehavior
-extends MeleeBehavior
+extends MountedBehavior
 ## A Dread Legion captain (Config.ENEMIES["legion_captain"]; the campaign's
 ## Lysa and Torben, docs/scenarios-design.md §7.7) fights like a footman,
 ## harder. It is never killed: the moment its HP would drop below
 ## `retreat_below` of its max, it keeps that much and falls back
 ## (Enemy.retreating): nothing can target it any more, and it walks back the
 ## way it came, faster, and leaves the map there. (The story needs them later.)
+## A scenario may put it on a horse (MountedBehavior: it rides with its
+## column; falling back mounted it is faster still).
 
 
 func tick(enemy: Enemy, delta: float) -> bool:
@@ -55,6 +57,6 @@ static func _way_back(enemy: Enemy) -> PackedVector2Array:
 ## Back at the map edge: gone (it lives to fight another day).
 func on_path_end(enemy: Enemy) -> bool:
 	if not enemy.retreating:
-		return false
+		return super.on_path_end(enemy)
 	enemy.vanish()
 	return true

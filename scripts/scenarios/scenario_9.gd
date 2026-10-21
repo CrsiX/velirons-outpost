@@ -96,6 +96,8 @@ const GUARD_HP := 1.5
 const GUARD_LEASH := 6.0
 ## The leviathan the relic wakes: HP and damage x these.
 const LEVIATHAN_HP := 5.0
+## Lysa rides (docs/enemies-design.md §15e): her horse's HP.
+const LYSA_HORSE_HP := 70.0
 const LEVIATHAN_POWER := 1.5
 ## The drowned dead lying on the island.
 const DROWNED := 8
@@ -399,7 +401,7 @@ func _causeway_spawn(r: ScenarioRunner) -> Vector2i:
 
 ## Legion soldiers for the wave under way from `at`, with Lysa at their head.
 func _send_legion(r: ScenarioRunner, band: Dictionary, at: Vector2i) -> void:
-	r.add_enemies("legion_captain", at, 1, {"name": "Lysa", "art": "legion_captain_lysa"})
+	r.add_enemies("legion_captain", at, 1, {"name": "Lysa", "art": "legion_captain_lysa", "mount": "horse", "mount_hp": LYSA_HORSE_HP})
 	for kind: String in band:
 		r.add_enemies(kind, at, int(band[kind]))
 
