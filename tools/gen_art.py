@@ -4620,13 +4620,15 @@ def campaign_map():
     rng = random.Random(4242)
     a = Art()
     places = {k: tuple(v["at"]) for k, v in lay["places"].items()}
+    towns = {k: tuple(v) for k, v in lay.get("towns", {}).items()}
     nodes = dict(places)
+    nodes.update(towns)
     nodes.update({k: tuple(v) for k, v in lay["junctions"].items()})
     roads = [chaikin([nodes[r["a"]]] + [tuple(p) for p in r["via"]] + [nodes[r["b"]]]) for r in lay["roads"]]
 
     def clear(pt, room=30.0, road_room=8.0):
         """Nothing drawn here: near a place or on a road."""
-        if any(math.hypot(pt[0] - p[0], pt[1] - p[1]) < room for p in places.values()):
+        if any(math.hypot(pt[0] - p[0], pt[1] - p[1]) < room for p in list(places.values()) + list(towns.values())):
             return False
         return all(_dist_to(pt, r) > road_room for r in roads)
 
@@ -4813,6 +4815,16 @@ def campaign_map():
                         _fmap_fields(a, fx, fy, rng)
     for (hx, hy) in [(1080, 380), (1130, 290), (1060, 690), (860, 700), (380, 700), (1150, 560)]:
         _fmap_hamlet(a, hx, hy, rng)
+    for (tx, ty) in towns.values():  # unnamed towns: a walled ring of houses
+        a.ellipse(tx, ty + 2, 17, 10, "#d8c294", MAP_INK, 1.4)
+        for k in range(7):
+            ang = math.pi * 2 * k / 7 + 0.3
+            hx, hy = tx + math.cos(ang) * 9, ty + 2 + math.sin(ang) * 5
+            a.poly([(hx - 3, hy), (hx - 3, hy - 3), (hx, hy - 6), (hx + 3, hy - 3), (hx + 3, hy)], "#e8d6aa", MAP_INK, 0.8)
+            a.poly([(hx - 3.6, hy - 2.6), (hx, hy - 6.4), (hx + 3.6, hy - 2.6)], "#a0522d", MAP_INK, 0.7)
+        a.poly([(tx - 3, ty + 1), (tx - 3, ty - 9), (tx, ty - 13), (tx + 3, ty - 9), (tx + 3, ty + 1)], "#e8d6aa", MAP_INK, 0.9)
+        for (wx, wy) in [(-17, 2), (17, 2), (0, -8), (0, 12)]:
+            a.poly([(tx + wx - 2.5, ty + wy + 1), (tx + wx - 2.5, ty + wy - 5), (tx + wx + 2.5, ty + wy - 5), (tx + wx + 2.5, ty + wy + 1)], "#d8c294", MAP_INK, 0.8)
 
     # --- the Wardline: a wall with towers along the border ---
     a.line(wall + [], MAP_INK, 3.2)

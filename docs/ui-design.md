@@ -44,8 +44,9 @@ Big touch targets everywhere, so mouse and fingers work the same.
 - **Campaign map** (`CampaignMap`, `scripts/ui/campaign_map.gd`): *Campaign* opens an old fantasy map of the kingdom filling the
   whole screen (the title and menu hidden meanwhile), so it scales to any number of scenarios and any screen. The geography is in
   docs/story-design.md §4a.
-  - *The layout* (`data/campaign_map.json`, `Campaign.layout()` / `places()` / `route()`): the picture's size, the places (a name, a
-    spot in map units, a pin symbol), the road crossings and the roads (from place or crossing to place or crossing, through points).
+  - *The layout* (`data/campaign_map.json`, `Campaign.layout()` / `places()` / `route()`): the picture's size, the places (a name in
+    Title Case, a spot in map units, a pin symbol), unnamed towns (drawn as a walled ring of houses, no pin), the road crossings and
+    the ends where roads leave the map into the neighbours, and the roads (from one of those to another, through points).
     The one file serves both the picture and the route, so they always match.
   - *The picture* (`campaign_map`, made by `gen_art.py` from that file): ragged coasts with ripple lines, islands, a ship and a sea
     serpent in the western ocean; the dark wilderness beyond the Wardline's wall and towers in the north; mountain ranges along
@@ -66,8 +67,8 @@ Big touch targets everywhere, so mouse and fingers work the same.
   - *Progress on the map:* a place none of whose scenarios is unlocked isn't shown at all: no pin, no name, no route to it, just the
     empty map there (release builds; debug builds show everything); a place whose scenarios are all completed carries a red wax seal
     (`map_seal`); the place of the next scenario to play pulses.
-  - *Choosing:* a tap on a pin unrolls a parchment scroll between two wooden rods (landscape: on the right; portrait: a sheet along the
-    bottom): the place, its scenarios as rows ("3. The Wardline", a check when completed, "Locked" when not yet open), and for the
+  - *Choosing:* a tap on a pin unrolls a parchment scroll between two wooden rods (landscape: on the right, unrolling downwards; portrait:
+    a sheet along the bottom, unrolling upwards; the moving rod stays at the parchment's edge): the place, its scenarios as rows ("3. The Wardline", a check when completed, "Locked" when not yet open), and for the
     chosen one its portrait (`Scenario.portrait`), its line (`Scenario.blurb`) and **Play** ("Play again" when completed; sets
     `Settings.scenario_next` and starts the game scene). It opens on the next scenario to play. The arrow keys step through the open
     scenarios in order, Enter plays, Esc rolls the scroll up, then closes the map; *Back* in the corner.

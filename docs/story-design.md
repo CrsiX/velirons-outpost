@@ -186,6 +186,11 @@ Where things lie (the campaign map on the title screen, `ui-design.md`; `Campaig
 - **The capital and the Pale Court** (8, 11): in the heart of the kingdom, south of the middle.
 - **The drowned abbey** (9): on an island in the great lake in the south, near the Dominion's border.
 
+- **The roads:** the outpost is remote: its one road runs south to a walled town (unnamed, no scenario yet), from which the roads go on
+  to the guild town, the old fort and the heart of the kingdom. Fiona's refuge, hidden, lies at the end of one road. The roads leave
+  Veliron for its neighbours: to Karmere through the old fort's pass, to Lyrenne east past the battlefield (not through the refuge), and
+  two into Aurelith, one over the drowned abbey's causeway and one south from the capital.
+
 The places leave room between them for more later. Brenna's road: the outpost, the guild town, the old fort, the battlefield, the refuge,
 the court, the abbey, home again, the capital.
 

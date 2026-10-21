@@ -400,6 +400,18 @@ func _title() -> void:
 	check(ms.x >= cm.size.x - 0.5 and ms.y >= cm.size.y - 0.5, "the map covers the whole screen")
 	var gaps := range(2, Campaign.count() + 1).filter(func(n: int) -> bool: return Campaign.scenario(n - 1).place != Campaign.scenario(n).place and cm.route_to(n).size() < 2)
 	check(gaps.is_empty(), "every stretch of Brenna's route follows the roads (%s)" % str(gaps))
+	var roads: Array = Campaign.layout()["roads"]
+	var ends := func(id: String) -> int: return roads.filter(func(rd: Dictionary) -> bool: return rd["a"] == id or rd["b"] == id).size()
+	check(ends.call("outpost") == 1 and ends.call("refuge") == 1, "the outpost and Fiona's refuge each lie at the end of one road")
+	check(ends.call("north_town") >= 2 and not Campaign.places().has("north_town"), "the outpost's road leads to an unnamed town (no pin)")
+	var through := func(from: String, to: String, via: String) -> bool:
+		var way := Campaign.route(from, to)
+		var at: Vector2 = Campaign.places()[via]["at"] if Campaign.places().has(via) else Vector2(-1, -1)
+		return not way.is_empty() and Array(way).any(func(q: Vector2) -> bool: return q.distance_to(at) < 1.0)
+	check(through.call("battlefield", "to_karmere", "old_fort"), "the road to Karmere runs through the old fort")
+	check(not Campaign.route("battlefield", "to_lyrenne").is_empty() and not through.call("battlefield", "to_lyrenne", "refuge"), "the road to Lyrenne doesn't pass the refuge")
+	check(ends.call("to_aurelith_west") == 1 and ends.call("to_aurelith_east") == 1 and through.call("capital", "to_aurelith_west", "abbey"), "two roads into Aurelith, one by the drowned abbey")
+	check(Campaign.places().values().all(func(p: Dictionary) -> bool: return Array(str(p["name"]).split(" ")).all(func(w: String) -> bool: return w == w.capitalize() or w.ends_with("'s"))), "place names in Title Case")
 	var r := Campaign.route("outpost", "guild_town")
 	check(r.size() > 2 and r[0] == Campaign.places()["outpost"]["at"] and r[r.size() - 1] == Campaign.places()["guild_town"]["at"], "a route runs from place to place")
 	await wait(1.0)

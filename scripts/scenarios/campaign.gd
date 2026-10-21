@@ -40,7 +40,7 @@ const REGIONS: Array = [
 	["KINGDOM OF\nKARMERE", Vector2(0.91, 0.27), 16],
 	["REPUBLIC OF\nLYRENNE", Vector2(0.91, 0.62), 16],
 	["THE HOLY DOMINION OF AURELITH", Vector2(0.55, 0.94), 18],
-	["THE\nWESTERN\nOCEAN", Vector2(0.045, 0.36), 13],
+	["THE\nWESTERN\nOCEAN", Vector2(0.045, 0.455), 13],
 ]
 const PROGRESS_FILE := "user://campaign.json"
 ## The progress file's layout; a file of another format is ignored (read as no progress).
@@ -97,8 +97,9 @@ static func route(from: String, to: String) -> PackedVector2Array:
 	var nodes := {}
 	for id: String in layout()["places"]:
 		nodes[id] = _vec(layout()["places"][id]["at"])
-	for id: String in layout()["junctions"]:
-		nodes[id] = _vec(layout()["junctions"][id])
+	for key: String in ["towns", "junctions"]:
+		for id: String in layout().get(key, {}):
+			nodes[id] = _vec(layout()[key][id])
 	var edges := {}  # node -> [[next node, its road from here]]
 	for r: Dictionary in layout()["roads"]:
 		var pts := PackedVector2Array([nodes[r["a"]]])

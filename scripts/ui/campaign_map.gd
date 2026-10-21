@@ -64,6 +64,8 @@ var _card_rows: VBoxContainer
 var _portrait: TextureRect
 var _blurb: Label
 var _rods: Array[ColorRect] = []
+## 0..1: how far the scroll is unrolled.
+var _roll := 1.0
 var _glide: Tween
 var _pulse := 0.0
 ## A press on the map: where it started and was last, and whether it became a drag.
@@ -359,17 +361,32 @@ func show_card(n: int) -> void:
 	_unroll.call_deferred()
 
 
-## The scroll unrolls (its height grows from the rods), the map glides to its place.
+## The scroll unrolls (landscape: down from its top rod; portrait: up from
+## its bottom rod, the other rod moving with the parchment's edge), the map
+## glides to its place.
 func _unroll() -> void:
 	if selected <= 0:
 		return
 	_card.reset_size()
 	_place_card()
-	_card.pivot_offset = Vector2(_card.size.x / 2.0, 0)
-	_card.scale = Vector2(1, 0.05)
 	var tw := _card.create_tween()
-	tw.tween_property(_card, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(v: float) -> void:
+		_roll = v
+		_roll_rods(), 0.05, 1.0, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	glide_to(_specs[selected - 1].place)
+
+
+## The parchment as far as it is unrolled, the rods at its two edges.
+func _roll_rods() -> void:
+	var up := Layout.portrait
+	_card.pivot_offset = Vector2(_card.size.x / 2.0, _card.size.y if up else 0.0)
+	_card.scale = Vector2(1, _roll)
+	var shown := _card.size.y * _roll
+	var top := _card.position.y + (_card.size.y - shown if up else 0.0)
+	for i in 2:
+		var rod := _rods[i]
+		rod.size = Vector2(_card.size.x + 14.0, 10.0)
+		rod.position = Vector2(_card.position.x - 7.0, top - 6.0 if i == 0 else top + shown - 4.0)
 
 
 ## The map glides so place `id` sits in the middle of the free part of the
@@ -407,10 +424,7 @@ func _place_card() -> void:
 	else:
 		_card.size = Vector2(CARD_W, sz.y)
 		_card.position = Vector2(vp.x - CARD_W - 12.0, clampf((vp.y + BAR_H - sz.y) / 2.0, BAR_H + 10.0, maxf(BAR_H + 10.0, vp.y - sz.y - 14.0)))
-	for i in 2:
-		var rod := _rods[i]
-		rod.size = Vector2(_card.size.x + 14.0, 10.0)
-		rod.position = _card.position + Vector2(-7.0, -6.0 if i == 0 else _card.size.y - 4.0)
+	_roll_rods()
 
 
 # --- the view -----------------------------------------------------------------------------------
