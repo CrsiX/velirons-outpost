@@ -1,0 +1,43 @@
+{
+	"_about": "The campaign map's layout (docs/story-design.md §4a, docs/ui-design.md): map units on the 1200x750 picture. tools/gen_art.py draws the roads from it; CampaignMap finds Brenna's route along them. Places: id -> name, spot, pin symbol. Towns: unnamed towns on the map (drawn, no pin). Junctions: road crossings, and where roads leave the map into the neighbours. Roads: from a to b (places, towns or junctions) through the points in via.",
+	"size": [1200, 750],
+	"places": {
+		"outpost": {"name": "The Outpost", "at": [420, 150], "pin": "outpost"},
+		"guild_town": {"name": "The Guild Town", "at": [150, 352], "pin": "guild"},
+		"old_fort": {"name": "The Old Fort", "at": [828, 168], "pin": "fort"},
+		"battlefield": {"name": "The Battlefield", "at": [648, 330], "pin": "battlefield"},
+		"refuge": {"name": "Fiona's Refuge", "at": [878, 478], "pin": "grove"},
+		"capital": {"name": "The Capital", "at": [504, 452], "pin": "palace"},
+		"abbey": {"name": "The Drowned Abbey", "at": [430, 610], "pin": "abbey"}
+	},
+	"towns": {
+		"north_town": [452, 262]
+	},
+	"junctions": {
+		"crossing": [492, 330],
+		"lakeshore": [455, 548],
+		"ford": [790, 410],
+		"to_karmere": [1198, 168],
+		"to_lyrenne": [1198, 446],
+		"to_aurelith_west": [404, 748],
+		"to_aurelith_east": [664, 748]
+	},
+	"roads": [
+		{"a": "outpost", "b": "north_town", "via": [[412, 190], [436, 226]]},
+		{"a": "north_town", "b": "guild_town", "via": [[400, 270], [330, 262], [270, 286], [220, 310], [190, 336]]},
+		{"a": "north_town", "b": "crossing", "via": [[470, 296]]},
+		{"a": "north_town", "b": "old_fort", "via": [[520, 250], [590, 226], [652, 206], [712, 214], [770, 196], [800, 178]]},
+		{"a": "crossing", "b": "capital", "via": [[470, 370], [476, 404], [498, 426]]},
+		{"a": "crossing", "b": "battlefield", "via": [[540, 318], [600, 338]]},
+		{"a": "old_fort", "b": "battlefield", "via": [[834, 212], [800, 248], [748, 262], [716, 300], [672, 306]]},
+		{"a": "old_fort", "b": "to_karmere", "via": [[880, 172], [940, 152], [1010, 162], [1080, 150], [1150, 160]]},
+		{"a": "battlefield", "b": "ford", "via": [[690, 362], [742, 380]]},
+		{"a": "ford", "b": "refuge", "via": [[832, 440]]},
+		{"a": "ford", "b": "to_lyrenne", "via": [[860, 392], [930, 380], [990, 398], [1060, 420], [1130, 436]]},
+		{"a": "capital", "b": "lakeshore", "via": [[474, 480], [470, 520]]},
+		{"a": "lakeshore", "b": "abbey", "via": [[440, 578]]},
+		{"a": "abbey", "b": "to_aurelith_west", "via": [[422, 650], [412, 694]]},
+		{"a": "capital", "b": "to_aurelith_east", "via": [[560, 500], [600, 560], [630, 620], [650, 690]]},
+		{"a": "guild_town", "b": "capital", "via": [[186, 392], [236, 420], [300, 412], [352, 440], [410, 470], [462, 462]]}
+	]
+}
