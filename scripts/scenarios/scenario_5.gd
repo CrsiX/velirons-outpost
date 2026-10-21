@@ -362,8 +362,8 @@ func objectives(r: ScenarioRunner) -> Array[Dictionary]:
 
 ## Sigmund's tent and Sigmund beside it, hidden until their tile is explored.
 func on_start(r: ScenarioRunner) -> void:
-	r.mark["tent"] = r.actor("tent_small", Vector2(SIGMUND_TENT) + Vector2(-0.6, -0.4))
-	r.mark["sigmund actor"] = r.actor("unit_builder", Vector2(SIGMUND_TENT))
+	r.mark["tent"] = r.actor("tent_small", Vector2(SIGMUND_TENT) + Vector2(-0.6, -0.4), true)
+	r.mark["sigmund actor"] = r.actor("unit_builder", Vector2(SIGMUND_TENT), true)
 	for n: String in ["tent", "sigmund actor"]:
 		(r.mark[n] as Node2D).visible = false
 

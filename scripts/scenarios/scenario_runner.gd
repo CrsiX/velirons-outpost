@@ -69,6 +69,8 @@ var _roads := {}
 var ruin_sites: Array[Dictionary] = []
 ## Scenes waiting for the one playing now (play_scene).
 var _scene_queue: Array = []
+## Figures made during the cutscene playing now (actor): freed when it ends.
+var _scene_actors: Array[Node] = []
 ## The journal shown now (show_journal), or null.
 var journal: Journal = null
 
@@ -586,6 +588,7 @@ func _play(list: Array[Dictionary], then: Callable) -> void:
 	cutscene.name = "Cutscene"
 	cutscene.finished.connect(func(skipped: bool) -> void:
 		cutscene = null
+		_drop_scene_actors()
 		game.waves.hold = held
 		if card:
 			card.visible = was_card
@@ -615,12 +618,24 @@ func at(tile) -> Vector2:
 
 
 ## A figure for a cutscene (a cart, a person) standing on `tile`: a sprite of `art`.
-func actor(art: String, tile: Vector2) -> Node2D:
+## Made while a cutscene plays, it goes when that cutscene ends, played out or
+## skipped (`keep`: it stays, and the scenario removes it itself).
+func actor(art: String, tile: Vector2, keep := false) -> Node2D:
 	var n := Node2D.new()
 	n.position = Iso.to_world(tile)
 	n.add_child(Art.sprite(art))
 	game.world.objects.add_child(n)
+	if cutscene != null and not keep:
+		_scene_actors.append(n)
 	return n
+
+
+## The figures of the cutscene that just ended go (see actor).
+func _drop_scene_actors() -> void:
+	for n in _scene_actors:
+		if is_instance_valid(n):
+			n.queue_free()
+	_scene_actors.clear()
 
 
 ## Moves `n` along `tiles` (grid positions) in `time` real seconds.

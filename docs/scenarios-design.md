@@ -690,7 +690,9 @@ The game has none of this yet, except where noted:
   `choices` (`[{"text", "do"}]`) shows a button per choice instead of waiting for a tap; the picked one's `do` runs (scenario 4's offer: taking
   the gold calls `ScenarioRunner.lose`), then the cutscene goes on. Skip before a choice still to come jumps to it (only the `do` steps on the way
   run), so the player always makes it; at the choice Skip and Esc do nothing; after it Skip ends the cutscene. The runner has helpers for them:
-  `at(tile)`, `actor(art, tile)`, `move_actor`, `road_in`, `dusk`.
+  `at(tile)`, `actor(art, tile)`, `move_actor`, `road_in`, `dusk`. A figure made with `actor` while a cutscene plays goes when that
+  cutscene ends, played out or skipped (a skip never runs the steps after it, so a scene can't rely on its last `do` to clear up); one the
+  scenario keeps on purpose is made with `keep` (scenario 5's tent and Sigmund).
 - The speakers' portraits are generated art (`portrait_brenna`, `portrait_einar`, `portrait_pell`, `portrait_wenna`, `portrait_sigmund`,
   `portrait_lysa`, `portrait_rival` in `tools/gen_art.py`).
 - Whether they can be watched again (title screen, library) is still *open*.

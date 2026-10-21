@@ -602,6 +602,9 @@ func _scenario_2() -> void:
 		await wait(0.5)
 	guard.queue_free()
 	check(scenes >= 2 and not game.game_over, "seven waves, with talks between them (%d scenes after wave 2)" % scenes)
+	await frames(3)
+	var left := game.world.objects.get_children().filter(func(n: Node) -> bool: return n.get_script() == null and n.get_child_count() > 0 and n.get_child(0) is Sprite2D and (n.get_child(0) as Sprite2D).texture == Art.tex("unit_explorer"))
+	check(left.is_empty() and sc._scene_actors.is_empty(), "the stranger is gone once his scene is over, also skipped (%d left)" % left.size())
 	check(await wait_until(func() -> bool: return sc.phase == ScenarioRunner.Phase.OUTRO or sc.cutscene != null, 30.0), "the objectives are met (%s)" % str(sc._goal_state))
 	check(await wait_until(func() -> bool: return sc.cutscene != null, 120.0), "the outro plays")
 	Engine.time_scale = 1.0
