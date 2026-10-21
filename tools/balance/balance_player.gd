@@ -39,6 +39,8 @@ var _saving := 0
 var _water_only_since := -1.0
 var _approach: Array[Vector2i] = []
 var _approach_version := -1
+## Filled by _covered_roads: road -> how well the other sort of post backs it up.
+var _support: Dictionary = {}
 
 
 func setup(p_game: Game, p_profile: String) -> void:
@@ -383,7 +385,7 @@ func _spot(kind: String) -> Vector2i:
 	var radius := int(_params["scan_radius"])
 	var best := Vector2i(-1, -1)
 	var best_score := -INF
-	var covered := _covered_roads() if kind == "tower" or kind == "barracks" else {}
+	var covered := _covered_roads(kind) if kind == "tower" or kind == "barracks" else {}
 	for dy in range(-radius, radius + 1):
 		for dx in range(-radius, radius + 1):
 			var t := c + Vector2i(dx, dy)
@@ -407,12 +409,22 @@ func _score(kind: String, t: Vector2i, size: int, covered: Dictionary) -> float:
 		"tower", "barracks":
 			var reach: float = Config.TOWER_RANGE["tower"] if kind == "tower" else float(Config.BARRACKS_LEVELS[0]["range"])
 			var gain := 0
+			var support := 0.0
 			for r in _approach_roads():
 				if not covered.has(r) and c.distance_to(Vector2(r)) <= reach - 0.2:
 					gain += 1
+					support += float(_support.get(r, 0))
 			if gain == 0 or _crowded(c):
 				return -INF
-			return float(gain) - 0.15 * dist
+			if not _params["barracks_support"]:
+				return float(gain) - 0.15 * dist
+			if kind == "barracks":
+				# Where towers (the higher the better) shoot over its fighting
+				# ground; anywhere only while there is no tower yet.
+				if support <= 0.0 and not _support.is_empty():
+					return -INF
+				return support + 0.3 * float(gain) - 0.15 * dist
+			return float(gain) + 0.5 * support - 0.15 * dist  # (support: a barracks' road)
 		"farm":
 			var meadow := 0
 			var wet := false
@@ -475,18 +487,42 @@ func _approach_roads() -> Array[Vector2i]:
 	return _approach
 
 
-## Approach roads already inside the range of a post.
-func _covered_roads() -> Dictionary:
+## Approach roads already inside the range of a post: any post's, or with
+## BALANCE_BOT.barracks_support a post of `kind`'s own sort (towers and
+## barracks then work together). Fills _support meanwhile: for a barracks,
+## road -> the highest level of a tower covering it; for a tower, road -> 1
+## where a barracks fights.
+func _covered_roads(kind: String) -> Dictionary:
 	var out := {}
+	_support.clear()
+	var together: bool = _params["barracks_support"]
 	for p in village.buildings():
 		if not (p is MilitaryPost) or p is TrainingGrounds or p.tearing_down:
 			continue
 		var reach: float = (p as Tower).range_tiles() if p is Tower else float(Config.BARRACKS_LEVELS[0]["range"])
 		var pc := _centre(p.tile, p.size)
+		var own := not together or (p is Tower) == (kind == "tower")
 		for r in _approach_roads():
-			if pc.distance_to(Vector2(r)) <= reach:
+			if pc.distance_to(Vector2(r)) > reach:
+				continue
+			if own:
 				out[r] = true
+			elif p is Tower:
+				_support[r] = maxi(int(_support.get(r, 0)), p.level)
+			else:
+				_support[r] = 1
 	return out
+
+
+## Whether a tower shoots over road a barracks fights on.
+func _supports_barracks(t: Tower) -> bool:
+	var tc := _centre(t.tile, t.size)
+	for b in _buildings_of("barracks"):
+		var bk := b as Barracks
+		for r in _approach_roads():
+			if bk.act_center().distance_to(Vector2(r)) <= bk.activation_range() and tc.distance_to(Vector2(r)) <= t.range_tiles():
+				return true
+	return false
 
 
 # --- units on posts -------------------------------------------------------------------------
@@ -586,8 +622,21 @@ func _tower_upgrades() -> void:
 		return
 	var want_tower := _scheduled(profile["tower_levels"], 1)
 	var want_barracks := _scheduled(profile["barracks_levels"], 1)
+	var order: Array[Building] = []
 	for b in village.buildings():
-		if not (b is Tower or b is Barracks) or not b.can_upgrade():
+		if b is Tower or b is Barracks:
+			order.append(b)
+	if _params["barracks_support"]:
+		# Towers over a barracks' ground first, then the other towers, the
+		# barracks only once every tower has its level.
+		var rank := func(b: Building) -> int:
+			return 2 if b is Barracks else (0 if _supports_barracks(b as Tower) else 1)
+		order.sort_custom(func(a: Building, b: Building) -> bool: return rank.call(a) < rank.call(b))
+		var lagging := order.any(func(b: Building) -> bool: return b is Tower and b.level < mini(want_tower, (b as Tower).max_level()))
+		if lagging:
+			order = order.filter(func(b: Building) -> bool: return b is Tower)
+	for b in order:
+		if not b.can_upgrade():
 			continue
 		var want := want_barracks if b is Barracks else want_tower
 		if b.level >= want:

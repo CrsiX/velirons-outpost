@@ -246,7 +246,13 @@ const SAVE := {
 ##                      samples are in the record as well);
 ##   "track_interval":  game seconds between looks at the enemies on the map;
 ##   "unit_dps_summon_life": seconds a summoner's elementals count as fighting
-##                      in its nominal DPS.
+##                      in its nominal DPS;
+##   "barracks_support": towers and barracks work together: a barracks goes
+##                      where towers (the higher the better) shoot over its
+##                      fighting ground, towers don't shun a barracks' road,
+##                      and towers over a barracks are upgraded first, the
+##                      barracks only once every tower has its level (false:
+##                      each sort covers the road the other doesn't).
 const BALANCE_BOT := {
 	"think_interval": 2.0,
 	"speed": 4.0,
@@ -264,6 +270,7 @@ const BALANCE_BOT := {
 	"sample_interval": 15.0,
 	"track_interval": 0.25,
 	"unit_dps_summon_life": 12.0,
+	"barracks_support": true,
 }
 
 ## The player the balancing bot plays (--policy=<name>). All counts are

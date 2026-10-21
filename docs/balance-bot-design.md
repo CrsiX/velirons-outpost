@@ -63,7 +63,12 @@ saves up for (`_saving`) isn't traded for material, except for a hut or a farm /
 (`_want_critical`). Huts are rebuilt for `Hut.rebuild_cost()` (40), not the full price.
 
 Where it builds: towers and barracks where they cover most road within `approach_steps` of
-a gate that no post covers yet (near the village preferred, `tower_spacing` apart); farms
+a gate that no post of their own sort covers yet (near the village preferred, `tower_spacing`
+apart). With `BALANCE_BOT.barracks_support` (on) the two work together: a barracks goes only
+where towers shoot over its fighting ground (scored by the towers' levels; anywhere while there
+is no tower), a tower scores extra for road a barracks fights on, and the towers over a
+barracks are upgraded first, the barracks only once every tower has its level. Off, each sort
+covers the road no post covers yet (towers and barracks apart). Farms
 nearest, on meadow and by water, away from roads (rats); camps by trees. It never builds a
 new post while two stand empty. The hero explores between waves until `explore_waves`, then trains
 the unit at the grounds (which then swaps into the field), and defends during waves.
