@@ -1,38 +1,56 @@
 class_name CampaignMap
 extends Control
-## The campaign on the title screen (docs/ui-design.md): a parchment map of
-## Veliron over the darkened backdrop, the scenarios' places on it as pins
-## (Campaign.PLACES, Scenario.place) joined by Brenna's route, and a card for
-## the chosen place with its scenarios and Play. Places not yet open aren't
+## The campaign on the title screen (docs/ui-design.md): an old fantasy map of
+## Veliron filling the screen (art "campaign_map", its layout in
+## Campaign.MAP_FILE), the scenarios' places on it as pins (Scenario.place)
+## and Brenna's route along the roads, and a parchment scroll for the chosen
+## place with its scenarios and Play. Choosing a place glides the map to it
+## (and a little closer); the map can be dragged. Places not yet open aren't
 ## shown (release builds); completed places carry a wax seal; the next one to
-## play pulses. The whole map always fits the screen: in landscape beside the
-## card's column on the right, in portrait above the card's sheet. Arrow keys step through the open scenarios, Enter
-## plays, Esc closes the card, then the map.
+## play pulses, and the stretch of road to it draws itself in when the map
+## opens. Landscape: the scroll stands on the right; portrait: a sheet along
+## the bottom. Arrow keys step through the open scenarios, Enter plays, Esc
+## rolls the scroll up, then closes the map.
 
 signal closed
 ## Play scenario `n` (the title screen starts it).
 signal play(n: int)
 
-## A pin's size on screen (never smaller: a finger), the card's width, the top bar's height.
+## A pin's size on screen (never smaller: a finger), the scroll's width, the top bar's height.
 const PIN := 48.0
 const CARD_W := 330.0
 const BAR_H := 60.0
 const INK := Color("4a3220")
+## The travelled route (a red dotted trail) and the way ahead (red dashes).
+const TRAIL := Color("8a2a1c")
+## How much closer the map comes to a chosen place, and how long it takes (s).
+const FOCUS_ZOOM := 1.15
+const GLIDE := 0.45
+## Seconds the stretch to the next scenario takes to draw itself in.
+const DRAW_IN := 1.6
+## A press that moves less than this (px) is a tap, not a drag.
+const TAP := 8.0
 
 ## Every scenario open, also the locked ones (debug builds; tests may change it).
 var show_all := OS.is_debug_build()
-## The scenario on the card (0: no card).
+## The scenario on the scroll (0: none).
 var selected := 0
 var play_button: Button
 var back_button: Button
-## Scenario number -> its row on the card (the open place's only).
+## Scenario number -> its row on the scroll (the chosen place's only).
 var rows := {}
+## The map's view: the map point in the middle of the screen, and pixels per map unit.
+var center := Vector2.ZERO
+var zoom := 1.0
 
 var _specs: Array[Scenario] = []
 var _done: Array[String] = []
 var _next := 0
-## Where the map picture is drawn now (in this control).
-var _rect := Rect2()
+var _places := {}
+## Per scenario n (from 2): the road from scenario n - 1's place, in map units.
+var _routes := {}
+## 0..1: how much of the stretch to the next scenario is drawn.
+var _draw_in := 1.0
 var _map: TextureRect
 var _route: Control
 var _pins := {}  # place id -> TextureButton
@@ -45,33 +63,42 @@ var _card_title: Label
 var _card_rows: VBoxContainer
 var _portrait: TextureRect
 var _blurb: Label
+var _rods: Array[ColorRect] = []
+var _glide: Tween
 var _pulse := 0.0
+## A press on the map: where it started and was last, and whether it became a drag.
+var _press := Vector2.ZERO
+var _last := Vector2.ZERO
+var _pressed := false
+var _dragging := false
 
 
 func _ready() -> void:
 	name = "CampaignMap"
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	clip_contents = true
 	visible = false
-	var veil := ColorRect.new()
-	veil.color = Color(0, 0, 0, 0.82)
-	veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(veil)
+	_places = Campaign.places()
+	var bg := ColorRect.new()
+	bg.color = Color("1a120c")
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
 	_map = TextureRect.new()
 	_map.texture = Art.tex("campaign_map")
 	_map.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_map.stretch_mode = TextureRect.STRETCH_SCALE
 	_map.mouse_filter = Control.MOUSE_FILTER_STOP
-	_map.gui_input.connect(func(e: InputEvent) -> void:
-		if e is InputEventMouseButton and e.pressed and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
-			show_card(0))  # (a tap on the map itself: the card goes)
+	_map.gui_input.connect(_on_map_input)
 	add_child(_map)
 	for r: Array in Campaign.REGIONS:
 		var l := Label.new()
 		l.text = str(r[0])
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l.add_theme_color_override("font_color", Color(INK, 0.75))
+		l.add_theme_color_override("font_color", Color(INK, 0.8))
+		l.add_theme_color_override("font_outline_color", Color("e4d3a8", 0.7))
+		l.add_theme_constant_override("outline_size", 5)
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(l)
 		_regions.append(l)
@@ -80,15 +107,15 @@ func _ready() -> void:
 	_route.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_route.draw.connect(_draw_route)
 	add_child(_route)
-	for id: String in Campaign.PLACES:
+	for id: String in _places:
 		var pin := TextureButton.new()
-		pin.texture_normal = Art.tex("pin_" + str(Campaign.PLACES[id]["pin"]))
+		pin.texture_normal = Art.tex("pin_" + str(_places[id]["pin"]))
 		pin.ignore_texture_size = true
 		pin.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		pin.custom_minimum_size = Vector2(PIN, PIN)
 		pin.size = Vector2(PIN, PIN)
 		pin.pivot_offset = Vector2(PIN, PIN) / 2.0
-		pin.tooltip_text = str(Campaign.PLACES[id]["name"])
+		pin.tooltip_text = str(_places[id]["name"])
 		pin.pressed.connect(_on_pin.bind(id))
 		add_child(pin)
 		_pins[id] = pin
@@ -104,14 +131,17 @@ func _ready() -> void:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.add_theme_font_size_override("font_size", 15)
 		l.add_theme_color_override("font_color", INK)
-		l.add_theme_color_override("font_outline_color", Color("e8dcb8"))
-		l.add_theme_constant_override("outline_size", 6)
+		l.add_theme_color_override("font_outline_color", Color("ecdcb4"))
+		l.add_theme_constant_override("outline_size", 7)
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(l)
 		_pin_labels[id] = l
 	_build_bar()
 	_build_card()
-	resized.connect(_fit)
+	resized.connect(func() -> void:
+		_layout(false)
+		if selected > 0 and visible:
+			glide_to(_specs[selected - 1].place))  # (a turned or resized screen: the place stays in view)
 
 
 func _build_bar() -> void:
@@ -137,12 +167,20 @@ func _build_bar() -> void:
 	add_child(back_button)
 
 
+## The scroll: parchment between two wooden rods.
 func _build_card() -> void:
 	_card = PanelContainer.new()
-	_card.add_theme_stylebox_override("panel", UiTheme.box(Color("e8dcb8"), Color("6a4a2a"), 4, 10, 16))
+	_card.add_theme_stylebox_override("panel", UiTheme.box(Color("ead9b0"), Color("8a6a40"), 2, 6, 16))
 	_card.mouse_filter = Control.MOUSE_FILTER_STOP
 	_card.visible = false
 	add_child(_card)
+	for i in 2:
+		var rod := ColorRect.new()
+		rod.color = Color("5a3a22")
+		rod.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		rod.visible = false
+		add_child(rod)
+		_rods.append(rod)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	_card.add_child(v)
@@ -184,24 +222,33 @@ func _build_card() -> void:
 
 # --- opening, progress --------------------------------------------------------------------------
 
-## Shows the map with the progress as it is now, the card on the next scenario to play.
+## Shows the map with the progress as it is now, the scroll on the next scenario to play.
 func open() -> void:
 	_specs.clear()
 	for n in range(1, Campaign.count() + 1):
 		_specs.append(Campaign.scenario(n))
+	_routes.clear()
+	for n in range(2, _specs.size() + 1):
+		if _specs[n - 2].place != _specs[n - 1].place:
+			_routes[n] = Campaign.route(_specs[n - 2].place, _specs[n - 1].place)
 	_done = Campaign.completed()
 	_next = Campaign.next_to_play(_done)
 	_note.text = "Scenarios %d to %d are still to come." % [Campaign.count() + 1, Campaign.PLANNED] if Campaign.count() < Campaign.PLANNED else ""
-	for id: String in Campaign.PLACES:
+	for id: String in _places:
 		var list := scenarios_at(id)
 		var open_here := list.any(func(n: int) -> bool: return is_open(n))
 		(_pins[id] as Control).visible = open_here
 		(_pin_labels[id] as Control).visible = open_here
 		(_seals[id] as Control).visible = open_here and list.all(func(n: int) -> bool: return Campaign.is_completed(n, _done))
 		var nums: Array = list.filter(func(n: int) -> bool: return is_open(n)).map(func(n: int) -> String: return str(n))
-		(_pin_labels[id] as Label).text = "%s\n%s" % [Campaign.PLACES[id]["name"], " · ".join(nums)]
+		(_pin_labels[id] as Label).text = "%s\n%s" % [_places[id]["name"], " · ".join(nums)]
 	visible = true
-	_fit()
+	zoom = _cover()
+	center = Campaign.map_size() / 2.0
+	_draw_in = 0.0 if _routes.has(_next) else 1.0
+	var tw := create_tween()
+	tw.tween_interval(0.3)
+	tw.tween_property(self, "_draw_in", 1.0, DRAW_IN)
 	show_card(_next if _next > 0 else 1)
 
 
@@ -226,9 +273,18 @@ func scenarios_at(id: String) -> Array[int]:
 	return out
 
 
+## Map units -> this control's pixels (and back).
+func to_screen(p: Vector2) -> Vector2:
+	return (p - center) * zoom + size / 2.0
+
+
+func to_map(p: Vector2) -> Vector2:
+	return (p - size / 2.0) / zoom + center
+
+
 ## Where place `id`'s pin stands (its centre, in this control).
 func place_point(id: String) -> Vector2:
-	return _rect.position + (Campaign.PLACES[id]["at"] as Vector2) * _rect.size
+	return to_screen(_places[id]["at"])
 
 
 func pin(id: String) -> TextureButton:
@@ -248,7 +304,12 @@ func card_open() -> bool:
 	return _card.visible
 
 
-# --- the card -----------------------------------------------------------------------------------
+## The route to scenario `n` (from the one before), in map units ([] if both are at one place).
+func route_to(n: int) -> PackedVector2Array:
+	return _routes.get(n, PackedVector2Array())
+
+
+# --- the scroll ---------------------------------------------------------------------------------
 
 func _on_pin(id: String) -> void:
 	var list := scenarios_at(id)
@@ -259,15 +320,17 @@ func _on_pin(id: String) -> void:
 	show_card(pick if pick > 0 else list[0])
 
 
-## The card for scenario `n` (and its place's other scenarios); 0 hides it.
+## The scroll for scenario `n` (and its place's other scenarios), the map
+## gliding to its place; 0 rolls it up.
 func show_card(n: int) -> void:
 	selected = n
 	_card.visible = n > 0
+	for rod in _rods:
+		rod.visible = n > 0
 	if n <= 0:
-		_fit.call_deferred()
 		return
 	var spec := _specs[n - 1]
-	_card_title.text = str(Campaign.PLACES[spec.place]["name"])
+	_card_title.text = str(_places[spec.place]["name"])
 	for c in _card_rows.get_children():
 		c.queue_free()
 	rows.clear()
@@ -293,48 +356,95 @@ func show_card(n: int) -> void:
 	_blurb.text = spec.blurb if is_open(n) else "Complete the scenario before it to open this one."
 	play_button.disabled = not is_open(n)
 	play_button.text = "Play again" if Campaign.is_completed(n, _done) else "Play"
-	_fit.call_deferred()
+	_unroll.call_deferred()
+
+
+## The scroll unrolls (its height grows from the rods), the map glides to its place.
+func _unroll() -> void:
+	if selected <= 0:
+		return
+	_card.reset_size()
+	_place_card()
+	_card.pivot_offset = Vector2(_card.size.x / 2.0, 0)
+	_card.scale = Vector2(1, 0.05)
+	var tw := _card.create_tween()
+	tw.tween_property(_card, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	glide_to(_specs[selected - 1].place)
+
+
+## The map glides so place `id` sits in the middle of the free part of the
+## screen (beside or above the scroll), a little closer.
+func glide_to(id: String) -> void:
+	var z := _cover() * FOCUS_ZOOM
+	var free := _free_rect()
+	var want: Vector2 = _places[id]["at"] - (free.get_center() - size / 2.0) / z
+	if _glide:
+		_glide.kill()
+	_glide = create_tween().set_parallel()
+	_glide.tween_property(self, "zoom", z, GLIDE).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_glide.tween_method(func(c: Vector2) -> void:
+		center = c
+		_layout(false), center, _clamped(want, z), GLIDE).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## The screen part the scroll leaves free.
+func _free_rect() -> Rect2:
+	var top := BAR_H
+	if Layout.portrait:
+		var sheet := _card.get_combined_minimum_size().y + 16.0 if _card.visible else 0.0
+		return Rect2(0, top, size.x, size.y - top - sheet)
+	return Rect2(0, top, size.x - (CARD_W + 24.0 if _card.visible else 0.0), size.y - top)
 
 
 func _place_card() -> void:
-	if not _card.visible or selected <= 0:
+	if not _card.visible:
 		return
-	_card.reset_size()
 	var vp := size
 	var sz := _card.get_combined_minimum_size()
 	if Layout.portrait:
 		_card.size = Vector2(vp.x - 16.0, sz.y)
 		_card.position = Vector2(8, vp.y - sz.y - 8.0)
-		return
-	_card.size = Vector2(CARD_W, sz.y)
-	var y := clampf(_rect.get_center().y - sz.y / 2.0, BAR_H, maxf(BAR_H, vp.y - sz.y - 8.0))
-	_card.position = Vector2(vp.x - CARD_W - 12.0, y)
+	else:
+		_card.size = Vector2(CARD_W, sz.y)
+		_card.position = Vector2(vp.x - CARD_W - 12.0, clampf((vp.y + BAR_H - sz.y) / 2.0, BAR_H + 10.0, maxf(BAR_H + 10.0, vp.y - sz.y - 14.0)))
+	for i in 2:
+		var rod := _rods[i]
+		rod.size = Vector2(_card.size.x + 14.0, 10.0)
+		rod.position = _card.position + Vector2(-7.0, -6.0 if i == 0 else _card.size.y - 4.0)
 
 
-# --- layout -------------------------------------------------------------------------------------
+# --- the view -----------------------------------------------------------------------------------
 
-## The whole map in the space under the bar (portrait: at the top, the card's sheet under it).
-func _fit() -> void:
+## The zoom at which the map just covers the screen.
+func _cover() -> float:
+	var ms := Campaign.map_size()
+	return maxf(size.x / ms.x, size.y / ms.y) if size.x > 0.0 else 1.0
+
+
+## `c` moved so the map still covers the screen at zoom `z`.
+func _clamped(c: Vector2, z: float) -> Vector2:
+	var half := size / (2.0 * z)
+	var ms := Campaign.map_size()
+	return Vector2(clampf(c.x, half.x, maxf(half.x, ms.x - half.x)), clampf(c.y, half.y, maxf(half.y, ms.y - half.y)))
+
+
+## Everything on the map placed for the view (`snap`: back to covering the screen first).
+func _layout(snap := true) -> void:
 	if not visible:
 		return
-	var vp := size
-	back_button.position = Vector2(vp.x - back_button.custom_minimum_size.x - 12.0, 8.0)
-	# Landscape: beside the card's column; portrait: above the card's sheet.
-	var sheet := _card.get_combined_minimum_size().y + 16.0 if Layout.portrait and _card.visible else 0.0
-	var area := Rect2(12.0, BAR_H, vp.x - 24.0 - (0.0 if Layout.portrait else CARD_W + 12.0), vp.y - BAR_H - 12.0 - sheet)
-	var s := minf(area.size.x / Campaign.MAP_SIZE.x, area.size.y / Campaign.MAP_SIZE.y)
-	var msize := Campaign.MAP_SIZE * s
-	var top := area.position.y + (area.size.y - msize.y) / 2.0
-	_rect = Rect2(Vector2(area.position.x + (area.size.x - msize.x) / 2.0, top), msize)
-	_map.position = _rect.position
-	_map.size = _rect.size
+	if snap or zoom < _cover():
+		zoom = maxf(zoom, _cover())
+	center = _clamped(center, zoom)
+	back_button.position = Vector2(size.x - back_button.custom_minimum_size.x - 12.0, 8.0)
+	_map.position = to_screen(Vector2.ZERO)
+	_map.size = Campaign.map_size() * zoom
 	for i in _regions.size():
 		var r: Array = Campaign.REGIONS[i]
 		var l := _regions[i]
-		l.add_theme_font_size_override("font_size", maxi(10, roundi(float(r[2]) * s)))
+		l.add_theme_font_size_override("font_size", maxi(10, roundi(float(r[2]) * zoom)))
 		l.reset_size()
-		l.position = _rect.position + (r[1] as Vector2) * _rect.size - l.size / 2.0
-	for id: String in Campaign.PLACES:
+		l.position = to_screen((r[1] as Vector2) * Campaign.map_size()) - l.size / 2.0
+	for id: String in _places:
 		var at := place_point(id)
 		var p: TextureButton = _pins[id]
 		p.position = at - p.size / 2.0
@@ -347,21 +457,81 @@ func _fit() -> void:
 	_place_card()
 
 
-## Brenna's route: from each scenario's place to the next one's (where both are open):
-## ink where the later scenario is completed, dashes where it is still ahead.
+## Brenna's route along the roads, from each scenario's place to the next one's
+## (where both are shown): a red dotted trail where the later scenario is
+## completed, red dashes ahead (fainter beyond the next); the stretch to the
+## next one draws itself in.
 func _draw_route() -> void:
-	for n in range(2, _specs.size() + 1):
+	for n: int in _routes:
 		var a := _specs[n - 2].place
 		var b := _specs[n - 1].place
-		if a == b or unknown(a) or unknown(b):
+		if unknown(a) or unknown(b):
 			continue
-		var p := place_point(a)
-		var q := place_point(b)
-		var d := (q - p).normalized() * PIN * 0.55
+		var pts := PackedVector2Array()
+		for p in route_to(n):
+			pts.append(to_screen(p))
+		if pts.size() < 2:
+			continue
+		var share := _draw_in if n == _next else 1.0
+		pts = _cut(_trim(pts, PIN * 0.5), share)
+		if pts.size() < 2:
+			continue
 		if Campaign.is_completed(n, _done):
-			_route.draw_line(p + d, q - d, Color(INK, 0.85), 3.0, true)
+			_dots(pts, 9.0, 2.6, TRAIL)
 		else:
-			_route.draw_dashed_line(p + d, q - d, Color(INK, 0.75), 2.5, 9.0)
+			_dots(pts, 13.0, 2.6, Color(TRAIL, 0.8 if n == _next else 0.45), 7.0)
+
+
+## Dots (or short dashes, `dash` > 0) every `step` px along `pts`.
+func _dots(pts: PackedVector2Array, step: float, r: float, col: Color, dash := 0.0) -> void:
+	var left := 0.0
+	for k in pts.size() - 1:
+		var p0 := pts[k]
+		var p1 := pts[k + 1]
+		var ln := p0.distance_to(p1)
+		var dir := (p1 - p0) / maxf(ln, 0.001)
+		var t := left
+		while t < ln:
+			var c := p0 + dir * t
+			if dash > 0.0:
+				_route.draw_line(c - dir * dash / 2.0, c + dir * dash / 2.0, col, r, true)
+			else:
+				_route.draw_circle(c, r, col)
+			t += step
+		left = t - ln
+
+
+## `pts` without its first and last `gap` px (the pins stand there).
+func _trim(pts: PackedVector2Array, gap: float) -> PackedVector2Array:
+	var out := pts
+	for _end in 2:
+		out.reverse()
+		var cut := gap
+		while out.size() > 1 and out[0].distance_to(out[1]) <= cut:
+			cut -= out[0].distance_to(out[1])
+			out.remove_at(0)
+		if out.size() > 1:
+			out[0] = out[0].move_toward(out[1], cut)
+	return out
+
+
+## The first `share` (0..1) of `pts`, by length.
+func _cut(pts: PackedVector2Array, share: float) -> PackedVector2Array:
+	if share >= 1.0:
+		return pts
+	var total := 0.0
+	for k in pts.size() - 1:
+		total += pts[k].distance_to(pts[k + 1])
+	var want := total * share
+	var out := PackedVector2Array([pts[0]])
+	for k in pts.size() - 1:
+		var ln := pts[k].distance_to(pts[k + 1])
+		if ln >= want:
+			out.append(pts[k].move_toward(pts[k + 1], want))
+			return out
+		want -= ln
+		out.append(pts[k + 1])
+	return out
 
 
 func _process(delta: float) -> void:
@@ -371,9 +541,37 @@ func _process(delta: float) -> void:
 	for id: String in _pins:
 		var on := _next > 0 and _specs[_next - 1].place == id
 		(_pins[id] as Control).scale = Vector2.ONE * (1.0 + 0.1 * sin(_pulse * 4.0)) if on else Vector2.ONE
+	if _draw_in < 1.0:
+		_route.queue_redraw()
 
 
-# --- keys ---------------------------------------------------------------------------------------
+# --- input --------------------------------------------------------------------------------------
+
+## Dragging the map pans it (by position differences: see camera_controller.gd);
+## a tap on it rolls the scroll up.
+func _on_map_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var mb := e as InputEventMouseButton
+		if mb.pressed:
+			_pressed = true
+			_dragging = false
+			_press = mb.global_position
+			_last = mb.global_position
+		elif _pressed:
+			_pressed = false
+			if not _dragging:
+				show_card(0)
+	elif e is InputEventMouseMotion and _pressed:
+		var pos := (e as InputEventMouseMotion).global_position
+		if not _dragging and pos.distance_to(_press) > TAP:
+			_dragging = true
+			if _glide:
+				_glide.kill()
+		if _dragging:
+			center = _clamped(center - (pos - _last) / zoom, zoom)
+			_layout(false)
+		_last = pos
+
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not visible or not event.is_pressed() or event.is_echo():
@@ -396,7 +594,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-## The card on the open scenario `dir` steps from the chosen one (in the campaign's order).
+## The scroll on the open scenario `dir` steps from the chosen one (in the campaign's order).
 func step(dir: int) -> void:
 	var n := selected if selected > 0 else (_next if _next > 0 else 1)
 	var k := n + dir

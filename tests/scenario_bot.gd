@@ -392,15 +392,30 @@ func _title() -> void:
 	var places := {}
 	for n in range(1, Campaign.count() + 1):
 		var sp := Campaign.scenario(n)
-		check(Campaign.PLACES.has(sp.place) and ResourceLoader.exists("res://art/%s.svg" % sp.portrait), "scenario %d has a place on the map and a portrait (%s)" % [n, sp.place])
+		check(Campaign.places().has(sp.place) and ResourceLoader.exists("res://art/%s.svg" % sp.portrait), "scenario %d has a place on the map and a portrait (%s)" % [n, sp.place])
 		places[sp.place] = true
-	check(places.size() == Campaign.PLACES.size(), "every place has a scenario")
+	check(places.size() == Campaign.places().size(), "every place has a scenario")
 	check(cm.scenarios_at("outpost") == [1, 2, 3, 10] and cm.scenarios_at("capital") == [8, 11], "scenarios on the same map share a place")
-	var view := Rect2(Vector2.ZERO, cm.size)
-	check(Campaign.PLACES.keys().all(func(id: String) -> bool: return view.encloses(cm.pin(id).get_global_rect())), "the whole map and every pin fit the screen")
+	var ms := Campaign.map_size() * cm.zoom
+	check(ms.x >= cm.size.x - 0.5 and ms.y >= cm.size.y - 0.5, "the map covers the whole screen")
+	var gaps := range(2, Campaign.count() + 1).filter(func(n: int) -> bool: return Campaign.scenario(n - 1).place != Campaign.scenario(n).place and cm.route_to(n).size() < 2)
+	check(gaps.is_empty(), "every stretch of Brenna's route follows the roads (%s)" % str(gaps))
+	var r := Campaign.route("outpost", "guild_town")
+	check(r.size() > 2 and r[0] == Campaign.places()["outpost"]["at"] and r[r.size() - 1] == Campaign.places()["guild_town"]["at"], "a route runs from place to place")
+	await wait(1.0)
+	var free := cm._free_rect()
+	check(free.has_point(cm.place_point("outpost")) and cm.zoom > Campaign.map_size().x / 1e4, "the map glides to the chosen place, beside the scroll")
 	check(cm.card_open() and cm.selected == 3, "the card opens on the next to play (3)")
 	check(cm.rows.has(1) and cm.rows[1].icon == Art.tex("icon_check") and cm.rows[3].icon == null and not cm.play_button.disabled, "its place's scenarios: completed ones carry a check")
-	check(Campaign.PLACES.keys().all(func(id: String) -> bool: return not cm.unknown(id)), "a debug build: every place shown")
+	check(Campaign.places().keys().all(func(id: String) -> bool: return not cm.unknown(id)), "a debug build: every place shown")
+	var before := cm.center
+	for ev: InputEvent in [_mouse(true, Vector2(500, 400)), _motion(Vector2(560, 430)), _motion(Vector2(620, 460)), _mouse(false, Vector2(620, 460))]:
+		cm._on_map_input(ev)
+	check(cm.center != before and cm.card_open(), "dragging the map pans it (the scroll stays)")
+	cm._on_map_input(_mouse(true, Vector2(500, 400)))
+	cm._on_map_input(_mouse(false, Vector2(502, 401)))
+	check(not cm.card_open(), "a tap on the map rolls the scroll up")
+	cm.show_card(3)
 	cm.step(1)
 	check(cm.selected == 4 and cm.rows.has(4) and not cm.rows.has(3), "a step: the next scenario, at its own place")
 	cm.pin("old_fort").pressed.emit()
@@ -433,6 +448,20 @@ func _title() -> void:
 	t.queue_free()
 	Campaign.reset_progress()
 	await frames(1)
+
+
+func _mouse(down: bool, at: Vector2) -> InputEventMouseButton:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = down
+	e.global_position = at
+	return e
+
+
+func _motion(at: Vector2) -> InputEventMouseMotion:
+	var e := InputEventMouseMotion.new()
+	e.global_position = at
+	return e
 
 
 # --- scenario 2: The Old Friend ---------------------------------------------------------------

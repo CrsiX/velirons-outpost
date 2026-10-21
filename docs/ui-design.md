@@ -41,29 +41,40 @@ Big touch targets everywhere, so mouse and fingers work the same.
   (`user://player.cfg`).
 - **Multiplayer page:** `MultiplayerMenu` (docs/multiplayer-design.md). The title screen opens on it
   when a LAN session is still open (coming back from a game).
-- **Campaign map** (`CampaignMap`, `scripts/ui/campaign_map.gd`): *Campaign* opens a full-screen map of the kingdom over the darkened
-  backdrop instead of a list, so it scales to any number of scenarios and any screen. The places are in docs/story-design.md §4a.
-  - *The map:* one parchment picture (`campaign_map`, made by `gen_art.py`: coast and ocean in the west, the hatched wilderness beyond
-    the Wardline's towers in the north, the neighbours beyond dotted borders, mountains, forests, rivers, the great lake), always shown
-    whole, scaled to fit with dark edges round it (`Campaign.MAP_SIZE`). Region names (Veliron, the neighbours, the ocean, the
-    wilderness) are labels laid over it, so they stay sharp and can be translated.
-  - *Places* (`Campaign.PLACES`: a name, a spot on the map as a share of its size, a symbol): each scenario names its place
-    (`Scenario.place`); scenarios on the same map share one (the outpost: 1, 2, 3 and 10; the capital: 8 and 11). A place is a round
-    pin (`pin_<symbol>`, at least a finger's size) with its name and its scenarios' numbers under it. Brenna's route joins the places
-    in the scenarios' order: ink where the later scenario is completed, dashes where it is still ahead.
+- **Campaign map** (`CampaignMap`, `scripts/ui/campaign_map.gd`): *Campaign* opens an old fantasy map of the kingdom filling the
+  whole screen (the title and menu hidden meanwhile), so it scales to any number of scenarios and any screen. The geography is in
+  docs/story-design.md §4a.
+  - *The layout* (`data/campaign_map.json`, `Campaign.layout()` / `places()` / `route()`): the picture's size, the places (a name, a
+    spot in map units, a pin symbol), the road crossings and the roads (from place or crossing to place or crossing, through points).
+    The one file serves both the picture and the route, so they always match.
+  - *The picture* (`campaign_map`, made by `gen_art.py` from that file): ragged coasts with ripple lines, islands, a ship and a sea
+    serpent in the western ocean; the dark wilderness beyond the Wardline's wall and towers in the north; mountain ranges along
+    ridgelines with hills, dense forest clumps, meandering rivers into the great lake and the sea; the roads (dashed, each smoothed
+    by corner cutting, `chaikin` / `Campaign.smooth`), with hamlets and fields along them; the neighbours washed in sepia behind
+    hand-drawn borders; a compass rose, specks, folds and darkened edges. No writing on it: region names (Veliron, the neighbours, the
+    ocean, the wilderness, the Wardline: `Campaign.REGIONS`) are labels laid over it, so they stay sharp and can be translated.
+  - *The view:* the map always covers the screen (`zoom` at least the covering scale, `center` kept so no edge shows). Choosing a
+    place glides the map (`glide_to`, 0.45 s) so the place sits in the middle of the part the scroll leaves free, a little closer
+    (`FOCUS_ZOOM`); a drag pans it (by position differences, as the game's camera); a tap on the map rolls the scroll up. A turned or
+    resized screen keeps the chosen place in view.
+  - *Places:* each scenario names its place (`Scenario.place`); scenarios on the same map share one (the outpost: 1, 2, 3 and 10; the
+    capital: 8 and 11). A place is a round pin (`pin_<symbol>`, at least a finger's size) with its name and its scenarios' numbers
+    under it.
+  - *Brenna's route* runs from each scenario's place to the next one's along the roads (`Campaign.route`: the shortest way through
+    the road network): a red dotted trail where the later scenario is completed, red dashes ahead (fainter beyond the next one). When
+    the map opens, the stretch to the next scenario draws itself in (`DRAW_IN`).
   - *Progress on the map:* a place none of whose scenarios is unlocked isn't shown at all: no pin, no name, no route to it, just the
-    empty map there (release builds; debug builds show everything); a place whose scenarios are all completed carries a red wax seal (`map_seal`); the place of the next
-    scenario to play pulses.
-  - *Choosing:* a tap on a pin opens a parchment card beside it (portrait: a sheet along the bottom): the place, its scenarios as rows
-    ("3. The Wardline", a check when completed, "Locked" when not yet open), and for the chosen one its portrait
-    (`Scenario.portrait`), its line (`Scenario.blurb`) and **Play** (sets `Settings.scenario_next` and starts the game scene). It
-    opens on the next scenario to play. The arrow keys step through the open scenarios in order, Enter plays, Esc closes the card,
-    then the map; *Back* in the corner.
+    empty map there (release builds; debug builds show everything); a place whose scenarios are all completed carries a red wax seal
+    (`map_seal`); the place of the next scenario to play pulses.
+  - *Choosing:* a tap on a pin unrolls a parchment scroll between two wooden rods (landscape: on the right; portrait: a sheet along the
+    bottom): the place, its scenarios as rows ("3. The Wardline", a check when completed, "Locked" when not yet open), and for the
+    chosen one its portrait (`Scenario.portrait`), its line (`Scenario.blurb`) and **Play** ("Play again" when completed; sets
+    `Settings.scenario_next` and starts the game scene). It opens on the next scenario to play. The arrow keys step through the open
+    scenarios in order, Enter plays, Esc rolls the scroll up, then closes the map; *Back* in the corner.
   - **Progress** (`Campaign.completed`, `user://campaign.json`): a won scenario is remembered as completed, by its title, on this
-    device. Completed ones carry a check (`icon_check`); the next to play (the one after the highest completed, `next_to_play`) is in
-    primary style. In a release build a scenario shows only once it is unlocked (`Campaign.unlocked`: the first, one after a completed
-    one, or one before a completed one, so a scenario added later never locks out what was played), with a line saying how many are still
-    locked; debug builds show them all. The file holds `format` (`PROGRESS_FORMAT`; another format is read as no progress), `campaign`
+    device. Completed ones carry a check (`icon_check`); the scroll opens on the next to play (the one after the highest completed,
+    `next_to_play`). In a release build a scenario opens only once it is unlocked (`Campaign.unlocked`: the first, one after a completed
+    one, or one before a completed one, so a scenario added later never locks out what was played); debug builds open them all. The file holds `format` (`PROGRESS_FORMAT`; another format is read as no progress), `campaign`
     (the titles in order when it was written) and `completed`.
 - **In a scenario** (docs/scenarios-design.md §7): its **card** sits top left where the tutorial's does
   (`ScenarioCard`): a heading ("Scenario 1: Homecoming ▾", a tap folds the card to it), the teaching

@@ -25,30 +25,23 @@ const SCENARIOS: Array[Script] = [
 ## How many the campaign will have (the map says the rest are to come).
 const PLANNED := 11
 
-## The campaign map's picture (art "campaign_map"), in its own units.
-const MAP_SIZE := Vector2(1200, 750)
-## The places on it (docs/story-design.md §4a): id -> {"name", "at": a share
-## of MAP_SIZE, "pin": its symbol (art "pin_<pin>")}. Each scenario names its
-## place (Scenario.place); scenarios on the same map share one.
-const PLACES := {
-	"outpost": {"name": "The outpost", "at": Vector2(0.35, 0.2), "pin": "outpost"},
-	"guild_town": {"name": "The guild town", "at": Vector2(0.14, 0.47), "pin": "guild"},
-	"old_fort": {"name": "The old fort", "at": Vector2(0.69, 0.22), "pin": "fort"},
-	"battlefield": {"name": "The battlefield", "at": Vector2(0.54, 0.44), "pin": "battlefield"},
-	"refuge": {"name": "Fiona's refuge", "at": Vector2(0.73, 0.63), "pin": "grove"},
-	"capital": {"name": "The capital", "at": Vector2(0.42, 0.6), "pin": "palace"},
-	"abbey": {"name": "The drowned abbey", "at": Vector2(0.36, 0.8), "pin": "abbey"},
-}
+## The campaign map's layout (docs/ui-design.md): its size, the places on it
+## (each scenario names one, Scenario.place; scenarios on the same map share
+## one), the road crossings and the roads, in the picture's units. The same
+## file draws the picture (tools/gen_art.py, art "campaign_map").
+const MAP_FILE := "res://data/campaign_map.json"
+static var _layout := {}
+
 ## The map's region names, laid over the picture: [text, at (share), font size (map units)].
 const REGIONS: Array = [
-	["VELIRON", Vector2(0.56, 0.78), 30],
-	["THE WILDERNESS", Vector2(0.5, 0.045), 18],
+	["VELIRON", Vector2(0.6, 0.64), 34],
+	["THE WILDERNESS", Vector2(0.6, 0.06), 18],
+	["THE WARDLINE", Vector2(0.62, 0.128), 11],
 	["KINGDOM OF\nKARMERE", Vector2(0.91, 0.27), 16],
 	["REPUBLIC OF\nLYRENNE", Vector2(0.91, 0.62), 16],
 	["THE HOLY DOMINION OF AURELITH", Vector2(0.55, 0.94), 18],
-	["THE\nWESTERN\nOCEAN", Vector2(0.045, 0.3), 13],
+	["THE\nWESTERN\nOCEAN", Vector2(0.045, 0.36), 13],
 ]
-
 const PROGRESS_FILE := "user://campaign.json"
 ## The progress file's layout; a file of another format is ignored (read as no progress).
 const PROGRESS_FORMAT := 1
@@ -71,6 +64,104 @@ static func titles() -> Array[String]:
 	for n in range(1, count() + 1):
 		out.append(scenario(n).title)
 	return out
+
+
+# --- the map -------------------------------------------------------------------------------
+
+## MAP_FILE, read once.
+static func layout() -> Dictionary:
+	if _layout.is_empty():
+		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(MAP_FILE))
+		_layout = d if d is Dictionary else {"size": [1200, 750], "places": {}, "junctions": {}, "roads": []}
+	return _layout
+
+
+static func map_size() -> Vector2:
+	var sz: Array = layout()["size"]
+	return Vector2(float(sz[0]), float(sz[1]))
+
+
+## Place id -> {"name", "at": Vector2 (map units), "pin": its symbol (art "pin_<pin>")}.
+static func places() -> Dictionary:
+	var out := {}
+	var ps: Dictionary = layout()["places"]
+	for id: String in ps:
+		var p: Dictionary = ps[id]
+		out[id] = {"name": str(p["name"]), "at": _vec(p["at"]), "pin": str(p["pin"])}
+	return out
+
+
+## The way along the roads from place `from` to place `to` (the fewest miles),
+## each road smoothed as the picture draws it; [] if no road leads there.
+static func route(from: String, to: String) -> PackedVector2Array:
+	var nodes := {}
+	for id: String in layout()["places"]:
+		nodes[id] = _vec(layout()["places"][id]["at"])
+	for id: String in layout()["junctions"]:
+		nodes[id] = _vec(layout()["junctions"][id])
+	var edges := {}  # node -> [[next node, its road from here]]
+	for r: Dictionary in layout()["roads"]:
+		var pts := PackedVector2Array([nodes[r["a"]]])
+		for q: Array in r["via"]:
+			pts.append(_vec(q))
+		pts.append(nodes[r["b"]])
+		var back := pts.duplicate()
+		back.reverse()
+		for pair: Array in [[str(r["a"]), str(r["b"]), pts], [str(r["b"]), str(r["a"]), back]]:
+			if not edges.has(pair[0]):
+				edges[pair[0]] = []
+			(edges[pair[0]] as Array).append([pair[1], pair[2]])
+	var dist := {from: 0.0}
+	var prev := {}
+	var todo: Array = [from]
+	while not todo.is_empty():
+		todo.sort_custom(func(x: String, y: String) -> bool: return float(dist[x]) < float(dist[y]))
+		var n: String = todo.pop_front()
+		if n == to:
+			break
+		for e: Array in edges.get(n, []):
+			var d := float(dist[n]) + _length(e[1])
+			if d < float(dist.get(e[0], INF)):
+				dist[e[0]] = d
+				prev[e[0]] = [n, e[1]]
+				todo.append(e[0])
+	if not prev.has(to):
+		return PackedVector2Array()
+	var legs: Array = []
+	var at := to
+	while at != from:
+		legs.push_front(prev[at][1])
+		at = prev[at][0]
+	var out := PackedVector2Array()
+	for leg: PackedVector2Array in legs:
+		var sm := smooth(leg)
+		if not out.is_empty():
+			sm = sm.slice(1)
+		out.append_array(sm)
+	return out
+
+
+## Corner-cutting smoothing, the ends kept (tools/gen_art.py's chaikin does the same).
+static func smooth(pts: PackedVector2Array, times := 3) -> PackedVector2Array:
+	for _i in times:
+		var out := PackedVector2Array([pts[0]])
+		for k in pts.size() - 1:
+			out.append(pts[k] * 0.75 + pts[k + 1] * 0.25)
+			out.append(pts[k] * 0.25 + pts[k + 1] * 0.75)
+		out.append(pts[pts.size() - 1])
+		pts = out
+	return pts
+
+
+static func _length(pts: PackedVector2Array) -> float:
+	var n := 0.0
+	for k in pts.size() - 1:
+		n += pts[k].distance_to(pts[k + 1])
+	return n
+
+
+static func _vec(v: Variant) -> Vector2:
+	return Vector2(float((v as Array)[0]), float((v as Array)[1]))
 
 
 # --- progress ---------------------------------------------------------------------------------

@@ -20,7 +20,7 @@ var blurb := ""
 var map_path := ""
 ## Which of the map's villages is played.
 var village := 0
-## Where it is on the campaign map (a Campaign.PLACES key), and the portrait
+## Where it is on the campaign map (a place in Campaign.places(): data/campaign_map.json), and the portrait
 ## its card there shows (an art name).
 var place := "outpost"
 var portrait := "portrait_brenna"
