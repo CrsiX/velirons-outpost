@@ -553,7 +553,7 @@ func set_landed(on: bool) -> void:
 ## `n` meals eaten: drawn a little bigger with each (the stats: VultureBehavior).
 func set_fed(n: int) -> void:
 	fed = n
-	sprite.scale = Vector2(0.5, 0.5) * (1.0 + 0.08 * fed)
+	sprite.scale = Vector2(0.5, 0.5) * (1.0 + 0.1 * fed)
 
 
 ## Starts flying: a shadow on the ground under it (drawn first), bobbing.

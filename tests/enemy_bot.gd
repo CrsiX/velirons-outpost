@@ -1253,7 +1253,7 @@ func _test_vultures() -> void:
 	var alive0: int = w._alive
 	check(vb != null and v.flies() and not v.landed, "a vulture flies")
 	var landed := await wait_until(func() -> bool: return v.landed or v.dead, 90.0)
-	check(landed and v.landed and not v.flies() and v.grid_pos.distance_to(meal.grid_pos) < 0.6 and vb.pack.target == meal, "it flies to the corpse and lands on it: a ground target now")
+	check(landed and v.landed and not v.flies() and v.grid_pos.distance_to(meal.grid_pos) < 0.8 and vb.pack.target == meal, "it flies to the corpse and lands on it: a ground target now")
 	var base_hp := v.max_hp
 	vb.finish_meal(v, 0.9)
 	check(v.fed == 1 and absf(v.max_hp - base_hp * 1.25) < 0.01 and absf(v.power - 1.25) < 0.01 and game.corpses.corpses.has(meal), "a meal: +25 %% HP and damage; this time the corpse stays (%d meals, %.1f HP)" % [v.fed, v.max_hp])

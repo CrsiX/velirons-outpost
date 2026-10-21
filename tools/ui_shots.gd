@@ -129,6 +129,8 @@ func _run() -> void:
 		await _undead_spiders()
 	if only in ["", "wrathwood"]:
 		await _wrathwood()
+	if only in ["", "vultures"]:
+		await _vultures()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -1555,5 +1557,79 @@ func _wrathwood() -> void:
 	await _frames(10)
 	await shot("wrathwood_library_damage")
 	g.hud.library.close()
+	g.queue_free()
+	await _frames(3)
+
+
+## Vultures (docs/enemies-design.md §15d): a pack flying in to the corpses by
+## the road, landing and eating, one grown on its meals beside a hungry one,
+## then searching once the corpses are gone. Prints what it sees.
+func _vultures() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	g.disable_fog = true
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	for t in g.world.towers():
+		if t.garrison:
+			g.army.unstation(t.garrison)
+	var road: Vector2i = v.gates[0]
+	var seen := {road: true}
+	for i in 10:
+		for n in MapData.neighbors4(road):
+			if g.map.is_road(n) and not seen.has(n) and not g.map.in_village(n):
+				seen[n] = true
+				road = n
+				break
+	var meal := g.corpses.spawn("goblin", 1, Vector2(road))
+	g.corpses.spawn("ork", 1, Vector2(road) + Vector2(0.8, 0.5))
+	g.corpses.spawn("skeleton", 1, Vector2(road) + Vector2(-0.6, 0.7))
+	var pack := VulturePack.new(g, meal)
+	var birds: Array[Enemy] = []
+	var from := Vector2(road) + Vector2(-5.0, -4.0)
+	for i in 3:
+		g.waves._spawn({"kind": "vulture", "spawn": Vector2i(from.round()), "hp_scale": 1.0, "village": v, "pack": pack})
+		var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+		e.set_grid_pos(from + Vector2(0.5 * i, -0.4 * i))
+		birds.append(e)
+	await _frames(40)
+	g.camera.focus(Iso.to_world((birds[0].grid_pos + Vector2(road)) / 2.0))
+	g.camera.zoom = Vector2(1.5, 1.5)
+	await _frames(5)
+	print("flying: %s" % str(birds.map(func(e: Enemy) -> String: return "%s at %s flies %s" % [e.label(), str(e.grid_pos.snapped(Vector2(0.1, 0.1))), e.flies()])))
+	await shot("vultures_flying")
+	Engine.time_scale = 3.0
+	for i in 600:
+		await get_tree().process_frame
+		if birds.all(func(e: Enemy) -> bool: return e.landed):
+			break
+	Engine.time_scale = 1.0
+	g.camera.focus(Iso.tile_to_world(road))
+	g.camera.zoom = Vector2(1.6, 1.6)
+	await _frames(10)
+	print("eating: %s" % str(birds.map(func(e: Enemy) -> String: return "%s landed %s on %s" % [e.label(), e.landed, str(e.grid_pos.snapped(Vector2(0.1, 0.1)))])))
+	await shot("vultures_eating")
+	# One fed four times (twice as strong, drawn bigger) next to a hungry one.
+	var vb := birds[0].behavior as VultureBehavior
+	for i in 4:
+		vb.finish_meal(birds[0], 0.9)
+	await _frames(10)
+	print("grown: %s %d meals, %.0f / %.0f HP, power %.2f; %s %d meals, %.0f HP" % [birds[0].label(), birds[0].fed, birds[0].hp, birds[0].max_hp, birds[0].power, birds[1].label(), birds[1].fed, birds[1].max_hp])
+	await shot("vultures_grown")
+	# The corpses gone: they take off and search, spreading out.
+	for c in g.corpses.corpses.duplicate():
+		g.corpses.remove(c)
+	await _game_wait(3.0)
+	g.camera.zoom = Vector2(1.2, 1.2)
+	await _frames(10)
+	print("searching: mode %d, %s" % [pack.mode, str(birds.map(func(e: Enemy) -> String: return "%s flies %s" % [e.label(), e.flies()]))])
+	await shot("vultures_searching")
+	for e in birds:
+		if is_instance_valid(e) and not e.dead:
+			e.vanish()
 	g.queue_free()
 	await _frames(3)

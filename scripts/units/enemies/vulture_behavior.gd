@@ -64,7 +64,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 	match pack.mode:
 		VulturePack.Mode.SEEK:
 			var c := pack.target
-			var spot := c.grid_pos + _spread(enemy, 0.35)
+			var spot := c.grid_pos + _spread(enemy, 0.6)
 			if _fly_to(enemy, spot, delta):
 				_land(enemy, c)
 		VulturePack.Mode.SEARCH:
@@ -180,8 +180,8 @@ func _fly_to(enemy: Enemy, to: Vector2, delta: float) -> bool:
 
 ## Its own place round the pack's corpse (so the birds don't stand in one).
 func _spread(enemy: Enemy, r: float) -> Vector2:
-	var a := pack.index_of(enemy) * 2.1
-	return Vector2(cos(a), sin(a)) * r if pack.index_of(enemy) > 0 else Vector2.ZERO
+	var a := 0.8 + pack.index_of(enemy) * TAU / 3.0
+	return Vector2(cos(a), sin(a)) * r
 
 
 ## An open tile near the pack's middle to circle over while it searches.
