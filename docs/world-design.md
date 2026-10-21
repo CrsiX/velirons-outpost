@@ -552,7 +552,8 @@ walk to:
 - **Sending the hero is an explicit choice**, because it's a real fight: the
   camp's panel has "Attack with the hero". The hero then goes there (whatever
   mode she was in), fights until the camp is cleared or she is downed, and then
-  goes back to her mode.
+  goes back to her mode. A mode button cancels the order; one she can't reach
+  she gives up after `HERO.camp_give_up` s (docs/hero-design.md §4.5).
 - The guards are enemies, so towers and barracks fight any that come within
   their range without an order; only the hero needs it.
 - Once cleared, the treasure counts as unguarded and the hero loots it in

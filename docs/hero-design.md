@@ -152,6 +152,10 @@ she can walk to.
 - In Explore mode the current task is dropped, but loot she carries is kept.
 - When the camp is cleared (or gone) she goes back to her mode. If she was carrying loot, she heads
   home with it first.
+- A mode button is a new order: picking any mode (her current one too) cancels the camp order at
+  once ("The hero gives up on the ..."), and she does what that mode says (Rest: home, and she heals).
+- She gives the order up by herself when she can't get at any of its monsters (no way to them)
+  for `HERO.camp_give_up` (3 s), and goes back to her mode; she never stands stuck on it.
 
 ### 4.6 Train
 

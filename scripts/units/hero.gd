@@ -58,6 +58,8 @@ var _snores := 0
 var train_pause := 0.0
 ## The monster camp she was ordered to clear (docs/world-design.md §9.3).
 var camp_target: MonsterCamp = null
+## Seconds she has had none of its monsters she could get to (HERO camp_give_up).
+var _camp_stuck := 0.0
 ## A warrior's war cry (Combat.war_cry): her sword is faster until Game.clock reaches cry_until.
 var cry_bonus := 0.0
 var cry_until := -1.0
@@ -103,6 +105,9 @@ func label() -> String:
 # --- modes ---------------------------------------------------------------------------
 
 func set_mode(m: int) -> void:
+	if camp_target != null:  # (a new order: the camp can wait)
+		village.events.info("The hero gives up on the %s" % camp_target.display_name().to_lower() if is_instance_valid(camp_target) else "The hero gives up on the camp")
+		_end_camp()
 	if m == mode:
 		return
 	_leave_mode()
@@ -607,6 +612,12 @@ func attack_camp(camp: MonsterCamp) -> void:
 
 
 func _attack_camp(delta: float) -> void:
+	# None of its monsters she can get to for a while: she gives up the order.
+	_camp_stuck = _camp_stuck + delta if not is_instance_valid(target) or target.dead else 0.0
+	if _camp_stuck >= float(Config.HERO["camp_give_up"]):
+		village.events.info("The hero can't get at the %s's monsters and gives up" % camp_target.display_name().to_lower())
+		_end_camp()
+		return
 	_think_timer -= delta
 	if _think_timer <= 0.0 or not is_instance_valid(target) or target.dead:
 		_think_timer = 0.3
@@ -624,6 +635,7 @@ func _attack_camp(delta: float) -> void:
 
 func _end_camp() -> void:
 	camp_target = null
+	_camp_stuck = 0.0
 	target = null
 	_returning = false
 	sprite.rotation = 0.0

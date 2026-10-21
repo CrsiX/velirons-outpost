@@ -355,6 +355,34 @@ func _test_game() -> void:
 	check(logs.any(func(l: String) -> bool: return "monster camp" in l and "Attack with the hero" in l), "a found camp says how to clear it")
 	var labels: Array = camp.info()["actions"].map(func(a: Dictionary) -> String: return a["label"])
 	check(labels.has("Attack with the hero"), "the camp's panel has Attack with the hero")
+	# A mode button is a new order: she gives the camp up (also Rest: home, and she heals there).
+	game.command("attack_camp", {"camp": camp.nid})
+	await wait(1.0)
+	hero.hp = hero.max_hp - 20.0  # (the bot gave her a lot of HP: 20 to heal back)
+	hero.set_mode(Hero.Mode.REST)
+	check(hero.camp_target == null and logs.any(func(l: String) -> bool: return "gives up on the" in l), "on the way, a mode button (Rest) cancels the camp order")
+	var healed := await wait_until(func() -> bool: return hero.at_home and hero.hp >= hero.max_hp, 90.0)
+	check(healed, "and resting at home she heals to full (%.0f / %.0f HP, home %s, at %s, mode %d, %.2fx)" % [hero.hp, hero.max_hp, hero.at_home, str(hero.grid_pos.snapped(Vector2(0.1, 0.1))), hero.mode, Engine.time_scale])
+	hero.set_mode(Hero.Mode.DEFEND)
+	# Monsters she can't get at: she gives the order up after camp_give_up s (she isn't stuck).
+	var rock := Vector2i(-1, -1)
+	for y in game.map.size:
+		for x in game.map.size:
+			if rock.x < 0 and game.world.pathing.stand_near(Vector2i(x, y), Vector2(v.center)) == Vector2i(-1, -1):
+				rock = Vector2i(x, y)
+	var spots: Array[Vector2] = []
+	for e in camp.alive():
+		spots.append(e.grid_pos)
+		e.set_grid_pos(Vector2(rock))
+		e.set_process(false)
+	logs.clear()
+	game.command("attack_camp", {"camp": camp.nid})
+	var gave_up := await wait_until(func() -> bool: return hero.camp_target == null, float(Config.HERO["camp_give_up"]) + 3.0)
+	check(rock.x >= 0 and gave_up and logs.any(func(l: String) -> bool: return "can't get at" in l), "a camp she can't reach: she gives the order up")
+	for i in camp.alive().size():
+		camp.alive()[i].set_grid_pos(spots[i])
+		camp.alive()[i].set_process(true)
+	await wait_until(func() -> bool: return hero.at_home, 60.0)
 	check(game.command("attack_camp", {"camp": camp.nid})["ok"] and hero.camp_target == camp, "ordered: the hero sets off to clear it")
 	var cleared := await wait_until(func() -> bool: return camp.cleared, 180.0)
 	await frames(3)

@@ -1223,6 +1223,7 @@ const HERO := {
 	"train_rate": 10.0,  # XP per second passed on at the training grounds
 	"rest_regen": 3.0,  # HP per second while resting idle in the village centre
 	"rest_delay": 3.0,  # seconds of idling there before the HP starts coming back
+	"camp_give_up": 3.0,  # seconds with none of an ordered camp's monsters she can get to: she gives the order up
 }
 ## XP the hero earns per action (training earns none).
 ## The hero spends her own XP on levels (the level-up button in her panel).
