@@ -296,7 +296,9 @@ func _play_through() -> void:
 	await frames(3)
 	check(game.game_over and game.hud._overlay.visible, "the scenario is complete")
 	check(game.hud._overlay_title.text == "Homecoming: complete" and game.hud._overlay_won, "won: %s" % game.hud._overlay_title.text)
-	check(game.hud._overlay_menu_button.text == "Play again" and game.hud._overlay_button.text == "Main menu", "Main menu, or Play again")
+	var hud := game.hud
+	check(hud._overlay_button.text == "Next scenario" and hud._overlay_button.icon == Art.tex("icon_next") and hud._overlay_button.get_index() < hud._overlay_title_button.get_index(), "the main button: Next scenario, with its play arrow, on top")
+	check(hud._overlay_title_button.is_visible_in_tree() and hud._overlay_title_button.text == "Main menu" and hud._overlay_title_button.get_index() < hud._overlay_menu_button.get_index() and hud._overlay_menu_button.text == "Play again", "under it Main menu, then Play again")
 
 
 ## Every enemy of the waves dies (with `kill_camps`, the camps' guards too).
@@ -380,6 +382,13 @@ func _title() -> void:
 	var later: Array[String] = ["The Split"]
 	check(Campaign.unlocked(2, later, false) and Campaign.unlocked(5, later, false), "a scenario before a completed one stays open (one added later)")
 	print("-- title screen")
+	Settings.campaign_next = true  # (the last scenario won: Show campaign map)
+	var t0 = load("res://scenes/title.tscn").instantiate()
+	add_child(t0)
+	await frames(2)
+	check(t0.campaign_map.visible and not t0._menu.visible and not Settings.campaign_next, "after the last scenario: the title opens on the campaign map")
+	t0.queue_free()
+	await frames(2)
 	var t = load("res://scenes/title.tscn").instantiate()
 	add_child(t)
 	await frames(2)
@@ -1818,3 +1827,4 @@ func _scenario_11() -> void:
 	check(said.has("rhodri") and said.has("cursed"), "Fiona and her brother; the curse (%s)" % str(said))
 	await frames(3)
 	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Crown: complete", "won: %s" % game.hud._overlay_title.text)
+	check(game.hud._overlay_button.text == "Show campaign map" and game.hud._overlay_button.icon == Art.tex("icon_campaign") and game.hud._overlay_title_button.is_visible_in_tree(), "the last scenario: Show campaign map, then Main menu")

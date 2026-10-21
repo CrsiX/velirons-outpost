@@ -332,7 +332,9 @@ Big touch targets everywhere, so mouse and fingers work the same.
   - Greyed out before wave 2 (`Config.STATS["from_wave"]`; the tooltip says so, a tap only toasts).
   - The game-over screen stacks *Try again* (or *Try the tutorial again*; networked: *Main menu*),
     *Load last save* (single player, when this game has a save), *Main menu* (not networked) and
-    *Statistics* under each other.
+    *Statistics* under each other. A won scenario's stacks *Next scenario* (a play arrow; after the
+    campaign's last one *Show campaign map*, with its banner), *Main menu*, *Play again* and
+    *Statistics* (docs/scenarios-design.md §7).
   - Pauses like the library and the settings (single player; not networked co-op, not after game
     over), and then shows the game in grayscale behind it (`_stats_gray`). Closing it goes back to
     the earlier speed; paused before, it stays paused.

@@ -239,6 +239,8 @@ var _overlay_title: Label
 var _overlay_sub: Label
 var _overlay_button: Button
 var _overlay_menu_button: Button
+## A won scenario: Main menu, under the main button (Next scenario / Show campaign map).
+var _overlay_title_button: Button
 ## The overlay shows a won scenario (its second button plays it again).
 var _overlay_won := false
 
@@ -2917,7 +2919,13 @@ func _build_overlay() -> void:
 	_overlay_button = _button("", Vector2(0, 64))
 	_overlay_button.add_theme_font_size_override("font_size", 24)
 	UiTheme.style_primary(_overlay_button)
+	_overlay_button.expand_icon = false
+	_overlay_button.add_theme_constant_override("icon_max_width", 36)
 	v.add_child(_overlay_button)
+	_overlay_title_button = _button("Main menu", Vector2(0, 56))
+	_overlay_title_button.pressed.connect(func() -> void: game.go_to_title())
+	_overlay_title_button.visible = false
+	v.add_child(_overlay_title_button)
 	_overlay_load_button = _button("Load last save", Vector2(0, 56))
 	_overlay_load_button.tooltip_text = "Go on from this game's newest save"
 	_overlay_load_button.pressed.connect(func() -> void:
@@ -2984,7 +2992,9 @@ func show_session_ended(reason: String) -> void:
 	_overlay_title.add_theme_color_override("font_color", UiTheme.BAD)
 	_overlay_sub.text = "The game can't go on without the host."
 	_overlay_button.text = "Main menu"
+	_overlay_button.icon = null
 	_overlay_menu_button.visible = false  # (the main button already goes there)
+	_overlay_title_button.visible = false
 	_overlay_load_button.visible = false
 	_overlay.visible = true
 	_info_panel.visible = false
@@ -2993,15 +3003,23 @@ func show_session_ended(reason: String) -> void:
 	_connect_overlay(func() -> void: game.go_to_title())
 
 
-## The game is over: lost, or `won` (a scenario: then the button goes back to
-## the title, and Play again is the second one).
+## The game is over: lost, or `won` (a scenario: then the main button plays
+## the next scenario, or after the last one shows the campaign map; Main menu
+## and Play again come under it).
 func show_game_over(title: String, subtitle: String, won := false) -> void:
 	_overlay_title.text = title
 	_overlay_title.add_theme_color_override("font_color", UiTheme.GOOD if won else UiTheme.BAD)
 	_overlay_sub.text = subtitle
 	var again_tutorial := game.tutorial != null and game.tutorial.active
-	_overlay_button.text = "Main menu" if game.networked or won else ("Try the tutorial again" if again_tutorial else "Try again")
+	var next := won and not game.networked and game.scenario != null
+	var last := next and Campaign.scenario(game.scenario_number + 1) == null
+	if next:
+		_overlay_button.text = "Show campaign map" if last else "Next scenario"
+	else:
+		_overlay_button.text = "Main menu" if game.networked or won else ("Try the tutorial again" if again_tutorial else "Try again")
+	_overlay_button.icon = (Art.tex("icon_campaign") if last else Art.tex("icon_next")) if next else null
 	_overlay_won = won
+	_overlay_title_button.visible = next
 	_overlay_menu_button.text = "Play again" if won else "Main menu"
 	_overlay_menu_button.visible = not game.networked  # (networked: the main button is the way out)
 	_overlay_load_button.visible = not game.networked and not game.tutorial_mode and game.backdrop == null and SaveGame.newest_of(game.game_id) != ""
@@ -3010,7 +3028,9 @@ func show_game_over(title: String, subtitle: String, won := false) -> void:
 	_refresh_stats_button()
 	_info_panel.visible = false
 	var on_press := func() -> void:
-		if game.networked or won:
+		if next:
+			game.play_next_scenario()
+		elif game.networked or won:
 			game.go_to_title()
 		else:
 			game.restart(again_tutorial)

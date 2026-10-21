@@ -661,7 +661,10 @@ The game has none of this yet, except where noted:
   during the story parts); the HUD hides what isn't allowed (`Game.available`, `Game.allows_building`; `MilitaryUnit.upgrade_options` leaves out
   the branches when `Game.allows_branches` is false). A villager's death (`Population.civilian_died`) or the hero being downed (`Hero.downed`) end
   the scenario when its rules say so (`fail_on_villager_death`, `must_live` names, `hero_revives`); the usual defeat does too. The defeat screen names the cause and offers *Try again* (the scenario starts
-  over) and *Main menu*; the win screen *Main menu* and *Play again* (`Game.end_game`, `Hud.show_game_over(..., won)`).
+  over) and *Main menu*; the win screen *Next scenario* on top (the main button, a play arrow: the next scenario of
+  the campaign, completed or not, `Game.play_next_scenario`; after the last one *Show campaign map*, with the campaign's
+  banner, which opens the title screen on the campaign map: `Settings.campaign_next`), then *Main menu* and *Play again*
+  (`Game.end_game`, `Hud.show_game_over(..., won)`).
 - **Waves:** a scenario's waves are `Waves.scripted` entries without a fixed `spawn`: `kinds`, spread over `spawns` edge spawns, plus `rat_packs`
   (each pack from one spawn). `Waves.last_wave` stops the waves after the last one (the top bar says "All N waves survived"); `Waves.buffer` is
   the gap between waves; wave 1 can wait to be called (`first_wave_waits`), or wait until the scenario lets it come (`first_wave_call` false,

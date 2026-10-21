@@ -150,6 +150,8 @@ func _ready() -> void:
 	# Pages change height (Singleplayer, the multiplayer join page and lobby): fit again.
 	_menu.minimum_size_changed.connect(func() -> void: _layout.call_deferred())
 	_layout()
+	if Settings.take_campaign():  # (the campaign's last scenario won: Show campaign map)
+		open_campaign()
 
 
 ## Landscape: title on top, menu on the left over the backdrop.

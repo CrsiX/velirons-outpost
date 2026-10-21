@@ -20,6 +20,9 @@ var tutorial_next := false
 ## The next game is this scenario of the campaign (Campaign; 0: none; set by
 ## the title screen's campaign page, taken by Game).
 var scenario_next := 0
+## The title screen opens on the campaign map (set by a won last scenario's
+## Show campaign map, taken by TitleScreen).
+var campaign_next := false
 ## While a scenario runs: enemy values scaled by these instead of the
 ## difficulty's multiplier ({"hp": 0.5, ...}; Scenario.enemy_scale).
 var enemy_scale := {}
@@ -53,6 +56,13 @@ func take_scenario() -> int:
 	var n := scenario_next
 	scenario_next = 0
 	return n
+
+
+## Whether the title screen should open on the campaign map, once (then it's cleared).
+func take_campaign() -> bool:
+	var c := campaign_next
+	campaign_next = false
+	return c
 
 
 ## The Difficulty for "easy" / "normal" / "hard".

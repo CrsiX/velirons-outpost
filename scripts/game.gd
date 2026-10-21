@@ -884,6 +884,19 @@ func go_to_title() -> void:
 	get_tree().change_scene_to_file(Net.TITLE_SCENE)
 
 
+## A won scenario's next step: the next scenario of the campaign (completed
+## or not), or after the last one the title screen's campaign map.
+func play_next_scenario() -> void:
+	if Campaign.scenario(scenario_number + 1) == null:
+		Settings.campaign_next = true
+		go_to_title()
+		return
+	Settings.scenario_next = scenario_number + 1
+	Engine.time_scale = 1.0
+	get_tree().paused = false
+	get_tree().reload_current_scene()
+
+
 # --- commands, entity ids, speed ---------------------------------------------------------
 
 ## Runs a player action for the local player's village; see Commands for the

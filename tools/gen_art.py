@@ -3656,6 +3656,13 @@ def title_icons():
   <path d="M50 2 L62 14 L34 46 L26 50 L30 42Z" fill="#f4f0e6" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>
   <path d="M30 42 L34 46" fill="none" stroke="{INK}" stroke-width="3"/>
   <path d="M52 8 L38 24" fill="none" stroke="#b8b0a0" stroke-width="2"/>''')
+    # Next scenario (a won scenario's main button): a rounded play arrow on a
+    # crimson seal with a gold rim.
+    icon_svg("icon_next", f'''
+  <circle cx="32" cy="32" r="28" fill="{CRIMSON}" stroke="{INK}" stroke-width="3.5"/>
+  <circle cx="32" cy="32" r="23" fill="none" stroke="{GOLD}" stroke-width="2.5"/>
+  <path d="M26 20 L46 32 L26 44Z" fill="#5a1a14" stroke="#5a1a14" stroke-width="7" stroke-linejoin="round" transform="translate(1.5 2)"/>
+  <path d="M26 20 L46 32 L26 44Z" fill="#efe3c8" stroke="#efe3c8" stroke-width="7" stroke-linejoin="round"/>''')
     # Exit: an open door with an arrow leading out.
     icon_svg("icon_exit", f'''
   <path d="M8 6 L36 6 L36 58 L8 58Z" fill="#4a3a2a" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
