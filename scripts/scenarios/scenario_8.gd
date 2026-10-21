@@ -16,6 +16,8 @@ func _init() -> void:
 	title = "The Pale Court"
 	blurb = "In the burned capital's ruins the Evil gathers in three crypts under the old court. Clear them with the little band that followed you."
 	map_path = "res://data/maps/pale_court.json"
+	place = "capital"
+	portrait = "portrait_lothar"
 
 	# The baseline: a camp in a ruined district (half the huts stand, most
 	# walls are broken), an old guardhouse and one tower, Pell's wagon; the

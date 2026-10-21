@@ -489,6 +489,7 @@ func _decor_arts() -> Array:
 		for a in Config.ZONES[z].get("decor_mix", {}):
 			if not out.has(a):
 				out.append(a)
+	out.append_array(Config.EXTRA_DECOR)
 	return out
 
 

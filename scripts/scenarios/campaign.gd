@@ -22,9 +22,26 @@ const SCENARIOS: Array[Script] = [
 	preload("res://scripts/scenarios/scenario_11.gd"),
 ]
 
-## How many the campaign will have (the menu lists the rest as to come).
+## How many the campaign will have (the map says the rest are to come).
 const PLANNED := 11
 
+## The campaign map's layout (docs/ui-design.md): its size, the places on it
+## (each scenario names one, Scenario.place; scenarios on the same map share
+## one), the road crossings and the roads, in the picture's units. The same
+## file draws the picture (tools/gen_art.py, art "campaign_map").
+const MAP_FILE := "res://data/campaign_map.json"
+static var _layout := {}
+
+## The map's region names, laid over the picture: [text, at (share), font size (map units)].
+const REGIONS: Array = [
+	["VELIRON", Vector2(0.6, 0.64), 34],
+	["THE WILDERNESS", Vector2(0.6, 0.06), 18],
+	["THE WARDLINE", Vector2(0.62, 0.128), 11],
+	["KINGDOM OF\nKARMERE", Vector2(0.91, 0.27), 16],
+	["REPUBLIC OF\nLYRENNE", Vector2(0.91, 0.62), 16],
+	["THE HOLY DOMINION OF AURELITH", Vector2(0.55, 0.94), 18],
+	["THE\nWESTERN\nOCEAN", Vector2(0.045, 0.455), 13],
+]
 const PROGRESS_FILE := "user://campaign.json"
 ## The progress file's layout; a file of another format is ignored (read as no progress).
 const PROGRESS_FORMAT := 1
@@ -47,6 +64,105 @@ static func titles() -> Array[String]:
 	for n in range(1, count() + 1):
 		out.append(scenario(n).title)
 	return out
+
+
+# --- the map -------------------------------------------------------------------------------
+
+## MAP_FILE, read once.
+static func layout() -> Dictionary:
+	if _layout.is_empty():
+		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(MAP_FILE))
+		_layout = d if d is Dictionary else {"size": [1200, 750], "places": {}, "junctions": {}, "roads": []}
+	return _layout
+
+
+static func map_size() -> Vector2:
+	var sz: Array = layout()["size"]
+	return Vector2(float(sz[0]), float(sz[1]))
+
+
+## Place id -> {"name", "at": Vector2 (map units), "pin": its symbol (art "pin_<pin>")}.
+static func places() -> Dictionary:
+	var out := {}
+	var ps: Dictionary = layout()["places"]
+	for id: String in ps:
+		var p: Dictionary = ps[id]
+		out[id] = {"name": str(p["name"]), "at": _vec(p["at"]), "pin": str(p["pin"])}
+	return out
+
+
+## The way along the roads from place `from` to place `to` (the fewest miles),
+## each road smoothed as the picture draws it; [] if no road leads there.
+static func route(from: String, to: String) -> PackedVector2Array:
+	var nodes := {}
+	for id: String in layout()["places"]:
+		nodes[id] = _vec(layout()["places"][id]["at"])
+	for key: String in ["towns", "junctions"]:
+		for id: String in layout().get(key, {}):
+			nodes[id] = _vec(layout()[key][id])
+	var edges := {}  # node -> [[next node, its road from here]]
+	for r: Dictionary in layout()["roads"]:
+		var pts := PackedVector2Array([nodes[r["a"]]])
+		for q: Array in r["via"]:
+			pts.append(_vec(q))
+		pts.append(nodes[r["b"]])
+		var back := pts.duplicate()
+		back.reverse()
+		for pair: Array in [[str(r["a"]), str(r["b"]), pts], [str(r["b"]), str(r["a"]), back]]:
+			if not edges.has(pair[0]):
+				edges[pair[0]] = []
+			(edges[pair[0]] as Array).append([pair[1], pair[2]])
+	var dist := {from: 0.0}
+	var prev := {}
+	var todo: Array = [from]
+	while not todo.is_empty():
+		todo.sort_custom(func(x: String, y: String) -> bool: return float(dist[x]) < float(dist[y]))
+		var n: String = todo.pop_front()
+		if n == to:
+			break
+		for e: Array in edges.get(n, []):
+			var d := float(dist[n]) + _length(e[1])
+			if d < float(dist.get(e[0], INF)):
+				dist[e[0]] = d
+				prev[e[0]] = [n, e[1]]
+				todo.append(e[0])
+	if not prev.has(to):
+		return PackedVector2Array()
+	var legs: Array = []
+	var at := to
+	while at != from:
+		legs.push_front(prev[at][1])
+		at = prev[at][0]
+	var out := PackedVector2Array()
+	for leg: PackedVector2Array in legs:
+		var sm := smooth(leg)
+		if not out.is_empty():
+			sm = sm.slice(1)
+		out.append_array(sm)
+	return out
+
+
+## Corner-cutting smoothing, the ends kept (tools/gen_art.py's chaikin does the same).
+static func smooth(pts: PackedVector2Array, times := 3) -> PackedVector2Array:
+	for _i in times:
+		var out := PackedVector2Array([pts[0]])
+		for k in pts.size() - 1:
+			out.append(pts[k] * 0.75 + pts[k + 1] * 0.25)
+			out.append(pts[k] * 0.25 + pts[k + 1] * 0.75)
+		out.append(pts[pts.size() - 1])
+		pts = out
+	return pts
+
+
+static func _length(pts: PackedVector2Array) -> float:
+	var n := 0.0
+	for k in pts.size() - 1:
+		n += pts[k].distance_to(pts[k + 1])
+	return n
+
+
+static func _vec(v: Variant) -> Vector2:
+	return Vector2(float((v as Array)[0]), float((v as Array)[1]))
 
 
 # --- progress ---------------------------------------------------------------------------------

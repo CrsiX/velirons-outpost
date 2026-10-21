@@ -360,6 +360,7 @@ config.gd and count real seconds, whatever the game speed; paused time doesn't c
 - **Retire** asks for confirmation. Then the villager leaves for good (Info: "... retired and
   left the village"). Their hut and workplace are free again, and nothing is refunded.
   - The last villager can't retire (`Population.retire_error`), or the village would fall.
+  - The campaign's merchant (Pell) and residents (Wenna, Anselm, Fiona...) never retire.
 - Buttons keep their size and sit centred in their row.
 
 ## 12. Code map

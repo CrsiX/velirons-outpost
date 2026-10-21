@@ -17,6 +17,8 @@ func _init() -> void:
 	title = "The Drowned Abbey"
 	blurb = "The church's old abbey stands half-sunk in a lake, and in its crypt lies the First King's Hand. The Legion wants it too."
 	map_path = "res://data/maps/drowned_abbey.json"
+	place = "abbey"
+	portrait = "portrait_church_priest"
 
 	# The baseline: a ferry village of fishers and the church's last priests
 	# (who hide in their house), some walls down, a small barracks, towers by

@@ -132,6 +132,12 @@ func set_objectives(list: Array[Dictionary]) -> void:
 		_rows[o["id"]] = {"tick": tick, "dot": dot, "text": t, "base": str(o["text"])}
 
 
+## Shows or hides one objective's row (one that appears later: "shown").
+func show_objective(id: String, on: bool) -> void:
+	if _rows.has(id):
+		((_rows[id]["tick"] as Control).get_parent() as Control).visible = on
+
+
 ## One objective's state: done (ticked, green) and its progress ("3 / 9").
 func set_objective(id: String, done: bool, detail: String) -> void:
 	if not _rows.has(id):

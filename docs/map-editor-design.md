@@ -166,7 +166,9 @@ stroke (a drag counts as one).
   mountain tiles houses (`ZONES.city.peaks`: standing and ruined) in place of
   peaks, drawn on the cobbles.
 - **Trees / props:** paint a specific prop art, or "auto" (picked from the
-  zone's mix like the generator does). **Decor** the same. **Beach** on / off.
+  zone's mix like the generator does). **Decor** the same; besides the zones'
+  decor it offers `Config.EXTRA_DECOR` (no zone scatters it: the dried-up well,
+  `well_dry`, in scenario 5's fort). **Beach** on / off.
 - **Roads:** draw a road from tile to tile (a straight / A* path between two
   taps, or freehand). Water or lava under it becomes a crossing
   automatically (bridge style by zone, ford on shallow), as in `GenRoads`.

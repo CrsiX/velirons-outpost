@@ -2,14 +2,17 @@ class_name Journal
 extends CenterContainer
 ## A page found in a scenario (docs/scenarios-design.md §7): a journal
 ## fragment, a letter, a logbook, shown over the game on parchment. Single
-## player pauses meanwhile and goes on at the speed before; Close or Esc
-## closes it (it is one of the HUD's popups).
+## player pauses meanwhile, the game grey behind it (like the settings), and
+## goes on at the speed before; Close or Esc closes it (it is one of the HUD's
+## popups).
 
 signal closed
 
 var game: Game
 var _title: Label
 var _text: Label
+## Greys the game behind the page while it is paused (the HUD's grayscale veil).
+var _gray: ColorRect
 ## The game's speed when it opened (Game.SPEEDS index), -1 while closed.
 var _speed_before := -1
 
@@ -20,11 +23,6 @@ func setup(p_game: Game) -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.45)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(dim)
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UiTheme.box(Color("e8dcb8"), Color("6a4a2a"), 4, 10, 26))
 	add_child(panel)
@@ -49,6 +47,13 @@ func setup(p_game: Game) -> void:
 	close.pressed.connect(close_page)
 	v.add_child(close)
 	visible = false
+	# (its own layer just under the page: a container would shrink it)
+	_gray = game.hud.grayscale_rect()
+	_gray.name = "JournalGray"
+	_gray.visible = false
+	game.hud.add_layer(_gray, true)
+	_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Layout.bleed(_gray)
 	game.hud.add_layer(self, true)
 	game.hud.register_popup(self, close_page)
 
@@ -59,6 +64,7 @@ func open(title: String, text: String) -> void:
 	if not visible and not game.networked:
 		_speed_before = game.speed_index
 		game.apply_speed(Game.SPEEDS.find(0.0))
+	_gray.visible = _speed_before >= 0
 	visible = true
 	var flat := " ".join(Array(text.split("\n", false)).map(func(l: String) -> String: return l.strip_edges()))  # (one line in the log)
 	game.events.info("%s: %s" % [title, flat.left(60) + ("..." if flat.length() > 60 else "")])
@@ -68,6 +74,7 @@ func close_page() -> void:
 	if not visible:
 		return
 	visible = false
+	_gray.visible = false
 	if _speed_before >= 0:
 		game.apply_speed(_speed_before)
 		_speed_before = -1

@@ -14,6 +14,8 @@ func _init() -> void:
 	title = "The Last Wardline"
 	blurb = "The Dread Legion marches on your home by every road. Hold the village and the restored Wardline against Rhodri's marshal."
 	map_path = "res://data/maps/wardline.json"
+	place = "outpost"
+	portrait = "portrait_halvard"
 
 	# The baseline: the village at its strongest: every hut, Pell's guild
 	# market, barracks, training grounds, the Wardline restored and manned.

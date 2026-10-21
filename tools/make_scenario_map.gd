@@ -29,6 +29,13 @@ extends Node
 ## tile city (near the village and the throne hall) or ash land, the trees
 ## gone; houses (mountain tiles with a house) in blocks between lanes, off the
 ## roads and away from the walls; the throne hall (a 3x3 landmark) by a road.
+## Maps the user has edited by hand (CLAUDE.md): never run with --force for
+## them. So far: 5 (old_fort.json).
+## "citadel": scenario 5's fort in a mountain pass, laid out by citadel_map.gd
+## rather than generated ({"seed"}); it prints where Sigmund's tent goes
+## (scenario_5.gd's SIGMUND_TENT).
+
+const CitadelMap := preload("res://tools/citadel_map.gd")
 
 const MAPS := {
 	1: {"map_type": "highlands", "seed": 1337, "name": "Homecoming",
@@ -45,9 +52,9 @@ const MAPS := {
 	4: {"map_type": "coast", "seed": 42, "name": "The Guild Town",
 		"description": "Scenario 4: the Silver Thread Guild's walled market town on the coast, its harbour on the inlet beside the walls.",
 		"drop": ["unlock", "lair"], "ruins": 0},
-	5: {"map_type": "highlands", "seed": 11, "name": "The Old Fort",
-		"description": "Scenario 5: Brenna's old fort, where the road comes down out of the northern pass. The evidence lies in the hills around it.",
-		"drop": ["unlock", "lair"], "ruins": 0},
+	5: {"citadel": {"seed": 11}, "name": "The Old Fort",
+		"description": "Scenario 5: Brenna's old fort, a citadel filling the only pass through the mountains that split the land. Forest and wilderness to the north, meadow and steppe to the south.",
+		"ruins": 0},
 	6: {"map_type": "desert", "seed": 606, "name": "The Field of Bones",
 		"description": "Scenario 6: a village of survivors on the dry plain where the armies met, its ruined chapel by the road.",
 		"drop": ["unlock", "lair"], "ruins": 0,
@@ -88,7 +95,12 @@ func _ready() -> void:
 	var spec: Dictionary = MAPS[n]
 	var m: MapData
 	var gen_seed = null
-	if spec.has("grow"):
+	if spec.has("citadel"):
+		var made := CitadelMap.make(int(spec["citadel"]["seed"]))
+		m = made["map"]
+		gen_seed = int(spec["citadel"]["seed"])
+		print("Sigmund's tent: %s" % made["tent"])
+	elif spec.has("grow"):
 		var g: Dictionary = spec["grow"]
 		var r := MapLibrary.load_file(Campaign.scenario(int(g["from"])).map_path)
 		if r["map"] == null:

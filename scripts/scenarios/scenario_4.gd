@@ -17,6 +17,8 @@ func _init() -> void:
 	title = "The Split"
 	blurb = "The Silver Thread Guild's last market town is under pressure. Hold it, and its harbour warehouse, until the convoy is loaded and away."
 	map_path = "res://data/maps/guildtown.json"
+	place = "guild_town"
+	portrait = "portrait_wenna"
 
 	# The baseline: the guild's town, its staff in the huts, the full guild
 	# market, a small garrison; the warehouse by the harbour.

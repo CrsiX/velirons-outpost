@@ -222,27 +222,36 @@ whose they were.
 
 ### 5. The Betrayal
 
-**Where:** Brenna's old fort, a hold in a mountain pass on the inner Wardline. Two walls stand and the rest is ruin.
+**Where:** Brenna's old fort, a citadel in the only pass through a mountain range that runs across the land from west to east and splits it
+in two. Whoever holds the fort holds the way between the halves.
 
-**Starting point:** a ruined fortress with a few survivors (the veteran **Sigmund**, a named warrior as flavour). A small barracks. Shield bearers
-and archers
-unlocked.
-The market is Pell's wagon. Hero level about 7. **No revive.**
+**Starting point:** the fort stands whole and empty: nobody is there when Brenna and Pell arrive. Two walls close the pass, one to the north and
+one to the south, each from mountain to mountain with a gate in the middle and a wall tower at each end; the mountains are the fort's sides.
+Inside, a road runs from gate to gate, with 4 huts, two barracks and training grounds beside it (all empty). Pell lives in one hut, the other
+three are free: the fort holds very few people. Pell sets up his wagon (a peddler's stall) outside the south gate. No farm, no other villager.
+Shield bearers and archers unlocked. Hero level about 7. **No revive.**
 
-**Objective:** find **three pieces of evidence** around the pass (treasures, some guarded by monster camps) *and* hold the fort for 10 waves.
+**The land:** north of the range lies forest, the wilderness: every monster camp is there. South of it lies meadow and steppe, the safer side
+(the kingdom's). Roads come down to the pass from the north edge and from the west and east edges on both sides, so enemies come from both
+halves. **Sigmund**, the old veteran, camps in a tent on the south side: the fort's people scattered after that night and he would not sleep
+inside its walls. Found (his tent uncovered), he joins as a builder and moves into the fort, and the waves begin.
+
+**Objective:** find **three pieces of evidence** on both sides of the range (treasures; the two in the north guarded by monster camps) *and* hold
+the fort for 10 waves. Sigmund is not a piece of evidence.
 
 **Monsters:** Wilderness, Renegades and the first **Arcane** (*open*: witches, gargoyles). In the last wave the first **Dread Legion** patrol
 arrives: Rhodri's soldiers, sent to finish what the pass began. Brenna knows them: they are her old company, with **Lysa**, her captain, and her
 comrade **Torben** among them.
 
 **Problems:** the evidence lies far away, so the hero must leave the fort, with no revive. Monster camps guard the farthest pieces (the hero
-attacks one only on the player's order). The fort is hard to expand because of the terrain.
+attacks one only on the player's order). The fort is hard to expand because of the terrain, and its 4 huts limit the village to Pell and three
+more: when Sigmund comes, one of them may have to make room for him.
 
 **Events:**
-- Sigmund tells the story over the first waves, in pieces.
+- Sigmund is found on the south side and joins (see below); he tells the story over the first waves, in pieces.
 - The three finds: Rhodri's written order for the garrison, the roll of the fallen (Brenna's company), and a seal that matches a letter from one
   of the neighbouring courts (an object that does not settle whose).
-- At the last wave the gargoyles of the fort's old gate come alive, fly out and then attack.
+- At the last wave the gargoyles on the rocks above the pass come alive, fly out and then attack.
 
 **Story covered:** how Brenna was **betrayed**. Rhodri ordered the pass held with no relief, so that her company could be given to the crown's
 ritual. She saw it: Rhodri came to the pass himself, the crown on his head glowing pale, and the ritual did not kill them, it **bound them to
@@ -252,7 +261,8 @@ it and watched from the ridge, too late and alone. Nobody would have believed a 
 dead: the roll of the fallen lists the whole company, her too. They are alive, and they are the core of the **Dread Legion**. Lysa saved her and
 is bound herself, which is why Brenna wants to free them (scenario 10). This is where Brenna stops being neutral (`story-design.md` section 2).
 
-**Intro cutscene:** Brenna sees the fort again for the first time since she left. The gate, the barracks, the field where the company stood.
+**Intro cutscene:** Brenna sees the fort again for the first time since she left: the walls, the barracks, the field where the company stood.
+It is empty: no guard on the walls, nobody in the huts. Pell finds it eerie; Brenna wonders where everyone went.
 
 **Outro cutscene:** she reads the order aloud: *"Hold until the last. Do not ask for relief."* Pell says nothing. Brenna: Rhodri gave her company
 to his crown, and the only one left who can stand against him is his sister. She will find Fiona. Pell knows Fiona's court fled east; the way
@@ -840,28 +850,52 @@ The game has none of this yet, except where noted:
 
 ### 7.9 Scenario 5 as built (`scenario_5.gd`)
 
-- **Map:** `old_fort.json` (*The Old Fort*).
-- **Baseline:** Easy, enemies at 0.95; 220 gold, 150 food, 220 material; two builders (one is **Sigmund**, the old veteran), a farmer, a
-  forester, a gatherer, Pell; the farm and the camp; 6 of 9 huts stand; 2 walls, 1 gate and 1 wall tower stand at 60 % HP, the rest are
-  devastated; Pell's wagon (a Peddler's Stall), barracks with a level 3 shield bearer, a watchtower with a level 3 archer, a wall tower with a
-  level 2 archer. Brenna is level 7.
-- **Rules:** archers and shield bearers, specialising, training grounds; no revive; Pell must not die.
-- **Waves:** ten. Goblins, orks, rats, thieves; **witches** from wave 3 and **gargoyles** from wave 6 (the first Arcane). Wave 10: 6 goblins and
-  2 orks, and when it starts (`on_wave_started`) the **Dread Legion** comes down the pass from the north edge (8 footmen, and the captains
-  **Lysa** and **Torben**), while 3 **gargoyles** wake at the fort's old gate (a road tile 14 tiles up the pass road). Wave 1 waits to be called;
+- **Map:** `old_fort.json` (*The Old Fort*, 75x75), made by `tools/make_scenario_map.gd` (`"citadel"`), not generated: a mountain range across
+  the middle from west to east (about 13 tiles deep, ragged), the pass straight through it north to south (7 tiles wide at the fort, wider
+  towards both ends). The fort fills the pass: two walls of 7 tiles across it, 8 tiles apart (`T W G W W W T` north, `T W W G W W T` south),
+  the mountains on both sides; the road bends a little from the north gate through the fort's middle (the village centre lies on it) to the
+  south gate. Inside: 4 huts in two rows of two east of the road (a tile apart, a tile clear of the mountains), two barracks and training
+  grounds (prebuilt, `Scenario.build_inside`), a dried-up well (decor, `well_dry`: no use) and one dead tree. Where two roads run side by side,
+  the doubled tiles are taken out, and so are stubs, a road tile sticking out with one road neighbour (`_prune`). The map is the
+  tool's start; the user has edited it by hand in the map editor since, so it is never made again with the tool (`--force` would
+  undo those edits). What the code ties to it: `SIGMUND_TENT`, the prebuilt posts' offsets from the village centre, the evidence (by
+  treasure tier: two tier 3 in the north, one tier 2 in the south; tier 1 small chests). The user's edit added a **hollow-tree lair** in
+  the northern forest (its road to the network) and reshaped forest and mountains.
+- **The lair:** asleep until wave 6 (`LAIR_WAVE`, `Scenario.lairs`), or until the village finds it (an explorer or Brenna uncovers it:
+  `on_poll` wakes it at once). Awake, it sends its theme (goblins, rats, spider mothers) with every wave (every wave has `"lairs": true`);
+  Brenna can clear it, and cleared it stays cleared. North: oak woods with pine patches and clearings (the wilderness: both camps). South:
+  meadow with steppe spots, a few trees. Roads: one from the north edge and one from the south edge to their gates, and one from the west and
+  one from the east edge on each side, joining them before the pass: six edge spawns, three a side. Objects: in the north, two treasures
+  guarded by camps (the far evidence) and a small chest; in the south, one treasure (evidence) and a small chest. Sigmund's tent: a fixed tile in
+  the south, off the west road (`SIGMUND_TENT`).
+- **Baseline:** Easy, enemies at 0.95; 220 gold, 150 food, 220 material; only Pell (in a hut; his stall a Peddler's Stall outside the south
+  gate). Every hut, wall, gate and wall tower stands whole, the gates at level 2 (`Scenario.piece_levels`); the barracks and training grounds stand empty. No farm. Brenna is level 7.
+- **Rules:** archers and shield bearers, specialising, training grounds; no revive; Pell must not die and can't retire (no merchant or
+  resident can). Buildings may be placed inside the fort's walls on free tiles off the road (`build_inside`), so what is torn down there makes
+  room.
+- **Sigmund:** his tent (and him beside it) stand on `SIGMUND_TENT`. Once its tile is explored he is found: wave 1 is on its way (10 s,
+  `FIRST_WAVE_AFTER`; it can't be called before) and he joins as a builder named Sigmund (`ScenarioRunner.join_villager`: spawned at the tent,
+  he walks to his hut) once his scene is over (he stands by his tent while he talks). If no hut is free, a builder leaves (retired, logged) and Sigmund takes his hut; if there is no builder either, the
+  objective **"Give Sigmund a roof over his head"** appears (`"shown"`) and he waits by his tent until a hut is free (the player retires
+  someone in the villager list), then moves in at once. The objective shows once he is found and is ticked as soon as he lives in the fort.
+- **Waves:** ten, from both halves (six spawns). Goblins, orks, rats, thieves; **witches** from wave 3 and **gargoyles** from wave 6 (the first
+  Arcane). Wave 10: 6 goblins and 2 orks, and when it starts (`on_wave_started`) the **Dread Legion** comes down from the north edge (8 footmen,
+  and the captains **Lysa** and **Torben**), while 3 **gargoyles** wake on the rocks above the pass (a road tile 14 tiles up the north road).
   45 s between waves.
-- **Evidence:** the three treasures farthest from the fort (Sigmund knows where: their places are uncovered at the start); the hero loots them as
-  any treasure (guarded ones once their camp is cleared). Each found piece shows its page, in the order found: **Rhodri's order** ("Hold until
-  the last. Do not ask for relief. Relief will not come. The crown will come to you itself..."), **the roll of the fallen** (forty-one names in
-  one ink on one day, Brenna's among them, no grave marked), **a foreign seal** (a tower over three waves; whose, nobody can say).
-- **Story:** the intro (the fort, the field where the company stood; Pell; Sigmund: "you look well for a dead woman"; the evidence is in the
-  hills); Sigmund tells it after waves 1, 2, 3 and 5 (Lysa sent Brenna down the pass with a plea for relief; Rhodri came the next evening with the
-  crown; the company knelt on the field and stood up bound; no body on the field), Pell after wave 7; wave 10's scene (the column down the pass,
-  Lysa and Torben; "Hold until the last."; the gargoyles on the old gate); when a captain falls back, Brenna: they are alive, and she will free
-  them; the outro (the order read aloud; Rhodri gave her company to his crown; Lysa sent her away that night; she can't stand aside any more: she
-  will find Fiona; the way east crosses the field where the armies met).
-- **Cards:** the evidence (Explore; the three places marked), guarded (attack a camp). **Hints:** a witch, a gargoyle, the Legion (released when
-  it falls), Brenna badly hurt. **Objectives:** find the three pieces of evidence; hold the fort for 10 waves.
+- **Evidence:** three treasures: the two guarded ones in the north and the one in the south (the guarded treasures farthest north, the
+  treasure farthest south); hidden in the fog, no card marks them. The hero loots them as any treasure (guarded ones once their camp is
+  cleared). Each found piece shows its page (the game grey behind it), in the order found: **Rhodri's order** ("Hold until the last. Do not ask
+  for relief. Relief will not come. The crown will come to you itself..."), **the roll of the fallen** (forty-one names in one ink on one day,
+  Brenna's among them, no grave marked), **a foreign seal** (a tower over three waves; whose, nobody can say).
+- **Story:** the intro (the fort whole and empty, nobody on the walls; Pell finds it eerie; the field where the company stood; the evidence is
+  in the hills, on both sides; Pell sets up outside the south gate); Sigmund found (he camps outside, he couldn't sleep in there; "you look well
+  for a dead woman"); Sigmund tells it after waves 1, 2, 3 and 5 (Lysa sent Brenna down the pass with a plea for relief; Rhodri came the next
+  evening with the crown; the company knelt on the field and stood up bound; no body on the field), Pell after wave 7; wave 10's scene (the
+  column down the pass, Lysa and Torben; "Hold until the last."; the gargoyles above the pass); when a captain falls back, Brenna: they are
+  alive, and she will free them; the outro (as before).
+- **Cards:** the evidence (Explore; nothing marked; the waves come once Sigmund is found), guarded (attack a camp). **Hints:** a witch, a
+  gargoyle, the Legion (released when it falls), Brenna badly hurt. **Objectives:** find the three pieces of evidence; Sigmund's roof (once he
+  is found); hold the fort for 10 waves.
 
 ### 7.10 What scenarios 6 and 7 added to the engine
 

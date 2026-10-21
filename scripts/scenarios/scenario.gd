@@ -20,6 +20,10 @@ var blurb := ""
 var map_path := ""
 ## Which of the map's villages is played.
 var village := 0
+## Where it is on the campaign map (a place in Campaign.places(): data/campaign_map.json), and the portrait
+## its card there shows (an art name).
+var place := "outpost"
+var portrait := "portrait_brenna"
 
 # --- the baseline (docs/scenarios-design.md §1: nothing carries over) -----------------------
 
@@ -46,6 +50,9 @@ var huts_standing := 9
 var pieces_standing := {}
 ## The HP share the standing pieces have left.
 var pieces_hp := 1.0
+## Village pieces that start above level 1, by kind ("gate", "wall",
+## "wall_tower"): every one of that kind at that level, at full HP.
+var piece_levels := {}
 ## Posts and buildings that stand finished at the start, manned:
 ## {"kind": a Config.BUILDINGS key, or "wall_tower" (the corner tower nearest
 ## that road's gate), "road": which road (0: the one nearest the village by
@@ -54,6 +61,8 @@ var pieces_hp := 1.0
 ## nearest the water, or "near_site": an unlock site's kind, the free spot
 ## nearest the map's site of that kind), "level", "units": [{"kind",
 ## "level", "fixed": takes no orders (MilitaryUnit.bound)}] (one per slot)}.
+## "offset": a tile relative to the village centre, else the free spot
+## nearest it (scenario 5's fort and Pell's stall).
 ## A workplace among them takes its worker (the stall: the merchant).
 var prebuilt: Array[Dictionary] = []
 ## Units waiting in the reserve at the start: [{"kind", "level"}] (scenario 8's band).
@@ -80,6 +89,9 @@ var units: Array[String] = []
 var recruiting := true
 ## Buildings that can be placed ([]: all).
 var build: Array[String] = []
+## Buildings may go inside the village's walls too, on free tiles off the
+## road (scenario 5's fort, where barracks and training grounds stand inside).
+var build_inside := false
 ## Units may specialise (from Config.BRANCH_MIN_LEVEL).
 var specialise := true
 ## The hero comes back after being downed (home); false: downed is a defeat.
@@ -170,8 +182,9 @@ func hints(_r: ScenarioRunner) -> Array[Dictionary]:
 
 ## The objectives, shown under the card: {"id", "text", "done": Callable ->
 ## bool, "detail": optional Callable -> String (progress, e.g. "3 / 5"),
-## "optional": true (shown, not needed to win)}. All the others done (at
-## once) win the scenario.
+## "optional": true (shown, not needed to win), "shown": Callable -> bool
+## (hidden until it first holds; needed to win only once shown)}. All the
+## others done (at once) win the scenario.
 func objectives(_r: ScenarioRunner) -> Array[Dictionary]:
 	return []
 

@@ -12,6 +12,8 @@ func _init() -> void:
 	title = "Homecoming"
 	blurb = "Brenna Hale comes home to a half-burned village. Rebuild it with her father Einar, and don't lose a single villager."
 	map_path = "res://data/maps/homecoming.json"
+	place = "outpost"
+	portrait = "portrait_einar"
 
 	# The baseline: a ruined outpost, three villagers, little of anything.
 	difficulty = "easy"

@@ -17,6 +17,8 @@ func _init() -> void:
 	title = "The Exile"
 	blurb = "Fiona's hidden refuge needs defending, but she wants nothing from a knight of her brother's army. Earn her trust."
 	map_path = "res://data/maps/refuge.json"
+	place = "refuge"
+	portrait = "portrait_fiona"
 
 	# The baseline: a refuge of tired people (one farm in the forest, food just
 	# about even), a hut and some walls broken, two court mages on watchtowers,

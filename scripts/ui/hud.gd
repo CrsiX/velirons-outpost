@@ -294,13 +294,13 @@ func setup(p_game: Game) -> void:
 	stats_screen.setup(game)
 	stats_screen.closed.connect(_on_stats_closed)
 	_root.add_child(stats_screen)
-	_stats_gray = _grayscale_rect()
+	_stats_gray = grayscale_rect()
 	_stats_gray.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stats_screen.add_child(_stats_gray)
 	stats_screen.move_child(_stats_gray, 0)
 	_stats_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	Layout.bleed(_stats_gray)
-	_lib_gray = _grayscale_rect()
+	_lib_gray = grayscale_rect()
 	_lib_gray.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	library.add_child(_lib_gray)
 	library.move_child(_lib_gray, 0)
@@ -2478,7 +2478,7 @@ void fragment() {
 
 
 ## A full-size rect that turns everything drawn before it grey.
-func _grayscale_rect() -> ColorRect:
+func grayscale_rect() -> ColorRect:
 	var r := ColorRect.new()
 	var mat := ShaderMaterial.new()
 	var sh := Shader.new()
@@ -2491,7 +2491,7 @@ func _grayscale_rect() -> ColorRect:
 
 func _build_settings() -> void:
 	# Co-op pause: the map and HUD below the top bar turn grey (the top bar stays in colour).
-	_pause_gray = _grayscale_rect()
+	_pause_gray = grayscale_rect()
 	_root.add_child(_pause_gray)
 	_pause_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	Layout.bleed(_pause_gray)
@@ -2501,7 +2501,7 @@ func _build_settings() -> void:
 	_root.add_child(_settings)
 	_settings.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# Everything drawn before this (the map and the rest of the HUD) turns grey.
-	var gray := _grayscale_rect()
+	var gray := grayscale_rect()
 	_gray = gray
 	_settings.add_child(gray)
 	gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

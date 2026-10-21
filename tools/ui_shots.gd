@@ -11,12 +11,14 @@ extends Node
 ## goblins hitting a gate, the library's gate entry and the statistics, and
 ## (`--only=scenario`) scenario 1: the campaign page, the intro cutscene, the
 ## walk home, the arrival, the cards and objectives, the outro and the end
-## (landscape, and the intro and a card in portrait); (`--only=campaign`)
+## (landscape, and the intro and a card in portrait; the campaign map: all
+## open, a release build's progress with seals, a card, portrait); (`--only=campaign`)
 ## scenarios 2 and 3: Pell's arrival, his stall and its panel, a talk between
 ## waves, the Wardline's start, a journal page, a restored ruin and the road;
 ## (`--only=away`) scenarios 4 and 5: Wenna, the warehouse and the guild
-## house, the rival's offer (a choice), a plundering goblin; Sigmund, the
-## evidence card and a page, the Legion with its named captains;
+## house, the rival's offer (a choice), a plundering goblin; the empty fort,
+## the citadel in its pass, Sigmund found by his tent, a page (the game grey
+## behind it), the Legion with its named captains;
 ## (`--only=exile`) scenarios 6 and 7: Anselm, the field of the fallen, the
 ## graveyard filling; Fiona at the gate, Brenna's tent, the druids' grove and
 ## its panel, Fiona's house;
@@ -737,9 +739,32 @@ func _scenario() -> void:
 	var t: TitleScreen = load("res://scenes/title.tscn").instantiate()
 	add_child(t)
 	await _frames(30)
-	t.show_page(t._campaign_page)
+	var cm := t.campaign_map
+	t.open_campaign()
 	await _frames(10)
-	await shot("scenario_campaign_page")
+	await shot("scenario_campaign_map")
+	# A release build's view with 1 to 4 completed: only what is open, seals, the route.
+	cm.show_all = false
+	Campaign.reset_progress()
+	for n in [1, 2, 3, 4]:
+		Campaign.complete(n)
+	cm.open()
+	await _frames(10)
+	await shot("scenario_campaign_progress")
+	cm.show_card(4)
+	await _frames(6)
+	await shot("scenario_campaign_unrolling")
+	await _frames(30)
+	await shot("scenario_campaign_card")
+	var win := get_window().size
+	await _size(Vector2i(540, 960))
+	cm.open()
+	await _frames(6)
+	await shot("scenario_campaign_portrait_unrolling")
+	await _frames(30)
+	await shot("scenario_campaign_portrait")
+	await _size(win)
+	Campaign.reset_progress()
 	t.queue_free()
 	await _frames(3)
 	Settings.scenario_next = 1
@@ -813,7 +838,8 @@ func _scenario() -> void:
 	await _cut_to_line(sc, "pell")
 	await _frames(120)
 	await shot("scenario_outro_pell")
-	sc.cutscene.skip()
+	if sc.cutscene:
+		sc.cutscene.skip()
 	await _frames(30)
 	await shot("scenario_complete")
 	g.queue_free()
@@ -990,11 +1016,27 @@ func _away() -> void:
 	await _frames(3)
 	g = await _scenario_game(5)
 	sc = g.scenario
+	await _cut_to_line(sc, "pell")
+	await shot("away_s5_empty_fort")
+	sc.cutscene.skip()
+	await _frames(30)
+	await shot("away_s5_fort_card")
+	g.camera.focus(Iso.to_world(Vector2(g.player_village.center)))
+	g.camera.zoom = Vector2(0.9, 0.9)
+	await _frames(20)
+	await shot("away_s5_citadel")
+	g.camera.zoom = Vector2(0.35, 0.35)
+	await _frames(20)
+	await shot("away_s5_pass")
+	g.fog.reveal(Vector2(sc.spec.SIGMUND_TENT), 3.0, g.player_village.id)
+	for i in 120:
+		await _frames(1)
+		if sc.cutscene != null:
+			break
 	await _cut_to_line(sc, "sigmund")
 	await shot("away_s5_sigmund")
 	sc.cutscene.skip()
 	await _frames(30)
-	await shot("away_s5_evidence_card")
 	(sc.spec._evidence(sc)[0] as Treasure).mark_looted()
 	for i in 120:
 		await _frames(1)
