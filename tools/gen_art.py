@@ -1325,6 +1325,22 @@ def grave_mound():
     a.save("grave_mound")
 
 
+def grave_cross():
+    """The cross Anselm plants over the last grave of the day (scenario 6's
+    outro): a fresh mound and a tall cross of two lashed planks."""
+    a = Art()
+    a.ellipse(0, 0, 12, 4.6, "#000", opacity=0.25)
+    a.ellipse(0, -1, 11, 4.2, DIRT, INK, 0.9)
+    a.ellipse(-2, -2.4, 6, 2, DIRT_LIGHT, opacity=0.7)
+    a.line([(0, -1), (0, -30)], INK, 4.2)
+    a.line([(0, -1), (0, -30)], WOOD_L, 2.4)
+    a.line([(-7, -22), (7, -22)], INK, 3.8)
+    a.line([(-7, -22), (7, -22)], WOOD_L, 2.0)
+    a.line([(-1.6, -23.6), (1.6, -20.4)], INK, 1.0)
+    a.line([(-1.6, -20.4), (1.6, -23.6)], INK, 1.0)
+    a.save("grave_cross")
+
+
 def grove():
     """The druids' grove by their stone circle (scenario 7, 2x2): moss and
     ferns inside a ring of small standing stones, an old crooked oak at the
@@ -6225,6 +6241,7 @@ def main():
     corpse_fallen("corpse_fallen_2", CRIMSON, CRIMSON_D)
     graveyard()
     grave_mound()
+    grave_cross()
     grove()
     druid()
     thornling()

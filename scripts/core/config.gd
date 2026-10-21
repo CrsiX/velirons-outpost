@@ -794,11 +794,12 @@ const CIVILIANS := {
 		"desc": "Keeps the guild's books in the guild house and never leaves it. She dies if it burns.",
 		"stays_home": "keeping the guild's books",
 	},
-	# Can't be recruited: Anselm, the battlefield's priest (scenario 6). Stays
-	# in his hut ("stays_home": what he does there).
+	# Can't be recruited: Anselm, the battlefield's priest (scenario 6), and
+	# scenario 9's priests. At home ("stays_home": what he does there);
+	# Anselm walks his rounds too (Resident.rounds: the chapel, the graveyard).
 	"priest": {
 		"name": "Priest", "cost": {}, "speed": 1.1, "recruit": false,
-		"desc": "Prays for the dead in his house and never leaves it. He dies if it burns.",
+		"desc": "Prays for the dead, in his house or at the graves. He runs home from enemies, and dies if his house burns.",
 		"stays_home": "praying for the dead",
 	},
 	# Can't be recruited: Fiona, the old king's daughter (scenario 7). Stays in

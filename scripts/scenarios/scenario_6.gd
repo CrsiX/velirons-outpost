@@ -18,13 +18,14 @@ func _init() -> void:
 	place = "battlefield"
 	portrait = "portrait_anselm"
 
-	# The baseline: a village of survivors on dry land (food is short), two
-	# gravediggers, Anselm in his house, a small garrison, Pell's wagon, the
-	# graveyard by the chapel.
+	# The baseline: a village of survivors on dry land (food is short), no
+	# gravediggers yet (the player recruits them), Anselm in his house, a
+	# garrison of two (an archer on a wall tower, a shield bearer in the
+	# barracks), Pell's wagon, the graveyard by the chapel.
 	difficulty = "easy"
 	enemy_scale = {"hp": 1.0, "damage": 1.0, "spell_damage": 1.0}
 	resources = {"gold": 240, "food": 90, "materials": 200}
-	civilians = ["builder", "builder", "farmer", "forester", "gatherer", "gatherer", "merchant", "priest"]
+	civilians = ["builder", "builder", "farmer", "forester", "merchant", "priest"]
 	names = {"merchant": "Pell", "priest": "Anselm"}
 	homes = {"Anselm": {"art": "priest_house", "name": "Anselm's House"}}
 	buildings = ["farm", "camp"]
@@ -33,10 +34,8 @@ func _init() -> void:
 	prebuilt = [
 		{"kind": "graveyard", "near_site": "chapel"},
 		{"kind": "stall", "road": 1, "at": [3, 7], "level": 1},
-		{"kind": "barracks", "road": 0, "at": [5, 9], "units": [{"kind": "shield_bearer", "level": 4}]},
-		{"kind": "tower", "road": 0, "at": [3, 5], "units": [{"kind": "archer", "level": 4}]},
-		{"kind": "tower", "road": 2, "at": [3, 5], "units": [{"kind": "archer", "level": 3}]},
-		{"kind": "wall_tower", "road": 1, "units": [{"kind": "archer", "level": 3}]},
+		{"kind": "barracks", "road": 0, "at": [5, 9], "units": [{"kind": "shield_bearer", "level": 1}]},
+		{"kind": "wall_tower", "road": 1, "units": [{"kind": "archer", "level": 1}]},
 	]
 	hero_name = "Brenna"
 	hero_level = 9
@@ -84,6 +83,14 @@ const CLUSTERS := 4
 const BURY := 24
 ## Tiles from the village centre the clusters lie at.
 const FIELD := Vector2(8.0, 17.0)
+## At most this many tiles from a road (a necromancer on it raises within
+## its raise_range, 3).
+const ROAD_NEAR := 2
+## Anselm's rounds (after the intro): the chapel, the graveyard, home; the
+## seconds he prays at each stop and rests at home.
+const ANSELM_STAY := 10.0
+## Tiles a second the outro's three walk to the graveyard (real seconds).
+const OUTRO_PACE := 1.6
 
 
 # --- the story -----------------------------------------------------------------------------
@@ -113,21 +120,78 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 	]
 
 
+## Anselm, Brenna and Pell walk from the village to the graveyard while
+## they talk; there Anselm plants the cross.
 func outro(r: ScenarioRunner) -> Array[Dictionary]:
+	var c := r.game.player_village.center
 	var gy := _graveyard(r)
-	var grave: Vector2 = r.at(gy.tile) if gy else r.at(r.game.player_village.center)
+	var plot: Vector2i = gy.visit_tile() if gy else c
+	var grave: Vector2 = r.at(plot)
+	var way := r.game.world.pathing.find_path(c, plot)
+	var walk := clampf(float(way.size()) / OUTRO_PACE, 4.0, 16.0)
 	return [
 		{"do": func() -> void: r.dusk(3.0)},
-		{"camera": grave + Vector2(0, -30), "zoom": 1.15, "time": 2.0},
-		{"say": "", "text": "The last grave of the day is filled. Anselm plants the cross himself, and stands a while."},
-		{"say": "anselm", "text": "Blue and crimson, side by side. They'll quarrel less down there than they did up here."},
+		{"do": func() -> void: _walk_to_graves(r, way, walk)},
+		{"camera": r.at(c) + Vector2(0, -30), "zoom": 1.1, "time": 1.5},
+		{"say": "", "text": "The last grave of the day is dug. Anselm takes up the cross himself, and they walk out to the graveyard together."},
+		{"camera": grave + Vector2(0, -30), "zoom": 1.15, "time": maxf(2.0, walk - 1.5), "wait": false},
 		{"say": "brenna", "text": "You said you'd tell me where the court went."},
 		{"say": "anselm", "text": "East. Fiona's court and what was left of the church, to a valley in the forest where the druids keep their distance from the war."},
+		{"until": func() -> bool: return _walk_done(r), "max": walk + 2.0},
+		{"camera": grave + Vector2(0, -30), "zoom": 1.25, "time": 1.0},
+		{"do": func() -> void: _plant_cross(r, plot)},
+		{"wait": 0.8},
+		{"say": "", "text": "Anselm plants the cross over the last grave, prays, and stands a while."},
+		{"say": "anselm", "text": "Blue and crimson, side by side. They'll quarrel less down there than they did up here."},
 		{"say": "anselm", "text": "Take this. A priest's word, sealed. It will get a knight of Rhodri's army through their gate."},
 		{"say": "anselm", "text": "It won't get you trusted. That you'll have to do yourself."},
 		{"say": "pell", "text": "Then we'd better start early."},
 		{"fade": "out", "time": 1.5},
 	]
+
+
+## The outro's three walk from the village centre to the graveyard (the
+## real ones are hidden meanwhile: the game ends after it).
+func _walk_to_graves(r: ScenarioRunner, way: PackedVector2Array, time: float) -> void:
+	var g := r.game
+	g.hero.visible = false
+	for civ in g.population.civilians:
+		if civ.given_name in ["Anselm", "Pell"]:
+			civ.visible = false
+	var tiles: Array = []
+	for q in way:
+		tiles.append(q)
+	if tiles.size() < 2:
+		tiles = [Vector2(g.player_village.center), Vector2(g.player_village.center)]
+	var actors: Array = []
+	for who in [["unit_priest", Vector2(0, 0)], ["unit_hero", Vector2(-0.6, 0.5)], ["unit_merchant", Vector2(0.5, -0.6)]]:
+		var off: Vector2 = who[1]
+		var path: Array = tiles.map(func(t: Vector2) -> Vector2: return t + off)
+		var a := r.actor(str(who[0]), path[0])
+		r.move_actor(a, path, time)
+		actors.append(a)
+	r.mark["outro actors"] = actors
+	r.mark["outro end"] = Iso.to_world(tiles[-1])
+
+
+## Anselm (the first of the three) has reached the graveyard.
+func _walk_done(r: ScenarioRunner) -> bool:
+	var actors: Array = r.mark.get("outro actors", [])
+	if actors.is_empty() or not is_instance_valid(actors[0]):
+		return true
+	return (actors[0] as Node2D).position.distance_to(r.mark.get("outro end", Vector2.ZERO)) < 1.0
+
+
+## The cross over the last grave, by Anselm.
+func _plant_cross(r: ScenarioRunner, plot: Vector2i) -> void:
+	var cross := r.actor("grave_cross", Vector2(plot) + Vector2(0.35, 0.35))
+	var actors: Array = r.mark.get("outro actors", [])
+	actors.append(cross)
+	cross.scale = Vector2(1, 0.2)
+	var tw := cross.create_tween()
+	tw.set_ignore_time_scale(true)
+	tw.tween_property(cross, "scale", Vector2.ONE, 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	Sfx.play("chime", 0.0)
 
 
 ## Anselm tells of the battle and the dead between the waves.
@@ -166,6 +230,8 @@ func on_wave_started(r: ScenarioRunner, n: int) -> void:
 func on_poll(r: ScenarioRunner) -> void:
 	if r.cutscene == null:
 		_drop_actor(r)  # (a skipped intro leaves him standing)
+	if not r.mark.has("gatherer") and r.game.population.count("gatherer") > 0:
+		r.mark["gatherer"] = true  # (one was recruited: the hint isn't needed)
 	if r.game.is_unlocked("acolyte") and not r.mark.has("chapel scene"):
 		r.mark["chapel scene"] = true
 		var ch := r.site("chapel")
@@ -183,16 +249,6 @@ func on_poll(r: ScenarioRunner) -> void:
 func steps(r: ScenarioRunner) -> Array[Dictionary]:
 	var g := r.game
 	return [
-		{"title": "The fallen",
-			"text": "The dead of the battle lie on the plain (marked). Gatherers carry them to the graveyard by the chapel, where Anselm buries them; once buried, nobody can raise them. Gatherers only go out where no enemy is near: recruit another one.",
-			"done": func() -> bool: return _buried(r) >= 3,
-			"point": func() -> Dictionary:
-				var tiles: Array = []
-				for cl in _clusters(r):
-					tiles.append(cl)
-				if g.population.count("gatherer") < 3:
-					return {"hud": ["village:gatherer", "tab:village", "dock"], "tab": "village", "tiles": tiles}
-				return {"tiles": tiles}},
 		{"title": "The sleeping chapel",
 			"text": "Anselm says the chapel isn't dead, only sleeping. Send Brenna exploring: she goes there first and wakes it, and you can recruit acolytes.",
 			"done": func() -> bool: return g.is_unlocked("acolyte"),
@@ -200,10 +256,14 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 				var ch := r.site("chapel")
 				var tiles: Array = [ch.tile] if ch else []
 				return {"tiles": tiles} if g.hero.mode == Hero.Mode.EXPLORE else {"hud": ["hero_mode:%d" % Hero.Mode.EXPLORE, "hero"], "tiles": tiles}},
-		{"title": "Holy light",
-			"text": "An acolyte's holy light hurts the Undead most: skeletons, the necromancers, and everything they raise. Recruit one and station it on a tower by the field.",
-			"done": func() -> bool: return g.army.units.any(func(u: MilitaryUnit) -> bool: return u.kind in ["acolyte", "inquisitor", "high_priest"] and u.state == MilitaryUnit.State.STATIONED),
-			"point": func() -> Dictionary: return r.unit_point("acolyte", r.towers())},
+		{"title": "The fallen",
+			"text": "The dead of the battle lie on the plain, by the roads (marked). Whoever is brought to the graveyard by the chapel, Anselm buries; once buried, nobody can raise them.",
+			"done": func() -> bool: return _buried(r) >= 3,
+			"point": func() -> Dictionary:
+				var tiles: Array = []
+				for cl in _clusters(r):
+					tiles.append(cl)
+				return {"tiles": tiles}},
 	]
 
 
@@ -216,6 +276,11 @@ func hints(r: ScenarioRunner) -> Array[Dictionary]:
 		{"id": "risen",
 			"when": func() -> bool: return _buried(r) + _still_to_bury(r) < int(r.mark.get("placed", FALLEN)),
 			"text": func() -> String: return "One of the fallen has risen. %d can still be buried; %d are needed." % [_still_to_bury(r), maxi(0, BURY - _buried(r))]},
+		{"id": "gravediggers",
+			"when": func() -> bool: return (g.waves.wave > 2 or (g.waves.wave == 2 and not g.waves.in_progress())) and not r.mark.has("gatherer") and not g.population.free_huts().is_empty(),
+			"text": "The fallen won't walk to their graves. Gatherers carry them to the graveyard: recruit one in the Village tab (a free hut is waiting).",
+			"point": func() -> Dictionary: return {"hud": ["village:gatherer", "tab:village", "dock"], "tab": "village"},
+			"until": func() -> bool: return r.mark.has("gatherer") or g.population.free_huts().is_empty()},
 		{"id": "hurt",
 			"when": func() -> bool: return not g.hero.dead and g.hero.hp < g.hero.max_hp * 0.35,
 			"text": "Brenna is badly hurt, and here nobody can bring her back. Send her home to rest (her panel: Rest) until she has healed."},
@@ -248,14 +313,59 @@ func on_start(r: ScenarioRunner) -> void:
 	var left := FALLEN
 	for cl: Vector2i in _clusters(r):
 		g.fog.reveal(Vector2(cl), 4.0, vid)
-		var near := spots.filter(func(t: Vector2i) -> bool: return Vector2(t).distance_to(Vector2(cl)) <= 2.6)
+		var near := spots.filter(func(t: Vector2i) -> bool: return Vector2(t).distance_to(Vector2(cl)) <= 2.6 and _by_road(r, t))
 		for i in mini(per, left):
 			if near.is_empty():
 				break
 			var t: Vector2i = near.pop_at(rng.randi_range(0, near.size() - 1))
 			g.corpses.spawn_fallen(Vector2(t) + Vector2(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3)))
 			left -= 1
+	# (a cluster short of room by its road: the rest by the cluster nearest)
+	var by_road := spots.filter(func(t: Vector2i) -> bool: return _by_road(r, t) and not g.corpses.fallen().any(func(f: Corpse) -> bool: return f.tile() == t))
+	while left > 0 and not by_road.is_empty() and not _clusters(r).is_empty():
+		var best := 0
+		var best_d := INF
+		for i in by_road.size():
+			for cl: Vector2i in _clusters(r):
+				var d := Vector2(by_road[i]).distance_to(Vector2(cl))
+				if d < best_d:
+					best_d = d
+					best = i
+		var t: Vector2i = by_road.pop_at(best)
+		g.fog.reveal(Vector2(t), 1.5, vid)
+		g.corpses.spawn_fallen(Vector2(t) + Vector2(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3)))
+		left -= 1
 	r.mark["placed"] = FALLEN - left
+	_give_rounds(r)
+
+
+## Anselm walks his rounds: prays at the chapel, at the graveyard, then home.
+func _give_rounds(r: ScenarioRunner) -> void:
+	var anselm: Resident = null
+	for civ in r.game.population.civilians:
+		if civ is Resident and civ.given_name == "Anselm":
+			anselm = civ
+	if anselm == null:
+		return
+	var ch := r.site("chapel")
+	var gy := _graveyard(r)
+	if ch:
+		var t := _beside(r, ch.tile)
+		if t != Vector2i(-1, -1):
+			anselm.rounds.append({"tile": t, "to": "the chapel", "doing": "praying at the chapel"})
+	if gy:
+		anselm.rounds.append({"tile": gy.visit_tile(), "to": "the graveyard", "doing": "praying for the dead at the graveyard"})
+	anselm.stay = ANSELM_STAY
+
+
+## A walkable tile next to `t` the village can reach, or (-1, -1).
+func _beside(r: ScenarioRunner, t: Vector2i) -> Vector2i:
+	var g := r.game
+	var dist := g.world.pathing.distance_field(g.player_village.center)
+	for n in [t + Vector2i(1, 1), t + Vector2i(0, 1), t + Vector2i(1, 0), t + Vector2i(-1, 1), t + Vector2i(1, -1), t + Vector2i(-1, 0), t + Vector2i(0, -1), t + Vector2i(-1, -1)]:
+		if g.map.in_bounds(n) and g.map.is_passable(n) and g.map.building_at(n) == null and dist[g.map.index(n)] < Pathing.UNREACHABLE:
+			return n
+	return Vector2i(-1, -1)
 
 
 func death_text(civ: Civilian, reason: String) -> String:
@@ -295,7 +405,7 @@ func _clusters(r: ScenarioRunner) -> Array:
 	var c := Vector2(r.game.player_village.center)
 	var spots := _open_tiles(r).filter(func(t: Vector2i) -> bool:
 		var d := Vector2(t).distance_to(c)
-		return d >= FIELD.x and d <= FIELD.y)
+		return d >= FIELD.x and d <= FIELD.y and _by_road(r, t))
 	var out: Array = []
 	if not spots.is_empty():
 		spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return MapData.row_order(a, b))
@@ -313,6 +423,16 @@ func _clusters(r: ScenarioRunner) -> Array:
 			out.append(best)
 	r.mark["clusters"] = out
 	return out
+
+
+## Within ROAD_NEAR tiles of a road (where a necromancer passing by reaches it).
+func _by_road(r: ScenarioRunner, t: Vector2i) -> bool:
+	for dy in range(-ROAD_NEAR, ROAD_NEAR + 1):
+		for dx in range(-ROAD_NEAR, ROAD_NEAR + 1):
+			var n := t + Vector2i(dx, dy)
+			if r.game.map.in_bounds(n) and r.game.map.is_road(n):
+				return true
+	return false
 
 
 ## Open land the village's people can walk to: no road, water, trees, rock,

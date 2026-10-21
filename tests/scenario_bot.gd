@@ -1178,27 +1178,23 @@ func _scenario_6() -> void:
 	check(fallen.all(func(c: Corpse) -> bool: return game.fog.is_explored_by(v.id, c.tile()) and c.kind == "skeleton" and c.revivable), "their places are known; raised, they'd be skeletons")
 	check(game.hero.level == 8 and not sc.spec.hero_revives and sc.spec.must_live.has("Anselm"), "Brenna at level 9, no revive, Anselm must live")
 	check(game.waves.scripted.size() == 8 and sc.spec.repeat_last, "eight waves, then more until enough are buried")
+	check(game.population.count("gatherer") == 0, "no gravediggers at the start")
+	var units := game.army.units
+	check(units.size() == 2 and game.army.reserve().is_empty() and units.all(func(u: MilitaryUnit) -> bool: return u.level == 0 and u.state == MilitaryUnit.State.STATIONED), "two units at level 1, both stationed, none in the reserve")
+	check(units.any(func(u: MilitaryUnit) -> bool: return u.kind == "archer" and u.post.kind == "wall_tower") and units.any(func(u: MilitaryUnit) -> bool: return u.kind == "shield_bearer" and u.post is Barracks), "the archer on a wall tower, the shield bearer in the barracks")
+	check(sc.towers().is_empty(), "no watchtowers")
+	check(fallen.all(func(c: Corpse) -> bool: return sc.spec._by_road(sc, c.tile())), "the fallen lie by the roads, where necromancers come")
+	var anselm: Resident = ans[0]
+	check(anselm.rounds.size() == 2, "Anselm has his rounds: the chapel and the graveyard (%d)" % anselm.rounds.size())
 	await wait(1.0)
+	check(game.population.civilians.all(func(c: Civilian) -> bool: return not c.is_processing() and c.at_home), "during the intro the villagers wait at home")
 	var said := await _watch(sc.cutscene)
 	check(said.has("anselm") and said.has("brenna"), "the intro: Anselm and Brenna (%s)" % str(said))
-	check(sc.card.lesson_title() == "The fallen", "the fallen card")
-
-	print("-- scenario 6: the fallen")
-	game.corpses.clear_wave(99)
-	fallen[0].time_left = -1.0
-	await frames(2)
-	check(sc.spec._still_to_bury(sc) + gy.buried == sc.spec.FALLEN, "the fallen never rot and are never cleared away (%d)" % (sc.spec._still_to_bury(sc) + gy.buried))
-	check(cmd("recruit_villager", {"role": "gatherer"})["ok"], "a third gatherer")
+	check(game.population.civilians.all(func(c: Civilian) -> bool: return c.is_processing()), "after it they go to work")
+	check(sc.card.lesson_title() == "The sleeping chapel", "the chapel card first")
 	Engine.time_scale = 4.0
-	check(await wait_until(func() -> bool: return gy.buried >= 1, 120.0), "gatherers carry the fallen to the graveyard: buried (%d)" % gy.buried)
-	check(game.population.civilians.any(func(c: Civilian) -> bool: return c is Gatherer and (c as Gatherer).status().contains("graveyard")) or gy.buried > 0, "on their way: to the graveyard")
-	check(await _at_card(1, 120.0), "the fallen card is done once three are buried (%d)" % gy.buried)
-	var necro := game.waves.spawn_at("necromancer", game.world.pathing.nearest_road(v.center + Vector2i(0, -10)), v, 1)
-	var risen := game.waves.raise_corpse(game.corpses.fallen()[-1], necro)
-	check(risen != null and risen.kind == "skeleton" and risen.raised, "a necromancer raises one of the fallen: a skeleton")
-	check(await wait_until(func() -> bool: return sc.card.hint().begins_with("One of the fallen has risen"), 3.0), "a hint says so (%s)" % sc.card.hint())
-	kill(necro)
-	kill(risen)
+	check(await wait_until(func() -> bool: return not anselm.at_home, 60.0), "Anselm walks his rounds (%s)" % anselm.status())
+	check(await wait_until(func() -> bool: return anselm.status().begins_with("praying"), 60.0), "and prays out there (%s)" % anselm.status())
 	Engine.time_scale = 1.0
 
 	print("-- scenario 6: the chapel")
@@ -1207,15 +1203,30 @@ func _scenario_6() -> void:
 	check(await wait_until(func() -> bool: return game.is_unlocked("acolyte"), 180.0), "Brenna wakes the chapel: acolytes")
 	check(await wait_until(func() -> bool: return sc.cutscene != null, 5.0), "a scene at the chapel")
 	await _skip_scene()
+	Engine.time_scale = 1.0
 	cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
-	check(await _at_card(2, 10.0), "the holy light card")
-	var tower: Tower = sc.towers()[0]
-	cmd("withdraw_unit", {"unit": tower.garrison.nid})
-	check(cmd("recruit_unit", {"kind": "acolyte"})["ok"], "an acolyte")
-	var aco: MilitaryUnit = game.army.units.filter(func(u: MilitaryUnit) -> bool: return u.kind == "acolyte")[0]
-	check(await wait_until(func() -> bool: return tower.garrison == null and tower.incoming_slots.all(func(u) -> bool: return u == null), 60.0), "the archer walks off")
-	cmd("station_unit", {"unit": aco.nid, "post": tower.nid})
-	check(await wait_until(func() -> bool: return sc.step >= sc.steps.size(), 90.0), "an acolyte on the tower: the cards are done")
+	check(await _at_card(1, 10.0), "the fallen card")
+	check(sc.card.lesson_title() == "The fallen" and not sc.card.lesson_text().contains("recruit"), "it doesn't say to recruit gatherers")
+	check(sc.steps.size() == 2, "no acolyte card")
+
+	print("-- scenario 6: the fallen")
+	game.corpses.clear_wave(99)
+	fallen[0].time_left = -1.0
+	await frames(2)
+	check(sc.spec._still_to_bury(sc) + gy.buried == sc.spec.FALLEN, "the fallen never rot and are never cleared away (%d)" % (sc.spec._still_to_bury(sc) + gy.buried))
+	for i in 2:
+		check(cmd("recruit_villager", {"role": "gatherer"})["ok"], "gatherer %d recruited" % (i + 1))
+	Engine.time_scale = 4.0
+	check(await wait_until(func() -> bool: return gy.buried >= 1, 120.0), "gatherers carry the fallen to the graveyard: buried (%d)" % gy.buried)
+	check(game.population.civilians.any(func(c: Civilian) -> bool: return c is Gatherer and (c as Gatherer).status().contains("graveyard")) or gy.buried > 0, "on their way: to the graveyard")
+	check(await wait_until(func() -> bool: return sc.step >= sc.steps.size(), 120.0), "the fallen card is done once three are buried (%d): the cards are done" % gy.buried)
+	var necro := game.waves.spawn_at("necromancer", game.world.pathing.nearest_road(v.center + Vector2i(0, -10)), v, 1)
+	var risen := game.waves.raise_corpse(game.corpses.fallen()[-1], necro)
+	check(risen != null and risen.kind == "skeleton" and risen.raised, "a necromancer raises one of the fallen: a skeleton")
+	check(await wait_until(func() -> bool: return sc.card.hint().begins_with("One of the fallen has risen"), 3.0), "a hint says so (%s)" % sc.card.hint())
+	kill(necro)
+	kill(risen)
+	Engine.time_scale = 1.0
 
 	print("-- scenario 6: the waves, burying")
 	var guard := Timer.new()
@@ -1237,10 +1248,30 @@ func _scenario_6() -> void:
 	check(await wait_until(func() -> bool: return sc.cutscene != null, 180.0), "the outro plays")
 	guard.queue_free()
 	Engine.time_scale = 1.0
+	var walkers := [false]
+	sc.cutscene.tapped.connect(func() -> void:
+		var actors: Array = sc.mark.get("outro actors", [])
+		if actors.size() >= 3 and not game.hero.visible:
+			walkers[0] = true)
 	said = await _watch(sc.cutscene)
 	check(said.has("anselm") and said.has("brenna"), "Anselm tells where the court went (%s)" % str(said))
+	check(walkers[0], "Anselm, Brenna and Pell walk to the graveyard in the outro")
+	var actors: Array = sc.mark.get("outro actors", [])
+	check(actors.size() == 4 and is_instance_valid(actors[3]) and Vector2((actors[3] as Node2D).position).distance_to(sc.at(gy.visit_tile())) < 64.0, "Anselm plants the cross there")
 	await frames(3)
 	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Dead: complete", "won: %s" % game.hud._overlay_title.text)
+
+	print("-- scenario 6: the gravediggers' hint")
+	await _new_game(6)
+	sc.cutscene.skip()
+	await frames(2)
+	game.waves.wave = 2
+	check(await wait_until(func() -> bool: return sc.card.hint().contains("Gatherers carry them"), 3.0), "wave 2 over and no gatherer: a hint says gatherers carry the fallen (%s)" % sc.card.hint())
+	await frames(2)
+	check(sc.highlight.target == game.hud.control_named("village:gatherer") or sc.highlight.target == game.hud.control_named("tab:village") or sc.highlight.target == game.hud.control_named("dock"), "and points at recruiting one")
+	check(str(sc._hint_on.get("id", "")) == "gravediggers", "it stays until one is recruited")
+	check(cmd("recruit_villager", {"role": "gatherer"})["ok"], "one is recruited")
+	check(await wait_until(func() -> bool: return sc._hint_on.is_empty() and sc.card.hint() == "", 3.0), "the hint is gone")
 
 	print("-- scenario 6: too many risen")
 	await _new_game(6)
@@ -1428,11 +1459,12 @@ func _scenario_8() -> void:
 	guard.start()
 	var offer := false
 	var rurik := false
-	var scenes := 0
+	var scenes: Array[String] = []
 	var t := 0.0
 	while not sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER] and not game.game_over and t < 1800.0:
 		if sc.cutscene != null:
-			scenes += 1
+			var first: Array = sc.cutscene.steps.filter(func(st: Dictionary) -> bool: return st.has("text"))
+			scenes.append("w%d %s" % [game.waves.wave, str(first[0]["text"]).left(30) if not first.is_empty() else "?"])
 			if sc.cutscene.steps.any(func(s: Dictionary) -> bool: return s.has("choices")):
 				offer = true
 			await _through_scene(1)
@@ -1452,7 +1484,9 @@ func _scenario_8() -> void:
 	check(crypts.all(func(o: Node) -> bool: return (o as MonsterLair).cleared and not (o as MonsterLair).awake), "they stay cleared")
 	check(offer, "Lothar's offer came, and was refused")
 	check((rurik or named.get("Rurik", "") == "legion_champion") and sc.mark.has("rurik down"), "Rurik stood at the third crypt, and fell (seen %s, %s, fell %s)" % [rurik, named.get("Rurik", ""), sc.mark.has("rurik down")])
-	check(scenes >= 4, "the scenes between the waves (%d)" % scenes)
+	print("   scenes: %s" % str(scenes))
+	check(scenes.any(func(x: String) -> bool: return x.contains("The court mages called it")), "the talk after wave 1")
+	check(scenes.any(func(x: String) -> bool: return x.contains("The crown.")), "the talk after wave 5")
 	if sc.cutscene != null and not sc._outro_started:
 		await _through_scene()  # (Rurik's fall)
 	check(await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 120.0), "the outro plays after it")

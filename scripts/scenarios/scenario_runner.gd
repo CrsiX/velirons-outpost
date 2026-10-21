@@ -52,6 +52,9 @@ var _goal_state := {}
 var _goal_shown := {}
 var _hints_shown := {}
 var _hint_left := 0.0
+## The hint on the card now that points like a card ("point", until its
+## "until" holds), or {}.
+var _hint_on := {}
 var _poll := 0.0
 var _next_in := -1.0
 var _tab := ""
@@ -379,6 +382,7 @@ func start() -> void:
 		if int(spec.sites[kind]) == 0:
 			awaken_site(kind, false)
 	_name_villagers()
+	_hold_villagers(true)
 	_man_prebuilt()
 	_fill_reserve()
 	_set_lairs()
@@ -514,7 +518,14 @@ static func _puff() -> Texture2D:
 	return t
 
 
+## The villagers wait (where they are, at home) until the intro is over.
+func _hold_villagers(on: bool) -> void:
+	for c in game.population.civilians:
+		c.set_process(not on)
+
+
 func _after_intro(_skipped: bool) -> void:
+	_hold_villagers(false)
 	if spec.hero_start == Vector2i(-1, -1):
 		_begin_play()
 		return
@@ -725,14 +736,18 @@ func _poll_steps(delta: float) -> void:
 		game.events.debug("scenario card %d done" % (step + 1))
 		spec.on_card_done(self, str(steps[step].get("id", "")))
 		_next_in = STEP_PAUSE
-	else:
+	elif _hint_on.is_empty():
 		_point()
 
 
-## Updates the highlight, as the tutorial's (see Tutorial._point).
+## Updates the highlight, as the tutorial's (see Tutorial._point): for the
+## pointing hint while one is on, else for the card.
 func _point() -> void:
-	var s: Dictionary = steps[step]
-	var p: Dictionary = (s["point"] as Callable).call() if s.has("point") else {}
+	var p: Dictionary = {}
+	if not _hint_on.is_empty():
+		p = (_hint_on["point"] as Callable).call()
+	elif step >= 0 and step < steps.size() and steps[step].has("point"):
+		p = (steps[step]["point"] as Callable).call()
 	var tab := str(p.get("tab", ""))
 	if tab != "" and tab != _tab:
 		game.hud.show_tab(tab, game.hud.dock_open())
@@ -772,6 +787,12 @@ func _process(delta: float) -> void:
 		Phase.PLAY:
 			card.place()
 			_poll_steps(delta)
+			if not _hint_on.is_empty():
+				if (_hint_on["until"] as Callable).call():
+					_end_pointing_hint()
+					card.show_hint("")
+				else:
+					_point()
 			if _hint_left > 0.0:
 				_hint_left -= delta
 				if _hint_left <= 0.0:
@@ -804,7 +825,12 @@ func _poll_now() -> void:
 			_hints_shown[id] = true
 			var t := str((hn["text"] as Callable).call()) if hn["text"] is Callable else str(hn["text"])
 			card.show_hint(t)
-			_hint_left = HINT_TIME
+			_end_pointing_hint()
+			if hn.has("until"):
+				_hint_on = hn  # (stays, pointing, until it holds)
+				_hint_left = 0.0
+			else:
+				_hint_left = HINT_TIME
 			game.events.important(t)
 			Sfx.play("chime", 0.0)
 	var all := not objectives.is_empty()
@@ -828,6 +854,14 @@ func _poll_now() -> void:
 		game.events.info("Every objective is met")
 		game.waves.hold = true
 		game.waves.call_locked = true
+
+
+func _end_pointing_hint() -> void:
+	if _hint_on.is_empty():
+		return
+	_hint_on = {}
+	_tab = ""
+	highlight.clear()
 
 
 # --- the rules ---------------------------------------------------------------------------------

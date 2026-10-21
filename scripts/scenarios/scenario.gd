@@ -175,7 +175,9 @@ func steps(_r: ScenarioRunner) -> Array[Dictionary]:
 
 ## One-time hints: {"id", "when": Callable -> bool (polled), "text" (a String,
 ## or a Callable -> String)}; shown on the card and logged the first time
-## "when" holds.
+## "when" holds. With "point" (as a card's) and "until" (Callable -> bool) it
+## stays and points like a card until "until" holds (a card's pointer waits
+## meanwhile).
 func hints(_r: ScenarioRunner) -> Array[Dictionary]:
 	return []
 

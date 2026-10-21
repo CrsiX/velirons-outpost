@@ -657,6 +657,8 @@ The game has none of this yet, except where noted:
   below Easy if need be) and the starting village; once the world stands it ruins the huts and pieces (`apply_baseline`: huts nearest the centre
   stand, of each piece kind the first ones in row order stand, at `pieces_hp`, the rest are devastated); then the intro, the hero's walk, the
   arrival, the cards, the hints and the objectives (polled every 0.25 s), and the outro once every objective holds at once and no wave runs.
+  The villagers wait at home until the intro is over (`ScenarioRunner._hold_villagers`); then they go to work. A hint with `"point"` and
+  `"until"` stays on the card and points like a card (the card's own pointer waits) until `"until"` holds.
 - **Rules** it enforces: `Commands.submit` asks `ScenarioRunner.command_error` (buildings, unit kinds, specialising, no hero orders or wave calls
   during the story parts); the HUD hides what isn't allowed (`Game.available`, `Game.allows_building`; `MilitaryUnit.upgrade_options` leaves out
   the branches when `Game.allows_branches` is false). A villager's death (`Population.civilian_died`) or the hero being downed (`Hero.downed`) end
@@ -908,7 +910,9 @@ The game has none of this yet, except where noted:
   appears for each (`grave_mound`, up to 30), and they pay nothing. Without a graveyard nobody fetches the fallen. Art: `graveyard` (flat, on the
   decal layer: a low stone wall, a lychgate, old crosses, a fresh grave with a spade).
 - **Residents** (`Resident`, `"stays_home"` in `Config.CIVILIANS`: what they do at home): campaign villagers who never leave their hut and die
-  with it; `GuildMaster` is one now. New roles: `priest` (Anselm) and `princess` (Fiona); neither can be recruited. Art `unit_priest`,
+  with it; `GuildMaster` is one now. A scenario may give one **rounds** (`Resident.rounds`: stops out in the field, `"tile"`, `"to"`,
+  `"doing"`; `Resident.stay` seconds at each and at home): they walk them one after the other, home between rounds, and run home from enemies
+  like anyone outside (Anselm: the chapel, the graveyard). New roles: `priest` (Anselm) and `princess` (Fiona); neither can be recruited. Art `unit_priest`,
   `unit_princess`; their houses `priest_house` (a bell-cote with a cross) and `fiona_house` (grey stone, her blue banner) via `Scenario.homes`.
 - **The druids** are the summoner's plant branch (`druid`, docs/military-design.md §3b: thornlings whose blows root); the grove's
   take no orders (`MilitaryUnit.bound`, from a prebuilt unit's `"fixed": true`; `MilitaryUnit.fixed()`: `Commands` refuses moving, withdrawing,
@@ -930,12 +934,14 @@ The game has none of this yet, except where noted:
 
 - **Map:** `data/maps/battlefield.json` (*The Field of Bones*; `make_scenario_map.gd -- 6`: Desert, seed 606, the ruined chapel by the east road
   9 tiles from the gate).
-- **Baseline:** Easy, enemies at 1.0; 240 gold, 90 food (short: dry land), 200 material; two builders, a farmer, a forester, two gatherers (the
-  gravediggers), Pell and **Anselm** (a priest, in *Anselm's House*); the farm and the camp; three gates and three wall towers stand at 80 %; the
-  **graveyard** by the chapel, Pell's wagon (a peddler's stall), barracks with a level 4 shield bearer, two watchtowers with archers (level 4 and
-  3), a wall tower with a level 3 archer. Brenna is level 9.
-- **The field:** 36 of the fallen in four clusters on open land 8 to 17 tiles from the village, as far apart as the land allows; their places
-  are uncovered at the start.
+- **Baseline:** Easy, enemies at 1.0; 240 gold, 90 food (short: dry land), 200 material; two builders, a farmer, a forester, Pell and
+  **Anselm** (a priest, in *Anselm's House*); no gatherers (the player recruits the gravediggers: three huts are free); the farm and the camp;
+  three gates and three wall towers stand at 80 %; the **graveyard** by the chapel, Pell's wagon (a peddler's stall), barracks with a level 1
+  shield bearer, a wall tower with a level 1 archer; nothing in the reserve. Brenna is level 9.
+- **The field:** 36 of the fallen in four clusters on open land 8 to 17 tiles from the village and at most 2 tiles from a road (`ROAD_NEAR`:
+  a necromancer passing by can raise them), as far apart as the land allows (a cluster short of room: the rest by the cluster nearest); their
+  places are uncovered at the start.
+- **Anselm** walks his rounds once the intro is over (`ANSELM_STAY` 10 s each): prays beside the chapel, prays at the graveyard, home.
 - **Rules:** archers, shield bearers and acolytes; specialising, training grounds; no revive; Pell and Anselm must not die; the chapel is
   awake from the start (`sites`): Brenna wakes it by going there (Explore), and acolytes can be recruited. **Lost** once fewer of the fallen are
   left (on the field and carried) than still have to be buried ("Too many of the fallen have risen").
@@ -945,10 +951,13 @@ The game has none of this yet, except where noted:
 - **Story:** the intro (the plain of the dead, Anselm alone digging a grave by the chapel; he will tell where the court went if they help; the
   chapel is only sleeping); after wave 1 who the dead were (Fiona's soldiers and mages, Rhodri's soldiers; the church couldn't bury them); wave
   3, the first necromancer; the chapel woken (light through the broken roof; Anselm will make acolytes); after wave 5 why the dead rise (not
-  Rhodri's will alone: everyone's dead rise); the outro (the last grave of the day; the court went east to the druids' valley; a priest's sealed
-  word that gets a knight of Rhodri's army in, but not trusted).
-- **Cards:** the fallen (gatherers to the graveyard; recruit a third; done at 3 buried), the sleeping chapel (Explore), holy light (an acolyte on
-  a tower). **Hints:** a necromancer, one of the fallen risen (how many are left), Brenna badly hurt, food short. **Objectives:** bury 24 of the
+  Rhodri's will alone: everyone's dead rise); the outro (dusk; Anselm, Brenna and Pell walk from the village to the graveyard, actors at
+  `OUTRO_PACE` tiles a second, the real three hidden, talking on the way: the court went east to the druids' valley; there Anselm plants a
+  cross over the last grave, `grave_cross`, and prays; a priest's sealed word that gets a knight of Rhodri's army in, but not trusted).
+- **Cards:** the sleeping chapel (Explore), the fallen (whoever is brought to the graveyard is buried; no word of recruiting; done at 3
+  buried). **Hints:** the gravediggers (once wave 2 is over, if no gatherer was ever recruited and a hut is free: gatherers carry the fallen,
+  pointing at recruiting one until one is recruited or no hut is free), a necromancer, one of the fallen risen (how many are left), Brenna
+  badly hurt, food short. **Objectives:** bury 24 of the
   fallen; wake the chapel.
 
 ### 7.12 Scenario 7 as built (`scenario_7.gd`)
