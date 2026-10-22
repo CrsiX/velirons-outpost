@@ -22,7 +22,7 @@ extends "res://tests/bot_base.gd"
 ## The Exile: Fiona, the druids in their grove (no orders), Brenna at her tent,
 ## Fiona's trust in steps (what is refused when), the mages' tower, wave 5's
 ## band at the grove, the circle, the win, a druid falling in wave 5.
-##   -- --only=1|2|...|11  one scenario only (the title screen with 1)
+##   -- --only=1|2|...|11  one scenario only (the title screen with 1); several: --only=9,11
 
 var sc: ScenarioRunner
 ## Every named enemy that came on the map (name -> kind), however soon it was gone.
@@ -37,41 +37,41 @@ func _run() -> void:
 					named[(n as Enemy).given_name] = (n as Enemy).kind).call_deferred())
 	var diff := Settings.difficulty
 	Settings.difficulty = Settings.Difficulty.HARD
-	var only := ""
+	var only := PackedStringArray()  # (empty: everything)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--only="):
-			only = a.trim_prefix("--only=")
-	if only in ["", "1"]:
+			only = a.trim_prefix("--only=").split(",")
+	if only.is_empty() or "1" in only:
 		_map_file()
 		await _play_through()
 		await _defeat()
 		await _hints()
-	if only in ["", "2"]:
+	if only.is_empty() or "2" in only:
 		await _scenario_2()
-	if only in ["", "3"]:
+	if only.is_empty() or "3" in only:
 		await _scenario_3()
-	if only in ["", "4"]:
+	if only.is_empty() or "4" in only:
 		await _cutscene_choice()
 		await _scenario_4()
-	if only in ["", "5"]:
+	if only.is_empty() or "5" in only:
 		await _scenario_5()
-	if only in ["", "6"]:
+	if only.is_empty() or "6" in only:
 		await _scenario_6()
-	if only in ["", "7"]:
+	if only.is_empty() or "7" in only:
 		await _scenario_7()
-	if only in ["", "8"]:
+	if only.is_empty() or "8" in only:
 		await _scenario_8()
-	if only in ["", "9"]:
+	if only.is_empty() or "9" in only:
 		await _scenario_9()
-	if only in ["", "10"]:
+	if only.is_empty() or "10" in only:
 		await _scenario_10()
-	if only in ["", "11"]:
+	if only.is_empty() or "11" in only:
 		await _scenario_11()
 	if is_instance_valid(game):
 		game.queue_free()
 		await frames(2)
 	check(Settings.difficulty == Settings.Difficulty.HARD and Settings.enemy_scale.is_empty(), "the player's difficulty is back, no scenario scale left, once the game is gone")
-	if only in ["", "1", "title"]:
+	if only.is_empty() or "1" in only or "title" in only:
 		await _title()
 	Settings.difficulty = diff
 	Engine.time_scale = 1.0
@@ -1859,7 +1859,7 @@ func _scenario_11() -> void:
 		t += 0.5
 	check(not game.game_over and sc.phase == ScenarioRunner.Phase.OUTRO, "twelve waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
 	check(fed and food0 > 0.0, "food came by the guild's carts")
-	check(rhodri and sc.mark.has("rhodri down") and sc.mark.has("lothar down"), "Rhodri came out, was beaten and fled; Lothar fell")
+	check(rhodri and sc.mark.has("rhodri down") and sc.mark.has("lothar down"), "Rhodri came out, was beaten and fled; Lothar fell (seen %s, down %s, Lothar down %s)" % [rhodri, sc.mark.has("rhodri down"), sc.mark.has("lothar down")])
 	while sc.cutscene != null and not sc._outro_started:
 		await _through_scene()
 	check(await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 120.0), "the outro plays")
