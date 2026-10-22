@@ -464,7 +464,7 @@ func _test_effects() -> void:
 		var expected := Config.unit_stat("fire_summoner", "summon_hp", 0) * Config.SUMMONS["fire"]["hp"]
 		check(is_equal_approx(fe.max_hp, expected), "less HP (%.0f), more damage (%.1f)" % [fe.max_hp, fe.damage])
 		var full := fe.max_hp
-		var burned := await wait_until(func() -> bool: return not is_instance_valid(fe) or fe.dead or fe.hp < full, 20.0)
+		var burned := await wait_until(when_gone(fe, func(x: Object) -> bool: return x.dead or x.hp < full), 20.0)
 		check(burned, "hitting burns the fire elemental itself")
 	foe.take_damage(1e9)
 	game.army.unstation(fs[0])

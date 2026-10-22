@@ -416,7 +416,7 @@ func _test_slip() -> void:
 	check(at and not rat.dead, "a rat reaches the gate")
 	await wait(1.5)
 	check(not rat.dead and rat._slip > 0.0 and not logs.any(func(l: String) -> bool: return "got into the village and ate" in l), "an intact gate holds it a while")
-	var gone := await wait_until(func() -> bool: return not is_instance_valid(rat) or rat.dead, 20.0)
+	var gone := await wait_until(when_gone(rat, func(x: Object) -> bool: return x.dead), 20.0)
 	check(gone and logs.any(func(l: String) -> bool: return "got into the village and ate" in l) and g.hp == g.max_hp(), "then it slips through and eats food; the gate is unhurt")
 	reset_village()
 

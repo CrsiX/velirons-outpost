@@ -41,6 +41,19 @@ func wait_until(cond: Callable, timeout: float) -> bool:
 	return true
 
 
+## A wait_until condition on `o`, which may be freed meanwhile: true once it is
+## gone, or once `also` says so of it. (Calling a lambda whose captured object
+## was freed is an engine error, so never capture `o` itself: this holds only a
+## weak reference.)
+func when_gone(o: Object, also: Callable = Callable()) -> Callable:
+	if o == null:
+		return func() -> bool: return true
+	var ref: WeakRef = weakref(o)
+	return func() -> bool:
+		var x: Object = ref.get_ref()
+		return x == null or (also.is_valid() and also.call(x))
+
+
 func find_spot(kind: String, near: Vector2i) -> Vector2i:
 	var cands: Array = []
 	for y in game.map.size:

@@ -1257,7 +1257,7 @@ func _run() -> void:
 		var hp0 := foe.hp
 		var retaliates := await wait_until(func() -> bool: return wb.target == foe, 5.0)
 		check(retaliates, "the witch turns her spells on whoever attacks her")
-		var hurt := await wait_until(func() -> bool: return not is_instance_valid(foe) or foe.hp < hp0, 8.0)
+		var hurt := await wait_until(when_gone(foe, func(x: Object) -> bool: return x.hp < hp0), 8.0)
 		check(hurt, "her spell damages earth elementals")
 		var keep_fighting := sb2.summons.any(func(e) -> bool: return is_instance_valid(e) and not e.dead)
 		check(keep_fighting or not is_instance_valid(foe), "existing elementals keep fighting while their summoner may be bewitched")

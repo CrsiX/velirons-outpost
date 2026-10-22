@@ -7,7 +7,8 @@ extends CivilianJob
 ##   farther out than the village's nearest frontier;
 ## - avoids fog another explorer is already heading for;
 ## - keeps away from monster camp guards (it would only flee from them, again
-##   and again): fog by them waits until the camp is cleared.
+##   and again): fog by them waits until the camp is cleared, and so does fog
+##   it fled from them on its way to (the way there runs past them).
 ## `reveal` is the sight radius used for exploring.
 
 enum State { RESTING, EXPLORING, RETURNING }
@@ -20,6 +21,10 @@ var stand := Vector2i(-1, -1)
 var reveal := Config.EXPLORER_REVEAL
 var _reveal_timer := 0.0
 var _think_timer := 0.0
+## Fog set aside: [tile, the instance ids of the camp guards fled from on the
+## way there]; it waits while any of them lives (Config.EXPLORER_BLOCKED_RADIUS
+## around the tile).
+var _blocked: Array = []
 
 
 func _init(p_reveal: float = Config.EXPLORER_REVEAL) -> void:
@@ -66,6 +71,14 @@ func resume() -> void:
 
 
 func on_evade() -> void:
+	if target != Vector2i(-1, -1):
+		var guards: Array[int] = []
+		for node in w.get_tree().get_nodes_in_group("enemies"):
+			var g := node as Enemy
+			if not g.dead and g.wild() and g.grid_pos.distance_to(w.grid_pos) < Config.EVADE_RADIUS + 0.5:
+				guards.append(g.get_instance_id())
+		if not guards.is_empty():
+			_blocked.append([target, guards])
 	state = State.RESTING
 	target = Vector2i(-1, -1)
 
@@ -107,7 +120,7 @@ func choose_target(from: Vector2i) -> Vector2i:
 		if other != w and other.exploring_target() != Vector2i(-1, -1):
 			claims.append(other.exploring_target())
 	# The nearest fog from here (a breadth-first search that stops early).
-	var danger := _camp_danger()
+	var danger := _with_blocked(_camp_danger())
 	var local := pathing.nearest_frontier(from, explored, claims, Config.EXPLORER_CLAIM_RADIUS, Config.EXPLORER_CLAIM_PENALTY, danger)
 	if local.is_empty():
 		return Vector2i(-1, -1)
@@ -173,6 +186,24 @@ func _camp_danger() -> PackedByteArray:
 				if x >= 0 and y >= 0 and x < map.size and y < map.size and Vector2(x, y).distance_to(c) < r:
 					out[y * map.size + x] = 1
 	return out
+
+
+## `danger` with the fog set aside marked too (sized on demand); forgets what
+## waits no more: every guard fled from is gone.
+func _with_blocked(danger: PackedByteArray) -> PackedByteArray:
+	var map := w.game.map
+	var r := Config.EXPLORER_BLOCKED_RADIUS
+	_blocked = _blocked.filter(func(b: Array) -> bool: return (b[1] as Array).any(func(id: int) -> bool:
+		return is_instance_id_valid(id) and not (instance_from_id(id) as Enemy).dead))
+	for b: Array in _blocked:
+		if danger.is_empty():
+			danger.resize(map.size * map.size)
+		var c: Vector2i = b[0]
+		for y in range(c.y - ceili(r), c.y + ceili(r) + 1):
+			for x in range(c.x - ceili(r), c.x + ceili(r) + 1):
+				if x >= 0 and y >= 0 and x < map.size and y < map.size and Vector2(x, y).distance_to(Vector2(c)) <= r:
+					danger[y * map.size + x] = 1
+	return danger
 
 
 func status() -> String:

@@ -209,7 +209,7 @@ func _test_farm() -> void:
 	game.waves.countdown = 0.0
 	var r2 := spawn("rat", Vector2(road))
 	var linger := await wait_until(func() -> bool: return game.waves.rat_deadline > 0.0, 5.0)
-	var cleared := await wait_until(func() -> bool: return not is_instance_valid(r2) or r2.dead, Config.RAT_WAVE_LINGER + 5.0)
+	var cleared := await wait_until(when_gone(r2, func(x: Object) -> bool: return x.dead), Config.RAT_WAVE_LINGER + 5.0)
 	check(linger and cleared and not game.waves.in_progress(), "rats alone at the end of a wave vanish within %.0f s and the wave ends" % Config.RAT_WAVE_LINGER)
 	await wait(0.5)
 	game.waves.countdown = 99999.0
@@ -232,7 +232,7 @@ func _test_gate() -> void:
 	for f in game.world.buildings:
 		if f is Farm:
 			f.complete = false
-	var got_in := await wait_until(func() -> bool: return not is_instance_valid(r) or r.dead, 20.0)
+	var got_in := await wait_until(when_gone(r, func(x: Object) -> bool: return x.dead), 20.0)
 	for f in game.world.buildings:
 		if f is Farm:
 			f.complete = true
@@ -248,7 +248,7 @@ func _test_gate() -> void:
 	for f in game.world.buildings:
 		if f is Farm:
 			f.complete = false
-	await wait_until(func() -> bool: return not is_instance_valid(r3) or r3.dead, 20.0)
+	await wait_until(when_gone(r3, func(x: Object) -> bool: return x.dead), 20.0)
 	for f in game.world.buildings:
 		if f is Farm:
 			f.complete = true
@@ -347,14 +347,17 @@ func _test_defence() -> void:
 	var sw := u.walker as Soldier
 	var gob2 := spawn("goblin", Vector2(game.world.pathing.nearest_walkable(Vector2i(b.act_center().round()) + Vector2i(1, 1))), 50.0)
 	gob2.speed = 0.0
-	var turned2 := await wait_until(func() -> bool: return is_instance_valid(sw) and sw.farm == null and sw.target == gob2, 10.0)
+	var sw_ref: WeakRef = weakref(sw)  # (back on its bench the walker is freed: don't capture it)
+	var turned2 := await wait_until(func() -> bool:
+		var x := sw_ref.get_ref() as Soldier
+		return x != null and x.farm == null and x.target == gob2, 10.0)
 	check(turned2, "an enemy at the barracks calls it back from the farm")
 	await clear_enemies()
 	await wait_until(func() -> bool: return not u.out, 30.0)
 	# A plain rat: dealt with quickly.
 	var r3 := spawn("rat", Vector2(road))
 	await wait_until(func() -> bool: return farm.has_rats(), 20.0)
-	var killed := await wait_until(func() -> bool: return not is_instance_valid(r3) or r3.dead, 30.0)
+	var killed := await wait_until(when_gone(r3, func(x: Object) -> bool: return x.dead), 30.0)
 	var back := await wait_until(func() -> bool: return not u.out, 30.0)
 	check(killed and back, "it deals with the rats and goes back to its bench")
 	await clear_enemies()
@@ -386,7 +389,7 @@ func _test_loot() -> void:
 		game.population.kill(game.population.civilians.back())
 	var ga: Civilian = game.population.recruit("gatherer")
 	var gold0 := game.economy.amount("gold")
-	var picked := await wait_until(func() -> bool: return not is_instance_valid(sack) or sack.looted, 60.0)
+	var picked := await wait_until(when_gone(sack, func(x: Object) -> bool: return x.looted), 60.0)
 	var paid := await wait_until(func() -> bool: return game.economy.amount("gold") >= gold0 + 40, 60.0)
 	check(ga != null and picked and paid, "a gatherer picks up the dropped loot and brings it home (+40 gold)")
 
@@ -484,7 +487,7 @@ func _test_teardown() -> void:
 	var home := await wait_until(func() -> bool: return u.state == MilitaryUnit.State.RESERVE, 60.0)
 	check(home, "the unit walks back into the reserve")
 	var want := floori(Config.BUILDINGS["tower"]["cost"]["materials"] * Config.TEARDOWN_REFUND)
-	var gone := await wait_until(func() -> bool: return not is_instance_valid(tower) or tower.is_queued_for_deletion(), 90.0)
+	var gone := await wait_until(when_gone(tower, func(x: Object) -> bool: return (x as Node).is_queued_for_deletion()), 90.0)
 	await frames(2)
 	if not gone:
 		print("    (builders %d, tower builder %s, %.0f%%, queue %s)" % [game.population.count("builder"), tower.builder, 100 * tower.work_fraction(), game.construction.queue.map(func(x: Building) -> String: return x.label())])

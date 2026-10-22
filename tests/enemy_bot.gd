@@ -181,7 +181,7 @@ func _test_thief() -> void:
 	# One that gets away takes the gold with it.
 	v.economy.add("gold", 300 - v.economy.amount("gold"))
 	var th2 := spawn("thief", Vector2(road_out(3)), 1.0, true)
-	var away := await wait_until(func() -> bool: return th2.dead or not is_instance_valid(th2), 60.0)
+	var away := await wait_until(when_gone(th2, func(x: Object) -> bool: return x.dead), 60.0)
 	check(away and int(v.economy.amount("gold")) < 300 and logs.any(func(l: String) -> bool: return "got away with" in l), "one that makes it back is gone with the gold")
 	await clear_enemies()
 	await clear_corpses()
@@ -291,7 +291,7 @@ func _test_necromancer() -> void:
 	check(started and nec.channel_to == c.grid_pos and c.raising_by == nec, "a necromancer stops at a corpse and channels on it (the green beam)")
 	await wait(Config.ENEMIES["necromancer"]["cast_time"] * 0.6)
 	check(game.corpses.corpses.has(c), "slowly: nothing rises before its cast time is up")
-	var risen := await wait_until(func() -> bool: return not game.corpses.corpses.has(c), 10.0)
+	var risen := await wait_until(when_gone(c, func(x: Object) -> bool: return not game.corpses.corpses.has(x)), 10.0)
 	var raised: Array = get_tree().get_nodes_in_group("enemies").filter(func(e: Enemy) -> bool: return e.raised)
 	var g: Enemy = raised[0] if not raised.is_empty() else null
 	check(risen and g != null and g.kind == "goblin", "then the corpse rises as a goblin again")
@@ -333,7 +333,7 @@ func _test_necromancer() -> void:
 	if orc == null:  # (it may have drained away already: raise a fresh one)
 		var c5 := game.corpses.spawn("ork", game.waves.wave, nec.grid_pos + Vector2(0.5, 1.0))
 		nb._cool = 0.0
-		await wait_until(func() -> bool: return not game.corpses.corpses.has(c5), 20.0)
+		await wait_until(when_gone(c5, func(x: Object) -> bool: return not game.corpses.corpses.has(x)), 20.0)
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if e.raised and e.kind == "ork" and not e.dead:
 				orc = e
@@ -423,7 +423,7 @@ func _test_fog_corpses() -> void:
 	await wait(8.0)
 	check(game.corpses.corpses.has(hidden) and hidden.claimed_by == null, "a corpse in the fog (unexplored land) isn't gathered")
 	game.fog.explored_of[v.id][game.map.index(t)] = 1
-	var taken := await wait_until(func() -> bool: return not game.corpses.corpses.has(hidden), 60.0)
+	var taken := await wait_until(when_gone(hidden, func(x: Object) -> bool: return not game.corpses.corpses.has(x)), 60.0)
 	check(ga != null and taken, "once that land is explored, a gatherer fetches it")
 	for ex in explorers:
 		ex.set_process(true)
@@ -486,7 +486,7 @@ func _test_vampire() -> void:
 	var va := spawn("vampire", spot + Vector2(0.6, 0.0), 1.0, true)
 	va.speed = 0.0
 	va.hp = 30.0
-	var bit := await wait_until(func() -> bool: return vic.dead or not is_instance_valid(vic), 10.0)
+	var bit := await wait_until(when_gone(vic, func(x: Object) -> bool: return x.dead), 10.0)
 	await frames(1)
 	check(bit and is_equal_approx(va.hp, 30.0 + 2.0 * 0.67), "it heals 67 %% of the HP really taken (2 of a 4 blow: +%.2f)" % (va.hp - 30.0))
 	# Never above its max.
@@ -980,7 +980,7 @@ func _test_spiders() -> void:
 	var n_logs := logs.size()
 	var ling := spawn("spiderling", Vector2(road_out(2)), 1.0, true)
 	(game.map.building_at(game.player_village.gates[0]) as Building).take_damage(1e6)
-	await wait_until(func() -> bool: return not is_instance_valid(ling) or ling.dead, 20.0)
+	await wait_until(when_gone(ling, func(x: Object) -> bool: return x.dead), 20.0)
 	await frames(2)
 	check(game.player_village.intact_huts().size() == huts and logs.slice(n_logs).any(func(l: String) -> bool: return "scuttled off" in l), "a spiderling that gets in burns no hut: it scuttles off")
 
@@ -1489,7 +1489,7 @@ func _test_riders() -> void:
 	b4._calm = float(m["circle_time"])
 	var off := await wait_until(func() -> bool: return r4.mount == "", 40.0)
 	check(off and r4.kind == "goblin" and game.corpses.corpses.is_empty() and game.economy.amount("gold") == gold0, "after %s s without a fight it gets off at a gate: no corpse, no gold, a goblin on foot" % str(m["circle_time"]))
-	var broke := await wait_until(func() -> bool: return not is_instance_valid(r4) or r4.sieging or r4.dead, 20.0)
+	var broke := await wait_until(when_gone(r4, func(x: Object) -> bool: return x.sieging or x.dead), 20.0)
 	check(broke, "and breaks in on foot")
 	await clear_enemies()
 	await clear_corpses()
@@ -1548,7 +1548,7 @@ func _test_riders() -> void:
 	check(vic.hp == vhp and uh.grid_pos.distance_to(start) > 1.0, "it bolts (%.1f tiles) and bites nobody" % uh.grid_pos.distance_to(start))
 	vic.at_home = true
 	vic.set_process(true)
-	var gone := await wait_until(func() -> bool: return not is_instance_valid(uh) or uh.dead, 40.0)
+	var gone := await wait_until(when_gone(uh, func(x: Object) -> bool: return x.dead), 40.0)
 	check(gone, "it falls apart of the drain")
 	kill(nec)
 	await frames(2)

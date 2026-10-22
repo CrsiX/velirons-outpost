@@ -365,7 +365,7 @@ func _single() -> void:
 	var ar := SaveGame.read(auto)
 	check(ar["error"] == "" and ar["header"]["auto"] and int(ar["header"]["wave"]) == 1, "the autosave: wave 1, marked as an autosave")
 	check(SaveGame.newest_single() == auto and SaveGame.newest_of(game.game_id) == auto, "Continue (and Load last save) now take the autosave, the newest")
-	check(await wait_until(func() -> bool: return site2.complete or not is_instance_valid(site2), 120.0), "a builder finishes the saved site")
+	check(await wait_until(when_gone(site2, func(x: Object) -> bool: return x.complete), 120.0), "a builder finishes the saved site")
 	await _end_game()
 
 

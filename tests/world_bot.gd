@@ -346,6 +346,19 @@ func _test_game() -> void:
 		await wait_until(func() -> bool: return runner.at_home, 60.0)
 		runner.hp = runner.max_hp
 		check(far_camp.info()["actions"].any(func(a: Dictionary) -> bool: return a["label"] == "Attack with the hero"), "and its panel offers Attack with the hero")
+		# Fled from them on the way to some fog: that fog waits while they live (the way runs past them).
+		if runner is Explorer:
+			var scout := (runner as Explorer).job
+			var fog := scout.choose_target(v.center)
+			scout.target = fog
+			runner.set_grid_pos(guard_e.grid_pos + Vector2(2.0, 0.0))
+			scout.on_evade()
+			var next := scout.choose_target(v.center)
+			check(fog != Vector2i(-1, -1) and next != fog and Vector2(next).distance_to(Vector2(fog)) > Config.EXPLORER_BLOCKED_RADIUS, "a scout that fled from camp guards on its way to some fog picks other fog while they live (%s, not %s)" % [next, fog])
+			scout._blocked = [[fog, [0]]]  # (as if the guards were dead: no instance has id 0)
+			var again := scout.choose_target(v.center)
+			check(Vector2(again).distance_to(Vector2(fog)) <= Config.EXPLORER_BLOCKED_RADIUS and scout._blocked.is_empty(), "with them gone, that fog is next again (%s for %s)" % [again, fog])
+			runner.arrive_home()
 	hero.set_mode(Hero.Mode.DEFEND)
 	await wait_until(func() -> bool: return hero.at_home, 60.0)
 	logs.clear()
@@ -452,9 +465,10 @@ func _test_game() -> void:
 	var turned := await wait_until(func() -> bool: return m2.state == Miner.State.RETURNING or m2.state == Miner.State.IDLE, 120.0)
 	check(turned and mine.worker == m1 and m2.mine == null, "sent to the taken mine anyway, he's turned away and walks home")
 	var hut: Hut = m1.hut
+	var m1_id := m1.get_instance_id()  # (freed with his hut: has(m1) would be an engine error)
 	hut.destroy("a test")
 	await frames(2)
-	check(not game.population.civilians.has(m1) and mine.is_free(), "the miner dies when his hut is destroyed; the mine is free again")
+	check(not game.population.civilians.any(func(c: Civilian) -> bool: return c.get_instance_id() == m1_id) and mine.is_free(), "the miner dies when his hut is destroyed; the mine is free again")
 
 	# Walking speeds, building rules.
 	var map := game.map
@@ -503,7 +517,7 @@ func _test_game() -> void:
 	var y0: float = fx.position.y if fx else 0.0
 	await frames(3)
 	check(is_instance_valid(fx) and fx.position.y < y0, "and float upwards")
-	var gone := await wait_until(func() -> bool: return not is_instance_valid(fx), 10.0)
+	var gone := await wait_until(when_gone(fx), 10.0)
 	check(gone, "then fade away")
 	game.hud._hero_panel.visible = true
 	game.hud._refresh_hero()

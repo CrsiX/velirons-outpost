@@ -884,6 +884,10 @@ const EXPLORER_WANDER_FACTOR := 1.6
 const EXPLORER_WANDER_SLACK := 8
 const EXPLORER_CLAIM_RADIUS := 7.0
 const EXPLORER_CLAIM_PENALTY := 30
+## A scout (explorer, the hero exploring) that fled from a monster camp's guards
+## on its way to some fog sets that fog aside, and all fog this close to it,
+## while those guards live: the way there runs past them (ExploreJob).
+const EXPLORER_BLOCKED_RADIUS := 4.0
 
 ## --- Military (docs/military-design.md) ------------------------------------------------
 ## Every unit goes up to MAX_UNIT_LEVEL. Stats are given for level 1 and level 10

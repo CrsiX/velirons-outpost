@@ -898,7 +898,7 @@ func _scenario_4() -> void:
 	var huts := v.intact_huts().size()
 	var gold0 := v.economy.amount("gold")
 	Engine.time_scale = 4.0
-	check(await wait_until(func() -> bool: return w.hp < w.max_hp() or not is_instance_valid(thief) or thief.dead, 300.0), "it gets there")
+	check(await wait_until(when_gone(thief, func(x: Object) -> bool: return w.hp < w.max_hp() or x.dead), 300.0), "it gets there")
 	check(is_equal_approx(w.hp, w.max_hp() - float(Config.WAREHOUSE["raid_damage"])), "and plunders it: %d HP (%d / %d)" % [int(Config.WAREHOUSE["raid_damage"]), w.hp, w.max_hp()])
 	check(is_instance_valid(thief) and tb.escaping and thief.loot_gold > 0 and v.economy.amount("gold") < gold0, "and runs off with gold (%d)" % (thief.loot_gold if is_instance_valid(thief) else -1))
 	check(v.intact_huts().size() == huts, "no hut burned for it")
@@ -1075,7 +1075,7 @@ func _scenario_5() -> void:
 	check(not lysa.dead and lysa.retreating and not lysa.targetable(), "never killed: below 30 % she falls back, out of reach")
 	check(is_equal_approx(lysa.hp, lysa.max_hp * 0.3), "with 30 % of her HP")
 	Engine.time_scale = 4.0
-	check(await wait_until(func() -> bool: return not is_instance_valid(lysa) or lysa.dead, 120.0), "she walks back up her road and leaves the map")
+	check(await wait_until(when_gone(lysa, func(x: Object) -> bool: return x.dead), 120.0), "she walks back up her road and leaves the map")
 	var legion_names: Array = Config.ENEMIES.keys().filter(func(k: String) -> bool: return k.begins_with("legion_")).map(func(k: String) -> String: return str(Config.ENEMIES[k]["name"]))
 	var lib := Library.entries("enemies").filter(func(e: Dictionary) -> bool: return legion_names.has(str(e["name"])))
 	check(lib.size() == legion_names.size() and lib.size() == 9 and lib.all(func(e: Dictionary) -> bool: return (e["facts"] as PackedStringArray).has("The Dread Legion: people, bound to Rhodri. Only in the campaign")), "the library has every Legion kind, as people (%d)" % lib.size())
@@ -1792,7 +1792,7 @@ func _scenario_11() -> void:
 	kill(king, h)
 	# (At once: his way back may start where he stands, and then he's gone in a frame.)
 	check(not king.dead and king.retreating and king.hp >= 1.0 and not king.targetable(), "at 0 HP he is downed, not killed, and can't be hit")
-	check(await wait_until(func() -> bool: return not is_instance_valid(king) or king.dead, 60.0), "he flees along his road and is gone")
+	check(await wait_until(when_gone(king, func(x: Object) -> bool: return x.dead), 60.0), "he flees along his road and is gone")
 	await clear_enemies()
 
 	print("-- scenario 11: the waves, the carts, Rhodri")
@@ -1826,6 +1826,7 @@ func _scenario_11() -> void:
 	unseen.clear()
 	check(not game.game_over and sc.phase == ScenarioRunner.Phase.OUTRO, "twelve waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
 	check(fed and food0 > 0.0, "food came by the guild's carts")
+	rhodri = rhodri or sc.mark.has("Rhodri")  # (the scenario saw him: the kill timer may down him before this loop looks)
 	check(rhodri and sc.mark.has("rhodri down") and sc.mark.has("lothar down"), "Rhodri came out, was beaten and fled; Lothar fell (seen %s, marks %s)" % [rhodri, str(sc.mark.keys())])
 	while sc.cutscene != null and not sc._outro_started:
 		await _through_scene()

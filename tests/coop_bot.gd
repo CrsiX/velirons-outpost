@@ -306,7 +306,7 @@ func _test_help() -> void:
 	check(caravans.size() == 1 and absf(v0.economy.amount("gold") - (g0 - 100)) < 1.0 and absf(v0.economy.amount("food") - (f0 - 10)) < 2.0 and not hud._send_panel.visible, "Send: the sender pays at once and a caravan sets off (gold %d -> %d)" % [g0, v0.economy.amount("gold")])
 	var cv: Caravan = caravans[0] if not caravans.is_empty() else null
 	check(cv != null and not cv.is_in_group("melee_defenders") and not cv.is_in_group("enemies"), "enemies can't attack caravans (nothing targets them)")
-	var arrived := await wait_until(func() -> bool: return not is_instance_valid(cv) or v1.economy.amount("gold") >= g1 + 90, 60.0)
+	var arrived := await wait_until(when_gone(cv, func(_x: Object) -> bool: return v1.economy.amount("gold") >= g1 + 90), 60.0)
 	var got_line := v1.events.entries.any(func(e: Dictionary) -> bool: return e["text"] == "Caravan from %s arrived: +90 gold, +9 food" % v0.village_name)
 	check(arrived and got_line and v1.economy.amount("gold") >= g1 + 90 - 1.0, "on arrival the receiver gets the cargo minus the tax (+90 gold, +9 food; gold %d -> %d)" % [g1, v1.economy.amount("gold")])
 	check(v1.events.entries.any(func(e: Dictionary) -> bool: return e["text"].begins_with("Caravan from %s arrived" % v0.village_name)) and v0.events.entries.any(func(e: Dictionary) -> bool: return e["text"].begins_with("Your caravan reached")), "both villages' logs hear about it")

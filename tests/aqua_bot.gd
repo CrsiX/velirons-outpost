@@ -406,7 +406,7 @@ func _test_corpses() -> void:
 	await frames(2)
 	var c: Corpse = game.corpses.corpses.back() if not game.corpses.corpses.is_empty() else null
 	check(c != null and c.kind == "crab" and c.sinking and not game.corpses.available().has(c), "a crab killed on deep water leaves a corpse that sinks (no gatherer goes for it)")
-	var gone := await wait_until(func() -> bool: return not game.corpses.corpses.has(c), float(Config.AQUA["sink_time"]) + 3.0)
+	var gone := await wait_until(when_gone(c, func(x: Object) -> bool: return not game.corpses.corpses.has(x)), float(Config.AQUA["sink_time"]) + 3.0)
 	check(gone, "after %s s it is gone" % str(Config.AQUA["sink_time"]))
 	var crab2 := spawn("crab", lake_mid)
 	crab2.set_grid_pos(Vector2(shore))
@@ -624,7 +624,7 @@ func _test_waves() -> void:
 	check(logs.filter(func(l: String) -> bool: return l.begins_with("Water monsters are still out there")).size() == 1, "once per wave")
 	# Left alone, it goes after leave_after s; no corpse, the wave is over.
 	var corpses0: int = game.corpses.corpses.size()
-	var gone := await wait_until(func() -> bool: return not is_instance_valid(lev) or lev.dead, leave + 3.0)
+	var gone := await wait_until(when_gone(lev, func(x: Object) -> bool: return x.dead), leave + 3.0)
 	await frames(3)
 	check(gone and not w.in_progress() and game.corpses.corpses.size() == corpses0 and logs.any(func(l: String) -> bool: return l.ends_with("goes back into the deep")), "left alone for %s s, it goes back into the deep: no corpse, the wave is over" % leave)
 	# A named one (a scenario's boss) never leaves.

@@ -156,7 +156,10 @@ in docs/multiplayer-design.md.
   - turns back to fog nearer the village when its local frontier is much farther out than
     the village's nearest frontier (`EXPLORER_WANDER_FACTOR` 1.6, `EXPLORER_WANDER_SLACK` 8);
   - avoids fog another explorer is heading for (`EXPLORER_CLAIM_RADIUS` 7, penalty 30);
-  - keeps away from monster camp guards: fog by a camp waits until the camp is cleared;
+  - keeps away from monster camp guards: fog by a camp waits until the camp is cleared. When it
+    flees from camp guards on its way to some fog (the way there runs past them), it sets that
+    fog aside, and all fog within `EXPLORER_BLOCKED_RADIUS` 4 of it, while any of those guards
+    lives; otherwise it would walk the same way into them again and again;
   - fog over forest, rock or water it can't enter is looked into from the nearest walkable
     edge.
 - **Gatherer** (`GatherJob`, shared with the hero's Gather mode, who carries 2):
