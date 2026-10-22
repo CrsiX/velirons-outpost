@@ -591,7 +591,10 @@ func _test_waves() -> void:
 	for kind in ["leviathan", "crab", "goblin"]:
 		out.append(w._spec(kind, game.map.edge_spawns[0], 1.0, v))
 	w._water_spawns(out, v)
-	check(out[0]["spawn"] == lake_mid and out[2]["spawn"] == game.map.edge_spawns[0], "a leviathan comes from the water spawn, a goblin from the edge")
+	# (The river fits a leviathan too, and has no water spawn: a deep tile of it far from the village stands in.)
+	var lev_at: Vector2i = out[0]["spawn"]
+	var from_lake := game.world.pathing.body_of(lev_at) == game.world.pathing.body_of(lake_mid)
+	check((w.aqua(v)["leviathan"] as Array).has(lev_at) and (lev_at == lake_mid or not from_lake) and out[2]["spawn"] == game.map.edge_spawns[0], "a leviathan comes from the water (the lake's water spawn, or deep in the river: %s), a goblin from the edge" % lev_at)
 	# A wave with a leviathan ends only once it is dead, or once it has been
 	# left alone for AQUA leave_after s: then it goes back into the deep.
 	w.scripted.append({"kinds": {"leviathan": 1}, "spawn": lake_mid})

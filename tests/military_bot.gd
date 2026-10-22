@@ -392,9 +392,11 @@ func _test_effects() -> void:
 			best = i
 	w.path_index = best
 	w.set_grid_pos(w.path[best])
-	var left0 := w.remaining()
-	var pushed := await wait_until(func() -> bool: return w.remaining() > left0, 10.0)
-	check(pushed and best_d < sm[1].act_range(), "warp orbs throw the enemy back along its road, away from the village (%d -> %d tiles to go)" % [left0, w.remaining()])
+	# (By its distance from the walls: by the gate it lays siege, and then remaining() counts that, not road steps.)
+	var walls := game.player_village.rect
+	var away0 := Hero.rect_distance(walls, w.grid_pos)
+	var pushed := await wait_until(func() -> bool: return Hero.rect_distance(walls, w.grid_pos) > away0 + 0.5, 10.0)
+	check(pushed and best_d < sm[1].act_range(), "warp orbs throw the enemy back along its road, away from the village (%.1f -> %.1f tiles from the walls)" % [away0, Hero.rect_distance(walls, w.grid_pos)])
 	check(w._push_immune > 0.0, "after a push it's immune to pushes for a while")
 	await clear_enemies()
 	game.army.unstation(sm[0])

@@ -369,8 +369,9 @@ func _test_necromancer() -> void:
 	var hero := game.hero
 	hero.add_to_group("melee_defenders")  # (benched: she stands there, it doesn't fight)
 	hero.set_grid_pos(nec.grid_pos + Vector2(1.5, 0.0))
+	await wait(0.4)  # (it looks for fighters every 0.3 s: until then it may take a step)
 	var p0 := nec.grid_pos
-	await wait(2.0)
+	await wait(1.6)
 	var held := nec.grid_pos.distance_to(p0) < 0.05
 	hero.set_grid_pos(Vector2(v.center))
 	hero.remove_from_group("melee_defenders")
@@ -1425,6 +1426,12 @@ func _test_riders() -> void:
 	hero.hp = 5000.0
 	var spot := Vector2(road_out(16))
 	hero.set_grid_pos(spot)
+	# (Nobody else outside: it hunts anyone, and a gatherer out for loot would be its prey instead.)
+	var homebound: Array = v.population.civilians.duplicate()
+	for c: Civilian in homebound:
+		if not c.at_home:
+			c.arrive_home()
+		c.set_process(false)
 	var r3 := spawn("goblin_raider", spot + Vector2(0.0, 0.0), 1.0, true)
 	r3.set_grid_pos(Vector2(road_out(10)))
 	var rb := r3.behavior as MountedBehavior
@@ -1434,6 +1441,9 @@ func _test_riders() -> void:
 	var hp1 := hero.hp
 	await wait_until(func() -> bool: return hero.hp < hp1, 5.0)
 	check(is_equal_approx(hp1 - hero.hp, Config.enemy_stat("goblin_raider", "damage")), "the next blow, standing: no charge (%.1f)" % (hp1 - hero.hp))
+	for c: Civilian in homebound:
+		if is_instance_valid(c):
+			c.set_process(true)
 	hero.remove_from_group("melee_defenders")
 	hero.set_grid_pos(Vector2(v.center))
 	# Who it hunts: the raider anything outside, Legion riders only melee fighters.

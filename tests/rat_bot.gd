@@ -128,11 +128,14 @@ func _test_packs() -> void:
 		for b in rs:
 			if a != b:
 				min_gap = minf(min_gap, a.grid_pos.distance_to(b.grid_pos))
-	check(out and min_gap > 0.2, "the pack runs with a little space between the rats (closest %.2f tiles)" % min_gap)
+	# (Loosely: each rat rolls its own speed, so a faster one closes in on the one ahead.)
+	check(out and min_gap > 0.08, "the pack runs with a little space between the rats (closest %.2f tiles)" % min_gap)
 	# A fire mage's explosion catches several of them (a pack bunched up).
 	for k in rs.size():
 		rs[k].set_grid_pos(rs[0].grid_pos + Vector2(0.3 * k, 0.0))
 	var pack_hp := rs.map(func(e: Enemy) -> float: return e.hp)
+	var gold0 := game.economy.amount("gold")  # (before the fireball: it may kill them all)
+	var corpses0 := game.corpses.count()
 	var fm := MilitaryUnit.new("fire_mage")
 	fm.village = game.player_village
 	Combat.hit(game, fm, rs[0], fm.stat("damage"), null, rs[0].hit_point())
@@ -141,8 +144,6 @@ func _test_packs() -> void:
 		if not is_instance_valid(rs[k]) or rs[k].dead or rs[k].hp < pack_hp[k]:
 			hurt += 1
 	check(hurt >= 2, "a fireball's splash hits several rats of a pack (%d)" % hurt)
-	var gold0 := game.economy.amount("gold")
-	var corpses0 := game.corpses.count()
 	await clear_enemies()
 	check(game.economy.amount("gold") > gold0 and game.corpses.count() == corpses0, "killed rats pay a little gold and leave no corpse")
 	w._queue.clear()
@@ -181,6 +182,11 @@ func _test_farm() -> void:
 		moved = moved or rs[1].grid_pos.distance_to(p0) > 0.3 or absf(rs[1].sprite.rotation) > 0.02
 	check(moved and farm.tiles().has(rs[1].current_tile()), "they wander about the field, nibbling")
 	# Left alone, a rat on a farm is gone after vanish_after seconds; attacked, it stays.
+	# (Nobody about to bite: a rat back on the field from a bite starts counting again.)
+	game.population.unassign_farmer(farm)
+	for c: Civilian in game.population.civilians:
+		if c.role == "farmer" and not c.at_home:
+			c.arrive_home()
 	var kept := rs[2]
 	var t := 0.0
 	var gone := false
@@ -260,7 +266,7 @@ func _test_villagers() -> void:
 	ex.set_process(false)
 	ex.at_home = false
 	ex.visible = true
-	var spot := game.world.pathing.nearest_walkable(v.center + Vector2i(7, 0))
+	var spot := reachable_near(v.center + Vector2i(7, 0))
 	ex.set_grid_pos(Vector2(spot))
 	var r := spawn("rat", Vector2(spot) + Vector2(1.2, 0.0))
 	var bitten := await wait_until(func() -> bool: return ex.hp < ex.max_hp, 10.0)
@@ -275,6 +281,8 @@ func _test_villagers() -> void:
 	ex.take_damage(1e9, gob)
 	await frames(2)
 	check(not v.population.civilians.has(ex) and logs.any(func(l: String) -> bool: return "died from the attack of goblin" in l), "at 0 HP the villager dies (logged with the cause)")
+	if is_instance_valid(ex) and not ex.dead:
+		ex.set_process(true)  # (it lived on: later tests mustn't find it frozen)
 	gob.take_damage(1e9)
 	# Hurt villagers heal at home.
 	var fo: Civilian = v.population.civilians[0]
@@ -362,7 +370,7 @@ func _test_loot() -> void:
 	hero.set_mode(Hero.Mode.EXPLORE)
 	await frames(2)
 	hero.at_home = false
-	hero.set_grid_pos(Vector2(game.world.pathing.nearest_walkable(v.center + Vector2i(6, 3))))
+	hero.set_grid_pos(Vector2(reachable_near(v.center + Vector2i(6, 3))))
 	job.carrying = {"gold": 40}
 	job.carrying_from = "buried chest"
 	job.task = HeroExploreJob.Task.CARRYING
@@ -419,6 +427,22 @@ func _test_ui() -> void:
 
 ## Earlier tests kill villagers: makes sure one of `role` is there (a hut
 ## freed from a gatherer or explorer if need be).
+## The walkable tile nearest `at` that the village can walk to (a fixed offset
+## from the centre may land in a clearing the woods close in).
+func reachable_near(at: Vector2i) -> Vector2i:
+	var center := game.player_village.center
+	var best := game.world.pathing.nearest_walkable(at)
+	var best_d := INF
+	for y in game.map.size:
+		for x in game.map.size:
+			var t := Vector2i(x, y)
+			var d := Vector2(t).distance_squared_to(Vector2(at))
+			if d < best_d and game.map.village_at(t) < 0 and game.world.pathing.is_walkable(t) and game.world.pathing.can_reach(center, t):
+				best = t
+				best_d = d
+	return best
+
+
 func ensure_role(role: String) -> void:
 	if game.population.count(role) > 0:
 		return
@@ -662,7 +686,7 @@ func _test_fog() -> void:
 	hero.set_mode(Hero.Mode.BUILD)
 	await frames(2)
 	hero.set_process(false)  # (stands still where we put her)
-	var spot := game.world.pathing.nearest_walkable(v.center + Vector2i(9, -3))
+	var spot := reachable_near(v.center + Vector2i(9, -3))
 	hero.at_home = false
 	hero.visible = true
 	hero.set_grid_pos(Vector2(spot))
@@ -680,7 +704,7 @@ func _test_fog() -> void:
 	ga.set_process(false)
 	ga.at_home = false
 	ga.visible = true
-	var spot2 := game.world.pathing.nearest_walkable(v.center + Vector2i(-9, 4))
+	var spot2 := reachable_near(v.center + Vector2i(-9, 4))
 	ga.set_grid_pos(Vector2(spot2))
 	var patch2 := around(spot2, 1.5)
 	unexplore(patch2)
@@ -709,7 +733,7 @@ func _test_fog() -> void:
 	check(seen, "and uncovers it from there")
 	# Land cleared of trees: walkable, reachable and explored like any other.
 	var wall: Array[Vector2i] = []
-	var base := game.world.pathing.nearest_walkable(v.center + Vector2i(0, 10))
+	var base := reachable_near(v.center + Vector2i(0, 10))
 	for dx in range(-6, 7):
 		wall.append(base + Vector2i(dx, 2))
 	var keep := {}

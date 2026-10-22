@@ -183,11 +183,12 @@ func update_surveillance() -> void:
 	_rebuild()
 
 
-## A unit outside explores around it; the hero learns from it (unless she's
-## exploring: her Explore job counts that).
+## A unit outside explores around it; the hero learns from it, whatever she
+## is doing (each tile is new only once, so her Explore job's reveal never
+## pays for the same tiles again).
 func _unit_reveal(node: Node, vid: int) -> void:
 	var c: Vector2 = node.sight_center()
-	if reveal(c, Config.UNIT_REVEAL, vid) > 0 and node is Hero and (node as Hero).mode != Hero.Mode.EXPLORE:
+	if reveal(c, Config.UNIT_REVEAL, vid) > 0 and node is Hero:
 		(node as Hero).on_action("explore")
 
 

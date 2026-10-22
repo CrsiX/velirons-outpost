@@ -38,17 +38,10 @@
 - In an exported game a BOM in a string literal (`"\uFEFF"`, or the raw character) comes out empty, so `begins_with` it is always true: test a code point instead (`MapJson.without_bom`: `text.unicode_at(0) == 0xFEFF`), build one with `String.chr(0xFEFF)`. The bots run in the editor binary and don't see this; check a release export (`--export-release` into the scratchpad, an autoload probe) when file reading behaves differently there.
 - Writing into a packed array held inside an Array or Dictionary (`arr[i][k] = x`) can copy the whole packed array: fill a local one and store it once.
 
-**Test baseline:** all bots pass except these known failures, which predate current work:
-- enemy_bot: 1 ("a fighter of ours near: the necromancer stands and waits").
-- military_bot: 2 ("warp orbs throw the enemy back along its road" and "after a push it's immune to pushes for a while").
-- rat_bot: 4-6 (killed rats pay gold and leave no corpse, goblin hits villager, villager dies, barracks to the farm, the gatherer's dropped loot, uncovers; "a rat left alone on a farm vanishes after 30 s" is flaky on top).
-- sim_bot: 3 (the two training-pause checks "during the pause ... no XP goes on" and "changing his mode then keeps his XP"; the log check misses "Debug: cancel construction", a message nothing logs). "Explore: the hero uncovers fog" is flaky on top.
-- tutorial_bot: flaky, 3 ("step 9 once she has earned XP", "she has the XP for it", "step 10 at level 2": the hero exploring earns no XP in time; seen on the old code too).
-- aqua_bot: "a leviathan comes from the water spawn, a goblin from the edge" is flaky (fails in about 3 of 4 runs on main too).
-- scenario_bot: 1 in a full run ("the scenes between the waves (3)" in scenario 8); it passes with `-- --only=8`. Flaky in scenario 11 (test races, not game bugs): "Rhodri came out, was beaten and fled; Lothar fell" (the bot's kill timer can kill Lothar before the scenario's 0.25 s poll has seen him, so "Lothar" is never marked) and "at 0 HP he is downed, not killed" (his way back may start where he stands, so he is gone within the 2 frames before the check).
+**Test baseline:** all bots pass, with one exception:
 - title_bot: 1 without `CI` set ("made over N frames in ... ms, the longest ... ms": the frame-time limit, too tight for this slow sandbox); with `CI` set it passes.
 
-Anything else failing is new. Last counts (with `CI=true`): stats 67, library 61, tutorial 104, scenario 521 (one or two fewer when a wave starts by itself while the bot rebuilds scenario 1), sim 376-377 (one check needs an empty hut left over), military 169, coop 69, build 86, title 124, enemy 249, aqua 100, siege 92, rat 139, world 83, mapgen 64, map_format 151, editor 123, save 62, net 19 + 28, (`--custom`) 12 + 12 and (`--resume`) 16 + 11. Lint (`tests/lint.sh`) is clean.
+Anything else failing is new. Last counts (with `CI=true`): stats 67, library 61, tutorial 104, scenario 522 (one or two fewer when a wave starts by itself while the bot rebuilds scenario 1), sim 377-378 (one check needs an empty hut left over), military 169, coop 69, build 86, title 124, enemy 249, aqua 100, siege 92, rat 139, world 83, mapgen 64, map_format 151, editor 123, save 62, net 19 + 28, (`--custom`) 12 + 12 and (`--resume`) 16 + 11. Lint (`tests/lint.sh`) is clean.
 
 **Gotchas learned the hard way:**
 - Game speed is `Engine.time_scale` (speed 0 pauses the tree instead and leaves `time_scale` as it was). Code that must run in real time (UI, `train_pause`, the title backdrop's clock and tweens) divides delta by `maxf(Engine.time_scale, 0.001)` or uses `set_ignore_time_scale(true)`. Anything that changes `time_scale` must reset it to 1 on exit.
@@ -58,6 +51,8 @@ Anything else failing is new. Last counts (with `CI=true`): stats 67, library 61
 - In tests, `await` every coroutine helper, and keep waits shorter than whatever frees the game (the title backdrop swaps games every `duration`).
 - Monster-camp guards are enemies too (`CampBehavior`): filter them out when counting a wave's enemies.
 - A finished building may be devastated (`Building.devastated`, docs/siege-design.md): "does its job" is `working()`, not `complete`. `level` lives on `Building` (towers, barracks, gates, walls).
+- In the bots, "real seconds" are frame time (`get_process_delta_time() / Engine.time_scale`), as the game counts them (`train_pause`), never the wall clock (`Time.get_ticks_msec`): headless frames come much faster than real time.
+- A fixed offset from the village centre can land in a clearing the woods close in (rat_bot's map has one east of the village): a bot that puts someone out there picks a tile the village can walk to (`find_spot`, rat_bot's `reachable_near`). And keep the other villagers home when a test needs one particular target (a raider hunts anyone outside).
 - Machine-dependent timing checks in the bots (title_bot's frame times) are skipped when the env variable `CI` is set; CI sets `CI=true`, and so should local runs here (`export CI=true`).
 - `game.gd` modes: `tutorial_mode`, `scenario` (a campaign scenario: `ScenarioRunner`, its own rules, no saving), `backdrop` (title background game: no raids, no defeat, no input, no HUD), `networked`. A new game-wide rule may need to respect all of them. A game can also be `loaded` (from a save, `Game.restoring` while it is built). A game ends through `Game.end_game(title, sub, won)`.
 - New durable state (a field that must survive a load) needs a line in `SaveGame.capture` and its `_restore_*`; save_bot's round trip (save, load, save again: the same body) catches most misses. Changing the body's layout means `SaveGame.FORMAT` + 1 (old saves are then refused, not migrated).

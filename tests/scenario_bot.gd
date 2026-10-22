@@ -304,7 +304,7 @@ func _play_through() -> void:
 ## Every enemy of the waves dies (with `kill_camps`, the camps' guards too).
 func _kill_wave() -> void:
 	for e: Enemy in get_tree().get_nodes_in_group("enemies"):
-		if e.given_name != "" and e.given_name == spare:
+		if e.given_name != "" and (e.given_name == spare or (unseen.has(e.given_name) and not sc.mark.has(e.given_name))):
 			continue
 		if kill_camps or not (e.behavior is CampBehavior):
 			kill(e, game.hero)
@@ -314,6 +314,9 @@ func _kill_wave() -> void:
 var kill_camps := false
 ## _kill_wave leaves the enemy of this name alone (scenario 9's leviathan, for a while).
 var spare := ""
+## _kill_wave leaves the enemies of these names alone until the scenario has
+## seen them (sc.mark has the name): it may poll only after the kill came.
+var unseen: Array[String] = []
 
 
 func _total(d: Dictionary) -> int:
@@ -1440,11 +1443,16 @@ func _scenario_8() -> void:
 	guard.start()
 	var offer := false
 	var rurik := false
-	var scenes := 0
+	# Every scene that starts, counted as it starts: the crypt that wakes last
+	# may be cleared at once, and the outro then ends the loop before it sees one.
+	var scenes := [0]
+	var count_scene := func(n: Node) -> void:
+		if n is Cutscene:
+			scenes[0] += 1
+	get_tree().node_added.connect(count_scene)
 	var t := 0.0
 	while not sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER] and not game.game_over and t < 1800.0:
 		if sc.cutscene != null:
-			scenes += 1
 			if sc.cutscene.steps.any(func(s: Dictionary) -> bool: return s.has("choices")):
 				offer = true
 			await _through_scene(1)
@@ -1464,7 +1472,8 @@ func _scenario_8() -> void:
 	check(crypts.all(func(o: Node) -> bool: return (o as MonsterLair).cleared and not (o as MonsterLair).awake), "they stay cleared")
 	check(offer, "Lothar's offer came, and was refused")
 	check((rurik or named.get("Rurik", "") == "legion_champion") and sc.mark.has("rurik down"), "Rurik stood at the third crypt, and fell (seen %s, %s, fell %s)" % [rurik, named.get("Rurik", ""), sc.mark.has("rurik down")])
-	check(scenes >= 4, "the scenes between the waves (%d)" % scenes)
+	get_tree().node_added.disconnect(count_scene)
+	check(scenes[0] >= 4, "the scenes between the waves (%d)" % scenes[0])
 	if sc.cutscene != null and not sc._outro_started:
 		await _through_scene()  # (Rurik's fall)
 	check(await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 120.0), "the outro plays after it")
@@ -1781,7 +1790,7 @@ func _scenario_11() -> void:
 	await frames(2)
 	check(king.spec()["cleave"] > 0.0 and king.spec().has("command_radius"), "the king: a commander whose blows cleave")
 	kill(king, h)
-	await frames(2)
+	# (At once: his way back may start where he stands, and then he's gone in a frame.)
 	check(not king.dead and king.retreating and king.hp >= 1.0 and not king.targetable(), "at 0 HP he is downed, not killed, and can't be hit")
 	check(await wait_until(func() -> bool: return not is_instance_valid(king) or king.dead, 60.0), "he flees along his road and is gone")
 	await clear_enemies()
@@ -1802,6 +1811,7 @@ func _scenario_11() -> void:
 	var food0 := game.economy.amount("food")
 	var fed := false
 	var rhodri := false
+	unseen.assign(["Rhodri", "Lothar"])  # (seen by the scenario before they are beaten)
 	var t := 0.0
 	while not sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER] and not game.game_over and t < 2400.0:
 		if sc.cutscene != null:
@@ -1809,12 +1819,11 @@ func _scenario_11() -> void:
 		if not fed and game.events.entries.any(func(en) -> bool: return str(en["text"]).begins_with("The guild caravan is in")):
 			fed = true
 		rhodri = rhodri or sc.named_enemy("Rhodri") != null
-		spare = "" if sc.mark.has("Rhodri") else "Rhodri"  # (seen by the scenario before he is beaten)
 		if game.waves.can_call():
 			cmd("call_wave")
 		await wait(0.5)
 		t += 0.5
-	spare = ""
+	unseen.clear()
 	check(not game.game_over and sc.phase == ScenarioRunner.Phase.OUTRO, "twelve waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
 	check(fed and food0 > 0.0, "food came by the guild's carts")
 	check(rhodri and sc.mark.has("rhodri down") and sc.mark.has("lothar down"), "Rhodri came out, was beaten and fled; Lothar fell (seen %s, marks %s)" % [rhodri, str(sc.mark.keys())])

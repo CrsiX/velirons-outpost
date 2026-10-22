@@ -217,14 +217,13 @@ she can walk to.
 | `corpse` | 4 | each corpse **picked up** (Gather mode), not when it is paid at home |
 | `loot` | 10 | each treasure looted in Explore mode, when the looting is done; not for picking up dropped loot again |
 
-- **Uncovering fog outside Explore mode:** like every unit outside, she explores the fog within
-  `UNIT_REVEAL` (1.8 tiles) around her. Each such reveal that uncovers something gives
-  `explore` XP (`FogLayer._unit_reveal`).
-- **In Explore mode** two reveals run side by side, both 1.8 tiles: the fog layer's own unit
-  reveal, which pays no XP in this mode, and the Explore job's reveal (every 0.15 s while it is
-  exploring unknown land), which pays `explore` XP whenever it uncovers something. So only the
-  exploring part of the mode pays for fog; walking to a claim or a treasure, and carrying loot
-  home, uncovers fog without XP. A claim itself pays `explore` once.
+- **Uncovering fog, always:** whenever she uncovers new tiles she earns `explore` XP, in every
+  mode and whatever she is doing (walking to a claim or loot, carrying it home, gathering a corpse
+  by the fog, fighting, walking home). Like every unit outside she explores the fog within
+  `UNIT_REVEAL` (1.8 tiles) around her (`FogLayer._unit_reveal`); in Explore mode her Explore job
+  reveals as well (every 0.15 s while it is exploring unknown land). Each reveal that uncovers
+  something pays `explore` once; a tile is new only once, so nothing is paid twice. A claim
+  itself pays `explore` once too.
 - **Shrines:** looting a shrine can pay 80-120 XP (×the tier scale) when she gets home.
 - **Debug:** *+1000 XP* in the Debug dialog (command `_debug` "xp").
 - Training earns nothing. No other unit ever gains XP.

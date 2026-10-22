@@ -1493,8 +1493,9 @@ func _run() -> void:
 	var csite := game.construction.place("tower", cspot)
 	if csite:
 		game.construction.cancel(csite)
+		var mat_back := game.economy.amount("materials")  # (at once: a forester may bring wood home meanwhile)
 		await frames(2)
-		check(game.economy.amount("materials") == mat_c and map.building_at(cspot) == null, "cancelling an untouched construction site refunds it in full and frees the tile")
+		check(mat_back == mat_c and map.building_at(cspot) == null, "cancelling an untouched construction site refunds it in full and frees the tile")
 
 	# ...and a site a builder has worked on only gives back what is left of it.
 	var price: int = Config.BUILDINGS["tower"]["cost"]["materials"]
@@ -1571,8 +1572,8 @@ func _run() -> void:
 		EventLog.Level.DEBUG: ["recruit archer", "recruit farmer", "assign forester", "unassign forester", "place watchtower", "starts work on", "send archer", "takes up its post on",
 			"withdraw archer", "is back in the reserve", "level-up archer", "drag archer", "move archer", "select ", "killed goblin", "killed skeleton", "appears at", "left behind",
 			"collected corpse", "corpses home", "cut down tree", "building material at", "food home", "summoned elemental", "crumbles", "casts a spell at", "bewitched by",
-			"fights elemental", "the hero attacks", "hero mode: ", "flees home", "heads for the fog", "buy 10 building material", "game speed", "open settings", "log level", "rotted away", "order upgrade of", "cancel construction", "broke into the village"],
-		EventLog.Level.INFO: ["Wave 1 begins", "Wave 1 is over", "watchtower 1 finished", "upgraded to level 2", "The hero returns", "fully trained to level 2", "rebuilt"],
+			"fights elemental", "the hero attacks", "hero mode: ", "flees home", "heads for the fog", "buy 10 building material", "game speed", "open settings", "log level", "rotted away", "order upgrade of", "broke into the village"],
+		EventLog.Level.INFO: ["Wave 1 begins", "Wave 1 is over", "watchtower 1 finished", "upgraded to level 2", "The hero returns", "fully trained to level 2", "rebuilt", " cancelled: "],
 		EventLog.Level.IMPORTANT: ["destroyed by goblin", "destroyed by ork", "died when", "died of starvation", "The hero was struck down"],
 	}
 	var missing: Array[String] = []
@@ -1742,6 +1743,23 @@ func _test_hero(far: Vector2i) -> void:
 	var explored := await wait_until(func() -> bool: return game.fog.explored_count() > ex0 + 10 and hero.xp > xp_e, 90.0)
 	check(explored, "Explore: the hero uncovers fog and earns XP (+%d tiles)" % (game.fog.explored_count() - ex0))
 	check(not civs("explorer").any(func(e: Explorer) -> bool: return e.target != Vector2i(-1, -1) and Vector2(e.target).distance_to(Vector2(hero.exploring_target())) < 1.0), "explorers don't head for the hero's patch of fog")
+	# New tiles uncovered pay XP always, whatever she does (here: gathering by unknown land).
+	var fresh_xp: Array[bool] = []
+	var pos0 := hero.grid_pos
+	for m in [Hero.Mode.GATHER, Hero.Mode.EXPLORE]:
+		hero.set_mode(m)
+		var unknown := Vector2i(-1, -1)
+		for i in game.map.size * game.map.size:
+			var t := Vector2i(i % game.map.size, i / game.map.size)
+			if not game.fog.is_explored_by(0, t) and game.map.is_passable(t):
+				unknown = t
+				break
+		var xp_g := hero.xp
+		hero.grid_pos = Vector2(unknown)
+		game.fog.update_surveillance()
+		fresh_xp.append(unknown != Vector2i(-1, -1) and game.fog.is_explored_by(0, unknown) and hero.xp > xp_g)
+	hero.grid_pos = pos0
+	check(fresh_xp == [true, true], "new tiles she uncovers pay XP in any mode, not just while exploring (gather, explore: %s)" % str(fresh_xp))
 	# A new mode while she flees takes effect at once, out where she is.
 	await wait_until(func() -> bool: return not hero.at_home and hero.grid_pos.distance_to(Vector2(game.player_village.center)) > 5.0, 60.0)
 	# A tile next to her she can walk to (not a tree or water).
@@ -1843,9 +1861,12 @@ func _test_hero(far: Vector2i) -> void:
 	check(hero.train_pause > 0.0 and "pausing after a level-up" in hero.status() and logged("reached level 2. The hero pauses", EventLog.Level.INFO), "after the level-up the hero pauses, and says so (%s)" % hero.status())
 	hud._refresh_hero()
 	check("change her mode now to keep her XP" in hud._hero_train_label.text, "the hero panel shows the pause")
-	var t_pause := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - t_pause < 1500:
+	# 1.5 s by the clock the pause counts (frame time, unscaled), not the wall
+	# clock: headless frames come much faster than real time.
+	var t_pause := 0.0
+	while t_pause < 1.5:
 		await get_tree().process_frame
+		t_pause += get_process_delta_time() / maxf(Engine.time_scale, 0.001)
 	check(hero.xp == 25 and archer.train_xp == 0.0, "during the pause (%.0f s, even at %.0fx speed) no XP goes on" % [Config.HERO["train_pause"], Engine.time_scale])
 	hero.set_mode(Hero.Mode.DEFEND)
 	await frames(2)
