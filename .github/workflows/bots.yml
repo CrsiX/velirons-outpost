@@ -60,6 +60,24 @@ jobs:
           unzip -q Godot_v${GODOT_VERSION}-stable_export_templates.tpz
           mv templates/* $TPL/
 
+  # gdlint over every GDScript file (tests/lint.sh, rules in .gdlintrc). It
+  # needs no Godot, so it starts at once; a finding fails the run like a bot.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install gdtoolkit
+        run: pip install gdtoolkit==4.5.0
+
+      - name: Lint
+        run: tests/lint.sh
+
   # Map generation, on its own: the unit tests of MapData, GenContext, the save
   # format and pathing, and then a sweep over many seeds that makes one attempt
   # per map, so the numbers are the generator's real first-try hit rate rather

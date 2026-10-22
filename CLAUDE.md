@@ -337,7 +337,7 @@ tests/mapgen_bot.* the map generator's parts on their own, every map size, and a
 tests/run_all.sh   runs every bot (env: GODOT, OUT, STOP); a bot fails on a non-zero exit or a script / parse error in its log; tests/summarize.py turns the logs into a summary
 tests/lint.sh      gdlint (gdtoolkit 4.5.0, rules in .gdlintrc)
 scenes/            main.tscn, title.tscn
-.github/workflows/ CI: tests.yml, bots.yml (mapgen job + one job per bot + `balance-smoke`: five short balancing-bot games that must reach wave 5; any failed check, script error or failed game fails the run and blocks the Pages deploy: no bot failures are allowed), balance.yml (manual: full balancing-bot games on many machines, report as artifact), build.yml (exports), pages.yml (web build); CI fetches Godot "4.7"
+.github/workflows/ CI: tests.yml, bots.yml (a `lint` job (gdtoolkit 4.5.0, `tests/lint.sh`) + mapgen job + one job per bot + `balance-smoke`: five short balancing-bot games that must reach wave 5; any lint finding, failed check, script error or failed game fails the run and blocks the Pages deploy: no bot failures are allowed; every push runs it: other branches through tests.yml, main through pages.yml), balance.yml (manual: full balancing-bot games on many machines, report as artifact), build.yml (exports), pages.yml (web build); CI fetches Godot "4.7"
 ```
 The simulation runs in grid space; `Iso` projects it to the screen. All tunables are in `scripts/core/config.gd`.
 
