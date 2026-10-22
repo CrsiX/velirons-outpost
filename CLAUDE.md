@@ -38,7 +38,7 @@
 - In an exported game a BOM in a string literal (`"\uFEFF"`, or the raw character) comes out empty, so `begins_with` it is always true: test a code point instead (`MapJson.without_bom`: `text.unicode_at(0) == 0xFEFF`), build one with `String.chr(0xFEFF)`. The bots run in the editor binary and don't see this; check a release export (`--export-release` into the scratchpad, an autoload probe) when file reading behaves differently there.
 - Writing into a packed array held inside an Array or Dictionary (`arr[i][k] = x`) can copy the whole packed array: fill a local one and store it once.
 
-**Test baseline:** all bots pass, with one exception:
+**Test baseline:** all bots pass, and CI allows no failures (a failing bot fails the run), so a fix that breaks a bot is fixed in the same change. One local exception:
 - title_bot: 1 without `CI` set ("made over N frames in ... ms, the longest ... ms": the frame-time limit, too tight for this slow sandbox); with `CI` set it passes.
 
 Anything else failing is new. Last counts (with `CI=true`): stats 67, library 61, tutorial 104, scenario 522 (one or two fewer when a wave starts by itself while the bot rebuilds scenario 1), sim 377-378 (one check needs an empty hut left over), military 169, coop 69, build 86, title 124, enemy 249, aqua 100, siege 92, rat 139, world 83, mapgen 64, map_format 151, editor 123, save 62, net 19 + 28, (`--custom`) 12 + 12 and (`--resume`) 16 + 11. Lint (`tests/lint.sh`) is clean.
@@ -333,10 +333,10 @@ tests/net_bot.*    two-process LAN test (host + client over localhost): tests/ru
 tests/map_format_bot.* the JSON map format end to end: MapData <-> JSON <-> packed on generated maps, tolerant import, every refusal, maps from files played (ownerless villages)
 tests/editor_bot.* the map editor: views, every tool with undo / redo, the pointer (left and right button), inspector, the panels (folding, the portrait sheet), layers, files, the picker, Play and the session, the web warning
 tests/mapgen_bot.* the map generator's parts on their own, every map size, and a seed sweep
-tests/run_all.sh   runs every bot (env: GODOT, OUT, STOP); tests/summarize.py turns the logs into a summary
+tests/run_all.sh   runs every bot (env: GODOT, OUT, STOP); a bot fails on a non-zero exit or a script / parse error in its log; tests/summarize.py turns the logs into a summary
 tests/lint.sh      gdlint (gdtoolkit 4.5.0, rules in .gdlintrc)
 scenes/            main.tscn, title.tscn
-.github/workflows/ CI: tests.yml, bots.yml (mapgen job + one job per bot + `balance-smoke`: five short balancing-bot games that must reach wave 5), balance.yml (manual: full balancing-bot games on many machines, report as artifact), build.yml (exports), pages.yml (web build); CI fetches Godot "4.7"
+.github/workflows/ CI: tests.yml, bots.yml (mapgen job + one job per bot + `balance-smoke`: five short balancing-bot games that must reach wave 5; any failed check, script error or failed game fails the run and blocks the Pages deploy: no bot failures are allowed), balance.yml (manual: full balancing-bot games on many machines, report as artifact), build.yml (exports), pages.yml (web build); CI fetches Godot "4.7"
 ```
 The simulation runs in grid space; `Iso` projects it to the screen. All tunables are in `scripts/core/config.gd`.
 

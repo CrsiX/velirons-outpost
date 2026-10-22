@@ -18,7 +18,7 @@
 #            tests/run_all.sh mapgen world just those two
 #            STOP=1 tests/run_all.sh       stop at the first failure
 #
-# Exits 0 only when every bot passed.
+# Exits 0 only when every bot passed: exit code 0 and no script or parse error in its log.
 set -uo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -69,6 +69,8 @@ for bot in "${bots[@]}"; do
 		status=timeout
 	elif (( code != 0 )); then
 		status=failed
+	elif grep -q -E "SCRIPT ERROR|Parse Error" "$log"; then
+		status=failed  # (a script error fails it too, even with every check passed)
 	fi
 	printf '%s\t%s\t%d\t%d\n' "$bot" "$status" "$code" "$took" >> "$out/results.tsv"
 	# Enough of the log to see what happened without opening it.

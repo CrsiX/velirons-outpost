@@ -86,7 +86,6 @@ jobs:
         run: ~/godot --headless --import 2>&1 | tail -5
 
       - name: Generate maps
-        continue-on-error: true  # what it finds is reported, not fatal
         env:
           OUT: ${{ github.workspace }}/logs
           GEN_PROFILE: "1"
@@ -104,7 +103,8 @@ jobs:
           retention-days: 14
 
   # One job per bot, so a slow one does not hold up the rest and every log comes
-  # back as its own artifact even when the bot fails.
+  # back as its own artifact even when the bot fails. A failed check fails the
+  # job, and with it the run: no bot failures are allowed.
   bots:
     needs: setup
     runs-on: ubuntu-latest
@@ -131,7 +131,6 @@ jobs:
         run: ~/godot --headless --import 2>&1 | tail -5
 
       - name: Run the ${{ matrix.bot }} bot
-        continue-on-error: true  # what it finds is reported, not fatal
         if: ${{ inputs.bots == '' || contains(format(' {0} ', inputs.bots), format(' {0} ', matrix.bot)) }}
         env:
           OUT: ${{ github.workspace }}/logs
@@ -152,8 +151,7 @@ jobs:
   # fixed (the same game every run: a change that breaks it is the culprit),
   # three get a random seed and map (printed in the log: rerun it with the same
   # --map / --seeds to see it again). No hard games: the bot dies before wave 5
-  # in about a fifth of them, so there it would only test the dice. Unlike the bots above this one fails the
-  # run: it can't tell "the code is wrong" from "the balance changed" any other way.
+  # in about a fifth of them, so there it would only test the dice. Like the bots above, a failure fails the run.
   balance-smoke:
     needs: setup
     runs-on: ubuntu-latest
@@ -205,9 +203,9 @@ jobs:
           retention-days: 14
 
   # Everything the bots printed, in one place: what failed and where in the bot
-  # it was checked, the engine errors, and the map generation tables. A bot that
-  # fails its checks does not fail the run -- it shows up here and as a warning
-  # on the run. Only a run that produced no logs at all is an error, because
+  # it was checked, the engine errors, and the map generation tables. It runs
+  # even when bots failed (their jobs fail the run), so the failures are listed
+  # in one place. A run that produced no logs at all is an error too, because
   # then nothing was tested and the summary would be an empty all clear.
   summary:
     needs: [bots, mapgen]
