@@ -1574,6 +1574,21 @@ func _scenario_9() -> void:
 		far = maxf(far, o.grid_pos.distance_to(Vector2(ab.tile)))
 	check(far <= sc.spec.GUARD_LEASH + 1.0, "the octopus keeps to the water by the abbey (%.1f)" % far)
 
+	print("-- scenario 9: the watch on the water")
+	check(game.waves.hold and game.waves.wave == 0 and game.waves.can_call(), "wave 1 waits (no countdown), and can be called")
+	var shore := Vector2i(-1, -1)
+	var best := INF
+	for y in game.map.size:
+		for x in game.map.size:
+			var st := Vector2i(x, y)
+			var d := Vector2(st).distance_to(Vector2(v.center))
+			if d < best and sc.spec._by_water(sc, st) and game.construction.placement_error("tower", st) == "":
+				best = d
+				shore = st
+	check(cmd("place_building", {"kind": "tower", "tile": shore})["ok"], "a watchtower placed by the shore %s" % shore)
+	await wait(0.6)
+	check(not game.waves.hold and game.waves.countdown > sc.spec.FIRST_WAVE_AFTER - 5.0, "placed: wave 1's countdown runs at once (%.0f s)" % game.waves.countdown)
+
 	print("-- scenario 9: the waves, the priests, the Legion")
 	o.take_damage(1e9, h)  # (the test's towers)
 	var guard := Timer.new()
@@ -1584,6 +1599,8 @@ func _scenario_9() -> void:
 	guard.start()
 	var gold0 := game.economy.amount("gold")
 	var lysa := false
+	var lysa_seen := false
+	spare = "Lysa"  # (until the bot has seen her)
 	var boats := false
 	var t := 0.0
 	while not sc.mark.has("unsealed") and not game.game_over and t < 1200.0:
@@ -1592,6 +1609,10 @@ func _scenario_9() -> void:
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if (e as Enemy).given_name == "Lysa" and (e as Enemy).home_tile == sc.spec._causeway_spawn(sc):
 				lysa = true
+				if not lysa_seen:
+					await wait(0.6)
+					lysa_seen = is_instance_valid(e) and (e as Enemy).visible
+				spare = ""
 		if game.waves.wave >= 3 and not boats:
 			boats = game.events.entries.any(func(en) -> bool: return str(en["text"]).contains("guild boats"))
 		if game.waves.can_call():
@@ -1600,6 +1621,7 @@ func _scenario_9() -> void:
 		t += 0.5
 	check(sc.mark.has("told"), "after wave 4 the priests tell what the abbey hides")
 	check(lysa, "wave 6: Lysa leads the Legion down the causeway")
+	check(lysa_seen, "she is seen on her way, fog or not")
 	check(boats and game.economy.amount("gold") > gold0, "Pell's guild boats bring supplies")
 	check(sc.mark.has("unsealed") and not ab.sealed, "after wave 6 the crypt is unsealed")
 

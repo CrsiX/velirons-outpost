@@ -536,15 +536,19 @@ func _add(g: Enemy, target: Village) -> void:
 
 
 ## A scenario's extra enemies for the wave under way (they count for it):
-## `count` of `kind` from road tile `tile`, at the end of its queue; `extra`
-## goes into each one's queue entry ("name", "art": Enemy.set_identity;
-## "hp_x": its HP times that, "power": its damage, Enemy.power).
-func add_to_wave(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary = {}) -> void:
+## `count` of `kind` from road tile `tile`, at the end of its queue (`front`:
+## at its head, next to come); `extra` goes into each one's queue entry
+## ("name", "art": Enemy.set_identity; "hp_x": its HP times that, "power": its
+## damage, Enemy.power).
+func add_to_wave(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary = {}, front := false) -> void:
 	var hp_scale := pow(Config.WAVE_HP_GROWTH, maxi(wave, 1) - 1)
 	for i in count:
 		var sp := _spec(kind, tile, hp_scale, game.villages[0])
 		sp.merge(extra)
-		_queue.append(sp)
+		if front:
+			_queue.insert(0, sp)
+		else:
+			_queue.append(sp)
 	changed.emit()
 
 

@@ -1015,10 +1015,25 @@ func spawn_near(near: Vector2i) -> Vector2i:
 
 
 ## `count` more of `kind` for the wave under way, from road tile `tile`
-## (they count for the wave); `extra`: "name", "art" (a named Legion captain).
-func add_enemies(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary = {}) -> void:
+## (they count for the wave); `extra`: "name", "art" (a named Legion captain);
+## `front`: they come next, before the rest of the wave.
+func add_enemies(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary = {}, front := false) -> void:
 	if tile != Vector2i(-1, -1):
-		game.waves.add_to_wave(kind, tile, count, extra)
+		game.waves.add_to_wave(kind, tile, count, extra, front)
+
+
+## Keeps the land within `radius` of `who` (an enemy, or a cutscene's actor)
+## watched for the player's village while it is on the map: a story figure
+## the player must see wherever it walks, fog or not (scenario 9's Lysa).
+func keep_in_sight(who: Node2D, radius: float) -> void:
+	if who.has_meta("kept_in_sight"):
+		return
+	who.set_meta("kept_in_sight", true)
+	var s := Sight.new()
+	s.village = game.player_village
+	s.who = who
+	s.radius = radius
+	game.add_child(s)
 
 
 ## Whether an enemy of `kind` is about now (not counting wild ones: camp guards, wrathwoods).
@@ -1234,3 +1249,26 @@ func unit_promoted() -> bool:
 		if units.has(u) and (u.kind != units[u][0] or u.level > int(units[u][1])):
 			return true
 	return false
+
+
+## An observer (the fog's group "observers") that follows a story figure
+## (keep_in_sight) and is gone with it.
+class Sight:
+	extends Node
+	var village: Village
+	var who: Node2D
+	var radius := 0.0
+
+	func _ready() -> void:
+		add_to_group("observers")
+
+	func sight_radius() -> float:
+		if not is_instance_valid(who) or who.get("dead") == true:
+			queue_free()
+			return 0.0
+		return radius
+
+	func sight_center() -> Vector2:
+		if not is_instance_valid(who):
+			return Vector2.ZERO
+		return (who as Unit).grid_pos if who is Unit else Iso.to_grid(who.position)

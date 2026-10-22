@@ -507,13 +507,9 @@
     {"tile": [55, 17], "art": "bridge_stone_y", "under": "water"},
     {"tile": [55, 18], "art": "bridge_stone_y", "under": "water"},
     {"tile": [55, 19], "art": "tile_ford", "under": "shallow"},
-    {"tile": [52, 28], "art": "tile_ford", "under": "shallow"},
-    {"tile": [53, 28], "art": "tile_ford", "under": "shallow"},
     {"tile": [52, 29], "art": "bridge_stone_y", "under": "water"},
     {"tile": [52, 30], "art": "bridge_stone_y", "under": "water"},
-    {"tile": [52, 31], "art": "bridge_stone_y", "under": "water"},
-    {"tile": [51, 32], "art": "bridge_stone_x", "under": "water"},
-    {"tile": [52, 32], "art": "bridge_stone_x", "under": "water"}
+    {"tile": [52, 31], "art": "bridge_stone_y", "under": "water"}
   ],
   "volcanoes": [],
   "water_spawns": [[63, 19], [2, 74], [43, 74]],

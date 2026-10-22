@@ -687,7 +687,7 @@ The game has none of this yet, except where noted:
 - **In the engine, with dialogue** (`Cutscene`, `cutscene.gd`): the game runs on at 1x behind black bars, the HUD hidden and the map's input off;
   the camera moves between spots; people speak in a box at the bottom (portrait, name in their colour, the line typed out); the narrator's lines
   have no portrait and are centred. A tap, click, Space or Enter shows the whole line, then the next; *Skip* (top right) or Esc ends it.
-- A scenario writes a cutscene as a list of steps: `say` (speaker id, text), `camera` (a world position, zoom, time), `wait`, `fade` (in / out),
+- A scenario writes a cutscene as a list of steps: `say` (speaker id, text), `camera` (a world position, or a Callable giving it when the step plays; zoom, time), `wait`, `fade` (in / out),
   `title` (a title card), `do` (a scripted action: a cart on the road, dusk), `until` (wait for a condition), and a **choice**: a `say` step with
   `choices` (`[{"text", "do"}]`) shows a button per choice instead of waiting for a tap; the picked one's `do` runs (scenario 4's offer: taking
   the gold calls `ScenarioRunner.lose`), then the cutscene goes on. Skip before a choice still to come jumps to it (only the `do` steps on the way
@@ -817,9 +817,11 @@ The game has none of this yet, except where noted:
   - **Named enemies:** a queue entry's `name` and `art` give an enemy a name and a look of its own (`Enemy.set_identity`): the name shows over
     its head and is its label in the log; Lysa's captain has a crimson plume and a dark-red braid (`unit_legion_captain_lysa`), Torben's the
     generic pale plume (`unit_legion_captain`).
-- **Adding to a running wave:** `ScenarioRunner.add_enemies(kind, tile, count, extra)` (`Waves.add_to_wave`): more enemies for the wave under way,
-  from a road tile, counted for it (scenario 5's Legion down the pass, its captains, the old gate's gargoyles). `spawn_near(tile)`: the edge
-  spawn whose road comes in nearest a tile.
+- **Adding to a running wave:** `ScenarioRunner.add_enemies(kind, tile, count, extra, front)` (`Waves.add_to_wave`): more enemies for the wave
+  under way, from a road tile, counted for it (scenario 5's Legion down the pass, its captains, the old gate's gargoyles); at the end of its
+  queue, or with `front` next to come. `spawn_near(tile)`: the edge spawn whose road comes in nearest a tile. `keep_in_sight(who, radius)`:
+  an observer that follows an enemy or a cutscene figure and keeps the land round it watched for the player while it is on the map
+  (`ScenarioRunner.Sight`; scenario 9's Lysa).
 - **Water monsters in scripted waves** come from the village's water spawns as in the normal waves (`Waves._water_spawns`: water-bound always,
   amphibians half the time).
 - **Helpers:** `treasures()` (the map's treasures, farthest first), `named_enemy(name)`.
@@ -1053,7 +1055,8 @@ The game has none of this yet, except where noted:
 
 - **Map:** `data/maps/drowned_abbey.json` (*The Drowned Abbey*; `make_scenario_map.gd -- 9`: Coast, seed 909; the north road's straight
   stretch 28 road tiles from the gate made an island in a lake (land 4.2, water 9.5 tiles), crossed on stone bridges; the abbey and a camp of
-  2 vampires and a skeleton on the island; a water spawn on the lake).
+  2 vampires and a skeleton on the island; a water spawn on the lake). Edited by hand since: no bridge or ford bends, the road turns only on
+  land (the bends at both ends of the south bridge are land now), so both bridges run straight.
 - **Baseline:** Easy, enemies at 1.15; 300 gold, 170 food, 260 material; two builders, a farmer, a forester, a gatherer, Pell and two
   priests (residents, unnamed; the eldest speaks for them); the farm and the camp; all huts stand, 6 walls, 3 gates, 3 wall
   towers at 80 %; Pell's wagon, barracks (level 2) with a shield bearer (7) and an archer (6), two watchtowers (an archer 7 by the causeway
@@ -1067,13 +1070,18 @@ The game has none of this yet, except where noted:
 - **Waves:** ten listed: crabs and goblins first, skeletons from 3, necromancers from 4, vampires and gargoyles from 5, the Legion from 7
   (footmen, then archers, a banner-bearer, guardsmen), a siren in 9; then the last again (a crab and a skeleton more each) until everything
   is done. **Wave 6** brings **Lysa** with a column down the causeway (5 footmen, 2 archers, a banner-bearer, a guardsman). Pell's guild
-  boats bring 40 gold, 60 food and 80 material after waves 2, 5 and 8. Wave 1 waits to be called; 45 s between waves.
+  boats bring 40 gold, 60 food and 80 material after waves 2, 5 and 8. Wave 1 waits (it can be called) until the player places a
+  watchtower within 3 tiles of deep water (not a prebuilt one): then its 60 s countdown starts (`FIRST_WAVE_AFTER`); 45 s between waves.
+  The Legion's column (and the leviathan when the relic is taken) comes first in its wave (`add_enemies(..., front)`). **Lysa is always
+  seen:** the land within 3 tiles round her is watched wherever she walks (`ScenarioRunner.keep_in_sight`), and wave 6's scene waits for
+  her and puts the camera on her (a `"camera"` step can be a Callable).
 - **Story:** the intro (the ferry in the mist, the bell under the water; the priests shut their door on Rhodri's colours); after wave 1 Pell;
   after wave 4 the eldest priest tells what the abbey hides (the Hand; they hid it from Rhodri, fearing he could rise over Fiona; vampires and
   something bigger in the deep); wave 6 Lysa demands the relic and Brenna refuses her own captain; after wave 6 the priests unseal the crypt
   (better her than the Legion; the sword is not hers to keep); the relic taken (the bell stops, the leviathan rises); the leviathan slain;
   the outro (the priests come out: they were wrong, the Hand goes to Fiona; on the causeway Lysa, herself for a moment: they were only to
-  hold her here, Halvard marches on her home; Brenna and Pell go back).
+  hold her here, Halvard marches on her home; she stands on the causeway north of the island as a cutscene figure, kept in sight, and
+  walks off north; Brenna and Pell go back).
 - **Cards:** a watch on the water (a manned tower within 3 tiles of deep water), the guardian (waits for the priests' telling; done when the
   octopus is dead or the crypt opens), the First King's Hand (waits for the unsealing; done when it is home). **Hints:** crab, someone in the
   octopus's arm, necromancer, vampire, the Legion, siren, the leviathan, Brenna badly hurt. **Objectives:** bring the Hand home; slay the

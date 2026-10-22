@@ -84,6 +84,10 @@ func _init() -> void:
 const CAUSEWAY_ROAD := 0
 ## The relic, as the treasure's item.
 const RELIC := "the First King's Hand"
+## Wave 1's countdown, started the moment a watchtower by the shore is placed.
+const FIRST_WAVE_AFTER := 60.0
+## Lysa is seen wherever she walks: the land this far round her is watched.
+const LYSA_SIGHT := 3.0
 ## The waves the story needs: the priests tell, the Legion comes, the crypt opens.
 const TELL_WAVE := 4
 const LEGION_WAVE := 6
@@ -129,16 +133,28 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 	var c := r.game.player_village.center
 	var ab := _abbey(r)
 	var abbey: Vector2 = Vector2(ab.tile) if ab else Vector2(c)
+	# Lysa on the causeway, north of the island, then back up the road.
+	var road := r.road_in(Vector2i(abbey), 100000)
+	var near := 0
+	for i in road.size():
+		if Vector2(road[i]).distance_to(abbey) < Vector2(road[near]).distance_to(abbey):
+			near = i
+	var stand: Vector2 = Vector2(road[maxi(near - 5, 0)]) if not road.is_empty() else abbey
+	var away: Array = road.slice(maxi(near - 16, 0), maxi(near - 4, 1)) if not road.is_empty() else []
+	away.reverse()
+	var lysa := r.actor("unit_legion_captain_lysa", stand)
+	r.keep_in_sight(lysa, LYSA_SIGHT)
 	return [
 		{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.15, "time": 2.0},
 		{"say": "", "text": "The priests come out of their house, all of them, for the first time since Brenna came."},
 		{"say": "eldest", "text": "We took you for one of his. We were wrong. You stood on our shore against your own company, and against the deep."},
 		{"say": "eldest", "text": "The Hand goes to Fiona. Take it to her."},
 		{"say": "", "text": "In Brenna's hands the old sword glows, faintly, like a coal under ash."},
-		{"camera": r.at(abbey) + Vector2(0, -40), "zoom": 1.05, "time": 2.5},
+		{"camera": r.at(stand) + Vector2(0, -40), "zoom": 1.05, "time": 2.5},
 		{"say": "", "text": "On the causeway Lysa stops on her way back into the mist, and turns. For a moment her eyes are her own."},
 		{"say": "lysa", "text": "Hale. We were only to hold you here. Halvard has the main force. He's marching on your home."},
 		{"say": "lysa", "text": "Go home, Brenna. Before I ..."},
+		{"do": func() -> void: r.move_actor(lysa, away, 7.0)},
 		{"say": "", "text": "The pallor comes back over her face like a tide, and she walks on into the mist."},
 		{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.15, "time": 2.0},
 		{"say": "brenna", "text": "Pell. We have to go back."},
@@ -164,15 +180,15 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 			lines = [
 				{"say": "pell", "text": "The priests watched the whole fight from their window. That's something."},
 				{"say": "brenna", "text": "They're afraid of me."},
-				{"say": "pell", "text": "They're afraid of what you wore. It isn't the same."},
+				{"say": "pell", "text": "They're afraid of what you wear. It isn't the same."},
 			]
 		TELL_WAVE:
 			r.mark["told"] = true
 			lines = [
 				{"say": "", "text": "The eldest of the priests comes to the gate at last, and keeps her distance."},
-				{"say": "eldest", "text": "You want to know what the abbey hides. The First King's Hand: his own sword, a relic. We hid it there and let the water in over it, before the war."},
+				{"say": "eldest", "text": "You want to know what the abbey hides. The First King's Hand: the sword of the first king, who founded the Wardline. A relic. We hid it there and let the water in over it, before the war."},
 				{"say": "brenna", "text": "Why hide it from your own side?"},
-				{"say": "eldest", "text": "We are with Fiona. But we feared he could rise over her. What he would do with it, we couldn't bear to think."},
+				{"say": "eldest", "text": "We are with Fiona. But we feared Rhodri could rise over her. What he would do with it, we couldn't bear to think."},
 				{"say": "eldest", "text": "Its crypt is sealed, and vampires nest in it now. And in the deep water beside it lives something bigger. That is all I will say."},
 			]
 		LEGION_WAVE:
@@ -200,10 +216,12 @@ func on_wave_started(r: ScenarioRunner, n: int) -> void:
 		return
 	var at := _causeway_spawn(r)
 	_send_legion(r, LEGION_COLUMN, at)
-	var ab := _abbey(r)
 	r.play_scene([
-		{"camera": r.at(ab.tile if ab else r.game.player_village.center) + Vector2(0, -40), "zoom": 1.0, "time": 2.0},
-		{"say": "", "text": "Over the causeway a column marches out of the mist, past the abbey, in step. At its head a captain with a crimson plume."},
+		{"until": func() -> bool: return r.named_enemy("Lysa") != null, "max": 4.0},
+		{"camera": func() -> Vector2:
+			var lysa := r.named_enemy("Lysa")
+			return (lysa.position if lysa else r.at(at)) + Vector2(0, -40), "zoom": 1.0, "time": 2.0},
+		{"say": "", "text": "Out of the mist on the far shore a column marches down to the causeway, in step. At its head a captain with a crimson plume."},
 		{"say": "lysa", "text": "The relic. Give it up, and the village is spared."},
 		{"say": "brenna", "text": "Lysa. It's me. Hale. You sent me down the pass, the night before ..."},
 		{"say": "lysa", "text": "The relic."},
@@ -215,13 +233,21 @@ func on_wave_started(r: ScenarioRunner, n: int) -> void:
 ## comes with it. The leviathan slain: the priests agree.
 func on_poll(r: ScenarioRunner) -> void:
 	var g := r.game
+	var towers0: Array = r.mark.get("towers0", [])
+	if not r.mark.has("watch") and r.cutscene == null and r.towers().any(func(t: Building) -> bool: return not towers0.has(t) and _by_water(r, t.tile)):
+		r.mark["watch"] = true
+		r.release_waves(FIRST_WAVE_AFTER)
+		g.events.info("A watchtower by the shore: the first wave is coming")
+	for e in g.get_tree().get_nodes_in_group("enemies"):
+		if (e as Enemy).given_name == "Lysa":
+			r.keep_in_sight(e, LYSA_SIGHT)
 	var ab := _abbey(r)
 	if ab and ab.looted and not r.mark.has("risen"):
 		r.mark["risen"] = true
 		if not g.waves.in_progress():
 			g.waves.start_now()  # (the leviathan's wave comes at once)
-		r.add_enemies("leviathan", _lake_spawn(r), 1, {"name": "Leviathan", "hp_x": LEVIATHAN_HP, "power": LEVIATHAN_POWER})
 		_send_legion(r, LEGION_REST, _causeway_spawn(r))
+		r.add_enemies("leviathan", _lake_spawn(r), 1, {"name": "Leviathan", "hp_x": LEVIATHAN_HP, "power": LEVIATHAN_POWER}, true)
 		g.events.important("The relic has left the abbey: the leviathan rises!")
 		r.play_scene([
 			{"camera": r.at(ab.tile) + Vector2(0, -40), "zoom": 1.0, "time": 1.5},
@@ -250,7 +276,7 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 	var g := r.game
 	return [
 		{"title": "A watch on the water",
-			"text": "Crabs climb out of the sea and the lake. Build a watchtower by the water so it covers the shore, and man it.",
+			"text": "Crabs climb out of the sea and the lake. Build a watchtower by the water so it covers the shore, and man it. Once it is placed, the first wave is on its way.",
 			"done": func() -> bool: return r.towers().any(func(t: Building) -> bool: return (t as Tower).garrison != null and _by_water(r, t.tile)),
 			"point": func() -> Dictionary: return r.place_point("tower", [])},
 		{"title": "The guardian",
@@ -323,6 +349,7 @@ func objectives(r: ScenarioRunner) -> Array[Dictionary]:
 ## beside it; the drowned dead on the island.
 func on_start(r: ScenarioRunner) -> void:
 	var g := r.game
+	r.mark["towers0"] = r.towers()  # (the first wave waits for one of the player's by the shore)
 	var ab := _abbey(r)
 	if ab == null:
 		return
@@ -397,11 +424,12 @@ func _causeway_spawn(r: ScenarioRunner) -> Vector2i:
 	return r.spawn_near(ab.tile if ab else r.game.player_village.center)
 
 
-## Legion soldiers for the wave under way from `at`, with Lysa at their head.
+## Legion soldiers for the wave under way from `at`, with Lysa at their head:
+## they come next, before the rest of the wave.
 func _send_legion(r: ScenarioRunner, band: Dictionary, at: Vector2i) -> void:
-	r.add_enemies("legion_captain", at, 1, {"name": "Lysa", "art": "legion_captain_lysa"})
 	for kind: String in band:
-		r.add_enemies(kind, at, int(band[kind]))
+		r.add_enemies(kind, at, int(band[kind]), {}, true)
+	r.add_enemies("legion_captain", at, 1, {"name": "Lysa", "art": "legion_captain_lysa"}, true)
 
 
 ## A tile within 3 of deep water.

@@ -24,7 +24,7 @@ extends Node
 ## its panel, Fiona's house;
 ## (`--only=court`) scenarios 8 and 9: Lothar under his flag, a crypt and its
 ## guards, a Legion camp and its panel, the Legion's kinds on a road, Rurik;
-## the drowned abbey on its island with the octopus, the eldest priest, the leviathan;
+## the drowned abbey on its island with the octopus, the eldest priest, the causeway, the leviathan, Lysa coming;
 ## (`--only=spiders`) a spider mother laying eggs, eggs wobbling and hatching,
 ## the broken shells, spiderlings at a gate, undead ones, the library, and
 ## (`--only=undead_spiders`) a spider mother raised by a necromancer, in real
@@ -1185,11 +1185,15 @@ func _court() -> void:
 	await _frames(60)
 	await shot("court_s9_abbey")
 	g.deselect()
-	sc.play_scene([{"say": "eldest", "text": "You want to know what the abbey hides. The First King's Hand."}])
-	await _frames(40)
+	sc.spec.on_wave_finished(sc, sc.spec.TELL_WAVE)
+	await _cut_to_line(sc, "eldest", "You want to know")
 	await shot("court_s9_eldest_priest")
 	sc.cutscene.skip()
 	await _frames(10)
+	g.camera.focus(Iso.to_world(Vector2(52, 30)))
+	g.camera.zoom = Vector2(1.2, 1.2)
+	await _frames(30)
+	await shot("court_s9_causeway")
 	var lev := g.waves.spawn_at("leviathan", sc.spec._lake_spawn(sc), v, 7)
 	lev.set_identity("Leviathan", "")
 	await _frames(20)
@@ -1197,6 +1201,12 @@ func _court() -> void:
 	g.camera.focus(lev.position)
 	await _frames(40)
 	await shot("court_s9_leviathan")
+	lev.queue_free()
+	# Wave 6: Lysa at the head of the Legion, seen in the fog on the far shore.
+	g.waves.wave = sc.spec.LEGION_WAVE - 1
+	g.waves.start_now()
+	await _cut_to_line(sc, "", "Out of the mist")
+	await shot("court_s9_lysa")
 	g.queue_free()
 	await _frames(3)
 

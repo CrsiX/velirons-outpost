@@ -10,7 +10,9 @@ extends CanvasLayer
 ## Steps (Dictionaries), played in order:
 ##   {"say": speaker id ("" the narrator), "text": "..."}   waits for a tap
 ##   {"camera": world position, "zoom": z, "time": s}         moves the camera (and
-##                                                            waits, unless "wait": false)
+##                                                            waits, unless "wait": false);
+##                                                            a Callable -> Vector2 gives the
+##                                                            position when the step plays
 ##   {"wait": s}
 ##   {"fade": "in" | "out", "time": s}                       to and from black
 ##   {"title": "...", "sub": "...", "time": s}               a title card (a tap goes on)
@@ -229,7 +231,8 @@ func _play_steps() -> void:
 			await _say(str(s["say"]), str(s["text"]))
 		elif s.has("camera"):
 			var t := float(s.get("time", 1.5))
-			_move_camera(s["camera"], float(s.get("zoom", game.camera.zoom.x)), t)
+			var to: Vector2 = (s["camera"] as Callable).call() if s["camera"] is Callable else s["camera"]
+			_move_camera(to, float(s.get("zoom", game.camera.zoom.x)), t)
 			if s.get("wait", true):
 				await _sleep(t)
 		elif s.has("wait"):
