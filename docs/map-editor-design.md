@@ -290,7 +290,7 @@ All keys in this order on export.
 | `description` | string | 0-1000 characters |
 | `size` | int | one of `Config.MAP_SIZES` |
 | `map_type` | string | any name, 1-40 characters (letters, digits, space, `_`, `-`). The generator's types (`temperate`, `highlands`, `coast`, `desert`, `volcanic`) are shown by their names; any other is a custom type, shown as written. `random` is never stored (a generated map stores the type it resolved to). Nothing in the game depends on it but its display |
-| `origin` | object | how it was made: `{"generator_seed": 38, "edited": true, "game_version": "1.4.0"}`; `generator_seed` is `null` for a map not made by the generator; information only |
+| `origin` | object | how it was made: `{"generator_seed": 38, "edited": true, "game_version": "1.4.0"}`; `generator_seed` is `null` for a map not made by the generator, else any whole number below 2^53 (what a JSON number holds exactly; random seeds reach 2^32; other whole numbers in a map file stay below 10^9); information only |
 | `legend` | object | the codes of the tile layers (§6.3), written out so a reader needn't look them up; ignored on import |
 | `layers` | object | the tile layers (§6.3) |
 | `crossings` | array | bridges and fords (§6.4) |

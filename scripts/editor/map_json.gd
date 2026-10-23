@@ -27,6 +27,9 @@ const TOP_REQUIRED: Array[String] = ["format", "format_version", "name", "size",
 const LAYER_KEYS: Array[String] = ["terrain", "zone", "slice", "beach", "props", "decor"]
 const LAYER_REQUIRED: Array[String] = ["terrain", "zone", "slice", "props"]
 const ORIGIN_KEYS: Array[String] = ["generator_seed", "edited", "game_version"]
+## A generator seed is any whole number a JSON number holds exactly (2^53):
+## random seeds go up to 2^32, typed ones further (Settings.parse_seed).
+const SEED_LIMIT := 9007199254740992.0
 ## Per object kind: its own fields (besides id, kind, tile, size) and which of them are required.
 const OBJECT_FIELDS := {
 	"treasure": {"fields": ["treasure", "tier", "reward"], "required": ["treasure", "tier"]},
@@ -372,11 +375,12 @@ class _Reader:
 	func _at(where: String, key: String) -> String:
 		return key if where == "" else "%s.%s" % [where, key]
 
-	## A whole number (written as 37 or 37.0), else null (and an error).
-	func whole(v, where: String):
+	## A whole number (written as 37 or 37.0) below `limit`, else null (and an
+	## error). JSON numbers come in as floats: exact up to SEED_LIMIT.
+	func whole(v, where: String, limit := 1e9):
 		if v is int:
 			return v
-		if v is float and is_finite(v) and v == floorf(v) and absf(v) < 1e9:
+		if v is float and is_finite(v) and v == floorf(v) and absf(v) < limit:
 			return int(v)
 		err(where, "must be a whole number")
 		return null
@@ -432,7 +436,7 @@ class _Reader:
 			return o
 		_keys(v, ORIGIN_KEYS, [], "origin")
 		if v.get("generator_seed") != null:
-			var s = whole(v["generator_seed"], "origin.generator_seed")
+			var s = whole(v["generator_seed"], "origin.generator_seed", SEED_LIMIT)
 			o["generator_seed"] = s
 		if v.has("edited"):
 			if v["edited"] is bool:

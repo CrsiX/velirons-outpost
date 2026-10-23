@@ -232,6 +232,15 @@ func _tolerant(m: MapData) -> void:
 	f.erase("origin")
 	var r3: MapData = MapJson.read(JSON.stringify(f))["map"]
 	check(r3 != null and r3.seed_value == 0 and r3.meta["origin"]["generator_seed"] == null, "without \"origin\" the map has no generator seed")
+	# Seeds beyond 10^9 (random ones reach 2^32) are read back as they were.
+	var big_ok := r3 != null
+	for big: int in [4294967295, 9007199254740991]:
+		if r3 == null:
+			break
+		r3.meta["origin"]["generator_seed"] = big
+		var rb: MapData = MapJson.read(MapJson.write(r3))["map"]
+		big_ok = big_ok and rb != null and rb.seed_value == big
+	check(big_ok, "a generator seed up to 2^53 (2^32 - 1, 2^53 - 1) comes back unchanged")
 
 
 # --- refusals --------------------------------------------------------------------------------
