@@ -69,9 +69,14 @@ where towers shoot over its fighting ground (scored by the towers' levels; anywh
 is no tower), a tower scores extra for road a barracks fights on, and the towers over a
 barracks are upgraded first, the barracks only once every tower has its level. Off, each sort
 covers the road no post covers yet (towers and barracks apart). Farms
-nearest, on meadow and by water, away from roads (rats); camps by trees. It never builds a
-new post while two stand empty. The hero explores between waves until `explore_waves`, then trains
-the unit at the grounds (which then swaps into the field), and defends during waves.
+nearest, on meadow and by water, away from roads (rats) where any other spot fits
+(`farm_road_penalty`); camps by trees. While no farm stands (a starting farm that found no
+room) and there may be a spot for one, the farm comes first: no other building, camp or recruit
+until one is placed. It never builds a
+new post while two stand empty. The hero explores until `explore_waves` (during a wave only while no
+enemy is near the walls), then trains the unit at the grounds (which then swaps into the field),
+and defends during waves. Below `hero_rest_below` of her HP she rests in the centre until she has
+`hero_rest_until` again (downed, she would lose all her XP).
 
 What it doesn't do: attack camps (unless `attack_camps`), send caravans, use light stones,
 tear down, move units between posts beyond the training swap, call waves early (unless

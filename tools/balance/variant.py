@@ -16,11 +16,23 @@ Exits 1 and says why when a path isn't found, so a typo never plays as
 import argparse
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 CONFIG = "scripts/core/config.gd"
 SKIP = {".git", "balance_runs", "exports", "maps", "venv", "bin"}
+
+
+def git_ignored(src, names):
+    """The top-level names git ignores (local work folders, report zips: the
+    game doesn't need them, and they can be big). Empty without git."""
+    try:
+        out = subprocess.run(["git", "-C", str(src), "check-ignore", "--", *names],
+                             capture_output=True, text=True, check=False).stdout
+    except OSError:
+        return set()
+    return {Path(n).name for n in out.split()}
 
 
 def skip_string(t, i):
@@ -160,10 +172,13 @@ def main():
     dst = Path(a.dst).resolve()
     if dst.exists():
         shutil.rmtree(dst)
-    # (no dot-files but the import cache .godot: editor and tool settings aren't the game's)
+    # (no dot-files but the import cache .godot: editor and tool settings aren't the game's;
+    # at the top nothing git ignores but that cache)
+    skip = SKIP | (git_ignored(src, [n.name for n in src.iterdir()]) - {".godot"})
+
     def ignore(d, names):
         top = Path(d) == src
-        return [n for n in names if (n.startswith(".") and n != ".godot") or (top and n in SKIP)]
+        return [n for n in names if (n.startswith(".") and n != ".godot") or (top and n in skip)]
     shutil.copytree(src, dst, ignore=ignore)
     (dst / CONFIG).write_text(text)
 

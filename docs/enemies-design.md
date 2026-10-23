@@ -41,7 +41,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   - Enemies spawn `WAVE_SPAWN_GAP` (1.1 s) apart (divided by the village count in co-op); the
     rats of a pack 0.25 s apart.
 - **Size:** `wave_size(n) = 4 + 2n` enemies, plus rat packs on top.
-- **Strength:** each enemy's HP is × `WAVE_HP_GROWTH^(n-1)` (1.15 per wave). Only HP grows
+- **Strength:** each enemy's HP is × `WAVE_HP_GROWTH^(n-1)` (1.12 per wave). Only HP grows
   with the waves; damage, speed and loot don't.
 - **Spawn points:** up to `wave_spawn_points(n) = min(1 + n/2, 4)` edge spawns (picked at
   random each wave), plus every awake lair of the village's slice. Kinds are shuffled and dealt
@@ -479,7 +479,7 @@ left to eat. Numbers: `Config.VULTURES` (the packs) and `ENEMIES.vulture` (the b
   at random among its village's). It comes from the map's edge: the open edge tile nearest its
   target from which it can fly there; its birds spawn there `gap` (0.4) s apart.
 - **Flight** (`Pathing.sky_path`): near-straight lines (A*, no road), over every tile a ground
-  unit can walk on plus deep water; never over forest, mountains (volcanoes), lava, buildings
+  unit can walk on plus deep water and forest; never over mountains (volcanoes), lava, buildings
   or solid map objects (lairs, camps). No ground slows it. A flyer (§5) while in the air: only
   ranged attacks, fire elementals and halberdiers reach it.
 - **The pack:** every bird flies to the pack's target. When the target is gone (eaten, gathered,

@@ -158,10 +158,10 @@ func _wood_open_near(t: Vector2i, near: Vector2) -> Vector2i:
 
 
 ## Can a vulture fly over `t` (docs/enemies-design.md §15d)? Any tile a
-## ground unit can walk on, and deep water; never forest, mountains, lava,
+## ground unit can walk on, deep water and forest; never mountains, lava,
 ## buildings or solid map objects.
 func sky_open(t: Vector2i) -> bool:
-	return map.in_bounds(t) and (not astar.is_point_solid(t) or (map.is_deep(t) and map.building_at(t) == null))
+	return map.in_bounds(t) and (not astar.is_point_solid(t) or ((map.is_deep(t) or map.is_forest(t)) and map.building_at(t) == null))
 
 
 func _sky_grid() -> AStarGrid2D:

@@ -1235,19 +1235,22 @@ func _test_vultures() -> void:
 	var pathing := game.world.pathing
 	var deep := Vector2i(-1, -1)
 	var wood := Vector2i(-1, -1)
+	var rock := Vector2i(-1, -1)
 	for y in game.map.size:
 		for x in game.map.size:
 			var t := Vector2i(x, y)
 			if deep.x < 0 and game.map.is_deep(t) and game.map.building_at(t) == null:
 				deep = t
-			if wood.x < 0 and (game.map.is_forest(t) or game.map.get_terrain(t) == MapData.Terrain.MOUNTAIN):
+			if wood.x < 0 and game.map.is_forest(t):
 				wood = t
+			if rock.x < 0 and game.map.get_terrain(t) == MapData.Terrain.MOUNTAIN:
+				rock = t
 	var edge := pathing.sky_edge(Vector2i(spot.round()))
 	var way := pathing.sky_path(edge, Vector2i(spot.round()))
 	var way_ok := way.size() > 1
 	for p in way:
-		way_ok = way_ok and pathing.sky_open(Vector2i(p.round())) and not game.map.is_forest(Vector2i(p.round()))
-	check((deep.x < 0 or pathing.sky_open(deep)) and (wood.x < 0 or not pathing.sky_open(wood)) and way_ok, "vultures fly over open land and deep water, never forest or mountains (a way of %d tiles from the edge)" % way.size())
+		way_ok = way_ok and pathing.sky_open(Vector2i(p.round())) and game.map.get_terrain(Vector2i(p.round())) != MapData.Terrain.MOUNTAIN
+	check((deep.x < 0 or pathing.sky_open(deep)) and (wood.x < 0 or pathing.sky_open(wood)) and (rock.x < 0 or not pathing.sky_open(rock)) and way_ok, "vultures fly over open land, forest and deep water, never mountains (a way of %d tiles from the edge)" % way.size())
 	# Flying in, landing, eating.
 	var meal := game.corpses.spawn("goblin", w.wave, spot)
 	var v := spawn("vulture", Vector2(edge))
@@ -1392,7 +1395,7 @@ func _test_riders() -> void:
 	r.speed = 0.0  # (it stands where the bot put it)
 	await frames(2)
 	var wolf_corpse := game.corpses.corpses.filter(func(c: Corpse) -> bool: return c.kind == "wolf")
-	check(wolf_corpse.size() == 1 and wolf_corpse[0].grid_pos.distance_to(r.grid_pos) < 0.6 and game.economy.amount("gold") - gold0 == Config.enemy_stat_int("goblin_raider", "gold_on_kill"), "the wolf leaves its corpse where it fell and pays %d gold" % Config.enemy_stat_int("goblin_raider", "gold_on_kill"))
+	check(wolf_corpse.size() == 1 and wolf_corpse[0].grid_pos.distance_to(r.grid_pos) < 0.6 and game.economy.amount("gold") - gold0 == Config.enemy_stat_int("goblin_raider", "gold_on_kill"), "the wolf leaves its corpse where it fell and pays %d gold (%d wolf corpses, %.1f tiles off, %d gold)" % [Config.enemy_stat_int("goblin_raider", "gold_on_kill"), wolf_corpse.size(), wolf_corpse[0].grid_pos.distance_to(r.grid_pos) if not wolf_corpse.is_empty() else -1.0, int(game.economy.amount("gold") - gold0)])
 	check(game.stats.value(v.id, "kill.goblin_raider") == kills0 + 1.0, "the mount counts as a raider killed")
 	kill(r)
 	await frames(2)

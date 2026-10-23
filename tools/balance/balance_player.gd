@@ -35,6 +35,13 @@ var _want_critical := false
 ## Gold put by for the unit upgrade it saves up for (_unit_upgrades; 0: none):
 ## _trade doesn't spend it on material.
 var _saving := 0
+## No farm stands (nor is one being built) though there may be room for one:
+## the farm comes before every other use of material and before new mouths
+## (the village would starve). Not while no spot was found (_no_spot).
+var _no_farm := false
+## The hero was sent to rest at low HP and stays there until healed
+## (BALANCE_BOT "hero_rest_below" / "hero_rest_until").
+var _hero_resting := false
 ## Game clock since when only water monsters have been left in the wave.
 var _water_only_since := -1.0
 var _approach: Array[Vector2i] = []
@@ -66,6 +73,7 @@ func _think() -> void:
 	_want_critical = false
 	_saving = 0
 	_cheats()
+	_no_farm = _farm_wanted()
 	_hero()
 	_repairs()
 	_villagers()
@@ -191,20 +199,50 @@ func _hero() -> void:
 		_cmd("hero_level_up")
 	var want := Hero.Mode.DEFEND
 	var hp: Dictionary = profile["hero"]
-	if _in_wave():
-		want = Hero.Mode.DEFEND
+	if _hero_low(h):
+		want = Hero.Mode.REST  # (downed, she would lose all her XP)
+	elif _in_wave():
+		# Early waves are small: she goes on exploring (XP) unless the
+		# village needs her.
+		want = Hero.Mode.EXPLORE if _wave() < int(hp["explore_waves"]) and not _threat() else Hero.Mode.DEFEND
 	elif _wave() < int(hp["explore_waves"]):
 		want = Hero.Mode.EXPLORE
 	elif _training_ready():
 		want = Hero.Mode.TRAIN
 	elif _wave() < int(hp["explore_waves"]) + 4 and _unexplored_share() > 0.5:
 		want = Hero.Mode.EXPLORE
-	if int(hp["attack_camps"]) > 0 and h.level + 1 >= int(hp["attack_camps"]) and not _in_wave() and not h.dead:
+	if int(hp["attack_camps"]) > 0 and not _hero_resting and h.level + 1 >= int(hp["attack_camps"]) and not _in_wave() and not h.dead:
 		var camp := _camp_to_attack()
 		if camp != null and h.camp_target == null:
 			_cmd("attack_camp", {"camp": camp.nid})
 	if h.mode != want:
 		_cmd("hero_mode", {"mode": want})
+
+
+## Below "hero_rest_below" of her HP she rests until "hero_rest_until".
+func _hero_low(h: Hero) -> bool:
+	if h.dead:
+		_hero_resting = false
+		return false
+	var share := h.hp / maxf(h.max_hp, 1.0)
+	if share < float(_params["hero_rest_below"]):
+		_hero_resting = true
+	elif share >= float(_params["hero_rest_until"]):
+		_hero_resting = false
+	return _hero_resting
+
+
+## An enemy of the wave inside the walls or near them (what draws the hero
+## out in Defend).
+func _threat() -> bool:
+	var rect := village.rect
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var e := node as Enemy
+		if e.wild():
+			continue
+		if rect.has_point(e.current_tile()) or Hero.rect_distance(rect, e.grid_pos) <= Config.HERO["alert_radius"]:
+			return true
+	return false
 
 
 func _training_ready() -> bool:
@@ -255,6 +293,8 @@ func _villagers() -> void:
 				break
 		want = want.duplicate()
 		want["explorer"] = 0
+	if _no_farm:
+		return
 	var seen := {}
 	for role: String in profile["villager_order"]:
 		seen[role] = int(seen.get(role, 0)) + 1
@@ -303,13 +343,22 @@ func _economy_buildings() -> void:
 		farms += 1  # the food is running out
 	if _buildings_of("farm").size() < farms:
 		_place("farm")
+	_no_farm = _farm_wanted()
+	if _no_farm:
+		return
 	if _buildings_of("camp").size() < int(profile["camps"]):
 		_place("camp")
+
+
+func _farm_wanted() -> bool:
+	return _buildings_of("farm").is_empty() and float(_no_spot.get("farm", -1.0)) <= game.clock
 
 
 # --- defence buildings -----------------------------------------------------------------------
 
 func _defence_buildings() -> void:
+	if _no_farm:
+		return
 	var tw: Array = profile["towers"]
 	var want_towers := mini(int(tw[2]), int(tw[0]) + int(floorf(float(tw[1]) * _wave())))
 	# (No new post while two stand empty: nobody to man them.)
@@ -433,9 +482,9 @@ func _score(kind: String, t: Vector2i, size: int, covered: Dictionary) -> float:
 					meadow += 1
 				for nb in MapData.neighbors4(f):
 					wet = wet or game.map.is_water(nb)
-			if _road_within(c, float(size) / 2.0 + float(_params["farm_road_gap"])):
-				return -INF
-			return -dist + (4.0 if meadow * 2 > size * size else 0.0) + (2.0 if wet else 0.0)
+			# (Near a road only where nothing else fits: the rats.)
+			var road := float(_params["farm_road_penalty"]) if _road_within(c, float(size) / 2.0 + float(_params["farm_road_gap"])) else 0.0
+			return -dist - road + (4.0 if meadow * 2 > size * size else 0.0) + (2.0 if wet else 0.0)
 		"camp":
 			var trees := _trees_near(t, 7)
 			return -INF if trees < 4 else float(trees) * 0.3 - dist * 0.5

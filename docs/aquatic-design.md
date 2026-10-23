@@ -185,7 +185,7 @@ now and then (`chance`, `max_count` 1).
 
 | | |
 |---|---|
-| HP | 1200 (huge) at wave 1's scale, grown by the waves' HP rule like every enemy (so the base is tuned for wave 20+: with today's ×1.15 it would be about 17,000 at wave 20; to be set once the wave balancing is settled) |
+| HP | 1200 (huge) at wave 1's scale, grown by the waves' HP rule like every enemy (so the base is tuned for wave 20+: with today's ×1.12 it would be about 10,300 at wave 20; to be set once the wave balancing is settled) |
 | Speed | 0.5 tiles/s, surfaced or submerged |
 | Arms | 8, each its own attack |
 | Arm | range 4.5, cooldown 6 s each (the arms start staggered by 0.75 s: a grapple lands about every 0.75 s with all eight busy), 3 damage/s while grappling |

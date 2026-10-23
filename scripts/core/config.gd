@@ -237,7 +237,10 @@ const SAVE := {
 ##                      a tower should cover;
 ##   "queue_slack":     unfinished sites allowed per builder before it stops
 ##                      placing new ones;
-##   "farm_road_gap":   a farm keeps this many tiles from any road (rats);
+##   "farm_road_gap":   a farm keeps this many tiles from any road (rats)
+##                      where it can: a spot closer to one scores
+##                      "farm_road_penalty" less (the same as that many tiles
+##                      farther from home), so it is used only when no other fits;
 ##   "min_food":        villagers are only recruited while this much food is left;
 ##   "gold_reserve":    gold it keeps back from upgrades (it still buys
 ##                      units for empty posts);
@@ -247,6 +250,9 @@ const SAVE := {
 ##   "track_interval":  game seconds between looks at the enemies on the map;
 ##   "unit_dps_summon_life": seconds a summoner's elementals count as fighting
 ##                      in its nominal DPS;
+##   "hero_rest_below", "hero_rest_until": below this share of her HP the
+##                      hero is sent to rest (whatever her mode) until she has
+##                      this share again;
 ##   "barracks_support": towers and barracks work together: a barracks goes
 ##                      where towers (the higher the better) shoot over its
 ##                      fighting ground, towers don't shun a barracks' road,
@@ -265,6 +271,9 @@ const BALANCE_BOT := {
 	"approach_steps": 18,
 	"queue_slack": 2,
 	"farm_road_gap": 2,
+	"farm_road_penalty": 30.0,
+	"hero_rest_below": 0.15,
+	"hero_rest_until": 0.6,
 	"min_food": 20.0,
 	"gold_reserve": 0.0,
 	"sample_interval": 15.0,
@@ -296,7 +305,8 @@ const BALANCE_BOT := {
 ##   "upgrade_order":  which units get gold first: "lowest" level first, or
 ##                      "kinds" (the order of the unit lists, then lowest);
 ##   "hero":           "explore_waves": until this wave she explores between
-##                      waves (then she trains, or defends); "attack_camps":
+##                      waves and during them while no enemy is near the
+##                      walls (then she trains, or defends); "attack_camps":
 ##                      from this hero level she is sent against known camps;
 ##   "call_early":     calls the next wave as soon as everything is bought and
 ##                      manned (for the bonus gold; faster games);
@@ -2126,7 +2136,7 @@ static func enemy_stat_int(kind: String, key: String) -> int:
 const FIRST_WAVE_DELAY := 90.0  # seconds from game start to the first wave
 const WAVE_BUFFER := 30.0  # seconds after the previous wave is gone
 const WAVE_SPAWN_GAP := 1.1
-const WAVE_HP_GROWTH := 1.15
+const WAVE_HP_GROWTH := 1.12
 const EARLY_CALL_GOLD_PER_SECOND := 0.5
 
 
