@@ -196,6 +196,12 @@ func on_start(_r: ScenarioRunner) -> void:
 	pass
 
 
+## Besides every shown objective being met: may it be won now? (A scenario
+## whose objectives appear late: scenario 9.)
+func can_win(_r: ScenarioRunner) -> bool:
+	return true
+
+
 ## Every 0.25 s while it is played (events that aren't a wave: something restored...).
 func on_poll(_r: ScenarioRunner) -> void:
 	pass

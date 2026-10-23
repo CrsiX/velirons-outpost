@@ -71,7 +71,7 @@ func _pick_task() -> bool:
 	# The first one she can walk to (paths only for as many as needed).
 	var best: MapObject = null
 	for c in cands:
-		if not w.game.world.pathing.find_path(w.current_tile(), (c[2] as MapObject).visit_tile()).is_empty():
+		if not w.find_way(w.current_tile(), (c[2] as MapObject).visit_tile()).is_empty():
 			best = c[2]
 			break
 	if best == null:

@@ -667,6 +667,14 @@ const BUILDINGS := {
 		"campaign": true,
 		"desc": "2x2. The druids' own barracks by their stone circle. They turn out for enemies near it, but take no orders.",
 	},
+	# The harbour village's church (scenario 9): prebuilt by the scenario in
+	# its place inside the walls ("inside": a prebuilt one may stand there).
+	# The priests keep the First King's Hand there once it is home (Church).
+	"church": {
+		"name": "Church", "cost": {"materials": 120}, "build_time": 30.0, "size": 3, "art": "church",
+		"campaign": true, "inside": true,
+		"desc": "3x3, inside the walls. The priests' church, where they keep the First King's Hand once it is home.",
+	},
 }
 
 ## The guild warehouse (Warehouse; docs/scenarios-design.md §7.7):
@@ -720,6 +728,7 @@ const BUILDING_HP := {
 	"warehouse": [500.0],  # (10 thieves' plunder: WAREHOUSE.raid_damage)
 	"graveyard": [150.0],
 	"grove": [400.0, 400.0, 400.0],
+	"church": [400.0],
 	"hut": [1.0],
 }
 ## The village's pieces were never bought: their price and build time count

@@ -1984,6 +1984,323 @@ def _opening(a, face, at, g0, g1, z0, z1, fill, arch=0.0, sw=0.9, opacity=None):
     a.poly(pts, fill, INK, sw, opacity=opacity)
 
 
+# ------------------------------------------------------- scenario 9: the harbour village
+
+def church():
+    """The harbour village's new church (scenario 9, 3x3, inside the walls):
+    bigger and newer than the drowned abbey. A pale stone nave along the
+    tile's y axis under a dark slate roof, buttresses, tall lit windows, a
+    square bell tower at the back with a spire and a gold cross, the door in
+    the front gable under a rose window, a paved forecourt."""
+    a = Art()
+    s = 1.45
+    a.shadow(150, 70, cy=8)
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], "#8a857b", INK, 1.0, opacity=0.9)  # paving
+    for k in range(-2, 3):
+        t = k * 0.55
+        a.line([P(-s, t), P(s, t)], "#6e6a62", 0.8, opacity=0.6)
+        a.line([P(t, -s), P(t, s)], "#6e6a62", 0.8, opacity=0.6)
+    sl, sr, st = "#a8a296", "#837d72", "#bdb7aa"
+    w, y0, y1, H, R = 0.55, -0.85, 1.05, 52, 34  # half width, nave from y0 to y1 (front), wall and roof height
+    # the bell tower behind the nave
+    tx0, tx1, ty0, ty1, th = -0.38, 0.38, -1.35, -0.6, 118
+    a.box(tx0, tx1, ty0, ty1, 0, th, st, sl, sr)
+    for z in (30, 60, 90):
+        a.line([P(tx0, ty1, z), P(tx1, ty1, z), P(tx1, ty0, z)], "#6e695f", 1.0, opacity=0.8)
+    bx, by = P(0.0, ty1, th - 22)
+    _glow(a, bx, by, 16, 16, "#ffe39a", 0.55)
+    a.raw('<path d="M%s,%s L%s,%s Q%s,%s %s,%s L%s,%s Z" fill="#ffd970" stroke="%s" stroke-width="1.1"/>'
+          % (fmt(bx - 5), fmt(by + 6), fmt(bx - 5), fmt(by - 6), fmt(bx), fmt(by - 14), fmt(bx + 5), fmt(by - 6), fmt(bx + 5), fmt(by + 6), INK),
+          [(bx - 6, by - 14), (bx + 6, by + 7)])
+    ax, ay = P(0.0, (ty0 + ty1) / 2, th)
+    left = P(tx0, ty1, th)
+    right = P(tx1, ty1, th)
+    back = P(tx1, ty0, th)
+    a.poly([left, right, (ax, ay - 62)], "#3a4652", INK, 1.3)  # the spire's faces
+    a.poly([right, back, (ax, ay - 62)], "#2a333d", INK, 1.3)
+    a.line([(ax, ay - 62), (ax, ay - 80)], INK, 3.2)
+    a.line([(ax - 6, ay - 74), (ax + 6, ay - 74)], INK, 3.2)
+    a.line([(ax, ay - 62), (ax, ay - 80)], GOLD, 1.6)
+    a.line([(ax - 6, ay - 74), (ax + 6, ay - 74)], GOLD, 1.6)
+    # the nave: the side (front-right, gx = +w) and the front gable (front-left, gy = y1)
+    a.poly([P(w, y1), P(w, y0), P(w, y0, H), P(w, y1, H)], sr, INK, 1.4)
+    a.poly([P(-w, y1), P(w, y1), P(w, y1, H), P(0, y1, H + R), P(-w, y1, H)], sl, INK, 1.4)
+    for z in (13, 26, 39):
+        a.line([P(-w, y1, z), P(w, y1, z), P(w, y0, z)], "#6e695f", 0.9, opacity=0.7)
+    for gy in (-0.45, 0.05, 0.55):  # tall lit windows down the side, buttresses between
+        wx, wy = P(w, gy + 0.12, 10)
+        _glow(a, wx, wy - 14, 14, 20, "#ffd970", 0.45)
+        a.raw('<path d="M%s,%s L%s,%s Q%s,%s %s,%s L%s,%s Z" fill="#ffd970" stroke="%s" stroke-width="1.1"/>'
+              % (fmt(wx - 4), fmt(wy + 2), fmt(wx - 4), fmt(wy - 20), fmt(wx), fmt(wy - 28), fmt(wx + 4), fmt(wy - 22), fmt(wx + 4), fmt(wy), INK),
+              [(wx - 5, wy - 28), (wx + 5, wy + 3)])
+        a.line([P(w, gy + 0.12, 10), P(w, gy + 0.12, 26)], "#c99a40", 0.8)
+    for gy in (-0.7, -0.2, 0.3, 0.8):
+        a.box(w, w + 0.1, gy - 0.05, gy + 0.05, 0, 34, st, sl, sr, sw=1.1)
+    # the roof along y
+    ex = 0.08
+    a.poly([P(w + ex, y1 + 0.05, H - 3), P(w + ex, y0 - 0.05, H - 3), P(0, y0 - 0.05, H + R), P(0, y1 + 0.05, H + R)], "#3e4c58", INK, 1.4)
+    for k in (0.25, 0.5, 0.75):
+        a.line([P(w * (1 - k) + ex * (1 - k), y1 + 0.05, H - 3 + (R + 3) * k), P(w * (1 - k) + ex * (1 - k), y0 - 0.05, H - 3 + (R + 3) * k)], "#2e3a44", 1.0)
+    a.line([P(0, y0 - 0.05, H + R), P(0, y1 + 0.05, H + R)], "#2a2f36", 2.6)
+    a.line([P(0, y1 + 0.05, H + R), P(w + ex, y1 + 0.05, H - 3)], "#2a2f36", 3.0)
+    # the door and the rose window in the gable, a cross on its peak
+    dx, dy = P(0, y1)
+    a.raw('<path d="M%s,%s L%s,%s Q%s,%s %s,%s L%s,%s Z" fill="#2a1d14" stroke="%s" stroke-width="1.3"/>'
+          % (fmt(dx - 9), fmt(dy), fmt(dx - 9), fmt(dy - 20), fmt(dx), fmt(dy - 32), fmt(dx + 9), fmt(dy - 20), fmt(dx + 9), fmt(dy + 1), INK),
+          [(dx - 10, dy - 32), (dx + 10, dy + 1)])
+    a.line([(dx, dy - 30), (dx, dy)], "#5a3e28", 1.2)
+    rx, ry = P(0, y1, H + 12)
+    _glow(a, rx, ry, 14, 14, "#ffe39a", 0.5)
+    a.ellipse(rx, ry, 8, 8, "#ffd970", INK, 1.2)
+    for k in range(4):
+        ang = k * math.pi / 4
+        a.line([(rx - 8 * math.cos(ang), ry - 8 * math.sin(ang)), (rx + 8 * math.cos(ang), ry + 8 * math.sin(ang))], "#b07a2a", 0.9)
+    cx, cy = P(0, y1 + 0.05, H + R)
+    a.line([(cx, cy), (cx, cy - 14)], INK, 3)
+    a.line([(cx - 5, cy - 9), (cx + 5, cy - 9)], INK, 3)
+    a.line([(cx, cy), (cx, cy - 14)], GOLD, 1.4)
+    a.line([(cx - 5, cy - 9), (cx + 5, cy - 9)], GOLD, 1.4)
+    # steps before the door
+    a.box(-0.22, 0.22, y1, y1 + 0.18, 0, 4, st, sl, sr, sw=1)
+    a.save("church")
+
+
+def pier():
+    """One tile of the harbour's pier (scenario 9): a plank deck along the
+    tile's y axis on posts standing in the water, a mooring post."""
+    a = Art()
+    w = 0.32
+    for (gx, gy) in [(-w, -0.45), (w, -0.45), (-w, 0.45), (w, 0.45)]:
+        x, y = P(gx, gy)
+        a.poly([(x - 2.5, y + 6), (x + 2.5, y + 6), (x + 2.5, y - 10), (x - 2.5, y - 10)], WOOD_D, INK, 1)
+        a.ellipse(x, y + 6, 4.5, 1.8, "#cfe6f5", opacity=0.5)
+    a.poly([P(-w, -0.5, 10), P(w, -0.5, 10), P(w, 0.5, 10), P(-w, 0.5, 10)], WOOD, INK, 1.3)
+    a.poly([P(w, -0.5, 10), P(w, 0.5, 10), P(w, 0.5, 6), P(w, -0.5, 6)], WOOD_D, INK, 1.1)
+    a.poly([P(-w, 0.5, 10), P(w, 0.5, 10), P(w, 0.5, 6), P(-w, 0.5, 6)], "#4f3722", INK, 1.1)
+    for k in range(1, 6):
+        gy = -0.5 + k / 6.0
+        a.line([P(-w, gy, 10), P(w, gy, 10)], WOOD_D, 0.9)
+    x, y = P(w - 0.05, 0.35, 10)
+    a.poly([(x - 2.5, y), (x + 2.5, y), (x + 2.5, y - 10), (x - 2.5, y - 10)], WOOD_L, INK, 1)
+    a.ellipse(x, y - 10, 2.6, 1.2, WOOD_D, INK, 0.8)
+    a.save("pier")
+
+
+def boat(sail=False):
+    """A boat on the water, along the tile's y axis (scenario 9's harbour):
+    a fishing rowboat moored at the pier, or the guild's supply boat with a
+    sail and crates aboard (sail=True)."""
+    a = Art()
+    L = 0.85 if sail else 0.55
+    W = 0.32 if sail else 0.22
+    a.ellipse(0, 4, 52 if sail else 34, 14 if sail else 9, "#cfe6f5", opacity=0.35)
+    hull = [P(0, -L, 4), P(W, -L * 0.45, 4), P(W, L * 0.6, 4), P(0, L, 6), P(-W, L * 0.6, 4), P(-W, -L * 0.45, 4)]
+    a.poly([P(0, -L, -2), P(W * 0.8, -L * 0.45, -4), P(W * 0.8, L * 0.6, -4), P(0, L, -2)] + [hull[3], hull[2], hull[1], hull[0]],
+           "#5a3e28", INK, 1.2)
+    a.poly(hull, "#7a5738" if sail else "#6a4a30", INK, 1.3)
+    inner = [P(0, -L * 0.85, 4), P(W * 0.75, -L * 0.4, 4), P(W * 0.75, L * 0.55, 4), P(0, L * 0.85, 5), P(-W * 0.75, L * 0.55, 4), P(-W * 0.75, -L * 0.4, 4)]
+    a.poly(inner, "#3b2a1d", INK, 0.9)
+    for k in (-0.2, 0.25):
+        a.line([P(-W * 0.75, k, 4), P(W * 0.75, k, 4)], WOOD_L, 2.2)
+    if sail:
+        for (gx, gy) in [(0.0, 0.45), (0.1, 0.25), (-0.1, 0.3)]:
+            a.box(gx - 0.08, gx + 0.08, gy - 0.08, gy + 0.08, 4, 13, "#b08a58", WOOD, WOOD_D, sw=0.9)
+        mx, my = P(0, -0.15, 4)
+        a.line([(mx, my), (mx, my - 78)], INK, 3.2)
+        a.line([(mx, my), (mx, my - 78)], WOOD_L, 1.6)
+        a.poly([(mx + 2, my - 74), (mx + 34, my - 58), (mx + 32, my - 16), (mx + 2, my - 22)], "#e8dcc0", INK, 1.3)
+        a.line([(mx + 4, my - 50), (mx + 32, my - 40)], "#2f4a6a", 2.4)  # the guild's stripe
+        a.line([(mx, my - 78), (mx + 6, my - 82)], CRIMSON, 2)
+    else:
+        a.line([P(-W, 0.05, 6), P(-W - 0.35, -0.2, 2)], "#7a5738", 1.6)  # an oar
+        a.ellipse(*P(0, 0.3, 6), 6, 3, "#8a8a7a", INK, 0.8)  # a net, heaped
+    a.save("boat_supply" if sail else "boat")
+
+
+def harbour_crates():
+    """Crates, a barrel and sacks on the quay (scenario 9)."""
+    a = Art()
+    a.shadow(26, 12, cy=2)
+    for (gx, gy) in [(-0.12, -0.05), (0.12, 0.05)]:
+        a.box(gx - 0.12, gx + 0.12, gy - 0.12, gy + 0.12, 0, 14, "#b08a58", WOOD, WOOD_D, sw=1)
+        a.line([P(gx - 0.12, gy + 0.12, 7), P(gx + 0.12, gy + 0.12, 7)], WOOD_D, 0.9)
+    a.box(-0.1, 0.12, -0.08, 0.12, 14, 26, "#b08a58", WOOD, WOOD_D, sw=1)
+    x, y = P(0.25, -0.22)
+    a.poly([(x - 5, y), (x + 5, y), (x + 6, y - 13), (x - 6, y - 13)], WOOD, INK, 1)
+    a.line([(x - 5.5, y - 4), (x + 5.5, y - 4)], "#6a6a6a", 1.1)
+    a.ellipse(x, y - 13, 6, 2.2, WOOD_D, INK, 0.8)
+    x, y = P(-0.28, 0.2)
+    a.ellipse(x, y - 4, 6, 4.6, "#c9a86a", INK, 0.9)
+    a.save("harbour_crates")
+
+
+def net_rack():
+    """Fishing nets drying on a rack (scenario 9's quay)."""
+    a = Art()
+    a.shadow(24, 9, cy=2)
+    l, r = P(-0.3, 0.05), P(0.3, -0.05)
+    for (x, y) in (l, r):
+        a.line([(x, y), (x, y - 30)], INK, 3)
+        a.line([(x, y), (x, y - 30)], WOOD_L, 1.5)
+    a.line([(l[0], l[1] - 28), (r[0], r[1] - 28)], WOOD_D, 2.4)
+    a.poly([(l[0] + 1, l[1] - 27), (r[0] - 1, r[1] - 27), (r[0] - 3, r[1] - 6), (l[0] + 4, l[1] - 4)], "#7a7a68", INK, 1, opacity=0.85)
+    for k in range(1, 6):
+        t = k / 6.0
+        a.line([(l[0] + (r[0] - l[0]) * t, l[1] - 27 + (r[1] - l[1]) * t), (l[0] + 3 + (r[0] - l[0] - 6) * t, l[1] - 5 + (r[1] - l[1]) * t)], "#4a4a3c", 0.7)
+    for k in range(1, 4):
+        t = k / 4.0
+        a.line([(l[0] + 1 + 0.5 * t, l[1] - 27 + 22 * t), (r[0] - 1 - 1.5 * t, r[1] - 27 + 22 * t)], "#4a4a3c", 0.7)
+    a.save("net_rack")
+
+
+def ferry_bell():
+    """The ferry bell at the end of the quay (scenario 9): a bronze bell under a
+    little shingled roof on two posts, its rope hanging down."""
+    a = Art()
+    a.shadow(18, 7, cy=2)
+    l, r = P(-0.16, 0.06), P(0.16, -0.06)
+    for (x, y) in (l, r):
+        a.poly([(x - 2.5, y), (x + 2.5, y), (x + 2.5, y - 46), (x - 2.5, y - 46)], WOOD, INK, 1.1)
+    a.line([(l[0], l[1] - 40), (r[0], r[1] - 40)], WOOD_D, 3)
+    mx, my = (l[0] + r[0]) / 2, (l[1] + r[1]) / 2 - 46
+    a.poly([(mx - 17, my + 2), (mx, my - 11), (mx + 17, my + 2), (mx + 15, my + 6), (mx, my - 5), (mx - 15, my + 6)], "#5a3e28", INK, 1.2)
+    bx, by = mx, my + 8
+    a.raw('<path d="M%s,%s Q%s,%s %s,%s Q%s,%s %s,%s Z" fill="#b08a3a" stroke="%s" stroke-width="1.1"/>'
+          % (fmt(bx - 7), fmt(by + 13), fmt(bx - 6), fmt(by - 2), fmt(bx), fmt(by - 2), fmt(bx + 6), fmt(by - 2), fmt(bx + 7), fmt(by + 13), INK),
+          [(bx - 8, by - 3), (bx + 8, by + 14)])
+    a.line([(bx - 5, by + 11), (bx + 5, by + 11)], GOLD, 1)
+    a.ellipse(bx, by + 14, 2, 1.6, "#6a5228", INK, 0.7)
+    a.line([(bx, by + 15), (bx + 1, by + 30), (bx - 1, by + 36)], "#c8b080", 1.1)
+    a.save("ferry_bell")
+
+
+def beacon():
+    """A small lighthouse on the river bank where the channel meets the sea
+    (scenario 9): a round stone tower, a fire basket burning on top, a warm glow."""
+    a = Art()
+    a.shadow(26, 12, cy=3)
+    r, h = 14, 92
+    a.poly([(-r - 4, 0), (r + 4, 0), (r + 4, -8), (-r - 4, -8)], STONE_R, INK, 1.2)  # (the plinth)
+    a.ellipse(0, -8, r + 4, 6, STONE_T, INK, 1.1)
+    a.poly([(-r, -8), (r, -8), (r - 3, -h), (-r + 3, -h)], "#a8a296", INK, 1.3)
+    a.poly([(0, -8), (r, -8), (r - 3, -h), (0, -h)], "#837d72", stroke=None)
+    a.line([(-r, -8), (-r + 3, -h)], INK, 1.3)
+    a.line([(r, -8), (r - 3, -h)], INK, 1.3)
+    for k, z in enumerate((-30, -54, -78)):  # (stone bands)
+        w = r - 3 * (-z) / h
+        a.line([(-w, z), (w, z)], "#6e695f", 1.1)
+    a.raw('<path d="M-3,-56 L-3,-66 Q0,-71 3,-66 L3,-56 Z" fill="#ffd970" stroke="%s" stroke-width="1"/>' % INK, [(-4, -71), (4, -55)])
+    a.ellipse(0, -h, r, 5, STONE_T, INK, 1.1)
+    _glow(a, 0, -h - 14, 40, 30, "#ffb850", 0.6)
+    a.poly([(-9, -h - 2), (9, -h - 2), (12, -h - 12), (-12, -h - 12)], "#3a2e26", INK, 1.2)  # (the fire basket)
+    for k in range(-2, 3):
+        a.line([(k * 4, -h - 2), (k * 5, -h - 12)], "#5a4a3a", 1)
+    a.poly([(-9, -h - 12), (-4, -h - 26), (0, -h - 18), (4, -h - 30), (9, -h - 12)], "#f08a2a", INK, 1)
+    a.poly([(-5, -h - 12), (-1, -h - 21), (3, -h - 15), (6, -h - 12)], "#ffd970", stroke=None)
+    a.save("beacon")
+
+
+def wreck():
+    """A boat's wreck half sunk in the shallows (scenario 9): a broken hull on
+    its side, bare ribs, a snapped mast, water round it."""
+    a = Art()
+    a.ellipse(0, 4, 44, 14, "#cfe6f5", opacity=0.3)
+    a.ellipse(0, 4, 38, 11, "#1d3a52", opacity=0.35)
+    a.poly([P(-0.5, 0.1, 2), P(0.45, -0.25, 2), P(0.42, -0.3, 14), P(-0.45, 0.05, 20)], "#4a3422", INK, 1.3)  # (the hull's side)
+    for k in range(5):
+        t = -0.4 + 0.2 * k
+        x0, y0 = P(t, -0.08 * k + 0.05, 2)
+        a.line([(x0, y0), (x0 + 3, y0 - 22 - 3 * (k % 2)), (x0 + 9, y0 - 18)], "#5e4129", 2.2)
+    a.line([P(-0.48, 0.08, 18), P(0.43, -0.28, 12)], "#3b2a1d", 2)
+    a.line([P(0.05, -0.1, 6), P(0.35, -0.6, 30)], "#5e4129", 3)  # (the snapped mast)
+    a.line([P(0.35, -0.6, 30), P(0.3, -0.55, 36)], "#5e4129", 2)
+    for (x, y) in [(-26, 6), (22, 2), (-6, 10)]:
+        a.line([(x - 6, y), (x + 6, y)], "#e8f2f8", 1, opacity=0.7)
+    a.save("wreck")
+
+
+def fish_rack():
+    """Fish drying on a wooden rack by the shore (scenario 9)."""
+    a = Art()
+    a.shadow(26, 9, cy=2)
+    l, r = P(-0.3, 0.08), P(0.3, -0.08)
+    for (x, y) in (l, r):
+        a.line([(x - 4, y), (x, y - 30), (x + 4, y)], WOOD, 2.2)
+    a.line([(l[0], l[1] - 29), (r[0], r[1] - 29)], WOOD_D, 2.4)
+    for k in range(1, 7):
+        t = k / 7.0
+        x, y = l[0] + (r[0] - l[0]) * t, l[1] - 29 + (r[1] - l[1]) * t
+        a.line([(x, y), (x, y + 3)], "#c8b080", 0.8)
+        a.poly([(x - 2, y + 3), (x + 2, y + 3), (x + 1.5, y + 14), (x, y + 17), (x - 1.5, y + 14)], "#9aa4a8" if k % 2 else "#7a8890", INK, 0.8)
+    a.save("fish_rack")
+
+
+def boat_upturned():
+    """A rowboat lying upturned on the sand (scenario 9)."""
+    a = Art()
+    a.shadow(30, 9, cy=3)
+    a.raw('<path d="M-30,2 Q-26,-14 0,-16 Q26,-14 30,2 Q0,8 -30,2 Z" fill="#6a4a30" stroke="%s" stroke-width="1.3"/>' % INK, [(-31, -17), (31, 9)])
+    a.raw('<path d="M-30,2 Q0,8 30,2" fill="none" stroke="#3b2a1d" stroke-width="2.2"/>', [(-30, 2), (30, 8)])
+    for k in (-14, 0, 14):
+        a.line([(k, -15 + abs(k) * 0.08), (k * 1.1, 5 - abs(k) * 0.05)], "#4f3722", 1.1)
+    a.line([(-32, -2), (-22, -18)], WOOD_L, 2)  # (an oar leaning on it)
+    a.save("boat_upturned")
+
+
+def mooring_post():
+    """A mooring post on the quay with a coil of rope (scenario 9)."""
+    a = Art()
+    a.shadow(9, 4, cy=1)
+    a.poly([(-4, 0), (4, 0), (4, -22), (-4, -22)], WOOD, INK, 1.1)
+    a.poly([(0, 0), (4, 0), (4, -22), (0, -22)], WOOD_D, stroke=None)
+    a.ellipse(0, -22, 4, 1.6, WOOD_L, INK, 0.9)
+    for k in range(3):
+        a.ellipse(0, -10 + k * 2.5, 6, 2, "none", "#c8b080", 1.4)
+    a.ellipse(9, 1, 6, 2.6, "none", "#c8b080", 1.4)
+    a.ellipse(9, 1, 3, 1.3, "none", "#c8b080", 1.2)
+    a.save("mooring_post")
+
+
+def driftwood():
+    """Driftwood and seaweed washed up on the beach (scenario 9)."""
+    a = Art()
+    a.line([(-22, 4), (16, -6)], INK, 6)
+    a.line([(-22, 4), (16, -6)], "#b8a88a", 4)
+    a.line([(-4, -1), (4, -10)], INK, 3.4)
+    a.line([(-4, -1), (4, -10)], "#b8a88a", 2)
+    a.line([(-10, 8), (12, 4)], INK, 4)
+    a.line([(-10, 8), (12, 4)], "#a8987a", 2.4)
+    for (x, y) in [(-16, 9), (8, 9), (20, -2)]:
+        a.raw('<path d="M%s,%s q3,-4 6,0 q3,-4 6,0" fill="none" stroke="#3e5a2a" stroke-width="1.6"/>' % (fmt(x - 6), fmt(y)), [(x - 6, y - 4), (x + 6, y)])
+    a.save("driftwood")
+
+
+def gull():
+    """A gull in flight, wings up (scenario 9's harbour: they circle the beacon)."""
+    a = Art()
+    a.raw('<path d="M-12,-2 Q-6,-8 0,0 Q6,-8 12,-2" fill="none" stroke="%s" stroke-width="3.2" stroke-linecap="round"/>' % INK, [(-13, -9), (13, 2)])
+    a.raw('<path d="M-12,-2 Q-6,-8 0,0 Q6,-8 12,-2" fill="none" stroke="#f2f2ee" stroke-width="1.8" stroke-linecap="round"/>', [(-13, -9), (13, 2)])
+    a.ellipse(0, 0, 2.6, 1.6, "#f2f2ee", INK, 0.8)
+    a.save("gull")
+
+
+def relic_sword():
+    """The First King's Hand lying on the ground (scenario 9: dropped): an
+    ornate old sword, a gold hilt with a red stone, in a faint holy glow."""
+    a = Art()
+    _glow(a, 0, -4, 36, 18, "#ffe9a0", 0.55)
+    a.line([(-24, 6), (14, -8)], INK, 4.4)
+    a.line([(-24, 6), (14, -8)], "#d8dde4", 2.4)
+    a.line([(-22, 5), (12, -7.5)], "#ffffff", 0.8, opacity=0.8)
+    a.line([(12, -15), (18, -1)], INK, 4.6)  # the crossguard
+    a.line([(12, -15), (18, -1)], GOLD, 2.8)
+    a.line([(15, -8), (24, -11)], INK, 4)  # the grip
+    a.line([(15, -8), (24, -11)], "#6a2a24", 2.2)
+    a.ellipse(25.5, -11.5, 3.2, 3, GOLD, INK, 1)  # the pommel
+    a.ellipse(15, -8, 2, 2, CRIMSON, INK, 0.8)
+    a.save("relic_sword")
+
+
 def city_house(name, ruin, seed, wall, roof, roof_front, storeys):
     """A town house on one tile of the capital (the city's blocked tiles): one
     to three storeys of plaster and timber, a steep roof; ruined, the roof
@@ -6258,6 +6575,21 @@ def main():
     legion_camp(True)
     abbey()
     abbey(True)
+    church()
+    pier()
+    boat()
+    boat(sail=True)
+    harbour_crates()
+    net_rack()
+    relic_sword()
+    ferry_bell()
+    beacon()
+    wreck()
+    fish_rack()
+    boat_upturned()
+    mooring_post()
+    driftwood()
+    gull()
     portraits_89()
     legion_marshal()
     legion_king()

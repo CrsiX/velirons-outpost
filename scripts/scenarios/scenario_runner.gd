@@ -568,6 +568,22 @@ func hero_moves_in() -> void:
 	game.events.info("%s moves into the village" % h.label())
 
 
+## She must live outside the walls from now on (scenario 9: the priests shut
+## her out): a tent on `tile` is her home.
+func hero_moves_out(tile: Vector2i) -> void:
+	var h := game.hero
+	h.home_override = tile
+	if is_instance_valid(tent_node):
+		tent_node.queue_free()
+	tent_node = actor("tent_small", Vector2(tile))
+	tent_node.name = "Tent"
+	game.fog.reveal(Vector2(tile), TENT_REVEAL, game.player_village.id)
+	if h.at_home and not h.dead:
+		h.head_home()
+		h.at_home = false
+	game.events.info("%s has to live outside the walls" % h.label())
+
+
 func _begin_play() -> void:
 	phase = Phase.PLAY
 	game.hero.set_mode(Hero.Mode.DEFEND)
@@ -849,7 +865,7 @@ func _poll_now() -> void:
 			game.events.info("Objective done: %s" % o["text"])  # (not for one met from the start)
 		_goal_state[id] = done
 		all = all and (done or bool(o.get("optional", false)))
-	if all:
+	if all and spec.can_win(self):
 		phase = Phase.OUTRO
 		game.events.info("Every objective is met")
 		game.waves.hold = true

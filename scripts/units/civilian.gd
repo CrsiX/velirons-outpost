@@ -176,20 +176,32 @@ func _set_home(v: bool) -> void:
 	visible = not v
 
 
+## A way from `from` to `to` for them (the hero keeps out of where she is barred).
+func find_way(from: Vector2i, to: Vector2i) -> PackedVector2Array:
+	return game.world.pathing.find_path(from, to)
+
+
 ## Leave the village towards `target`. Returns false when there's no way there.
 func head_out(target: Vector2i) -> bool:
-	var p := game.world.pathing.find_path(current_tile(), target)
+	var p := find_way(current_tile(), target)
 	if p.is_empty():
 		return false
 	if at_home:
-		set_grid_pos(Vector2(village.center))
+		set_grid_pos(Vector2(home_spot()))
 		_set_home(false)
 	follow(p)
 	return true
 
 
+## Where they step out from when they leave home, and go in when they get
+## back (the village centre; the hero: her own post, a tent outside the walls
+## in some scenarios; a resident: a home of their own, scenario 9's church).
+func home_spot() -> Vector2i:
+	return village.center
+
+
 func head_home() -> void:
-	var p := game.world.pathing.find_path(current_tile(), village.center)
+	var p := find_way(current_tile(), home_spot())
 	if p.is_empty():
 		arrive_home()  # stuck somewhere: just teleport home
 		return
@@ -197,7 +209,7 @@ func head_home() -> void:
 
 
 func arrive_home() -> void:
-	set_grid_pos(Vector2(village.center))
+	set_grid_pos(Vector2(home_spot()))
 	_set_home(true)
 	_set_moving(false)
 

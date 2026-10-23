@@ -15,6 +15,9 @@ enum State { HOME, OUT, STAYING, RETURNING }
 var rounds: Array[Dictionary] = []
 ## Seconds spent at each stop, and at home between rounds.
 var stay := 8.0
+## Where they go in and come out ((-1, -1): the village centre, as everyone;
+## scenario 9's priests: their church's door).
+var home_tile := Vector2i(-1, -1)
 var state := State.HOME
 var _stop := 0
 var _left := 0.0
@@ -44,6 +47,20 @@ func _tick(delta: float) -> void:
 				arrive_home()
 				state = State.HOME
 				rest_timer = stay
+
+
+func home_spot() -> Vector2i:
+	return home_tile if home_tile.x >= 0 else village.center
+
+
+## New rounds (`list`), begun at once from wherever they are (at home, out,
+## between stops), with `stay` seconds at each stop.
+func start_rounds(list: Array[Dictionary], p_stay: float) -> void:
+	rounds = list
+	stay = p_stay
+	rest_timer = 0.0
+	if not evading:
+		_go_on(0)
 
 
 ## On to stop `i`; past the last one, home.

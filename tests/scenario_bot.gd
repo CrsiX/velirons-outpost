@@ -23,6 +23,7 @@ extends "res://tests/bot_base.gd"
 ## Fiona's trust in steps (what is refused when), the mages' tower, wave 5's
 ## band at the grove, the circle, the win, a druid falling in wave 5.
 ##   -- --only=1|2|...|11  one scenario only (the title screen with 1); several: --only=9,11
+##   -- --s9=rescued|drowned|escape|more  scenario 9: just that part
 
 var sc: ScenarioRunner
 ## Every named enemy that came on the map (name -> kind), however soon it was gone.
@@ -304,6 +305,8 @@ func _kill_wave() -> void:
 	for e: Enemy in get_tree().get_nodes_in_group("enemies"):
 		if e.given_name != "" and e.given_name == spare:
 			continue
+		if spare_kinds.has(e.kind) or spare_kinds.any(func(k: String) -> bool: return k.ends_with("*") and e.kind.begins_with(k.trim_suffix("*"))):
+			continue
 		if kill_camps or not (e.behavior is CampBehavior):
 			kill(e, game.hero)
 
@@ -312,6 +315,8 @@ func _kill_wave() -> void:
 var kill_camps := false
 ## _kill_wave leaves the enemy of this name alone (scenario 9's leviathan, for a while).
 var spare := ""
+## _kill_wave leaves enemies of these kinds alone ("legion_*": every kind beginning so).
+var spare_kinds: Array[String] = []
 
 
 func _total(d: Dictionary) -> int:
@@ -1542,37 +1547,90 @@ func _scenario_8() -> void:
 # --- scenario 9: The Drowned Abbey -------------------------------------------------------------
 
 func _scenario_9() -> void:
+	var part := ""  # (-- --only=9 --s9=rescued|drowned|escape|more: just that part)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--s9="):
+			part = a.trim_prefix("--s9=")
+	if part in ["", "rescued"]:
+		await _s9_rescued()
+	if part in ["", "drowned"]:
+		await _s9_drowned()
+	if part in ["", "escape"]:
+		await _s9_escape()
+	if part in ["", "more"]:
+		await _s9_church()
+		await _s9_ground()
+		await _s9_yes()
+
+
+func _s9() -> Scenario:
+	return sc.spec
+
+
+## Waves on (each one's enemies dying as they come, but for the spared),
+## through every scene, until wave `n` is over.
+func _s9_waves_to(n: int, timeout := 900.0) -> void:
+	var t := 0.0
+	while not (game.waves.wave >= n and not game.waves.in_progress()) and not game.game_over and t < timeout:
+		if sc.cutscene != null:
+			await _through_scene()
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+		t += 0.5
+
+
+## The village's priests (Residents), eldest first.
+func _s9_priests() -> Array:
+	return game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "priest")
+
+
+## Why the game ended, if it did (for a failed check).
+func _s9_why() -> String:
+	return " (game over: %s)" % game.hud._overlay_sub.text.split("\n")[0] if game.game_over else ""
+
+
+func _s9_guard() -> Timer:
+	var guard := Timer.new()
+	guard.wait_time = 0.5
+	guard.timeout.connect(_kill_wave)
+	add_child(guard)
+	guard.start()
+	return guard
+
+
+## The rescued branch, won: the watch, the rescue, the Legion at the seal,
+## the crypt opened, the leviathan waking, slain, the relic home.
+func _s9_rescued() -> void:
 	print("-- scenario 9: setup")
 	await _new_game(9)
 	var v := game.player_village
 	var h := game.hero
 	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Drowned Abbey", "scenario 9 runs on the drowned abbey's map")
-	var ab: Treasure = sc.spec._abbey(sc)
-	check(ab != null and ab.sealed and not ab.lootable() and ab.reward().get("item", "") == sc.spec.RELIC, "the abbey holds the relic, sealed")
+	var ab: Treasure = _s9()._abbey(sc)
+	check(ab != null and ab.sealed and not ab.lootable() and ab.reward().get("item", "") == _s9().RELIC, "the abbey holds the relic, sealed")
+	check(ab != null and ab.seal_max == _s9().SEAL_HP and ab.seal_hp == ab.seal_max, "its seal has %d HP" % int(_s9().SEAL_HP))
 	check(ab != null and ab.guard() != null and ab.guard().alive().filter(func(e: Enemy) -> bool: return e.kind == "vampire").size() == 2, "vampires hold its crypt")
+	var ruins := game.world.map_objects.filter(func(o: Node) -> bool: return o is RuinedTower and Vector2((o as RuinedTower).tile).distance_to(Vector2(ab.tile)) < 7.0)
+	check(ruins.size() == 3 and ruins.filter(func(o: Node) -> bool: return (o as RuinedTower).building() == "barracks").size() == 1, "two ruined watchtowers and a ruined barracks on the island (%d)" % ruins.size())
+	var church: Church = _s9()._church(sc)
+	check(church != null and church.complete and game.map.in_village(church.tile) and not church.holds_relic, "the church stands inside the walls, empty")
 	var bridges := 0
 	for t in game.map.crossings:
-		if game.map.is_bridge(t) and Vector2(t).distance_to(Vector2(ab.tile)) < 11.0:
+		if game.map.is_bridge(t) and Vector2(t).distance_to(Vector2(ab.tile)) < 13.0:
 			bridges += 1
 	check(bridges >= 4, "the road crosses the lake to the island on bridges (%d)" % bridges)
 	var octo = sc.mark.get("octopus")
-	check(octo is Enemy and (octo as Enemy).kind == "octopus" and (octo as Enemy).post == ab.tile and game.waves.enemies_left() == 0, "a gigantic octopus guards it, outside the waves")
-	check(octo is Enemy and (octo as Enemy).max_hp > Config.enemy_stat("octopus", "hp") * 1.4, "stronger than a wave one (%d HP)" % int((octo as Enemy).max_hp))
-	var drowned := game.corpses.fallen().filter(func(c: Corpse) -> bool: return c.grid_pos.distance_to(Vector2(ab.tile)) < 5.0)
-	check(drowned.size() == sc.spec.DROWNED, "the drowned dead lie on the island (%d)" % drowned.size())
-	var priests := game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "priest")
-	check(priests.size() == 2 and priests.all(func(c: Civilian) -> bool: return c is Resident and c.given_name == ""), "two priests, unnamed, hide in their huts")
-	check(game.available("archer") and game.available("summoner") and game.army.reserve().size() == 2, "recruiting is open; two of the band in the reserve")
+	check(octo is Enemy and (octo as Enemy).kind == "octopus" and (octo as Enemy).post == ab.tile and game.waves.enemies_left() == 0, "a gigantic octopus guards the abbey, outside the waves")
+	var drowned := game.corpses.fallen().filter(func(c: Corpse) -> bool: return c.grid_pos.distance_to(Vector2(ab.tile)) < 6.0)
+	check(drowned.size() == _s9().DROWNED, "the drowned dead lie on the island (%d)" % drowned.size())
+	var priests := _s9_priests()
+	check(priests.size() == 2 and priests.all(func(c: Civilian) -> bool: return c is Resident and c.given_name == "" and not (c as Resident).rounds.is_empty()), "two priests, unnamed, walk their rounds")
+	check(priests.all(func(c: Civilian) -> bool: return c.home_spot() == _s9()._church_door(sc) and church.tiles().has(c.home_spot() + Vector2i(0, -1))), "they live in the church: in and out of its door")
+	check(not sc.stalls().is_empty() and game.available("archer") and game.army.reserve().size() == 2, "Pell's stall stands; recruiting is open; two of the band in the reserve")
 	await wait(1.0)
 	var said := await _watch(sc.cutscene)
-	check(said.has("pell") and said.has("brenna"), "the intro: the ferry in the mist (%s)" % str(said))
-	await wait(1.0)
-	var o := octo as Enemy
-	var far := 0.0
-	for k in 20:
-		await wait(0.5)
-		far = maxf(far, o.grid_pos.distance_to(Vector2(ab.tile)))
-	check(far <= sc.spec.GUARD_LEASH + 1.0, "the octopus keeps to the water by the abbey (%.1f)" % far)
+	check(said.has("pell") and said.has("brenna"), "the intro: the boat in the mist (%s)" % str(said))
 
 	print("-- scenario 9: the watch on the water")
 	check(game.waves.hold and game.waves.wave == 0 and game.waves.can_call(), "wave 1 waits (no countdown), and can be called")
@@ -1582,83 +1640,363 @@ func _scenario_9() -> void:
 		for x in game.map.size:
 			var st := Vector2i(x, y)
 			var d := Vector2(st).distance_to(Vector2(v.center))
-			if d < best and sc.spec._by_water(sc, st) and game.construction.placement_error("tower", st) == "":
+			if d < best and _s9()._by_water(sc, st) and game.construction.placement_error("tower", st) == "":
 				best = d
 				shore = st
 	check(cmd("place_building", {"kind": "tower", "tile": shore})["ok"], "a watchtower placed by the shore %s" % shore)
 	await wait(0.6)
-	check(not game.waves.hold and game.waves.countdown > sc.spec.FIRST_WAVE_AFTER - 5.0, "placed: wave 1's countdown runs at once (%.0f s)" % game.waves.countdown)
+	check(game.waves.hold and game.waves.wave == 0, "placed: wave 1 still waits")
+	var pt: Dictionary = sc.steps[0]["point"].call()
+	check(not (pt.get("hud", []) as Array).has("build:tower") and (pt.get("tiles", []) as Array).has(shore), "the card now points at the tower being built, not at the Build tab")
+	var placed: Building = game.map.building_at(shore)
+	check(await wait_until(func() -> bool: return placed.complete, 240.0), "it is built")
+	pt = sc.steps[0]["point"].call()
+	check((pt.get("hud", []) as Array).has("tab:army"), "then the card points at manning it (%s)" % str(pt.get("hud", [])))
+	check(game.waves.hold and game.waves.wave == 0, "built but empty: wave 1 still waits")
+	var unit: MilitaryUnit = game.army.reserve()[0]
+	cmd("station_unit", {"unit": unit.nid, "post": placed.nid})
+	check(await wait_until(func() -> bool: return (placed as Tower).garrison != null, 120.0), "a unit stationed on it")
+	await wait(0.6)
+	check(not game.waves.hold and game.waves.countdown > _s9().FIRST_WAVE_AFTER - 5.0, "manned: wave 1's countdown runs at once (%.0f s)" % game.waves.countdown)
 
-	print("-- scenario 9: the waves, the priests, the Legion")
-	o.take_damage(1e9, h)  # (the test's towers)
-	var guard := Timer.new()
-	guard.wait_time = 0.5
-	guard.timeout.connect(_kill_wave)
-	add_child(guard)
+	print("-- scenario 9: the waves, the boats, the rescue")
+	spare_kinds = ["octopus", "octopus_arm"]
+	var guard := _s9_guard()
 	Engine.time_scale = 4.0
-	guard.start()
 	var gold0 := game.economy.amount("gold")
-	var lysa := false
-	var lysa_seen := false
-	spare = "Lysa"  # (until the bot has seen her)
-	var boats := false
-	var t := 0.0
-	while not sc.mark.has("unsealed") and not game.game_over and t < 1200.0:
-		if sc.cutscene != null:
-			await _through_scene()
-		for e in get_tree().get_nodes_in_group("enemies"):
-			if (e as Enemy).given_name == "Lysa" and (e as Enemy).home_tile == sc.spec._causeway_spawn(sc):
-				lysa = true
-				if not lysa_seen:
-					await wait(0.6)
-					lysa_seen = is_instance_valid(e) and (e as Enemy).visible
-				spare = ""
-		if game.waves.wave >= 3 and not boats:
-			boats = game.events.entries.any(func(en) -> bool: return str(en["text"]).contains("guild boats"))
-		if game.waves.can_call():
-			cmd("call_wave")
-		await wait(0.5)
-		t += 0.5
-	check(sc.mark.has("told"), "after wave 4 the priests tell what the abbey hides")
-	check(lysa, "wave 6: Lysa leads the Legion down the causeway")
-	check(lysa_seen, "she is seen on her way, fog or not")
-	check(boats and game.economy.amount("gold") > gold0, "Pell's guild boats bring supplies")
-	check(sc.mark.has("unsealed") and not ab.sealed, "after wave 6 the crypt is unsealed")
+	await _s9_waves_to(2)
+	await wait_until(func() -> bool: return game.events.entries.any(func(en) -> bool: return str(en["text"]).begins_with("The guild caravan is in")), 60.0)
+	check(game.economy.amount("gold") > gold0, "after wave 2 a guild boat comes in, and a cart takes its goods to Pell's stall")
+	await _s9_waves_to(_s9().RESCUE_WAVE)
+	await _through_scene()
+	check(sc.mark.has("rescue"), "after wave 4 a priest walks down to the harbour")
+	Engine.time_scale = 1.0
+	var quay: Vector2i = _s9()._quay(sc)
+	check((octo as Enemy).grid_pos.distance_to(Vector2(quay)) > 10.0, "the octopus is still out by the abbey meanwhile")
+	check(await wait_until(func() -> bool: return sc.mark.has("grabbed"), 90.0), "he gets to the quay: the octopus comes up by the pier and grabs him")
+	var p: Resident = _s9()._priest(sc, false)
+	var ob := ((octo as Enemy).behavior as OctopusBehavior)
+	check((octo as Enemy).grid_pos.distance_to(Vector2(quay)) < 5.0, "by the pier")
+	await wait(1.0)
+	var busy := ob.arms.filter(func(a: Dictionary) -> bool: return a["state"] != OctopusBehavior.Arm.IDLE and a["state"] != OctopusBehavior.Arm.GONE)
+	check(busy.size() == 1 and busy[0]["target"] == p, "one arm holds him; the others keep still (no towers smashed)")
+	check(sc.cutscene != null and not sc.mark.has("countdown"), "a scene: the alarm, and no time running yet")
+	var hp0 := p.hp
+	await _through_scene()
+	check(p.hp >= hp0 and not p.dead, "unharmed while it played")
+	check(await wait_until(func() -> bool: return sc.mark.has("countdown"), 3.0) and ob.hold_left(p) > _s9().RESCUE_HOLD - 2.0, "the scene over: now his %.0f s run" % ob.hold_left(p))
+	await wait(3.0)
+	check(p != null and not p.dead and game.map.get_terrain(p.current_tile()) == MapData.Terrain.SHALLOW, "he is held in the shallows")
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if (e as Enemy).kind == "octopus_arm":
+			kill(e, h)
+	check(await wait_until(func() -> bool: return sc.mark.has("rescued"), 5.0) and not p.dead, "its arm cut: the priest is saved")
+	said = await _watch(sc.cutscene)
+	check(said.has("priest") and said.has("eldest"), "the priests tell what the abbey hides (%s)" % str(said))
 
-	print("-- scenario 9: the relic and the leviathan")
+	print("-- scenario 9: the Legion at the seal")
+	Engine.time_scale = 4.0
+	await _s9_waves_to(_s9().LEGION_WAVES[0] - 1)
+	spare_kinds = ["octopus", "octopus_arm", "legion_*"]
+	check(await wait_until(func() -> bool: return game.waves.in_progress() and sc.named_enemy("Lysa") != null, 120.0), "wave 6: Lysa comes")
+	var ts := Engine.time_scale
+	Engine.time_scale = 1.0
+	await wait_until(func() -> bool: return sc.cutscene != null and sc.cutscene.line != "", 20.0)
+	var ly := sc.named_enemy("Lysa")
+	var off := game.camera.position.distance_to(ly.position + Vector2(0, -40)) if ly else INF
+	var at0 := ly.grid_pos if ly else Vector2.ZERO
+	await wait(4.0)
+	var off2 := game.camera.position.distance_to(ly.position + Vector2(0, -40)) if is_instance_valid(ly) else INF
+	check(off < 60.0 and off2 < 60.0 and is_instance_valid(ly) and ly.grid_pos.distance_to(at0) > 0.5, "the scene's camera stays on Lysa while she walks (%.0f, %.0f px off)" % [off, off2])
+	Engine.time_scale = ts
+	await _through_scene()
+	var co: LegionCompany = sc.mark.get("company")
+	await wait_until(func() -> bool: return co.members.size() >= 9, 20.0)
+	check(co != null and co.leader == sc.named_enemy("Lysa") and co.members.size() >= 9, "her soldiers march with her as a company (%d)" % (co.members.size() if co else 0))
+	await wait(4.0)
+	var lysa := sc.named_enemy("Lysa")
+	var near_her := co.members.filter(func(m: Enemy) -> bool: return m.grid_pos.distance_to(lysa.grid_pos) < 5.0).size() if lysa else 0
+	check(near_her >= co.members.size() - 2, "they keep close behind her (%d of %d within 5 tiles)" % [near_her, co.members.size()])
+	check(await wait_until(func() -> bool: return ab.seal_hp < ab.seal_max, 120.0), "at the abbey they strike its seal (%d HP)" % int(ab.seal_hp))
+	check(lysa != null and lysa.visible, "Lysa is seen there, fog or not")
+	spare_kinds = ["octopus", "octopus_arm"]
+	await _s9_waves_to(_s9().LEGION_WAVES[0])
+	await _through_scene()
+	check(sc.mark.has("unsealed") and not ab.sealed and ab.seal_hp > 0.0 and _s9()._relic_at(sc) == "crypt", "the Legion beaten: the priests unseal the crypt")
+	check(not get_tree().get_nodes_in_group("enemies").any(func(e: Node) -> bool: return (e as Enemy).kind.begins_with("legion_")), "no Legion in the waves after")
+
+	print("-- scenario 9: the crypt and the leviathan")
 	await wait_until(func() -> bool: return not game.waves.in_progress(), 120.0)
+	kill(octo as Enemy, h)  # (the guard by the causeway: Brenna exploring would run from it)
 	kill_camps = true
 	await wait(1.0)
 	kill_camps = false
-	check(ab.guard() == null and ab.lootable(), "its vampires cleared: the relic can be taken")
-	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
 	spare = "Leviathan"
-	check(await wait_until(func() -> bool: return ab.looted, 300.0), "Brenna goes to the abbey and takes it")
-	check(await wait_until(func() -> bool: return sc.mark.has("risen"), 3.0) and game.waves.in_progress(), "the leviathan rises with a wave")
-	await wait_until(func() -> bool: return sc.named_enemy("Leviathan") != null, 30.0)
+	check(ab.guard() == null and ab.lootable(), "its vampires cleared: the crypt can be entered")
+	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
+	check(await wait_until(func() -> bool: return sc.mark.has("woken"), 300.0), "Brenna goes into the crypt, and the leviathan wakes")
+	check(ab.blocked != "" and not ab.lootable() and not ab.looted and _s9()._relic_at(sc) == "crypt", "it blocks the crypt: the relic is still in it")
+	await wait(0.5)
+	check(sc._goal_shown.has("leviathan"), "the objective: slay the leviathan")
 	var lev := sc.named_enemy("Leviathan")
-	check(lev != null and lev.max_hp >= Config.enemy_stat("leviathan", "hp") * 4.9 and lev.power == sc.spec.LEVIATHAN_POWER, "a boss: five times the HP, harder blasts")
-	check(await wait_until(func() -> bool: return v.items.has(sc.spec.RELIC), 300.0), "she carries the relic home")
-	await wait_until(func() -> bool: return sc.mark.has("leviathan"), 5.0)
+	check(lev != null and lev.max_hp >= Config.enemy_stat("leviathan", "hp") * 4.9 and lev.power == _s9().LEVIATHAN_POWER, "a boss: five times the HP, harder blasts")
+	await _through_scene()
 	spare = ""
-	t = 0.0
-	while not sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER] and not game.game_over and t < 1200.0:
-		if sc.cutscene != null:
-			await _through_scene()
-		if game.waves.can_call():
-			cmd("call_wave")
-		await wait(0.5)
-		t += 0.5
-	check(sc.mark.has("slain") and sc.mark.has("held") and not game.game_over, "the leviathan slain, ten waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	kill(lev, h)
+	check(await wait_until(func() -> bool: return sc.mark.has("slain"), 5.0) and ab.blocked == "", "the leviathan slain: the crypt is open")
+	await _through_scene()
+	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
+	check(await wait_until(func() -> bool: return _s9()._relic_at(sc) != "crypt", 600.0), "Brenna takes the relic%s" % _s9_why())
+	if _s9()._relic_at(sc) == "hero":
+		cmd("hero_mode", {"mode": Hero.Mode.DEFEND})
+		check(await wait_until(func() -> bool: return _s9()._relic_at(sc) == "ground", 3.0), "switched out of Explore on the way, she drops it: it lies on the ground")
+		var dropped: Treasure = sc.mark.get("sack")
+		check(dropped != null and dropped.art() == "relic_sword" and dropped.lootable(), "the sword on the ground, for anyone to pick up")
+		cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
+		check(await wait_until(func() -> bool: return _s9()._relic_at(sc) != "ground", 300.0), "back in Explore, she picks it up again (%s)%s" % [_s9()._relic_at(sc), _s9_why()])
+	check(await wait_until(func() -> bool: return _s9()._relic_mine(sc), 300.0) and church.holds_relic, "she carries it home: the church keeps it")
+	check(await wait_until(func() -> bool: return sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER], 60.0), "relic home and leviathan slain: done")
 	while sc.cutscene != null and not sc._outro_started:
 		await _through_scene()
-	check(await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 120.0), "the outro plays")
+	check(await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 300.0), "the outro plays (once the wave is over)")
 	guard.queue_free()
 	Engine.time_scale = 1.0
 	said = await _watch(sc.cutscene)
 	check(said.has("eldest") and said.has("lysa"), "the priests agree, and Lysa warns her (%s)" % str(said))
 	await frames(3)
-	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Drowned Abbey: complete", "won: %s" % game.hud._overlay_title.text)
+	check(game.game_over and game.hud._overlay_won and game.hud._overlay_title.text == "The Drowned Abbey: complete", "won: %s%s" % [game.hud._overlay_title.text, _s9_why()])
+	spare_kinds = []
+
+
+## The drowned branch, won: the priest drowned, Brenna in her tent, the
+## Legion breaking the seal, Lysa taking the relic and dropping it, the relic
+## handed in, the priests' trust, the request refused, Fiona's decree.
+func _s9_drowned() -> void:
+	print("-- scenario 9: the priest drowns")
+	await _new_game(9)
+	var h := game.hero
+	await wait(1.0)
+	sc.cutscene.skip()
+	await frames(3)
+	var ab: Treasure = _s9()._abbey(sc)
+	var church: Church = _s9()._church(sc)
+	var octo := sc.mark.get("octopus") as Enemy
+	spare_kinds = ["octopus", "octopus_arm"]
+	var guard := _s9_guard()
+	Engine.time_scale = 4.0
+	await _s9_waves_to(_s9().RESCUE_WAVE)
+	await _through_scene()
+	Engine.time_scale = 1.0
+	check(await wait_until(func() -> bool: return sc.mark.has("grabbed"), 90.0), "the octopus grabs the priest")
+	await _through_scene()
+	await wait_until(func() -> bool: return sc.mark.has("countdown"), 3.0)
+	for a in (octo.behavior as OctopusBehavior).arms:
+		if a.has("wait"):
+			a["wait"] = 0.0
+	check(await wait_until(func() -> bool: return sc.mark.has("drowned"), 30.0), "nobody cuts him free: he drowns")
+	check(_s9_priests().size() == 1 and h.home_override == sc.mark.get("tent") and not game.map.in_village(h.home_override), "the priests shut Brenna out: her tent outside the walls is her home")
+	check(h.barred == game.player_village.rect, "she may not set foot in the village, not even in a gate")
+	check(await wait_until(func() -> bool: return not h.barred.has_point(h.current_tile()), 60.0), "she leaves it")
+	var inside := [false]
+	var watch := Timer.new()
+	watch.wait_time = 0.2
+	watch.timeout.connect(func() -> void:
+		if h.barred.has_area() and h.barred.has_point(h.current_tile()):
+			if not inside[0]:
+				print("    (inside at %s: mode %d evading %s at_home %s home %s path end %s target %s camp %s held %s)" % [h.grid_pos, h.mode, h.evading, h.at_home, h.home(), h.path[h.path.size() - 1] if h.path.size() > 0 else "-", h.target, h.camp_target, h.held_by])
+			inside[0] = true)
+	add_child(watch)
+	watch.start()
+	await _through_scene()
+
+	print("-- scenario 9: the Legion breaks the seal")
+	Engine.time_scale = 4.0
+	await _s9_waves_to(_s9().LEGION_WAVES[0] - 1)
+	spare_kinds = ["octopus", "octopus_arm", "legion_*"]
+	spare = "Leviathan"
+	check(await wait_until(func() -> bool: return sc.named_enemy("Lysa") != null, 120.0), "wave 6: Lysa comes")
+	await _through_scene()
+	check(await wait_until(func() -> bool: return not ab.sealed, 300.0), "nobody stops them: the seal breaks")
+	check(await wait_until(func() -> bool: return sc.mark.has("woken"), 5.0) and ab.blocked == "", "the leviathan wakes, but blocks nothing")
+	await _through_scene()
+	check(await wait_until(func() -> bool: return _s9()._relic_at(sc) == "lysa", 60.0), "Lysa searches the crypt and takes the relic")
+	var lysa := sc.named_enemy("Lysa")
+	lysa.take_damage(lysa.hp - lysa.max_hp * 0.2, h, "pure")
+	check(await wait_until(func() -> bool: return _s9()._relic_at(sc) == "ground", 5.0) and lysa.retreating, "beaten, she falls back and drops it")
+	var sack: Treasure = sc.mark.get("sack")
+	await wait(3.0)
+	var co: LegionCompany = sc.mark.get("company")
+	var guards := co.members.filter(func(m: Enemy) -> bool: return m.grid_pos.distance_to(Vector2(sack.tile)) < 3.0).size()
+	check(sack != null and sack.art() == "relic_sword" and guards >= 3, "her soldiers stand round it (%d)" % guards)
+	spare_kinds = ["octopus", "octopus_arm"]
+	await wait(2.0)
+	kill_camps = true  # (the vampires by the abbey: she'd run from them)
+	await wait(1.0)
+	kill_camps = false
+	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
+	check(await wait_until(func() -> bool: return _s9()._relic_at(sc) == "hero", 300.0), "Brenna picks it up%s" % _s9_why())
+	check(h.home_override == _s9()._hand_in_tile(sc), "she takes it to the gate, not to her tent")
+	check(await wait_until(func() -> bool: return _s9()._relic_at(sc) == "home", 300.0) and church.holds_relic and not _s9()._relic_mine(sc), "the priests take it in: they keep it")
+	check(not game.map.in_village(_s9()._hand_in_tile(sc)) and not inside[0], "handed in at the gate, from outside")
+	await _through_scene()
+	check(await wait_until(func() -> bool: return h.home_override == sc.mark.get("tent"), 5.0), "and she goes back to her tent")
+
+	print("-- scenario 9: three Legion waves, the priests' trust")
+	var seen := {sc.mark.get("company"): true}
+	var t := 0.0
+	while not sc.mark.has("trust") and not game.game_over and t < 1500.0:
+		if sc.cutscene != null:
+			await _through_scene()
+		seen[sc.mark.get("company")] = true
+		if game.waves.can_call():
+			cmd("call_wave")
+		await wait(0.5)
+		t += 0.5
+	check(seen.size() == 3, "the Legion comes in waves 6, 7 and 8 (%d columns)" % seen.size())
+	watch.queue_free()
+	check(not inside[0], "all that time, she never set foot in the village")
+	check(not h.barred.has_area(), "trusted: the village is open to her again")
+	check(sc.mark.has("trust") and h.home_override == Vector2i(-1, -1) and _s9()._relic_mine(sc), "after the third the priests let her in, and the relic is hers")
+
+	print("-- scenario 9: the request, the messenger, the decree")
+	check(await wait_until(func() -> bool: return sc.mark.has("asked"), 30.0), "the leviathan lives: the priests ask her to slay it")
+	while sc.cutscene != null:
+		await _through_scene(1)
+	check(sc.mark.has("messenger") and (sc.mark.has("decree") or not sc._goal_shown.has("leviathan")), "she refuses: a messenger goes to Fiona")
+	if not sc.mark.has("decree"):
+		await _s9_waves_to(int(sc.mark["messenger"]) + 1)
+	await _through_scene()
+	check(sc.mark.has("decree") and await wait_until(func() -> bool: return sc._goal_shown.has("leviathan"), 3.0), "a wave later, Fiona's decree: slay the leviathan")
+	spare = ""
+	kill(sc.named_enemy("Leviathan"), h)
+	check(await wait_until(func() -> bool: return sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER], 300.0), "slain: done")
+	while sc.cutscene != null and not sc._outro_started:
+		await _through_scene()
+	await wait_until(func() -> bool: return sc.cutscene != null and sc._outro_started, 300.0)
+	guard.queue_free()
+	Engine.time_scale = 1.0
+	var said := await _watch(sc.cutscene)
+	check(said.has("eldest") and said.has("lysa"), "the outro (%s)" % str(said))
+	await frames(3)
+	check(game.game_over and game.hud._overlay_won, "won: %s%s" % [game.hud._overlay_title.text, _s9_why()])
+	spare_kinds = []
+
+
+## A fresh game with the intro skipped, and its Legion column sent for the
+## relic now (the wave under way); Lysa is made hard to stop. Returns her.
+func _s9_legion_now() -> Enemy:
+	cmd("hero_mode", {"mode": Hero.Mode.REST})
+	game.waves.start_now()
+	_s9()._send_legion(sc, _s9().LEGION_COLUMNS[0], _s9()._causeway_spawn(sc))
+	await wait_until(func() -> bool: return sc.named_enemy("Lysa") != null, 30.0)
+	var l := sc.named_enemy("Lysa")
+	if l:
+		l.max_hp *= 30.0  # (nobody stops her in these tests)
+		l.hp = l.max_hp
+	return l
+
+
+## The relic in the church (home): Lysa gets in, searches it 8 s and takes it.
+func _s9_church() -> void:
+	print("-- scenario 9: Lysa searches the church")
+	await _new_game(9)
+	await wait(1.0)
+	sc.cutscene.skip()
+	await frames(3)
+	var v := game.player_village
+	var church: Church = _s9()._church(sc)
+	var ab: Treasure = _s9()._abbey(sc)
+	ab.sealed = false
+	ab.mark_looted()
+	v.items.append(_s9().RELIC)
+	church.holds_relic = true
+	sc.mark["relic"] = "home"
+	sc.mark["slain"] = true  # (no request scene in the way)
+	var lysa := await _s9_legion_now()
+	await wait(2.0)
+	var inside := church.tile + Vector2i(0, 2)
+	lysa.set_grid_pos(Vector2(inside))
+	lysa.follow(PackedVector2Array([Vector2(inside)]))  # (as if she had broken in: her walk ends inside)
+	var co: LegionCompany = sc.mark.get("company")
+	check(await wait_until(func() -> bool: return co.state == LegionCompany.State.SEARCH, 30.0) and co._search_at == "church", "inside the walls Lysa goes to the church and searches it")
+	var t0 := game.clock
+	var taken := await wait_until(func() -> bool: return _s9()._relic_at(sc) == "lysa", 30.0)
+	check(taken and game.clock - t0 >= co.SEARCH_TIME - 0.5, "she takes the relic after searching %.1f s" % (game.clock - t0))
+	check(not church.holds_relic and not v.items.has(_s9().RELIC), "the church has lost it")
+
+
+## The relic on the ground: Lysa picks it up at once, no searching.
+func _s9_ground() -> void:
+	print("-- scenario 9: Lysa picks the relic up from the ground")
+	await _new_game(9)
+	await wait(1.0)
+	sc.cutscene.skip()
+	await frames(3)
+	var ab: Treasure = _s9()._abbey(sc)
+	ab.sealed = false
+	ab.mark_looted()
+	var road := sc.road_in(ab.tile, 100000)
+	var at := road[mini(8, road.size() - 1)]
+	sc.mark["sack"] = game.world.add_dropped_loot(at, {"item": _s9().RELIC})
+	sc.mark["relic"] = "ground"
+	Engine.time_scale = 4.0
+	await _s9_legion_now()
+	var co: LegionCompany = sc.mark.get("company")
+	check(await wait_until(func() -> bool: return _s9()._relic_at(sc) == "lysa", 120.0), "Lysa walks to the relic on the road and takes it")
+	check(co._search_at == "" and co.state == LegionCompany.State.CARRY, "at once, without searching: off with it")
+	Engine.time_scale = 1.0
+
+
+## The relic home, the leviathan alive: the priests ask, she says yes.
+func _s9_yes() -> void:
+	print("-- scenario 9: yes to the priests")
+	await _new_game(9)
+	await wait(1.0)
+	sc.cutscene.skip()
+	await frames(3)
+	var ab: Treasure = _s9()._abbey(sc)
+	ab.sealed = false
+	ab.mark_looted()
+	game.player_village.items.append(_s9().RELIC)
+	_s9()._church(sc).holds_relic = true
+	sc.mark["relic"] = "home"
+	_s9()._wake_leviathan(sc, false)
+	check(await wait_until(func() -> bool: return sc.mark.has("asked"), 10.0), "the relic home, the leviathan alive: the priests ask")
+	while sc.cutscene != null:
+		await _through_scene(0)  # (the leviathan's scene, then the request: yes)
+	check(sc.mark.has("hunt") and not sc.mark.has("messenger"), "she says yes: no messenger")
+	check(await wait_until(func() -> bool: return sc._goal_shown.has("leviathan"), 3.0), "the objective: slay the leviathan")
+	check(sc.phase == ScenarioRunner.Phase.PLAY, "not won while it lives")
+	kill(sc.named_enemy("Leviathan"), game.hero)
+	check(await wait_until(func() -> bool: return sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER], 10.0), "slain: done")
+
+
+## Lysa gets to the map edge with the relic: lost.
+func _s9_escape() -> void:
+	print("-- scenario 9: Lysa escapes")
+	await _new_game(9)
+	await wait(1.0)
+	sc.cutscene.skip()
+	await frames(3)
+	var ab: Treasure = _s9()._abbey(sc)
+	ab.seal_hp = 1.0
+	cmd("hero_mode", {"mode": Hero.Mode.REST})
+	game.waves.start_now()
+	_s9()._send_legion(sc, _s9().LEGION_COLUMNS[0], _s9()._causeway_spawn(sc))
+	await wait_until(func() -> bool: return sc.named_enemy("Lysa") != null, 30.0)
+	var l := sc.named_enemy("Lysa")
+	if l:
+		l.max_hp *= 30.0  # (nobody stops her in this test)
+		l.hp = l.max_hp
+	Engine.time_scale = 4.0
+	check(await wait_until(func() -> bool: return _s9()._relic_at(sc) == "lysa", 300.0), "the seal broken, Lysa takes the relic")
+	var lysa := sc.named_enemy("Lysa")
+	if lysa and lysa.path.size() > 3:
+		lysa.set_grid_pos(lysa.path[lysa.path.size() - 2])
+		lysa.path_index = lysa.path.size() - 1
+	check(await wait_until(func() -> bool: return game.game_over, 60.0), "she gets to the edge of the map")
+	Engine.time_scale = 1.0
+	check(game.game_over and not game.hud._overlay_won and game.hud._overlay_sub.text.contains("Lysa"), "lost: %s" % game.hud._overlay_sub.text.split("\n")[0])
 
 
 # --- scenario 10: The Last Wardline ------------------------------------------------------------
@@ -1852,7 +2190,7 @@ func _scenario_11() -> void:
 			await _through_scene()
 		if not fed and game.events.entries.any(func(en) -> bool: return str(en["text"]).begins_with("The guild caravan is in")):
 			fed = true
-		rhodri = rhodri or sc.named_enemy("Rhodri") != null
+		rhodri = rhodri or sc.named_enemy("Rhodri") != null or sc.mark.has("rhodri down")  # (beaten and fled between two looks: he came out)
 		if game.waves.can_call():
 			cmd("call_wave")
 		await wait(0.5)

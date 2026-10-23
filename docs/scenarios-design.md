@@ -478,9 +478,9 @@ and doesn't count for the waves), stronger than a wave one. Taking the relic rai
 harder blasts, counted for the wave; between waves the next wave starts with it), and the Legion's rest comes by the causeway with it. The
 objectives: bring the relic home, slay the leviathan, hold 10 waves. Built as §7.15.
 
-#### 9a. The rework (decided, not built yet)
+#### 9a. The rework (built: §7.15)
 
-Replaces the story, the map and most rules above; §7.15 describes what is built today. Numbers marked *(tune)* are first guesses.
+Replaces the story, the map and most rules above; built as §7.15. Numbers marked *(tune)* are first guesses.
 
 **Why the rework:** in the built version Brenna fights the leviathan after she already has the relic, with no reason in the story; the
 priests' trust comes only from holding the walls; the Legion marches on the village although it wants the relic. Now every fight is about
@@ -510,8 +510,8 @@ goes back to guard the abbey (and is in Brenna's way when she crosses). This dec
 
 - **Rescued:** the eldest comes to the gate and tells what the abbey hides (the Hand; why they hid it; vampires in the crypt; something bigger
   in the deep).
-- **Drowned:** the priests shut Brenna out. She can't enter the village: a tent goes up outside the walls, as in scenario 1, and it is her
-  home (`Scenario.hero_lives_out` / `Hero.home_override`, as in scenario 7: she heals and rests there). Only Brenna is shut out: the village
+- **Drowned:** the priests shut Brenna out. She can't enter the village at all, not even a gate (up to the gate is as far as she goes,
+  to hand the relic in): a tent goes up outside the walls, as in scenario 1, and it is her home (`Scenario.hero_lives_out` / `Hero.home_override`, as in scenario 7: she heals and rests there). Only Brenna is shut out: the village
   works normally and the player gives every order as before. The priests say nothing.
 
 **The Legion goes for the relic, not for the huts.** A Legion column with Lysa at its head goes wherever the relic is: to the abbey's seal while
@@ -797,7 +797,8 @@ The game has none of this yet, except where noted:
 - **In the engine, with dialogue** (`Cutscene`, `cutscene.gd`): the game runs on at 1x behind black bars, the HUD hidden and the map's input off;
   the camera moves between spots; people speak in a box at the bottom (portrait, name in their colour, the line typed out); the narrator's lines
   have no portrait and are centred. A tap, click, Space or Enter shows the whole line, then the next; *Skip* (top right) or Esc ends it.
-- A scenario writes a cutscene as a list of steps: `say` (speaker id, text), `camera` (a world position, or a Callable giving it when the step plays; zoom, time), `wait`, `fade` (in / out),
+- A scenario writes a cutscene as a list of steps: `say` (speaker id, text), `camera` (a world position, or a Callable giving it when the step plays; zoom, time), `follow` (a Callable giving a node:
+  the camera glides to it and stays on it while it moves, until the next camera step or the end), `wait`, `fade` (in / out),
   `title` (a title card), `do` (a scripted action: a cart on the road, dusk), `until` (wait for a condition), and a **choice**: a `say` step with
   `choices` (`[{"text", "do"}]`) shows a button per choice instead of waiting for a tap; the picked one's `do` runs (scenario 4's offer: taking
   the gold calls `ScenarioRunner.lose`), then the cutscene goes on. Skip before a choice still to come jumps to it (only the `do` steps on the way
@@ -1137,6 +1138,16 @@ The game has none of this yet, except where noted:
   spawn on the lake).
 - Portraits: `portrait_lothar`, `portrait_rurik`, `portrait_rhodri`, `portrait_church_priest` (an unnamed priest, scenario 8), `portrait_eldest_priest` (the drowned shore's eldest priest, unnamed).
 
+- **Scenario 9's rework added** (§7.15): the **church** (`Church`, campaign-only; `"inside"` in `Config.BUILDINGS`: a prebuilt one may
+  stand inside the walls); **LegionCompany** (a captain and her soldiers after a relic: a column on her trail, the seal, searching,
+  carrying, dropping, escaping); `Enemy.errand` (a scenario's object asked first when an enemy's walk ends, so the end of a path it was given
+  isn't a gate; while its `holds(enemy)` is true the siege leaves the enemy alone: Lysa inside the walls going to the church); `Waves` queue entries' `"on_spawn"` (a Callable(Enemy) once it is on the map) and `"gap"`; `AquaBehavior.set_post` (a water
+  monster's post moved: the octopus to the harbour, the leviathan between the crypt and the boats); `OctopusBehavior.grab` and `hold_left`
+  (a scripted grab whose arm holds its catch in the shallows for a while); `Treasure.seal_hp` / `seal_max` (a seal enemies break, with a
+  bar) and `blocked` (why an open treasure can't be looted now); a dropped relic ("sack" with an `"item"`) drawn as `relic_sword`;
+  `Resident.start_rounds` (new rounds at once); `ScenarioRunner.hero_moves_out` (a tent as her home) and `keep_in_sight` (an observer
+  following a story figure); `Scenario.can_win` (more than the shown objectives); a cutscene `"camera"` step may be a Callable.
+
 ### 7.14 Scenario 8 as built (`scenario_8.gd`)
 
 - **Map:** `data/maps/pale_court.json` (*The Pale Court*; `make_scenario_map.gd -- 8`: Volcanic, seed 808, its camps and lairs taken out;
@@ -1163,39 +1174,59 @@ The game has none of this yet, except where noted:
 
 ### 7.15 Scenario 9 as built (`scenario_9.gd`)
 
-- **Map:** `data/maps/drowned_abbey.json` (*The Drowned Abbey*; `make_scenario_map.gd -- 9`: Coast, seed 909; the north road's straight
-  stretch 28 road tiles from the gate made an island in a lake (land 4.2, water 9.5 tiles), crossed on stone bridges; the abbey and a camp of
-  2 vampires and a skeleton on the island; a water spawn on the lake). Edited by hand since: no bridge or ford bends, the road turns only on
-  land (the bends at both ends of the south bridge are land now), so both bridges run straight.
+Built after the rework of §9a.
+
+- **Map:** `data/maps/drowned_abbey.json` (*The Drowned Abbey*; `make_scenario_map.gd -- 9`, laid out by `tools/abbey_map.gd`): a
+  generated temperate map (seed 937167274) for the land, its roads, village and objects taken out, and laid over it: the sea along the south
+  edge (its shore wandering, straight in front of the harbour); the village at (37, 46), a walled 9x7 block (four gates, 9 huts, the
+  church's 3x3 in its north-east corner, centre (39, 45)); a road from the south gate down to the quay at the water; straight north of the
+  north gate the abbey's island (land 5.5, lake 10.5 tiles, its shore wandering) with the abbey (2x2) and a camp of 2 vampires and a skeleton
+  across the road; on the island two ruined watchtowers (by its bridges) and a ruined barracks, abandoned (`ISLAND_RUINS`: the hero
+  claims them, builders restore them, so the abbey can be held even without towers round the lake; a hint says so once the rescue is
+  over); a deep channel winding from the lake down the east side into the sea; roads to the north (the Legion's), west and east
+  edges; water spawns in the sea and the lake. Roads only turn on land: a water tile where one turns becomes land, so every bridge and ford
+  runs straight. The generated treasures, camps and mines that still fit (16 tiles from the village, off the lake) stay.
 - **Baseline:** Easy, enemies at 1.15; 300 gold, 170 food, 260 material; two builders, a farmer, a forester, a gatherer, Pell and two
-  priests (residents, unnamed; the eldest speaks for them); the farm and the camp; all huts stand, 6 walls, 3 gates, 3 wall
-  towers at 80 %; Pell's wagon, barracks (level 2) with a shield bearer (7) and an archer (6), two watchtowers (an archer 7 by the causeway
-  road, an apprentice 6), a wall tower with an archer (6); a summoner and an acolyte (6) in the reserve. Brenna is level 14.
-- **Rules:** all five base kinds, unlocked, recruiting open; specialising, training grounds; no revive; Pell must not die.
-- **The abbey:** sealed (`Treasure.sealed`) until wave 6 is over; its reward is the item *the First King's Hand*. Its camp must be cleared
-  first; then the hero loots it in Explore mode and carries it home. **The octopus** guards it: HP ×1.5, its post the abbey, leash 6 tiles,
-  not part of the waves. **The drowned dead:** 8 of the fallen on the island (`Corpses.spawn_fallen`), for the necromancers.
-- **Taking the relic** raises the **leviathan** from the lake's water spawn (named, HP ×5, damage ×1.5, counted for the wave; between waves
-  the next wave starts at once) and sends the Legion's rest down the causeway (Lysa, 6 footmen, 3 archers, a banner-bearer, 2 guardsmen).
-- **Waves:** ten listed: crabs and goblins first, skeletons from 3, necromancers from 4, vampires and gargoyles from 5, the Legion from 7
-  (footmen, then archers, a banner-bearer, guardsmen), a siren in 9; then the last again (a crab and a skeleton more each) until everything
-  is done. **Wave 6** brings **Lysa** with a column down the causeway (5 footmen, 2 archers, a banner-bearer, a guardsman). Pell's guild
-  boats bring 40 gold, 60 food and 80 material after waves 2, 5 and 8. Wave 1 waits (it can be called) until the player places a
-  watchtower within 3 tiles of deep water (not a prebuilt one): then its 60 s countdown starts (`FIRST_WAVE_AFTER`); 45 s between waves.
-  The Legion's column (and the leviathan when the relic is taken) comes first in its wave (`add_enemies(..., front)`). **Lysa is always
-  seen:** the land within 3 tiles round her is watched wherever she walks (`ScenarioRunner.keep_in_sight`), and wave 6's scene waits for
-  her and puts the camera on her (a `"camera"` step can be a Callable).
-- **Story:** the intro (the ferry in the mist, the bell under the water; the priests shut their door on Rhodri's colours); after wave 1 Pell;
-  after wave 4 the eldest priest tells what the abbey hides (the Hand; they hid it from Rhodri, fearing he could rise over Fiona; vampires and
-  something bigger in the deep); wave 6 Lysa demands the relic and Brenna refuses her own captain; after wave 6 the priests unseal the crypt
-  (better her than the Legion; the sword is not hers to keep); the relic taken (the bell stops, the leviathan rises); the leviathan slain;
-  the outro (the priests come out: they were wrong, the Hand goes to Fiona; on the causeway Lysa, herself for a moment: they were only to
-  hold her here, Halvard marches on her home; she stands on the causeway north of the island as a cutscene figure, kept in sight, and
-  walks off north; Brenna and Pell go back).
-- **Cards:** a watch on the water (a manned tower within 3 tiles of deep water), the guardian (waits for the priests' telling; done when the
-  octopus is dead or the crypt opens), the First King's Hand (waits for the unsealing; done when it is home). **Hints:** crab, someone in the
-  octopus's arm, necromancer, vampire, the Legion, siren, the leviathan, Brenna badly hurt. **Objectives:** bring the Hand home; slay the
-  leviathan; hold the village for 10 waves.
+  priests (residents, unnamed: the eldest and a younger one; they live in the church, going in and out of its door,
+  `Resident.home_tile`, and walk their rounds: the eldest to the north gate, the younger to the quay);
+  the farm and the camp; the **church** (`church`, `Church`, 3x3, campaign-only, `"inside"`: prebuilt inside the walls; it keeps the relic
+  once it is home, a glow shows it); Pell's stall by the quay; barracks (level 2) with a shield bearer (7) and an archer (6), two watchtowers
+  (an archer 7 by the lake, an apprentice 6), a summoner and an acolyte (6) in the reserve. The harbour (scenery, `_build_harbour`: it blocks
+  nothing): a pier, two moored boats, the ferry bell at the quay, crates, a net rack, mooring posts, upturned boats, fish racks and
+  driftwood along the beach; on the channel's bank near the sea a beacon, a wreck in the shallows beside it, gulls circling it. Brenna is level 14. No revive; Pell must not die.
+- **Wave 1** waits (it can be called) until the player mans a watchtower of theirs within 3 tiles of deep water (not a prebuilt one): then its 60 s
+  countdown starts. Ten listed waves, then the last again, bigger, until it is won; 45 s between waves.
+- **The rescue** (after wave 4): a scene (the priest walks down to ring the ferry bell); the younger priest walks to the quay
+  (`Resident.start_rounds`). Only when he gets there does the guard octopus come: moved to the deep water by the pier
+  (`AquaBehavior.set_post`), it surfaces and grabs him (`OctopusBehavior.grab`), drags him off the quay into the shallows and holds him
+  there, unharmed, while a second scene plays (the alarm). Its other arms keep still meanwhile (its `focus`: no towers smashed, nobody
+  else grabbed). Once that scene is over his `RESCUE_HOLD` 20 s run: the arm hurts him (he has 8x a villager's HP) and then pulls him
+  under. A countdown floats over him and stands in the objective. Cut free: the priests tell (the Hand, why they hid it, vampires,
+  something in the deep, others know). Drowned: they shut Brenna out (`ScenarioRunner.hero_moves_out`: a tent near the west gate is her
+  home; `Hero.barred`: she never sets foot in the village, a gate included, until they trust her: her ways go round it,
+  `Pathing.find_path_outside`, and she leaves enemies inside alone) and say nothing. Either way the octopus goes back to the abbey.
+- **The Legion** (`LegionCompany`): a column with Lysa at its head (front of the wave's queue, 0.45 s apart) in wave 6 (rescued) or waves 6,
+  7 and 8 (drowned; columns growing). It goes for the relic: the abbey's **seal** (600 HP, a bar; every soldier near the abbey strikes it),
+  the relic on the ground (Lysa picks it up at once), the church (they break in as ever; Lysa searches it 8 s). Seal broken: the leviathan
+  wakes and Lysa searches the crypt (8 s). With the relic she walks back to the edge she came from: there the scenario is lost. Beaten she
+  drops it (a dropped "sack" with the relic, drawn as the sword); her soldiers stand round it until it's taken, then go for the village.
+  Lysa is always seen (`keep_in_sight`); the wave's scene follows her with the camera while she walks (`"follow"`). Rescued branch: the column beaten with the relic still in the crypt, the priests unseal it.
+  Drowned branch: after wave 8 the priests let Brenna in (a talk), then unseal the crypt, or give her the relic if they hold it.
+- **The relic** (`mark["relic"]`: "crypt", "lysa", "ground", "hero", "home"): Brenna loots it in Explore mode and carries it home (never a
+  gatherer: dropped loot holding an `"item"` is the hero's to carry; the
+  church keeps it); shut out, she takes it to the north gate and the priests take it in (it is theirs until they trust her).
+- **The leviathan** (outside the waves; HP x5, damage x1.5) wakes when the crypt is first used: Brenna going in (it blocks the crypt,
+  `Treasure.blocked`, until it is slain; she is driven off) or the seal broken. While it lives it keeps to the crypt while the relic is in it,
+  goes for a boat coming in (and sinks it, goods lost), else blasts the shore near the village.
+- **Pell's boats** after waves 2, 5 and 8 sail in to the pier; a cart (`ScenarioCaravan`) takes their goods from the quay to his stall
+  (60 food, 80 material, 40 gold).
+- **Winning** (`Scenario.can_win`): the relic home and Brenna's, and the leviathan slain. Relic home with the leviathan alive: the priests
+  ask her to slay it (a choice): yes, the objective; no, a messenger goes to Fiona, and a wave later her decree brings the objective.
+- **Cards:** a watch on the water; the First King's Hand (waits for the crypt to open). **Hints:** crab, the rescue, the Legion, Lysa with
+  the relic, the relic on the ground, necromancer, vampire, siren, the leviathan, Brenna badly hurt. **Objectives** (shown as they come):
+  save the priest (optional, its countdown); keep the relic from the Legion (optional, the seal's state); bring the Hand home; slay the
+  leviathan.
+- **Defeats:** Pell dies; Brenna is downed; Lysa gets away with the relic.
 
 ### 7.16 What scenarios 10 and 11 added to the engine
 

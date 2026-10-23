@@ -10,16 +10,26 @@ var looted := false
 var claimed_by: Node = null
 ## Can't be looted yet (a scenario opens it: the drowned abbey's crypt).
 var sealed := false
+## A seal enemies can break (scenario 9: the Legion at the crypt): its HP and
+## its max (0: no such seal); a bar shows it while it holds.
+var seal_hp := 0.0
+var seal_max := 0.0
+## Why it can't be looted now although open ("": it can): the drowned
+## abbey's leviathan coiled round the island.
+var blocked := ""
 
 
 func art() -> String:
 	if data.get("sack", false):
-		return "sack"
+		return "relic_sword" if reward().has("item") else "sack"
 	return data["art"] + ("_looted" if looted else "")
 
 
 func display_name() -> String:
 	if data.get("sack", false):
+		if reward().has("item"):
+			var item := str(reward()["item"])
+			return item.substr(0, 1).to_upper() + item.substr(1)
 		return "Dropped loot"
 	return Config.TREASURES[data["treasure"]]["name"]
 
@@ -50,7 +60,7 @@ func landmark() -> String:
 
 ## Can the hero go for it now?
 func lootable() -> bool:
-	return not looted and not sealed and landmark() == "" and guard() == null and (claimed_by == null or not is_instance_valid(claimed_by))
+	return not looted and not sealed and blocked == "" and landmark() == "" and guard() == null and (claimed_by == null or not is_instance_valid(claimed_by))
 
 
 func found_message(_v: Village) -> String:
@@ -151,6 +161,10 @@ func info() -> Dictionary:
 			lines.append("Guarded by a %s nearby." % guard().display_name().to_lower())
 		elif sealed:
 			lines.append("Sealed: it can't be looted yet.")
+			if seal_max > 0.0:
+				lines.append("The seal: %d / %d HP." % [ceili(seal_hp), int(seal_max)])
+		elif blocked != "":
+			lines.append(blocked)
 		else:
 			lines.append("The hero loots it in Explore mode (%.0f s)." % loot_time())
 	return d
@@ -164,3 +178,13 @@ func apply_net_state(s: Array) -> void:
 	if s.size() > 0 and bool(s[0]) != looted:
 		looted = bool(s[0])
 		refresh()
+
+
+func _draw() -> void:
+	if not sealed or seal_max <= 0.0 or looted:
+		return
+	var w := 70.0
+	var r := Rect2(-w / 2.0, -96.0, w, 6.0)
+	draw_rect(r.grow(2.0), Color("15110d"))
+	draw_rect(r, Color("3a2e22"))
+	draw_rect(Rect2(r.position, Vector2(w * clampf(seal_hp / seal_max, 0.0, 1.0), r.size.y)), Color("c9a24a"))

@@ -128,6 +128,11 @@ var raid_hut: Hut = null
 ## `post` ((-1, -1): none; AquaBehavior).
 var post := Vector2i(-1, -1)
 var post_leash := 0.0
+## A scenario's errand for it, or null (scenario 9's Legion company,
+## LegionCompany): asked first when its walk ends (on_path_end(enemy) -> bool:
+## true when it took care of it), so the end of a path it was given isn't a gate;
+## while its holds(enemy) is true the siege leaves it alone (it goes its own way inside).
+var errand: Object = null
 ## Its damage and spell damage x this (a scenario's boss: the leviathan).
 var power := 1.0
 ## Game.clock when it last took damage (-INF: never).
@@ -822,6 +827,9 @@ func _process(delta: float) -> void:
 			_set_moving(false)
 			_update_visibility()
 			return
+		if errand != null and errand.on_path_end(self):
+			_update_visibility()
+			return  # (a scenario's errand took care of it)
 		if behavior.on_path_end(self):
 			return  # (a thief turning back, or escaping)
 		if entry() == "siege" and _start_siege_at_end():
@@ -853,7 +861,8 @@ func entry() -> String:
 ## May break into its village by the siege field now?
 func _may_siege() -> bool:
 	return entry() == "siege" and habitat() != "water" and not airborne and not retreating and not game.is_client \
-		and is_instance_valid(target_village) and not target_village.fallen and not wild()
+		and is_instance_valid(target_village) and not target_village.fallen and not wild() \
+		and not (errand != null and errand.has_method("holds") and errand.holds(self))
 
 
 ## A "slip" enemy at the end of its road on an intact gate: held for SIEGE.slip_time.

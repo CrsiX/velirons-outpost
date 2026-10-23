@@ -13,6 +13,11 @@ extends CanvasLayer
 ##                                                            waits, unless "wait": false);
 ##                                                            a Callable -> Vector2 gives the
 ##                                                            position when the step plays
+##   {"follow": Callable -> Node2D, "offset": Vector2, "zoom": z, "time": s}
+##                                                            the camera glides to the node and
+##                                                            stays on it while it moves (until
+##                                                            the next camera step or the end);
+##                                                            goes on at once
 ##   {"wait": s}
 ##   {"fade": "in" | "out", "time": s}                       to and from black
 ##   {"title": "...", "sub": "...", "time": s}               a title card (a tap goes on)
@@ -51,6 +56,11 @@ var chosen := {}
 var _tap_wait := false
 var _typing: Tween
 var _cam_tween: Tween
+## The node the camera stays on ("follow"; null: none), above it by _follow_offset.
+var _follow: Node2D = null
+var _follow_offset := Vector2.ZERO
+## How quickly the camera catches up with it (per real second; low while it glides there).
+var _follow_rate := 0.0
 
 var _root: Control
 var _bars: Array[ColorRect] = []
@@ -229,7 +239,18 @@ func _play_steps() -> void:
 			await _choose(str(s.get("say", "")), str(s.get("text", "")), s["choices"])
 		elif s.has("say"):
 			await _say(str(s["say"]), str(s["text"]))
+		elif s.has("follow"):
+			var n = (s["follow"] as Callable).call()
+			_follow = n if n is Node2D and is_instance_valid(n) else null
+			_follow_offset = s.get("offset", Vector2.ZERO)
+			var t := maxf(float(s.get("time", 1.5)), 0.05)
+			_follow_rate = 3.0 / t
+			if _cam_tween:
+				_cam_tween.kill()
+			_cam_tween = create_tween()
+			_cam_tween.tween_property(game.camera, "zoom", Vector2.ONE * float(s.get("zoom", game.camera.zoom.x)), t)
 		elif s.has("camera"):
+			_follow = null
 			var t := float(s.get("time", 1.5))
 			var to: Vector2 = (s["camera"] as Callable).call() if s["camera"] is Callable else s["camera"]
 			_move_camera(to, float(s.get("zoom", game.camera.zoom.x)), t)
@@ -381,6 +402,19 @@ func advance() -> void:
 	tapped.emit()
 
 
+## Keeps the camera on the followed node (real time: whatever the game speed).
+func _process(delta: float) -> void:
+	if not running or _follow == null:
+		return
+	if not is_instance_valid(_follow) or _follow.is_queued_for_deletion():
+		_follow = null
+		return
+	var real := delta / maxf(Engine.time_scale, 0.001)
+	_follow_rate = minf(_follow_rate + real * 2.0, 8.0)  # (a glide at first, then it keeps up)
+	var cam := game.camera
+	cam.position = cam.position.lerp(_follow.position + _follow_offset, 1.0 - exp(-_follow_rate * real))
+
+
 func skip() -> void:
 	if not running or choosing():
 		return
@@ -412,6 +446,7 @@ func _end(skipped: bool) -> void:
 		return
 	running = false
 	visible = false
+	_follow = null
 	if _cam_tween:
 		_cam_tween.kill()  # (skipped mid-move: the camera stays where it is)
 	_hold_game(false)
