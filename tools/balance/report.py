@@ -218,6 +218,21 @@ def spending(runs):
     return {k: mean(v) for k, v in sorted(keys.items())}
 
 
+def army_gold(runs):
+    """(what, mean times, mean gold) per run, most gold first: recruits, levels
+    and specialisations by unit kind (records with `army_gold` only)."""
+    with_ag = [r for r in runs if "army_gold" in r]
+    if not with_ag:
+        return []
+    tot = defaultdict(lambda: [0, 0])
+    for r in with_ag:
+        for k, v in r["army_gold"].items():
+            tot[k][0] += v["n"]
+            tot[k][1] += v["gold"]
+    n = len(with_ag)
+    return sorted(((k, (v[0] / n, v[1] / n)) for k, v in tot.items()), key=lambda kv: -kv[1][1])
+
+
 # --- charts (SVG, written with CSS variables for light and dark) ----------------------------------------
 
 def esc(s):
@@ -467,6 +482,12 @@ def main():
     md.append("\n## 5. Money (mean per run)\n")
     md.append(md_table(["flow", "amount"], [[k, f(v, 0)] for k, v in sp.items()]))
     sections.append(("5. Money", [], [table(["flow", "amount"], [[k, f(v, 0)] for k, v in sp.items()])]))
+    ag = army_gold(runs)
+    if ag:
+        md.append("\n## 5b. Army gold by what it bought (mean per run)\n")
+        rows = [[k, f(n, 1), f(g, 0)] for k, (n, g) in ag]
+        md.append(md_table(["bought", "times", "gold"], rows))
+        sections.append(("5b. Army gold", [], [table(["bought", "times", "gold"], rows)]))
     refused = defaultdict(int)
     for r in runs:
         for k, v in r.get("refusals", {}).items():

@@ -76,15 +76,21 @@ until one is placed. It never builds a
 new post while two stand empty. The hero explores until `explore_waves` (during a wave only while no
 enemy is near the walls), then trains the unit at the grounds (which then swaps into the field),
 and defends during waves. Below `hero_rest_below` of her HP she rests in the centre until she has
-`hero_rest_until` again (downed, she would lose all her XP).
+`hero_rest_until` again (downed, she would lose all her XP). Between waves she also explores
+while an awake unlock site gives a unit the profile uses.
+
+Units: each post class takes the profile's kinds in turn, and the turn moves on only once one
+is bought (else the cheaper kind would always win while gold is short); unit upgrades leave the
+gold of the unit an empty post waits for.
 
 What it doesn't do: attack camps (unless `attack_camps`), send caravans, use light stones,
 tear down, move units between posts beyond the training swap, call waves early (unless
-`call_early`), find unlock sites on purpose (the hero's Explore does). It is a decent
+`call_early`), replace units already on their posts by other kinds. It is a decent
 average player, not an optimal one: compare runs with each other, not with a human.
 
-**Profiles** (`Config.BALANCE_PROFILES`, `--policy`): `balanced` (archers on towers, a barracks
-with shield bearers, specialising into crossbowmen and warriors), `archers`, `swift`
+**Profiles** (`Config.BALANCE_PROFILES`, `--policy`): `balanced` (archers and apprentices on towers in
+turn, barracks with shield bearers and archers, specialising into crossbowmen, fire mages and
+warriors), `archers`, `swift`
 (swiftbowmen), `melee` (barracks and berserkers), `mages` (apprentices and summoners, fire
 mage / fire summoner; everything unlocked by cheat), `holy` (acolytes, inquisitors; unlocked
 by cheat). A profile lists villager targets, building counts by wave, tower levels, the
@@ -104,6 +110,7 @@ orders; each key is documented in config.gd.
 | `timeline` | columns every `sample_interval` (15 s): `t wave in_wave gold food materials villagers huts explored units unit_levels army_hp army_dps towers barracks hero_level hero_xp enemies` |
 | `stats_series` | the game's own Stats samples (`Stats.SERIES`) |
 | `actions`, `refusals`, `early_calls` | the bot's commands (`ok` / `fail`) and the game's reasons for refusing, to see where the bot was stuck |
+| `army_gold` | the gold that went into the army by what it bought: `recruit <kind>`, `level <kind>`, `branch <kind> -> <branch>`, each `{"n", "gold"}` |
 | `important_log` | the last important events (what killed the village) |
 
 4.1 `by_kind[kind]`: `spawned`, `hp` (their HP together), `killed`, `reached` (got to the gate),
@@ -136,7 +143,8 @@ Reading it:
    Later waves are only reached by the stronger runs (survivor bias): the table shows how many
    runs each wave has.
 4. **Breaking point**: fatal waves, causes, who got through.
-5. **Money**: earned / spent by source.
+5. **Money**: earned / spent by source; then the army's gold by what it bought (recruits, levels
+   and specialisations per unit kind: the record's `army_gold`).
 
 ## 6. Testing a balance change without touching the config
 

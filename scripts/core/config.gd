@@ -316,15 +316,15 @@ const BALANCE_BOT := {
 ##                      unit and role that has to be found, "gold": +1000...).
 const BALANCE_PROFILES := {
 	"balanced": {
-		"desc": "Watchtowers with archers, then barracks, training grounds and upgrades. The default player.",
+		"desc": "Watchtowers with archers and (once the hero unlocks them) apprentices in turn, then barracks with shield bearers and archers, training grounds and upgrades; crossbowmen, fire mages, warriors. The default player.",
 		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
 		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
 		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
 		"towers": [2, 1.0, 12], "tower_levels": [[3, 2], [8, 3]],
 		"barracks": [[2, 1], [8, 2]], "barracks_levels": [[4, 2], [9, 3]],
 		"training": 3,
-		"tower_units": ["archer"], "wall_units": [], "barracks_units": ["shield_bearer", "archer"],
-		"branch": {"archer": "crossbowman", "shield_bearer": "warrior"},
+		"tower_units": ["archer", "apprentice"], "wall_units": [], "barracks_units": ["shield_bearer", "archer"],
+		"branch": {"archer": "crossbowman", "shield_bearer": "warrior", "apprentice": "fire_mage"},
 		"upgrade_order": "lowest",
 		"hero": {"explore_waves": 4, "attack_camps": 0},
 		"call_early": false, "buy_materials": true, "cheats": [],

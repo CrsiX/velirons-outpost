@@ -17,6 +17,10 @@ var profile: Dictionary = {}
 ## Commands sent: type -> {"ok": n, "fail": n}; refused ones by reason.
 var commands_sent: Dictionary = {}
 var refusals: Dictionary = {}
+## Gold that went into the army, by what it bought: "recruit <kind>",
+## "level <kind>" (a level of the same kind), "branch <kind> -> <branch>"
+## -> {"n": times, "gold": gold}.
+var army_gold: Dictionary = {}
 ## Waves called early.
 var early_calls := 0
 
@@ -91,10 +95,22 @@ func _think() -> void:
 # --- helpers ----------------------------------------------------------------------------
 
 func _cmd(type: String, args: Dictionary = {}) -> Dictionary:
+	var what := ""
+	if type == "recruit_unit":
+		what = "recruit %s" % args["kind"]
+	elif type == "upgrade_unit":
+		var u: MilitaryUnit = game.entity(int(args["unit"]))
+		what = ("level %s" % u.kind) if args["to"] == u.kind else ("branch %s -> %s" % [u.kind, args["to"]])
+	var gold0 := _gold()
 	var r := game.command(type, args)
-	var row: Dictionary = commands_sent.get(type, {"ok": 0, "fail": 0})
-	row["ok" if r["ok"] else "fail"] += 1
-	commands_sent[type] = row
+	if what != "" and r["ok"]:
+		var row: Dictionary = army_gold.get(what, {"n": 0, "gold": 0})
+		row["n"] += 1
+		row["gold"] += int(gold0 - _gold())
+		army_gold[what] = row
+	var sent: Dictionary = commands_sent.get(type, {"ok": 0, "fail": 0})
+	sent["ok" if r["ok"] else "fail"] += 1
+	commands_sent[type] = sent
 	if not r["ok"]:
 		var key := "%s: %s" % [type, r["error"]]
 		refusals[key] = int(refusals.get(key, 0)) + 1
@@ -205,8 +221,8 @@ func _hero() -> void:
 		# Early waves are small: she goes on exploring (XP) unless the
 		# village needs her.
 		want = Hero.Mode.EXPLORE if _wave() < int(hp["explore_waves"]) and not _threat() else Hero.Mode.DEFEND
-	elif _wave() < int(hp["explore_waves"]):
-		want = Hero.Mode.EXPLORE
+	elif _wave() < int(hp["explore_waves"]) or _unlock_wanted(h):
+		want = Hero.Mode.EXPLORE  # (Explore goes for an awake unlock site first)
 	elif _training_ready():
 		want = Hero.Mode.TRAIN
 	elif _wave() < int(hp["explore_waves"]) + 4 and _unexplored_share() > 0.5:
@@ -217,6 +233,17 @@ func _hero() -> void:
 			_cmd("attack_camp", {"camp": camp.nid})
 	if h.mode != want:
 		_cmd("hero_mode", {"mode": want})
+
+
+## An awake unlock site gives a unit the profile uses and nobody has
+## unlocked yet (the hero may be on her way there already).
+func _unlock_wanted(h: Hero) -> bool:
+	var uses: Array = profile["tower_units"] + profile["wall_units"] + profile["barracks_units"]
+	for o in game.world.map_objects:
+		if o is UnlockSite and o.awake and not o.used and not game.is_unlocked(o.unlocks()) and uses.has(o.unlocks()) \
+				and (o.claimed_by == null or not is_instance_valid(o.claimed_by) or o.claimed_by == h):
+			return true
+	return false
 
 
 ## Below "hero_rest_below" of her HP she rests until "hero_rest_until".
@@ -589,6 +616,7 @@ func _fill_posts() -> void:
 			var r := _cmd("recruit_unit", {"kind": kind})
 			if not r["ok"]:
 				continue
+			_turn[cls] += 1  # (only once bought: the dearer kind waits for its gold)
 			u = game.entity(int(r["id"]))
 		_cmd("station_unit", {"unit": u.nid, "post": p.nid})
 	_fill_training()
@@ -602,8 +630,9 @@ func _reserve_unit_for(post: MilitaryPost) -> MilitaryUnit:
 	return null
 
 
-## The kind of the next unit for a post class: the profile's list in turn,
-## kinds not unlocked yet skipped ("" if none fits).
+## The kind of the next unit for a post class: the profile's list in turn
+## (_fill_posts moves the turn on once one is bought), kinds not unlocked yet
+## skipped ("" if none fits).
 func _next_kind(cls: String) -> String:
 	var key: String = {"tower": "tower_units", "wall": "wall_units", "barracks": "barracks_units"}[cls]
 	var kinds: Array = profile[key]
@@ -616,8 +645,7 @@ func _next_kind(cls: String) -> String:
 			usable.append(k)
 	if usable.is_empty():
 		return "" if kinds.is_empty() else (kinds[0] if game.is_unlocked(kinds[0]) else "")
-	_turn[cls] += 1
-	return usable[(int(_turn[cls]) - 1) % usable.size()]
+	return usable[int(_turn[cls]) % usable.size()]
 
 
 ## The training grounds hold one unit that the hero levels for free.
@@ -705,7 +733,7 @@ func _unit_upgrades() -> void:
 		if u.is_available():
 			order.append(u)
 	order.sort_custom(func(a: MilitaryUnit, b: MilitaryUnit) -> bool: return a.level < b.level)
-	var spare := _gold() - float(_params["gold_reserve"])
+	var spare := _gold() - float(_params["gold_reserve"]) - float(_next_unit_cost())
 	for u in order:
 		var to := _upgrade_choice(u)
 		if to == "<none>":
@@ -760,6 +788,18 @@ func _trade() -> void:
 	bundles = mini(bundles, spare / gold_per)
 	if bundles >= 1:
 		_cmd("buy_materials", {"bundles": bundles})
+
+
+## Gold of the unit an empty post waits for (0: none waits): upgrades
+## leave it alone, or the dearer kinds would never be bought.
+func _next_unit_cost() -> int:
+	for p in _posts():
+		if p is TrainingGrounds or p.free_slot() < 0 or _reserve_unit_for(p) != null:
+			continue
+		var kind := _next_kind("barracks" if p is Barracks else ("wall" if p.kind == "wall_tower" else "tower"))
+		if kind != "":
+			return int(Config.MILITARY[kind]["cost"].get("gold", 0))
+	return 0
 
 
 ## Gold of the cheapest unit the profile buys.

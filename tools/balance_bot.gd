@@ -272,6 +272,7 @@ func _record(c: Dictionary, game: Game, player: BalancePlayer, rec: BalanceRecor
 		"final": rec.state_snapshot(),
 		"actions": player.commands_sent,
 		"refusals": player.refusals,
+		"army_gold": player.army_gold,
 		"early_calls": player.early_calls,
 		"important_log": important.slice(maxi(important.size() - 12, 0)),
 	}
