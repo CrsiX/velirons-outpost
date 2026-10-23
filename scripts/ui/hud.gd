@@ -250,6 +250,8 @@ var _dragging_unit := false
 var _drag_ghost: TextureRect
 var _refresh_queued := false
 var _tick := 0.0
+## H was pressed and is still held: the view stays on the hero every frame.
+var _follow_hero := false
 
 
 func setup(p_game: Game) -> void:
@@ -704,6 +706,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_H:
 			if not _settings.visible:
 				go_to_hero()
+				_follow_hero = true
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -734,7 +737,8 @@ func hotkey_speed(speed: float) -> void:
 
 
 ## H and the hero panel's button: the view moves to the hero, or, while she is
-## down, to where she fell (she stays there, unseen, until she revives).
+## down, to where she fell (she stays there, unseen, until she revives). While
+## H is held the view stays on her (`_follow_hero`, `_process`).
 func go_to_hero() -> void:
 	var h: Hero = game.hero
 	if h == null:
@@ -3178,6 +3182,10 @@ func _process(delta: float) -> void:
 		_place_place_bar()  # (it follows the building when the map moves)
 	if _cancel_button.visible:
 		_place_cancel_button()
+	if _follow_hero:
+		_follow_hero = Input.is_key_pressed(KEY_H) and not _settings.visible
+		if _follow_hero and game.hero:
+			game.camera.focus(game.hero.position)
 	if _log_dirty or not game.events.entries.is_empty():
 		_refresh_log()  # (every frame while messages fade)
 	_tick -= delta

@@ -1041,6 +1041,20 @@ func _test_hotkeys() -> void:
 	cam.focus(Iso.tile_to_world(game.player_village.center + Vector2i(15, 15)))
 	hud._unhandled_key_input(_press(KEY_H))
 	check(cam.position.distance_to(game.hero.position) < 2.0, "H centres the view on the hero")
+	# H held: the view follows her; let go, it stays where it is.
+	var key := _press(KEY_H)
+	Input.parse_input_event(key)
+	game.hero.position += Vector2(200, 100)
+	await frames(2)
+	check(hud._follow_hero and cam.position.distance_to(game.hero.position) < 2.0, "H held keeps the view on the hero")
+	var up := key.duplicate() as InputEventKey
+	up.pressed = false
+	Input.parse_input_event(up)
+	await frames(2)
+	var left_at := cam.position
+	game.hero.position += Vector2(-200, -100)
+	await frames(2)
+	check(not hud._follow_hero and cam.position == left_at, "H let go: the view stops following")
 	# Esc: the newest popup first, as its Cancel / Close; then the settings.
 	for i in 10:
 		if hud.top_popup() == null:

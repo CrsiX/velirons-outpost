@@ -381,7 +381,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
   themselves on Esc. With no popup open, Esc pauses and opens the settings; Esc again closes them,
   and the game goes on at its speed before (paused before: it stays paused). On the game-over
   screen Esc does nothing.
-- **H** moves the view to the hero (see the hero panel's *Go to hero*).
+- **H** moves the view to the hero (see the hero panel's *Go to hero*); held down, it keeps her in the centre of the view every frame until it is let go (`Hud._follow_hero`).
   - **Firefox rule:** panning goes by the change of the pointer's position since the last event
     (`_last_pos`), never by the event's `relative`. Firefox reports `movementX/Y` wrongly for
     touch-made mouse events, which used to fling the map away. After a pinch, the next motion only
