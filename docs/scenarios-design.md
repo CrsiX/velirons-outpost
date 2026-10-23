@@ -478,6 +478,116 @@ and doesn't count for the waves), stronger than a wave one. Taking the relic rai
 harder blasts, counted for the wave; between waves the next wave starts with it), and the Legion's rest comes by the causeway with it. The
 objectives: bring the relic home, slay the leviathan, hold 10 waves. Built as §7.15.
 
+#### 9a. The rework (decided, not built yet)
+
+Replaces the story, the map and most rules above; §7.15 describes what is built today. Numbers marked *(tune)* are first guesses.
+
+**Why the rework:** in the built version Brenna fights the leviathan after she already has the relic, with no reason in the story; the
+priests' trust comes only from holding the walls; the Legion marches on the village although it wants the relic. Now every fight is about
+the relic, the trust is won or lost in one rescue, and the leviathan stands between Brenna and the sword.
+
+**The map (new, replaces `drowned_abbey.json`):** a shore village by the sea, shaped differently from the standard 5x5 block, with a small
+**harbour** (piers, boats, nets, crates, a ferry bell). Inside the walls stands a **new church**, bigger and newer than the drowned abbey (a
+campaign building with its own art; the priests' house of worship, and where the relic is kept once it is home). The abbey's island lies in a
+lake **closer to the village** than today, reached by a causeway on **straight** bridges (no bends on bridges or fords). **Deep water joins the
+sea at the harbour to the lake**, so the octopus and the leviathan can move between them. Made with the map tool first, then edited by hand in
+the editor (from then on only targeted edits to the file).
+
+**The people:** Pell (must not die), the eldest priest (unnamed) and the other priests. The priests are no longer hidden: they walk their
+rounds outside, between their homes, the new church and the harbour (`Resident.rounds`, as scenario 6's priest).
+
+**Pell's boats:** the guild's supply boats become real: after waves 2, 5 and 8 a boat sails into the harbour and ties up at the pier. Its goods
+are unloaded into a **caravan** (a cart, as `ScenarioCaravan`) that walks over land from the pier to Pell's stall, drops the goods there and is
+gone. The goods go to the village's stores; the floating "+gold +food +material" shows at the stall. (Today only the numbers appear.)
+
+**The seal and the relic:** the abbey's crypt is **sealed** at the start. The seal has HP (a bar, like the warehouse's in scenario 4). The relic
+can be in four places: in the crypt, carried (by Brenna or by Lysa), lying on the ground, or **home** (in the new church, inside the walls).
+
+**The octopus rescue (after wave 4):** between waves 4 and 5 a priest (not the eldest) walks down to the harbour. The guard octopus leaves the
+abbey and grabs him. He has far more HP than a villager and is **held in shallow water for about 20 s** *(tune)* before he is pulled into deep
+water and drowns. A countdown shows over him and on the card. Cutting the arm (towers, ranged units, Brenna) frees him. Afterwards the octopus
+goes back to guard the abbey (and is in Brenna's way when she crosses). This decides the branch:
+
+- **Rescued:** the eldest comes to the gate and tells what the abbey hides (the Hand; why they hid it; vampires in the crypt; something bigger
+  in the deep).
+- **Drowned:** the priests shut Brenna out. She can't enter the village: a tent goes up outside the walls, as in scenario 1, and it is her
+  home (`Scenario.hero_lives_out` / `Hero.home_override`, as in scenario 7: she heals and rests there). Only Brenna is shut out: the village
+  works normally and the player gives every order as before. The priests say nothing.
+
+**The Legion goes for the relic, not for the huts.** A Legion column with Lysa at its head goes wherever the relic is: to the abbey's seal while
+it is sealed in the crypt, to the relic on the ground, or into the village to the new church once it is home (breaking in like any enemy:
+`Siege`). Its soldiers go on fighting what is in their way. The rest of a wave (monsters) goes for the huts as usual. The column **marches as a
+company**: its soldiers keep together in a loose formation round Lysa (ranks a little apart, keeping pace with one another), not strung out
+one by one along the road as monsters are; it should look like an army on the march.
+
+- **Rescued branch:** only **wave 6** brings a Legion column. Lysa demands the relic; Brenna refuses her own captain. If the column is beaten,
+  the priests unseal the crypt. Waves 7 and 8 have no Legion.
+- **Drowned branch:** **waves 6, 7 and 8** each bring a Legion column, stronger each time *(tune)*. If the relic is home by then, holding the
+  village against them is the point (the church is inside the walls). After wave 8 the priests give in: they have seen her hold off her own
+  company three times. In this order: first they **let her back in** (a talk: they trust her again, a little; the tent is gone, the village
+  is her home again); then, **if the crypt is still sealed**, they unseal it; **or, if they hold the relic** (handed in at the gate), they give
+  it to her. (The last two exclude each other: a relic they hold has left the crypt.)
+
+**Lysa and the relic:**
+- When the **seal breaks**, the leviathan wakes (see below) and Lysa **searches the crypt** for the relic: **8 s** (as long as Brenna's
+  looting). She ignores the leviathan. Then she walks back to the map edge with her soldiers around her.
+- Lysa takes the relic from anywhere. In the crypt and in the church she has to search for it (**8 s** each); lying on the ground she **picks
+  it up at once**. While she lives and is still fighting (not falling back), a relic lying on the ground draws her.
+- **If Lysa reaches the map edge with the relic, the scenario is lost.**
+- Beaten (a captain: below 30 % HP), she **drops the relic where she stands** and falls back without it; while falling back she picks
+  nothing up. Her soldiers stay around the relic and fight on, so taking it back is hard: towers and barracks within reach of the island pay off.
+- **Brenna** picks up a relic on the ground in Explore mode (like dropped loot) and carries it home. She drops it wherever she is when she is
+  switched out of Explore mode (as any loot today). Downed while carrying it: lost anyway (no revive here).
+- **Drowned branch:** Brenna is shut out, so she brings a relic to the **gate** and it is handed in there; then she goes back to her tent. The
+  priests hold it in the church, but it is not hers: she must still earn their trust (the three Legion waves) before they give it to her.
+
+**The leviathan:** it sleeps until the crypt is **first used**: Brenna entering the opened crypt, or the Legion breaking the seal.
+- Woken by **Brenna** (rescued branch, or the drowned branch after wave 8): it rises as she reaches the crypt and drives her off the island; it
+  coils round the island and blocks the crypt's door, so **the relic can't be taken while it lives**. No Legion comes with it (in the rescued
+  branch the Legion is done after wave 6); only the normal waves go on. Once it is slain, Brenna goes back, takes the relic (8 s) and carries
+  it home.
+- Woken by **the Legion breaking the seal**: Lysa takes the relic anyway and flees; the leviathan is awake but need not be slain to get the
+  relic home.
+- While it lives it has **several goals** and moves between them through the deep water that joins the lake to the sea (the boats are at
+  the harbour, far from the crypt):
+  - **guard the crypt** while the relic is still in it: it keeps near the island, and Brenna can't get in;
+  - **sink Pell's boats**: when a boat comes in it goes for it, and the boat and its goods are lost, so no supplies come while it lives;
+  - **attack whatever is near the water**: it surfaces along the shore and blasts towers, units and people in its reach, as a wave
+    leviathan does.
+  So it can't be ignored for long.
+
+**Winning:** the relic home (and, in the drowned branch, given to Brenna) **and** the leviathan slain. The waves keep coming until then (the
+last listed wave repeats, bigger each time); there is no wave count to hold.
+- Relic home, leviathan already dead: won.
+- Relic home, leviathan alive: the priests ask Brenna to kill it, to make their home safe. **A choice:**
+  - **Yes:** the objective *Slay the leviathan* appears; slaying it wins.
+  - **No:** a cutscene: a priest sends out a messenger. Hold one more wave; then a cutscene: the messenger comes back with a decree signed by
+    Fiona, urgently asking Brenna to slay the leviathan. The objective appears; slaying it wins.
+  The choice is flavour: both ways end the same.
+
+**Defeats:** Pell dies; Brenna is downed (no revive); Lysa reaches the map edge with the relic. The priest drowning is no defeat: it is the
+drowned branch.
+
+**Objectives (shown as they come):** rescue the priest (with its countdown); defend the abbey from the Legion; get the relic back from Lysa (while
+she has it); slay the leviathan (when it blocks the crypt, or after the priests' request or Fiona's decree); bring the relic home. Hints and
+cards say at every turn what changed.
+
+**How it plays, in order:**
+1. Waves 1 to 4: crabs, goblins, the drowned dead; the watchtower by the shore starts wave 1's countdown (as built). The priests walk their
+   rounds.
+2. After wave 4: the octopus grabs a priest at the harbour; about 20 s to cut him free.
+3. **Rescued:** the priests tell. Wave 6: the Legion goes for the seal; Lysa demands the relic. Beaten: the crypt is unsealed; waves 7 and 8
+   bring no Legion. **Drowned:** Brenna lives in her tent, the priests say nothing; waves 6, 7 and 8 bring the Legion for the relic, wherever
+   it is; after wave 8 the priests give in and let her back in.
+4. If the seal breaks at any point: the leviathan wakes, Lysa takes the relic and flees; beat her before she reaches the edge, then take the
+   relic back from among her soldiers.
+5. If Brenna opens the crypt: the leviathan wakes and drives her off; slay it, then take the relic.
+6. With the relic home: won if the leviathan is dead; otherwise the priests' request (yes, or no and Fiona's decree), then slay it.
+
+**Outro:** as today in spirit: the priests come out of the new church; the eldest says they were wrong about her; the Hand goes to Fiona; on
+the causeway Lysa is herself for a moment and warns Brenna that Halvard marches on her home; Brenna and Pell go back. The lines depend on the
+branch (the rescue, or the tent and the three waves).
+
 ### 10. The Last Wardline
 
 **Where:** the home village, at its strongest. The same map as scenarios 1 to 3.
