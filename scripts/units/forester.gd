@@ -150,14 +150,15 @@ func _go_village() -> void:
 	head_home()
 
 
-## After a load: wood in hand goes to the camp; else on to his tree (or the
-## next one, or the camp to look for one).
+## After a load: wood in hand goes to the camp; else on to his tree, or (none)
+## to the camp, which looks for the next one (as before the save: a save
+## taken on his way to the camp loads the same).
 func resume_work() -> void:
 	if not _camp_ok():
 		_go_village()
 		return
 	visible = true
-	if carrying <= 0:
+	if carrying <= 0 and game.world.is_tree(tree):
 		_head_to_tree()
 		if state == State.TO_TREE:
 			return
