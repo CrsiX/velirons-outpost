@@ -57,10 +57,16 @@ rebuild huts / restore claimed ruins -> recruit villagers -> farms and camps -> 
 barracks, training grounds -> units onto empty posts -> training grounds' unit swapped into
 the field -> tower upgrades -> unit upgrades (lowest level first, the profile's
 specialisation as soon as possible) -> gold into material (essentials only) -> call the wave.
-Gold and material don't leak: tower upgrades wait while a building waits for material (or
-gold would buy material for them through it), and the gold put by for the unit upgrade it
-saves up for (`_saving`) isn't traded for material, except for a hut or a farm / camp
-(`_want_critical`). Huts are rebuilt for `Hut.rebuild_cost()` (40), not the full price.
+Repairs come before everything: ruined huts (rebuilt for `Hut.rebuild_cost()`, 40), then
+every building of ours that is devastated or below `repair_below` of its HP, the most broken
+first. While one waits for material, nothing else spends any (no building, camp, ruin or
+upgrade). Gold buys material only for these and for the farm when there is none
+(`_want_critical`); everything else waits for the foresters, so gold goes to the army. Tower
+upgrades also wait while any building waits for material.
+
+Economy first: before wave 1 the profile's `camps` (and their foresters, first in the villager
+order) come before any new post; from wave 1 one more camp while the foresters bring in less
+than `material_rate` per minute (measured over `material_window`), up to `max_camps`.
 
 Where it builds: towers and barracks where they cover most road within `approach_steps` of
 a gate that no post of their own sort covers yet (near the village preferred, `tower_spacing`

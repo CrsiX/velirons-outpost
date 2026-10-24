@@ -42,7 +42,7 @@ func _test_title() -> void:
 	check(seen == ["Difficulty: Normal", "Difficulty: Hard", "Difficulty: Easy", "Difficulty: Normal"], "difficulty toggles normal > hard > easy > normal")
 	check(is_equal_approx(mults[1], 1.5) and is_equal_approx(mults[2], 0.67) and is_equal_approx(mults[3], 1.0), "enemy values scale x1.5 on hard, x0.67 on easy")
 	Settings.difficulty = Settings.Difficulty.HARD
-	check(is_equal_approx(Config.enemy_stat("goblin", "speed"), Config.ENEMIES["goblin"]["speed"] * 1.5) and Config.enemy_stat_int("goblin", "gold_on_kill") == roundi(Config.ENEMIES["goblin"]["gold_on_kill"] * 1.5), "difficulty scales speed and loot too")
+	check(is_equal_approx(Config.enemy_stat("goblin", "speed"), Config.ENEMIES["goblin"]["speed"] * Config.difficulty_multiplier("hard", "speed")) and Config.enemy_stat_int("goblin", "gold_on_kill") == roundi(Config.ENEMIES["goblin"]["gold_on_kill"] * 1.5), "difficulty scales speed (by its own factor) and loot too")
 	Settings.difficulty = Settings.Difficulty.NORMAL
 	var land := get_window().size
 	get_window().size = Vector2i(1080, 2400)
@@ -998,10 +998,10 @@ func _run() -> void:
 		Settings.difficulty = dif
 		no_food = no_food and Config.enemy_stat_int("skeleton", "food_on_collect") == 0 and Config.enemy_stat_int("skeleton", "gold_on_collect") > 0
 	Settings.difficulty = Settings.Difficulty.HARD
-	var gob: Dictionary = Config.ENEMIES["goblin"]
-	var hard_ok := is_equal_approx(Config.enemy_stat("goblin", "hp"), float(gob["hp"]) * 1.5) \
-		and is_equal_approx(Config.enemy_stat("goblin", "speed"), float(gob["speed"]) * 1.2) \
-		and is_equal_approx(Config.enemy_stat("goblin", "damage"), float(gob["damage"]) * 1.5)
+	var goblin_spec: Dictionary = Config.ENEMIES["goblin"]
+	var hard_ok := is_equal_approx(Config.enemy_stat("goblin", "hp"), float(goblin_spec["hp"]) * 1.5) \
+		and is_equal_approx(Config.enemy_stat("goblin", "speed"), float(goblin_spec["speed"]) * 1.2) \
+		and is_equal_approx(Config.enemy_stat("goblin", "damage"), float(goblin_spec["damage"]) * 1.5)
 	Settings.difficulty = Settings.Difficulty.NORMAL
 	check(no_food, "skeleton corpses give gold but never food, on every difficulty")
 	check(hard_ok, "on Hard enemies have x1.5 HP and damage, but only x1.2 speed (per value)")

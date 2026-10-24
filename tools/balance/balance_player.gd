@@ -36,6 +36,8 @@ var _no_spot: Dictionary = {}
 ## for a unit upgrade goes into it too).
 var _want_materials := 0
 var _want_critical := false
+## The material the critical needs lack (what _trade buys).
+var _critical_lack := 0
 ## Gold put by for the unit upgrade it saves up for (_unit_upgrades; 0: none):
 ## _trade doesn't spend it on material.
 var _saving := 0
@@ -46,6 +48,11 @@ var _no_farm := false
 ## The hero was sent to rest at low HP and stays there until healed
 ## (BALANCE_BOT "hero_rest_below" / "hero_rest_until").
 var _hero_resting := false
+## A repair (or hut rebuild) waits for material: nothing else spends any.
+var _repair_wanted := false
+## (game clock, building material the foresters brought so far), sampled
+## for the material rate (BALANCE_BOT "material_window").
+var _material_log: Array[Vector2] = []
 ## Game clock since when only water monsters have been left in the wave.
 var _water_only_since := -1.0
 var _approach: Array[Vector2i] = []
@@ -75,7 +82,10 @@ func _process(delta: float) -> void:
 func _think() -> void:
 	_want_materials = 0
 	_want_critical = false
+	_critical_lack = 0
 	_saving = 0
+	_repair_wanted = false
+	_log_materials()
 	_cheats()
 	_no_farm = _farm_wanted()
 	_hero()
@@ -181,16 +191,20 @@ func _can_afford(cost: Dictionary) -> bool:
 	return village.economy.can_afford(cost)
 
 
-## Notes what's missing when only material is (so _trade may buy it): only
-## for what the village can't do without, never for upgrades (the foresters'
-## material comes in by itself; gold is for the army).
+## Notes what's missing when only material is: anything essential holds the
+## upgrades back (_want_materials); only what is critical (a repair, a hut,
+## the farm when there is none) makes _trade buy material with gold
+## (_want_critical): the foresters' material comes in by itself, gold is for
+## the army.
 func _note_missing(cost: Dictionary, essential := true, critical := false) -> void:
 	if not essential:
 		return
 	var lack := int(cost.get("materials", 0)) - int(_materials())
 	if lack > 0 and int(cost.get("gold", 0)) <= int(_gold()):
 		_want_materials = maxi(_want_materials, lack)
-		_want_critical = _want_critical or critical
+		if critical:
+			_want_critical = true
+			_critical_lack = maxi(_critical_lack, lack)
 
 
 # --- cheats (what a test of one unit line needs) -------------------------------------------
@@ -295,6 +309,10 @@ func _camp_to_attack() -> MonsterCamp:
 
 # --- repairs -----------------------------------------------------------------------------
 
+## Repairs come before everything: ruined huts, then every building of ours
+## that is devastated or below "repair_below" of its HP (the most broken
+## first). One that waits for material holds back every other use of it
+## (_repair_wanted), and only for these does _trade buy material.
 func _repairs() -> void:
 	var rebuild := Hut.rebuild_cost()
 	if not village.construction.ruined_huts().is_empty():
@@ -302,8 +320,24 @@ func _repairs() -> void:
 			_cmd("rebuild_all_huts")
 		else:
 			_note_missing(rebuild, true, true)
+			_repair_wanted = true
+	var hurt: Array[Building] = []
+	for b in village.buildings():
+		if b is Hut or b is Warehouse or not b.can_repair():
+			continue
+		if b.devastated or b.hp < b.max_hp() * float(_params["repair_below"]):
+			hurt.append(b)
+	hurt.sort_custom(func(a: Building, b: Building) -> bool: return a.hp / a.max_hp() < b.hp / b.max_hp())
+	for b in hurt:
+		var cost := b.repair_cost()
+		if _can_afford(cost):
+			_cmd("repair", {"building": b.nid})
+		else:
+			_note_missing(cost, true, true)
+			_repair_wanted = true
+			break  # (the most broken one first)
 	for o in game.world.map_objects:  # claimed ruins become watchtowers
-		if o is RuinedTower and o.village == village and _site_room() and _can_afford(RuinedTower.restore_cost()):
+		if o is RuinedTower and o.village == village and not _repair_wanted and _site_room() and _can_afford(RuinedTower.restore_cost()):
 			_cmd("restore_ruin", {"ruin": o.nid})
 
 
@@ -368,13 +402,50 @@ func _economy_buildings() -> void:
 	var farms := int(profile["farms"])
 	if village.economy.amount("food") < 40.0 and village.population.food_per_second() < 0.0:
 		farms += 1  # the food is running out
+	if _repair_wanted:
+		return
 	if _buildings_of("farm").size() < farms:
 		_place("farm")
 	_no_farm = _farm_wanted()
 	if _no_farm:
 		return
-	if _buildings_of("camp").size() < int(profile["camps"]):
+	if _buildings_of("camp").size() < _camps_wanted():
 		_place("camp")
+
+
+## Worker camps: the profile's "camps" (the first wave waits for them, see
+## _economy_first), then one more while the foresters bring in less than
+## "material_rate" per minute, up to "max_camps".
+func _camps_wanted() -> int:
+	var want := int(profile["camps"])
+	var top := int(profile.get("max_camps", want))
+	var have := _buildings_of("camp").size()
+	if have >= want and have < top and _wave() >= 1 and _material_rate() >= 0.0 \
+			and _material_rate() < float(profile.get("material_rate", 0.0)):
+		return have + 1
+	return want
+
+
+## Building material per minute the foresters brought in over the last
+## "material_window" s (-1 until that much time has passed).
+func _material_rate() -> float:
+	if _material_log.is_empty() or game.clock - _material_log[0].x < float(_params["material_window"]):
+		return -1.0
+	var first := _material_log[0]
+	var last := _material_log[_material_log.size() - 1]
+	return (last.y - first.y) / maxf(last.x - first.x, 1.0) * 60.0
+
+
+func _log_materials() -> void:
+	_material_log.append(Vector2(game.clock, game.stats.value(village.id, "earn.materials.foresters")))
+	while _material_log.size() > 2 and game.clock - _material_log[1].x >= float(_params["material_window"]):
+		_material_log.pop_front()
+
+
+## Before the first wave the economy comes first: the camps the profile
+## wants and their foresters before any new post.
+func _economy_first() -> bool:
+	return _wave() == 0 and _buildings_of("camp").size() < int(profile["camps"])
 
 
 func _farm_wanted() -> bool:
@@ -384,7 +455,7 @@ func _farm_wanted() -> bool:
 # --- defence buildings -----------------------------------------------------------------------
 
 func _defence_buildings() -> void:
-	if _no_farm:
+	if _no_farm or _repair_wanted or _economy_first():
 		return
 	var tw: Array = profile["towers"]
 	var want_towers := mini(int(tw[2]), int(tw[0]) + int(floorf(float(tw[1]) * _wave())))
@@ -440,7 +511,7 @@ func _place(kind: String) -> void:
 		return
 	var cost: Dictionary = Config.BUILDINGS[kind]["cost"]
 	if not _can_afford(cost):
-		_note_missing(cost, true, kind in ["farm", "camp"])
+		_note_missing(cost, true, kind == "farm" and _no_farm)  # (gold buys material only for a farm when there is none)
 		return
 	if float(_no_spot.get(kind, -1.0)) > game.clock:
 		return
@@ -775,16 +846,13 @@ func _branch_fits(u: MilitaryUnit, branch: String) -> bool:
 # --- trading and calling waves -------------------------------------------------------------------
 
 func _trade() -> void:
-	if not bool(profile.get("buy_materials", false)) or _want_materials <= 0:
+	if not bool(profile.get("buy_materials", false)) or not _want_critical:
 		return
 	var per: int = Config.MATERIALS_TRADE["materials"]
-	var bundles := ceili(float(_want_materials) / float(per))
+	var bundles := ceili(float(_critical_lack) / float(per))
 	var gold_per: int = Config.MATERIALS_TRADE["gold"]
-	# (A unit for an empty post comes first.)
-	var kept := _cheapest_unit() if _free_posts() > 0 else 0
-	if not _want_critical:
-		kept += _saving  # (a hut or the food come before the upgrade saved for, a tower not)
-	var spare := int(_gold() - float(_params["gold_reserve"])) - kept
+	# (Repairs and huts come before everything, an empty post's unit too.)
+	var spare := int(_gold() - float(_params["gold_reserve"]))
 	bundles = mini(bundles, spare / gold_per)
 	if bundles >= 1:
 		_cmd("buy_materials", {"bundles": bundles})
@@ -800,17 +868,6 @@ func _next_unit_cost() -> int:
 		if kind != "":
 			return int(Config.MILITARY[kind]["cost"].get("gold", 0))
 	return 0
-
-
-## Gold of the cheapest unit the profile buys.
-func _cheapest_unit() -> int:
-	var best := 0
-	for key in ["tower_units", "barracks_units"]:
-		for k: String in profile[key]:
-			if game.is_unlocked(k):
-				var g := int(Config.MILITARY[k]["cost"]["gold"])
-				best = g if best == 0 else mini(best, g)
-	return best
 
 
 func _call_wave() -> void:

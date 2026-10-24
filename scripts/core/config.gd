@@ -250,6 +250,10 @@ const SAVE := {
 ##   "track_interval":  game seconds between looks at the enemies on the map;
 ##   "unit_dps_summon_life": seconds a summoner's elementals count as fighting
 ##                      in its nominal DPS;
+##   "repair_below":    a building of ours below this share of its HP (or
+##                      devastated) is repaired, before anything else;
+##   "material_window": game seconds over which the foresters' material rate
+##                      is measured (a profile's "material_rate");
 ##   "hero_rest_below", "hero_rest_until": below this share of her HP the
 ##                      hero is sent to rest (whatever her mode) until she has
 ##                      this share again;
@@ -274,6 +278,8 @@ const BALANCE_BOT := {
 	"farm_road_penalty": 30.0,
 	"hero_rest_below": 0.15,
 	"hero_rest_until": 0.6,
+	"repair_below": 0.9,
+	"material_window": 180.0,
 	"min_food": 20.0,
 	"gold_reserve": 0.0,
 	"sample_interval": 15.0,
@@ -287,6 +293,11 @@ const BALANCE_BOT := {
 ## huts rebuilt, villagers, economy buildings, army, upgrades.
 ##   "villagers":      role -> how many it wants (it recruits in "villager_order");
 ##   "farms", "camps": worker camps and farms to build (one worker each);
+##                      the camps (and their foresters) before any new post
+##                      ahead of wave 1;
+##   "material_rate", "max_camps": from wave 1, one more camp while the
+##                      foresters bring in less than this much building
+##                      material per minute, up to max_camps;
 ##   "retire_explorer_wave": from this wave the explorer retires, to free a hut
 ##                      (0 = never);
 ##   "towers":         [at start, more per wave, at most] watchtowers;
@@ -310,16 +321,17 @@ const BALANCE_BOT := {
 ##                      from this hero level she is sent against known camps;
 ##   "call_early":     calls the next wave as soon as everything is bought and
 ##                      manned (for the bonus gold; faster games);
-##   "buy_materials":  trades gold for building material when that is all
-##                      that holds a building back;
+##   "buy_materials":  trades gold for building material, only for what
+##                      can't wait: a repair, a ruined hut, the farm when
+##                      there is none (repairs come before everything);
 ##   "cheats":         debug commands run at the start ("unlock": every
 ##                      unit and role that has to be found, "gold": +1000...).
 const BALANCE_PROFILES := {
 	"balanced": {
-		"desc": "Watchtowers with archers and (once the hero unlocks them) apprentices in turn, then barracks with shield bearers and archers, training grounds and upgrades; crossbowmen, fire mages, warriors. The default player.",
-		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
-		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"desc": "Economy first (three foresters before wave 1, about 20 material a minute), repairs before anything; watchtowers with archers and (once the hero unlocks them) apprentices in turn, then barracks with shield bearers and archers, training grounds and upgrades; crossbowmen, fire mages, warriors. The default player.",
+		"villagers": {"builder": 2, "farmer": 2, "forester": 4, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["forester", "forester", "forester", "builder", "farmer", "gatherer", "builder", "farmer", "gatherer", "forester", "miner"],
+		"farms": 2, "camps": 3, "max_camps": 4, "material_rate": 20.0, "retire_explorer_wave": 6,
 		"towers": [2, 1.0, 12], "tower_levels": [[3, 2], [8, 3]],
 		"barracks": [[2, 1], [8, 2]], "barracks_levels": [[4, 2], [9, 3]],
 		"training": 3,
