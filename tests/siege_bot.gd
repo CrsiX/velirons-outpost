@@ -358,12 +358,16 @@ func _test_queue_rules() -> void:
 	first = c.claim(hero)
 	check(g.interrupts == 0 and first == g, "and is back after %d s without enemies near it" % int(q["demote_calm"]))
 	c.release(first, false)
-	# An enemy in sight near the gate: skipped meanwhile.
+	# An enemy in sight near a job outside the walls: skipped meanwhile. The
+	# gate is worked from inside, safe while no enemy has broken in.
 	var e := spawn_still("goblin", Vector2(road_out(2)))
-	first = c.claim(hero)
-	check(c.in_danger(g) and first != g, "with an enemy in sight near it, the gate waits")
-	if first:
-		c.release(first, false)
+	check(not c.in_danger(g), "a gate (worked from inside the walls) is safe with a goblin outside it")
+	c.release(g, false)
+	near.repair_progress = 0.0
+	var wp: Building = cands.filter(func(b: Building) -> bool: return b is Workplace)[0]
+	e.set_grid_pos(Vector2(wp.work_tile()) + Vector2(0.3, 0.3))  # (in the building's sight)
+	game.fog.update_surveillance()
+	check(c.in_danger(wp), "a job outside with an enemy in sight near it waits (%s, watched %s)" % [wp.label(), game.fog.is_watched_by(game.player_village.id, e.current_tile())])
 	kill(e)
 	await clear_enemies()
 	for site: Building in [far, near, g]:

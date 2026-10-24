@@ -130,7 +130,8 @@ in docs/multiplayer-design.md.
     - **Only jobs it can do now:** one it can walk to from the village (`Pathing.can_reach`; a
       job it still finds no way to is given back and skipped for `unreachable_retry` 5 s, and
       the next one is tried at once), and none with a visible enemy (one that scares villagers,
-      on a tile the village watches) within `danger_radius` 5 tiles (`Construction.in_danger`).
+      on a tile the village watches) within `danger_radius` 5 tiles (`Construction.in_danger`); jobs inside the walls count as safe
+      while no enemy has broken in, as for fleeing.
     - **Buckets** (`buckets`, `Construction.bucket`): `[["hut"], ["gate", "wall"], ["*"]]`,
       hut rebuilds first, then gates and walls (built, repaired or upgraded), then everything
       else (wall towers too). Each bucket lists building kinds; `"*"` takes any kind.

@@ -213,12 +213,17 @@ func bucket(site: Building) -> int:
 	return i
 
 
-## A visible enemy (one that scares villagers) near the job.
+## A visible enemy (one that scares villagers) near the job. Inside the walls
+## is safe while no enemy has broken in (as for fleeing: Civilian.inside_walls).
 func in_danger(site: Building) -> bool:
+	var stand := site.work_tile()  # (where the builder works: a gate from inside)
+	var vid := game.map.village_at(stand)
+	if vid >= 0 and not game.siege.breached(vid):
+		return false
 	var r: float = Config.BUILD_QUEUE["danger_radius"]
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or not e.spec().get("scares", true) or e.grid_pos.distance_to(Vector2(site.tile)) > r:
+		if e.dead or not e.spec().get("scares", true) or e.grid_pos.distance_to(Vector2(stand)) > r:
 			continue
 		if game.fog.is_watched_by(village.id, e.current_tile()):
 			return true
