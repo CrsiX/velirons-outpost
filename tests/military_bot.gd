@@ -149,6 +149,29 @@ func _spec_rule_breaks() -> Array[String]:
 	return out
 
 
+## An idle elemental (every kind) heals its SUMMONS "regen" share of its max
+## HP per second, SUMMON.regen_delay after it was last hurt.
+func _test_elemental_regen() -> void:
+	var t := find_spot("lightstone", game.player_village.center + Vector2i(0, 9))
+	var els: Array[EarthElemental] = []
+	for kind: String in Config.SUMMONS:
+		var el: EarthElemental = SummonerBehavior.ELEMENTAL_SCRIPT.new()
+		el.setup(game, t, t, 100.0, 1.0, kind)
+		el.village = game.player_village
+		game.world.objects.add_child(el)
+		el.take_damage(50.0)
+		els.append(el)
+	await wait(1.0)
+	var waited := els.all(func(el: EarthElemental) -> bool: return el.hp == 50.0)
+	await wait(Config.SUMMON["regen_delay"] + 1.0)
+	var ok := true
+	for el in els:
+		var rate: float = Config.SUMMONS[el.summon]["regen"]
+		ok = ok and rate > 0.0 and el.hp > 50.0 and el.hp <= 50.0 + 100.0 * rate * 3.0
+		el.crumble()
+	check(waited and ok, "idle elementals (earth, fire, thornling) heal by their regen, %s s after they were hurt" % Config.SUMMON["regen_delay"])
+
+
 func _test_config() -> void:
 	var min_tower: float = Config.TOWER_RANGE.values().min()
 	var ranges_ok := true
@@ -433,11 +456,13 @@ func _test_effects() -> void:
 	el.village = game.player_village
 	game.world.objects.add_child(el)
 	el.hp = 10.0
+	el._busy_left = 1e9  # (no regen of its own meanwhile)
 	var h0 := hero.hp
 	var healed := await wait_until(func() -> bool: return hero.hp > h0, 10.0)
 	check(healed, "the healing mage heals the hero nearby")
 	check(el.hp == 10.0, "summons aren't healed")
 	el.crumble()
+	await _test_elemental_regen()
 	# A walking unit nearby of this village gets healed too.
 	var ar := game.army.recruit("archer")
 	var s: Soldier = game.army._spawn_walker(ar, hm[1].outer_tile())

@@ -1172,14 +1172,17 @@ const DAMAGE_INFO := {
 ## Summoned elementals: "hp" and "damage" multiply the summoner's summon_hp
 ## and summon_damage; "speed" is in tiles per second; "category": what their
 ## blows do (DAMAGE_CATEGORIES).
+## "regen" (optional): share of its max HP it heals per second while idle
+## (no target, and SUMMON.regen_delay seconds since its last blow or hurt;
+## a fire elemental burns itself only with its blows, so it heals idle too).
 const SUMMONS := {
-	"earth": {"name": "Earth Elemental", "art": "unit_earth_elemental", "hp": 1.0, "damage": 1.0, "speed": 1.1, "self_damage": 0.0, "hover": false, "category": "melee"},
+	"earth": {"name": "Earth Elemental", "art": "unit_earth_elemental", "hp": 1.0, "damage": 1.0, "speed": 1.1, "self_damage": 0.0, "hover": false, "category": "melee", "regen": 0.04},
 	# Fire elementals hover and flicker; they lose self_damage x the damage they deal, as HP.
-	"fire": {"name": "Fire Elemental", "art": "unit_fire_elemental", "hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "hover": true, "category": "fire"},
+	"fire": {"name": "Fire Elemental", "art": "unit_fire_elemental", "hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "hover": true, "category": "fire", "regen": 0.04},
 	# The druid's thornlings: slow and tough; each blow roots the enemy (the
 	# druid's "root" seconds); a rooted enemy is then immune to roots for
 	# root_immunity seconds. Flyers can't be rooted (nor reached).
-	"thorn": {"name": "Thornling", "art": "unit_thornling", "hp": 1.5, "damage": 0.8, "speed": 0.8, "self_damage": 0.0, "hover": false, "category": "melee", "root_immunity": 2.0},
+	"thorn": {"name": "Thornling", "art": "unit_thornling", "hp": 1.5, "damage": 0.8, "speed": 0.8, "self_damage": 0.0, "hover": false, "category": "melee", "root_immunity": 2.0, "regen": 0.04},
 }
 
 ## Barracks levels: benches (unit slots) and how near enemies must come before
@@ -1291,6 +1294,7 @@ const SUMMON := {
 	"attack_range": 0.8,  # close combat
 	"sight": 3.5,  # notices enemies this close
 	"leash": 4.0,  # wanders and chases within this distance of its tower
+	"regen_delay": 2.0,  # seconds after its last blow or hurt before it heals (SUMMONS "regen")
 }
 
 const MATERIALS_TRADE := {"materials": 10, "gold": 15}

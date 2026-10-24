@@ -38,6 +38,8 @@ var cry_until := -1.0
 var _think_timer := 0.0
 var _idle_timer := 0.0
 var _chase_tile := Vector2i(-9999, -9999)
+## Seconds until it may heal again (SUMMONS "regen"): reset by fighting or being hurt.
+var _busy_left := 0.0
 
 
 func setup(p_game: Game, p_home: Vector2i, spawn_tile: Vector2i, p_hp: float, p_damage: float, p_summon: String = "earth") -> void:
@@ -79,6 +81,7 @@ func _process(delta: float) -> void:
 	if is_instance_valid(target) and not target.dead and not _can_hit(target):
 		target = null
 	if is_instance_valid(target) and not target.dead:
+		_busy_left = Config.SUMMON["regen_delay"]
 		var dist := target.grid_pos.distance_to(grid_pos)
 		if dist <= target.melee_reach(Config.SUMMON["attack_range"]):
 			_set_moving(false)
@@ -92,6 +95,18 @@ func _process(delta: float) -> void:
 			step_path(delta)
 	else:
 		_wander(delta)
+		_regen(delta)
+
+
+## Idle (no target, no blow given or taken for a while): heals its kind's
+## "regen" share of its max HP per second.
+func _regen(delta: float) -> void:
+	_busy_left -= delta
+	var rate: float = Config.SUMMONS[summon].get("regen", 0.0)
+	if rate <= 0.0 or _busy_left > 0.0 or hp >= max_hp or is_instance_valid(held_by):
+		return
+	hp = minf(max_hp, hp + rate * max_hp * delta)
+	queue_redraw()
 
 
 ## Can it go for `e`? Up (not under water), within reach of its fists (or
@@ -166,6 +181,7 @@ func counter_strike(e: Enemy) -> void:
 	if dead or _attack_timer > 0.0 or e.dead:
 		return
 	_attack_timer = Config.SUMMON["attack_cooldown"]
+	_busy_left = Config.SUMMON["regen_delay"]
 	_strike(e)
 
 
@@ -189,6 +205,7 @@ func take_damage(amount: float, source = null, _category: String = "pure") -> vo
 	if dead:
 		return
 	hp -= amount
+	_busy_left = Config.SUMMON["regen_delay"]
 	queue_redraw()
 	sprite.modulate = Color(1.0, 0.55, 0.45)
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)

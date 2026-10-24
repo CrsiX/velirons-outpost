@@ -141,7 +141,9 @@ plus the tower level's `range_bonus` (+0.8 at level 2, +1.6 at level 3,
 
 **Summons** (`SUMMONS`; `hp` and `damage` multiply the summoner's `summon_hp` and
 `summon_damage` at the moment of summoning; `speed` in tiles/s; shared values in
-`SUMMON`: a blow every 1.0 s, reach 0.8, sight 3.5, leash 4.0 tiles from its tower):
+`SUMMON`: a blow every 1.0 s, reach 0.8, sight 3.5, leash 4.0 tiles from its tower; each kind's `regen` (all 4 %) heals
+that share of max HP per second while idle: no target, not held, `regen_delay` 2 s after its last
+blow or hurt; a fire elemental burns itself only with its blows, so it heals idle too):
 
 | Summon | HP | Speed | Damage | Special |
 |---|---|---|---|---|

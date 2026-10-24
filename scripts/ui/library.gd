@@ -504,6 +504,8 @@ static func _units() -> Array[Dictionary]:
 			f.append("Hovers: it can fight flyers")
 		if sp.has("root_immunity"):
 			f.append("Every blow roots the enemy in place (it still fights); then it can't be rooted for %s s. Flyers can't be rooted" % _n(sp["root_immunity"]))
+		if float(sp.get("regen", 0.0)) > 0.0:
+			f.append("Heals %s %% of its HP per second while idle (%s s after its last fight)" % [_n(float(sp["regen"]) * 100.0), _n(Config.SUMMON["regen_delay"])])
 		if float(sp["self_damage"]) > 0.0:
 			f.append("Burns itself up: loses %s %% of the damage it deals as HP" % _n(float(sp["self_damage"]) * 100.0))
 		var by := ""
