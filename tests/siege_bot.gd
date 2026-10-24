@@ -35,6 +35,8 @@ func _run() -> void:
 	await _test_levels()
 	_test_teardown_refund()
 	await _test_huts_first()
+	await _test_queue_rules()
+	await _test_chain()
 	_test_field()
 	await _test_break_in()
 	await _test_weaker_wall()
@@ -276,10 +278,13 @@ func _test_teardown_refund() -> void:
 	farm.hp = farm.max_hp()
 
 
-## Hut rebuilds come before every other job when a builder picks one.
+## The queue's tiers: hut rebuilds first, then gates and walls, then the rest.
 func _test_huts_first() -> void:
 	var c := game.construction
 	await finish_work()
+	var farm: Building = game.player_village.buildings().filter(func(b: Building) -> bool: return b is Farm and b.working())[0]
+	farm.take_damage(30.0)
+	c.order_repair(farm)  # (ordered first, done last)
 	var g := gate()
 	g.take_damage(30.0)
 	c.order_repair(g)
@@ -296,9 +301,90 @@ func _test_huts_first() -> void:
 	c.release(first, false)
 	var second := c.claim(game.hero)
 	check(second == hut, "and again when a job is picked anew (after fleeing)")
+	var third := c.claim(game.player_village.hero)
+	check(c.queue.find(farm) < c.queue.find(g) and third == g, "then the gate, before a farm's repair ordered earlier")
+	c.release(third, false)
 	c.release(second, false)
 	await finish_work()
-	check(hut.is_intact() and g.hp == g.max_hp(), "both get done")
+	check(hut.is_intact() and g.hp == g.max_hp() and farm.hp == farm.max_hp(), "all get done")
+	reset_village()
+
+
+## Config.BUILD_QUEUE: within a bucket the nearest job, unless an older one
+## has waited long enough; started jobs first; a job fled from too often
+## drops a bucket until it has been calm a while; none with an enemy in sight
+## near it.
+func _test_queue_rules() -> void:
+	var c := game.construction
+	var v := game.player_village
+	await finish_work()
+	var hero := game.hero
+	var from: Vector2 = Vector2(v.center) if hero.at_home else hero.grid_pos
+	var cands: Array = v.buildings().filter(func(b: Building) -> bool: return (b is Workplace or b.kind == "wall_tower") and b.working())
+	cands.sort_custom(func(a: Building, b: Building) -> bool: return Vector2(a.tile).distance_to(from) < Vector2(b.tile).distance_to(from))
+	var near: Building = cands.front()
+	var far: Building = cands.back()
+	var q: Dictionary = Config.BUILD_QUEUE
+	far.take_damage(10.0)
+	c.order_repair(far)  # (older)
+	near.take_damage(10.0)
+	c.order_repair(near)
+	var first := c.claim(hero)
+	check(c.bucket(near) == c.bucket(far) and first == near, "the same bucket: the nearest job first")
+	c.release(first, false)
+	var gap := Vector2(far.tile).distance_to(from) - Vector2(near.tile).distance_to(from)
+	far.queued_at -= (gap / float(q["age_tiles_per_min"]) + 0.5) * 60.0
+	first = c.claim(hero)
+	check(first == far, "but one that has waited long enough goes first (%.0f tiles further)" % gap)
+	c.release(first, false)
+	near.repair_progress = 0.1
+	first = c.claim(hero)
+	check(first == near, "a job already started goes first in its bucket")
+	c.release(first, false)
+	# Demoted after fleeing from it twice; back once calm.
+	var g := gate()
+	g.take_damage(20.0)
+	c.order_repair(g)
+	first = c.claim(hero)
+	check(first == g, "a gate before the rest")
+	for i in int(q["demote_after"]):
+		c.release(g, false, true)
+		if i + 1 < int(q["demote_after"]):
+			c.claim(hero)
+	first = c.claim(hero)
+	check(c.bucket(g) == c.bucket(near) and first == near, "fled from %d times, the gate drops a bucket" % int(q["demote_after"]))
+	c.release(first, false)
+	c._process(float(q["demote_calm"]) + 0.1)
+	first = c.claim(hero)
+	check(g.interrupts == 0 and first == g, "and is back after %d s without enemies near it" % int(q["demote_calm"]))
+	c.release(first, false)
+	# An enemy in sight near the gate: skipped meanwhile.
+	var e := spawn_still("goblin", Vector2(road_out(2)))
+	first = c.claim(hero)
+	check(c.in_danger(g) and first != g, "with an enemy in sight near it, the gate waits")
+	if first:
+		c.release(first, false)
+	kill(e)
+	await clear_enemies()
+	for site: Building in [far, near, g]:
+		c.cancel(site)
+		site.hp = site.max_hp()
+
+
+## A builder done with a job walks straight on to the next one close by.
+func _test_chain() -> void:
+	var c := game.construction
+	await finish_work()
+	var builders: Array = game.population.civilians.filter(func(x: Civilian) -> bool: return x is Builder)
+	var walls := walls_beside(game.player_village.gates[0])
+	for w in walls:
+		w.take_damage(30.0)
+		c.order_repair(w)
+	var done := await wait_until(func() -> bool: return walls.any(func(w: Building) -> bool: return w.hp >= w.max_hp()), 90.0)
+	var other: Building = walls[0] if walls[0].hp < walls[0].max_hp() else walls[1]
+	var b: Builder = builders[0] if builders.size() == 1 else null
+	check(done and walls.size() == 2 and b != null and not b.at_home and b.job.site == other, "the builder goes straight on to the wall next to it, not home first")
+	await finish_work()
 	reset_village()
 
 

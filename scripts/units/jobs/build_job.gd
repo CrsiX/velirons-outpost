@@ -22,14 +22,8 @@ func tick(delta: float) -> void:
 			if w.rest_timer > 0.0:
 				return
 			w.rest_timer = 1.0  # re-check for work once a second
-			var s := w.village.construction.claim(w)
-			if s == null:
-				return
-			if w.head_out(s.work_tile()):
-				site = s
+			if _take_next():
 				state = State.TO_SITE
-			else:
-				w.village.construction.release(s, true)
 		State.TO_SITE:
 			if not _site_valid():
 				_go_home()
@@ -50,12 +44,33 @@ func tick(delta: float) -> void:
 			if site.add_progress(delta * efficiency):
 				w.village.construction.complete(site)
 				site = null
-				_go_home()
+				w.sprite.rotation = 0.0
+				# A job close by: straight on to it, no rest at home first.
+				if _take_next(Config.BUILD_QUEUE["chain_radius"]):
+					state = State.TO_SITE
+				else:
+					_go_home()
 		State.RETURNING:
 			if w.step_path(delta):
 				w.arrive_home()
 				state = State.RESTING
 				w.rest_timer = Config.BUILDER_REST
+
+
+## Claims the best job it can walk to (within `max_dist` tiles) and heads
+## out; a job it finds no way to is given back (skipped for a while) and the
+## next one tried. False if there is none.
+func _take_next(max_dist := INF) -> bool:
+	var c := w.village.construction
+	for _i in c.queue.size():
+		var s := c.claim(w, max_dist)
+		if s == null:
+			return false
+		if w.head_out(s.work_tile()):
+			site = s
+			return true
+		c.release(s, true)
+	return false
 
 
 func _site_valid() -> bool:
@@ -79,18 +94,17 @@ func status() -> String:
 
 ## Out in the field after a load: the next site from here, else home.
 func resume() -> void:
-	var s := w.village.construction.claim(w)
-	if s != null and w.head_out(s.work_tile()):
-		site = s
+	if _take_next():
 		state = State.TO_SITE
 		return
-	if s != null:
-		w.village.construction.release(s, true)
 	_go_home()
 
 
 func on_evade() -> void:
 	# The site keeps its progress; any builder can pick it up again later.
+	# Fled from too often, it drops a bucket (Construction.release).
+	if is_instance_valid(site) and site.builder == w:
+		w.village.construction.release(site, false, true)
 	release()
 	state = State.RESTING
 

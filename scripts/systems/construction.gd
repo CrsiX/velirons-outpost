@@ -1,7 +1,7 @@
 class_name Construction
 extends Node
-## Construction orders: validation, placing paid sites, and a FIFO job queue
-## that builders claim from.
+## Construction orders: validation, placing paid sites, and the job queue
+## that builders claim from (by priority: Config.BUILD_QUEUE, `claim`).
 
 signal changed
 
@@ -27,6 +27,18 @@ var queue: Array[Building] = []
 func setup(p_village: Village) -> void:
 	village = p_village
 	game = village.game
+	if not game.is_client:
+		game.waves.wave_finished.connect(func(_n: int) -> void:
+			for site in queue:
+				site.interrupts = 0)
+
+
+## A job joins the queue (its age counts from now).
+func enqueue(b: Building) -> void:
+	b.queued_at = game.clock
+	b.interrupts = 0
+	b.calm = 0.0
+	queue.append(b)
 
 
 ## "" if `kind` can be placed with its anchor on `tile`, else the reason.
@@ -97,7 +109,7 @@ func restore_ruin(ruin: RuinedTower, cost: Dictionary) -> Building:
 	var b := _new_building(kind, tile, true)
 	b.set_devastated(true)
 	b.start_repair(cost)
-	queue.append(b)
+	enqueue(b)
 	village.events.info("A builder will restore the %s (%s)" % [what, Config.cost_text(cost)])
 	Sfx.play("place")
 	changed.emit()
@@ -118,7 +130,7 @@ func place(kind: String, tile: Vector2i) -> Building:
 		return null
 	village.economy.spend(Config.BUILDINGS[kind]["cost"], "buildings")
 	var b := _new_building(kind, tile, false)
-	queue.append(b)
+	enqueue(b)
 	village.events.debug("place %s at %s for %s" % [b.label(), str(tile), Config.cost_text(Config.BUILDINGS[kind]["cost"])])
 	Sfx.play("place")
 	changed.emit()
@@ -130,7 +142,7 @@ func order_rebuild(hut: Hut) -> bool:
 		return false
 	hut.paid_share = Config.REPAIR_SHARE  # (a cancel refunds from what was paid)
 	hut.start_rebuild()
-	queue.append(hut)
+	enqueue(hut)
 	village.events.debug("order rebuilding %s" % hut.label())
 	Sfx.play("place")
 	changed.emit()
@@ -161,27 +173,94 @@ func rebuild_all_huts() -> int:
 	return n
 
 
-## Next unclaimed site, or null: huts being rebuilt first (in order), then
-## everything else in order. Only a builder (or the hero) picking a new job
-## asks, also after fleeing; work under way is never taken away.
-func claim(builder: Node) -> Building:
-	var now := Time.get_ticks_msec() / 1000.0
-	for huts_first in [true, false]:
-		for site in queue:
-			if (site is Hut) != huts_first or site.builder != null or site.get_meta("unreachable_until", 0.0) > now:
-				continue
-			site.builder = builder
-			village.events.debug("%s starts work on %s" % [builder.label(), site.label()])
-			changed.emit()
-			return site
-	return null
+## The best job for `builder` (Config.BUILD_QUEUE), claimed for it; or null.
+## Only jobs within `max_dist` tiles of it (a builder going straight on from
+## one job to the next). Only a builder (or the hero) picking a new job asks,
+## also after fleeing; work under way is never taken away.
+func claim(builder: Node, max_dist := INF) -> Building:
+	var from: Vector2 = Vector2(village.center) if builder.at_home else builder.grid_pos
+	var best: Building = null
+	var best_key := []
+	for site in queue:
+		if site.builder != null or site.get_meta("unreachable_until", -INF) > game.clock:
+			continue
+		var d := Vector2(site.tile).distance_to(from)
+		if d > max_dist or in_danger(site) or not game.world.pathing.can_reach(village.center, site.work_tile()):
+			continue
+		var key := [bucket(site), 0 if site.work_fraction() > 0.0 else 1,
+			d - (game.clock - site.queued_at) / 60.0 * float(Config.BUILD_QUEUE["age_tiles_per_min"])]
+		if best == null or key < best_key:
+			best = site
+			best_key = key
+	if best != null:
+		best.builder = builder
+		village.events.debug("%s starts work on %s" % [builder.label(), best.label()])
+		changed.emit()
+	return best
 
 
-func release(site: Building, unreachable: bool) -> void:
+## A job's bucket (Config.BUILD_QUEUE "buckets"; lower goes first), one lower
+## while it is demoted (interrupted too often).
+func bucket(site: Building) -> int:
+	var buckets: Array = Config.BUILD_QUEUE["buckets"]
+	var i := buckets.size() - 1
+	for j in buckets.size():
+		if site.kind in buckets[j] or "*" in buckets[j]:
+			i = j
+			break
+	if site.interrupts >= int(Config.BUILD_QUEUE["demote_after"]):
+		i = mini(i + 1, buckets.size() - 1)
+	return i
+
+
+## A visible enemy (one that scares villagers) near the job.
+func in_danger(site: Building) -> bool:
+	var r: float = Config.BUILD_QUEUE["danger_radius"]
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var e := node as Enemy
+		if e.dead or not e.spec().get("scares", true) or e.grid_pos.distance_to(Vector2(site.tile)) > r:
+			continue
+		if game.fog.is_watched_by(village.id, e.current_tile()):
+			return true
+	return false
+
+
+## The builder gives the job back: `unreachable` (it can't get there: skipped
+## for a while), `interrupted` (it fled: counts towards demotion).
+func release(site: Building, unreachable: bool, interrupted := false) -> void:
 	site.builder = null
 	if unreachable:
-		site.set_meta("unreachable_until", Time.get_ticks_msec() / 1000.0 + 5.0)
+		site.set_meta("unreachable_until", game.clock + float(Config.BUILD_QUEUE["unreachable_retry"]))
+	if interrupted:
+		site.interrupts += 1
+		site.calm = 0.0
+		village.events.debug("%s interrupted (%d)" % [site.label(), site.interrupts])
 	changed.emit()
+
+
+## Demoted jobs come back once no enemy has been near them for a while.
+func _process(delta: float) -> void:
+	if game == null or game.is_client:
+		return
+	for site in queue:
+		if site.interrupts < int(Config.BUILD_QUEUE["demote_after"]):
+			continue
+		if _enemy_near(site):
+			site.calm = 0.0
+			continue
+		site.calm += delta
+		if site.calm >= float(Config.BUILD_QUEUE["demote_calm"]):
+			site.interrupts = 0
+			village.events.debug("%s back to its priority" % site.label())
+
+
+func _enemy_near(site: Building) -> bool:
+	var r: float = Config.BUILD_QUEUE["danger_radius"]
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var e := node as Enemy
+		if not e.dead and e.grid_pos.distance_to(Vector2(site.tile)) <= r:
+			return true
+	return false
 
 
 ## A tower or barracks: its next level, for building material and a builder's time.
@@ -190,7 +269,7 @@ func order_upgrade(tower: Building) -> bool:
 		return false
 	village.events.debug("order upgrade of %s to level %d for %s" % [tower.label(), tower.level + 1, Config.cost_text(tower.upgrade_cost())])
 	tower.start_upgrade()
-	queue.append(tower)
+	enqueue(tower)
 	Sfx.play("place")
 	changed.emit()
 	return true
@@ -206,7 +285,7 @@ func order_repair(b: Building) -> bool:
 		return false
 	village.events.debug("order repair of %s for %s" % [b.label(), Config.cost_text(cost)])
 	b.start_repair(cost)
-	queue.append(b)
+	enqueue(b)
 	Sfx.play("place")
 	changed.emit()
 	return true
@@ -255,7 +334,7 @@ func order_tear_down(b: Building) -> bool:
 		village.population.free_workplace(b)
 	if b is Farm:
 		(b as Farm).rats.clear()
-	queue.append(b)
+	enqueue(b)
 	Sfx.play("place")
 	changed.emit()
 	return true

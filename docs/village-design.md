@@ -124,9 +124,26 @@ in docs/multiplayer-design.md.
     `EVADE_RADIUS` 4.5 tiles. If there is one, they shout "Enemies!", drop or pause the job,
     run home and then rest `EVADE_REST` 6 s.
 - **Builder** (`BuildJob`, shared with the hero at half speed):
-  - claims the oldest hut rebuild in the queue, else the oldest other job (FIFO;
-    `Construction.claim`), walks there and builds. Only picking a new job looks at this (also
-    after fleeing, which gives the job back); work under way is never taken away;
+  - claims the best job in the build queue (`Construction.claim`, `Config.BUILD_QUEUE`), walks
+    there and builds. Only picking a new job looks at this (also after fleeing, which gives the
+    job back); work under way is never taken away. The rules:
+    - **Only jobs it can do now:** one it can walk to from the village (`Pathing.can_reach`; a
+      job it still finds no way to is given back and skipped for `unreachable_retry` 5 s, and
+      the next one is tried at once), and none with a visible enemy (one that scares villagers,
+      on a tile the village watches) within `danger_radius` 5 tiles (`Construction.in_danger`).
+    - **Buckets** (`buckets`, `Construction.bucket`): `[["hut"], ["gate", "wall"], ["*"]]`,
+      hut rebuilds first, then gates and walls (built, repaired or upgraded), then everything
+      else (wall towers too). Each bucket lists building kinds; `"*"` takes any kind.
+    - **Within a bucket:** jobs already started (`work_fraction() > 0`) first, then the lowest
+      score: tiles from the builder (from the village centre while at home) minus
+      `age_tiles_per_min` 10 per minute in the queue (`Building.queued_at`, set by
+      `Construction.enqueue`), so the nearest goes first but an old job wins in the end.
+    - **Demotion:** a job the builder fled from (`BuildJob.on_evade` → `release(..., interrupted)`,
+      `Building.interrupts`) `demote_after` 2 times drops one bucket (the last stays last). It
+      is back when its wave is over, or after `demote_calm` 30 s without any enemy within
+      `danger_radius` of it (`Building.calm`). The queue time and the count are saved.
+  - **Chaining:** done with a job, it takes the best next one within `chain_radius` 12 tiles and
+    walks straight there; otherwise home to rest (`BuildJob._take_next`).
   - one second of work is one second of the building's `build_time`;
   - walks home and rests. A site left halfway keeps its progress.
   - The same job does tower and barracks upgrades, ruined-tower restorations, hut rebuilds and

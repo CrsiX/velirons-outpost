@@ -871,6 +871,29 @@ const NO_BUILDER_DELAY := 5.0
 const FOOD_SHORTAGE_DELAY := 5.0
 
 const BUILDER_REST := 3.0
+## How builders (and the hero in Build mode) pick their next job from the
+## build queue (Construction.claim; docs/village-design.md):
+## - only jobs they can walk to from the village, and none with a visible
+##   enemy within "danger_radius" tiles;
+## - by bucket: the first bucket whose kinds list the building's kind ("*":
+##   any kind), earlier buckets first;
+## - within a bucket, jobs already started first, then the lowest score:
+##   tiles from the builder minus "age_tiles_per_min" per minute in the queue;
+## - a job interrupted "demote_after" times (builders fled from it) drops one
+##   bucket, until its wave is over or no enemy has been near it for
+##   "demote_calm" seconds;
+## - a job found unreachable is skipped for "unreachable_retry" seconds;
+## - a builder who finishes a job walks straight on to the next one if it is
+##   within "chain_radius" tiles, instead of going home to rest first.
+const BUILD_QUEUE := {
+	"buckets": [["hut"], ["gate", "wall"], ["*"]],
+	"age_tiles_per_min": 10.0,
+	"danger_radius": 5.0,  # (a little more than EVADE_RADIUS)
+	"demote_after": 2,
+	"demote_calm": 30.0,
+	"unreachable_retry": 5.0,
+	"chain_radius": 12.0,
+}
 ## Tearing down a placed building (not huts): a builder takes this share of
 ## its build time, and this share of the building material spent on it
 ## (price plus paid upgrades, rounded down) comes back.

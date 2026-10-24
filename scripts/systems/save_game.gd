@@ -327,6 +327,8 @@ static func _building_state(bd: Building) -> Dictionary:
 		"c": bd.complete, "p": bd.progress, "ps": bd.paid_share, "up": bd.upgrading, "upp": bd.upgrade_progress,
 		"upt": bd.upgrade_time, "td": bd.tearing_down, "tdp": bd.teardown_progress,
 		"lvl": bd.level, "hp": bd.hp, "dv": bd.devastated}
+	if bd.has_work():
+		d["q"] = [bd.queued_at, bd.interrupts]  # (its place in the build queue's priorities)
 	if bd.repairing:
 		d["rp"] = {"p": bd.repair_progress, "t": bd.repair_time, "h": bd.repair_hp, "c": bd.repair_paid}
 	if bd is Hut:
@@ -561,6 +563,9 @@ static func _apply_building(bd: Building, d: Dictionary) -> void:
 		bd.repair_paid = (rp["c"] as Dictionary).duplicate()
 	if bd is Farm:
 		(bd as Farm).stored = float(d.get("st", 0.0))
+	var q: Array = d.get("q", [0.0, 0])
+	bd.queued_at = float(q[0])
+	bd.interrupts = int(q[1])
 	if bool(d["td"]):
 		bd.set_tearing_down(true)
 		bd.teardown_progress = float(d["tdp"])

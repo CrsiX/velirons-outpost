@@ -19,6 +19,12 @@ var progress := 0.0
 var build_time := 1.0
 ## Builder currently assigned to this site (if any).
 var builder: Node = null
+## Its job in the build queue (Construction.claim): when it was queued
+## (Game.clock), how often builders fled from it, and for how long no enemy
+## has been near it since.
+var queued_at := 0.0
+var interrupts := 0
+var calm := 0.0
 ## Share of the kind's listed price that was really paid for the construction
 ## under way.
 var paid_share := 1.0
