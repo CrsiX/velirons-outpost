@@ -17,6 +17,11 @@ const SIDEBAR_W := 320.0
 const SPEED_ICONS: Array[String] = ["icon_play", "icon_fast", "icon_fastest", "icon_pause"]
 const TOPBAR_H := 64.0
 const DRAG_THRESHOLD := 12.0
+## Hotkeys for the hero's modes (Support has none: pick it in her panel).
+const HERO_MODE_KEYS := {
+	KEY_P: Hero.Mode.DEFEND, KEY_B: Hero.Mode.BUILD, KEY_E: Hero.Mode.EXPLORE,
+	KEY_G: Hero.Mode.GATHER, KEY_Y: Hero.Mode.TRAIN, KEY_R: Hero.Mode.REST,
+}
 ## The open portrait sheet takes at most this share of the screen's height
 ## (but always shows SHEET_MIN_CONTENT px of entries); the rest scrolls.
 const SHEET_MAX := 0.5
@@ -271,6 +276,7 @@ func setup(p_game: Game) -> void:
 	await game.build_step()
 	_build_info_panel()
 	_build_mode_panel()
+	_build_keys_panel()
 	await game.build_step()
 	_build_toasts()
 	_build_builder_warning()
@@ -692,7 +698,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			toggle_fullscreen()
 		KEY_ESCAPE:
 			escape()
-		KEY_SPACE, KEY_P:
+		KEY_SPACE:
 			toggle_pause()
 		KEY_T:
 			if not _settings.visible and not library.visible:
@@ -707,9 +713,171 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if not _settings.visible:
 				go_to_hero()
 				_follow_hero = true
+		KEY_F1:
+			toggle_keys_help(not _keys_panel.visible)
 		_:
-			return
+			if _settings.visible or _overlay.visible or not _game_key(event as InputEventKey):
+				return
 	get_viewport().set_input_as_handled()
+
+
+## The keys that act on the game (not while the settings or the game-over
+## screen are open). True if `event` was one of them.
+func _game_key(event: InputEventKey) -> bool:
+	match event.keycode:
+		KEY_Z:
+			go_to_village()
+		KEY_U:
+			hotkey_upgrade()
+		KEY_Q:
+			hotkey_repair()
+		KEY_V:
+			toggle_people(not _people_panel.visible)
+		KEY_N:
+			next_idle_workplace()
+		KEY_TAB:
+			cycle_units(-1 if event.shift_pressed else 1)
+		KEY_R when game.selected_unit != null:
+			var u := game.selected_unit
+			if _do("withdraw_unit", {"unit": u.nid})["ok"]:
+				game.deselect()
+		_:
+			if not HERO_MODE_KEYS.has(event.keycode):
+				return false
+			hotkey_hero_mode(HERO_MODE_KEYS[event.keycode])
+	return true
+
+
+## Z: the view moves to the village centre.
+func go_to_village() -> void:
+	game.events.debug("camera: go to the village")
+	game.camera.focus(Iso.tile_to_world(game.player_village.center))
+
+
+## P / B / E / G / Y / R: the hero switches to that mode now (like her panel's
+## mode buttons; a toast says so, since the panel may be closed).
+func hotkey_hero_mode(mode: int) -> void:
+	if game.hero == null:
+		return
+	if _do("hero_mode", {"mode": mode})["ok"]:
+		toast("Hero: %s" % Hero.MODE_WORDS[mode])
+		_refresh_hero()
+
+
+## U: the selected unit (on its post, or the reserve card picked in the Army
+## tab) gets its upgrade dialog; a selected tower, barracks, gate or wall is
+## upgraded (a builder's job in the build queue), like the *Upgrade* button in
+## its panel.
+func hotkey_upgrade() -> void:
+	var b := game.selected
+	var u := game.selected_unit
+	if u == null and not (b is Tower or b is Barracks or b is StaticPiece):
+		u = _selected_unit
+	if u != null:
+		if u.upgrade_options().is_empty():
+			toast("%s is at its highest level" % u.display_name(), UiTheme.BAD)
+		else:
+			open_upgrade(u)
+		return
+	if not (b is Tower or b is Barracks or b is StaticPiece) or b.village != game.player_village:
+		return
+	if b.level >= b.max_level():
+		toast("Already at its highest level", UiTheme.BAD)
+		return
+	if b.upgrading:
+		toast("Upgrade already ordered", UiTheme.BAD)
+		return
+	if not b.can_upgrade():
+		toast("Can't upgrade that now", UiTheme.BAD)
+		return
+	if not game.economy.can_afford(b.upgrade_cost()):
+		toast("Not enough for the upgrade (%s)" % Config.cost_text(b.upgrade_cost()), UiTheme.BAD)
+		return
+	if _do("upgrade_tower", {"building": b.nid})["ok"]:
+		_refresh_selected()
+
+
+## Q: the selected building is repaired (a ruined hut rebuilt), like the
+## *Repair* button in its panel.
+func hotkey_repair() -> void:
+	var b := game.selected
+	if b == null or b is MapObject or b.village != game.player_village:
+		return
+	var r := _do("rebuild_hut" if b is Hut and (b as Hut).ruined else "repair", {"building": b.nid})
+	if r["ok"]:
+		_refresh_selected()
+
+
+func _refresh_selected() -> void:
+	_info_signature = ""
+	if game.selected:
+		show_info(game.building_info(game.selected))
+
+
+## Tab / Shift+Tab: the next (previous) unit on a post (towers, barracks,
+## training grounds), clockwise round the village from the north, is
+## selected and the view centred on it. Units walking, downed or in the
+## reserve have no post and are left out.
+func cycle_units(step: int) -> void:
+	var units := posted_units()
+	if units.is_empty():
+		return
+	var i := units.find(game.selected_unit)
+	i = (0 if step > 0 else units.size() - 1) if i < 0 else posmod(i + step, units.size())
+	var u := units[i]
+	game.select_unit(u)
+	game.camera.focus(unit_position(u))
+
+
+## The player's units on a post, clockwise round the village centre (on the
+## screen) from the north; units on one post by their number.
+func posted_units() -> Array[MilitaryUnit]:
+	var units: Array[MilitaryUnit] = game.army.stationed().filter(func(u: MilitaryUnit) -> bool: return is_instance_valid(u.post))
+	var c := Iso.tile_to_world(game.player_village.center)
+	var angle := func(u: MilitaryUnit) -> float:
+		var d := u.post.position - c
+		return fposmod(atan2(d.y, d.x) + PI / 2.0, TAU)
+	units.sort_custom(func(a: MilitaryUnit, b: MilitaryUnit) -> bool:
+		if a.post != b.post:
+			return angle.call(a) < angle.call(b)
+		return a.id < b.id)
+	return units
+
+
+## Where a unit is seen: its body while it is out (a sortie), else its figure
+## on its post.
+func unit_position(u: MilitaryUnit) -> Vector2:
+	if u.out and is_instance_valid(u.walker) and u.walker is Node2D:
+		return (u.walker as Node2D).position
+	var r := u.post.unit_rect(u)
+	return u.post.position + (r.get_center() if r.has_area() else Vector2.ZERO)
+
+
+## N: the next workplace without its worker (a farm without a farmer, a camp
+## without a forester, a free mine once miners are known), nearest the village
+## first, is selected and the view moved there. Nothing if there is none.
+func next_idle_workplace() -> void:
+	var list := idle_workplaces()
+	if list.is_empty():
+		return
+	var b: Building = list[(list.find(game.selected) + 1) % list.size()]
+	game.select(b)
+	game.camera.focus(b.position)
+
+
+func idle_workplaces() -> Array[Building]:
+	var v := game.player_village
+	var list: Array[Building] = []
+	for b in v.buildings():
+		if b is Workplace and b.complete and b.working() and not b.tearing_down and (b as Workplace).worker_role() != "" and not is_instance_valid((b as Workplace).worker):
+			list.append(b)
+	if game.is_unlocked("miner"):
+		for o in game.world.map_objects:
+			if o is Mine and (o as Mine).is_free() and o.is_found_by(v):
+				list.append(o)
+	var c := Vector2(v.center)
+	list.sort_custom(func(a: Building, b: Building) -> bool: return Vector2(a.tile).distance_squared_to(c) < Vector2(b.tile).distance_squared_to(c))
+	return list
 
 
 ## + / -: zoom around the middle of the screen (held down, it goes on).
@@ -760,6 +928,7 @@ func _register_popups() -> void:
 	register_popup(_send_unit_panel, func() -> void: _send_unit_panel.visible = false)
 	register_popup(_upgrade_panel, func() -> void: _upgrade_panel.visible = false)
 	register_popup(_confirm_panel, func() -> void: _confirm_panel.visible = false)
+	register_popup(_keys_panel, func() -> void: toggle_keys_help(false))
 	register_popup(_settings, close_settings)
 	register_popup(_save_panel, func() -> void: _show_save(false))
 	if _debug_panel:
@@ -875,6 +1044,9 @@ func _build_hero_panel() -> void:
 		b.expand_icon = true
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.tooltip_text = Hero.MODE_NAMES[i]
+		for k: int in HERO_MODE_KEYS:
+			if HERO_MODE_KEYS[k] == i:
+				b.tooltip_text += " (%s)" % OS.get_keycode_string(k)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(func() -> void:
 			_do("hero_mode", {"mode": i})
@@ -2399,6 +2571,56 @@ func _build_upgrade_dialogs() -> void:
 	no.pressed.connect(func() -> void: _confirm_panel.visible = false)
 	c.add_child(no)
 	_confirm_panel.visible = false
+
+
+## F1: every hotkey, in a dialog (F1 again, Close or Esc close it).
+const KEYS_HELP: Array[Array] = [
+	["Space", "Pause, and back to the speed before"],
+	["1 / 2 / 3", "Speed 1x / 2x / 4x"],
+	["WASD, arrows", "Move the view"],
+	["+ / -, wheel", "Zoom"],
+	["H", "View to the hero (held: follow her)"],
+	["Z", "View to the village centre"],
+	["Tab / Shift+Tab", "Next / previous unit on a post"],
+	["N", "Next farm, camp or mine without its worker"],
+	["P B E G Y R", "Hero: Defend, Build, Explore, Gather, Train, Rest"],
+	["U", "Upgrade the selected unit or building"],
+	["R", "Withdraw the selected unit (else: hero rests)"],
+	["Q", "Repair the selected building"],
+	["V", "Villager list"],
+	["T", "Statistics"],
+	["Esc", "Close the newest popup, or the settings"],
+	["F11", "Full screen"],
+	["F1", "This list"],
+]
+var _keys_panel: PanelContainer
+
+
+func _build_keys_panel() -> void:
+	_keys_panel = PanelContainer.new()
+	_root.add_child(_keys_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	_keys_panel.add_child(v)
+	v.add_child(_label("Hotkeys", 24, UiTheme.GOLD))
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 18)
+	grid.add_theme_constant_override("v_separation", 4)
+	v.add_child(grid)
+	for row in KEYS_HELP:
+		grid.add_child(_label(row[0], 16, UiTheme.GOLD))
+		grid.add_child(_label(row[1], 16))
+	var close := _button("Close", Vector2(0, 44))
+	close.pressed.connect(func() -> void: toggle_keys_help(false))
+	v.add_child(close)
+	_keys_panel.visible = false
+
+
+func toggle_keys_help(on: bool) -> void:
+	_keys_panel.visible = on
+	if on:
+		_fit_dialog(_keys_panel)
 
 
 # --- event log field -------------------------------------------------------------------

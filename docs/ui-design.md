@@ -348,7 +348,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
   fast, fastest and pause. Every change is a `set_speed` command.
 - **Applying:** `Game.apply_speed` sets `Engine.time_scale` for a running speed. Speed 0 pauses the
   scene tree (`get_tree().paused`) and leaves `time_scale` as it was. "Paused" shows as a toast.
-- **Space** (or **P**) pauses and remembers the speed. Pressed again it goes back to it, or to 1× if
+- **Space** pauses and remembers the speed. Pressed again it goes back to it, or to 1× if
   the game was paused with the button. Ignored while the settings, the library or the statistics are
   open.
 - **1 / 2 / 3** (also on the keypad) set 1×, 2× and 4× (`Hud.hotkey_speed`); ignored while the
@@ -382,6 +382,31 @@ Big touch targets everywhere, so mouse and fingers work the same.
   and the game goes on at its speed before (paused before: it stays paused). On the game-over
   screen Esc does nothing.
 - **H** moves the view to the hero (see the hero panel's *Go to hero*); held down, it keeps her in the centre of the view every frame until it is let go (`Hud._follow_hero`).
+- **Z** moves the view to the village centre (`Hud.go_to_village`).
+- **The hero's modes** (`Hud.HERO_MODE_KEYS`, `hotkey_hero_mode`): **P** Defend ("protect"), **B**
+  Build, **E** Explore, **G** Gather, **Y** Train, **R** Rest; Support has no key. Each sends the
+  `hero_mode` command, like her panel's mode buttons (their tooltips name the key), and a toast says
+  "Hero: exploring".
+- **U** (`Hud.hotkey_upgrade`): a selected unit (on its post, or else the reserve card picked in the
+  Army tab) gets its upgrade dialog; a selected tower, barracks, gate or wall is upgraded (the
+  `upgrade_tower` command, a job in the build queue), like its panel's *Upgrade* button. A toast says
+  why not (highest level, already ordered, not enough material).
+- **Q** (`Hud.hotkey_repair`) repairs the selected building (a ruined hut: rebuilds it), like its
+  panel's *Repair*.
+- **R** with a unit selected withdraws it to the reserve (and deselects it); otherwise R is the
+  hero's Rest.
+- **Tab / Shift+Tab** (`Hud.cycle_units`) select the next / previous unit on a post (towers,
+  barracks, training grounds) and centre the view on it (its body while out on a sortie). The order
+  (`Hud.posted_units`) is clockwise on the screen round the village centre, starting in the north;
+  units on one post by their number. Units walking, downed or in the reserve are left out.
+- **N** (`Hud.next_idle_workplace`) selects the next workplace without its worker (a farm without a
+  farmer, a camp without a forester, a free mine the village has found once miners are known),
+  nearest the village centre first, and moves the view there. Nothing if there is none.
+- **V** opens and closes the villager list.
+- **F1** shows every hotkey in a dialog (`Hud.KEYS_HELP`; F1 again, Close or Esc close it). Keep
+  that list in step when a key is added.
+- The game keys (Z, U, Q, R, V, N, Tab, the hero's modes) do nothing while the settings or the
+  game-over screen are open (`Hud._game_key`).
   - **Firefox rule:** panning goes by the change of the pointer's position since the last event
     (`_last_pos`), never by the event's `relative`. Firefox reports `movementX/Y` wrongly for
     touch-made mouse events, which used to fling the map away. After a pinch, the next motion only

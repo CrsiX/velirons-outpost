@@ -1004,13 +1004,94 @@ func _test_retire() -> void:
 	hud._refresh_people()
 
 
-# --- hotkeys: 1 / 2 / 3, P, + / -, H, Esc --------------------------------------------------
+# --- hotkeys: 1 / 2 / 3, Space, + / -, H, Z, the hero's modes, U, Esc --------------------------------------------------
 
 func _press(key: Key) -> InputEventKey:
 	var e := InputEventKey.new()
 	e.keycode = key
 	e.pressed = true
 	return e
+
+
+## Tab / Shift+Tab through the posted units; U and R on a unit, U on a reserve
+## card; Q, V, N and F1.
+func _test_unit_keys() -> void:
+	var hud := game.hud
+	var v := game.player_village
+	game.economy.add("gold", 500)
+	var corners: Array = v.buildings().filter(func(b: Building) -> bool: return b.kind == "wall_tower" and (b as Tower).free_slot() >= 0)
+	var a1 := game.army.recruit("archer")
+	var a2 := game.army.recruit("archer")
+	for pair in [[a1, corners[0]], [a2, corners[1]]]:
+		game.army.station(pair[0], pair[1])
+		game.army._on_arrived((pair[0] as MilitaryUnit).walker)
+	var order := hud.posted_units()
+	hud._unhandled_key_input(_press(KEY_TAB))
+	var first := game.selected_unit
+	var cam_ok := game.camera.position.distance_to(hud.unit_position(first)) < 2.0
+	hud._unhandled_key_input(_press(KEY_TAB))
+	var second := game.selected_unit
+	var back := _press(KEY_TAB)
+	back.shift_pressed = true
+	hud._unhandled_key_input(back)
+	check(order.size() >= 2 and first == order[0] and second == order[1] and game.selected_unit == first and cam_ok, "Tab selects the next posted unit and centres the view on it; Shift+Tab goes back")
+	hud._unhandled_key_input(_press(KEY_U))
+	check(hud._upgrade_panel.visible and hud._upgrade_unit == first, "U on a selected unit opens its upgrade dialog")
+	hud._upgrade_panel.visible = false
+	var mode: int = game.hero.mode
+	hud._unhandled_key_input(_press(KEY_R))
+	check(first.state != MilitaryUnit.State.STATIONED and game.selected_unit == null and game.hero.mode == mode, "R withdraws the selected unit (and leaves the hero's mode alone)")
+	var a3 := game.army.recruit("archer")
+	hud._selected_unit = a3
+	game.deselect()
+	hud._unhandled_key_input(_press(KEY_U))
+	check(hud._upgrade_panel.visible and hud._upgrade_unit == a3, "U on a reserve card picked in the Army tab opens its upgrade dialog")
+	hud._upgrade_panel.visible = false
+	hud._selected_unit = null
+	for u: MilitaryUnit in [a1, a2]:
+		game.army.unstation(u)
+	# Q: repair the selected building.
+	var corner: Building = corners[2]
+	game.economy.add("materials", 500)
+	corner.hp = corner.max_hp() * 0.5
+	game.select(corner)
+	hud._unhandled_key_input(_press(KEY_Q))
+	check(corner.repairing, "Q orders the selected building's repair")
+	game.command("cancel_site", {"building": corner.nid})
+	corner.hp = corner.max_hp()
+	game.economy.add("materials", -500)
+	game.deselect()
+	# V: the villager list.
+	hud._unhandled_key_input(_press(KEY_V))
+	var opened := hud._people_panel.visible
+	hud._unhandled_key_input(_press(KEY_V))
+	check(opened and not hud._people_panel.visible, "V opens and closes the villager list")
+	# N: a workplace without its worker (whatever the earlier tests left: idle ones come first).
+	var idle_before := hud.idle_workplaces()
+	hud._unhandled_key_input(_press(KEY_N))
+	var first_ok := game.selected == (idle_before[0] if not idle_before.is_empty() else null)
+	game.deselect()
+	var w: Workplace = null
+	for b in v.buildings():
+		if b is Workplace and b.working() and (b as Workplace).worker_role() != "" and is_instance_valid((b as Workplace).worker):
+			w = b
+			break
+	var reached := false
+	if w:
+		game.command("unassign_worker", {"building": w.nid})
+		for i in hud.idle_workplaces().size():
+			hud._unhandled_key_input(_press(KEY_N))
+			if game.selected == w:
+				reached = game.camera.position.distance_to(w.position) < 2.0
+				break
+		game.command("assign_worker", {"building": w.nid})
+	check(first_ok and w != null and reached, "N picks the nearest workplace without its worker (none: nothing), and steps on to the next")
+	game.deselect()
+	# F1: the list of hotkeys.
+	hud._unhandled_key_input(_press(KEY_F1))
+	var shown := hud._keys_panel.visible and hud.top_popup() == hud._keys_panel
+	hud._unhandled_key_input(_press(KEY_ESCAPE))
+	check(shown and not hud._keys_panel.visible, "F1 shows the hotkeys; Esc closes them")
 
 
 func _test_hotkeys() -> void:
@@ -1021,10 +1102,27 @@ func _test_hotkeys() -> void:
 		hud._unhandled_key_input(_press(pair[0]))
 		speeds_ok = speeds_ok and Game.SPEEDS[hud._speed_index] == pair[1]
 	check(speeds_ok, "1 / 2 / 3 set the speed to 1x / 2x / 4x")
-	hud._unhandled_key_input(_press(KEY_P))
+	hud._unhandled_key_input(_press(KEY_SPACE))
 	var paused := Game.SPEEDS[hud._speed_index] == 0.0
-	hud._unhandled_key_input(_press(KEY_P))
-	check(paused and Game.SPEEDS[hud._speed_index] == 4.0, "P pauses, and P again goes back to 4x (like Space)")
+	hud._unhandled_key_input(_press(KEY_SPACE))
+	check(paused and Game.SPEEDS[hud._speed_index] == 4.0, "Space pauses, and Space again goes back to 4x")
+	# The hero's modes: P / B / E / G / Y / R.
+	var was_mode: int = game.hero.mode
+	var modes_ok := true
+	for pair in [[KEY_B, Hero.Mode.BUILD], [KEY_E, Hero.Mode.EXPLORE], [KEY_G, Hero.Mode.GATHER], [KEY_R, Hero.Mode.REST], [KEY_P, Hero.Mode.DEFEND]]:
+		hud._unhandled_key_input(_press(pair[0]))
+		modes_ok = modes_ok and game.hero.mode == pair[1]
+	check(modes_ok and Game.SPEEDS[hud._speed_index] == 4.0, "B / E / G / R / P switch the hero to Build / Explore / Gather / Rest / Defend (P no longer pauses)")
+	game.command("hero_mode", {"mode": was_mode})
+	# U: the selected wall tower is upgraded (queued for a builder).
+	var corner: Building = game.player_village.buildings().filter(func(b: Building) -> bool: return b.kind == "wall_tower" and b.can_upgrade())[0]
+	game.economy.add("materials", 500)
+	game.select(corner)
+	hud._unhandled_key_input(_press(KEY_U))
+	check(corner.upgrading and game.player_village.construction.queue.has(corner), "U orders the selected tower's upgrade")
+	game.command("cancel_site", {"building": corner.nid})
+	game.economy.add("materials", -500)
+	game.deselect()
 	# Zoom.
 	var cam := game.camera
 	cam.zoom = Vector2.ONE
@@ -1041,6 +1139,8 @@ func _test_hotkeys() -> void:
 	cam.focus(Iso.tile_to_world(game.player_village.center + Vector2i(15, 15)))
 	hud._unhandled_key_input(_press(KEY_H))
 	check(cam.position.distance_to(game.hero.position) < 2.0, "H centres the view on the hero")
+	hud._unhandled_key_input(_press(KEY_Z))
+	check(cam.position.distance_to(Iso.tile_to_world(game.player_village.center)) < 2.0, "Z centres the view on the village")
 	# H held: the view follows her; let go, it stays where it is.
 	var key := _press(KEY_H)
 	Input.parse_input_event(key)
@@ -1055,6 +1155,7 @@ func _test_hotkeys() -> void:
 	game.hero.position += Vector2(-200, -100)
 	await frames(2)
 	check(not hud._follow_hero and cam.position == left_at, "H let go: the view stops following")
+	await _test_unit_keys()
 	# Esc: the newest popup first, as its Cancel / Close; then the settings.
 	for i in 10:
 		if hud.top_popup() == null:
