@@ -487,10 +487,13 @@ priests' trust comes only from holding the walls; the Legion marches on the vill
 the relic, the trust is won or lost in one rescue, and the leviathan stands between Brenna and the sword.
 
 **The map (new, replaces `drowned_abbey.json`):** a shore village by the sea, shaped differently from the standard 5x5 block, with a small
-**harbour** (piers, boats, nets, crates, a ferry bell). Inside the walls stands a **new church**, bigger and newer than the drowned abbey (a
-campaign building with its own art; the priests' house of worship, and where the relic is kept once it is home). The abbey's island lies in a
-lake **closer to the village** than today, reached by a causeway on **straight** bridges (no bends on bridges or fords). **Deep water joins the
-sea at the harbour to the lake**, so the octopus and the leviathan can move between them. Made with the map tool first, then edited by hand in
+**harbour** (piers, boats, nets, crates, a ferry bell), a broad sandy shore with a few sandbanks off it, reached through shallow water. Inside the walls stands a **new church**, bigger and newer than the drowned abbey (a
+campaign building with its own art; the priests' house of worship, and where the relic is kept once it is home). The abbey's island lies in
+the middle of a **broad river** (3 to 5 tiles of water, meandering a little) that runs from the north edge down to the sea beside the
+harbour, so the octopus and the leviathan can move between them. The island can be reached **only from the village's side**, over one
+**straight** bridge (no bends on bridges or fords). The far bank is joined to the rest by one road with a bridge north of the island,
+winding round the mountains in the far north-east from the map edge there; enemies may come that way too. The Legion comes down a road from the north edge
+on the village's side, so towers by the village can fight it on its way to the island. Made with the map tool first, then edited by hand in
 the editor (from then on only targeted edits to the file).
 
 **The people:** Pell (must not die), the eldest priest (unnamed) and the other priests. The priests are no longer hidden: they walk their
@@ -505,7 +508,8 @@ can be in four places: in the crypt, carried (by Brenna or by Lysa), lying on th
 
 **The octopus rescue (after wave 4):** between waves 4 and 5 a priest (not the eldest) walks down to the harbour. The guard octopus leaves the
 abbey and grabs him. He has far more HP than a villager and is **held in shallow water for about 20 s** *(tune)* before he is pulled into deep
-water and drowns. A countdown shows over him and on the card. Cutting the arm (towers, ranged units, Brenna) frees him. Afterwards the octopus
+water and drowns. A countdown shows over him and on the card. Cutting the arm (towers, ranged units, Brenna) frees him; in this scenario
+towers and units go for an arm holding one of ours before anything else, the octopus itself included. Afterwards the octopus
 goes back to guard the abbey (and is in Brenna's way when she crosses). This decides the branch:
 
 - **Rescued:** the eldest comes to the gate and tells what the abbey hides (the Hand; why they hid it; vampires in the crypt; something bigger
@@ -1146,7 +1150,8 @@ The game has none of this yet, except where noted:
   (a scripted grab whose arm holds its catch in the shallows for a while); `Treasure.seal_hp` / `seal_max` (a seal enemies break, with a
   bar) and `blocked` (why an open treasure can't be looted now); a dropped relic ("sack" with an `"item"`) drawn as `relic_sword`;
   `Resident.start_rounds` (new rounds at once); `ScenarioRunner.hero_moves_out` (a tent as her home) and `keep_in_sight` (an observer
-  following a story figure); `Scenario.can_win` (more than the shown objectives); a cutscene `"camera"` step may be a Callable.
+  following a story figure); `Scenario.can_win` (more than the shown objectives); an objective's `"gone"` (once it holds, the objective
+  is hidden for good and no longer counted: a goal only for the start); a cutscene `"camera"` step may be a Callable.
 
 ### 7.14 Scenario 8 as built (`scenario_8.gd`)
 
@@ -1178,34 +1183,47 @@ Built after the rework of §9a.
 
 - **Map:** `data/maps/drowned_abbey.json` (*The Drowned Abbey*; `make_scenario_map.gd -- 9`, laid out by `tools/abbey_map.gd`): a
   generated temperate map (seed 937167274) for the land, its roads, village and objects taken out, and laid over it: the sea along the south
-  edge (its shore wandering, straight in front of the harbour); the village at (37, 46), a walled 9x7 block (four gates, 9 huts, the
-  church's 3x3 in its north-east corner, centre (39, 45)); a road from the south gate down to the quay at the water; straight north of the
-  north gate the abbey's island (land 5.5, lake 10.5 tiles, its shore wandering) with the abbey (2x2) and a camp of 2 vampires and a skeleton
-  across the road; on the island two ruined watchtowers (by its bridges) and a ruined barracks, abandoned (`ISLAND_RUINS`: the hero
-  claims them, builders restore them, so the abbey can be held even without towers round the lake; a hint says so once the rescue is
-  over); a deep channel winding from the lake down the east side into the sea; roads to the north (the Legion's), west and east
-  edges; water spawns in the sea and the lake. Roads only turn on land: a water tile where one turns becomes land, so every bridge and ford
-  runs straight. The generated treasures, camps and mines that still fit (16 tiles from the village, off the lake) stay.
+  edge (its shore wandering, straight in front of the harbour); the village at (32, 46), a walled 9x7 block (four gates, 9 huts, the
+  church's 3x3 in its north-east corner, centre (34, 45)); a road from the south gate down to the quay at the water; a broad river
+  (`river_x`, `river_half`: its middle swinging 3.5 tiles round column 47, a deep middle of 1 to 3 tiles and a shallow tile each side, 3 to 5
+  tiles of water) from the north edge into the sea east of the harbour, parting round the abbey's island at (47, 37) (an oval, land 4.2 x 6.5
+  tiles, its shore wobbling; the arms round it 3 x 4 tiles, at least a tile of deep water everywhere); the only way onto the island a road
+  from the east gate up the bank (column 38) and over one straight stone bridge from bank to bank (a ford running on from a bridge becomes
+  part of it). The far bank is reached only by the east road: from the east edge in the north-east corner, winding round the mountains
+  there (`EAST_ROAD`), over the river on a straight bridge on row 20 (north of the island) and on to the north road; enemies come
+  that way too (its edge spawn). On the island the abbey (2x2), a camp of 2 vampires and a skeleton beside it, two ruined
+  watchtowers either side of the bridge's end and a ruined barracks, abandoned (`ISLAND_RUINS`: the hero claims them, builders restore them,
+  so the abbey can be held even without towers by the river; a hint says so once the rescue is over). Roads from the north edge (the
+  Legion's: it comes down the village's bank, past the village's towers, and turns off across the open bank to the bridge) and the west edge;
+  water spawns in the sea (two) and up the river. Roads only turn on land: a water tile where one turns becomes land, so every bridge and
+  ford runs straight. The shore is a broad beach: a beach by the water and sand behind it (steppe ground) up to 2 to 4 tiles in
+  (`BEACH_DEPTH`, its trees felled), and three sandbanks off it (`SANDBANKS`), each in a rim of shallow water with a shallow ford to
+  the beach. The beacon's spot (the scenario's `BEACON_OFFSET` from the quay) has its trees felled and a footpath to the nearest road.
+  The generated treasures, camps and mines that still fit (16 tiles from the village, away from the river and the island) stay, each
+  with a footpath to the nearest road it can get to.
 - **Baseline:** Easy, enemies at 1.15; 300 gold, 170 food, 260 material; two builders, a farmer, a forester, a gatherer, Pell and two
   priests (residents, unnamed: the eldest and a younger one; they live in the church, going in and out of its door,
-  `Resident.home_tile`, and walk their rounds: the eldest to the north gate, the younger to the quay);
+  `Resident.home_tile`, and walk their rounds: the eldest to the east gate, the younger to the quay);
   the farm and the camp; the **church** (`church`, `Church`, 3x3, campaign-only, `"inside"`: prebuilt inside the walls; it keeps the relic
   once it is home, a glow shows it); Pell's stall by the quay; barracks (level 2) with a shield bearer (7) and an archer (6), two watchtowers
-  (an archer 7 by the lake, an apprentice 6), a summoner and an acolyte (6) in the reserve. The harbour (scenery, `_build_harbour`: it blocks
+  (an archer 7 by the north road, an apprentice 6 by the bank road), a summoner and an acolyte (6) in the reserve. The harbour (scenery, `_build_harbour`: it blocks
   nothing): a pier, two moored boats, the ferry bell at the quay, crates, a net rack, mooring posts, upturned boats, fish racks and
-  driftwood along the beach; on the channel's bank near the sea a beacon, a wreck in the shallows beside it, gulls circling it. Brenna is level 14. No revive; Pell must not die.
-- **Wave 1** waits (it can be called) until the player mans a watchtower of theirs within 3 tiles of deep water (not a prebuilt one): then its 60 s
-  countdown starts. Ten listed waves, then the last again, bigger, until it is won; 45 s between waves.
+  driftwood along the beach; on the river's bank near the sea a beacon, a wreck in the shallows beside it, gulls circling it. Brenna is level 14. No revive; Pell must not die.
+- **Wave 1** waits (it can be called) until the player has built a watchtower of theirs within 3 tiles of deep water (finished; nobody
+  needs to be on it; not a prebuilt one): then its 60 s countdown starts. An objective says so ("Build a watchtower by the shore",
+  "then wave 1 comes"); ticked (or once wave 1 is called early), it stays 4 s (`WATCH_GOAL_STAYS`) and is then gone for good (an objective's `"gone"`: only for the start). Ten listed waves, then the last again, bigger, until it is won; 45 s between waves.
 - **The rescue** (after wave 4): a scene (the priest walks down to ring the ferry bell); the younger priest walks to the quay
   (`Resident.start_rounds`). Only when he gets there does the guard octopus come: moved to the deep water by the pier
   (`AquaBehavior.set_post`), it surfaces and grabs him (`OctopusBehavior.grab`), drags him off the quay into the shallows and holds him
   there, unharmed, while a second scene plays (the alarm). Its other arms keep still meanwhile (its `focus`: no towers smashed, nobody
-  else grabbed). Once that scene is over his `RESCUE_HOLD` 20 s run: the arm hurts him (he has 8x a villager's HP) and then pulls him
+  else grabbed). Towers and units go for an arm holding one of ours first (`Scenario.arms_first`: `Enemy.holding`, set by the octopus;
+  `MilitaryBehavior.enemies_near` puts those first), never the octopus while he is held. Once that scene is over his `RESCUE_HOLD` 20 s run: the arm hurts him (he has 8x a villager's HP) and then pulls him
   under. A countdown floats over him and stands in the objective. Cut free: the priests tell (the Hand, why they hid it, vampires,
   something in the deep, others know). Drowned: they shut Brenna out (`ScenarioRunner.hero_moves_out`: a tent near the west gate is her
   home; `Hero.barred`: she never sets foot in the village, a gate included, until they trust her: her ways go round it,
   `Pathing.find_path_outside`, and she leaves enemies inside alone) and say nothing. Either way the octopus goes back to the abbey.
-- **The Legion** (`LegionCompany`): a column with Lysa at its head (front of the wave's queue, 0.45 s apart) in wave 6 (rescued) or waves 6,
+- **The Legion** (`LegionCompany`): a column with Lysa at its head, always down the north road (its edge spawn on the north edge,
+  `_legion_spawn`; front of the wave's queue, 0.45 s apart) in wave 6 (rescued) or waves 6,
   7 and 8 (drowned; columns growing). It goes for the relic: the abbey's **seal** (600 HP, a bar; every soldier near the abbey strikes it),
   the relic on the ground (Lysa picks it up at once), the church (they break in as ever; Lysa searches it 8 s). Seal broken: the leviathan
   wakes and Lysa searches the crypt (8 s). With the relic she walks back to the edge she came from: there the scenario is lost. Beaten she
@@ -1214,7 +1232,7 @@ Built after the rework of §9a.
   Drowned branch: after wave 8 the priests let Brenna in (a talk), then unseal the crypt, or give her the relic if they hold it.
 - **The relic** (`mark["relic"]`: "crypt", "lysa", "ground", "hero", "home"): Brenna loots it in Explore mode and carries it home (never a
   gatherer: dropped loot holding an `"item"` is the hero's to carry; the
-  church keeps it); shut out, she takes it to the north gate and the priests take it in (it is theirs until they trust her).
+  church keeps it); shut out, she takes it to the east gate and the priests take it in (it is theirs until they trust her).
 - **The leviathan** (outside the waves; HP x5, damage x1.5) wakes when the crypt is first used: Brenna going in (it blocks the crypt,
   `Treasure.blocked`, until it is slain; she is driven off) or the seal broken. While it lives it keeps to the crypt while the relic is in it,
   goes for a boat coming in (and sinks it, goods lost), else blasts the shore near the village.

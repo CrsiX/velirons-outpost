@@ -50,6 +50,8 @@ var start_villagers := 0
 var _goal_state := {}
 ## Objectives with "shown" that have appeared (id -> true).
 var _goal_shown := {}
+## Objectives with "gone" that have gone (id -> true).
+var _goal_gone := {}
 var _hints_shown := {}
 var _hint_left := 0.0
 ## The hint on the card now that points like a card ("point", until its
@@ -545,7 +547,6 @@ func _after_intro(_skipped: bool) -> void:
 
 func _walk(_delta: float) -> void:
 	var h := game.hero
-	card.place()
 	game.camera.focus(h.position)
 	if h.at_home and h.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.2:
 		phase = Phase.ARRIVAL
@@ -801,7 +802,6 @@ func _process(delta: float) -> void:
 		Phase.WALK:
 			_walk(delta)
 		Phase.PLAY:
-			card.place()
 			_poll_steps(delta)
 			if not _hint_on.is_empty():
 				if (_hint_on["until"] as Callable).call():
@@ -852,6 +852,10 @@ func _poll_now() -> void:
 	var all := not objectives.is_empty()
 	for o in objectives:
 		var id := str(o["id"])
+		if _goal_gone.has(id) or (o.has("gone") and (o["gone"] as Callable).call()):
+			_goal_gone[id] = true
+			card.show_objective(id, false)
+			continue
 		if o.has("shown") and not _goal_shown.has(id):
 			if not (o["shown"] as Callable).call():
 				card.show_objective(id, false)

@@ -3,7 +3,8 @@ extends PanelContainer
 ## A scenario's card (top left, under the top bar): the teaching card's title
 ## and text (a tick when it is done), a hint that comes up once when something
 ## goes wrong, and the scenario's objectives with a tick each. The heading
-## folds it to a single line.
+## folds it to a single line. It keeps its place (beside a panel open in its
+## corner) itself, every frame, also while the game is paused.
 
 var hud: Hud
 var folded := false
@@ -63,12 +64,20 @@ func build(p_hud: Hud, heading: String) -> void:
 	_goals.add_theme_constant_override("separation", 2)
 	_body.add_child(_goals)
 	visible = false
+	process_mode = Node.PROCESS_MODE_ALWAYS  # (paused too: a panel opened meanwhile, folding)
+
+
+func _process(_delta: float) -> void:
+	if visible and hud != null:
+		place()
 
 
 func set_folded(on: bool) -> void:
 	folded = on
 	_body.visible = not on
 	_head.text = _head.text.trim_suffix("  ▸").trim_suffix("  ▾") + ("  ▸" if on else "  ▾")
+	if hud != null:
+		place()  # (its height at once: folded to the heading, or unfolded)
 
 
 ## The teaching card shown now; an empty title hides it (no card).

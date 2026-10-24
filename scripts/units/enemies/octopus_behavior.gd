@@ -117,6 +117,7 @@ func _tick_arms(enemy: Enemy, delta: float) -> void:
 					else:
 						a["state"] = Arm.HOLD
 						t.held_by = a["node"]
+						(a["node"] as Enemy).holding = true
 						enemy.game.log_for(t, EventLog.Level.DEBUG, "%s grabs %s" % [enemy.label(), enemy.game.who(t)])
 			Arm.SMASH:
 				var b = a["target"]

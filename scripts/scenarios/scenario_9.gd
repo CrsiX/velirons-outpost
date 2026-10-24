@@ -1,8 +1,8 @@
 extends Scenario
 ## Scenario 9: The Drowned Abbey (docs/scenarios-design.md §9a). A walled
-## harbour village on the shore; just north of its gate the church's old abbey
-## stands half-sunk on an island in a lake, joined to the sea by a deep
-## channel. Its crypt holds the First King's Hand, a relic sword; vampires
+## harbour village on the shore; north-east of it the church's old abbey
+## stands half-sunk on an island in a broad river, one bridge from the
+## village's bank. Its crypt holds the First King's Hand, a relic sword; vampires
 ## hold the crypt and a gigantic octopus guards the water.
 ##
 ## After wave 4 the octopus grabs a priest at the harbour; the player has
@@ -23,7 +23,7 @@ extends Scenario
 func _init() -> void:
 	number = 9
 	title = "The Drowned Abbey"
-	blurb = "The church's old abbey stands half-sunk in a lake, and in its crypt lies the First King's Hand. The Legion wants it too."
+	blurb = "The church's old abbey stands half-sunk in the river, and in its crypt lies the First King's Hand. The Legion wants it too."
 	map_path = "res://data/maps/drowned_abbey.json"
 	place = "abbey"
 	portrait = "portrait_eldest_priest"
@@ -57,6 +57,7 @@ func _init() -> void:
 	specialise = true
 	hero_revives = false
 	must_live = ["Pell"]
+	arms_first = true  # (towers cut the octopus's arm that holds someone, not its body)
 
 	# Crabs out of the water first, then the drowned dead and the Evil. The
 	# Legion's columns are added when their waves begin (LEGION_COLUMNS). After
@@ -91,9 +92,11 @@ func _init() -> void:
 ## The relic, as the treasure's item.
 const RELIC := "the First King's Hand"
 ## The map's church (its centre: data/maps/drowned_abbey.json, tools/abbey_map.gd).
-const CHURCH_TILE := Vector2i(39, 45)
-## Wave 1's countdown, started the moment a watchtower by the shore is manned.
+const CHURCH_TILE := Vector2i(34, 45)
+## Wave 1's countdown, started the moment a watchtower of the player's by the shore stands.
 const FIRST_WAVE_AFTER := 60.0
+## Its objective stays ticked this long (s), then it is gone (it is only for the start).
+const WATCH_GOAL_STAYS := 4.0
 ## Lysa is seen wherever she walks: the land this far round her is watched.
 const LYSA_SIGHT := 3.0
 ## After this wave the octopus grabs a priest at the harbour: it holds him in
@@ -119,7 +122,7 @@ const GUARD_HP := 1.5
 const GUARD_LEASH := 6.0
 ## The leviathan: HP and damage x these; how far from the crypt it keeps while
 ## the relic is in it, and from the pier while a boat comes in; else it
-## haunts the harbour's shore, this far round the pier (off the causeway).
+## haunts the harbour's shore, this far round the pier.
 const LEVIATHAN_HP := 5.0
 const LEVIATHAN_POWER := 1.5
 const CRYPT_LEASH := 7.0
@@ -147,9 +150,9 @@ const HARBOUR_PROPS: Array = [
 	["driftwood", Vector2i(7, 0), true],
 	["driftwood", Vector2i(-12, 0), true],
 ]
-## The beacon on the channel's bank near the sea (an offset from the quay;
+## The beacon on the river's bank near the sea (an offset from the quay;
 ## the nearest open bank tile), and how many gulls circle it.
-const BEACON_OFFSET := Vector2i(13, -3)
+const BEACON_OFFSET := Vector2i(16, -2)
 const GULLS := 3
 
 
@@ -167,7 +170,7 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"fade": "out", "time": 0.01},
 		{"camera": r.at(abbey) + Vector2(0, -60), "zoom": 0.95, "time": 0.01},
 		{"title": "The Drowned Abbey", "sub": "Scenario 9", "time": 3.0},
-		{"say": "", "text": "Mist on the shore. Brenna and Pell come in on the guild's boat. Behind the village the abbey's spires rise out of a lake, and somewhere under them a bell rings."},
+		{"say": "", "text": "Mist on the shore. Brenna and Pell come in on the guild's boat. Behind the village the abbey's spires rise out of the river, and somewhere under them a bell rings."},
 		{"fade": "in", "time": 1.4},
 		{"say": "pell", "text": "The guild's boats will come by when they can. Out here the sea is the only road that's safe."},
 		{"say": "brenna", "text": "And the priests?"},
@@ -182,8 +185,8 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 	var c := r.game.player_village.center
 	var ab := _abbey(r)
 	var abbey: Vector2 = Vector2(ab.tile) if ab else Vector2(c)
-	# Lysa on the causeway, north of the island, then back up the road.
-	var road := r.road_in(Vector2i(abbey), 100000)
+	# Lysa on the north road, by the island, then back up it.
+	var road := r.road_in(_legion_spawn(r), 100000)
 	var near := 0
 	for i in road.size():
 		if Vector2(road[i]).distance_to(abbey) < Vector2(road[near]).distance_to(abbey):
@@ -205,7 +208,7 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"say": "eldest", "text": "The Hand goes to Fiona. Take it to her."},
 		{"say": "", "text": "In Brenna's hands the old sword glows, faintly, like a coal under ash."},
 		{"camera": r.at(stand) + Vector2(0, -40), "zoom": 1.05, "time": 2.5},
-		{"say": "", "text": "On the causeway Lysa stops on her way back into the mist, and turns. For a moment her eyes are her own."},
+		{"say": "", "text": "On the north road Lysa stops on her way back into the mist, and turns. For a moment her eyes are her own."},
 		{"say": "lysa", "text": "Hale. We were only to hold you here. Halvard has the main force. He's marching on your home."},
 		{"say": "lysa", "text": "Go home, Brenna. Before I ..."},
 		{"do": func() -> void: r.move_actor(lysa, away, 7.0)},
@@ -250,7 +253,7 @@ func on_wave_started(r: ScenarioRunner, n: int) -> void:
 	var k := LEGION_WAVES.find(n)
 	if k < 0 or (k > 0 and not r.mark.has("drowned")) or r.mark.has("lost_relic"):
 		return
-	var at := _causeway_spawn(r)
+	var at := _legion_spawn(r)
 	_send_legion(r, LEGION_COLUMNS[k], at)
 	var lines: Array[Dictionary] = [
 		{"until": func() -> bool: return r.named_enemy("Lysa") != null, "max": 4.0},
@@ -259,7 +262,7 @@ func on_wave_started(r: ScenarioRunner, n: int) -> void:
 	]
 	if k == 0:
 		lines.append_array([
-			{"say": "", "text": "Out of the mist on the far shore a column marches down to the causeway, in step. At its head a captain with a crimson plume."},
+			{"say": "", "text": "Out of the mist in the north a column marches down the road towards the village, in step. At its head a captain with a crimson plume."},
 			{"say": "lysa", "text": "The relic. Give it up, and the village is spared."},
 			{"say": "brenna", "text": "Lysa. It's me. Hale. You sent me down the pass, the night before ..."},
 			{"say": "lysa", "text": "The relic."},
@@ -277,9 +280,10 @@ func on_wave_started(r: ScenarioRunner, n: int) -> void:
 ## leviathan.
 func on_poll(r: ScenarioRunner) -> void:
 	var g := r.game
-	var towers0: Array = r.mark.get("towers0", [])
-	if not r.mark.has("watch") and r.cutscene == null and r.towers().any(func(t: Building) -> bool: return not towers0.has(t) and (t as Tower).garrison != null and _by_water(r, t.tile)):
-		r.mark["watch"] = true
+	if not r.mark.has("watch") and g.waves.wave > 0:
+		r.mark["watch"] = g.clock  # (wave 1 called early: the watch's goal is moot)
+	if not r.mark.has("watch") and r.cutscene == null and not _shore_towers(r, true).is_empty():
+		r.mark["watch"] = g.clock
 		r.release_waves(FIRST_WAVE_AFTER)
 		g.events.info("A watch by the shore: the first wave is coming")
 	for e in g.get_tree().get_nodes_in_group("enemies"):
@@ -611,10 +615,10 @@ func _wake_leviathan(r: ScenarioRunner, by_hero: bool) -> void:
 		if job and job.obj == ab:
 			job.release()
 			g.hero.head_home()
-	g.events.important("The leviathan rises from the lake!")
+	g.events.important("The leviathan rises from the river!")
 	var scene: Array[Dictionary] = [
 		{"camera": r.at(ab.tile if ab else g.player_village.center) + Vector2(0, -40), "zoom": 1.0, "time": 1.5},
-		{"say": "", "text": "The bell under the water stops. The lake heaves, and something long and dark rises out of it and coils round the island."},
+		{"say": "", "text": "The bell under the water stops. The river heaves, and something long and dark rises out of it and coils round the island."},
 	]
 	if by_hero:
 		scene.append({"say": "pell", "text": "Brenna! Get off that island! Nobody's getting into that crypt while it lives."})
@@ -639,7 +643,7 @@ func _poll_leviathan(r: ScenarioRunner) -> void:
 			ab.blocked = ""
 		g.events.info("The leviathan is slain")
 		r.play_scene([
-			{"say": "", "text": "The leviathan sinks, and does not come up again. The lake goes still."},
+			{"say": "", "text": "The leviathan sinks, and does not come up again. The river runs still."},
 			{"say": "eldest", "text": "Knight. When this is over, come to our door."},
 		])
 		return
@@ -664,7 +668,7 @@ func _ask(r: ScenarioRunner) -> void:
 	r.mark["asked"] = true
 	r.play_scene([
 		{"camera": r.at(r.game.player_village.center) + Vector2(0, -40), "zoom": 1.1, "time": 1.5},
-		{"say": "eldest", "text": "The Hand is safe. But the thing in the lake is awake now, and it won't sleep again. Our boats, our shore, our children on the pier."},
+		{"say": "eldest", "text": "The Hand is safe. But the thing in the river is awake now, and it won't sleep again. Our boats, our shore, our children on the pier."},
 		{"say": "eldest", "text": "Kill it, knight, before you go. For us.", "choices": [
 			{"text": "We'll kill it.", "do": func() -> void: r.mark["hunt"] = true},
 			{"text": "We have to go. Fiona needs the Hand.", "do": func() -> void: _messenger(r)},
@@ -744,7 +748,7 @@ func _boat_in(r: ScenarioRunner, boat: Node2D) -> void:
 ## The harbour's scenery (it never changes, blocks nothing): the pier, two
 ## moored boats, the ferry bell at the quay, crates, nets, fish racks,
 ## upturned boats, mooring posts and driftwood along the beach; on the
-## channel's bank near the sea a beacon, a wreck in the shallows beside it,
+## river's bank near the sea a beacon, a wreck in the shallows beside it,
 ## and gulls circling it.
 func _build_harbour(r: ScenarioRunner) -> void:
 	var g := r.game
@@ -819,20 +823,12 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 	var g := r.game
 	return [
 		{"title": "A watch on the water",
-			"text": "Crabs climb out of the sea and the lake. Build a watchtower by the water so it covers the shore, and station a unit on it. Once it is manned, the first wave is on its way.",
-			"done": func() -> bool:
-				var towers0: Array = r.mark.get("towers0", [])
-				return r.towers().any(func(t: Building) -> bool: return not towers0.has(t) and (t as Tower).garrison != null and _by_water(r, t.tile)),
+			"text": "Crabs climb out of the sea and the river. Build a watchtower by the water so it covers the shore. Once it stands, the first wave is on its way.",
+			"done": func() -> bool: return r.mark.has("watch"),
 			"point": func() -> Dictionary:
-				# Placed: its site while it is built, then manning it; else placing one.
-				var towers0: Array = r.mark.get("towers0", [])
-				var mine := r.towers().filter(func(t: Building) -> bool: return not towers0.has(t) and _by_water(r, t.tile))
-				if mine.is_empty():
-					return r.place_point("tower", [])
-				var done := mine.filter(func(t: Building) -> bool: return t.complete)
-				if done.is_empty():
-					return {"tiles": r.first_tiles(mine)}
-				return r.unit_point("archer", done)},
+				# Placed: its site while it is built; else placing one.
+				var mine := _shore_towers(r, false)
+				return r.place_point("tower", []) if mine.is_empty() else {"tiles": r.first_tiles(mine)}},
 		{"title": "The First King's Hand",
 			"text": "The crypt is open. Clear the vampires at the abbey (tap their camp: Attack with the hero), then send Brenna exploring: she goes into the crypt for the relic.",
 			"ready": func() -> bool: return _abbey(r) == null or not _abbey(r).sealed,
@@ -889,6 +885,10 @@ func hints(r: ScenarioRunner) -> Array[Dictionary]:
 
 func objectives(r: ScenarioRunner) -> Array[Dictionary]:
 	return [
+		{"id": "watch", "text": "Build a watchtower by the shore",
+			"done": func() -> bool: return r.mark.has("watch"),
+			"gone": func() -> bool: return r.mark.has("watch") and r.game.clock - float(r.mark["watch"]) > WATCH_GOAL_STAYS,
+			"detail": func() -> String: return "" if r.mark.has("watch") else "then wave 1 comes"},
 		{"id": "rescue", "text": "Save the priest from the octopus", "optional": true,
 			"shown": func() -> bool: return r.mark.has("countdown") or (r.mark.has("drowned") and r.mark.has("grabbed")),
 			"done": func() -> bool: return r.mark.has("rescued"),
@@ -1008,11 +1008,11 @@ func _priest(r: ScenarioRunner, eldest: bool) -> Resident:
 
 
 ## A priest's rounds out of the church (their home): the eldest to the north
-## gate, looking out over the lake; the younger to the harbour.
+## gate, looking out over the river; the younger to the harbour.
 func _rounds(r: ScenarioRunner, eldest: bool) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if eldest:
-		out.append({"tile": _hand_in_tile(r), "to": "the north gate", "doing": "looking out over the lake"})
+		out.append({"tile": _hand_in_tile(r), "to": "the east gate", "doing": "looking out over the river"})
 	else:
 		out.append({"tile": _quay(r), "to": "the harbour", "doing": "blessing the boats"})
 	return out
@@ -1042,10 +1042,11 @@ func _pier_end(r: ScenarioRunner) -> Vector2i:
 	return t
 
 
-## Where Brenna hands the relic in while she is shut out: outside the north gate.
+## Where Brenna hands the relic in while she is shut out: outside the east
+## gate (the one towards the island).
 func _hand_in_tile(r: ScenarioRunner) -> Vector2i:
 	var v := r.game.player_village
-	return Vector2i(v.center.x, v.rect.position.y - 1)
+	return Vector2i(v.rect.end.x, v.center.y + 1)
 
 
 ## Brenna's tent while the priests shut her out: open land near TENT_OFFSET.
@@ -1086,10 +1087,21 @@ func _deep_by(r: ScenarioRunner, t: Vector2i, reach: float) -> Array[Vector2i]:
 	return out
 
 
-## The edge spawn of the road over the causeway.
-func _causeway_spawn(r: ScenarioRunner) -> Vector2i:
+## The Legion's edge spawn: the north road's, on the north edge (west of the
+## river; the east road's spawn is in the north-east corner, on the east edge).
+func _legion_spawn(r: ScenarioRunner) -> Vector2i:
+	for sp in r.game.map.edge_spawns:
+		if sp.y == 0:
+			return sp
 	var ab := _abbey(r)
 	return r.spawn_near(ab.tile if ab else r.game.player_village.center)
+
+
+## The player's own watchtowers by the shore (not the prebuilt ones):
+## finished ones only (`built`), or sites too.
+func _shore_towers(r: ScenarioRunner, built: bool) -> Array:
+	var towers0: Array = r.mark.get("towers0", [])
+	return r.towers().filter(func(t: Building) -> bool: return not towers0.has(t) and (t.complete or not built) and _by_water(r, t.tile))
 
 
 ## A tile within 3 of deep water.

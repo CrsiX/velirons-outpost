@@ -1587,7 +1587,17 @@ func _s9_priests() -> Array:
 
 ## Why the game ended, if it did (for a failed check).
 func _s9_why() -> String:
-	return " (game over: %s)" % game.hud._overlay_sub.text.split("\n")[0] if game.game_over else ""
+	if game.game_over:
+		return " (game over: %s)" % game.hud._overlay_sub.text.split("\n")[0]
+	var h := game.hero
+	var sack = sc.mark.get("sack")
+	var lev := sc.named_enemy("Leviathan")
+	var near := ""
+	for e: Enemy in get_tree().get_nodes_in_group("enemies"):
+		if e.grid_pos.distance_to(h.grid_pos) < 8.0:
+			near += " %s%s at %s" % [e.kind, " (camp)" if e.behavior is CampBehavior else "", str(e.current_tile())]
+	return " (processing %s, at_home %s, next %s; hero speed %.2f, paused %s, speed %.1f, scene %s; held by %s; near:%s; forced %s, path %d/%d to %s, home %s; hero at %s, mode %d, %s, evading %s, hp %d; sack %s; leviathan %s)" % [str(h.is_processing()), str(h.at_home), str(h.path.slice(maxi(h.path_index - 1, 0), h.path_index + 2)), h.speed, str(get_tree().paused), Engine.time_scale, ("\"%s\"" % sc.cutscene.line) if sc.cutscene else "-", "%s at %s, dead %s" % [h.held_by.kind, str(h.held_by.current_tile()), str(h.held_by.dead)] if is_instance_valid(h.held_by) else "-", near, str(h.is_forced()), h.path_index, h.path.size(), str(h.path[-1]) if h.path.size() > 0 else "-", str(h.home()), str(h.current_tile()), h.mode, h.status(), str(h.evading), int(h.hp),
+		str((sack as Treasure).tile) if is_instance_valid(sack) else "-", str(lev.current_tile()) if lev else "-"]
 
 
 func _s9_guard() -> Timer:
@@ -1615,11 +1625,23 @@ func _s9_rescued() -> void:
 	check(ruins.size() == 3 and ruins.filter(func(o: Node) -> bool: return (o as RuinedTower).building() == "barracks").size() == 1, "two ruined watchtowers and a ruined barracks on the island (%d)" % ruins.size())
 	var church: Church = _s9()._church(sc)
 	check(church != null and church.complete and game.map.in_village(church.tile) and not church.holds_relic, "the church stands inside the walls, empty")
-	var bridges := 0
-	for t in game.map.crossings:
+	var bridge: Array[Vector2i] = []
+	for t: Vector2i in game.map.crossings:
 		if game.map.is_bridge(t) and Vector2(t).distance_to(Vector2(ab.tile)) < 13.0:
-			bridges += 1
-	check(bridges >= 4, "the road crosses the lake to the island on bridges (%d)" % bridges)
+			bridge.append(t)
+	check(bridge.size() >= 3 and bridge.all(func(t: Vector2i) -> bool: return t.y == bridge[0].y),
+		"one straight bridge onto the island, from bank to bank (%s)" % str(bridge))
+	# Only over it: the island out of reach with the bridge blocked.
+	var seen := {game.player_village.center: true}
+	var todo: Array[Vector2i] = [game.player_village.center]
+	while not todo.is_empty():
+		var t: Vector2i = todo.pop_back()
+		for n in MapData.neighbors4(t):
+			if not seen.has(n) and not bridge.has(n) and game.map.is_passable(n):
+				seen[n] = true
+				todo.append(n)
+	check(not seen.has(ab.visit_tile()) and game.world.pathing.can_reach(game.player_village.center, ab.visit_tile()),
+		"the island is reached only over that bridge, and from the village's side")
 	var octo = sc.mark.get("octopus")
 	check(octo is Enemy and (octo as Enemy).kind == "octopus" and (octo as Enemy).post == ab.tile and game.waves.enemies_left() == 0, "a gigantic octopus guards the abbey, outside the waves")
 	var drowned := game.corpses.fallen().filter(func(c: Corpse) -> bool: return c.grid_pos.distance_to(Vector2(ab.tile)) < 6.0)
@@ -1632,6 +1654,23 @@ func _s9_rescued() -> void:
 	var said := await _watch(sc.cutscene)
 	check(said.has("pell") and said.has("brenna"), "the intro: the boat in the mist (%s)" % str(said))
 
+	print("-- scenario 9: the card while paused")
+	cmd("set_speed", {"index": Game.SPEEDS.find(0.0)})
+	await frames(2)
+	game.hud._hero_button.pressed.emit()
+	await frames(3)
+	check(get_tree().paused and sc.card.position.x >= game.hud.corner_panel_rect().end.x, "paused, the hero panel opened: the card moves beside it at once")
+	var tall := sc.card.size.y
+	sc.card.set_folded(true)
+	await frames(2)
+	check(sc.card.size.y < tall * 0.5, "folded while paused: the box shrinks at once (%.0f -> %.0f)" % [tall, sc.card.size.y])
+	sc.card.set_folded(false)
+	await frames(2)
+	check(absf(sc.card.size.y - tall) < 2.0, "unfolded: as tall as before")
+	game.hud._hero_button.pressed.emit()
+	cmd("set_speed", {"index": 0})
+	await frames(2)
+
 	print("-- scenario 9: the watch on the water")
 	check(game.waves.hold and game.waves.wave == 0 and game.waves.can_call(), "wave 1 waits (no countdown), and can be called")
 	var shore := Vector2i(-1, -1)
@@ -1643,6 +1682,8 @@ func _s9_rescued() -> void:
 			if d < best and _s9()._by_water(sc, st) and game.construction.placement_error("tower", st) == "":
 				best = d
 				shore = st
+	var row := func() -> bool: return ((sc.card._rows["watch"]["tick"] as Control).get_parent() as Control).visible
+	check(sc.card._rows.has("watch") and row.call() and not sc.objectives[0]["done"].call(), "an objective says so: build a watchtower by the shore")
 	check(cmd("place_building", {"kind": "tower", "tile": shore})["ok"], "a watchtower placed by the shore %s" % shore)
 	await wait(0.6)
 	check(game.waves.hold and game.waves.wave == 0, "placed: wave 1 still waits")
@@ -1650,14 +1691,13 @@ func _s9_rescued() -> void:
 	check(not (pt.get("hud", []) as Array).has("build:tower") and (pt.get("tiles", []) as Array).has(shore), "the card now points at the tower being built, not at the Build tab")
 	var placed: Building = game.map.building_at(shore)
 	check(await wait_until(func() -> bool: return placed.complete, 240.0), "it is built")
-	pt = sc.steps[0]["point"].call()
-	check((pt.get("hud", []) as Array).has("tab:army"), "then the card points at manning it (%s)" % str(pt.get("hud", [])))
-	check(game.waves.hold and game.waves.wave == 0, "built but empty: wave 1 still waits")
+	await wait(0.6)
+	check(not game.waves.hold and game.waves.countdown > _s9().FIRST_WAVE_AFTER - 5.0, "built (nobody on it yet): wave 1's countdown runs at once (%.0f s)" % game.waves.countdown)
+	check(sc.objectives[0]["done"].call() and row.call(), "the objective is ticked")
+	check(await wait_until(func() -> bool: return not row.call(), _s9().WATCH_GOAL_STAYS + 3.0), "then it is gone: it was only for the start")
 	var unit: MilitaryUnit = game.army.reserve()[0]
 	cmd("station_unit", {"unit": unit.nid, "post": placed.nid})
 	check(await wait_until(func() -> bool: return (placed as Tower).garrison != null, 120.0), "a unit stationed on it")
-	await wait(0.6)
-	check(not game.waves.hold and game.waves.countdown > _s9().FIRST_WAVE_AFTER - 5.0, "manned: wave 1's countdown runs at once (%.0f s)" % game.waves.countdown)
 
 	print("-- scenario 9: the waves, the boats, the rescue")
 	spare_kinds = ["octopus", "octopus_arm"]
@@ -1687,6 +1727,10 @@ func _s9_rescued() -> void:
 	check(await wait_until(func() -> bool: return sc.mark.has("countdown"), 3.0) and ob.hold_left(p) > _s9().RESCUE_HOLD - 2.0, "the scene over: now his %.0f s run" % ob.hold_left(p))
 	await wait(3.0)
 	check(p != null and not p.dead and game.map.get_terrain(p.current_tile()) == MapData.Terrain.SHALLOW, "he is held in the shallows")
+	var post: Building = sc.towers()[0]
+	var near := MilitaryBehavior.enemies_near(post, 200.0)
+	check(not near.is_empty() and near[0].kind == "octopus_arm" and near[0].holding and p.held_by == near[0],
+		"towers go for the arm holding him first, not the octopus (%s)" % str(near.map(func(e: Enemy) -> String: return e.kind)))
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if (e as Enemy).kind == "octopus_arm":
 			kill(e, h)
@@ -1727,7 +1771,7 @@ func _s9_rescued() -> void:
 
 	print("-- scenario 9: the crypt and the leviathan")
 	await wait_until(func() -> bool: return not game.waves.in_progress(), 120.0)
-	kill(octo as Enemy, h)  # (the guard by the causeway: Brenna exploring would run from it)
+	kill(octo as Enemy, h)  # (the guard by the island: Brenna exploring would run from it)
 	kill_camps = true
 	await wait(1.0)
 	kill_camps = false
@@ -1833,6 +1877,9 @@ func _s9_drowned() -> void:
 	kill_camps = true  # (the vampires by the abbey: she'd run from them)
 	await wait(1.0)
 	kill_camps = false
+	if is_instance_valid(octo) and not octo.dead:
+		kill(octo, h)  # (the guard by the island: Brenna exploring would run from it)
+	game.waves.hold = true  # (wave 7 waits until she has taken it to the gate: it's a long way round from her tent)
 	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
 	check(await wait_until(func() -> bool: return _s9()._relic_at(sc) == "hero", 300.0), "Brenna picks it up%s" % _s9_why())
 	check(h.home_override == _s9()._hand_in_tile(sc), "she takes it to the gate, not to her tent")
@@ -1840,6 +1887,7 @@ func _s9_drowned() -> void:
 	check(not game.map.in_village(_s9()._hand_in_tile(sc)) and not inside[0], "handed in at the gate, from outside")
 	await _through_scene()
 	check(await wait_until(func() -> bool: return h.home_override == sc.mark.get("tent"), 5.0), "and she goes back to her tent")
+	game.waves.hold = false
 
 	print("-- scenario 9: three Legion waves, the priests' trust")
 	var seen := {sc.mark.get("company"): true}
@@ -1887,7 +1935,7 @@ func _s9_drowned() -> void:
 func _s9_legion_now() -> Enemy:
 	cmd("hero_mode", {"mode": Hero.Mode.REST})
 	game.waves.start_now()
-	_s9()._send_legion(sc, _s9().LEGION_COLUMNS[0], _s9()._causeway_spawn(sc))
+	_s9()._send_legion(sc, _s9().LEGION_COLUMNS[0], _s9()._legion_spawn(sc))
 	await wait_until(func() -> bool: return sc.named_enemy("Lysa") != null, 30.0)
 	var l := sc.named_enemy("Lysa")
 	if l:
@@ -1960,6 +2008,7 @@ func _s9_yes() -> void:
 	game.player_village.items.append(_s9().RELIC)
 	_s9()._church(sc).holds_relic = true
 	sc.mark["relic"] = "home"
+	sc.mark["watch"] = game.clock - 10.0  # (the start's goal, as if met long ago)
 	_s9()._wake_leviathan(sc, false)
 	check(await wait_until(func() -> bool: return sc.mark.has("asked"), 10.0), "the relic home, the leviathan alive: the priests ask")
 	while sc.cutscene != null:
@@ -1981,8 +2030,10 @@ func _s9_escape() -> void:
 	var ab: Treasure = _s9()._abbey(sc)
 	ab.seal_hp = 1.0
 	cmd("hero_mode", {"mode": Hero.Mode.REST})
+	spare_kinds = ["octopus", "octopus_arm", "legion_*"]
+	var guard := _s9_guard()  # (the wave's crabs and goblins: Pell must not die meanwhile)
 	game.waves.start_now()
-	_s9()._send_legion(sc, _s9().LEGION_COLUMNS[0], _s9()._causeway_spawn(sc))
+	_s9()._send_legion(sc, _s9().LEGION_COLUMNS[0], _s9()._legion_spawn(sc))
 	await wait_until(func() -> bool: return sc.named_enemy("Lysa") != null, 30.0)
 	var l := sc.named_enemy("Lysa")
 	if l:
@@ -1995,6 +2046,8 @@ func _s9_escape() -> void:
 		lysa.set_grid_pos(lysa.path[lysa.path.size() - 2])
 		lysa.path_index = lysa.path.size() - 1
 	check(await wait_until(func() -> bool: return game.game_over, 60.0), "she gets to the edge of the map")
+	guard.queue_free()
+	spare_kinds = []
 	Engine.time_scale = 1.0
 	check(game.game_over and not game.hud._overlay_won and game.hud._overlay_sub.text.contains("Lysa"), "lost: %s" % game.hud._overlay_sub.text.split("\n")[0])
 

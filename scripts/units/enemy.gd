@@ -128,6 +128,9 @@ var raid_hut: Hut = null
 ## `post` ((-1, -1): none; AquaBehavior).
 var post := Vector2i(-1, -1)
 var post_leash := 0.0
+## An octopus's arm with someone in its grip (OctopusBehavior: HOLD). Towers
+## shoot such arms first where the scenario says so (Scenario.arms_first).
+var holding := false
 ## A scenario's errand for it, or null (scenario 9's Legion company,
 ## LegionCompany): asked first when its walk ends (on_path_end(enemy) -> bool:
 ## true when it took care of it), so the end of a path it was given isn't a gate;

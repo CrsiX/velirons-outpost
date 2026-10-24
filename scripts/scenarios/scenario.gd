@@ -103,6 +103,9 @@ var must_live: Array[String] = []
 ## Building kinds that must not fall: once every one of a kind is devastated
 ## (or gone), the scenario is lost (the guild warehouse).
 var must_stand: Array[String] = []
+## Towers and posts shoot an octopus's arm holding one of ours before any
+## other target (Enemy.holding; scenario 9's priest), not the octopus.
+var arms_first := false
 ## Corpses rot as usual (false: they lie until gathered or the next wave ends).
 var corpses_rot := true
 ## When the map's unit-unlock sites awaken, by site (Config.UNLOCK_SITES key):
@@ -185,8 +188,9 @@ func hints(_r: ScenarioRunner) -> Array[Dictionary]:
 ## The objectives, shown under the card: {"id", "text", "done": Callable ->
 ## bool, "detail": optional Callable -> String (progress, e.g. "3 / 5"),
 ## "optional": true (shown, not needed to win), "shown": Callable -> bool
-## (hidden until it first holds; needed to win only once shown)}. All the
-## others done (at once) win the scenario.
+## (hidden until it first holds; needed to win only once shown), "gone":
+## Callable -> bool (once it holds, hidden for good and no longer counted:
+## a goal only for the start)}. All the others done (at once) win the scenario.
 func objectives(_r: ScenarioRunner) -> Array[Dictionary]:
 	return []
 
