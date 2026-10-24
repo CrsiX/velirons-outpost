@@ -2044,6 +2044,21 @@ const DIFFICULTY_SCALED: Array[String] = [
 	"hp", "speed", "damage", "spell_damage",
 	"gold_on_kill", "gold_on_collect", "food_on_collect", "materials_on_collect",
 ]
+## What each DIFFICULTY_SCALED value is multiplied by, per difficulty: a value
+## listed by name takes its own factor, every other one "all". (Hard's enemies
+## are only a little faster: speed and HP together decide how long they stay
+## in a tower's range.) A scenario may set its own (Settings.enemy_scale).
+const DIFFICULTY_MULTIPLIERS := {
+	"easy": {"all": 0.67},
+	"normal": {"all": 1.0},
+	"hard": {"all": 1.5, "speed": 1.2},
+}
+
+
+## The DIFFICULTY_MULTIPLIERS factor of value `key` on `difficulty` ("easy" ...).
+static func difficulty_multiplier(difficulty: String, key: String) -> float:
+	var row: Dictionary = DIFFICULTY_MULTIPLIERS[difficulty]
+	return float(row.get(key, row["all"]))
 
 ## Which enemies march in wave n. Each kind joins from `from_wave`; its share of
 ## the wave starts at `share` and grows by `growth` per wave, up to `max_share`.

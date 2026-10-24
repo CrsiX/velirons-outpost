@@ -997,8 +997,14 @@ func _run() -> void:
 	for dif in [Settings.Difficulty.EASY, Settings.Difficulty.NORMAL, Settings.Difficulty.HARD]:
 		Settings.difficulty = dif
 		no_food = no_food and Config.enemy_stat_int("skeleton", "food_on_collect") == 0 and Config.enemy_stat_int("skeleton", "gold_on_collect") > 0
+	Settings.difficulty = Settings.Difficulty.HARD
+	var gob: Dictionary = Config.ENEMIES["goblin"]
+	var hard_ok := is_equal_approx(Config.enemy_stat("goblin", "hp"), float(gob["hp"]) * 1.5) \
+		and is_equal_approx(Config.enemy_stat("goblin", "speed"), float(gob["speed"]) * 1.2) \
+		and is_equal_approx(Config.enemy_stat("goblin", "damage"), float(gob["damage"]) * 1.5)
 	Settings.difficulty = Settings.Difficulty.NORMAL
 	check(no_food, "skeleton corpses give gold but never food, on every difficulty")
+	check(hard_ok, "on Hard enemies have x1.5 HP and damage, but only x1.2 speed (per value)")
 	cs.remove(cs.corpses.back())
 	game.waves.countdown = 99999.0
 	# Expiry.

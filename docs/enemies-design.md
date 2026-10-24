@@ -93,9 +93,11 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 
 ## 3. Difficulty
 
-- `Settings.ENEMY_MULTIPLIER`: Easy 0.67, Normal 1.0, Hard 1.5.
+- `Config.DIFFICULTY_MULTIPLIERS` (per value, else its `"all"`): Easy 0.67, Normal 1.0, Hard 1.5
+  but speed 1.2 (speed and HP together decide how long an enemy stays in a tower's range; at 1.5
+  both, Hard was far steeper than Easy is gentle).
 - It multiplies every value in `DIFFICULTY_SCALED`: `hp`, `speed`, `damage`, `spell_damage`,
-  `gold_on_kill`, `gold_on_collect`, `food_on_collect`.
+  `gold_on_kill`, `gold_on_collect`, `food_on_collect`, `materials_on_collect`.
 - Whole-number values (loot) are rounded and never drop below 1, unless they are 0 to begin with
   (`enemy_stat_int`).
 - Nothing else is scaled: not cooldowns, ranges and timings (a longer cooldown would make Hard

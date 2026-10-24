@@ -5,8 +5,6 @@ extends Node
 enum Difficulty { EASY, NORMAL, HARD }
 
 const NAMES := {Difficulty.EASY: "Easy", Difficulty.NORMAL: "Normal", Difficulty.HARD: "Hard"}
-## Enemy strength and loot values (Config.DIFFICULTY_SCALED) are multiplied by this.
-const ENEMY_MULTIPLIER := {Difficulty.EASY: 0.67, Difficulty.NORMAL: 1.0, Difficulty.HARD: 1.5}
 ## Order of the title screen's toggle: normal -> hard -> easy -> normal.
 const CYCLE := {Difficulty.NORMAL: Difficulty.HARD, Difficulty.HARD: Difficulty.EASY, Difficulty.EASY: Difficulty.NORMAL}
 
@@ -168,6 +166,7 @@ func difficulty_key() -> String:
 
 
 ## What enemy value `key` (Config.DIFFICULTY_SCALED) is multiplied by: the
-## difficulty's multiplier, unless a scenario sets its own (enemy_scale).
-func enemy_multiplier(key: String = "") -> float:
-	return float(enemy_scale[key]) if enemy_scale.has(key) else ENEMY_MULTIPLIER[difficulty]
+## difficulty's (Config.DIFFICULTY_MULTIPLIERS), unless a scenario sets its
+## own (enemy_scale).
+func enemy_multiplier(key: String) -> float:
+	return float(enemy_scale[key]) if enemy_scale.has(key) else Config.difficulty_multiplier(difficulty_key(), key)
