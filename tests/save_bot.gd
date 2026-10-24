@@ -311,7 +311,8 @@ func _single() -> void:
 	check(down2.state == MilitaryUnit.State.DOWNED and down2.revive_left > 0.0, "the downed unit waits to revive")
 	var summ2 := game.entity(ids["summoner"]) as MilitaryUnit
 	var summons: Array = (summ2.behavior as SummonerBehavior).summons
-	check(summons.size() == 1 and absf((summons[0] as EarthElemental).hp - 17.0) < 0.01, "the summoner's elemental is back, as hurt as it was")
+	# (idle, it heals SUMMONS "regen" per second from the load on)
+	check(summons.size() == 1 and (summons[0] as EarthElemental).hp >= 16.99 and (summons[0] as EarthElemental).hp < 20.0, "the summoner's elemental is back, as hurt as it was")
 	h = game.hero
 	check(h.level == 1 and h.xp == 33 and not h.at_home and (h.jobs[Hero.Mode.EXPLORE] as HeroExploreJob).task == HeroExploreJob.Task.CARRYING and not h.path.is_empty(),
 		"the hero: level 2, her XP, out in the field carrying her loot home (%d, %d, %s, %d)" % [h.level, h.xp, h.at_home, (h.jobs[Hero.Mode.EXPLORE] as HeroExploreJob).task])
