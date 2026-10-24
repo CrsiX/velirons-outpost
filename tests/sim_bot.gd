@@ -1573,6 +1573,8 @@ func _run() -> void:
 	var stale := game._entities.values().filter(func(o) -> bool: return o is Object and not is_instance_valid(o)).size()
 	check(stale == 0, "after the whole run the registry holds no freed entities (%d entries)" % game._entities.size())
 
+	await _test_flee_resume()
+
 	# --- the event log saw everything ------------------------------------------------------
 	var expect := {
 		EventLog.Level.DEBUG: ["recruit archer", "recruit farmer", "assign forester", "unassign forester", "place watchtower", "starts work on", "send archer", "takes up its post on",
@@ -1901,3 +1903,64 @@ func _test_hero(far: Vector2i) -> void:
 	hero.set_mode(Hero.Mode.DEFEND)
 	hud._hero_panel.visible = false
 	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
+
+
+## A goblin standing `at`, not walking.
+func still_goblin(at: Vector2) -> Enemy:
+	game.waves._spawn({"kind": "goblin", "spawn": game.map.edge_spawns[0], "hp_scale": 1.0, "village": game.player_village})
+	var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	e.set_grid_pos(at)
+	e.speed = 0.0
+	e.follow(PackedVector2Array([at, at + Vector2(0.001, 0)]))
+	return e
+
+
+## Config.FLEE: a fleeing villager looks every few seconds whether the enemies
+## are gone and goes back to work from where it is; an explorer runs away from
+## them, not home.
+func _test_flee_resume() -> void:
+	var v := game.player_village
+	var fo: Forester = null
+	for c in game.population.civilians:
+		if c is Forester:
+			fo = c
+	var out := await wait_until(func() -> bool: return fo != null and fo.state == Forester.State.CHOPPING, 90.0)
+	var e := still_goblin(fo.grid_pos + Vector2(1.5, 0.0))
+	var fled := await wait_until(func() -> bool: return fo.evading, 3.0)
+	kill(e)
+	var back := await wait_until(func() -> bool: return not fo.evading, float(Config.FLEE["check_every"]) + 1.0)
+	check(out and fled and back and not fo.at_home and fo.state != Forester.State.GOING_HOME, "a forester who fled goes back to work once the goblin is gone, without walking home first")
+	# The explorer runs off sideways, away from the goblin, then explores on.
+	var ex: Explorer = null
+	for c in game.population.civilians:
+		if c is Explorer:
+			ex = c
+	if ex == null:
+		ex = game.population.recruit("explorer") as Explorer
+	var hero_mode: int = game.hero.mode
+	game.command("hero_mode", {"mode": Hero.Mode.REST})  # (she'd go for the goblin)
+	# (out in the field 14 tiles from home, on its way: there may be no fog left by now)
+	var spot := Vector2i(-1, -1)
+	for i in 32:
+		var t := v.center + Vector2i((Vector2.from_angle(TAU * i / 32.0) * 14.0).round())
+		if game.world.pathing.is_walkable(t) and game.world.pathing.can_reach(v.center, t) and game.fog.is_explored_by(v.id, t):
+			spot = t
+			break
+	var far := spot != Vector2i(-1, -1)
+	if far:
+		ex._set_home(false)
+		ex.set_grid_pos(Vector2(spot))
+		ex.job.resume()
+	var home_dir := (Vector2(v.center) - ex.grid_pos).normalized()
+	var at := ex.grid_pos - home_dir * 2.0  # (between it and the far fog)
+	var e2 := still_goblin(at)
+	var fled2 := await wait_until(func() -> bool: return ex.evading, 3.0)
+	var end := ex.path[ex.path.size() - 1] if ex.path.size() > 0 else ex.grid_pos
+	check(far and fled2 and ex._fleeing_away and end.distance_to(at) >= float(Config.FLEE["clear_radius"]) - 0.5 and end.distance_to(Vector2(v.center)) > 3.0,
+		"an explorer runs away from the goblin, not home (%.1f tiles from it; goblin alive %s)" % [end.distance_to(at), is_instance_valid(e2) and not e2.dead])
+	if is_instance_valid(e2):
+		kill(e2)
+	var back2 := await wait_until(func() -> bool: return not ex.evading, float(Config.FLEE["check_every"]) + 1.0)
+	check(back2 and not ex.at_home and ex.job.state != ExploreJob.State.RESTING, "and its job goes on from there once it is gone (exploring, or home when nothing is left to find)")
+	game.command("hero_mode", {"mode": hero_mode})
+	await clear_enemies()

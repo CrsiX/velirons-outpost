@@ -910,6 +910,20 @@ const EVADE_RADIUS := 4.5  # civilians run home when an enemy gets this close
 ## camp this far round its tile (Civilian._reveal_camps), so it can be attacked.
 const CAMP_REVEAL := 1.5
 const EVADE_REST := 6.0
+## Fleeing (Civilian._evade; docs/village-design.md): while running, a
+## villager (or the hero) looks every "check_every" seconds whether any enemy
+## that scares villagers is still within "clear_radius"; none, it stops and
+## goes back to work from where it stands (resume_work), no walk home.
+## "away_roles" (the hero: only in Explore mode) don't run home at all: they
+## run "away_distance" tiles to explored land that leads away from the
+## enemies (at least "clear_radius" from each), and home only when there is
+## no such place.
+const FLEE := {
+	"check_every": 3.0,
+	"clear_radius": 6.0,  # (more than EVADE_RADIUS, so they don't turn straight back)
+	"away_roles": ["explorer", "hero"],
+	"away_distance": 8.0,
+}
 const FORESTER_CHOP_SESSION := 4.0  # seconds of chopping per trip
 const FORESTER_REST := 3.0  # rest at the camp between trips
 const FORESTER_MATERIAL_PER_TRIP := 3  # paid every time the forester is back at camp

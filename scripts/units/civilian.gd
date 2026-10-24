@@ -25,6 +25,10 @@ var hp := Config.CIVILIAN_HP
 var rest_timer := 0.0
 var evading := false
 var _threat_timer := 0.0
+## Fleeing away from enemies (not home: Config.FLEE "away_roles").
+var _fleeing_away := false
+## Seconds until a fleeing villager looks whether the enemies are gone.
+var _flee_check := 0.0
 
 
 func setup(p_game: Game, p_role: String) -> void:
@@ -67,7 +71,22 @@ func _process(delta: float) -> void:
 			if enemy_nearby():
 				_evade()
 	if evading:
+		_flee_check -= delta
+		if _flee_check <= 0.0:
+			_flee_check = Config.FLEE["check_every"]
+			if not _enemy_within(Config.FLEE["clear_radius"]):
+				_back_to_work()
+				return
+			if _fleeing_away and enemy_nearby():
+				_flee_away_or_home()  # (more of them on the way: another way, or home)
 		if step_path(delta):
+			if _fleeing_away:
+				# Got away: work again if the coast is clear, else on (or home).
+				if _enemy_within(Config.FLEE["clear_radius"]):
+					_flee_away_or_home()
+				else:
+					_back_to_work()
+				return
 			arrive_home()
 			evading = false
 			rest_timer = Config.EVADE_REST
@@ -77,21 +96,91 @@ func _process(delta: float) -> void:
 
 
 func enemy_nearby() -> bool:
+	return _enemy_within(Config.EVADE_RADIUS)
+
+
+func _enemy_within(r: float) -> bool:
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var g := node as Enemy
-		if not g.dead and g.spec().get("scares", true) and g.grid_pos.distance_to(grid_pos) < Config.EVADE_RADIUS:
+		if not g.dead and g.spec().get("scares", true) and g.grid_pos.distance_to(grid_pos) < r:
 			return true
 	return false
 
 
 func _evade() -> void:
-	village.events.debug("%s flees home from enemies" % label())
 	_reveal_camps()
 	evading = true
+	_flee_check = Config.FLEE["check_every"]
 	_on_evade()
 	sprite.rotation = 0.0
 	float_text("Enemies!", Color("ff7a6a"))
+	_flee_away_or_home()
+
+
+## Runs away from the enemies if its role may (flees_away) and there is
+## somewhere to go, else home.
+func _flee_away_or_home() -> void:
+	if flees_away():
+		var to := _away_tile()
+		if to != Vector2i(-1, -1):
+			var p := game.world.pathing.find_path(current_tile(), to)
+			if not p.is_empty():
+				village.events.debug("%s flees from enemies to %s" % [label(), str(to)])
+				_fleeing_away = true
+				follow(p)
+				return
+	village.events.debug("%s flees home from enemies" % label())
+	_fleeing_away = false
 	head_home()
+
+
+## Config.FLEE "away_roles" run away from enemies instead of home.
+func flees_away() -> bool:
+	return role in Config.FLEE["away_roles"]
+
+
+## A tile about FLEE.away_distance away, on explored land the village can
+## reach, in a direction that doesn't lead towards the enemies near it, as
+## far from the nearest of them as can be (at least FLEE.clear_radius); or
+## (-1, -1).
+func _away_tile() -> Vector2i:
+	var foes: Array[Vector2] = []
+	var sum := Vector2.ZERO
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var g := node as Enemy
+		if not g.dead and g.spec().get("scares", true) and g.grid_pos.distance_to(grid_pos) < 3.0 * float(Config.FLEE["away_distance"]):
+			foes.append(g.grid_pos)
+			if g.grid_pos.distance_to(grid_pos) < Config.EVADE_RADIUS + 1.0:
+				sum += (g.grid_pos - grid_pos).normalized()
+	var towards := sum.normalized()
+	var pathing := game.world.pathing
+	var best := Vector2i(-1, -1)
+	var best_d: float = Config.FLEE["clear_radius"]
+	for i in 16:
+		var dir := Vector2.from_angle(TAU * i / 16.0)
+		if dir.dot(towards) > 0.1:
+			continue  # (towards them)
+		var t := Vector2i((grid_pos + dir * float(Config.FLEE["away_distance"])).round())
+		if not pathing.is_walkable(t) or not game.fog.is_explored_by(village.id, t) or not pathing.can_reach(village.center, t):
+			continue
+		var d := INF
+		for f in foes:
+			d = minf(d, f.distance_to(Vector2(t)))
+		if d >= best_d:
+			best_d = d
+			best = t
+	return best
+
+
+## The enemies are gone: no more running, back to work from right here.
+func _back_to_work() -> void:
+	village.events.debug("%s: the enemies are gone, back to work" % label())
+	evading = false
+	_fleeing_away = false
+	path = PackedVector2Array()
+	path_index = 0
+	_set_moving(false)
+	resume_work()
 
 
 ## Fleeing from a monster camp's guards: the camp is uncovered (and found) for
@@ -114,6 +203,8 @@ func _reveal_camps() -> void:
 ## Roles override this; by default it walks home and starts again from there.
 func resume_work() -> void:
 	evading = true
+	_fleeing_away = false
+	_flee_check = Config.FLEE["check_every"]
 	_on_evade()
 	head_home()
 

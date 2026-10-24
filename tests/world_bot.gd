@@ -343,7 +343,14 @@ func _test_game() -> void:
 		runner.set_grid_pos(Vector2(game.world.pathing.nearest_walkable(Vector2i((guard_e.grid_pos + Vector2(3.0, 0)).round()))))
 		var fled := await wait_until(func() -> bool: return runner.evading, 5.0)
 		check(fled and far_camp.is_found_by(v) and game.map.is_explored(far_camp.tile), "a villager fleeing from a camp's guards uncovers the camp (fled %s)" % fled)
-		await wait_until(func() -> bool: return runner.at_home, 60.0)
+		# (an explorer runs away, not home, and explores on: Config.FLEE; for the
+		# checks below it starts from home again)
+		await wait_until(func() -> bool: return runner.at_home or not runner.evading, 60.0)
+		runner.evading = false
+		if runner is Explorer:
+			(runner as Explorer).job.release()
+			(runner as Explorer).job.state = ExploreJob.State.RESTING
+		runner.arrive_home()
 		runner.hp = runner.max_hp
 		check(far_camp.info()["actions"].any(func(a: Dictionary) -> bool: return a["label"] == "Attack with the hero"), "and its panel offers Attack with the hero")
 		# Fled from them on the way to some fog: that fog waits while they live (the way runs past them).

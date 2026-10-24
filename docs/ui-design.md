@@ -464,7 +464,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
 |---|---|
 | Title menu, portrait title, map drag (Firefox rule), wheel zoom, portrait top bar / sheet basics, trade dialog, log placement and levels, settings pause and dialog, dragging stationed units (ghost, highlights, arrow, withdraw on the sidebar) | tests/sim_bot.gd |
 | One building per pick, Cancel, touch preview with Build / ✕, dragging from the Build tab, Android's back button; the portrait sheet (height cap, finger scrolling, dragging by handle / tabs / chevron, flicks); a faked camera cutout (left, right, on top in portrait: top bar, dock and settings box clear of it, the grey over the whole screen) | tests/build_bot.gd |
-| Space and the speed button, the hotkeys (1 / 2 / 3, P, + / -, H, the Esc stack), the villager list, icons in texts, the no-builder and food-shortage warnings | tests/rat_bot.gd |
+| Space and the speed button, every hotkey (1 / 2 / 3, + / -, H, Z, the hero's modes P / B / E / G / Y / R, Tab, U, R, Q, V, N, F1, the Esc stack), the villager list, icons in texts, the hero's health bar, the no-builder and food-shortage warnings | tests/hud_bot.gd |
 | The library: an entry for every kind in Config with its numbers, pausing (not in co-op), the book icon, the title button and icons, fitting the screen | tests/library_bot.gd |
 | The statistics: counters, samples in game time, the button from wave 2, T, pausing, the tabs, folding, the game-over button, a column per village, the client copy | tests/stats_bot.gd |
 | The title backdrop: made over many frames on its baked (up-to-date) map, each scene's posts, units and enemies, slow motion, starts black, fades via black, no input, speed and sound restored after | tests/title_bot.gd |

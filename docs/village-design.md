@@ -1,7 +1,7 @@
 # Veliron's Outpost: the village (design)
 
-Status: **built; describes the current code**. Tested by tests/sim_bot.gd, tests/rat_bot.gd
-(villager HP, tear-down, the warnings) and tests/build_bot.gd (placing).
+Status: **built; describes the current code**. Tested by tests/sim_bot.gd (also fleeing), tests/rat_bot.gd
+(villager HP, tear-down), tests/hud_bot.gd (the warnings, the villager list) and tests/build_bot.gd (placing).
 Scope: one player's village. That covers its resources, huts and villagers, the buildings
 outside the walls, the warnings and the villager list. Every number lives in
 `scripts/core/config.gd`. Military units, barracks
@@ -123,6 +123,16 @@ in docs/multiplayer-design.md.
   - **Fleeing:** outside the walls, a villager checks 4 times a second for an enemy within
     `EVADE_RADIUS` 4.5 tiles. If there is one, they shout "Enemies!", drop or pause the job,
     run home and then rest `EVADE_REST` 6 s.
+  - **Coming back** (`Config.FLEE`, `Civilian._back_to_work`): while running, every
+    `check_every` 3 s they look whether any enemy that scares villagers is still within
+    `clear_radius` 6 tiles. If none is, they stop and go back to work from where they stand
+    (`resume_work`, as after a load), no walk home, no rest.
+  - **Running away** (`away_roles`: the explorer, and the hero in Explore mode): they don't run
+    home but `away_distance` 8 tiles off in one of 16 directions that doesn't lead towards the
+    enemies close by, onto explored land the village can reach, as far from the nearest enemy
+    as can be and at least `clear_radius` from it (`Civilian._away_tile`). Meeting another enemy
+    on the way, they pick again. Once there: back to work if the coast is clear, else away
+    again. Home only when no such place exists.
 - **Builder** (`BuildJob`, shared with the hero at half speed):
   - claims the best job in the build queue (`Construction.claim`, `Config.BUILD_QUEUE`), walks
     there and builds. Only picking a new job looks at this (also after fleeing, which gives the

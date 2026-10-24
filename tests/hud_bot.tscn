@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tests/hud_bot.gd" id="1_hud"]
+
+[node name="HudBot" type="Node"]
+script = ExtResource("1_hud")

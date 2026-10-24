@@ -238,6 +238,11 @@ func _set_home(v: bool) -> void:
 	visible = not dead
 
 
+## Runs away (not home) from enemies only while exploring (Config.FLEE).
+func flees_away() -> bool:
+	return mode == Mode.EXPLORE and super.flees_away()
+
+
 ## Only runs from enemies while doing villager jobs; a defender stands and fights.
 func wants_to_evade() -> bool:
 	return camp_target == null and effective_mode() in [Mode.BUILD, Mode.EXPLORE, Mode.GATHER]
