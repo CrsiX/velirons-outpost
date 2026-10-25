@@ -1625,6 +1625,23 @@ func _s9_rescued() -> void:
 	check(ruins.size() == 3 and ruins.filter(func(o: Node) -> bool: return (o as RuinedTower).building() == "barracks").size() == 1, "two ruined watchtowers and a ruined barracks on the island (%d)" % ruins.size())
 	var church: Church = _s9()._church(sc)
 	check(church != null and church.complete and game.map.in_village(church.tile) and not church.holds_relic, "the church stands inside the walls, empty")
+	var w10: Dictionary = sc.spec.waves[-1]["kinds"]
+	var w11: Dictionary = sc.next_wave(11)["kinds"]
+	var w13: Dictionary = sc.next_wave(13)["kinds"]
+	var more := func(w: Dictionary, k: String) -> int: return int(w.get(k, 0)) - int(w10.get(k, 0))
+	check(more.call(w11, "crab") == 2 and more.call(w11, "skeleton") == 2 and more.call(w11, "goblin") == 1 and more.call(w11, "ork") == 2
+		and more.call(w13, "goblin") == 1 and more.call(w13, "spider_mother") == 1 and more.call(w13, "thief") == 1 and more.call(w13, "crab") == 7,
+		"past wave 10 the waves grow: 2 crabs, 2 skeletons, an ork, and 2 more in turn each time (wave 13: %s)" % str(w13))
+	var piers: Array = sc.mark.get("piers", [])
+	var q2: Vector2i = _s9()._second_quay(sc)
+	check(q2.x >= 0 and piers.any(func(t: Vector2i) -> bool: return t.x == q2.x) and piers.any(func(t: Vector2i) -> bool: return t.x == _s9()._quay(sc).x),
+		"two piers in the harbour (%d tiles of pier)" % piers.size())
+	var bell := Vector2i(-1, -1)
+	for t: Vector2i in sc.kept_free:
+		if sc.kept_free[t] == "ferry bell":
+			bell = t
+	check(bell.x >= 0 and game.construction.placement_error("tower", bell, true).contains("ferry bell") and sc.kept_free.size() >= 10,
+		"nothing can be built where the ferry bell or other harbour scenery stands (%d tiles)" % sc.kept_free.size())
 	var bridge: Array[Vector2i] = []
 	for t: Vector2i in game.map.crossings:
 		if game.map.is_bridge(t) and Vector2(t).distance_to(Vector2(ab.tile)) < 13.0:
@@ -1716,7 +1733,8 @@ func _s9_rescued() -> void:
 	check(await wait_until(func() -> bool: return sc.mark.has("grabbed"), 90.0), "he gets to the quay: the octopus comes up by the pier and grabs him")
 	var p: Resident = _s9()._priest(sc, false)
 	var ob := ((octo as Enemy).behavior as OctopusBehavior)
-	check((octo as Enemy).grid_pos.distance_to(Vector2(quay)) < 5.0, "by the pier")
+	check((octo as Enemy).grid_pos.distance_to(Vector2(quay)) < 7.5 and piers.all(func(q: Vector2i) -> bool: return (octo as Enemy).grid_pos.distance_to(Vector2(q)) >= _s9().OCTOPUS_OFF_PIER - 0.01),
+		"it comes up in the deep water by the harbour, at least %d tiles off the piers" % int(_s9().OCTOPUS_OFF_PIER))
 	await wait(1.0)
 	var busy := ob.arms.filter(func(a: Dictionary) -> bool: return a["state"] != OctopusBehavior.Arm.IDLE and a["state"] != OctopusBehavior.Arm.GONE)
 	check(busy.size() == 1 and busy[0]["target"] == p, "one arm holds him; the others keep still (no towers smashed)")
@@ -1731,10 +1749,27 @@ func _s9_rescued() -> void:
 	var near := MilitaryBehavior.enemies_near(post, 200.0)
 	check(not near.is_empty() and near[0].kind == "octopus_arm" and near[0].holding and p.held_by == near[0],
 		"towers go for the arm holding him first, not the octopus (%s)" % str(near.map(func(e: Enemy) -> String: return e.kind)))
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if (e as Enemy).kind == "octopus_arm":
-			kill(e, h)
-	check(await wait_until(func() -> bool: return sc.mark.has("rescued"), 5.0) and not p.dead, "its arm cut: the priest is saved")
+	var cut_arms := func() -> void:
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if (e as Enemy).kind == "octopus_arm":
+				kill(e, h)
+	cut_arms.call()
+	check(await wait_until(func() -> bool: return sc.mark.has("fleeing"), 3.0) and not sc.mark.has("rescued") and not p.dead,
+		"its arm cut: he is free and runs for the church, not saved yet")
+	await wait(0.6)
+	if not is_instance_valid(p.held_by):
+		ob.grab(octo, p, 1e6, false)  # (the octopus catches him again on his way)
+	check(await wait_until(func() -> bool: return is_instance_valid(p.held_by) and int(sc.mark.get("catches", 1)) == 2, 5.0)
+		and not sc.mark.has("fleeing") and ob.hold_left(p) > _s9().RESCUE_HOLD - 2.0,
+		"caught again on his way: he has a new %d s (%.0f s)" % [int(_s9().RESCUE_HOLD), ob.hold_left(p)])
+	var t := 0.0
+	while not sc.mark.has("rescued") and not p.dead and t < 90.0:
+		if is_instance_valid(p.held_by):
+			cut_arms.call()
+		await wait(0.5)
+		t += 0.5
+	check(sc.mark.has("rescued") and not p.dead and p.at_home, "cut free again, he gets back into the church: rescued (fleeing %s, held %s, at home %s, evading %s, at %s, path %d/%d, home %s, catches %d, dead %s)" % [
+		str(sc.mark.has("fleeing")), str(is_instance_valid(p.held_by)), str(p.at_home), str(p.evading), str(p.current_tile()), p.path_index, p.path.size(), str(p.home_spot()), int(sc.mark.get("catches", 1)), str(p.dead)])
 	said = await _watch(sc.cutscene)
 	check(said.has("priest") and said.has("eldest"), "the priests tell what the abbey hides (%s)" % str(said))
 

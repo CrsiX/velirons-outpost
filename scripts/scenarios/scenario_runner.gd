@@ -45,6 +45,9 @@ var hints: Array[Dictionary] = []
 var objectives: Array[Dictionary] = []
 ## Whatever a card needs to remember (unit levels when it began, ...).
 var mark := {}
+## Tiles nothing may be built on (tile -> what stands there: a scenario's
+## scenery, scenario 9's ferry bell), see keep_free.
+var kept_free := {}
 var start_villagers := 0
 ## Each objective's last state (id -> done), so a change is logged once.
 var _goal_state := {}
@@ -651,6 +654,11 @@ func actor(art: String, tile: Vector2) -> Node2D:
 	return n
 
 
+## Nothing may be built on `tile`: `what` stands there (scenery, an actor).
+func keep_free(tile: Vector2i, what: String) -> void:
+	kept_free[tile] = what
+
+
 ## Moves `n` along `tiles` (grid positions) in `time` real seconds.
 func move_actor(n: Node2D, tiles: Array, time: float) -> void:
 	if tiles.size() < 2:
@@ -962,13 +970,18 @@ func _on_wave_finished(n: int) -> void:
 
 
 ## Wave `n` past the scenario's list (repeat_last): the last one, with
-## `more_each_wave` more of its kinds for every wave past it.
+## `more_each_wave` more of its kinds for every wave past it, and
+## `rotate_count` more for every wave past it from `rotate_kinds` in turn.
 func next_wave(n: int) -> Dictionary:
 	var w: Dictionary = spec.waves[-1].duplicate(true)
 	var past := n - spec.waves.size()
 	var kinds: Dictionary = w.get("kinds", {})
 	for k in spec.more_each_wave:
 		kinds[k] = int(kinds.get(k, 0)) + int(spec.more_each_wave[k]) * past
+	if not spec.rotate_kinds.is_empty():
+		for i in past * spec.rotate_count:
+			var k := spec.rotate_kinds[i % spec.rotate_kinds.size()]
+			kinds[k] = int(kinds.get(k, 0)) + 1
 	w["kinds"] = kinds
 	return w
 

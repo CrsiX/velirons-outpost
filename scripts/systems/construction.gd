@@ -44,6 +44,8 @@ func placement_error(kind: String, tile: Vector2i, free: bool = false) -> String
 			return "Must be outside the village walls"
 		if map.building_at(t) != null:
 			return "Something is already built here"
+		if game.scenario and game.scenario.kept_free.has(t):
+			return "The %s stands here" % game.scenario.kept_free[t]
 		match map.get_terrain(t):
 			MapData.Terrain.ROAD:
 				return "Can't build on the road"

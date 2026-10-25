@@ -77,7 +77,10 @@ func _init() -> void:
 		{"kinds": {"crab": 7, "goblin": 6, "ork": 3, "slime3": 1, "spider_mother": 1, "skeleton": 7, "necromancer": 2, "vampire": 2, "gargoyle": 2}, "spawns": 3},
 	]
 	repeat_last = true
-	more_each_wave = {"crab": 1, "skeleton": 1, "ork": 1}
+	more_each_wave = {"crab": 2, "skeleton": 2, "ork": 1}
+	# And two more each repeat, in turn: the Wilderness, thieves, vampires, necromancers.
+	rotate_kinds = ["goblin", "ork", "slime3", "crab", "spider_mother", "thief", "vampire", "necromancer"]
+	rotate_count = 2
 	first_wave_waits = true
 	first_wave_call = true
 	wave_gap = 45.0
@@ -107,6 +110,8 @@ const LYSA_SIGHT := 3.0
 const RESCUE_WAVE := 4
 const RESCUE_HOLD := 20.0
 const PRIEST_HP_X := 8.0
+## Rescued and home in the church, he stays in this long before his rounds again (s).
+const RESCUED_REST := 30.0
 ## The Legion's columns: the waves they come in (rescued: only the first; the
 ## priests drowned: all three), each stronger than the last.
 const LEGION_WAVES: Array[int] = [6, 7, 8]
@@ -153,6 +158,25 @@ const HARBOUR_PROPS: Array = [
 	["driftwood", Vector2i(7, 0), true],
 	["driftwood", Vector2i(-12, 0), true],
 ]
+## The second pier, about here from the quay (the nearest shore tile with
+## water in front of it), and its scenery: [art, offset from its land end,
+## flipped]; boats on the water by it.
+const SECOND_PIER := Vector2i(-7, 0)
+const SECOND_PIER_PROPS: Array = [
+	["harbour_crates", Vector2i(1, 0), false],
+	["harbour_crates", Vector2i(-1, -1), true],
+	["mooring_post", Vector2i(-1, 0), false],
+	["mooring_post", Vector2i(2, 0), true],
+	["net_rack", Vector2i(2, -1), false],
+	["fish_rack", Vector2i(-2, 0), true],
+	["boat_upturned", Vector2i(3, -1), false],
+]
+const SECOND_PIER_BOATS: Array = [["boat", Vector2i(1, 2)], ["boat_supply", Vector2i(-1, 2)], ["boat", Vector2i(1, 3)]]
+## What each prop is called where it keeps a tile free ("The ferry bell stands here").
+const PROP_NAMES := {"ferry_bell": "ferry bell", "harbour_crates": "harbour's crates", "net_rack": "net rack", "mooring_post": "mooring post",
+	"boat_upturned": "upturned boat", "fish_rack": "fish rack", "driftwood": "driftwood", "beacon": "beacon"}
+## How far the octopus comes up from the piers and the quay (tiles, at least).
+const OCTOPUS_OFF_PIER := 2.0
 ## The beacon on the river's bank near the sea (an offset from the quay;
 ## the nearest open bank tile), and how many gulls circle it.
 const BEACON_OFFSET := Vector2i(16, -2)
@@ -325,7 +349,9 @@ func _begin_rescue(r: ScenarioRunner) -> void:
 
 ## The rescue, step by step: the priest walks to the quay; there the octopus
 ## comes up by the pier and drags him into the shallows (unharmed while the
-## scene plays); once it is over his RESCUE_HOLD seconds run.
+## scene plays); once it is over his RESCUE_HOLD seconds run. Cut free, he
+## runs for the church ("fleeing"); caught again on the way, he has a new
+## RESCUE_HOLD seconds. Rescued once he is inside the church.
 func _poll_rescue(r: ScenarioRunner) -> void:
 	if not r.mark.has("rescue"):
 		return
@@ -351,8 +377,27 @@ func _poll_rescue(r: ScenarioRunner) -> void:
 			r.game.events.important("The octopus has the priest! Cut its arm before it drags him under.")
 			r.game.player_village.toast("The octopus has the priest! Cut its arm!", UiTheme.BAD)
 		return
-	if not is_instance_valid(p.held_by) and r.game.clock - float(r.mark["countdown"]) > 1.0:
-		_rescued(r)
+	if is_instance_valid(p.held_by):
+		if r.mark.has("fleeing"):  # (caught again on his way: his time runs anew)
+			r.mark.erase("fleeing")
+			ob.grab(oct, p, RESCUE_HOLD, true)
+			r.mark["countdown"] = r.game.clock
+			r.mark["catches"] = int(r.mark.get("catches", 1)) + 1
+			r.game.events.important("The octopus has caught the priest again! Cut him free.")
+			r.game.player_village.toast("The octopus has the priest again!", UiTheme.BAD)
+	elif r.mark.has("fleeing"):
+		if p.at_home:
+			_rescued(r)
+		return
+	elif r.game.clock - float(r.mark["countdown"]) > 1.0:
+		r.mark["fleeing"] = true
+		r.mark.erase("shown_sec")
+		p.rounds.clear()  # (no more bell: home, and he stays there)
+		p.run_home()
+		p.float_text("Free!", UiTheme.GOOD)
+		r.game.events.info("The priest is free: he runs for the church")
+		return
+	else:
 		return
 	var sec := ceili(ob.hold_left(p))
 	if sec != int(r.mark.get("shown_sec", -1)):
@@ -363,7 +408,10 @@ func _poll_rescue(r: ScenarioRunner) -> void:
 ## The priest at the quay: the octopus comes up by the pier and grabs him.
 func _octopus_strikes(r: ScenarioRunner, oct: Enemy, p: Resident) -> void:
 	var quay := _quay(r)
-	var water := _deep_by(r, quay, 4.0)
+	var piers: Array = r.mark.get("piers", [])
+	var water := _deep_by(r, quay, 7.0).filter(func(t: Vector2i) -> bool:
+		return Vector2(t).distance_to(Vector2(quay)) >= OCTOPUS_OFF_PIER \
+			and piers.all(func(q: Vector2i) -> bool: return Vector2(t).distance_to(Vector2(q)) >= OCTOPUS_OFF_PIER))
 	if not water.is_empty():
 		(oct.behavior as AquaBehavior).set_post(oct, water[0], 2.5)
 		oct.set_grid_pos(Vector2(water[0]))
@@ -382,8 +430,13 @@ func _rescued(r: ScenarioRunner) -> void:
 	r.mark["rescued"] = true
 	r.mark.erase("rescue")
 	var p := _priest(r, false)
-	if p:
+	if p and p.at_home:
+		p.rounds = _rounds(r, false)  # (but he stays in the church a good while first)
+		p.stay = 10.0
+		p.rest_timer = RESCUED_REST
+	elif p:
 		p.start_rounds(_rounds(r, false), 10.0)
+	if p:
 		p.max_hp = Config.CIVILIAN_HP
 		p.hp = minf(p.hp, p.max_hp)
 	_send_octopus_home(r)
@@ -748,31 +801,35 @@ func _boat_in(r: ScenarioRunner, boat: Node2D) -> void:
 	g.events.info("Pell's guild boat is in: its goods go to his stall")
 
 
-## The harbour's scenery (it never changes, blocks nothing): the pier, two
-## moored boats, the ferry bell at the quay, crates, nets, fish racks,
-## upturned boats, mooring posts and driftwood along the beach; on the
-## river's bank near the sea a beacon, a wreck in the shallows beside it,
-## and gulls circling it.
+## The harbour's scenery (it never changes; nothing can be built where it
+## stands on land: ScenarioRunner.keep_free): two piers with moored boats,
+## the ferry bell at the quay, crates, nets, fish racks, upturned boats,
+## mooring posts and driftwood along the beach; on the river's bank near the
+## sea a beacon, a wreck in the shallows beside it, and gulls circling it.
 func _build_harbour(r: ScenarioRunner) -> void:
-	var g := r.game
 	var q := _quay(r)
-	for i in range(1, 4):
-		var t := q + Vector2i(0, i)
-		if g.map.is_water(t):
-			r.actor("pier", Vector2(t))
+	var piers: Array[Vector2i] = []
+	piers.append_array(_pier(r, q))
 	r.actor("boat", Vector2(q + Vector2i(1, 2)))
 	r.actor("boat", Vector2(q + Vector2i(-1, 3)))
-	var taken: Array[Vector2i] = []
-	for prop: Array in HARBOUR_PROPS:
-		var t := _free_shore(r, q + (prop[1] as Vector2i), taken, false)
-		if t.x >= 0:
-			taken.append(t)
-			var n := r.actor(str(prop[0]), Vector2(t))
-			n.get_child(0).flip_h = bool(prop[2])
+	var taken: Array[Vector2i] = [q]
+	var q2 := _second_quay(r)
+	if q2.x >= 0:
+		taken.append(q2)
+		r.keep_free(q2, "pier")
+		piers.append_array(_pier(r, q2))
+		for b: Array in SECOND_PIER_BOATS:
+			var w: Vector2i = q2 + (b[1] as Vector2i)
+			if r.game.map.is_water(w):
+				r.actor(str(b[0]), Vector2(w))
+		_props(r, q2, SECOND_PIER_PROPS, taken)
+	r.mark["piers"] = piers
+	_props(r, q, HARBOUR_PROPS, taken)
 	var bank := _free_shore(r, q + BEACON_OFFSET, taken, false)
 	if bank.x < 0:
 		return
 	taken.append(bank)
+	r.keep_free(bank, PROP_NAMES["beacon"])
 	r.mark["beacon"] = bank
 	r.actor("beacon", Vector2(bank))
 	var wet := _free_shore(r, bank + Vector2i(1, 1), taken, true)
@@ -780,6 +837,48 @@ func _build_harbour(r: ScenarioRunner) -> void:
 		r.actor("wreck", Vector2(wet))
 	for k in GULLS:
 		_gull(r, Vector2(bank), k)
+
+
+## A pier from `land` out over the water (up to 3 tiles): its tiles on the water.
+func _pier(r: ScenarioRunner, land: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for i in range(1, 4):
+		var t := land + Vector2i(0, i)
+		if r.game.map.is_water(t):
+			r.actor("pier", Vector2(t))
+			out.append(t)
+	return out
+
+
+## Scenery `list` ([art, offset from `at`, flipped]) on the free shore tiles
+## nearest their spots, each tile then kept free of buildings.
+func _props(r: ScenarioRunner, at: Vector2i, list: Array, taken: Array[Vector2i]) -> void:
+	for prop: Array in list:
+		var t := _free_shore(r, at + (prop[1] as Vector2i), taken, false)
+		if t.x < 0:
+			continue
+		taken.append(t)
+		var n := r.actor(str(prop[0]), Vector2(t))
+		n.get_child(0).flip_h = bool(prop[2])
+		r.keep_free(t, str(PROP_NAMES.get(prop[0], "harbour")))
+
+
+## The second pier's land end: the shore tile nearest SECOND_PIER from the
+## quay with two tiles of water in front of it (south), off the roads; (-1, -1) if none.
+func _second_quay(r: ScenarioRunner) -> Vector2i:
+	var m := r.game.map
+	var want := _quay(r) + SECOND_PIER
+	var best := Vector2i(-1, -1)
+	for dy in range(-3, 4):
+		for dx in range(-4, 5):
+			var t := want + Vector2i(dx, dy)
+			if not m.in_bounds(t) or m.is_water(t) or not m.is_passable(t) or m.is_road(t):
+				continue
+			if not (m.is_water(t + Vector2i.DOWN) and m.is_water(t + Vector2i(0, 2))):
+				continue
+			if best.x < 0 or Vector2(t).distance_to(Vector2(want)) < Vector2(best).distance_to(Vector2(want)):
+				best = t
+	return best
 
 
 ## The open land tile nearest `want` that is by the water (`wet`: a shallow
@@ -902,6 +1001,8 @@ func objectives(r: ScenarioRunner) -> Array[Dictionary]:
 				var p := _priest(r, false)
 				if r.mark.has("rescued") or p == null or not is_instance_valid(o):
 					return ""
+				if r.mark.has("fleeing"):
+					return "running for the church"
 				return "%d s" % ceili(((o as Enemy).behavior as OctopusBehavior).hold_left(p))},
 		{"id": "abbey", "text": "Keep the relic from the Legion", "optional": true,
 			"shown": func() -> bool: return r.mark.has("company"),

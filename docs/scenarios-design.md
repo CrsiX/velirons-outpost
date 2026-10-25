@@ -41,7 +41,7 @@ The Dread Legion is Rhodri's organised army (`story-design.md` section 5) and le
 | 6 | The Dead | A battlefield village | Desert | No | Undead, the first necromancers (Evil) | Acolyte (chapel) | Bury the dead |
 | 7 | The Exile | Fiona's refuge | Temperate | No | none new | Apprentice (mage's tower), Summoner (stone circle) | Hold the refuge |
 | 8 | The Pale Court | The capital's outskirts | Volcanic | No | vampires (Evil), Dread Legion camps | none | Clear the crypts |
-| 9 | The Drowned Abbey | A drowned abbey on a delta shore | Coast | No | leviathan (scripted boss), giant octopus (guard), Dread Legion forces | none | Retrieve the First King's Hand, hold 10 waves |
+| 9 | The Drowned Abbey | A drowned abbey on a delta shore | Coast | No | leviathan (scripted boss), giant octopus (guard), Dread Legion forces | none | Retrieve the First King's Hand, slay the leviathan |
 | 10 | The Last Wardline | Home | Highlands | No | all, led by the Dread Legion | none | Survive the Legion |
 | 11 | The Crown | The capital | Capital city (new, section 6) | No | all, the Dread Legion in force | none | Defeat Rhodri, survive the last wave |
 
@@ -410,7 +410,7 @@ to the abbey island, water on
 several sides. Pell's wagon, and his guild's boats at the quay. Her band of followers from scenario 8, a baseline: archers, shield
 bearers, mages, acolytes and summoners, all unlocked. Hero level about 14. **No revive.**
 
-**Objective:** retrieve **the relic**, the **First King's Hand**, from the abbey's flooded crypt *and* hold the village for 10 waves (*target*).
+**Objective:** retrieve **the relic**, the **First King's Hand**, from the abbey's flooded crypt (no number of waves to hold).
 The hero goes to the abbey
 on the player's order, as with a monster camp, fights what guards it (the **giant octopus**, a guard mob: see Monsters), takes the relic and
 carries it home. If she is downed, it is lost
@@ -476,7 +476,7 @@ camp of vampires; the priests keep it **sealed** until wave 6 is over (`Treasure
 and loots the relic in Explore mode, and carries it home. The **octopus** is a guard (`Enemy.post`: it keeps to the deep water near its post
 and doesn't count for the waves), stronger than a wave one. Taking the relic raises the **leviathan** at once (a boss: several times the HP,
 harder blasts, counted for the wave; between waves the next wave starts with it), and the Legion's rest comes by the causeway with it. The
-objectives: bring the relic home, slay the leviathan, hold 10 waves. Built as §7.15.
+objectives: bring the relic home, slay the leviathan (no number of waves to hold: the waves go on until both are done). Built as §7.15.
 
 #### 9a. The rework (built: §7.15)
 
@@ -509,7 +509,8 @@ can be in four places: in the crypt, carried (by Brenna or by Lysa), lying on th
 **The octopus rescue (after wave 4):** between waves 4 and 5 a priest (not the eldest) walks down to the harbour. The guard octopus leaves the
 abbey and grabs him. He has far more HP than a villager and is **held in shallow water for about 20 s** *(tune)* before he is pulled into deep
 water and drowns. A countdown shows over him and on the card. Cutting the arm (towers, ranged units, Brenna) frees him; in this scenario
-towers and units go for an arm holding one of ours before anything else, the octopus itself included. Afterwards the octopus
+towers and units go for an arm holding one of ours before anything else, the octopus itself included. Freed, he runs back to the
+church; only there is he rescued. Caught again on the way, he is dragged into the shallows again with a new 20 s. Afterwards the octopus
 goes back to guard the abbey (and is in Brenna's way when she crosses). This decides the branch:
 
 - **Rescued:** the eldest comes to the gate and tells what the abbey hides (the Hand; why they hid it; vampires in the crypt; something bigger
@@ -1150,7 +1151,8 @@ The game has none of this yet, except where noted:
   (a scripted grab whose arm holds its catch in the shallows for a while); `Treasure.seal_hp` / `seal_max` (a seal enemies break, with a
   bar) and `blocked` (why an open treasure can't be looted now); a dropped relic ("sack" with an `"item"`) drawn as `relic_sword`;
   `Resident.start_rounds` (new rounds at once); `ScenarioRunner.hero_moves_out` (a tent as her home) and `keep_in_sight` (an observer
-  following a story figure); `Scenario.can_win` (more than the shown objectives); an objective's `"gone"` (once it holds, the objective
+  following a story figure); `ScenarioRunner.keep_free` (a tile nothing may be built on: scenery); `Scenario.rotate_kinds` / `rotate_count` (repeated
+  waves grow by kinds in turn); `Scenario.can_win` (more than the shown objectives); an objective's `"gone"` (once it holds, the objective
   is hidden for good and no longer counted: a goal only for the start); a cutscene `"camera"` step may be a Callable.
 
 ### 7.14 Scenario 8 as built (`scenario_8.gd`)
@@ -1206,21 +1208,27 @@ Built after the rework of §9a.
   `Resident.home_tile`, and walk their rounds: the eldest to the east gate, the younger to the quay);
   the farm and the camp; the **church** (`church`, `Church`, 3x3, campaign-only, `"inside"`: prebuilt inside the walls; it keeps the relic
   once it is home, a glow shows it); Pell's stall by the quay; barracks (level 2) with a shield bearer (7) and an archer (6), two watchtowers
-  (an archer 7 by the north road, an apprentice 6 by the bank road), a summoner and an acolyte (6) in the reserve. The harbour (scenery, `_build_harbour`: it blocks
-  nothing): a pier, two moored boats, the ferry bell at the quay, crates, a net rack, mooring posts, upturned boats, fish racks and
-  driftwood along the beach; on the river's bank near the sea a beacon, a wreck in the shallows beside it, gulls circling it. Brenna is level 14. No revive; Pell must not die.
+  (an archer 7 by the north road, an apprentice 6 by the bank road), a summoner and an acolyte (6) in the reserve. The harbour (scenery, `_build_harbour`; nothing can be
+  built where a piece of it stands on land, `ScenarioRunner.keep_free`: "The ferry bell stands here"): two piers (the quay's, where the
+  guild's boats tie up, and a second one about 7 tiles west, `SECOND_PIER`, with its own crates, mooring posts, net rack, fish rack, an
+  upturned boat and three boats on the water), two moored boats at the first, the ferry bell at the quay, crates, a net rack, mooring
+  posts, upturned boats, fish racks and driftwood along the beach; on the river's bank near the sea a beacon, a wreck in the shallows beside it, gulls circling it. Brenna is level 14. No revive; Pell must not die.
 - **Wave 1** waits (it can be called) until the player has built a watchtower of theirs within 3 tiles of deep water (finished; nobody
   needs to be on it; not a prebuilt one): then its 60 s countdown starts. An objective says so ("Build a watchtower by the shore",
-  "then wave 1 comes"); ticked (or once wave 1 is called early), it stays 4 s (`WATCH_GOAL_STAYS`) and is then gone for good (an objective's `"gone"`: only for the start). Ten listed waves, then the last again, bigger (+1 crab, skeleton and ork each time), until it is won; 45 s between waves.
+  "then wave 1 comes"); ticked (or once wave 1 is called early), it stays 4 s (`WATCH_GOAL_STAYS`) and is then gone for good (an objective's `"gone"`: only for the start). Ten listed waves, then the last again, bigger, until it is won (no number of waves to hold); 45 s between waves. Each repeat adds
+  2 crabs, 2 skeletons and an ork more than the one before (`more_each_wave`), and 2 more in turn from goblin, ork, big slime, crab,
+  spider mother, thief, vampire, necromancer (`rotate_kinds`, `rotate_count`: round robin, on from where the last repeat stopped).
   Besides crabs, the drowned dead and the Evil, the Wilderness all along: goblins, orks from wave 2 (1 to 3), big slimes (waves 3,
   5, 8, 10), a spider mother in waves 7, 9 and 10, rat packs (6; 7 and 5 in wave 8).
 - **The rescue** (after wave 4): a scene (the priest walks down to ring the ferry bell); the younger priest walks to the quay
-  (`Resident.start_rounds`). Only when he gets there does the guard octopus come: moved to the deep water by the pier
-  (`AquaBehavior.set_post`), it surfaces and grabs him (`OctopusBehavior.grab`), drags him off the quay into the shallows and holds him
+  (`Resident.start_rounds`). Only when he gets there does the guard octopus come: moved to the deep water by the harbour, at
+  least 2 tiles off the quay and both piers (`OCTOPUS_OFF_PIER`; `AquaBehavior.set_post`), it surfaces and grabs him (`OctopusBehavior.grab`), drags him off the quay into the shallows and holds him
   there, unharmed, while a second scene plays (the alarm). Its other arms keep still meanwhile (its `focus`: no towers smashed, nobody
   else grabbed). Towers and units go for an arm holding one of ours first (`Scenario.arms_first`: `Enemy.holding`, set by the octopus;
   `MilitaryBehavior.enemies_near` puts those first), never the octopus while he is held. Once that scene is over his `RESCUE_HOLD` 20 s run: the arm hurts him (he has 8x a villager's HP) and then pulls him
-  under. A countdown floats over him and stands in the objective. Cut free: the priests tell (the Hand, why they hid it, vampires,
+  under. A countdown floats over him and stands in the objective. Cut free he runs for the church (`Civilian.run_home`; the objective
+  says "running for the church"); an arm that catches him on the way holds him in the shallows again with a new `RESCUE_HOLD` (it
+  has his focus again). Rescued once he is home in the church: the priests tell (the Hand, why they hid it, vampires,
   something in the deep, others know). Drowned: they shut Brenna out (`ScenarioRunner.hero_moves_out`: a tent near the west gate is her
   home; `Hero.barred`: she never sets foot in the village, a gate included, until they trust her: her ways go round it,
   `Pathing.find_path_outside`, and she leaves enemies inside alone) and say nothing. Either way the octopus goes back to the abbey.

@@ -118,6 +118,15 @@ func resume_work() -> void:
 	head_home()
 
 
+## Sent home at once, the way fleeing goes (and resting there after), from
+## wherever they are: a scenario's story (scenario 9's priest, freed from the
+## octopus, runs for his church).
+func run_home() -> void:
+	evading = true
+	_on_evade()
+	head_home()
+
+
 ## Override: false for units that stand and fight (the defending hero).
 func wants_to_evade() -> bool:
 	return true

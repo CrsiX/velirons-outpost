@@ -133,9 +133,13 @@ var first_wave_waits := true
 ## scenario releases the waves (ScenarioRunner.release_waves).
 var first_wave_call := true
 ## After the last listed wave more come until the objectives are met: the
-## last one again, with `more_each_wave` ({kind: count}) more per wave.
+## last one again, with `more_each_wave` ({kind: count}) more per wave, and
+## `rotate_count` more per wave picked from `rotate_kinds` in turn (round
+## robin, on from where the wave before stopped: every kind comes up).
 var repeat_last := false
 var more_each_wave := {}
+var rotate_kinds: Array[String] = []
+var rotate_count := 0
 ## Seconds between a wave's end and the next (the countdown).
 var wave_gap := 30.0
 ## Amphibians (crabs, sirens) come out of the water only, never from the map edge.
