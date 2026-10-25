@@ -120,11 +120,12 @@ const SEAL_HP := 600.0
 ## The guard octopus: its HP x this, and how far from its post it keeps.
 const GUARD_HP := 1.5
 const GUARD_LEASH := 6.0
-## The leviathan: HP and damage x these; how far from the crypt it keeps while
-## the relic is in it, and from the pier while a boat comes in; else it
-## haunts the harbour's shore, this far round the pier.
+## The leviathan: HP and damage x these (its blast: 30 x 1.15 (the
+## scenario's enemy scale) = 34.5 HP/s while it lasts, no boss bonus); how far from the crypt it keeps while the relic is in it, and
+## from the pier while a boat comes in; else it haunts the harbour's shore,
+## this far round the pier.
 const LEVIATHAN_HP := 5.0
-const LEVIATHAN_POWER := 1.5
+const LEVIATHAN_POWER := 1.0
 const CRYPT_LEASH := 7.0
 const PIER_LEASH := 5.0
 const SHORE_LEASH := 9.0

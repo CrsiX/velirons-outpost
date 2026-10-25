@@ -1783,7 +1783,7 @@ func _s9_rescued() -> void:
 	await wait(0.5)
 	check(sc._goal_shown.has("leviathan"), "the objective: slay the leviathan")
 	var lev := sc.named_enemy("Leviathan")
-	check(lev != null and lev.max_hp >= Config.enemy_stat("leviathan", "hp") * 4.9 and lev.power == _s9().LEVIATHAN_POWER, "a boss: five times the HP, harder blasts")
+	check(lev != null and lev.max_hp >= Config.enemy_stat("leviathan", "hp") * 4.9 and lev.power == _s9().LEVIATHAN_POWER, "a boss: five times the HP")
 	await _through_scene()
 	spare = ""
 	kill(lev, h)

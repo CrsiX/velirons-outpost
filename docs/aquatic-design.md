@@ -109,7 +109,7 @@ A sea serpent. It never leaves deep water, never moves while surfaced.
 |---|---|
 | HP | 220 (high) |
 | Travel | submerged only, 1.3 tiles/s |
-| Water blast | range 4.6, 6 damage/s for 4 s (a channel), cooldown 8 s, category *magical* |
+| Water blast | range 4.6, 30 damage/s for 4 s (a rare burst: three times an ork's DPS) (a channel), cooldown 5 s (from one blast's start to the next: hardly a break), category *magical* |
 | Surfaced | at least 5 s, at most 9 s |
 | Kill gold | 40; corpse: nothing |
 | From wave | 10, share 0.03, `max_count` 2 |

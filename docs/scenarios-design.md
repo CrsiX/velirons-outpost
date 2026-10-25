@@ -1233,7 +1233,7 @@ Built after the rework of §9a.
 - **The relic** (`mark["relic"]`: "crypt", "lysa", "ground", "hero", "home"): Brenna loots it in Explore mode and carries it home (never a
   gatherer: dropped loot holding an `"item"` is the hero's to carry; the
   church keeps it); shut out, she takes it to the east gate and the priests take it in (it is theirs until they trust her).
-- **The leviathan** (outside the waves; HP x5, damage x1.5) wakes when the crypt is first used: Brenna going in (it blocks the crypt,
+- **The leviathan** (outside the waves; HP x5, its blast as ever: 34.5 HP/s while it lasts with the scenario's enemy scale, 30 on Normal elsewhere) wakes when the crypt is first used: Brenna going in (it blocks the crypt,
   `Treasure.blocked`, until it is slain; she is driven off) or the seal broken. While it lives it keeps to the crypt while the relic is in it,
   goes for a boat coming in (and sinks it, goods lost), else blasts the shore near the village.
 - **Pell's boats** after waves 2, 5 and 8 sail in to the pier; a cart (`ScenarioCaravan`) takes their goods from the quay to his stall
