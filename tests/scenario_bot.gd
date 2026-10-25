@@ -1671,8 +1671,8 @@ func _s9_rescued() -> void:
 	check(drowned.size() == _s9().DROWNED, "the drowned dead lie on the island (%d)" % drowned.size())
 	var priests := _s9_priests()
 	check(priests.size() == 2 and priests.all(func(c: Civilian) -> bool: return c is Resident and not (c as Resident).rounds.is_empty()), "two priests walk their rounds")
-	var eldest := _s9()._priest(sc, true)
-	var younger := _s9()._priest(sc, false)
+	var eldest: Resident = _s9()._priest(sc, true)
+	var younger: Resident = _s9()._priest(sc, false)
 	check(eldest != null and younger != null and eldest.label() == "Eldest priest" and younger.label() == "Priest"
 		and sc.spec.must_live.has("Eldest priest") and not sc.spec.must_live.has("Priest"),
 		"the eldest priest and the priest, by name (not numbered); she must not die")
@@ -1913,7 +1913,8 @@ func _s9_drowned() -> void:
 	watch.timeout.connect(func() -> void:
 		if h.barred.has_area() and h.barred.has_point(h.current_tile()):
 			if not inside[0]:
-				print("    (inside at %s: mode %d evading %s at_home %s home %s path end %s target %s camp %s held %s)" % [h.grid_pos, h.mode, h.evading, h.at_home, h.home(), h.path[h.path.size() - 1] if h.path.size() > 0 else "-", h.target, h.camp_target, h.held_by])
+				print("    (inside at %s: mode %d evading %s at_home %s home %s path end %s target %s camp %s held %s; path %d/%d: %s; barred %s)" % [h.grid_pos, h.mode, h.evading, h.at_home, h.home(), h.path[h.path.size() - 1] if h.path.size() > 0 else "-", h.target, h.camp_target, h.held_by,
+					h.path_index, h.path.size(), str(h.path.slice(maxi(h.path_index - 3, 0), h.path_index + 3)), str(h.barred)])
 			inside[0] = true)
 	add_child(watch)
 	watch.start()
@@ -2102,7 +2103,7 @@ func _s9_eldest_dies() -> void:
 	await wait(1.0)
 	sc.cutscene.skip()
 	await frames(3)
-	var eldest := _s9()._priest(sc, true)
+	var eldest: Resident = _s9()._priest(sc, true)
 	game.population.kill(eldest, "of a fever", "other")
 	check(await wait_until(func() -> bool: return game.game_over, 5.0) and not game.hud._overlay_won
 		and game.hud._overlay_sub.text.contains("The eldest priest must not die"), "she dies: lost (%s)" % game.hud._overlay_sub.text.split("\n")[0])

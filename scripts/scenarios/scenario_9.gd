@@ -598,6 +598,9 @@ func _poll_relic(r: ScenarioRunner) -> void:
 					ch.refresh()
 				if r.mark.has("drowned") and not r.mark.has("trust"):
 					g.hero.home_override = _tent_tile(r)
+					if g.hero.at_home:  # (at the gate: she walks back to her tent, round the walls)
+						g.hero._set_home(false)
+						g.hero.head_home()
 					r.play_scene([
 						{"say": "", "text": "At the gate Brenna holds out the sword. A priest takes it without a word, and the gate closes again."},
 						{"say": "pell", "text": "They have it now. It's a start."},
@@ -835,7 +838,8 @@ func _boat_in(r: ScenarioRunner, boat: Node2D) -> void:
 ## stands on land: ScenarioRunner.keep_free): two piers with moored boats,
 ## the ferry bell at the quay, crates, nets, fish racks, upturned boats,
 ## mooring posts and driftwood along the beach; on the river's bank near the
-## sea a beacon, a wreck in the shallows beside it, and gulls circling it.
+## sea a beacon and gulls circling it (the shipwreck by it is the map's,
+## a treasure to loot).
 func _build_harbour(r: ScenarioRunner) -> void:
 	var q := _quay(r)
 	var piers: Array[Vector2i] = []
@@ -862,9 +866,6 @@ func _build_harbour(r: ScenarioRunner) -> void:
 	r.keep_free(bank, PROP_NAMES["beacon"])
 	r.mark["beacon"] = bank
 	r.actor("beacon", Vector2(bank))
-	var wet := _free_shore(r, bank + Vector2i(1, 1), taken, true)
-	if wet.x >= 0:
-		r.actor("wreck", Vector2(wet))
 	for k in GULLS:
 		_gull(r, Vector2(bank), k)
 
@@ -893,20 +894,25 @@ func _props(r: ScenarioRunner, at: Vector2i, list: Array, taken: Array[Vector2i]
 		r.keep_free(t, str(PROP_NAMES.get(prop[0], "harbour")))
 
 
-## The second pier's land end: the shore tile nearest SECOND_PIER from the
-## quay with two tiles of water in front of it (south), off the roads; (-1, -1) if none.
+## The second pier's land end: about SECOND_PIER from the quay, a shore tile
+## with two tiles of water in front of it (south): the end of a road that
+## reaches the water there if there is one (the pier goes on from it), else
+## the nearest such tile off the roads; (-1, -1) if none.
 func _second_quay(r: ScenarioRunner) -> Vector2i:
 	var m := r.game.map
 	var want := _quay(r) + SECOND_PIER
 	var best := Vector2i(-1, -1)
+	var best_d := INF
 	for dy in range(-3, 4):
 		for dx in range(-4, 5):
 			var t := want + Vector2i(dx, dy)
-			if not m.in_bounds(t) or m.is_water(t) or not m.is_passable(t) or m.is_road(t):
+			if not m.in_bounds(t) or m.is_water(t) or not m.is_passable(t) or m.crossings.has(t):
 				continue
 			if not (m.is_water(t + Vector2i.DOWN) and m.is_water(t + Vector2i(0, 2))):
 				continue
-			if best.x < 0 or Vector2(t).distance_to(Vector2(want)) < Vector2(best).distance_to(Vector2(want)):
+			var d := Vector2(t).distance_to(Vector2(want)) - (100.0 if m.is_road(t) else 0.0)
+			if d < best_d:
+				best_d = d
 				best = t
 	return best
 
@@ -915,12 +921,16 @@ func _second_quay(r: ScenarioRunner) -> Vector2i:
 ## water tile by the land instead), not a road, building or other prop; (-1, -1) if none.
 func _free_shore(r: ScenarioRunner, want: Vector2i, taken: Array[Vector2i], wet: bool) -> Vector2i:
 	var g := r.game
+	var objects := {}  # (never on a treasure, camp or ruin of the map's)
+	for o in g.world.map_objects:
+		for q in Building.footprint((o as MapObject).tile, int((o as MapObject).data.get("size", 1))):
+			objects[q] = true
 	var best := Vector2i(-1, -1)
 	var best_d := INF
 	for dy in range(-4, 5):
 		for dx in range(-4, 5):
 			var t := want + Vector2i(dx, dy)
-			if not g.map.in_bounds(t) or taken.has(t) or g.map.buildings.has(t) or g.map.is_road(t) or g.map.in_village(t):
+			if not g.map.in_bounds(t) or taken.has(t) or g.map.buildings.has(t) or g.map.is_road(t) or g.map.in_village(t) or objects.has(t):
 				continue
 			var near_land := false
 			var near_water := false
@@ -1071,8 +1081,8 @@ func on_start(r: ScenarioRunner) -> void:
 		(both[0] as Civilian).given_name = ELDEST
 		(both[1] as Civilian).given_name = YOUNGER
 		Art.apply((both[0] as Civilian).sprite, "unit_eldest_priest")
-	var eldest := _priest(r, true)
-	var younger := _priest(r, false)
+	var eldest: Resident = _priest(r, true)
+	var younger: Resident = _priest(r, false)
 	var church := _church(r)
 	for p: Resident in [eldest, younger]:
 		if p:

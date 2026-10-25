@@ -1200,7 +1200,7 @@ func _abbey() -> void:
 	g.camera.zoom = Vector2(0.85, 0.85)
 	await _frames(40)
 	await shot("court_s9_harbour")
-	# The beach: the ferry bell, boats, racks, driftwood; the beacon, the wreck and gulls by the channel.
+	# The beach: the ferry bell, boats, racks, driftwood; the beacon and gulls by the river's mouth.
 	var quay: Vector2i = sc.spec._quay(sc)
 	g.fog.reveal(Vector2(quay), 18.0, v.id)
 	g.hud.set_dock_open(false)

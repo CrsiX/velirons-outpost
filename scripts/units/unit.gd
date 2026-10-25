@@ -138,12 +138,18 @@ func _after_forced() -> void:
 	if path_index >= path.size() or game == null or game.world == null:
 		return
 	var goal := path[path.size() - 1]
-	var p := game.world.pathing.find_path(current_tile(), Vector2i(goal.round()))
+	var p := find_way(current_tile(), Vector2i(goal.round()))
 	if p.is_empty():
 		return
 	p[0] = grid_pos
 	p[p.size() - 1] = goal
 	follow(p)
+
+
+## A way from `from` to `to` for this unit (Civilian and Hero have their own:
+## the hero keeps out of where she is barred).
+func find_way(from: Vector2i, to: Vector2i) -> PackedVector2Array:
+	return game.world.pathing.find_path(from, to)
 
 
 ## Shallow water and fords x0.5, swamp off the road x0.7 (MapData.walk_factor).

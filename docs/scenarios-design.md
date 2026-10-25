@@ -1217,7 +1217,8 @@ Built after the rework of §9a.
   built where a piece of it stands on land, `ScenarioRunner.keep_free`: "The ferry bell stands here"): two piers (the quay's, where the
   guild's boats tie up, and a second one about 7 tiles west, `SECOND_PIER`, with its own crates, mooring posts, net rack, fish rack, an
   upturned boat and three boats on the water), two moored boats at the first, the ferry bell at the quay, crates, a net rack, mooring
-  posts, upturned boats, fish racks and driftwood along the beach; on the river's bank near the sea a beacon, a wreck in the shallows beside it, gulls circling it. Brenna is level 14. No revive; Pell and the eldest priest must not die (`must_live`).
+  posts, upturned boats, fish racks and driftwood along the beach; on the river's bank near the sea a beacon with gulls circling it (the shipwreck beside it is the map's own, a treasure to loot;
+  scenery never stands on a map object). Brenna is level 14. No revive; Pell and the eldest priest must not die (`must_live`).
 - **Wave 1** waits (it can be called) until the player has built a watchtower of theirs within 3 tiles of deep water (finished; nobody
   needs to be on it; not a prebuilt one): then its 60 s countdown starts. An objective says so ("Build a watchtower by the shore",
   "then wave 1 comes"); ticked (or once wave 1 is called early), it stays 4 s (`WATCH_GOAL_STAYS`) and is then gone for good (an objective's `"gone"`: only for the start). Ten listed waves, then the last again, bigger, until it is won (no number of waves to hold); 45 s between waves. Each repeat adds
