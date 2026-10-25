@@ -592,6 +592,18 @@ func _test_branching() -> void:
 		await tap(ice_btn)
 		await frames(2)
 	check(ap.kind == "ice_mage" and ap.level == 0 and not hud._upgrade_panel.visible, "picking it makes an ice mage, level 1")
+	# Training progress takes its share off the next level's gold, 1:1; specialising stays full price.
+	var tr := game.army.recruit("archer")
+	tr.level = Config.BRANCH_MIN_LEVEL - 1
+	var full := int(Config.unit_upgrade_cost("archer", tr.level)["gold"])
+	tr.train_xp = tr.train_xp_needed() * 0.6
+	var part := int(tr.upgrade_cost()["gold"])
+	var branch_full: bool = tr.upgrade_options().filter(func(o: Dictionary) -> bool: return o["to"] == "crossbowman")[0]["cost"] == Config.MILITARY["crossbowman"]["branch_cost"]
+	check(part == roundi(full * 0.4) and branch_full, "60 %% trained leaves 40 %% of the level's gold (%d of %d); a specialisation costs its full price" % [part, full])
+	game.economy.add("gold", 1000)
+	var gold_before := game.economy.amount("gold")
+	game.army.upgrade(tr)
+	check(gold_before - game.economy.amount("gold") == part and tr.train_xp == 0.0 and tr.upgrade_cost()["gold"] == Config.unit_upgrade_cost("archer", tr.level)["gold"], "the upgrade charges the rest and resets the training")
 	# Training at the grounds only levels up (no specialising): train() keeps the kind.
 	var sp := game.army.recruit("apprentice")
 	sp.level = Config.BRANCH_MIN_LEVEL - 1

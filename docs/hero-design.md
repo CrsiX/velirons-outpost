@@ -180,6 +180,10 @@ she can walk to.
   real time, whatever the game speed. The log and her panel say so, so the player can switch her
   mode and keep the rest of her XP.
 - With no XP left she just stands there ("no XP left to pass on").
+- **Gold and XP mix 1:1:** the share of the next level's XP the unit already has comes off that
+  level's gold price (`TRAIN_GOLD_DISCOUNT` 1.0; `MilitaryUnit.upgrade_cost`, rounded, at least
+  1 gold): 60 % trained leaves 40 % of the gold. The upgrade dialog says "n% trained", the grounds'
+  panel the gold for the rest. Specialising costs its full price.
 - A gold upgrade of the unit resets its training progress. Training never specialises a unit.
 
 ### 4.7 Rest

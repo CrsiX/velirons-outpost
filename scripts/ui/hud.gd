@@ -2467,7 +2467,8 @@ func open_upgrade(unit: MilitaryUnit) -> void:
 		c.queue_free()
 	for opt in unit.upgrade_options():
 		# (a wrapping button needs a width to wrap in, or it measures one word per line)
-		var b := _button("%s   (%s)" % [MilitaryUnit.option_text(opt), Config.cost_icons(opt["cost"])], Vector2(_upgrade_width(), 52))
+		var trained := ", %d%% trained" % floori(100.0 * unit.trained_share()) if opt["to"] == unit.kind and not opt["archmage"] and unit.train_xp > 0.0 else ""
+		var b := _button("%s   (%s%s)" % [MilitaryUnit.option_text(opt), Config.cost_icons(opt["cost"]), trained], Vector2(_upgrade_width(), 52))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", 15)
 		b.set_meta("cost", opt["cost"])

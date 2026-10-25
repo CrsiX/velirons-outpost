@@ -1323,6 +1323,10 @@ static func _curve(first: float, last: float, i: int, n: int, curve: float) -> f
 	return lerpf(first, last, pow(float(i) / float(n - 1), curve))
 ## Training XP needed is multiplied by this per difficulty (see Settings).
 const TRAIN_XP_DIFFICULTY := {"easy": 0.8, "normal": 1.0, "hard": 1.5}
+## Training and gold mix: a unit's training progress towards its next level
+## takes this share of it off that level's gold price (1.0: 1:1, so 60 % trained
+## leaves 40 % of the gold to pay). Never off a specialisation.
+const TRAIN_GOLD_DISCOUNT := 1.0
 
 ## The hero: a fighter who can also do a little of every villager job.
 ## She has no hut, eats nothing and doesn't count as a villager.

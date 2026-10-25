@@ -187,8 +187,20 @@ func can_upgrade() -> bool:
 	return level < Config.MAX_UNIT_LEVEL - 1
 
 
+## Gold for the next level, less what training has already paid for
+## (`trained_share` × TRAIN_GOLD_DISCOUNT of it; at least 1 gold).
 func upgrade_cost() -> Dictionary:
-	return Config.unit_upgrade_cost(kind, level)
+	var cost := Config.unit_upgrade_cost(kind, level)
+	var off := trained_share() * Config.TRAIN_GOLD_DISCOUNT
+	if cost.has("gold") and off > 0.0:
+		cost["gold"] = maxi(1, roundi(cost["gold"] * (1.0 - clampf(off, 0.0, 1.0))))
+	return cost
+
+
+## How far its training towards the next level has come (0-1).
+func trained_share() -> float:
+	var need := train_xp_needed()
+	return clampf(train_xp / need, 0.0, 1.0) if need > 0.0 else 0.0
 
 
 ## Every way to upgrade it now: the next level of its own kind; from

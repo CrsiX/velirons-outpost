@@ -323,6 +323,9 @@ Their level 1 (85-90 HP, 5.2-7.2 DPS) is above the shield bearer's level 3
   the cost and the option's name, level and main stats (`MilitaryUnit.option_text`),
   e.g. "Archer 6: 63 HP 29 damage every 0.55 s range 2.6" or
   "Crossbowman 1: 34 HP 50 damage every 2.25 s range 3.2".
+- A level-up's gold price is lowered by the training progress towards it, 1:1
+  (60 % trained: 40 % of the gold; `TRAIN_GOLD_DISCOUNT`, docs/hero-design.md §4.6);
+  a specialisation's price never is.
 - Every upgrade resets the unit's training XP and refills its HP. Specialising
   keeps the unit where it is, unless its new kind can't serve on its post (an
   Inquisitor on a tower): then it walks back into the reserve. A unit

@@ -64,7 +64,7 @@ func info() -> Dictionary:
 	if garrison:
 		lines.append("%s, level %d" % [garrison.display_name(), garrison.level + 1])
 		if garrison.can_train():
-			lines.append("Training to level %d: %d / %d XP" % [garrison.level + 2, int(garrison.train_xp), int(garrison.train_xp_needed())])
+			lines.append("Training to level %d: %d / %d XP (or the rest for %s)" % [garrison.level + 2, int(garrison.train_xp), int(garrison.train_xp_needed()), Config.cost_icons(garrison.upgrade_cost())])
 		else:
 			lines.append("Fully trained (max level).")
 		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": garrison.nid})})
