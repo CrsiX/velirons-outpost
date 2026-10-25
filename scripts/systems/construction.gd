@@ -203,14 +203,28 @@ func claim(builder: Node, max_dist := INF) -> Building:
 ## while it is demoted (interrupted too often).
 func bucket(site: Building) -> int:
 	var buckets: Array = Config.BUILD_QUEUE["buckets"]
+	var job := job_type(site)
 	var i := buckets.size() - 1
 	for j in buckets.size():
-		if site.kind in buckets[j] or "*" in buckets[j]:
+		var b: Dictionary = buckets[j]
+		if (job in b["jobs"] or "*" in b["jobs"]) and (site.kind in b["kinds"] or "*" in b["kinds"]):
 			i = j
 			break
 	if site.interrupts >= int(Config.BUILD_QUEUE["demote_after"]):
 		i = mini(i + 1, buckets.size() - 1)
 	return i
+
+
+## What a job in the queue is: "teardown", "repair" (a ruined hut's rebuild
+## too), "upgrade" or "build".
+static func job_type(site: Building) -> String:
+	if site.tearing_down:
+		return "teardown"
+	if site.repairing or (site is Hut and not site.complete):
+		return "repair"
+	if site.upgrading:
+		return "upgrade"
+	return "build"
 
 
 ## A visible enemy (one that scares villagers) near the job. Inside the walls

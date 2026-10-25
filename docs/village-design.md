@@ -144,9 +144,14 @@ in docs/multiplayer-design.md.
       the next one is tried at once), and none with a visible enemy (one that scares villagers,
       on a tile the village watches) within `danger_radius` 5 tiles (`Construction.in_danger`); jobs inside the walls count as safe
       while no enemy has broken in, as for fleeing.
-    - **Buckets** (`buckets`, `Construction.bucket`): `[["hut"], ["gate", "wall"], ["*"]]`,
-      hut rebuilds first, then gates and walls (built, repaired or upgraded), then everything
-      else (wall towers too). Each bucket lists building kinds; `"*"` takes any kind.
+    - **Buckets** (`buckets`, `Construction.bucket`): each names jobs and building kinds (`"*"`:
+      any); a job goes into the first bucket that lists both. The job (`Construction.job_type`)
+      is "repair" (a ruined hut's rebuild too), "upgrade", "build" or "teardown". In order:
+      1. repairs of gates and walls; 2. hut rebuilds; 3. wall tower repairs; 4. gate and wall
+      upgrades; 5. wall tower upgrades; 6. repairs of military buildings (watchtower,
+      barracks, training grounds, grove; restoring a ruined watchtower too); 7. new military
+      buildings; 8. upgrades of military buildings; 9. everything else (farms, camps, light
+      stones, tear-downs...). For military buildings: repair, then build, then upgrade.
     - **Within a bucket:** jobs already started (`work_fraction() > 0`) first, then the lowest
       score: tiles from the builder (from the village centre while at home) minus
       `age_tiles_per_min` 10 per minute in the queue (`Building.queued_at`, set by

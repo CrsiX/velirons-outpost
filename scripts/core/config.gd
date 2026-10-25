@@ -875,8 +875,9 @@ const BUILDER_REST := 3.0
 ## build queue (Construction.claim; docs/village-design.md):
 ## - only jobs they can walk to from the village, and none with a visible
 ##   enemy within "danger_radius" tiles;
-## - by bucket: the first bucket whose kinds list the building's kind ("*":
-##   any kind), earlier buckets first;
+## - by bucket: the first bucket that lists both the job ("build", "repair":
+##   a hut rebuild too, "upgrade", "teardown"; Construction.job_type) and the
+##   building's kind ("*": any), earlier buckets first;
 ## - within a bucket, jobs already started first, then the lowest score:
 ##   tiles from the builder minus "age_tiles_per_min" per minute in the queue;
 ## - a job interrupted "demote_after" times (builders fled from it) drops one
@@ -886,7 +887,17 @@ const BUILDER_REST := 3.0
 ## - a builder who finishes a job walks straight on to the next one if it is
 ##   within "chain_radius" tiles, instead of going home to rest first.
 const BUILD_QUEUE := {
-	"buckets": [["hut"], ["gate", "wall"], ["*"]],
+	"buckets": [
+		{"jobs": ["repair"], "kinds": ["gate", "wall"]},
+		{"jobs": ["repair"], "kinds": ["hut"]},
+		{"jobs": ["repair"], "kinds": ["wall_tower"]},
+		{"jobs": ["upgrade"], "kinds": ["gate", "wall"]},
+		{"jobs": ["upgrade"], "kinds": ["wall_tower"]},
+		{"jobs": ["repair"], "kinds": ["tower", "barracks", "training", "grove"]},  # (restoring a ruined watchtower too)
+		{"jobs": ["build"], "kinds": ["tower", "barracks", "training", "grove"]},
+		{"jobs": ["upgrade"], "kinds": ["tower", "barracks", "training", "grove"]},
+		{"jobs": ["*"], "kinds": ["*"]},
+	],
 	"age_tiles_per_min": 10.0,
 	"danger_radius": 5.0,  # (a little more than EVADE_RADIUS)
 	"demote_after": 2,

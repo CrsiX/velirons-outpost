@@ -278,36 +278,69 @@ func _test_teardown_refund() -> void:
 	farm.hp = farm.max_hp()
 
 
-## The queue's tiers: hut rebuilds first, then gates and walls, then the rest.
+## The queue's buckets (Config.BUILD_QUEUE): gate and wall repairs, hut
+## rebuilds, wall tower repairs, gate and wall upgrades, wall tower upgrades,
+## military repairs, new military buildings, military upgrades, the rest;
+## each job ordered in the reverse order, so the queue's own order is no help.
 func _test_huts_first() -> void:
 	var c := game.construction
+	var v := game.player_village
 	await finish_work()
-	var farm: Building = game.player_village.buildings().filter(func(b: Building) -> bool: return b is Farm and b.working())[0]
-	farm.take_damage(30.0)
-	c.order_repair(farm)  # (ordered first, done last)
+	game.economy.add("materials", 2000)
 	var g := gate()
-	g.take_damage(30.0)
-	c.order_repair(g)
-	var hut: Hut = game.player_village.intact_huts().back()
+	var walls := walls_beside(v.gates[0])
+	var corner: Building = v.buildings().filter(func(x: Building) -> bool: return x.kind == "wall_tower")[0]
+	var farm: Building = v.buildings().filter(func(x: Building) -> bool: return x is Farm and x.working())[0]
+	farm.take_damage(30.0)
+	c.order_repair(farm)  # 9: the rest
+	var wt := c.place("tower", find_spot("tower", v.center + Vector2i(-7, 0)))
+	wt.progress = wt.build_time
+	c.queue.erase(wt)
+	c.complete(wt)
+	c.order_upgrade(wt)  # 8: a military upgrade
+	var tower := c.place("tower", find_spot("tower", v.center + Vector2i(7, 0)))  # 7: a new military building
+	var hurt := c.place("tower", find_spot("tower", v.center + Vector2i(0, 7)))
+	hurt.progress = hurt.build_time
+	c.queue.erase(hurt)
+	c.complete(hurt)
+	hurt.take_damage(40.0)
+	c.order_repair(hurt)  # 6: a military repair
+	var corner2: Building = v.buildings().filter(func(x: Building) -> bool: return x.kind == "wall_tower" and x != corner)[0]
+	c.order_upgrade(corner2)  # 5: a wall tower upgrade
+	c.order_upgrade(walls[0])  # 4: a wall upgrade
+	corner.take_damage(50.0)
+	c.order_repair(corner)  # 3: a wall tower repair
+	var hut: Hut = v.intact_huts().back()
 	var res := hut.resident
 	hut.resident = null  # (nobody dies in this test)
 	hut.destroy("test")
 	hut.resident = res
-	c.order_rebuild(hut)
+	c.order_rebuild(hut)  # 2: a hut rebuild
+	g.take_damage(30.0)
+	c.order_repair(g)  # 1: a gate repair, ordered last
+	var want: Array[Building] = [g, hut, corner, walls[0], corner2, hurt, tower, wt, farm]
+	var got: Array[Building] = []
 	for site in c.queue:
 		site.builder = null
-	var first := c.claim(game.hero)
-	check(c.queue.find(g) < c.queue.find(hut) and first == hut, "a hut rebuild ordered later still comes first")
-	c.release(first, false)
-	var second := c.claim(game.hero)
-	check(second == hut, "and again when a job is picked anew (after fleeing)")
-	var third := c.claim(game.player_village.hero)
-	check(c.queue.find(farm) < c.queue.find(g) and third == g, "then the gate, before a farm's repair ordered earlier")
-	c.release(third, false)
-	c.release(second, false)
-	await finish_work()
-	check(hut.is_intact() and g.hp == g.max_hp() and farm.hp == farm.max_hp(), "all get done")
+	var again := c.claim(game.hero)
+	c.release(again, false)
+	check(again == g and c.claim(game.hero) == g, "the gate repair ordered last comes first, and again when picked anew (after fleeing)")
+	c.release(g, false)
+	for i in want.size():
+		var s := c.claim(game.hero)
+		got.append(s)
+	var names := got.map(func(x: Building) -> String: return x.label() if x else "-")
+	check(got == want, "builders take the buckets in order: gate repair, hut, wall tower repair, wall upgrade, wall tower upgrade, tower repair, new tower, tower upgrade, the rest (%s)" % ", ".join(names))
+	check(Construction.job_type(hut) == "repair" and Construction.job_type(tower) == "build" and Construction.job_type(walls[0]) == "upgrade", "a hut rebuild counts as a repair")
+	for site in got:
+		if site:
+			c.release(site, false)
+	for site: Building in want:
+		c.cancel(site)
+	hurt.hp = hurt.max_hp()
+	tower = null
 	reset_village()
+	await finish_work()
 
 
 ## Config.BUILD_QUEUE: within a bucket the nearest job, unless an older one
@@ -320,7 +353,7 @@ func _test_queue_rules() -> void:
 	await finish_work()
 	var hero := game.hero
 	var from: Vector2 = Vector2(v.center) if hero.at_home else hero.grid_pos
-	var cands: Array = v.buildings().filter(func(b: Building) -> bool: return (b is Workplace or b.kind == "wall_tower") and b.working())
+	var cands: Array = v.buildings().filter(func(b: Building) -> bool: return b is Workplace and b.working())
 	cands.sort_custom(func(a: Building, b: Building) -> bool: return Vector2(a.tile).distance_to(from) < Vector2(b.tile).distance_to(from))
 	var near: Building = cands.front()
 	var far: Building = cands.back()
@@ -345,14 +378,22 @@ func _test_queue_rules() -> void:
 	var g := gate()
 	g.take_damage(20.0)
 	c.order_repair(g)
+	var hut: Hut = v.intact_huts().back()
+	var res := hut.resident
+	hut.resident = null  # (nobody dies in this test)
+	hut.destroy("test")
+	hut.resident = res
+	c.order_rebuild(hut)
+	hut.progress = 0.1  # (started: first in its bucket)
 	first = c.claim(hero)
-	check(first == g, "a gate before the rest")
+	check(first == g, "a gate repair before a hut rebuild")
+	var b0 := c.bucket(g)
 	for i in int(q["demote_after"]):
 		c.release(g, false, true)
 		if i + 1 < int(q["demote_after"]):
 			c.claim(hero)
 	first = c.claim(hero)
-	check(c.bucket(g) == c.bucket(near) and first == near, "fled from %d times, the gate drops a bucket" % int(q["demote_after"]))
+	check(c.bucket(g) == b0 + 1 and c.bucket(g) == c.bucket(hut) and first == hut, "fled from %d times, the gate drops a bucket: the hut rebuild under way goes first" % int(q["demote_after"]))
 	c.release(first, false)
 	c._process(float(q["demote_calm"]) + 0.1)
 	first = c.claim(hero)
@@ -370,9 +411,10 @@ func _test_queue_rules() -> void:
 	check(c.in_danger(wp), "a job outside with an enemy in sight near it waits (%s, watched %s)" % [wp.label(), game.fog.is_watched_by(game.player_village.id, e.current_tile())])
 	kill(e)
 	await clear_enemies()
-	for site: Building in [far, near, g]:
+	for site: Building in [far, near, g, hut]:
 		c.cancel(site)
 		site.hp = site.max_hp()
+	reset_village()
 
 
 ## A builder done with a job walks straight on to the next one close by.
