@@ -13,6 +13,7 @@ extends "res://tests/bot_base.gd"
 func _run() -> void:
 	_test_generator()
 	await _test_game()
+	await _test_explore_moves()
 	await _test_map_choice()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
@@ -432,6 +433,23 @@ func _test_game() -> void:
 	game.fog.reveal(Vector2(circle.tile), 1.5, v.id)
 	await frames(2)
 	check(logs.any(func(l: String) -> bool: return "awakened stone circle" in l and "(Explore mode)" in l), "finding it then says the hero can unlock the summoner there")
+	# Fled from monsters at it: she sets it aside, explores near it, and looks again later.
+	var hjob: HeroExploreJob = hero.jobs[Hero.Mode.EXPLORE]
+	hjob.obj = circle
+	hjob.task = HeroExploreJob.Task.TO_OBJECT
+	game.waves._spawn({"kind": "goblin", "spawn": game.map.edge_spawns[0], "hp_scale": 1.0, "village": v})
+	var gob: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	gob.set_grid_pos(hero.grid_pos + Vector2(1.0, 0.0))
+	gob.speed = 0.0
+	hjob.on_evade()
+	var picked := hjob._pick_task()
+	check(hjob.site_blocked(circle) and not (picked and hjob.obj == circle), "fled from monsters on her way to a site, the hero sets it aside")
+	check(hjob._bias(circle.tile + Vector2i(2, 0)) > 1.5 and hjob._bias(circle.tile + Vector2i(30, 30)) == 1.0, "and fog near it counts more while she explores")
+	if picked:
+		hjob._drop_task()
+	gob.take_damage(1e9)
+	hjob._blocked_sites[circle]["until"] = game.clock - 1.0
+	check(not hjob.site_blocked(circle), "once the monsters she fled from are gone, she goes for it again")
 	hero.set_mode(Hero.Mode.EXPLORE)
 	var unlocked := await wait_until(func() -> bool: return game.is_unlocked("summoner"), 180.0)
 	check(unlocked and circle.used, "the hero unlocks the summoner at the stone circle")
@@ -551,6 +569,58 @@ func _test_game() -> void:
 	var sack: MapObject = w.map_objects.back() if w.map_objects.size() > n0 else null
 	check(sack is Treasure and sack.data.get("sack", false) and (sack as Treasure).reward().get("gold", 0) == 50, "downed while carrying, the hero drops the loot where she fell")
 	check(hero.level == 1 and hero.xp == 0, "downed, she loses her XP but keeps her level")
+	game.queue_free()
+	await frames(3)
+
+
+## An explorer on a fresh map (Config.EXPLORE): it keeps to its targets and
+## its heading, and uncovers much more fog per tile walked than the old
+## nearest-fog rule did (over 20 maps, medians old -> new: 1.6 -> 6.8 tiles
+## between targets, a reversal every 3.5 -> 59 tiles, 1.7 -> 2.7 fog tiles per
+## tile walked; tools/explore_trace.gd measures it).
+func _test_explore_moves() -> void:
+	game = load("res://scenes/main.tscn").instantiate()
+	game.map_seed = 2
+	add_child(game)
+	await frames(3)
+	game.waves.countdown = 99999.0
+	game.waves.hold = true
+	Engine.time_scale = 8.0
+	game.hero.set_mode(Hero.Mode.REST)
+	var ex: Explorer = game.population.civilians.filter(func(c: Civilian) -> bool: return c is Explorer)[0]
+	var fog0 := game.fog.explored_count()
+	var walked := 0.0
+	var targets := 0
+	var last_target := ex.job.target
+	var last := ex.grid_pos
+	var t := 0.0
+	var next := 0.25
+	var sample := ex.grid_pos
+	var heading := Vector2.ZERO
+	var reversals := 0
+	while t < 60.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		walked += ex.grid_pos.distance_to(last)
+		last = ex.grid_pos
+		if ex.job.target != last_target:
+			targets += 1
+			last_target = ex.job.target
+		if t >= next:
+			next += 0.25
+			var step := ex.grid_pos - sample
+			sample = ex.grid_pos
+			if step.length() >= 0.05:
+				if heading != Vector2.ZERO and absf(heading.angle_to(step)) > deg_to_rad(135.0):
+					reversals += 1
+				heading = step
+	var fog := game.fog.explored_count() - fog0
+	var per_target := walked / maxf(1.0, targets)
+	var per_reversal := walked / maxf(1.0, reversals)
+	check(walked > 60.0 and per_target >= 4.0, "an explorer keeps to its target: %.1f tiles walked per target (%d targets in %.0f tiles)" % [per_target, targets, walked])
+	check(per_reversal >= 20.0, "and to its heading: a reversal every %.1f tiles (%d)" % [per_reversal, reversals])
+	check(fog / maxf(1.0, walked) >= 1.9, "and uncovers %.1f fog tiles per tile walked" % (fog / maxf(1.0, walked)))
+	Engine.time_scale = 1.0
 	game.queue_free()
 	await frames(3)
 

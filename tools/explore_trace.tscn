@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tools/explore_trace.gd" id="1_trace"]
+
+[node name="ExploreTrace" type="Node"]
+script = ExtResource("1_trace")

@@ -1,10 +1,13 @@
 class_name ExploreJob
 extends CivilianJob
-## Scouts the fog:
-## - heads for the nearest unexplored tile and keeps pushing into the unknown
-##   from wherever it is (a greedy depth-first sweep);
-## - switches to fog closer to the village when its local frontier is much
-##   farther out than the village's nearest frontier;
+## Scouts the fog (Config.EXPLORE):
+## - goes where it would uncover the most fog for the walk, keeping its
+##   heading if it can: a target about a sight radius into the fog, so its
+##   sweeps lie a sight width apart;
+## - sticks to that target until it gets there or the fog round it is mostly
+##   gone (not as soon as the target tile itself is seen);
+## - finishes the fog within reach first; only then (or when that is much
+##   farther from the village than the village's nearest fog) it goes there;
 ## - avoids fog another explorer is already heading for;
 ## - keeps away from monster camp guards (it would only flee from them, again
 ##   and again): fog by them waits until the camp is cleared, and so does fog
@@ -21,6 +24,10 @@ var stand := Vector2i(-1, -1)
 var reveal := Config.EXPLORER_REVEAL
 var _reveal_timer := 0.0
 var _think_timer := 0.0
+## The fog round the target when it was picked (it re-picks once most is gone).
+var _target_gain := 0
+## Where it stood at the last pick: its heading is from there to here.
+var _last_pick := Vector2.INF
 ## Fog set aside: [tile, the instance ids of the camp guards fled from on the
 ## way there]; it waits while any of them lives (Config.EXPLORER_BLOCKED_RADIUS
 ## around the tile).
@@ -50,9 +57,10 @@ func tick(delta: float) -> void:
 					w.game.stats.credit(w.village, "explorers", w.label(), fresh)
 			var arrived := w.step_path(delta)
 			_think_timer -= delta
-			# Target already revealed (we see further than we walk): pick the next one.
-			if arrived or (w.game.fog.is_explored_by(w.village.id, target) and _think_timer <= 0.0):
-				_think_timer = 0.4
+			# There, or the fog round the target is mostly seen already: the next one.
+			if arrived or (_think_timer <= 0.0 and _spent()):
+				if not arrived:
+					_think_timer = Config.EXPLORE["think_every"]
 				if not _pick_target():
 					_go_home_idle()
 		State.RETURNING:
@@ -97,7 +105,7 @@ func _go_home_idle() -> void:
 	w.head_home()
 
 
-## Chooses the next unexplored tile and starts walking. False if none is reachable.
+## Chooses the next target and starts walking. False if none is reachable.
 func _pick_target() -> bool:
 	var chosen := choose_target(w.current_tile() if not w.at_home else w.village.center)
 	if chosen == Vector2i(-1, -1):
@@ -107,7 +115,48 @@ func _pick_target() -> bool:
 	if chosen != target:
 		w.village.events.debug("%s heads for the fog at %s" % [w.label(), str(chosen)])
 	target = chosen
+	_target_gain = gain(stand)
+	_last_pick = w.grid_pos
+	_think_timer = Config.EXPLORE["think_every"]
 	return true
+
+
+## Most of the fog the target was picked for is seen now.
+func _spent() -> bool:
+	return target == Vector2i(-1, -1) or gain(stand) <= floori(_target_gain * float(Config.EXPLORE["replan_share"]))
+
+
+## Unexplored tiles it would see from `t` (those FogLayer.reveal uncovers).
+func gain(t: Vector2i) -> int:
+	return _gain_in(t, w.game.fog.explored_of[w.village.id], _sight())
+
+
+func _gain_in(t: Vector2i, explored: PackedByteArray, sight: Array[Vector2i]) -> int:
+	var n := w.game.map.size
+	var fog := 0
+	for o in sight:
+		var x := t.x + o.x
+		var y := t.y + o.y
+		if x >= 0 and y >= 0 and x < n and y < n and explored[y * n + x] == 0:
+			fog += 1
+	return fog
+
+
+## The offsets within its sight radius.
+func _sight() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var r := ceili(reveal)
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			if Vector2(dx, dy).length() <= reveal:
+				out.append(Vector2i(dx, dy))
+	return out
+
+
+## Override: an extra factor on a tile's score (the hero stays near a site
+## she had to flee from).
+func _bias(_t: Vector2i) -> float:
+	return 1.0
 
 
 func choose_target(from: Vector2i) -> Vector2i:
@@ -119,13 +168,17 @@ func choose_target(from: Vector2i) -> Vector2i:
 	for other in w.village.workers():
 		if other != w and other.exploring_target() != Vector2i(-1, -1):
 			claims.append(other.exploring_target())
-	# The nearest fog from here (a breadth-first search that stops early).
 	var danger := _with_blocked(_camp_danger())
-	var local := pathing.nearest_frontier(from, explored, claims, Config.EXPLORER_CLAIM_RADIUS, Config.EXPLORER_CLAIM_PENALTY, danger)
-	if local.is_empty():
-		return Vector2i(-1, -1)
+	var local := _best_within(from, explored, claims, danger)
 	var best_local: Vector2i = local[0]
 	var best_local_stand: Vector2i = local[1]
+	if best_local == Vector2i(-1, -1):
+		# Nothing within reach: the nearest fog, as a frontier search finds it.
+		var near := pathing.nearest_frontier(from, explored, claims, Config.EXPLORER_CLAIM_RADIUS, Config.EXPLORER_CLAIM_PENALTY, danger)
+		if near.is_empty():
+			return Vector2i(-1, -1)
+		best_local = near[0]
+		best_local_stand = near[1]
 	# The nearest fog from the village (its walking distances are cached).
 	var best_home := Vector2i(-1, -1)
 	var best_home_stand := Vector2i(-1, -1)
@@ -166,6 +219,43 @@ func choose_target(from: Vector2i) -> Vector2i:
 		return best_home
 	stand = best_local_stand
 	return best_local
+
+
+## The best tile within Config.EXPLORE.search_steps of `from` (see Config.EXPLORE):
+## [target, stand] (the same walkable tile), or [(-1, -1), (-1, -1)].
+func _best_within(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], danger: PackedByteArray) -> Array[Vector2i]:
+	var map := w.game.map
+	var n := map.size
+	var q: Dictionary = Config.EXPLORE
+	var reached := PackedInt32Array()
+	var dist := w.game.world.pathing.steps_within(from, int(q["search_steps"]), reached, danger)
+	var sight := _sight()
+	var heading := Vector2.ZERO
+	if _last_pick != Vector2.INF and w.grid_pos.distance_to(_last_pick) > 0.5 and not w.at_home:
+		heading = (w.grid_pos - _last_pick).normalized()
+	var here := Vector2(from)
+	var best := -1
+	var best_score := 0.0
+	for i in reached:
+		var t := Vector2i(i % n, i / n)
+		var fog := _gain_in(t, explored, sight)
+		if fog <= 0:
+			continue
+		var score := float(fog) / (float(dist[i]) + float(q["dist_offset"]))
+		if heading != Vector2.ZERO and t != from:
+			score *= 1.0 + float(q["momentum"]) * heading.dot((Vector2(t) - here).normalized())
+		for c in claims:
+			if Vector2(c).distance_to(Vector2(t)) < Config.EXPLORER_CLAIM_RADIUS:
+				score *= float(q["claim_factor"])
+				break
+		score *= _bias(t)
+		if score > best_score:
+			best_score = score
+			best = i
+	if best < 0:
+		return [Vector2i(-1, -1), Vector2i(-1, -1)]
+	var b := Vector2i(best % n, best / n)
+	return [b, b]
 
 
 ## Tiles near camp guards and wrathwoods (Enemy.wild: where it would

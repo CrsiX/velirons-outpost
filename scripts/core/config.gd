@@ -939,10 +939,33 @@ const CORPSE_SAFE_RADIUS := 6.0
 const CORPSE_LIFETIME := 240.0  # seconds before an uncollected corpse rots away
 ## An explorer abandons its local frontier when that target is this much farther
 ## from the village than the closest unexplored tile to the village.
-const EXPLORER_WANDER_FACTOR := 1.6
+const EXPLORER_WANDER_FACTOR := 3.0
 const EXPLORER_WANDER_SLACK := 8
 const EXPLORER_CLAIM_RADIUS := 7.0
 const EXPLORER_CLAIM_PENALTY := 30
+## How a scout (explorer, the hero exploring; ExploreJob, docs/world-design.md)
+## picks where to go: every walkable tile within "search_steps" of it scores
+## the fog it would uncover there (unexplored tiles in a square of its sight
+## radius) / (steps + "dist_offset"), x (1 + "momentum" x cos(the angle off its
+## heading)), x "claim_factor" near another scout's target (EXPLORER_CLAIM_RADIUS),
+## x (hero) up to 1 + "site_near_bonus" near a site she had to flee from
+## (within "site_near_radius"). The best is its target; it walks there and picks
+## again on arriving, or once the target has lost all but "replan_share" of the
+## fog it was picked for (looked at every "think_every" seconds). Nothing
+## within reach: the fog nearest the village. The hero, fled from monsters at a
+## site (claim, loot), sets it aside and looks again after "site_retry"
+## seconds: back to it once the monsters she fled from are dead or gone from it.
+const EXPLORE := {
+	"search_steps": 40,
+	"dist_offset": 3.0,
+	"momentum": 0.6,
+	"claim_factor": 0.3,
+	"replan_share": 0.3,
+	"think_every": 0.5,
+	"site_retry": 15.0,
+	"site_near_radius": 12.0,
+	"site_near_bonus": 2.0,
+}
 ## A scout (explorer, the hero exploring) that fled from a monster camp's guards
 ## on its way to some fog sets that fog aside, and all fog this close to it,
 ## while those guards live: the way there runs past them (ExploreJob).

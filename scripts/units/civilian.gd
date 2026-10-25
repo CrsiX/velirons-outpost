@@ -275,6 +275,8 @@ func head_out(target: Vector2i) -> bool:
 	if at_home:
 		set_grid_pos(Vector2(village.center))
 		_set_home(false)
+	elif p.size() > 1:
+		p[0] = grid_pos  # from where it stands: no step back to its tile's centre first
 	follow(p)
 	return true
 

@@ -617,7 +617,8 @@ func _test_fog() -> void:
 	ensure_role("explorer")
 	var ex: Explorer = game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "explorer")[0]
 	var goal := ex.job.choose_target(v.center)
-	check(woods.has(goal) and game.world.pathing.is_walkable(ex.job.stand) and Vector2(ex.job.stand).distance_to(Vector2(goal)) < 1.5, "fog over forest by open land is a target: the explorer stands at its edge (%s for %s)" % [ex.job.stand, goal])
+	var sees := woods.any(func(t: Vector2i) -> bool: return Vector2(t).distance_to(Vector2(ex.job.stand)) <= ex.job.reveal)
+	check(goal != Vector2i(-1, -1) and game.world.pathing.is_walkable(ex.job.stand) and sees, "fog over forest by open land is a target: the explorer goes where it sees into it (%s)" % ex.job.stand)
 	var seen := await wait_until(func() -> bool: return woods.all(func(t: Vector2i) -> bool: return game.fog.is_explored_by(vid, t)), 90.0)
 	check(seen, "and uncovers it from there")
 	# Land cleared of trees: walkable, reachable and explored like any other.
@@ -644,7 +645,7 @@ func _test_fog() -> void:
 	check(game.world.pathing.can_reach(base, wall[6]) and not path.is_empty() and (through or blocked > 0), "paths lead through a cut forest (%d steps)" % path.size())
 	unexplore(cut)
 	var goal2 := ex.job.choose_target(base)
-	check(cut.has(goal2) and ex.job.stand == goal2, "unexplored cleared land is walked onto (%s)" % goal2)
+	check(goal2 != Vector2i(-1, -1) and cut.any(func(t: Vector2i) -> bool: return Vector2(t).distance_to(Vector2(ex.job.stand)) <= ex.job.reveal), "unexplored cleared land is a target too: the explorer goes where it sees it (%s)" % ex.job.stand)
 	for t in keep:
 		game.map.set_terrain(t, keep[t])
 		game.world.pathing.set_solid(t, false)

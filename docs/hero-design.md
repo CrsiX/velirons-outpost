@@ -129,6 +129,13 @@ she can walk to.
      once safe.
 3. **Exploring** unknown land, like an explorer (the shared `ExploreJob`), with the smaller
    `explore_reveal` (1.8). Fog it uncovers pays `explore` XP (§6).
+- **Sites she fled from** (`HeroExploreJob._blocked_sites`): fleeing from enemies on her way to
+  a claim or a treasure, or while at it, she sets it aside with the enemies she fled from. She
+  goes for another site instead; with every site set aside she explores, with fog near the
+  nearest of them counting up to 1 + `site_near_bonus` 2 times as much within `site_near_radius`
+  12 tiles (`_bias`), so she stays close. Every `site_retry` 15 s she looks again: once none of
+  those enemies is alive within `EVADE_RADIUS` + 1 of the site, it is wanted again
+  (`Config.EXPLORE`).
 - A task that is no longer wanted is dropped: the treasure got looted or guarded, the unit got
   unlocked, the ruin got claimed.
 

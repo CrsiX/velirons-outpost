@@ -1924,6 +1924,18 @@ func _test_flee_resume() -> void:
 	for c in game.population.civilians:
 		if c is Forester:
 			fo = c
+	if fo == null:  # (the game so far may have cost us him: a new one, a camp and a hut for him)
+		if game.world.buildings.filter(func(b: Building) -> bool: return b is WorkerCamp and b.village == v and b.working()).is_empty():
+			var camp := game.construction.place("camp", find_spot("camp", v.center + Vector2i(6, -6)))
+			game.construction.queue.erase(camp)
+			camp.progress = camp.build_time
+			game.construction.complete(camp)
+		if game.population.free_huts().is_empty():
+			var spare := game.population.civilians.filter(func(c: Civilian) -> bool: return c.role in ["gatherer", "explorer", "builder"])
+			game.population.retire(spare.back() if not spare.is_empty() else game.population.civilians.back())
+		game.economy.add("food", 200)
+		game.economy.add("materials", 100)
+		fo = game.population.recruit("forester") as Forester
 	var out := await wait_until(func() -> bool: return fo != null and fo.state == Forester.State.CHOPPING, 90.0)
 	var e := still_goblin(fo.grid_pos + Vector2(1.5, 0.0))
 	var fled := await wait_until(func() -> bool: return fo.evading, 3.0)

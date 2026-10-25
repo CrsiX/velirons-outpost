@@ -123,6 +123,8 @@ in docs/multiplayer-design.md.
   - **Fleeing:** outside the walls, a villager checks 4 times a second for an enemy within
     `EVADE_RADIUS` 4.5 tiles. If there is one, they shout "Enemies!", drop or pause the job,
     run home and then rest `EVADE_REST` 6 s.
+  - **Setting off** (`Civilian.head_out`): a path out starts from where the villager stands,
+    not from its tile's centre, so a new target never makes it step back first.
   - **Coming back** (`Config.FLEE`, `Civilian._back_to_work`): while running, every
     `check_every` 3 s they look whether any enemy that scares villagers is still within
     `clear_radius` 6 tiles. If none is, they stop and go back to work from where they stand
@@ -179,10 +181,19 @@ in docs/multiplayer-design.md.
   | `stump_charred` | 8 s | 2 (6) |
 
 - **Explorer** (`ExploreJob`, shared with the hero's Explore mode):
-  - heads for the nearest unexplored tile and keeps pushing into the unknown from wherever it
-    is (a greedy depth-first sweep);
-  - turns back to fog nearer the village when its local frontier is much farther out than
-    the village's nearest frontier (`EXPLORER_WANDER_FACTOR` 1.6, `EXPLORER_WANDER_SLACK` 8);
+  - **where to go** (`Config.EXPLORE`, `ExploreJob._best_within`): every walkable tile within
+    `search_steps` 40 steps of it (`Pathing.steps_within`) scores the fog it would see from there
+    (the unexplored tiles within its reveal radius, as `FogLayer.reveal` uncovers them) / (steps +
+    `dist_offset` 3), × (1 + `momentum` 0.6 × the cosine of the angle off its heading: from
+    where it stood at its last pick to here), × `claim_factor` 0.3 near another scout's target.
+    The best tile is its target. A tile whose whole view is fog scores highest, so targets lie
+    about a sight radius into the fog and its sweeps a sight width apart;
+  - **sticks to it:** it picks again only on arriving, or once the target has lost all but
+    `replan_share` 30 % of the fog it was picked for (looked at every `think_every` 0.5 s), not
+    as soon as the target tile itself is seen;
+  - **finishes the fog within reach first:** with nothing within reach it takes the nearest fog
+    (a frontier search); it turns back to the fog nearest the village only when its local target
+    is much farther from the village than that (`EXPLORER_WANDER_FACTOR` 3, `EXPLORER_WANDER_SLACK` 8);
   - avoids fog another explorer is heading for (`EXPLORER_CLAIM_RADIUS` 7, penalty 30);
   - keeps away from monster camp guards: fog by a camp waits until the camp is cleared. When it
     flees from camp guards on its way to some fog (the way there runs past them), it sets that

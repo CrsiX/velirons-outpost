@@ -7,6 +7,10 @@ extends ExploreJob
 ##   2. looting unguarded treasures (first come, first served),
 ##   3. exploring, as the explorer does.
 ## Loot is carried home and paid there; downed on the way, she drops it.
+## A site (claim or loot) she had to flee from waits (`_blocked_sites`): she
+## goes for another, or, all of them waiting, explores near the nearest one
+## (`_bias`), and looks again every Config.EXPLORE.site_retry seconds whether
+## the monsters she fled from are still there.
 
 enum Task { NONE, TO_OBJECT, WORKING, CARRYING }
 
@@ -17,6 +21,9 @@ var work_left := 0.0
 var carrying: Dictionary = {}
 var carrying_from := ""
 var _look := 0.0
+## Sites she fled from: object -> {"ids": the enemies there (instance ids),
+## "until": Game.clock of the next look}.
+var _blocked_sites := {}
 
 
 func tick(delta: float) -> void:
@@ -63,7 +70,7 @@ func _pick_task() -> bool:
 			prio = 0
 		elif o is Treasure and (o as Treasure).lootable():
 			prio = 1
-		if prio >= 0 and o.is_found_by(v):
+		if prio >= 0 and o.is_found_by(v) and not site_blocked(o):
 			cands.append([prio, Vector2(o.tile).distance_to(w.grid_pos), o])
 	if cands.is_empty():
 		return false
@@ -86,6 +93,37 @@ func _pick_task() -> bool:
 	state = State.RESTING
 	w.village.events.debug("the hero heads for %s" % obj.label())
 	return true
+
+
+## A site she fled from, while the monsters she fled from are still at it
+## (looked at again every Config.EXPLORE.site_retry seconds).
+func site_blocked(o: MapObject) -> bool:
+	if not _blocked_sites.has(o):
+		return false
+	var b: Dictionary = _blocked_sites[o]
+	if w.game.clock < float(b["until"]):
+		return true
+	for id: int in b["ids"]:
+		if is_instance_id_valid(id):
+			var e := instance_from_id(id) as Enemy
+			if e != null and not e.dead and e.grid_pos.distance_to(Vector2(o.visit_tile())) < Config.EVADE_RADIUS + 1.0:
+				b["until"] = w.game.clock + float(Config.EXPLORE["site_retry"])
+				return true
+	_blocked_sites.erase(o)
+	w.village.events.debug("the hero tries %s again" % o.label())
+	return false
+
+
+## Exploring while sites wait: fog near the nearest of them counts more.
+func _bias(t: Vector2i) -> float:
+	var near: float = Config.EXPLORE["site_near_radius"]
+	var best := 1.0
+	for o in _blocked_sites:
+		if is_instance_valid(o):
+			var d := Vector2(t).distance_to(Vector2((o as MapObject).tile))
+			if d < near:
+				best = maxf(best, 1.0 + float(Config.EXPLORE["site_near_bonus"]) * (1.0 - d / near))
+	return best
 
 
 func _still_wanted() -> bool:
@@ -186,6 +224,14 @@ func resume() -> void:
 func on_evade() -> void:
 	if task == Task.CARRYING:
 		return  # (running home is where she was going anyway)
+	if task in [Task.TO_OBJECT, Task.WORKING] and is_instance_valid(obj):
+		var ids: Array[int] = []
+		for node in w.get_tree().get_nodes_in_group("enemies"):
+			var e := node as Enemy
+			if not e.dead and e.spec().get("scares", true) and e.grid_pos.distance_to(w.grid_pos) < Config.EVADE_RADIUS + 1.0:
+				ids.append(e.get_instance_id())
+		_blocked_sites[obj] = {"ids": ids, "until": w.game.clock + float(Config.EXPLORE["site_retry"])}
+		w.village.events.debug("the hero leaves %s for now (monsters)" % obj.label())
 	_drop_task()
 	super.on_evade()
 

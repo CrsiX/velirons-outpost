@@ -239,6 +239,53 @@ func wood_open(t: Vector2i) -> bool:
 ## Breadth-first step counts from `from` over walkable tiles (8-neighbourhood;
 ## diagonal steps only when both side tiles are walkable). Works on tile
 ## indices and the cached walkability: it runs often (explorers, villagers).
+## Steps from `from` to every walkable tile within `max_steps` (8 ways, a
+## diagonal only past two open sides, as units walk), UNREACHABLE elsewhere;
+## tiles marked in `danger` (if given) aren't walked through. The tiles
+## reached, in order, go into `reached`.
+func steps_within(from: Vector2i, max_steps: int, reached: PackedInt32Array, danger := PackedByteArray()) -> PackedInt32Array:
+	var n := map.size
+	var dist := PackedInt32Array()
+	dist.resize(n * n)
+	dist.fill(UNREACHABLE)
+	from = nearest_walkable(from)
+	if not map.in_bounds(from):
+		return dist
+	reached.resize(n * n)
+	var start := from.y * n + from.x
+	dist[start] = 0
+	reached[0] = start
+	var head := 0
+	var tail := 1
+	var walk := _walk
+	var avoid := not danger.is_empty()
+	var dx := [-1, 1, 0, 0, -1, 1, -1, 1]
+	var dy := [0, 0, -1, 1, -1, -1, 1, 1]
+	while head < tail:
+		var i := reached[head]
+		head += 1
+		var d := dist[i]
+		if d >= max_steps:
+			continue
+		var x := i % n
+		var y := i / n
+		for k in 8:
+			var nx: int = x + dx[k]
+			var ny: int = y + dy[k]
+			if nx < 0 or ny < 0 or nx >= n or ny >= n:
+				continue
+			var j := ny * n + nx
+			if dist[j] != UNREACHABLE or walk[j] == 0 or (avoid and danger[j] == 1):
+				continue
+			if k >= 4 and (walk[y * n + nx] == 0 or walk[ny * n + x] == 0):
+				continue  # (no cutting a corner)
+			dist[j] = d + 1
+			reached[tail] = j
+			tail += 1
+	reached.resize(tail)
+	return dist
+
+
 func distance_field(from: Vector2i) -> PackedInt32Array:
 	var n := map.size
 	var dist := PackedInt32Array()
