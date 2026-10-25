@@ -56,7 +56,7 @@ func _init() -> void:
 	build = ["tower", "farm", "camp", "lightstone", "barracks", "training"]
 	specialise = true
 	hero_revives = false
-	must_live = ["Pell"]
+	must_live = ["Pell", ELDEST]
 	arms_first = true  # (towers cut the octopus's arm that holds someone, not its body)
 
 	# Crabs out of the water first, then the drowned dead and the Evil, and
@@ -94,6 +94,18 @@ func _init() -> void:
 	}
 
 
+## The vampires' camp at the abbey: its first vampire is the Fallen Abbot,
+## with this many times the HP and damage; the other vampire and the
+## skeleton have CAMP_GUARD_HP times the HP (their damage as ever).
+const ABBOT := "Fallen Abbot"
+const ABBOT_HP := 3.0
+const ABBOT_POWER := 3.0
+const CAMP_GUARD_HP := 3.0
+## The two priests' names (for the log, the villager list and must_live): the
+## eldest (she must not die; she looks as in her portrait) and the younger
+## one, whom the octopus catches.
+const ELDEST := "Eldest priest"
+const YOUNGER := "Priest"
 ## The relic, as the treasure's item.
 const RELIC := "the First King's Hand"
 ## The map's church (its centre: data/maps/drowned_abbey.json, tools/abbey_map.gd).
@@ -204,7 +216,7 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.1, "time": 2.5},
 		{"say": "", "text": "The priests on their way to the new church take one look at Brenna's colours and hurry on. Nobody says a word about the abbey."},
 		{"say": "pell", "text": "You're one of Rhodri's knights, as far as they can see. Give them time."},
-		{"say": "", "text": "Hold the village and win the priests' trust. Brenna can't be brought back here, and Pell must not die."},
+		{"say": "", "text": "Hold the village and win the priests' trust. Brenna can't be brought back here, and neither Pell nor the eldest priest may die."},
 	]
 
 
@@ -932,7 +944,7 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 				var mine := _shore_towers(r, false)
 				return r.place_point("tower", []) if mine.is_empty() else {"tiles": r.first_tiles(mine)}},
 		{"title": "The First King's Hand",
-			"text": "The crypt is open. Clear the vampires at the abbey (tap their camp: Attack with the hero), then send Brenna exploring: she goes into the crypt for the relic.",
+			"text": "The crypt is open. Clear the Fallen Abbot and his vampires at the abbey (tap their camp: Attack with the hero), then send Brenna exploring: she goes into the crypt for the relic.",
 			"ready": func() -> bool: return _abbey(r) == null or not _abbey(r).sealed,
 			"wait_title": "The abbey",
 			"wait_text": "The crypt is sealed. Hold the village, and win the priests' trust.",
@@ -957,7 +969,7 @@ func hints(r: ScenarioRunner) -> Array[Dictionary]:
 			"text": "The octopus holds the priest in the shallows: cut its arm (a target of its own) with towers, ranged units or Brenna before it drags him under (%d s)." % int(RESCUE_HOLD)},
 		{"id": "ruins",
 			"when": func() -> bool: return (r.mark.has("rescued") or r.mark.has("drowned")) and r.cutscene == null,
-			"text": "On the abbey's island stand two ruined watchtowers and a ruined barracks. Clear the vampires' camp, send Brenna exploring to claim them, then restore them (tap a ruin): the abbey can be held from there."},
+			"text": "On the abbey's island stand two ruined watchtowers and a ruined barracks. Clear the Fallen Abbot's camp, send Brenna exploring to claim them, then restore them (tap a ruin): the abbey can be held from there."},
 		{"id": "legion",
 			"when": func() -> bool: return r.enemy_about("legion_captain"),
 			"text": "The Legion doesn't come for the village: it comes for the relic. At the abbey they break its seal, and Lysa searches the crypt. Beaten, she drops what she carries."},
@@ -1035,6 +1047,11 @@ func on_start(r: ScenarioRunner) -> void:
 	r.mark["towers0"] = r.towers()  # (the first wave waits for one of the player's by the shore)
 	r.mark["relic"] = "crypt"
 	_build_harbour(r)
+	var both: Array = g.population.civilians.filter(func(c: Civilian) -> bool: return c is Resident and c.role == "priest")
+	if both.size() >= 2:
+		(both[0] as Civilian).given_name = ELDEST
+		(both[1] as Civilian).given_name = YOUNGER
+		Art.apply((both[0] as Civilian).sprite, "unit_eldest_priest")
 	var eldest := _priest(r, true)
 	var younger := _priest(r, false)
 	var church := _church(r)
@@ -1053,6 +1070,17 @@ func on_start(r: ScenarioRunner) -> void:
 	ab.seal_hp = SEAL_HP
 	ab.data["reward"] = {"item": RELIC}
 	g.fog.reveal(Vector2(ab.tile), 4.0, g.player_village.id)
+	var camp := ab.guard()
+	if camp:  # (the first of its vampires is the Fallen Abbot)
+		for e in camp.monsters:
+			if e.kind == "vampire" and not r.mark.has("abbot"):
+				e.max_hp *= ABBOT_HP
+				e.power = ABBOT_POWER
+				e.set_identity(ABBOT, "")
+				r.mark["abbot"] = e
+			else:
+				e.max_hp *= CAMP_GUARD_HP
+			e.hp = e.max_hp
 	var water := _deep_by(r, ab.tile, GUARD_LEASH)
 	if not water.is_empty():
 		var o := g.waves.spawn_at("octopus", water[0], g.player_village, 1)
@@ -1075,7 +1103,7 @@ func on_start(r: ScenarioRunner) -> void:
 
 
 func death_text(civ: Civilian, reason: String) -> String:
-	return "%s died %s. Pell must not die." % [civ.label().capitalize(), reason]
+	return "%s died %s. %s must not die." % [civ.label(), reason, "The eldest priest" if civ.given_name == ELDEST else "Pell"]
 
 
 # --- helpers -----------------------------------------------------------------------------
@@ -1103,12 +1131,11 @@ func _stall(r: ScenarioRunner) -> Building:
 ## The eldest priest (`eldest`), or the younger one; null if gone. (The
 ## younger is the one the octopus grabs; drowned, he is gone for good.)
 func _priest(r: ScenarioRunner, eldest: bool) -> Resident:
-	var list: Array = r.game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "priest" and not c.dead)
-	if list.is_empty() or (not eldest and r.mark.has("drowned")):
-		return null
-	if eldest:
-		return list[0]
-	return list[1] if list.size() > 1 else null
+	var who := ELDEST if eldest else YOUNGER
+	for c in r.game.population.civilians:
+		if c is Resident and c.given_name == who and not c.dead:
+			return c
+	return null
 
 
 ## A priest's rounds out of the church (their home): the eldest to the north

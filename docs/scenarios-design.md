@@ -1193,7 +1193,9 @@ Built after the rework of §9a.
   from the east gate up the bank (column 38) and over one straight stone bridge from bank to bank (a ford running on from a bridge becomes
   part of it). The far bank is reached only by the east road: from the east edge in the north-east corner, winding round the mountains
   there (`EAST_ROAD`), over the river on a straight bridge on row 20 (north of the island) and on to the north road; enemies come
-  that way too (its edge spawn). On the island the abbey (2x2), a camp of 2 vampires and a skeleton beside it, two ruined
+  that way too (its edge spawn). On the island the abbey (2x2), a camp of 2 vampires and a skeleton beside it (the scenario makes the first vampire
+  the **Fallen Abbot**: named, x3 HP and damage, `ABBOT_HP` / `ABBOT_POWER`; the other vampire and the skeleton
+  x3 HP, `CAMP_GUARD_HP`, damage as ever), two ruined
   watchtowers either side of the bridge's end and a ruined barracks, abandoned (`ISLAND_RUINS`: the hero claims them, builders restore them,
   so the abbey can be held even without towers by the river; a hint says so once the rescue is over). Roads from the north edge (the
   Legion's: it comes down the village's bank, past the village's towers, and turns off across the open bank to the bridge) and the west edge;
@@ -1204,7 +1206,9 @@ Built after the rework of §9a.
   The generated treasures, camps and mines that still fit (16 tiles from the village, away from the river and the island) stay, each
   with a footpath to the nearest road it can get to.
 - **Baseline:** Easy, enemies at 1.15; 300 gold, 170 food, 260 material; two builders, a farmer, a forester, a gatherer, Pell and two
-  priests (residents, unnamed: the eldest and a younger one; they live in the church, going in and out of its door,
+  priests (residents, named "Eldest priest" and "Priest" in the log and the villager list, not numbered: the
+  eldest, who looks as in her portrait (`unit_eldest_priest`: a dark-blue veil and habit, a white wimple, a gold cross), and the younger
+  one, whom the octopus catches; they live in the church, going in and out of its door,
   `Resident.home_tile`, and walk their rounds: the eldest to the east gate, the younger to the quay);
   the farm and the camp; the **church** (`church`, `Church`, 3x3, campaign-only, `"inside"`: prebuilt inside the walls; it keeps the relic
   once it is home, a glow shows it); Pell's stall by the quay; barracks (level 2) with a shield bearer (7) and an archer (6), two watchtowers
@@ -1212,7 +1216,7 @@ Built after the rework of §9a.
   built where a piece of it stands on land, `ScenarioRunner.keep_free`: "The ferry bell stands here"): two piers (the quay's, where the
   guild's boats tie up, and a second one about 7 tiles west, `SECOND_PIER`, with its own crates, mooring posts, net rack, fish rack, an
   upturned boat and three boats on the water), two moored boats at the first, the ferry bell at the quay, crates, a net rack, mooring
-  posts, upturned boats, fish racks and driftwood along the beach; on the river's bank near the sea a beacon, a wreck in the shallows beside it, gulls circling it. Brenna is level 14. No revive; Pell must not die.
+  posts, upturned boats, fish racks and driftwood along the beach; on the river's bank near the sea a beacon, a wreck in the shallows beside it, gulls circling it. Brenna is level 14. No revive; Pell and the eldest priest must not die (`must_live`).
 - **Wave 1** waits (it can be called) until the player has built a watchtower of theirs within 3 tiles of deep water (finished; nobody
   needs to be on it; not a prebuilt one): then its 60 s countdown starts. An objective says so ("Build a watchtower by the shore",
   "then wave 1 comes"); ticked (or once wave 1 is called early), it stays 4 s (`WATCH_GOAL_STAYS`) and is then gone for good (an objective's `"gone"`: only for the start). Ten listed waves, then the last again, bigger, until it is won (no number of waves to hold); 45 s between waves. Each repeat adds

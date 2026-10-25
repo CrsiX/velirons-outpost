@@ -188,6 +188,7 @@ const SPRITES := {
 	"unit_crossbowman": {"ax": 14, "ay": 48, "w": 36, "h": 55.5},
 	"unit_druid": {"ax": 14, "ay": 51, "w": 31.5, "h": 58.5},
 	"unit_earth_elemental": {"ax": 23.5, "ay": 45, "w": 47.5, "h": 53},
+	"unit_eldest_priest": {"ax": 14, "ay": 47, "w": 28, "h": 54.5},
 	"unit_explorer": {"ax": 14, "ay": 47, "w": 33, "h": 54.5},
 	"unit_farmer": {"ax": 14, "ay": 49, "w": 32, "h": 56.5},
 	"unit_fire_elemental": {"ax": 14, "ay": 44, "w": 28, "h": 50.5},

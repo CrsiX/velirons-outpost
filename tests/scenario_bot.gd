@@ -1561,6 +1561,7 @@ func _scenario_9() -> void:
 		await _s9_church()
 		await _s9_ground()
 		await _s9_yes()
+		await _s9_eldest_dies()
 
 
 func _s9() -> Scenario:
@@ -1621,6 +1622,11 @@ func _s9_rescued() -> void:
 	check(ab != null and ab.sealed and not ab.lootable() and ab.reward().get("item", "") == _s9().RELIC, "the abbey holds the relic, sealed")
 	check(ab != null and ab.seal_max == _s9().SEAL_HP and ab.seal_hp == ab.seal_max, "its seal has %d HP" % int(_s9().SEAL_HP))
 	check(ab != null and ab.guard() != null and ab.guard().alive().filter(func(e: Enemy) -> bool: return e.kind == "vampire").size() == 2, "vampires hold its crypt")
+	var abbot = sc.mark.get("abbot")
+	check(abbot is Enemy and (abbot as Enemy).given_name == "Fallen Abbot" and (abbot as Enemy).power == _s9().ABBOT_POWER
+		and (abbot as Enemy).max_hp >= Config.enemy_stat("vampire", "hp") * Config.CAMP_HP_SCALE * 2.9 and ab.guard().monsters.size() == 3
+		and ab.guard().monsters.all(func(e: Enemy) -> bool: return e.max_hp >= Config.enemy_stat(e.kind, "hp") * Config.CAMP_HP_SCALE * 2.9 and (e == abbot or e.power == 1.0)),
+		"the Fallen Abbot leads them (three times the HP and damage); the others have three times the HP")
 	var ruins := game.world.map_objects.filter(func(o: Node) -> bool: return o is RuinedTower and Vector2((o as RuinedTower).tile).distance_to(Vector2(ab.tile)) < 7.0)
 	check(ruins.size() == 3 and ruins.filter(func(o: Node) -> bool: return (o as RuinedTower).building() == "barracks").size() == 1, "two ruined watchtowers and a ruined barracks on the island (%d)" % ruins.size())
 	var church: Church = _s9()._church(sc)
@@ -1664,7 +1670,14 @@ func _s9_rescued() -> void:
 	var drowned := game.corpses.fallen().filter(func(c: Corpse) -> bool: return c.grid_pos.distance_to(Vector2(ab.tile)) < 6.0)
 	check(drowned.size() == _s9().DROWNED, "the drowned dead lie on the island (%d)" % drowned.size())
 	var priests := _s9_priests()
-	check(priests.size() == 2 and priests.all(func(c: Civilian) -> bool: return c is Resident and c.given_name == "" and not (c as Resident).rounds.is_empty()), "two priests, unnamed, walk their rounds")
+	check(priests.size() == 2 and priests.all(func(c: Civilian) -> bool: return c is Resident and not (c as Resident).rounds.is_empty()), "two priests walk their rounds")
+	var eldest := _s9()._priest(sc, true)
+	var younger := _s9()._priest(sc, false)
+	check(eldest != null and younger != null and eldest.label() == "Eldest priest" and younger.label() == "Priest"
+		and sc.spec.must_live.has("Eldest priest") and not sc.spec.must_live.has("Priest"),
+		"the eldest priest and the priest, by name (not numbered); she must not die")
+	check(eldest != null and eldest.sprite.texture == Art.tex("unit_eldest_priest") and younger.sprite.texture == Art.tex("unit_priest"),
+		"she looks as in her portrait")
 	check(priests.all(func(c: Civilian) -> bool: return c.home_spot() == _s9()._church_door(sc) and church.tiles().has(c.home_spot() + Vector2i(0, -1))), "they live in the church: in and out of its door")
 	check(not sc.stalls().is_empty() and game.available("archer") and game.army.reserve().size() == 2, "Pell's stall stands; recruiting is open; two of the band in the reserve")
 	await wait(1.0)
@@ -2053,6 +2066,19 @@ func _s9_yes() -> void:
 	check(sc.phase == ScenarioRunner.Phase.PLAY, "not won while it lives")
 	kill(sc.named_enemy("Leviathan"), game.hero)
 	check(await wait_until(func() -> bool: return sc.phase in [ScenarioRunner.Phase.OUTRO, ScenarioRunner.Phase.OVER], 10.0), "slain: done")
+
+
+## The eldest priest dies (for whatever reason): lost.
+func _s9_eldest_dies() -> void:
+	print("-- scenario 9: the eldest priest dies")
+	await _new_game(9)
+	await wait(1.0)
+	sc.cutscene.skip()
+	await frames(3)
+	var eldest := _s9()._priest(sc, true)
+	game.population.kill(eldest, "of a fever", "other")
+	check(await wait_until(func() -> bool: return game.game_over, 5.0) and not game.hud._overlay_won
+		and game.hud._overlay_sub.text.contains("The eldest priest must not die"), "she dies: lost (%s)" % game.hud._overlay_sub.text.split("\n")[0])
 
 
 ## Lysa gets to the map edge with the relic: lost.

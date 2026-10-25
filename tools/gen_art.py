@@ -1429,6 +1429,22 @@ def priest_person():
     person("unit_priest", ("#26242a", "#1a181e"), hat=hat, skin="#d4a888", robe=True, extra=extra)
 
 
+def eldest_priest_person():
+    """Scenario 9's eldest priest, as in her portrait: a dark-blue habit and veil
+    over a white wimple, a gold cross on her chest."""
+    def extra(a, layer):
+        if layer == "back":
+            a.poly([(-6, -38), (-10, -18), (-3, -24)], "#26324a", INK, 0.9)  # the veil down her back
+        else:
+            a.poly([(-5, -29), (5, -29), (4, -24.5), (-4, -24.5)], "#f0ece2", INK, 0.7)  # wimple at the chin
+            a.line([(0, -22), (0, -14)], GOLD, 1.4)
+            a.line([(-2.5, -19.5), (2.5, -19.5)], GOLD, 1.4)
+
+    def hat(a):
+        a.raw('<path d="M-5.5,-36.5 Q0,-39 5.5,-36.5" fill="none" stroke="#f0ece2" stroke-width="2.4"/>', [(-6, -40), (6, -35)])
+    person("unit_eldest_priest", ("#26324a", "#1c2638"), hood="#26324a", hat=hat, skin="#d6ae8e", robe=True, extra=extra)
+
+
 def princess():
     """Fiona: a deep-blue gown with a silver hem, red-gold hair under a thin circlet."""
     def extra(a, layer):
@@ -6563,6 +6579,7 @@ def main():
     druid()
     thornling()
     priest_person()
+    eldest_priest_person()
     princess()
     campaign_houses()
     portraits_67()
