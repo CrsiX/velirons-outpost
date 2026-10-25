@@ -1753,9 +1753,15 @@ func _s9_rescued() -> void:
 	check(busy.size() == 1 and busy[0]["target"] == p, "one arm holds him; the others keep still (no towers smashed)")
 	check(sc.cutscene != null and not sc.mark.has("countdown"), "a scene: the alarm, and no time running yet")
 	var hp0 := p.hp
+	await wait(5.0)  # (the scene left on screen a while, nobody clicking on)
+	check(sc.cutscene != null and p.hp >= hp0 and not sc.mark.has("countdown") and ob.hold_left(p) > 1000.0 and not sc.card._rows.is_empty()
+		and not p.dead, "the scene left open for 5 s: no damage, no countdown (HP %.0f of %.0f, hold %.0f)" % [p.hp, hp0, ob.hold_left(p)])
+	check(is_instance_valid(p.held_by) and not (p.held_by as Enemy).targetable() and not (octo as Enemy).targetable(),
+		"meanwhile nobody can shoot the octopus or its arm (towers would cut him free before the player could act)")
 	await _through_scene()
 	check(p.hp >= hp0 and not p.dead, "unharmed while it played")
 	check(await wait_until(func() -> bool: return sc.mark.has("countdown"), 3.0) and ob.hold_left(p) > _s9().RESCUE_HOLD - 2.0, "the scene over: now his %.0f s run" % ob.hold_left(p))
+	check(is_instance_valid(p.held_by) and (p.held_by as Enemy).targetable(), "and now its arm can be cut")
 	await wait(3.0)
 	check(p != null and not p.dead and game.map.get_terrain(p.current_tile()) == MapData.Terrain.SHALLOW, "he is held in the shallows")
 	var post: Building = sc.towers()[0]
@@ -1927,6 +1933,15 @@ func _s9_drowned() -> void:
 	var lysa := sc.named_enemy("Lysa")
 	lysa.take_damage(lysa.hp - lysa.max_hp * 0.2, h, "pure")
 	check(await wait_until(func() -> bool: return _s9()._relic_at(sc) == "ground", 5.0) and lysa.retreating, "beaten, she falls back and drops it")
+	var wet := 0
+	for i in range(1, lysa.path.size()):
+		var a: Vector2 = lysa.path[i - 1]
+		var b: Vector2 = lysa.path[i]
+		for k in range(0, 9):
+			var t := Vector2i(a.lerp(b, k / 8.0).round())
+			if game.map.is_deep(t) and not game.map.is_bridge(t):
+				wet += 1
+	check(lysa.path.size() > 2 and wet == 0, "her way back runs over the bridge, never through deep water (%d wet points of %d)" % [wet, lysa.path.size()])
 	var sack: Treasure = sc.mark.get("sack")
 	await wait(3.0)
 	var co: LegionCompany = sc.mark.get("company")

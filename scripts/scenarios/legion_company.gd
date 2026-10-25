@@ -311,7 +311,7 @@ func _tick_broken() -> void:
 				m.errand = null
 				var road := game.world.pathing.nearest_road(m.current_tile())
 				var route := game.world.pathing.enemy_route(road, RandomNumberGenerator.new())
-				var p := PackedVector2Array([m.grid_pos])
+				var p := _way(m, Vector2(road))
 				for t in route:
 					p.append(Vector2(t))
 				m.follow(p)
@@ -319,7 +319,29 @@ func _tick_broken() -> void:
 		var ang := TAU * float(i) / maxf(1.0, float(members.size()))
 		var spot := Vector2(sack.tile) + Vector2(cos(ang), sin(ang)) * 1.1
 		if m.grid_pos.distance_to(spot) > 0.3 and m.path_index >= m.path.size():
-			m.follow(PackedVector2Array([m.grid_pos, spot]))
+			m.follow(_way(m, spot))
+
+
+## A soldier's way to `to`: straight where no deep water or mountain is in
+## the way, else walked to the walkable tile nearest it (round the water,
+## over a bridge) and on; stays put if there is no way.
+func _way(m: Enemy, to: Vector2) -> PackedVector2Array:
+	var pathing := game.world.pathing
+	var d := m.grid_pos.distance_to(to)
+	var clear := true
+	for k in range(1, int(d / 0.25) + 1):
+		var t := Vector2i(m.grid_pos.lerp(to, k * 0.25 / d).round())
+		if (game.map.is_deep(t) and not game.map.is_bridge(t)) or game.map.is_mountain(t):
+			clear = false
+			break
+	if clear:
+		return PackedVector2Array([m.grid_pos, to])
+	var p := pathing.find_path(m.current_tile(), pathing.nearest_walkable(Vector2i(to.round())))
+	if p.is_empty():
+		return PackedVector2Array([m.grid_pos])
+	p[0] = m.grid_pos
+	p.append(to)
+	return p
 
 
 ## The relic lying on the ground in `r` (relic()), or null (taken meanwhile: freed).
@@ -347,7 +369,7 @@ func _place_members(_delta: float) -> void:
 			spot = _column_spot(i)
 		var end := m.path[m.path.size() - 1] if m.path.size() > 0 else m.grid_pos
 		if end.distance_to(spot) > 0.4 or (m.path_index >= m.path.size() and m.grid_pos.distance_to(spot) > 0.4):
-			m.follow(PackedVector2Array([m.grid_pos, spot]))
+			m.follow(_way(m, spot))
 
 
 ## Soldier `i`'s place: rank i / 2 behind the captain along her trail, to

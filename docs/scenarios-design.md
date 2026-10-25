@@ -1152,7 +1152,7 @@ The game has none of this yet, except where noted:
   bar) and `blocked` (why an open treasure can't be looted now); a dropped relic ("sack" with an `"item"`) drawn as `relic_sword`;
   `Resident.start_rounds` (new rounds at once); `ScenarioRunner.hero_moves_out` (a tent as her home) and `keep_in_sight` (an observer
   following a story figure); `ScenarioRunner.keep_free` (a tile nothing may be built on: scenery); `Scenario.rotate_kinds` / `rotate_count` (repeated
-  waves grow by kinds in turn); an objective's `"failed"` (it can't be met any more: a red cross and red text on the card, logged
+  waves grow by kinds in turn); `Enemy.spared` (nothing targets or hurts it while a scene of the story plays); an objective's `"failed"` (it can't be met any more: a red cross and red text on the card, logged
   once; the scenario goes on; scenario 9's rescue once the priest drowned); `Scenario.can_win` (more than the shown objectives); an objective's `"gone"` (once it holds, the objective
   is hidden for good and no longer counted: a goal only for the start); a cutscene `"camera"` step may be a Callable.
 
@@ -1229,7 +1229,8 @@ Built after the rework of §9a.
   (`Resident.start_rounds`). Only when he gets there does the guard octopus come: moved to the deep water by the harbour, at
   least 2 tiles off the quay and both piers (`OCTOPUS_OFF_PIER`; `AquaBehavior.set_post`), it surfaces and grabs him (`OctopusBehavior.grab`), drags him off the quay into the shallows and holds him
   there, unharmed, while a second scene plays (the alarm). Its other arms keep still meanwhile (its `focus`: no towers smashed, nobody
-  else grabbed). Towers and units go for an arm holding one of ours first (`Scenario.arms_first`: `Enemy.holding`, set by the octopus;
+  else grabbed), and nobody can fight the octopus or its arms while the scene plays (`Enemy.spared`: the game runs on under a
+  cutscene, and towers would cut him free before the player could act). Towers and units go for an arm holding one of ours first (`Scenario.arms_first`: `Enemy.holding`, set by the octopus;
   `MilitaryBehavior.enemies_near` puts those first), never the octopus while he is held. Once that scene is over his `RESCUE_HOLD` 20 s run: the arm hurts him (he has 8x a villager's HP) and then pulls him
   under. A countdown floats over him and stands in the objective. Cut free he runs for the church (`Civilian.run_home`; the objective
   says "running for the church"); any arm that catches him again (on the way, or the moment he is freed) holds him in the shallows with a

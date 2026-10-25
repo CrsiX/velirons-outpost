@@ -37,7 +37,9 @@ func _fall_back(enemy: Enemy) -> void:
 	enemy.follow(_way_back(enemy))
 
 
-## From where it is to the road it came by, and back along it to its start.
+## From where it is to the road it came by (walking: over bridges and land,
+## never across deep water, e.g. off scenario 9's island), and back along it
+## to its start.
 static func _way_back(enemy: Enemy) -> PackedVector2Array:
 	var pathing := enemy.game.world.pathing
 	var route := pathing.enemy_route(enemy.home_tile, RandomNumberGenerator.new())
@@ -47,6 +49,10 @@ static func _way_back(enemy: Enemy) -> PackedVector2Array:
 		if Vector2(route[i]).distance_to(Vector2(here)) < Vector2(route[k]).distance_to(Vector2(here)):
 			k = i
 	var pts := PackedVector2Array([enemy.grid_pos])
+	if not route.is_empty():
+		var walk := pathing.find_path(enemy.current_tile(), route[k])
+		for i in range(1, walk.size() - 1):
+			pts.append(walk[i])
 	for i in range(k, -1, -1):
 		pts.append(Vector2(route[i]))
 	return pts

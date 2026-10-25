@@ -74,6 +74,9 @@ var given_name := ""
 var art_override := ""
 ## Falling back (a Legion captain, CaptainBehavior): nothing targets it.
 var retreating := false
+## Spared for a scene of a scenario's story (scenario 9's octopus while its
+## alarm plays): nothing targets or hurts it meanwhile.
+var spared := false
 ## Where it came onto the map (its road's first tile).
 var home_tile := Vector2i.ZERO
 ## Raised by a necromancer: pale, and its HP drains away (decay_rate per s).
@@ -332,7 +335,7 @@ func must_be_under() -> bool:
 ## The one test every targeting site uses: alive and up (not diving, down or
 ## surfacing).
 func targetable() -> bool:
-	return not dead and dive == Dive.UP and not retreating
+	return not dead and dive == Dive.UP and not retreating and not spared
 
 
 ## Down (or on its way down or up): ripples instead of the monster.
@@ -1021,7 +1024,7 @@ func _update_visibility() -> void:
 ## behaviors may react to it. `category` (Config.DAMAGE_CATEGORIES) is scaled
 ## by the kind's "resist" table (a vampire takes less from magic).
 func take_damage(amount: float, source: Node = null, category: String = "pure") -> void:
-	if dead:
+	if dead or spared:
 		return
 	amount *= float(spec().get("resist", {}).get(category, 1.0))
 	if category != "pure":

@@ -383,7 +383,10 @@ func _poll_rescue(r: ScenarioRunner) -> void:
 			_octopus_strikes(r, oct, p)
 		return
 	if not r.mark.has("countdown"):
-		if r.cutscene == null:  # (the scene is over: now his time runs)
+		if r.cutscene != null:
+			_spare_octopus(oct, true)  # (its arms too, as they come out)
+		else:  # (the scene is over: now his time runs)
+			_spare_octopus(oct, false)
 			ob.grab(oct, p, RESCUE_HOLD, true)
 			ob.catch_hold[p] = RESCUE_HOLD  # (caught again later: a new hold, never drowned at once)
 			r.mark["arm"] = p.held_by
@@ -419,6 +422,15 @@ func _poll_rescue(r: ScenarioRunner) -> void:
 		p.float_text("%d" % sec if sec > 0 else "Under!", Color("ff7a6a"))
 
 
+## While the alarm plays nobody may fight the octopus or its arms (towers
+## would cut him free, another arm drown him, before the player could act).
+func _spare_octopus(oct: Enemy, on: bool) -> void:
+	oct.spared = on
+	for a in (oct.behavior as OctopusBehavior).arms:
+		if is_instance_valid(a["node"]):
+			(a["node"] as Enemy).spared = on
+
+
 ## The priest at the quay: the octopus comes up by the pier and grabs him.
 func _octopus_strikes(r: ScenarioRunner, oct: Enemy, p: Resident) -> void:
 	var quay := _quay(r)
@@ -431,6 +443,8 @@ func _octopus_strikes(r: ScenarioRunner, oct: Enemy, p: Resident) -> void:
 		oct.set_grid_pos(Vector2(water[0]))
 	oct.surface()
 	(oct.behavior as OctopusBehavior).grab(oct, p, 1e6, false)  # (held, unharmed, until the scene is over)
+	(oct.behavior as OctopusBehavior).catch_hold[p] = RESCUE_HOLD  # (never drowned at once by another arm)
+	_spare_octopus(oct, true)
 	r.mark["grabbed"] = r.game.clock
 	r.play_scene([
 		{"camera": r.at(quay) + Vector2(0, -40), "zoom": 1.15, "time": 1.0},
