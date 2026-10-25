@@ -59,23 +59,25 @@ func _init() -> void:
 	must_live = ["Pell"]
 	arms_first = true  # (towers cut the octopus's arm that holds someone, not its body)
 
-	# Crabs out of the water first, then the drowned dead and the Evil. The
-	# Legion's columns are added when their waves begin (LEGION_COLUMNS). After
-	# the tenth the last comes again, bigger, until the scenario is won.
+	# Crabs out of the water first, then the drowned dead and the Evil, and
+	# the Wilderness all along: orks from wave 2, big slimes, spider mothers
+	# (7, 9, 10), rat packs. The Legion's columns are added when their waves
+	# begin (LEGION_COLUMNS). After the tenth the last comes again, bigger,
+	# until the scenario is won.
 	waves = [
-		{"kinds": {"crab": 4, "goblin": 3}, "spawns": 2},
-		{"kinds": {"crab": 5, "goblin": 4}, "rat_packs": [5], "spawns": 2},
-		{"kinds": {"crab": 5, "goblin": 4, "skeleton": 3}, "spawns": 3},
-		{"kinds": {"crab": 4, "goblin": 4, "skeleton": 4, "necromancer": 1}, "spawns": 3},
-		{"kinds": {"crab": 4, "goblin": 4, "skeleton": 5, "vampire": 1, "gargoyle": 1}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"crab": 4, "goblin": 4, "skeleton": 5, "necromancer": 1, "vampire": 1}, "spawns": 3},
-		{"kinds": {"crab": 5, "goblin": 5, "skeleton": 6, "vampire": 2, "gargoyle": 1}, "spawns": 3},
-		{"kinds": {"crab": 5, "goblin": 5, "skeleton": 6, "necromancer": 1, "vampire": 2, "gargoyle": 2}, "rat_packs": [6], "spawns": 3},
-		{"kinds": {"crab": 6, "goblin": 5, "skeleton": 7, "vampire": 2, "gargoyle": 2, "siren": 1}, "spawns": 3},
-		{"kinds": {"crab": 6, "goblin": 6, "skeleton": 7, "necromancer": 2, "vampire": 2, "gargoyle": 2}, "spawns": 3},
+		{"kinds": {"crab": 5, "goblin": 4}, "spawns": 2},
+		{"kinds": {"crab": 5, "goblin": 5, "ork": 1}, "rat_packs": [6], "spawns": 2},
+		{"kinds": {"crab": 6, "goblin": 4, "ork": 1, "slime3": 1, "skeleton": 3}, "spawns": 3},
+		{"kinds": {"crab": 5, "goblin": 5, "ork": 2, "skeleton": 4, "necromancer": 1}, "spawns": 3},
+		{"kinds": {"crab": 5, "goblin": 4, "ork": 2, "slime3": 1, "skeleton": 5, "vampire": 1, "gargoyle": 1}, "rat_packs": [6], "spawns": 3},
+		{"kinds": {"crab": 5, "goblin": 5, "ork": 2, "skeleton": 5, "necromancer": 1, "vampire": 1}, "spawns": 3},
+		{"kinds": {"crab": 6, "goblin": 5, "ork": 2, "spider_mother": 1, "skeleton": 6, "vampire": 2, "gargoyle": 1}, "spawns": 3},
+		{"kinds": {"crab": 6, "goblin": 5, "ork": 3, "slime3": 2, "skeleton": 6, "necromancer": 1, "vampire": 2, "gargoyle": 2}, "rat_packs": [7, 5], "spawns": 3},
+		{"kinds": {"crab": 7, "goblin": 5, "ork": 3, "spider_mother": 1, "skeleton": 7, "vampire": 2, "gargoyle": 2, "siren": 1}, "spawns": 3},
+		{"kinds": {"crab": 7, "goblin": 6, "ork": 3, "slime3": 1, "spider_mother": 1, "skeleton": 7, "necromancer": 2, "vampire": 2, "gargoyle": 2}, "spawns": 3},
 	]
 	repeat_last = true
-	more_each_wave = {"crab": 1, "skeleton": 1}
+	more_each_wave = {"crab": 1, "skeleton": 1, "ork": 1}
 	first_wave_waits = true
 	first_wave_call = true
 	wave_gap = 45.0

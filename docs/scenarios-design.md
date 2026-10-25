@@ -1211,7 +1211,9 @@ Built after the rework of §9a.
   driftwood along the beach; on the river's bank near the sea a beacon, a wreck in the shallows beside it, gulls circling it. Brenna is level 14. No revive; Pell must not die.
 - **Wave 1** waits (it can be called) until the player has built a watchtower of theirs within 3 tiles of deep water (finished; nobody
   needs to be on it; not a prebuilt one): then its 60 s countdown starts. An objective says so ("Build a watchtower by the shore",
-  "then wave 1 comes"); ticked (or once wave 1 is called early), it stays 4 s (`WATCH_GOAL_STAYS`) and is then gone for good (an objective's `"gone"`: only for the start). Ten listed waves, then the last again, bigger, until it is won; 45 s between waves.
+  "then wave 1 comes"); ticked (or once wave 1 is called early), it stays 4 s (`WATCH_GOAL_STAYS`) and is then gone for good (an objective's `"gone"`: only for the start). Ten listed waves, then the last again, bigger (+1 crab, skeleton and ork each time), until it is won; 45 s between waves.
+  Besides crabs, the drowned dead and the Evil, the Wilderness all along: goblins, orks from wave 2 (1 to 3), big slimes (waves 3,
+  5, 8, 10), a spider mother in waves 7, 9 and 10, rat packs (6; 7 and 5 in wave 8).
 - **The rescue** (after wave 4): a scene (the priest walks down to ring the ferry bell); the younger priest walks to the quay
   (`Resident.start_rounds`). Only when he gets there does the guard octopus come: moved to the deep water by the pier
   (`AquaBehavior.set_post`), it surfaces and grabs him (`OctopusBehavior.grab`), drags him off the quay into the shallows and holds him
