@@ -27,6 +27,7 @@ func _run() -> void:
 	await _test_picking()
 	_test_hero_bar()
 	await _test_hotkeys()  # (while the village is whole: the next ones kill and retire villagers)
+	await _test_new_keys()
 	await _test_people()
 	await _test_hud_extras()
 	Engine.time_scale = 1.0
@@ -451,6 +452,39 @@ func _test_unit_keys() -> void:
 	var shown := hud._keys_panel.visible and hud.top_popup() == hud._keys_panel
 	hud._unhandled_key_input(_press(KEY_ESCAPE))
 	check(shown and not hud._keys_panel.visible, "F1 shows the hotkeys; Esc closes them")
+
+
+## F2 (a screenshot), F3 (the log level) and . (call the wave).
+func _test_new_keys() -> void:
+	var hud := game.hud
+	var name_ok := RegEx.create_from_string("^Velirons-Outpost_\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}\\.png$").search(Screenshot.file_name()) != null
+	var dirs := Screenshot.dirs()
+	check(name_ok and not dirs.is_empty() and dirs[-1] == Config.SCREENSHOT["dir"], "F2's screenshot is named Velirons-Outpost_<date>_<time>.png (%s); last resort: %s (%s)" % [Screenshot.file_name(), Config.SCREENSHOT["dir"], dirs])
+	hud._unhandled_key_input(_press(KEY_F2))  # (headless: nothing drawn, so nothing saved, but no harm)
+	check(game.events.entries.any(func(e: Dictionary) -> bool: return (e["text"] as String).begins_with("screenshot: ")), "F2 takes a screenshot (logged)")
+	var names: Array[String] = []
+	for i in 4:
+		hud._unhandled_key_input(_press(KEY_F3))
+		names.append(game.events.level_name())
+	check(names == ["Important", "None", "Debug", "Info"], "F3 cycles the log: Info -> Important -> None -> Debug -> Info (%s)" % [names])
+	game.events.cycle_level()
+	game.events.cycle_level()
+	hud._refresh_log()
+	check(game.events.shown_level == EventLog.Level.NONE and hud.log_lines().is_empty(), "log level None: the log field is empty")
+	game.events.shown_level = EventLog.Level.INFO
+	game.waves.call_locked = true
+	hud._refresh_wave()
+	hud._unhandled_key_input(_press(KEY_PERIOD))
+	var held := not game.waves.in_progress()
+	game.waves.call_locked = false
+	hud._refresh_wave()
+	hud._unhandled_key_input(_press(KEY_PERIOD))
+	check(held and game.waves.in_progress(), ". calls the next wave like Call now, only while that button is on")
+	game.waves._queue.clear()  # (and that wave is over again, for the tests after this one)
+	await clear_enemies()
+	await wait_until(func() -> bool: return not game.waves.in_progress(), 5.0)
+	game.waves.countdown = 99999.0
+	game.waves.hold = true
 
 
 func _test_hotkeys() -> void:

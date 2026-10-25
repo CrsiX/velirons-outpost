@@ -326,7 +326,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
     "Save... (between waves)", greyed out); Load opens the save list and asks before leaving the
     game. Neither in the tutorial; a co-op client has neither, the host only Save; a game from the
     map editor's Play only Save.
-  - **Log level:** cycles Info / Important / Debug.
+  - **Log level:** cycles Info / Important / None / Debug (None: the log field stays empty; F3 does the same).
   - **Language:** built (shows the flag) but hidden (`visible = false`): there is no other language yet.
   - **Map type and seed:** shown so the map can be played again; for a map from a file its name and
     type instead.
@@ -425,7 +425,15 @@ Big touch targets everywhere, so mouse and fingers work the same.
 - **V** opens and closes the villager list.
 - **F1** shows every hotkey in a dialog (`Hud.KEYS_HELP`; F1 again, Close or Esc close it). Keep
   that list in step when a key is added.
-- The game keys (Z, U, Q, R, V, N, Tab, the hero's modes) do nothing while the settings or the
+- **F2** (`Hud.take_screenshot`, `Screenshot`, `Config.SCREENSHOT`) saves the whole window's last
+  frame (HUD included) as `Velirons-Outpost_YYYY-MM-DD_HH-MM-SS.png` (local time; `_2`, `_3`... if
+  taken twice in a second): into the system's pictures folder (`OS.SYSTEM_DIR_PICTURES`: Pictures on
+  Linux, Windows, Android) when it exists and takes the file, else into `user://screenshots`. The
+  web build downloads it. A toast says where it went (or that it failed).
+- **F3** (`Hud.cycle_log_level`) steps the log level like the settings' button: Debug → Info →
+  Important → None → Debug (`EventLog.Level.NONE`: nothing shown); a toast names it.
+- **.** (`Hud.hotkey_call_wave`) calls the next wave, like *Call now*, only while that button is on.
+- The game keys (Z, U, Q, R, V, N, Tab, ., the hero's modes) do nothing while the settings or the
   game-over screen are open (`Hud._game_key`).
   - **Firefox rule:** panning goes by the change of the pointer's position since the last event
     (`_last_pos`), never by the event's `relative`. Firefox reports `movementX/Y` wrongly for
@@ -484,7 +492,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
 |---|---|
 | Title menu, portrait title, map drag (Firefox rule), wheel zoom, portrait top bar / sheet basics, trade dialog, log placement and levels, settings pause and dialog, dragging stationed units (ghost, highlights, arrow, withdraw on the sidebar) | tests/sim_bot.gd |
 | One building per pick, Cancel, touch preview with Build / ✕, dragging from the Build tab, Android's back button; the portrait sheet (height cap, finger scrolling, dragging by handle / tabs / chevron, flicks); a faked camera cutout (left, right, on top in portrait: top bar, dock and settings box clear of it, the grey over the whole screen) | tests/build_bot.gd |
-| Picking (pixels not boxes, tapping through to what is behind and deselecting, the panel's line, see-through and picked last, a unit's figure before its tower), Space and the speed button, every hotkey (1 / 2 / 3, + / -, H, Z, the hero's modes P / B / E / G / Y / R, Tab, U, R, Q, V, N, F1, the Esc stack), the villager list, icons in texts, the hero's health bar, the no-builder and food-shortage warnings | tests/hud_bot.gd |
+| Picking (pixels not boxes, tapping through to what is behind and deselecting, the panel's line, see-through and picked last, a unit's figure before its tower), Space and the speed button, every hotkey (1 / 2 / 3, + / -, H, Z, the hero's modes P / B / E / G / Y / R, Tab, U, R, Q, V, N, ., F1, F2, F3, the Esc stack), the villager list, icons in texts, the hero's health bar, the no-builder and food-shortage warnings | tests/hud_bot.gd |
 | The library: an entry for every kind in Config with its numbers, pausing (not in co-op), the book icon, the title button and icons, fitting the screen | tests/library_bot.gd |
 | The statistics: counters, samples in game time, the button from wave 2, T, pausing, the tabs, folding, the game-over button, a column per village, the client copy | tests/stats_bot.gd |
 | The title backdrop: made over many frames on its baked (up-to-date) map, each scene's posts, units and enemies, slow motion, starts black, fades via black, no input, speed and sound restored after | tests/title_bot.gd |

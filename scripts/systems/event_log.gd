@@ -5,6 +5,7 @@ extends Node
 ##   INFO      - waves starting / ending, the hero's return, finished buildings,
 ##               upgrades and training;
 ##   DEBUG     - every player action and every game event.
+## Shown can also be NONE: the log field stays empty (no message has that level).
 ## Every message is kept, whatever level is displayed, so changing the level
 ## also re-filters old messages. Per level only the newest MAX_PER_LEVEL are
 ## kept (so a flood of debug lines can't push out an important one), and any
@@ -14,8 +15,8 @@ signal changed
 ## Every message as it is logged (the log itself keeps only the recent ones).
 signal logged(level: int, text: String)
 
-enum Level { DEBUG, INFO, IMPORTANT }
-const LEVEL_NAMES: Array[String] = ["Debug", "Info", "Important"]
+enum Level { DEBUG, INFO, IMPORTANT, NONE }
+const LEVEL_NAMES: Array[String] = ["Debug", "Info", "Important", "None"]
 const MAX_PER_LEVEL := 10
 const MAX_SHOWN := 10
 const LIFETIME := 30.0
@@ -59,6 +60,7 @@ func visible_entries() -> Array[Dictionary]:
 	return out.slice(maxi(0, out.size() - MAX_SHOWN))
 
 
+## Debug -> Info -> Important -> None -> Debug (the settings' button and F3).
 func cycle_level() -> void:
 	shown_level = ((shown_level + 1) % LEVEL_NAMES.size()) as Level
 	changed.emit()

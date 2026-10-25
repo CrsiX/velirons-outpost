@@ -218,6 +218,15 @@ const SAVE := {
 	"name_max": 30,
 }
 
+## F2 (Hud, Screenshot): the whole window as a PNG named
+## <prefix>_YYYY-MM-DD_HH-MM-SS.png, saved in the system's pictures folder
+## (Pictures on Linux / Windows / Android) when it exists and can be written,
+## else in `dir`; the web build downloads it instead.
+const SCREENSHOT := {
+	"prefix": "Velirons-Outpost",
+	"dir": "user://screenshots",
+}
+
 ## The balancing bot (tools/balance_bot.gd, docs/balance-bot-design.md): it
 ## plays whole single-player games the way a player would and records how far
 ## it got. Everything it decides on its own (how often, how far it looks, when

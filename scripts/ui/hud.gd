@@ -715,6 +715,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				_follow_hero = true
 		KEY_F1:
 			toggle_keys_help(not _keys_panel.visible)
+		KEY_F2:
+			take_screenshot()
+		KEY_F3:
+			cycle_log_level()
 		_:
 			if _settings.visible or _overlay.visible or not _game_key(event as InputEventKey):
 				return
@@ -735,6 +739,8 @@ func _game_key(event: InputEventKey) -> bool:
 			toggle_people(not _people_panel.visible)
 		KEY_N:
 			next_idle_workplace()
+		KEY_PERIOD:
+			hotkey_call_wave()
 		KEY_TAB:
 			cycle_units(-1 if event.shift_pressed else 1)
 		KEY_R when game.selected_unit != null:
@@ -746,6 +752,31 @@ func _game_key(event: InputEventKey) -> bool:
 				return false
 			hotkey_hero_mode(HERO_MODE_KEYS[event.keycode])
 	return true
+
+
+## F2: a screenshot of the whole window (Screenshot); a toast says where it went.
+func take_screenshot() -> void:
+	var where := Screenshot.take(get_viewport())
+	game.events.debug("screenshot: %s" % (where if where != "" else "failed"))
+	if where == "":
+		toast("No screenshot: it could not be saved", UiTheme.BAD)
+	else:
+		toast(("Screenshot downloaded: %s" if OS.has_feature("web") else "Screenshot saved: %s") % where)
+
+
+## F3: the log level steps on (like the settings' Log level button).
+func cycle_log_level() -> void:
+	game.events.cycle_level()
+	game.events.debug("log level: %s" % game.events.level_name())
+	toast("Log: %s" % game.events.level_name())
+	if _settings.visible:
+		_refresh_settings()
+
+
+## .: calls the next wave now, like the Call now button (only while it is on).
+func hotkey_call_wave() -> void:
+	if not _call_button.disabled:
+		_do("call_wave")
 
 
 ## Z: the view moves to the village centre.
@@ -2589,9 +2620,12 @@ const KEYS_HELP: Array[Array] = [
 	["Q", "Repair the selected building"],
 	["V", "Villager list"],
 	["T", "Statistics"],
+	[".", "Call the next wave now"],
 	["Esc", "Close the newest popup, or the settings"],
 	["F11", "Full screen"],
 	["F1", "This list"],
+	["F2", "Screenshot"],
+	["F3", "Log level: Debug, Info, Important, None"],
 ]
 var _keys_panel: PanelContainer
 
