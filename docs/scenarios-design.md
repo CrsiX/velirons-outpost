@@ -1195,8 +1195,8 @@ Built after the rework of §9a.
   part of it). The far bank is reached only by the east road: from the east edge in the north-east corner, winding round the mountains
   there (`EAST_ROAD`), over the river on a straight bridge on row 20 (north of the island) and on to the north road; enemies come
   that way too (its edge spawn). On the island the abbey (2x2), a camp of 2 vampires and a skeleton beside it (the scenario makes the first vampire
-  the **Fallen Abbot**: named, x5 HP and x4 damage, `ABBOT_HP` / `ABBOT_POWER`; the other vampire and the skeleton
-  x3 HP, `CAMP_GUARD_HP`, damage as ever), two ruined
+  the **Fallen Abbot**: named, x7 HP and x6 damage, `ABBOT_HP` / `ABBOT_POWER`; the other vampire and the skeleton
+  x4 HP, `CAMP_GUARD_HP`, damage as ever), two ruined
   watchtowers either side of the bridge's end and a ruined barracks, abandoned (`ISLAND_RUINS`: the hero claims them, builders restore them,
   so the abbey can be held even without towers by the river; a hint says so once the rescue is over). Roads from the north edge (the
   Legion's: it comes down the village's bank, past the village's towers, and turns off across the open bank to the bridge) and the west edge;

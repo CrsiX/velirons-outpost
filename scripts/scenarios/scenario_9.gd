@@ -98,9 +98,9 @@ func _init() -> void:
 ## with this many times the HP and damage; the other vampire and the
 ## skeleton have CAMP_GUARD_HP times the HP (their damage as ever).
 const ABBOT := "Fallen Abbot"
-const ABBOT_HP := 5.0
-const ABBOT_POWER := 4.0
-const CAMP_GUARD_HP := 3.0
+const ABBOT_HP := 7.0
+const ABBOT_POWER := 6.0
+const CAMP_GUARD_HP := 4.0
 ## The two priests' names (for the log, the villager list and must_live): the
 ## eldest (she must not die; she looks as in her portrait) and the younger
 ## one, whom the octopus catches.

@@ -1625,8 +1625,8 @@ func _s9_rescued() -> void:
 	var abbot = sc.mark.get("abbot")
 	check(abbot is Enemy and (abbot as Enemy).given_name == "Fallen Abbot" and (abbot as Enemy).power == _s9().ABBOT_POWER
 		and (abbot as Enemy).max_hp >= Config.enemy_stat("vampire", "hp") * Config.CAMP_HP_SCALE * (_s9().ABBOT_HP - 0.1) and ab.guard().monsters.size() == 3
-		and ab.guard().monsters.all(func(e: Enemy) -> bool: return e.max_hp >= Config.enemy_stat(e.kind, "hp") * Config.CAMP_HP_SCALE * 2.9 and (e == abbot or e.power == 1.0)),
-		"the Fallen Abbot leads them (five times the HP, four times the damage); the others have three times the HP")
+		and ab.guard().monsters.all(func(e: Enemy) -> bool: return e.max_hp >= Config.enemy_stat(e.kind, "hp") * Config.CAMP_HP_SCALE * (_s9().CAMP_GUARD_HP - 0.1) and (e == abbot or e.power == 1.0)),
+		"the Fallen Abbot leads them (x%d HP, x%d damage); the others have x%d HP" % [int(_s9().ABBOT_HP), int(_s9().ABBOT_POWER), int(_s9().CAMP_GUARD_HP)])
 	var ruins := game.world.map_objects.filter(func(o: Node) -> bool: return o is RuinedTower and Vector2((o as RuinedTower).tile).distance_to(Vector2(ab.tile)) < 7.0)
 	check(ruins.size() == 3 and ruins.filter(func(o: Node) -> bool: return (o as RuinedTower).building() == "barracks").size() == 1, "two ruined watchtowers and a ruined barracks on the island (%d)" % ruins.size())
 	var church: Church = _s9()._church(sc)
