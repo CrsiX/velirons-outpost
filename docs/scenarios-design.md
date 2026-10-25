@@ -1152,7 +1152,8 @@ The game has none of this yet, except where noted:
   bar) and `blocked` (why an open treasure can't be looted now); a dropped relic ("sack" with an `"item"`) drawn as `relic_sword`;
   `Resident.start_rounds` (new rounds at once); `ScenarioRunner.hero_moves_out` (a tent as her home) and `keep_in_sight` (an observer
   following a story figure); `ScenarioRunner.keep_free` (a tile nothing may be built on: scenery); `Scenario.rotate_kinds` / `rotate_count` (repeated
-  waves grow by kinds in turn); `Scenario.can_win` (more than the shown objectives); an objective's `"gone"` (once it holds, the objective
+  waves grow by kinds in turn); an objective's `"failed"` (it can't be met any more: a red cross and red text on the card, logged
+  once; the scenario goes on; scenario 9's rescue once the priest drowned); `Scenario.can_win` (more than the shown objectives); an objective's `"gone"` (once it holds, the objective
   is hidden for good and no longer counted: a goal only for the start); a cutscene `"camera"` step may be a Callable.
 
 ### 7.14 Scenario 8 as built (`scenario_8.gd`)
@@ -1194,7 +1195,7 @@ Built after the rework of §9a.
   part of it). The far bank is reached only by the east road: from the east edge in the north-east corner, winding round the mountains
   there (`EAST_ROAD`), over the river on a straight bridge on row 20 (north of the island) and on to the north road; enemies come
   that way too (its edge spawn). On the island the abbey (2x2), a camp of 2 vampires and a skeleton beside it (the scenario makes the first vampire
-  the **Fallen Abbot**: named, x3 HP and damage, `ABBOT_HP` / `ABBOT_POWER`; the other vampire and the skeleton
+  the **Fallen Abbot**: named, x5 HP and x4 damage, `ABBOT_HP` / `ABBOT_POWER`; the other vampire and the skeleton
   x3 HP, `CAMP_GUARD_HP`, damage as ever), two ruined
   watchtowers either side of the bridge's end and a ruined barracks, abandoned (`ISLAND_RUINS`: the hero claims them, builders restore them,
   so the abbey can be held even without towers by the river; a hint says so once the rescue is over). Roads from the north edge (the
@@ -1231,8 +1232,9 @@ Built after the rework of §9a.
   else grabbed). Towers and units go for an arm holding one of ours first (`Scenario.arms_first`: `Enemy.holding`, set by the octopus;
   `MilitaryBehavior.enemies_near` puts those first), never the octopus while he is held. Once that scene is over his `RESCUE_HOLD` 20 s run: the arm hurts him (he has 8x a villager's HP) and then pulls him
   under. A countdown floats over him and stands in the objective. Cut free he runs for the church (`Civilian.run_home`; the objective
-  says "running for the church"); an arm that catches him on the way holds him in the shallows again with a new `RESCUE_HOLD` (it
-  has his focus again). Rescued once he is home in the church: the priests tell (the Hand, why they hid it, vampires,
+  says "running for the church"); any arm that catches him again (on the way, or the moment he is freed) holds him in the shallows with a
+  new `RESCUE_HOLD` from the moment it takes hold, never drags him straight under (`OctopusBehavior.catch_hold`: only for whom a
+  scenario names, here only him during the rescue). Drowned, the objective is crossed out in red. Rescued once he is home in the church: the priests tell (the Hand, why they hid it, vampires,
   something in the deep, others know). Drowned: they shut Brenna out (`ScenarioRunner.hero_moves_out`: a tent near the west gate is her
   home; `Hero.barred`: she never sets foot in the village, a gate included, until they trust her: her ways go round it,
   `Pathing.find_path_outside`, and she leaves enemies inside alone) and say nothing. Either way the octopus goes back to the abbey.

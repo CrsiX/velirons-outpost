@@ -1624,9 +1624,9 @@ func _s9_rescued() -> void:
 	check(ab != null and ab.guard() != null and ab.guard().alive().filter(func(e: Enemy) -> bool: return e.kind == "vampire").size() == 2, "vampires hold its crypt")
 	var abbot = sc.mark.get("abbot")
 	check(abbot is Enemy and (abbot as Enemy).given_name == "Fallen Abbot" and (abbot as Enemy).power == _s9().ABBOT_POWER
-		and (abbot as Enemy).max_hp >= Config.enemy_stat("vampire", "hp") * Config.CAMP_HP_SCALE * 2.9 and ab.guard().monsters.size() == 3
+		and (abbot as Enemy).max_hp >= Config.enemy_stat("vampire", "hp") * Config.CAMP_HP_SCALE * (_s9().ABBOT_HP - 0.1) and ab.guard().monsters.size() == 3
 		and ab.guard().monsters.all(func(e: Enemy) -> bool: return e.max_hp >= Config.enemy_stat(e.kind, "hp") * Config.CAMP_HP_SCALE * 2.9 and (e == abbot or e.power == 1.0)),
-		"the Fallen Abbot leads them (three times the HP and damage); the others have three times the HP")
+		"the Fallen Abbot leads them (five times the HP, four times the damage); the others have three times the HP")
 	var ruins := game.world.map_objects.filter(func(o: Node) -> bool: return o is RuinedTower and Vector2((o as RuinedTower).tile).distance_to(Vector2(ab.tile)) < 7.0)
 	check(ruins.size() == 3 and ruins.filter(func(o: Node) -> bool: return (o as RuinedTower).building() == "barracks").size() == 1, "two ruined watchtowers and a ruined barracks on the island (%d)" % ruins.size())
 	var church: Church = _s9()._church(sc)
@@ -1766,15 +1766,22 @@ func _s9_rescued() -> void:
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if (e as Enemy).kind == "octopus_arm":
 				kill(e, h)
+	var first = p.held_by
 	cut_arms.call()
-	check(await wait_until(func() -> bool: return sc.mark.has("fleeing"), 3.0) and not sc.mark.has("rescued") and not p.dead,
-		"its arm cut: he is free and runs for the church, not saved yet")
-	await wait(0.6)
-	if not is_instance_valid(p.held_by):
-		ob.grab(octo, p, 1e6, false)  # (the octopus catches him again on his way)
-	check(await wait_until(func() -> bool: return is_instance_valid(p.held_by) and int(sc.mark.get("catches", 1)) == 2, 5.0)
-		and not sc.mark.has("fleeing") and ob.hold_left(p) > _s9().RESCUE_HOLD - 2.0,
-		"caught again on his way: he has a new %d s (%.0f s)" % [int(_s9().RESCUE_HOLD), ob.hold_left(p)])
+	check(await wait_until(func() -> bool: return not is_instance_valid(p.held_by) or p.held_by != first, 3.0) and not sc.mark.has("rescued") and not p.dead,
+		"its arm cut: he is free, not saved yet")
+	# Its other arms are free at once (no cooldown): one of them catches him again,
+	# by itself (the bug: it dragged him straight under).
+	for a in ob.arms:
+		if a["state"] == OctopusBehavior.Arm.IDLE:
+			a["cd"] = 0.0
+	check(await wait_until(func() -> bool: return is_instance_valid(p.held_by) and p.held_by != first, 5.0)
+		and ob.hold_left(p) > _s9().RESCUE_HOLD - 2.0, "an arm catches him again on its own: a new %d s (%.0f s)" % [int(_s9().RESCUE_HOLD), ob.hold_left(p)])
+	await wait(3.0)
+	check(not p.dead and is_instance_valid(p.held_by) and game.map.get_terrain(p.current_tile()) == MapData.Terrain.SHALLOW and int(sc.mark.get("catches", 1)) == 2,
+		"held in the shallows, not dragged under (catches %d)" % int(sc.mark.get("catches", 1)))
+	cut_arms.call()
+	check(await wait_until(func() -> bool: return sc.mark.has("fleeing") or is_instance_valid(p.held_by), 3.0) and not p.dead, "cut free again: he runs for the church")
 	var t := 0.0
 	while not sc.mark.has("rescued") and not p.dead and t < 90.0:
 		if is_instance_valid(p.held_by):
@@ -1886,6 +1893,11 @@ func _s9_drowned() -> void:
 		if a.has("wait"):
 			a["wait"] = 0.0
 	check(await wait_until(func() -> bool: return sc.mark.has("drowned"), 30.0), "nobody cuts him free: he drowns")
+	await wait(0.6)
+	var goal: Dictionary = sc.card._rows.get("rescue", {})
+	check(not goal.is_empty() and (goal["cross"] as Control).visible and not (goal["tick"] as Control).visible
+		and (goal["text"] as Label).get_theme_color("font_color") == UiTheme.BAD and not game.game_over,
+		"the objective is crossed out in red: failed, but the scenario goes on")
 	check(_s9_priests().size() == 1 and h.home_override == sc.mark.get("tent") and not game.map.in_village(h.home_override), "the priests shut Brenna out: her tent outside the walls is her home")
 	check(h.barred == game.player_village.rect, "she may not set foot in the village, not even in a gate")
 	check(await wait_until(func() -> bool: return not h.barred.has_point(h.current_tile()), 60.0), "she leaves it")

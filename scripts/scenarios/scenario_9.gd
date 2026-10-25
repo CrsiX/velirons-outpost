@@ -98,8 +98,8 @@ func _init() -> void:
 ## with this many times the HP and damage; the other vampire and the
 ## skeleton have CAMP_GUARD_HP times the HP (their damage as ever).
 const ABBOT := "Fallen Abbot"
-const ABBOT_HP := 3.0
-const ABBOT_POWER := 3.0
+const ABBOT_HP := 5.0
+const ABBOT_POWER := 4.0
 const CAMP_GUARD_HP := 3.0
 ## The two priests' names (for the log, the villager list and must_live): the
 ## eldest (she must not die; she looks as in her portrait) and the younger
@@ -385,14 +385,16 @@ func _poll_rescue(r: ScenarioRunner) -> void:
 	if not r.mark.has("countdown"):
 		if r.cutscene == null:  # (the scene is over: now his time runs)
 			ob.grab(oct, p, RESCUE_HOLD, true)
+			ob.catch_hold[p] = RESCUE_HOLD  # (caught again later: a new hold, never drowned at once)
+			r.mark["arm"] = p.held_by
 			r.mark["countdown"] = r.game.clock
 			r.game.events.important("The octopus has the priest! Cut its arm before it drags him under.")
 			r.game.player_village.toast("The octopus has the priest! Cut its arm!", UiTheme.BAD)
 		return
 	if is_instance_valid(p.held_by):
-		if r.mark.has("fleeing"):  # (caught again on his way: his time runs anew)
+		if p.held_by != r.mark.get("arm"):  # (caught again: his time runs anew, the arm saw to that)
 			r.mark.erase("fleeing")
-			ob.grab(oct, p, RESCUE_HOLD, true)
+			r.mark["arm"] = p.held_by
 			r.mark["countdown"] = r.game.clock
 			r.mark["catches"] = int(r.mark.get("catches", 1)) + 1
 			r.game.events.important("The octopus has caught the priest again! Cut him free.")
@@ -483,6 +485,8 @@ func _drowned(r: ScenarioRunner) -> void:
 func _send_octopus_home(r: ScenarioRunner) -> void:
 	var o = r.mark.get("octopus")
 	var ab := _abbey(r)
+	if is_instance_valid(o) and not (o as Enemy).dead:
+		((o as Enemy).behavior as OctopusBehavior).catch_hold.clear()  # (the rescue is over, one way or the other)
 	if is_instance_valid(o) and not (o as Enemy).dead and ab:
 		var oct := o as Enemy
 		(oct.behavior as AquaBehavior).set_post(oct, ab.tile, GUARD_LEASH)
@@ -1006,6 +1010,7 @@ func objectives(r: ScenarioRunner) -> Array[Dictionary]:
 		{"id": "rescue", "text": "Save the priest from the octopus", "optional": true,
 			"shown": func() -> bool: return r.mark.has("countdown") or (r.mark.has("drowned") and r.mark.has("grabbed")),
 			"done": func() -> bool: return r.mark.has("rescued"),
+			"failed": func() -> bool: return r.mark.has("drowned"),
 			"detail": func() -> String:
 				if r.mark.has("drowned"):
 					return "drowned"

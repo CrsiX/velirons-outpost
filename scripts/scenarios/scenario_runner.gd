@@ -55,6 +55,8 @@ var _goal_state := {}
 var _goal_shown := {}
 ## Objectives with "gone" that have gone (id -> true).
 var _goal_gone := {}
+## Objectives that have failed (id -> true), so it is logged once.
+var _goal_failed := {}
 var _hints_shown := {}
 var _hint_left := 0.0
 ## The hint on the card now that points like a card ("point", until its
@@ -872,7 +874,11 @@ func _poll_now() -> void:
 			card.show_objective(id, true)
 		var done: bool = (o["done"] as Callable).call()
 		var detail := str((o["detail"] as Callable).call()) if o.has("detail") else ""
-		card.set_objective(id, done, detail)
+		var failed: bool = not done and o.has("failed") and (o["failed"] as Callable).call()
+		card.set_objective(id, done, detail, failed)
+		if failed and not _goal_failed.has(id):
+			_goal_failed[id] = true
+			game.events.important("Objective failed: %s" % o["text"])
 		if done and _goal_state.has(id) and not _goal_state[id]:
 			game.events.info("Objective done: %s" % o["text"])  # (not for one met from the start)
 		_goal_state[id] = done

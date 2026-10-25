@@ -34,6 +34,10 @@ var _lockout := 0.0
 ## A scripted catch (grab) it holds on to alone: no other arm reaches or
 ## smashes meanwhile. null: none.
 var focus: Node = null
+## Those a scenario wants held, never drowned at once (target -> seconds):
+## whichever arm catches one holds it in the shallows that long, hurting it,
+## and has its focus (as grab()), from the moment it takes hold.
+var catch_hold := {}
 
 
 func tick(enemy: Enemy, delta: float) -> bool:
@@ -118,6 +122,10 @@ func _tick_arms(enemy: Enemy, delta: float) -> void:
 						a["state"] = Arm.HOLD
 						t.held_by = a["node"]
 						(a["node"] as Enemy).holding = true
+						if catch_hold.has(t) and float(a.get("wait", 0.0)) <= 0.0:
+							a["wait"] = float(catch_hold[t])
+							a["harm"] = true
+							focus = t
 						enemy.game.log_for(t, EventLog.Level.DEBUG, "%s grabs %s" % [enemy.label(), enemy.game.who(t)])
 			Arm.SMASH:
 				var b = a["target"]

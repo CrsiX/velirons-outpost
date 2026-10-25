@@ -194,7 +194,9 @@ func hints(_r: ScenarioRunner) -> Array[Dictionary]:
 ## "optional": true (shown, not needed to win), "shown": Callable -> bool
 ## (hidden until it first holds; needed to win only once shown), "gone":
 ## Callable -> bool (once it holds, hidden for good and no longer counted:
-## a goal only for the start)}. All the others done (at once) win the scenario.
+## a goal only for the start), "failed": Callable -> bool (it can't be met
+## any more: crossed out in red on the card, logged once; the scenario goes
+## on)}. All the others done (at once) win the scenario.
 func objectives(_r: ScenarioRunner) -> Array[Dictionary]:
 	return []
 
