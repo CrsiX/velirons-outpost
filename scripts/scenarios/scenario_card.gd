@@ -3,7 +3,8 @@ extends PanelContainer
 ## A scenario's card (top left, under the top bar): the teaching card's title
 ## and text (a tick when it is done), a hint that comes up once when something
 ## goes wrong, and the scenario's objectives with a tick each. The heading
-## folds it to a single line.
+## folds it to a single line. It keeps its place (beside a panel open in its
+## corner) itself, every frame, also while the game is paused.
 
 var hud: Hud
 var folded := false
@@ -63,12 +64,20 @@ func build(p_hud: Hud, heading: String) -> void:
 	_goals.add_theme_constant_override("separation", 2)
 	_body.add_child(_goals)
 	visible = false
+	process_mode = Node.PROCESS_MODE_ALWAYS  # (paused too: a panel opened meanwhile, folding)
+
+
+func _process(_delta: float) -> void:
+	if visible and hud != null:
+		place()
 
 
 func set_folded(on: bool) -> void:
 	folded = on
 	_body.visible = not on
 	_head.text = _head.text.trim_suffix("  ▸").trim_suffix("  ▾") + ("  ▸" if on else "  ▾")
+	if hud != null:
+		place()  # (its height at once: folded to the heading, or unfolded)
 
 
 ## The teaching card shown now; an empty title hides it (no card).
@@ -120,6 +129,9 @@ func set_objectives(list: Array[Dictionary]) -> void:
 		var tick := hud._icon(Art.tex("icon_check"), 18)
 		tick.visible = false
 		row.add_child(tick)
+		var cross := hud._icon(Art.tex("icon_no"), 18)
+		cross.visible = false
+		row.add_child(cross)
 		var dot := hud._label("•", 16, UiTheme.MUTED)
 		dot.custom_minimum_size.x = 18
 		dot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -129,7 +141,7 @@ func set_objectives(list: Array[Dictionary]) -> void:
 		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(t)
 		_goals.add_child(row)
-		_rows[o["id"]] = {"tick": tick, "dot": dot, "text": t, "base": str(o["text"])}
+		_rows[o["id"]] = {"tick": tick, "cross": cross, "dot": dot, "text": t, "base": str(o["text"])}
 
 
 ## Shows or hides one objective's row (one that appears later: "shown").
@@ -138,16 +150,18 @@ func show_objective(id: String, on: bool) -> void:
 		((_rows[id]["tick"] as Control).get_parent() as Control).visible = on
 
 
-## One objective's state: done (ticked, green) and its progress ("3 / 9").
-func set_objective(id: String, done: bool, detail: String) -> void:
+## One objective's state: done (ticked, green), failed (crossed, red: it
+## can't be done any more) and its progress ("3 / 9").
+func set_objective(id: String, done: bool, detail: String, failed := false) -> void:
 	if not _rows.has(id):
 		return
 	var r: Dictionary = _rows[id]
-	(r["tick"] as Control).visible = done
-	(r["dot"] as Control).visible = not done
+	(r["tick"] as Control).visible = done and not failed
+	(r["cross"] as Control).visible = failed
+	(r["dot"] as Control).visible = not done and not failed
 	var t: Label = r["text"]
 	t.text = str(r["base"]) + ("  (%s)" % detail if detail != "" and not done else "")
-	t.add_theme_color_override("font_color", UiTheme.GOOD if done else UiTheme.TEXT)
+	t.add_theme_color_override("font_color", UiTheme.BAD if failed else (UiTheme.GOOD if done else UiTheme.TEXT))
 
 
 ## Top left under the top bar; beside a panel open in that corner (portrait:

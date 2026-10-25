@@ -576,6 +576,10 @@ rider moves and picks its fights; `CaptainBehavior` and `CommanderBehavior` exte
     gold, a look only) and the rider breaks in on foot.
   - **Charge:** after riding `charge_distance` (3) tiles without a fight (`Enemy.charge_ready`,
     dust under its hooves, leaning forward), its next blow does `charge_x` (×2).
+  - **Led by a scenario** (`Enemy.errand`, `MountedBehavior._on_errand`; scenario 9's Lysa at
+    the head of her `LegionCompany`): it rides where the errand sends it and fights what comes
+    within reach, but never charges (`Enemy._tick_ride`) and hunts, escorts and circles nobody. Waiting at its village
+    it rides in through a breach, or after `circle_time` gets off and breaks in on foot.
 - **Against cavalry:** the halberdier's blows do `vs_mounted` (×2.5) to a mount (only to the mount:
   never to the rider on foot), and it **breaks a charge** (`"breaks_charge"`): a charge on a
   halberdier gives no bonus, and its blow on a mounted enemy halts the mount for `halt_time`

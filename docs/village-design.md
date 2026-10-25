@@ -128,7 +128,8 @@ in docs/multiplayer-design.md.
   - **Coming back** (`Config.FLEE`, `Civilian._back_to_work`): while running, every
     `check_every` 3 s they look whether any enemy that scares villagers is still within
     `clear_radius` 6 tiles. If none is, they stop and go back to work from where they stand
-    (`resume_work`, as after a load), no walk home, no rest.
+    (`resume_work`, as after a load), no walk home, no rest. A campaign resident without rounds
+    (`Resident`: nothing to do out there, e.g. scenario 9's priest freed from the octopus) runs on home.
   - **Running away** (`away_roles`: the explorer, and the hero in Explore mode): they don't run
     home but `away_distance` 8 tiles off in one of 16 directions that doesn't lead towards the
     enemies close by, onto explored land the village can reach, as far from the nearest enemy

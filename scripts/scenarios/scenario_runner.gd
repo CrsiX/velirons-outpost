@@ -45,13 +45,23 @@ var hints: Array[Dictionary] = []
 var objectives: Array[Dictionary] = []
 ## Whatever a card needs to remember (unit levels when it began, ...).
 var mark := {}
+## Tiles nothing may be built on (tile -> what stands there: a scenario's
+## scenery, scenario 9's ferry bell), see keep_free.
+var kept_free := {}
 var start_villagers := 0
 ## Each objective's last state (id -> done), so a change is logged once.
 var _goal_state := {}
 ## Objectives with "shown" that have appeared (id -> true).
 var _goal_shown := {}
+## Objectives with "gone" that have gone (id -> true).
+var _goal_gone := {}
+## Objectives that have failed (id -> true), so it is logged once.
+var _goal_failed := {}
 var _hints_shown := {}
 var _hint_left := 0.0
+## The hint on the card now that points like a card ("point", until its
+## "until" holds), or {}.
+var _hint_on := {}
 var _poll := 0.0
 var _next_in := -1.0
 var _tab := ""
@@ -381,6 +391,7 @@ func start() -> void:
 		if int(spec.sites[kind]) == 0:
 			awaken_site(kind, false)
 	_name_villagers()
+	_hold_villagers(true)
 	_man_prebuilt()
 	_fill_reserve()
 	_set_lairs()
@@ -516,7 +527,14 @@ static func _puff() -> Texture2D:
 	return t
 
 
+## The villagers wait (where they are, at home) until the intro is over.
+func _hold_villagers(on: bool) -> void:
+	for c in game.population.civilians:
+		c.set_process(not on)
+
+
 func _after_intro(_skipped: bool) -> void:
+	_hold_villagers(false)
 	if spec.hero_start == Vector2i(-1, -1):
 		_begin_play()
 		return
@@ -536,7 +554,6 @@ func _after_intro(_skipped: bool) -> void:
 
 func _walk(_delta: float) -> void:
 	var h := game.hero
-	card.place()
 	game.camera.focus(h.position)
 	if h.at_home and h.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.2:
 		phase = Phase.ARRIVAL
@@ -557,6 +574,22 @@ func hero_moves_in() -> void:
 	if is_instance_valid(tent_node):
 		tent_node.queue_free()
 	game.events.info("%s moves into the village" % h.label())
+
+
+## She must live outside the walls from now on (scenario 9: the priests shut
+## her out): a tent on `tile` is her home.
+func hero_moves_out(tile: Vector2i) -> void:
+	var h := game.hero
+	h.home_override = tile
+	if is_instance_valid(tent_node):
+		tent_node.queue_free()
+	tent_node = actor("tent_small", Vector2(tile), true)
+	tent_node.name = "Tent"
+	game.fog.reveal(Vector2(tile), TENT_REVEAL, game.player_village.id)
+	if h.at_home and not h.dead:
+		h.head_home()
+		h.at_home = false
+	game.events.info("%s has to live outside the walls" % h.label())
 
 
 func _begin_play() -> void:
@@ -636,6 +669,11 @@ func _drop_scene_actors() -> void:
 		if is_instance_valid(n):
 			n.queue_free()
 	_scene_actors.clear()
+
+
+## Nothing may be built on `tile`: `what` stands there (scenery, an actor).
+func keep_free(tile: Vector2i, what: String) -> void:
+	kept_free[tile] = what
 
 
 ## Moves `n` along `tiles` (grid positions) in `time` real seconds.
@@ -740,14 +778,18 @@ func _poll_steps(delta: float) -> void:
 		game.events.debug("scenario card %d done" % (step + 1))
 		spec.on_card_done(self, str(steps[step].get("id", "")))
 		_next_in = STEP_PAUSE
-	else:
+	elif _hint_on.is_empty():
 		_point()
 
 
-## Updates the highlight, as the tutorial's (see Tutorial._point).
+## Updates the highlight, as the tutorial's (see Tutorial._point): for the
+## pointing hint while one is on, else for the card.
 func _point() -> void:
-	var s: Dictionary = steps[step]
-	var p: Dictionary = (s["point"] as Callable).call() if s.has("point") else {}
+	var p: Dictionary = {}
+	if not _hint_on.is_empty():
+		p = (_hint_on["point"] as Callable).call()
+	elif step >= 0 and step < steps.size() and steps[step].has("point"):
+		p = (steps[step]["point"] as Callable).call()
 	var tab := str(p.get("tab", ""))
 	if tab != "" and tab != _tab:
 		game.hud.show_tab(tab, game.hud.dock_open())
@@ -785,8 +827,13 @@ func _process(delta: float) -> void:
 		Phase.WALK:
 			_walk(delta)
 		Phase.PLAY:
-			card.place()
 			_poll_steps(delta)
+			if not _hint_on.is_empty():
+				if (_hint_on["until"] as Callable).call():
+					_end_pointing_hint()
+					card.show_hint("")
+				else:
+					_point()
 			if _hint_left > 0.0:
 				_hint_left -= delta
 				if _hint_left <= 0.0:
@@ -819,12 +866,21 @@ func _poll_now() -> void:
 			_hints_shown[id] = true
 			var t := str((hn["text"] as Callable).call()) if hn["text"] is Callable else str(hn["text"])
 			card.show_hint(t)
-			_hint_left = HINT_TIME
+			_end_pointing_hint()
+			if hn.has("until"):
+				_hint_on = hn  # (stays, pointing, until it holds)
+				_hint_left = 0.0
+			else:
+				_hint_left = HINT_TIME
 			game.events.important(t)
 			Sfx.play("chime", 0.0)
 	var all := not objectives.is_empty()
 	for o in objectives:
 		var id := str(o["id"])
+		if _goal_gone.has(id) or (o.has("gone") and (o["gone"] as Callable).call()):
+			_goal_gone[id] = true
+			card.show_objective(id, false)
+			continue
 		if o.has("shown") and not _goal_shown.has(id):
 			if not (o["shown"] as Callable).call():
 				card.show_objective(id, false)
@@ -833,16 +889,28 @@ func _poll_now() -> void:
 			card.show_objective(id, true)
 		var done: bool = (o["done"] as Callable).call()
 		var detail := str((o["detail"] as Callable).call()) if o.has("detail") else ""
-		card.set_objective(id, done, detail)
+		var failed: bool = not done and o.has("failed") and (o["failed"] as Callable).call()
+		card.set_objective(id, done, detail, failed)
+		if failed and not _goal_failed.has(id):
+			_goal_failed[id] = true
+			game.events.important("Objective failed: %s" % o["text"])
 		if done and _goal_state.has(id) and not _goal_state[id]:
 			game.events.info("Objective done: %s" % o["text"])  # (not for one met from the start)
 		_goal_state[id] = done
 		all = all and (done or bool(o.get("optional", false)))
-	if all:
+	if all and spec.can_win(self):
 		phase = Phase.OUTRO
 		game.events.info("Every objective is met")
 		game.waves.hold = true
 		game.waves.call_locked = true
+
+
+func _end_pointing_hint() -> void:
+	if _hint_on.is_empty():
+		return
+	_hint_on = {}
+	_tab = ""
+	highlight.clear()
 
 
 # --- the rules ---------------------------------------------------------------------------------
@@ -923,13 +991,18 @@ func _on_wave_finished(n: int) -> void:
 
 
 ## Wave `n` past the scenario's list (repeat_last): the last one, with
-## `more_each_wave` more of its kinds for every wave past it.
+## `more_each_wave` more of its kinds for every wave past it, and
+## `rotate_count` more for every wave past it from `rotate_kinds` in turn.
 func next_wave(n: int) -> Dictionary:
 	var w: Dictionary = spec.waves[-1].duplicate(true)
 	var past := n - spec.waves.size()
 	var kinds: Dictionary = w.get("kinds", {})
 	for k in spec.more_each_wave:
 		kinds[k] = int(kinds.get(k, 0)) + int(spec.more_each_wave[k]) * past
+	if not spec.rotate_kinds.is_empty():
+		for i in past * spec.rotate_count:
+			var k := spec.rotate_kinds[i % spec.rotate_kinds.size()]
+			kinds[k] = int(kinds.get(k, 0)) + 1
 	w["kinds"] = kinds
 	return w
 
@@ -996,10 +1069,25 @@ func spawn_near(near: Vector2i) -> Vector2i:
 
 
 ## `count` more of `kind` for the wave under way, from road tile `tile`
-## (they count for the wave); `extra`: "name", "art" (a named Legion captain).
-func add_enemies(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary = {}) -> void:
+## (they count for the wave); `extra`: "name", "art" (a named Legion captain);
+## `front`: they come next, before the rest of the wave.
+func add_enemies(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary = {}, front := false) -> void:
 	if tile != Vector2i(-1, -1):
-		game.waves.add_to_wave(kind, tile, count, extra)
+		game.waves.add_to_wave(kind, tile, count, extra, front)
+
+
+## Keeps the land within `radius` of `who` (an enemy, or a cutscene's actor)
+## watched for the player's village while it is on the map: a story figure
+## the player must see wherever it walks, fog or not (scenario 9's Lysa).
+func keep_in_sight(who: Node2D, radius: float) -> void:
+	if who.has_meta("kept_in_sight"):
+		return
+	who.set_meta("kept_in_sight", true)
+	var s := Sight.new()
+	s.village = game.player_village
+	s.who = who
+	s.radius = radius
+	game.add_child(s)
 
 
 ## Whether an enemy of `kind` is about now (not counting wild ones: camp guards, wrathwoods).
@@ -1215,3 +1303,26 @@ func unit_promoted() -> bool:
 		if units.has(u) and (u.kind != units[u][0] or u.level > int(units[u][1])):
 			return true
 	return false
+
+
+## An observer (the fog's group "observers") that follows a story figure
+## (keep_in_sight) and is gone with it.
+class Sight:
+	extends Node
+	var village: Village
+	var who: Node2D
+	var radius := 0.0
+
+	func _ready() -> void:
+		add_to_group("observers")
+
+	func sight_radius() -> float:
+		if not is_instance_valid(who) or who.get("dead") == true:
+			queue_free()
+			return 0.0
+		return radius
+
+	func sight_center() -> Vector2:
+		if not is_instance_valid(who):
+			return Vector2.ZERO
+		return (who as Unit).grid_pos if who is Unit else Iso.to_grid(who.position)

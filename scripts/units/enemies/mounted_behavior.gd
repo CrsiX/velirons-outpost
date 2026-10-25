@@ -17,6 +17,8 @@ extends MeleeBehavior
 ##            fights it; gives up beyond `chase` tiles;
 ##   ESCORT - a Legion rider ("escort") keeps within `escort_radius` of the
 ##            nearest Legion soldier on foot, hunting from there.
+## A scenario's errand (Enemy.errand: scenario 9's Lysa at the head of her
+## LegionCompany) leads it instead: see _on_errand.
 ## A charge (Enemy.charge_ready) does charge_x times the damage, unless the
 ## foe breaks charges (a halberdier). On foot it is a MeleeBehavior (a
 ## captain or a commander; a raider or cavalry turns into its rider's kind).
@@ -48,6 +50,9 @@ func tick(enemy: Enemy, delta: float) -> bool:
 		return super.tick(enemy, delta)
 	if enemy.retreating or not enemy.targetable():
 		return false
+	if enemy.errand != null:
+		_on_errand(enemy, delta)
+		return super.tick(enemy, delta)
 	var m := Config.MOUNTED
 	_attack_timer -= delta
 	if state == State.CIRCLE or state == State.GATE or _at_village(enemy):
@@ -84,9 +89,29 @@ func tick(enemy: Enemy, delta: float) -> bool:
 func on_path_end(enemy: Enemy) -> bool:
 	if enemy.mount == "":
 		return super.on_path_end(enemy)
+	if enemy.errand != null:
+		return not enemy.ride_in  # (it waits by the gate; through a breach it rides in)
 	if state != State.GATE:
 		_start_circle(enemy)
 	return true
+
+
+## Led by a scenario's errand: it rides where the errand sends it (the Enemy
+## walks its path) and fights what comes within reach (MeleeBehavior: no
+## charge, see Enemy._tick_ride); it hunts, escorts and circles nobody. Waiting at its
+## village (its path ended there) it rides in through an open breach; with
+## none after `circle_time` it gets off (the mount runs off) and breaks in
+## on foot.
+func _on_errand(enemy: Enemy, delta: float) -> void:
+	var waiting := enemy.path_index >= enemy.path.size() and _at_village(enemy) and not enemy.game.map.in_village(enemy.current_tile())
+	_calm = _calm + delta if waiting and not enemy.ride_in else 0.0
+	_think -= delta
+	if _think <= 0.0 and waiting:
+		_think = 1.0
+		enemy.ride_in = _breach_open(enemy)
+	if _calm >= float(Config.MOUNTED["circle_time"]):
+		enemy.dismount(null, false)
+
 
 
 ## Named riders (the campaign's captains, Rhodri) are told about.

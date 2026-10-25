@@ -4,7 +4,8 @@ extends CivilianJob
 ## collect "safe" corpses (no living enemy nearby) on land its village has
 ## explored, up to `capacity` per trip,
 ## and brings them home for gold and a little food. Loot a downed hero dropped
-## (a sack) is picked up first, and paid out at home like her loot. The
+## (a sack) is picked up first, and paid out at home like her loot (never a
+## campaign relic: scenario 9's sword is the hero's to carry). The
 ## battlefield's fallen (Corpse.fallen; scenario 6) are fetched only while the
 ## village has a graveyard, Config.FALLEN carry at a time, and carried there
 ## to be buried (TO_GRAVE, BURYING).
@@ -162,6 +163,8 @@ func _pick_sack() -> bool:
 		var t := o as Treasure
 		if t == null or not t.data.get("sack", false) or not t.lootable() or not t.is_found_by(w.village):
 			continue
+		if t.reward().has("item"):
+			continue  # (a campaign's relic: only the hero exploring carries it, scenario 9)
 		if not _safe_at(t.tile):
 			continue
 		if w.head_out(t.visit_tile()):

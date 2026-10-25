@@ -16,6 +16,7 @@ const KIND_SCRIPTS := {
 	"warehouse": preload("res://scripts/buildings/warehouse.gd"),
 	"graveyard": preload("res://scripts/buildings/graveyard.gd"),
 	"grove": preload("res://scripts/buildings/grove.gd"),
+	"church": preload("res://scripts/buildings/church.gd"),
 }
 
 var game: Game
@@ -51,10 +52,12 @@ func placement_error(kind: String, tile: Vector2i, free: bool = false) -> String
 			return "Outside the map"
 		if not free and not game.fog.is_explored_by(village.id, t):
 			return "Unexplored land"
-		if map.in_village(t) and not (game.scenario and game.scenario.spec.build_inside):
+		if map.in_village(t) and not (game.scenario and game.scenario.spec.build_inside) and not (free and spec.get("inside", false)):
 			return "Must be outside the village walls"
 		if map.building_at(t) != null:
 			return "Something is already built here"
+		if game.scenario and game.scenario.kept_free.has(t):
+			return "The %s stands here" % game.scenario.kept_free[t]
 		match map.get_terrain(t):
 			MapData.Terrain.ROAD:
 				return "Can't build on the road"

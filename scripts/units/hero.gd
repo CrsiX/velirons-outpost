@@ -146,6 +146,18 @@ func effective_mode() -> Mode:
 ## Where she lives instead of her village's centre (scenario 7: her tent
 ## outside the walls until Fiona lets her in); (-1, -1): the centre.
 var home_override := Vector2i(-1, -1)
+## Tiles she may not walk into (scenario 9: the village, while the priests
+## shut her out; an empty rect: none). Her ways go round it, and she leaves
+## enemies in it alone.
+var barred := Rect2i()
+
+
+func find_way(from: Vector2i, to: Vector2i) -> PackedVector2Array:
+	return game.world.pathing.find_path_outside(from, to, barred)
+
+
+func home_spot() -> Vector2i:
+	return home()
 
 
 ## Her post: where she stands guard, rests, heals and revives (the centre of
@@ -158,7 +170,7 @@ func home() -> Vector2i:
 
 ## Walks back to her post (home()).
 func head_home() -> void:
-	var p := game.world.pathing.find_path(current_tile(), home())
+	var p := find_way(current_tile(), home())
 	if p.is_empty():
 		arrive_home()
 		return
@@ -392,12 +404,12 @@ func _return_home(delta: float) -> void:
 func _walk_home() -> void:
 	var to := home()
 	var centre := Vector2(to)
-	var p := game.world.pathing.find_path(current_tile(), to)
+	var p := find_way(current_tile(), to)
 	if p.is_empty():
 		# Standing on a tile the pathing doesn't allow (e.g. mid-chase on a
 		# corner): try from a walkable neighbour.
 		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
-			p = game.world.pathing.find_path(current_tile() + d, to)
+			p = find_way(current_tile() + d, to)
 			if not p.is_empty():
 				p.insert(0, grid_pos)
 				break
@@ -427,6 +439,8 @@ func _pick_enemy() -> Enemy:
 		var e := node as Enemy
 		if e.flies() or not e.melee_ok(grid_pos):
 			continue  # (flyers: out of her sword's reach, she only hits back; under water or out at sea: none)
+		if barred.has_area() and barred.has_point(e.current_tile()):
+			continue  # (where she may not go)
 		var near_me := not at_home and e.grid_pos.distance_to(grid_pos) <= Config.HERO["sight"]
 		if e.grid_pos.distance_to(centre) > Config.HERO["leash"] and not (out_far and near_me):
 			continue
@@ -460,7 +474,7 @@ func _pick_enemy() -> Enemy:
 func _chase() -> void:
 	_chase_tile = target.current_tile()
 	var stand := game.world.pathing.stand_near(_chase_tile, grid_pos)  # (in deep water: from the shore)
-	var p := game.world.pathing.find_path(current_tile(), stand) if stand != Vector2i(-1, -1) else PackedVector2Array()
+	var p := find_way(current_tile(), stand) if stand != Vector2i(-1, -1) else PackedVector2Array()
 	if p.is_empty():
 		target = null
 		return

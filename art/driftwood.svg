@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="50" viewBox="-25 -13 54 25">
+  <polyline points="-22,4 16,-6" fill="none" stroke="#15110d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-22,4 16,-6" fill="none" stroke="#b8a88a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-4,-1 4,-10" fill="none" stroke="#15110d" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-4,-1 4,-10" fill="none" stroke="#b8a88a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-10,8 12,4" fill="none" stroke="#15110d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-10,8 12,4" fill="none" stroke="#a8987a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M-22,9 q3,-4 6,0 q3,-4 6,0" fill="none" stroke="#3e5a2a" stroke-width="1.6"/>
+  <path d="M2,9 q3,-4 6,0 q3,-4 6,0" fill="none" stroke="#3e5a2a" stroke-width="1.6"/>
+  <path d="M14,-2 q3,-4 6,0 q3,-4 6,0" fill="none" stroke="#3e5a2a" stroke-width="1.6"/>
+</svg>

@@ -696,6 +696,14 @@ const BUILDINGS := {
 		"campaign": true,
 		"desc": "2x2. The druids' own barracks by their stone circle. They turn out for enemies near it, but take no orders.",
 	},
+	# The harbour village's church (scenario 9): prebuilt by the scenario in
+	# its place inside the walls ("inside": a prebuilt one may stand there).
+	# The priests keep the First King's Hand there once it is home (Church).
+	"church": {
+		"name": "Church", "cost": {"materials": 120}, "build_time": 30.0, "size": 3, "art": "church",
+		"campaign": true, "inside": true,
+		"desc": "3x3, inside the walls. The priests' church, where they keep the First King's Hand once it is home.",
+	},
 }
 
 ## The guild warehouse (Warehouse; docs/scenarios-design.md §7.7):
@@ -749,6 +757,7 @@ const BUILDING_HP := {
 	"warehouse": [500.0],  # (10 thieves' plunder: WAREHOUSE.raid_damage)
 	"graveyard": [150.0],
 	"grove": [400.0, 400.0, 400.0],
+	"church": [400.0],
 	"hut": [1.0],
 }
 ## The village's pieces were never bought: their price and build time count
@@ -823,11 +832,12 @@ const CIVILIANS := {
 		"desc": "Keeps the guild's books in the guild house and never leaves it. She dies if it burns.",
 		"stays_home": "keeping the guild's books",
 	},
-	# Can't be recruited: Anselm, the battlefield's priest (scenario 6). Stays
-	# in his hut ("stays_home": what he does there).
+	# Can't be recruited: Anselm, the battlefield's priest (scenario 6), and
+	# scenario 9's priests. At home ("stays_home": what he does there);
+	# Anselm walks his rounds too (Resident.rounds: the chapel, the graveyard).
 	"priest": {
 		"name": "Priest", "cost": {}, "speed": 1.1, "recruit": false,
-		"desc": "Prays for the dead in his house and never leaves it. He dies if it burns.",
+		"desc": "Prays for the dead, in his house or at the graves. He runs home from enemies, and dies if his house burns.",
 		"stays_home": "praying for the dead",
 	},
 	# Can't be recruited: Fiona, the old king's daughter (scenario 7). Stays in
@@ -1749,7 +1759,9 @@ const ENEMIES := {
 	# surface_min..surface_max s and channels a water blast (blast_windup s,
 	# then spell_damage per s for blast_time s, magical) at someone within
 	# blast_range: villagers, units and the hero outside, elementals; never a
-	# tower's unit, nobody inside the walls. A blast every blast_cooldown s.
+	# tower's unit, nobody inside the walls. A blast every blast_cooldown s
+	# (from one's start to the next: just past a blast's length, so it blasts
+	# almost without a break while up).
 	# Losing flee_share of its max HP in one surfacing makes it dive early;
 	# then it stays up at least flee_min_up s the next time. It moves on at
 	# least move_on tiles after each dive. With nobody to blast it still comes
@@ -1764,7 +1776,7 @@ const ENEMIES := {
 		"habitat": "water", "submerges": true,
 		"min_deep_tiles": 30, "min_width": 2, "reach": 5.6,
 		"blast_range": 4.6,  # below a level 3 watchtower's reach (5.2), above a level 2's (4.4)
-		"spell_damage": 6.0, "blast_windup": 0.8, "blast_time": 4.0, "blast_cooldown": 8.0,
+		"spell_damage": 30.0, "blast_windup": 0.8, "blast_time": 4.0, "blast_cooldown": 5.0,
 		"surface_min": 5.0, "surface_max": 9.0, "idle_surface": 20.0,
 		"flee_share": 0.25, "flee_min_up": 3.0, "move_on": 6.0,
 	},

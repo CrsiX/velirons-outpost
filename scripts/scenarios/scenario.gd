@@ -103,6 +103,9 @@ var must_live: Array[String] = []
 ## Building kinds that must not fall: once every one of a kind is devastated
 ## (or gone), the scenario is lost (the guild warehouse).
 var must_stand: Array[String] = []
+## Towers and posts shoot an octopus's arm holding one of ours before any
+## other target (Enemy.holding; scenario 9's priest), not the octopus.
+var arms_first := false
 ## Corpses rot as usual (false: they lie until gathered or the next wave ends).
 var corpses_rot := true
 ## When the map's unit-unlock sites awaken, by site (Config.UNLOCK_SITES key):
@@ -130,9 +133,13 @@ var first_wave_waits := true
 ## scenario releases the waves (ScenarioRunner.release_waves).
 var first_wave_call := true
 ## After the last listed wave more come until the objectives are met: the
-## last one again, with `more_each_wave` ({kind: count}) more per wave.
+## last one again, with `more_each_wave` ({kind: count}) more per wave, and
+## `rotate_count` more per wave picked from `rotate_kinds` in turn (round
+## robin, on from where the wave before stopped: every kind comes up).
 var repeat_last := false
 var more_each_wave := {}
+var rotate_kinds: Array[String] = []
+var rotate_count := 0
 ## Seconds between a wave's end and the next (the countdown).
 var wave_gap := 30.0
 ## Amphibians (crabs, sirens) come out of the water only, never from the map edge.
@@ -175,7 +182,9 @@ func steps(_r: ScenarioRunner) -> Array[Dictionary]:
 
 ## One-time hints: {"id", "when": Callable -> bool (polled), "text" (a String,
 ## or a Callable -> String)}; shown on the card and logged the first time
-## "when" holds.
+## "when" holds. With "point" (as a card's) and "until" (Callable -> bool) it
+## stays and points like a card until "until" holds (a card's pointer waits
+## meanwhile).
 func hints(_r: ScenarioRunner) -> Array[Dictionary]:
 	return []
 
@@ -183,8 +192,11 @@ func hints(_r: ScenarioRunner) -> Array[Dictionary]:
 ## The objectives, shown under the card: {"id", "text", "done": Callable ->
 ## bool, "detail": optional Callable -> String (progress, e.g. "3 / 5"),
 ## "optional": true (shown, not needed to win), "shown": Callable -> bool
-## (hidden until it first holds; needed to win only once shown)}. All the
-## others done (at once) win the scenario.
+## (hidden until it first holds; needed to win only once shown), "gone":
+## Callable -> bool (once it holds, hidden for good and no longer counted:
+## a goal only for the start), "failed": Callable -> bool (it can't be met
+## any more: crossed out in red on the card, logged once; the scenario goes
+## on)}. All the others done (at once) win the scenario.
 func objectives(_r: ScenarioRunner) -> Array[Dictionary]:
 	return []
 
@@ -192,6 +204,12 @@ func objectives(_r: ScenarioRunner) -> Array[Dictionary]:
 ## Once everything is set up, before the intro.
 func on_start(_r: ScenarioRunner) -> void:
 	pass
+
+
+## Besides every shown objective being met: may it be won now? (A scenario
+## whose objectives appear late: scenario 9.)
+func can_win(_r: ScenarioRunner) -> bool:
+	return true
 
 
 ## Every 0.25 s while it is played (events that aren't a wave: something restored...).

@@ -3,7 +3,8 @@ extends Node
 ## a map file (data/maps/), to be edited by hand in the map editor afterwards
 ## (open it there, change it, Export over the same file). Run once per
 ## scenario; it never overwrites a map unless asked to:
-##   godot --headless --path . res://tools/make_scenario_map.tscn -- <scenario number> [--force]
+##   godot --headless --path . res://tools/make_scenario_map.tscn -- <scenario number> [--force] [--seed=<n>]
+## (--seed: another seed than MAPS' one, to try maps out.)
 ##
 ## What each scenario's map starts from: a generated map (type, seed), with
 ## the object kinds in "drop" taken out, and at most "ruins" ruined
@@ -34,8 +35,11 @@ extends Node
 ## "citadel": scenario 5's fort in a mountain pass, laid out by citadel_map.gd
 ## rather than generated ({"seed"}); it prints where Sigmund's tent goes
 ## (scenario_5.gd's SIGMUND_TENT).
+## "abbey": scenario 9's shore, village, harbour, lake and channel, laid out
+## by abbey_map.gd ({"seed"}); it prints the church's and the quay's tiles.
 
 const CitadelMap := preload("res://tools/citadel_map.gd")
+const AbbeyMap := preload("res://tools/abbey_map.gd")
 
 const MAPS := {
 	1: {"map_type": "highlands", "seed": 1337, "name": "Homecoming",
@@ -69,10 +73,9 @@ const MAPS := {
 		"add_lairs": [{"edge": "north", "at": 11, "art": "lair_crypt"}, {"edge": "south", "at": 17, "art": "lair_crypt_big"}, {"edge": "west", "at": 24, "art": "lair_crypt_big"}],
 		"add_camps": [{"edge": "west", "at": 12, "treasure": "chest", "reward": {"gold": 140}, "monsters": ["legion_footman", "legion_footman", "legion_archer", "legion_banner"]},
 			{"edge": "south", "at": 28, "treasure": "chest", "reward": {"gold": 180, "materials": 60}, "monsters": ["legion_footman", "legion_guard", "legion_archer", "legion_archer", "legion_banner"]}]},
-	9: {"map_type": "coast", "seed": 909, "name": "The Drowned Abbey",
-		"description": "Scenario 9: a pilgrims' ferry village on a drowned shore. Out in the lake the church's old abbey stands half-sunk on its island.",
-		"drop": ["unlock", "lair"], "ruins": 0,
-		"island": {"edge": "north", "at": 28, "land": 4.2, "water": 9.5, "treasure": "abbey", "monsters": ["vampire", "vampire", "skeleton"]}},
+	9: {"abbey": {"seed": 937167274}, "name": "The Drowned Abbey",
+		"description": "Scenario 9: a walled harbour village on the shore. North of its gate the church's old abbey stands half-sunk on an island in a lake, joined to the sea by a deep channel.",
+		"ruins": 0},
 	11: {"map_type": "temperate", "seed": 1111, "name": "The Capital",
 		"description": "Scenario 11: the final camp in the capital's streets, by the throne hall. Cobbles and ash, a few trees, no fields.",
 		"drop": ["unlock", "lair", "camp", "mine"], "ruins": 0,
@@ -92,7 +95,14 @@ func _ready() -> void:
 		printerr("%s exists (it may have been edited by hand); add --force to make it again" % path)
 		get_tree().quit(1)
 		return
-	var spec: Dictionary = MAPS[n]
+	var spec: Dictionary = (MAPS[n] as Dictionary).duplicate(true)
+	for a in args:
+		if a.begins_with("--seed="):  # (trying other seeds: the map's own seed for it, or a layout's)
+			for k in ["citadel", "abbey"]:
+				if spec.has(k):
+					spec[k]["seed"] = int(a.trim_prefix("--seed="))
+			if spec.has("seed"):
+				spec["seed"] = int(a.trim_prefix("--seed="))
 	var m: MapData
 	var gen_seed = null
 	if spec.has("citadel"):
@@ -100,6 +110,11 @@ func _ready() -> void:
 		m = made["map"]
 		gen_seed = int(spec["citadel"]["seed"])
 		print("Sigmund's tent: %s" % made["tent"])
+	elif spec.has("abbey"):
+		var made := AbbeyMap.make(int(spec["abbey"]["seed"]))
+		m = made["map"]
+		gen_seed = int(spec["abbey"]["seed"])
+		print("the church: %s, the quay: %s" % [made["church"], made["quay"]])
 	elif spec.has("grow"):
 		var g: Dictionary = spec["grow"]
 		var r := MapLibrary.load_file(Campaign.scenario(int(g["from"])).map_path)

@@ -209,6 +209,15 @@ func resume_work() -> void:
 	head_home()
 
 
+## Sent home at once, the way fleeing goes (and resting there after), from
+## wherever they are: a scenario's story (scenario 9's priest, freed from the
+## octopus, runs for his church).
+func run_home() -> void:
+	evading = true
+	_on_evade()
+	head_home()
+
+
 ## Override: false for units that stand and fight (the defending hero).
 func wants_to_evade() -> bool:
 	return true
@@ -269,11 +278,11 @@ func _set_home(v: bool) -> void:
 
 ## Leave the village towards `target`. Returns false when there's no way there.
 func head_out(target: Vector2i) -> bool:
-	var p := game.world.pathing.find_path(current_tile(), target)
+	var p := find_way(home_spot() if at_home else current_tile(), target)  # (from home: that is where they come out)
 	if p.is_empty():
 		return false
 	if at_home:
-		set_grid_pos(Vector2(village.center))
+		set_grid_pos(Vector2(home_spot()))
 		_set_home(false)
 	elif p.size() > 1:
 		p[0] = grid_pos  # from where it stands: no step back to its tile's centre first
@@ -281,8 +290,15 @@ func head_out(target: Vector2i) -> bool:
 	return true
 
 
+## Where they step out from when they leave home, and go in when they get
+## back (the village centre; the hero: her own post, a tent outside the walls
+## in some scenarios; a resident: a home of their own, scenario 9's church).
+func home_spot() -> Vector2i:
+	return village.center
+
+
 func head_home() -> void:
-	var p := game.world.pathing.find_path(current_tile(), village.center)
+	var p := find_way(current_tile(), home_spot())
 	if p.is_empty():
 		arrive_home()  # stuck somewhere: just teleport home
 		return
@@ -290,7 +306,7 @@ func head_home() -> void:
 
 
 func arrive_home() -> void:
-	set_grid_pos(Vector2(village.center))
+	set_grid_pos(Vector2(home_spot()))
 	_set_home(true)
 	_set_moving(false)
 

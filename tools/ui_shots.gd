@@ -22,9 +22,9 @@ extends Node
 ## (`--only=exile`) scenarios 6 and 7: Anselm, the field of the fallen, the
 ## graveyard filling; Fiona at the gate, Brenna's tent, the druids' grove and
 ## its panel, Fiona's house;
-## (`--only=court`) scenarios 8 and 9: Lothar under his flag, a crypt and its
+## (`--only=court`) scenarios 8 and 9 (`--only=abbey`: just 9): Lothar under his flag, a crypt and its
 ## guards, a Legion camp and its panel, the Legion's kinds on a road, Rurik;
-## the drowned abbey on its island with the octopus, the eldest priest, the leviathan;
+## the drowned abbey on its island with the octopus, the harbour and church, the octopus holding a priest, the eldest priest, Lysa coming, the seal struck, the leviathan;
 ## (`--only=spiders`) a spider mother laying eggs, eggs wobbling and hatching,
 ## the broken shells, spiderlings at a gate, undead ones, the library, and
 ## (`--only=undead_spiders`) a spider mother raised by a necromancer, in real
@@ -128,6 +128,8 @@ func _run() -> void:
 		await _exile()
 	if only in ["", "court"]:
 		await _court()
+	if only == "abbey":
+		await _abbey()
 	if only in ["", "crown"]:
 		await _crown()
 	if only in ["", "spiders"]:
@@ -1174,15 +1176,23 @@ func _court() -> void:
 	await shot("court_s8_legion")
 	g.queue_free()
 	await _frames(3)
-	g = await _scenario_game(9)
-	sc = g.scenario
-	await _cut_to_line(sc, "", "Mist on the delta")
+	await _abbey()
+
+
+## Scenario 9 (`--only=abbey`, and with scenario 8 in `court`): the mist, the
+## abbey, the harbour and church, the rescue, the eldest priest, Lysa coming,
+## the seal struck, the leviathan.
+func _abbey() -> void:
+	var g := await _scenario_game(9)
+	var sc := g.scenario
+	await _cut_to_line(sc, "", "Mist on the shore")
 	await shot("court_s9_mist")
 	sc.cutscene.skip()
 	await _frames(30)
-	v = g.player_village
+	var v := g.player_village
 	var ab: Treasure = sc.spec._abbey(sc)
 	g.fog.reveal(Vector2(ab.tile), 9.0, v.id)
+	g.fog.reveal(Vector2(v.center), 14.0, v.id)
 	var octo = sc.mark.get("octopus")
 	if octo:
 		(octo as Enemy).surface()
@@ -1192,16 +1202,77 @@ func _court() -> void:
 	await _frames(60)
 	await shot("court_s9_abbey")
 	g.deselect()
-	sc.play_scene([{"say": "eldest", "text": "You want to know what the abbey hides. The First King's Hand."}])
+	# The village, its church and the harbour with the pier.
+	g.camera.focus(Iso.to_world(Vector2(v.center) + Vector2(0, 4)))
+	g.camera.zoom = Vector2(0.85, 0.85)
 	await _frames(40)
-	await shot("court_s9_eldest_priest")
+	await shot("court_s9_harbour")
+	# The beach: the ferry bell, boats, racks, driftwood; the beacon and gulls by the river's mouth.
+	var quay: Vector2i = sc.spec._quay(sc)
+	g.fog.reveal(Vector2(quay), 18.0, v.id)
+	g.hud.set_dock_open(false)
+	g.camera.focus(Iso.to_world(Vector2(quay) + Vector2(1, -1)))
+	g.camera.zoom = Vector2(1.0, 1.0)
+	await _frames(60)
+	await shot("court_s9_beach")
+	var beacon: Vector2i = sc.mark.get("beacon", quay)
+	g.camera.focus(Iso.to_world(Vector2(beacon)) + Vector2(0, -60))
+	await _frames(60)
+	await shot("court_s9_beacon")
+	g.hud.set_dock_open(true)
+	# The rescue: the octopus holds the priest at the quay.
+	sc.spec.on_wave_finished(sc, sc.spec.RESCUE_WAVE)
+	await _cut_to_line(sc, "", "One of the priests")
 	sc.cutscene.skip()
-	await _frames(10)
-	var lev := g.waves.spawn_at("leviathan", sc.spec._lake_spawn(sc), v, 7)
-	lev.set_identity("Leviathan", "")
+	var p: Resident = sc.spec._priest(sc, false)
+	if p:
+		p.at_home = false
+		p.visible = true
+		p.set_grid_pos(Vector2(quay))
+	for i in 600:
+		await _frames(1)
+		if sc.mark.has("grabbed"):
+			break
+	await _frames(90)
+	g.camera.focus(Iso.to_world(Vector2(quay)))
+	g.camera.zoom = Vector2(1.2, 1.2)
 	await _frames(20)
-	lev.surface()
-	g.camera.focus(lev.position)
+	await shot("court_s9_rescue")
+	for e in g.get_tree().get_nodes_in_group("enemies"):
+		if (e as Enemy).kind == "octopus_arm":
+			(e as Enemy).take_damage(1e9, g.hero)
+	await _cut_to_line(sc, "eldest", "You want to know")
+	await shot("court_s9_eldest_priest")
+	if sc.cutscene:
+		sc.cutscene.skip()
+	await _frames(10)
+	# Wave 6: Lysa at the head of the Legion, seen in the fog on the far shore.
+	g.waves.wave = sc.spec.LEGION_WAVES[0] - 1
+	g.waves.start_now()
+	await _cut_to_line(sc, "", "Out of the mist")
+	await shot("court_s9_lysa")
+	if sc.cutscene:
+		sc.cutscene.skip()
+	# The column at the abbey, striking the seal.
+	for i in 1200:
+		await _frames(1)
+		if ab.seal_hp < ab.seal_max * 0.8:
+			break
+	g.camera.focus(Iso.to_world(Vector2(ab.tile)))
+	g.camera.zoom = Vector2(1.0, 1.0)
+	await _frames(20)
+	await shot("court_s9_seal")
+	# The leviathan, risen by the island.
+	sc.spec._wake_leviathan(sc, false)
+	await _frames(30)
+	if sc.cutscene:
+		sc.cutscene.skip()
+	await _frames(10)
+	var lev := sc.named_enemy("Leviathan")
+	if lev:
+		lev.surface()
+		g.camera.focus(lev.position)
+		g.camera.zoom = Vector2(1.1, 1.1)
 	await _frames(40)
 	await shot("court_s9_leviathan")
 	g.queue_free()

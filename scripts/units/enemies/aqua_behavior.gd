@@ -13,6 +13,18 @@ var _goal := Vector2i(-1, -1)
 var _cached := false
 
 
+## Keeps to the deep tiles within `leash` of `tile` from now on ((-1, -1): no
+## post, the village as ever): a scenario moves a guard (scenario 9's octopus
+## to the harbour and back, the leviathan between the crypt and the boats).
+func set_post(enemy: Enemy, tile: Vector2i, leash: float) -> void:
+	enemy.post = tile
+	enemy.post_leash = leash
+	_cached = false
+	_near.clear()
+	_home = Vector2i(-1, -1)
+	_goal = Vector2i(-1, -1)
+
+
 ## Our people the monster can get at: villagers outside the walls, the hero
 ## outside, units outside (with `sortie_only`, only those out of their
 ## barracks), elementals. Never a unit on a tower or a bench, nobody inside

@@ -116,6 +116,27 @@ func find_path(from: Vector2i, to: Vector2i) -> PackedVector2Array:
 	return astar.get_point_path(from, to)
 
 
+## Like find_path, but never into `bar` (its tiles count as solid; scenario
+## 9's Brenna shut out of the village). From inside it: the way out as ever.
+## Empty if `to` lies in it.
+func find_path_outside(from: Vector2i, to: Vector2i, bar: Rect2i) -> PackedVector2Array:
+	if not bar.has_area() or bar.has_point(nearest_walkable(from)):
+		return find_path(from, to)
+	if bar.has_point(to):
+		return PackedVector2Array()
+	var made: Array[Vector2i] = []
+	for y in range(bar.position.y, bar.end.y):
+		for x in range(bar.position.x, bar.end.x):
+			var t := Vector2i(x, y)
+			if map.in_bounds(t) and not astar.is_point_solid(t):
+				astar.set_point_solid(t, true)
+				made.append(t)
+	var p := find_path(from, to)
+	for t in made:
+		astar.set_point_solid(t, false)
+	return p
+
+
 ## Like find_path, but forest can be walked too (a wrathwood's way). From
 ## where it stands (nearest such tile) to `to`, or to the nearest such tile
 ## next to it when `to` is solid (a building it means to smash).

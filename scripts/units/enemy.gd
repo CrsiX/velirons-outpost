@@ -76,6 +76,9 @@ var given_name := ""
 var art_override := ""
 ## Falling back (a Legion captain, CaptainBehavior): nothing targets it.
 var retreating := false
+## Spared for a scene of a scenario's story (scenario 9's octopus while its
+## alarm plays): nothing targets or hurts it meanwhile.
+var spared := false
 ## Where it came onto the map (its road's first tile).
 var home_tile := Vector2i.ZERO
 ## Raised by a necromancer: pale, and its HP drains away (decay_rate per s).
@@ -130,6 +133,14 @@ var raid_hut: Hut = null
 ## `post` ((-1, -1): none; AquaBehavior).
 var post := Vector2i(-1, -1)
 var post_leash := 0.0
+## An octopus's arm with someone in its grip (OctopusBehavior: HOLD). Towers
+## shoot such arms first where the scenario says so (Scenario.arms_first).
+var holding := false
+## A scenario's errand for it, or null (scenario 9's Legion company,
+## LegionCompany): asked first when its walk ends (on_path_end(enemy) -> bool:
+## true when it took care of it), so the end of a path it was given isn't a gate;
+## while its holds(enemy) is true the siege leaves it alone (it goes its own way inside).
+var errand: Object = null
 ## Its damage and spell damage x this (a scenario's boss: the leviathan).
 var power := 1.0
 ## Game.clock when it last took damage (-INF: never).
@@ -345,7 +356,7 @@ func must_be_under() -> bool:
 ## The one test every targeting site uses: alive and up (not diving, down or
 ## surfacing).
 func targetable() -> bool:
-	return not dead and dive == Dive.UP and not retreating
+	return not dead and dive == Dive.UP and not retreating and not spared
 
 
 ## Down (or on its way down or up): ripples instead of the monster.
@@ -552,13 +563,13 @@ func give_mount(animal: String, base_hp: float) -> void:
 	_ride_from = grid_pos
 	if not spec().has("mount"):
 		var m: Dictionary = Config.MOUNTED["mounts"][animal]
-		_set_walk_speed(float(m["speed"]) * Settings.enemy_multiplier("speed") * randf_range(0.92, 1.08))
+		set_walk_speed(float(m["speed"]) * Settings.enemy_multiplier("speed") * randf_range(0.92, 1.08))
 		_refresh_art()
 	queue_redraw()
 
 
 ## Its walking speed without slows is `v` now (a slow on it goes on).
-func _set_walk_speed(v: float) -> void:
+func set_walk_speed(v: float) -> void:
 	base_speed = v
 	speed = v * (_slow if _slow_left > 0.0 else 1.0)
 
@@ -589,7 +600,7 @@ func dismount(source: Node = null, slain := true) -> void:
 	if rider != "":
 		_become(rider)
 	else:
-		_set_walk_speed(stat("speed") * randf_range(0.92, 1.08) * (float(spec().get("retreat_speed", 1.0)) if retreating else 1.0))
+		set_walk_speed(stat("speed") * randf_range(0.92, 1.08) * (float(spec().get("retreat_speed", 1.0)) if retreating else 1.0))
 		_refresh_art()
 	queue_redraw()
 	behavior.on_dismount(self, slain)
@@ -605,7 +616,7 @@ func _become(new_kind: String) -> void:
 	uid = game.next_id(kind)
 	max_hp = stat("hp") * hp_scale
 	hp = max_hp * share
-	_set_walk_speed(stat("speed") * randf_range(0.92, 1.08))
+	set_walk_speed(stat("speed") * randf_range(0.92, 1.08))
 	behavior = BEHAVIORS[spec()["behavior"]].new()
 	_refresh_art()
 	if is_instance_valid(target_village):
@@ -642,13 +653,14 @@ func spend_charge() -> void:
 	_ride_from = grid_pos
 
 
-## Counts the ground it rides: far enough without a fight, it charges.
+## Counts the ground it rides: far enough without a fight, it charges (never
+## while a scenario's errand leads it: scenario 9's Lysa).
 func _tick_ride(delta: float) -> void:
 	if _halt_left > 0.0:
 		_halt_left -= delta
 	_ridden += grid_pos.distance_to(_ride_from)
 	_ride_from = grid_pos
-	if not charge_ready and _ridden >= float(Config.MOUNTED["charge_distance"]):
+	if not charge_ready and errand == null and _ridden >= float(Config.MOUNTED["charge_distance"]):
 		charge_ready = true
 
 
@@ -994,6 +1006,9 @@ func _process(delta: float) -> void:
 			_set_moving(false)
 			_update_visibility()
 			return
+		if errand != null and errand.on_path_end(self):
+			_update_visibility()
+			return  # (a scenario's errand took care of it)
 		if behavior.on_path_end(self):
 			return  # (a thief turning back, or escaping)
 		if entry() == "siege" and _start_siege_at_end():
@@ -1025,7 +1040,8 @@ func entry() -> String:
 ## May break into its village by the siege field now?
 func _may_siege() -> bool:
 	return entry() == "siege" and habitat() != "water" and not airborne and not retreating and (mount == "" or ride_in) and not game.is_client \
-		and is_instance_valid(target_village) and not target_village.fallen and not wild()
+		and is_instance_valid(target_village) and not target_village.fallen and not wild() \
+		and not (errand != null and errand.has_method("holds") and errand.holds(self))
 
 
 ## A "slip" enemy at the end of its road on an intact gate: held for SIEGE.slip_time.
@@ -1181,7 +1197,7 @@ func _update_visibility() -> void:
 ## behaviors may react to it. `category` (Config.DAMAGE_CATEGORIES) is scaled
 ## by the kind's "resist" table (a vampire takes less from magic).
 func take_damage(amount: float, source: Node = null, category: String = "pure") -> void:
-	if dead:
+	if dead or spared:
 		return
 	if mount != "":
 		_hurt_mount(amount, source, category)

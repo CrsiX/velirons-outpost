@@ -6,6 +6,9 @@ extends Node
 ##
 ##   godot --headless --path . res://tools/map_shot.tscn -- <players> <out.png> [seed] [scale] [plan|iso] [map type]
 ##
+## <players> may be a map file (a .json path, e.g. res://data/maps/drowned_abbey.json)
+## instead: that map is drawn (seed and map type are ignored).
+##
 ## "plan" (default): a flat top-down plan (one coloured square per tile:
 ## roads, forest, desert, mountains, villages, spawns), `scale` pixels per
 ## tile. "iso": the isometric picture, `scale` x the game at 100 % zoom.
@@ -29,7 +32,8 @@ func _ready() -> void:
 		printerr("usage: -- <players> <out.png> [seed] [scale]")
 		get_tree().quit(2)
 		return
-	var players := clampi(int(args[0]), 1, Config.MAX_PLAYERS)
+	var file := args[0] if args[0].ends_with(".json") else ""
+	var players := 1 if file != "" else clampi(int(args[0]), 1, Config.MAX_PLAYERS)
 	var out := args[1]
 	var seed_value := int(args[2]) if args.size() > 2 and args[2] != "" else randi()
 	var iso := args.size() > 4 and args[4] == "iso"
@@ -38,7 +42,16 @@ func _ready() -> void:
 		_scale = float(args[3])
 	var t0 := Time.get_ticks_msec()
 	var map_type := args[5] if args.size() > 5 and args[5] != "" else "temperate"
-	var m := MapGenerator.generate(seed_value, players, map_type)
+	var m: MapData
+	if file != "":
+		var r := MapLibrary.load_file(file)
+		if r["map"] == null:
+			printerr("%s doesn't read: %s" % [file, "; ".join(r["errors"])])
+			get_tree().quit(1)
+			return
+		m = r["map"]
+	else:
+		m = MapGenerator.generate(seed_value, players, map_type)
 	if iso:
 		_render(m)
 	else:

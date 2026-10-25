@@ -14,7 +14,10 @@ extends AquaBehavior
 ## dive_time s after losing dive_loss of its max HP within dive_window s, and
 ## can't dive again for dive_lockout s. An arm with nobody in reach smashes a
 ## building of ours within arm_range instead (SMASH: arm_smash HP every
-## smash_cooldown s; docs/siege-design.md §5.5).
+## smash_cooldown s; docs/siege-design.md §5.5). A scenario can make it grab
+## someone (grab): that arm may hold its catch in the shallows for a while
+## ("wait"), unharmed if so asked, before it pulls it into the deep (scenario
+## 9's priest); while that catch is its `focus` its other arms stay idle.
 
 enum Arm { IDLE, REACH, HOLD, GONE, SMASH }
 
@@ -28,6 +31,13 @@ var _hp_log: Array = []
 var _sample := 0.0
 var _dive_left := 0.0
 var _lockout := 0.0
+## A scripted catch (grab) it holds on to alone: no other arm reaches or
+## smashes meanwhile. null: none.
+var focus: Node = null
+## Those a scenario wants held, never drowned at once (target -> seconds):
+## whichever arm catches one holds it in the shallows that long, hurting it,
+## and has its focus (as grab()), from the moment it takes hold.
+var catch_hold := {}
 
 
 func tick(enemy: Enemy, delta: float) -> bool:
@@ -87,7 +97,7 @@ func _tick_arms(enemy: Enemy, delta: float) -> void:
 					home_village(enemy).events.debug("%s grows its arm back" % enemy.label())
 			Arm.IDLE:
 				a["cd"] -= delta
-				if up and a["cd"] <= 0.0:
+				if up and a["cd"] <= 0.0 and not is_instance_valid(focus):
 					var t := nearest_within(enemy, folk, enemy.stat("arm_range"), taken)
 					if t == null:
 						t = _building_in_reach(enemy, taken)
@@ -96,7 +106,8 @@ func _tick_arms(enemy: Enemy, delta: float) -> void:
 						_reach(enemy, a, t)
 			Arm.REACH:
 				var t = a["target"]
-				if not up or not _target_ok(t) or _target_pos(enemy, t).distance_to(enemy.grid_pos) > enemy.stat("arm_range") + 1.0:
+				var far: bool = a.get("far", false)  # (a scenario's grab: whatever the reach)
+				if not up or not _target_ok(t) or (not far and _target_pos(enemy, t).distance_to(enemy.grid_pos) > enemy.stat("arm_range") + 1.0):
 					_retract(a, enemy.stat("arm_cooldown") * 0.5)
 					continue
 				var to := _target_pos(enemy, t)
@@ -110,6 +121,11 @@ func _tick_arms(enemy: Enemy, delta: float) -> void:
 					else:
 						a["state"] = Arm.HOLD
 						t.held_by = a["node"]
+						(a["node"] as Enemy).holding = true
+						if catch_hold.has(t) and float(a.get("wait", 0.0)) <= 0.0:
+							a["wait"] = float(catch_hold[t])
+							a["harm"] = true
+							focus = t
 						enemy.game.log_for(t, EventLog.Level.DEBUG, "%s grabs %s" % [enemy.label(), enemy.game.who(t)])
 			Arm.SMASH:
 				var b = a["target"]
@@ -204,6 +220,19 @@ func _hold(enemy: Enemy, a: Dictionary, delta: float) -> void:
 	var u := t as Unit
 	_set_tip(a, u.grid_pos)
 	var to := enemy.grid_pos - u.grid_pos
+	var wait := float(a.get("wait", 0.0))
+	if wait > 0.0:  # (a scenario's grab: stuck in the shallows for now)
+		a["wait"] = wait - delta
+		var step := Vector2.ZERO  # (held still: a forced move all the same, so it can't walk off)
+		if to.length() > 0.05 and not enemy.game.map.is_water(u.current_tile()):
+			step = to.normalized() * minf(enemy.stat("arm_pull") * delta, to.length())
+			if enemy.game.map.is_deep(Vector2i((u.grid_pos + step).round())):
+				step = Vector2.ZERO
+		u.force_move(step, enemy, true)
+		if a.get("harm", true):
+			u.take_damage(enemy.stat("spell_damage") * delta, enemy, "melee")
+		_set_tip(a, u.grid_pos)
+		return
 	if to.length() > 0.05:  # (all the way in: under its body is deep water)
 		u.force_move(to.normalized() * minf(enemy.stat("arm_pull") * delta, to.length()), enemy, true)
 	_set_tip(a, u.grid_pos)
@@ -248,6 +277,49 @@ func _retract(a: Dictionary, cooldown: float) -> void:
 	a["target"] = null
 	a["state"] = Arm.IDLE
 	a["cd"] = cooldown
+	if is_instance_valid(t) and t == focus:
+		focus = null
+	a.erase("wait")
+	a.erase("far")
+	a.erase("harm")
+
+
+## A scenario's grab (scenario 9's priest at the harbour): an idle arm (or
+## the first one) reaches for `t` at once, whatever its reach; once it holds,
+## it drags `t` only into the shallows and keeps it there for `wait` s (not
+## hurting it unless `harm`) before pulling it into the deep. `t` is its
+## focus from now on: every other arm lets go and stays idle. Called again
+## for the same catch it sets the wait and the harm anew. Returns false if
+## no arm is left.
+func grab(enemy: Enemy, t: Node, wait: float, harm := true) -> bool:
+	if not _started:
+		_start(enemy)
+	focus = t
+	for a in arms:
+		if a["target"] == t:
+			a["wait"] = wait
+			a["harm"] = harm
+			return true
+	for a in arms:
+		if a["state"] in [Arm.REACH, Arm.HOLD, Arm.SMASH]:
+			_retract(a, enemy.stat("arm_cooldown") * 0.5)
+	for a in arms:
+		if a["state"] == Arm.IDLE:
+			_reach(enemy, a, t)
+			a["wait"] = wait
+			a["harm"] = harm
+			a["far"] = true
+			return true
+	focus = null
+	return false
+
+
+## The scripted hold still running on whoever an arm holds ("wait" s left), or 0.
+func hold_left(t: Node) -> float:
+	for a in arms:
+		if a["target"] == t and a["state"] in [Arm.REACH, Arm.HOLD]:
+			return float(a.get("wait", 0.0))
+	return 0.0
 
 
 ## An arm's HP ran out (ArmBehavior): it lets go and is gone for a while.
@@ -262,6 +334,11 @@ func arm_cut(enemy: Enemy, node: Enemy) -> void:
 		a["target"] = null
 		a["hp"] = 0.0
 		a["state"] = Arm.GONE
+		if is_instance_valid(t) and t == focus:
+			focus = null
+		a.erase("wait")
+		a.erase("far")
+		a.erase("harm")
 		a["respawn"] = enemy.stat("arm_respawn")
 		home_village(enemy).events.debug("%s loses an arm" % enemy.label())
 
