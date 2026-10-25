@@ -79,7 +79,7 @@ func destroy(cause: String = "") -> void:
 	resident = null
 	var tw := create_tween()
 	modulate = Color(1.0, 0.4, 0.3)
-	tw.tween_property(self, "modulate", Color.WHITE, 0.8)
+	tw.tween_property(self, "modulate", tint(), 0.8)
 
 
 ## Called by Construction when a rebuild is ordered.
@@ -124,7 +124,3 @@ func info() -> Dictionary:
 			lines.append("Empty: room for one villager.")
 		lines.append("Village population: %d / %d" % [village.population.count(), village.population.cap()])
 	return d
-
-
-func pick_rect() -> Rect2:
-	return Rect2(-46, -62, 92, 90)

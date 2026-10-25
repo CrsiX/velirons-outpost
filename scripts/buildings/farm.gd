@@ -141,8 +141,3 @@ func _draw() -> void:
 	draw_rect(r.grow(2.0), Color("15110d"))
 	draw_rect(r, Color("3a2e22"))
 	draw_rect(Rect2(r.position, Vector2(w * bar_fraction(), r.size.y)), work_color())
-
-
-func pick_rect() -> Rect2:
-	var c := Iso.to_world(Vector2(1, 1))
-	return Rect2(c - Vector2(180, 90), Vector2(360, 180))

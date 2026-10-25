@@ -268,9 +268,5 @@ func info() -> Dictionary:
 	return d
 
 
-func pick_rect() -> Rect2:
-	return Rect2(-40, -Art.info(_art())["platform"] - 40, 80, Art.info(_art())["platform"] + 60)
-
-
 func _bar_y() -> float:
 	return -Art.info(_art())["platform"] - 50.0

@@ -212,7 +212,8 @@ Big touch targets everywhere, so mouse and fingers work the same.
   marching out".
 - **Stationed units:** tapping a unit's figure on its tower selects it (`Game.select_unit`: a panel
   with Upgrade and Withdraw). The camera's `press_filter` (`Game._claim_press`) gives such a press to
-  the unit, so the map doesn't pan.
+  the unit, so the map doesn't pan: when its figure is the front-most thing there, is selected, or
+  a tap there would select it (§7, Picking).
 - **Dragging a unit off its post:** past the drag threshold, the figure on the old post is ghosted.
   A copy follows the pointer, 30 px above it. Every free post the unit could go to (or swap with a
   unit on) lights up, the one under the pointer turns green, and a dashed arrow runs from the old post.
@@ -239,7 +240,8 @@ Big touch targets everywhere, so mouse and fingers work the same.
   - **Position:** its bottom edge sits 10 px above the screen bottom (portrait: above the sheet), and
     it grows upwards.
   - **Overlay:** towers and barracks also draw their range (barracks: the activation range) on the map.
-  - **Closing:** tapping the selected building again deselects it.
+  - **Closing:** tapping the selected thing again where nothing else is behind it deselects it
+    (Picking, below).
   - **Other villages:** their buildings can be looked at but not ordered.
   - **HP and repairs:** every building's panel (not huts) has an HP line ("{hp} 60 / 80") and,
     when hurt, *Repair (cost)*; while it is repaired, the progress and *Cancel repair*. A
@@ -279,6 +281,24 @@ Big touch targets everywhere, so mouse and fingers work the same.
 - **Trade dialog** (the material button): buy building material with gold.
 - **Toasts:** short coloured messages under the top bar: refusals, "Paused", "marching out". They
   never catch taps.
+
+- **Picking** (`World.pick_all`, `Game._tap_select`, `Config.PICK`): what is under a tap, front
+  to back (the y-sorted drawing order), is every stationed unit's figure (just before its post) and
+  every building and found map object whose picture has an opaque pixel there
+  (`Building.covers`: its shown child sprites, `Sprite2D.is_pixel_opaque`) or whose footprint the
+  tap is on. No boxes: a tap on the visible part of a gate behind a church picks the gate.
+  - **Tapping through:** a tap selects the front-most of them; a tap on the selection selects the
+    one behind it there, and after the last one nothing. So everything is reachable, also what is
+    hidden behind a tall building. While the same things are under the taps, they keep the order
+    of the first tap (`Game._stack`), though what was in front turns see-through meanwhile. With several there, the panel's last line says "2 of 3 here:
+    tap again for the one behind it" ("click" with a mouse; "... to close" on the last).
+  - **See-through:** a building or map object drawn in front of the selection (a unit: its post)
+    that hides at least `see_through_share` of its picture (sampled every `see_through_step` world
+    pixels, measured again every `see_through_refresh` s) is drawn see-through
+    (`see_through_alpha`; `World.show_through`, `Building.see_through`, part of `Building.tint`)
+    and comes last in the picking order, so what shows through it can be tapped directly.
+  - Stationing a unit and dropping one onto a post take the front-most post there
+    (`World.pick_post`), not whatever is in front of it.
 
 ## 8. Warnings
 
@@ -464,7 +484,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
 |---|---|
 | Title menu, portrait title, map drag (Firefox rule), wheel zoom, portrait top bar / sheet basics, trade dialog, log placement and levels, settings pause and dialog, dragging stationed units (ghost, highlights, arrow, withdraw on the sidebar) | tests/sim_bot.gd |
 | One building per pick, Cancel, touch preview with Build / ✕, dragging from the Build tab, Android's back button; the portrait sheet (height cap, finger scrolling, dragging by handle / tabs / chevron, flicks); a faked camera cutout (left, right, on top in portrait: top bar, dock and settings box clear of it, the grey over the whole screen) | tests/build_bot.gd |
-| Space and the speed button, every hotkey (1 / 2 / 3, + / -, H, Z, the hero's modes P / B / E / G / Y / R, Tab, U, R, Q, V, N, F1, the Esc stack), the villager list, icons in texts, the hero's health bar, the no-builder and food-shortage warnings | tests/hud_bot.gd |
+| Picking (pixels not boxes, tapping through to what is behind and deselecting, the panel's line, see-through and picked last, a unit's figure before its tower), Space and the speed button, every hotkey (1 / 2 / 3, + / -, H, Z, the hero's modes P / B / E / G / Y / R, Tab, U, R, Q, V, N, F1, the Esc stack), the villager list, icons in texts, the hero's health bar, the no-builder and food-shortage warnings | tests/hud_bot.gd |
 | The library: an entry for every kind in Config with its numbers, pausing (not in co-op), the book icon, the title button and icons, fitting the screen | tests/library_bot.gd |
 | The statistics: counters, samples in game time, the button from wave 2, T, pausing, the tabs, folding, the game-over button, a column per village, the client copy | tests/stats_bot.gd |
 | The title backdrop: made over many frames on its baked (up-to-date) map, each scene's posts, units and enemies, slow motion, starts black, fades via black, no input, speed and sound restored after | tests/title_bot.gd |

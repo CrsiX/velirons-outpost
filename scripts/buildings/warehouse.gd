@@ -58,9 +58,5 @@ func info() -> Dictionary:
 	return d
 
 
-func pick_rect() -> Rect2:
-	return Rect2(-100, -110, 200, 150)
-
-
 func _bar_y() -> float:
 	return -104.0

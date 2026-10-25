@@ -231,11 +231,6 @@ func info() -> Dictionary:
 	return d
 
 
-func pick_rect() -> Rect2:
-	return Rect2(-110, -80, 220, 130)
-
-
-
 ## A unit sitting on a bench (shown) with less than full HP.
 func _hurt_on_bench() -> bool:
 	for i in mini(_bench_sprites.size(), slots.size()):

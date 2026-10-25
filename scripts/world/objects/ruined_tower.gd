@@ -42,8 +42,14 @@ static func restore_cost(kind: String = "tower") -> Dictionary:
 func claim(v: Village) -> void:
 	village = v
 	claimed_by = null
-	modulate = Color.WHITE.lerp(v.color, 0.25)
+	_update_tint()
 	refresh()
+
+
+## Tinted in the colour of the village that claimed it.
+func tint() -> Color:
+	var c := super.tint()
+	return c * Color.WHITE.lerp(village.color, 0.25) if village != null else c
 
 
 func found_message(_v: Village) -> String:
@@ -83,3 +89,4 @@ func apply_net_state(s: Array) -> void:
 			claim(v)
 		else:
 			village = null
+			_update_tint()

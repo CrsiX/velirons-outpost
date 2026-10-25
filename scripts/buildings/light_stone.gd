@@ -71,7 +71,3 @@ func info() -> Dictionary:
 		lines.append("Lights up the land within %.1f tiles." % Config.LIGHTSTONE_SIGHT)
 		lines.append("Works on its own; no one can be stationed here.")
 	return d
-
-
-func pick_rect() -> Rect2:
-	return Rect2(-32, -104, 64, 120)

@@ -1,7 +1,8 @@
 extends "res://tests/bot_base.gd"
 ## Headless test of the HUD: costs, XP and HP shown with their icons, the
 ## Army tab, the hero's health bar, the villager list (View, Retire, Rebuild
-## all huts), floating icons, Space, the "no builder" and food-shortage
+## all huts), picking on the map (pixels, tapping through, see-through),
+## floating icons, Space, the "no builder" and food-shortage
 ## warnings, and every hotkey (docs/ui-design.md §10-11; F1 lists them).
 ## Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/hud_bot.tscn
@@ -23,6 +24,7 @@ func _run() -> void:
 	Engine.time_scale = 6.0
 	_bench_hero(true)
 	await _test_ui()
+	await _test_picking()
 	_test_hero_bar()
 	await _test_hotkeys()  # (while the village is whole: the next ones kill and retire villagers)
 	await _test_people()
@@ -64,6 +66,94 @@ func _test_ui() -> void:
 			grid_i = c.get_index()
 	check(hud._reserve_grid.get_index() < grid_i, "the Army tab shows the units in stock above the recruiting")
 	check(ResourceLoader.exists("res://art/icon_xp.svg") and ResourceLoader.exists("res://art/unit_rat.svg"), "the XP icon and the rat have their art")
+
+
+# --- picking on the map (Config.PICK) -------------------------------------------------------
+
+## A real tap (press and release) at `world_pos`, with the view centred there.
+func _tap_at(world_pos: Vector2) -> void:
+	game.camera.position = world_pos
+	await frames(2)
+	var pos := game.camera.world_to_screen(world_pos)
+	for pressed in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.pressed = pressed
+		e.position = pos
+		e.global_position = pos
+		get_viewport().push_input(e, true)
+		await frames(1)
+	await frames(1)
+
+
+func _test_picking() -> void:
+	var w := game.world
+	game.deselect()
+	# Pixels, not boxes: a point in a hut's picture rect that its art leaves
+	# empty (and off its footprint) doesn't pick it.
+	var hut: Building = game.player_village.buildings().filter(func(b: Building) -> bool: return b is Hut)[0]
+	var r := hut.art_rect()
+	var empty := Vector2.INF
+	for p in [r.position + Vector2(2, 2), Vector2(r.end.x - 2, r.position.y + 2)]:
+		if not hut.covers(p) and w.map.building_at(Iso.to_tile(p)) != hut:
+			empty = p
+	check(empty != Vector2.INF and hut not in w.pick_all(empty) and hut in w.pick_all(r.get_center()), "a tap picks a building by the pixels of its art, not by a box round it")
+	# A building hidden in part by one in front: taps go through, front to back, then deselect.
+	var back: Building = null
+	var front: Building = null
+	for b in w.buildings:
+		var occ: Array[int] = w._occluders(b)
+		if not occ.is_empty():
+			back = b
+			front = instance_from_id(occ[0]) as Building
+			break
+	check(back != null, "the village has a building partly hidden behind another one")
+	if back == null:
+		return
+	var spot := Vector2.INF
+	var ar := back.art_rect()
+	for i in 400:
+		var p := ar.position + Vector2(fmod(i * 7.3, ar.size.x), fmod(i * 13.7, ar.size.y))
+		if back.covers(p) and front.covers(p):
+			spot = p
+			break
+	var stack := w.pick_all(spot)
+	check(stack.size() >= 2 and stack[0] == front and back in stack, "both are under a spot where one hides the other, the front one first (%s)" % [stack])
+	await _tap_at(spot)
+	check(game.selected == front and game.hud._info_panel.visible, "the first tap selects the front one")
+	var line := game._stack_line(front)
+	check(line.begins_with("1 of %d here" % stack.size()), "its panel says more is behind it (%s)" % line)
+	check(not front.see_through and is_equal_approx(front.modulate.a, 1.0), "nothing is see-through while the front one is selected")
+	var seen: Array = [front]
+	for i in stack.size() - 1:
+		await _tap_at(spot)
+		var cur: Object = game.selected_unit if game.selected_unit != null else game.selected
+		seen.append(cur)
+	check(seen == stack, "taps on the same spot go through to what is behind, one by one (%s)" % [seen])
+	game.select(back)
+	await frames(1)
+	check(front.see_through and front.modulate.a < 0.5, "with the one behind selected, the one in front is see-through")
+	check(w.pick_all(spot)[-1] == front, "what is see-through is picked last")
+	game.deselect()
+	check(not front.see_through and is_equal_approx(front.modulate.a, 1.0), "deselected, it is solid again")
+	for i in stack.size() + 1:
+		await _tap_at(spot)
+	check(game.selected == null and game.selected_unit == null and not game.hud._info_panel.visible, "a tap after the last one deselects (what turned see-through on the way keeps its place)")
+	# A unit's figure on a tower comes before its tower.
+	var tower: Tower = game.player_village.buildings().filter(func(b: Building) -> bool: return b.kind == "wall_tower" and (b as Tower).free_slot() >= 0)[0]
+	var a := game.army.recruit("archer")
+	game.army.station(a, tower)
+	game.army._on_arrived(a.walker)
+	await frames(2)
+	var fig := tower.position + tower.unit_rect(a).get_center()
+	var at_fig := w.pick_all(fig)
+	check(at_fig[0] == a and at_fig[1] == tower, "a unit's figure is picked before its tower")
+	await _tap_at(fig)
+	check(game.selected_unit == a, "a tap on the figure selects the unit")
+	await _tap_at(fig)
+	check(game.selected == tower and game.selected_unit == null, "a second tap there selects its tower")
+	game.deselect()
+	game.army.unstation(a)
 
 
 func _test_hero_bar() -> void:

@@ -1389,6 +1389,22 @@ const SAFE_AREA_POLL := 0.5
 const CAMERA_MIN_ZOOM := 0.22
 const CAMERA_MAX_ZOOM := 1.6
 
+## Picking on the map (docs/ui-design.md §7): a tap selects the front-most
+## thing whose picture (an opaque pixel of its art) or footprint is under it;
+## a tap on the selection there selects the next one behind it, and after the
+## last one nothing. A building or map object in front of the selection that
+## hides at least `see_through_share` of its picture is drawn see-through
+## (alpha `see_through_alpha`) and picked after everything else there.
+## `see_through_step`: world pixels between the points sampled to measure
+## that; `see_through_refresh`: seconds between measuring it again while the
+## selection stays.
+const PICK := {
+	"see_through_share": 0.15,
+	"see_through_alpha": 0.45,
+	"see_through_step": 10.0,
+	"see_through_refresh": 1.0,
+}
+
 # --- the map editor (docs/map-editor-design.md) --------------------------------------------
 const EDITOR := {
 	"undo_steps": 100,  # edits kept for undo

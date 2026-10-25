@@ -73,6 +73,12 @@ var station_unit: MilitaryUnit = null
 var selected: Building = null
 ## A stationed military unit selected by tapping it on its post.
 var selected_unit: MilitaryUnit = null
+## The selection was tapped among several things at one spot (_tap_select):
+## {"node", "at" (1: the front-most), "of", "list" (them in the order tapped
+## through)}; its panel says so.
+var _stack: Dictionary = {}
+## Seconds until World.show_through measures again what hides the selection.
+var _through_timer := 0.0
 ## Stationed unit being pressed / dragged off its post:
 ## {"unit", "from" (post), "start" (screen pos), "active" (dragging yet)}.
 var _udrag: Dictionary = {}
@@ -318,16 +324,33 @@ func _process(delta: float) -> void:
 		_info_timer = 0.25
 		if villages.size() > 1 and not is_client:
 			_check_defeat()  # co-op: villages fall and rise again at any time
-		if selected_unit != null:
-			if selected_unit.state == MilitaryUnit.State.STATIONED and is_instance_valid(selected_unit.post):
-				hud.show_info(unit_info(selected_unit))
-			else:
-				deselect()  # it left its post
-		elif selected != null:
-			if is_instance_valid(selected) and selected.is_inside_tree():
-				hud.show_info(building_info(selected))
-			else:
-				deselect()
+		_refresh_info()
+	_through_timer -= delta / maxf(Engine.time_scale, 0.001)
+	if _through_timer <= 0.0 and (selected != null or selected_unit != null):
+		_show_through()
+
+
+## The info panel of the selection, again (it changes as the game goes on).
+func _refresh_info() -> void:
+	if selected_unit != null:
+		if selected_unit.state == MilitaryUnit.State.STATIONED and is_instance_valid(selected_unit.post):
+			hud.show_info(unit_info(selected_unit))
+		else:
+			deselect()  # it left its post
+	elif selected != null:
+		if is_instance_valid(selected) and selected.is_inside_tree():
+			hud.show_info(building_info(selected))
+		else:
+			deselect()
+
+
+## What hides the selection (a unit: its post) is drawn see-through.
+func _show_through() -> void:
+	_through_timer = float(Config.PICK["see_through_refresh"])
+	var target: Building = selected
+	if selected_unit != null and is_instance_valid(selected_unit.post):
+		target = selected_unit.post
+	world.show_through(target if is_instance_valid(target) else null)
 
 
 # --- modes ------------------------------------------------------------------------
@@ -383,6 +406,7 @@ func cancel_mode() -> void:
 func select(b: Building) -> void:
 	selected_unit = null
 	selected = b
+	_stack = {}
 	if b == null:
 		deselect()
 		return
@@ -395,14 +419,59 @@ func select(b: Building) -> void:
 		world.overlay.show_selection(b.tiles())
 	hud.show_info(building_info(b))
 	_info_timer = 0.25
+	_show_through()
 
 
 func deselect() -> void:
 	selected = null
 	selected_unit = null
+	_stack = {}
 	if mode == Mode.NONE:
 		world.overlay.clear()
+	world.show_through(null)
 	hud.hide_info()
+
+
+## A tap on the map (not placing or stationing): selects the front-most thing
+## there; a tap on the selection selects the next one behind it there, and
+## after the last one nothing (Config.PICK, World.pick_all).
+func _tap_select(world_pos: Vector2) -> void:
+	var stack := world.pick_all(world_pos)
+	var cycle: Array = _stack.get("list", [])
+	if cycle.size() == stack.size() and stack.all(func(o: Object) -> bool: return cycle.has(o)):
+		stack = cycle  # (the same things: keep the order, though what was in front may be see-through now)
+	var n := _next_pick(stack)
+	if n == null:
+		deselect()
+		return
+	if n is MilitaryUnit:
+		select_unit(n as MilitaryUnit)
+	else:
+		select(n as Building)
+	if stack.size() > 1:
+		_stack = {"node": n, "at": stack.find(n) + 1, "of": stack.size(), "list": stack}
+		_refresh_info()
+
+
+## What a tap on `stack` (World.pick_all) selects: the one behind the
+## selection, or the front-most when the selection isn't there; null after
+## the last one.
+func _next_pick(stack: Array) -> Object:
+	var cur: Object = selected_unit if selected_unit != null else selected
+	var i := stack.find(cur) if is_instance_valid(cur) else -1
+	return stack[i + 1] if i + 1 < stack.size() else null
+
+
+## The panel's line under a selection tapped among several things.
+func _stack_line(n: Object) -> String:
+	if _stack.get("node") != n:
+		return ""
+	var tap := "tap" if Layout.touch else "click"
+	var at: int = _stack["at"]
+	var of: int = _stack["of"]
+	if at < of:
+		return "%d of %d here: %s again for the one behind it." % [at, of, tap]
+	return "%d of %d here: %s again to close." % [at, of, tap]
 
 
 # --- input from the camera ---------------------------------------------------------
@@ -418,7 +487,7 @@ func _on_tapped(world_pos: Vector2) -> void:
 			else:
 				_try_place(tile)
 		Mode.STATION:
-			var t := world.pick_building(world_pos)
+			var t := world.pick_post(world_pos)
 			var r := command("station_unit", {"unit": id_of(station_unit), "post": id_of(t)})
 			if r["ok"]:
 				cancel_mode()
@@ -427,11 +496,7 @@ func _on_tapped(world_pos: Vector2) -> void:
 			else:
 				hud.toast(r["error"], Color("ff9a8a"))
 		_:
-			var b := world.pick_building(world_pos)
-			if b == selected:
-				deselect()
-			else:
-				select(b)
+			_tap_select(world_pos)
 
 
 func _on_hovered(world_pos: Vector2) -> void:
@@ -546,6 +611,7 @@ func select_unit(unit: MilitaryUnit) -> void:
 	events.debug("select %s on %s" % [unit.label(), p.label()])
 	hud.show_info(unit_info(unit))
 	_info_timer = 0.25
+	_show_through()
 
 
 func unit_info(unit: MilitaryUnit) -> Dictionary:
@@ -560,6 +626,8 @@ func unit_info(unit: MilitaryUnit) -> Dictionary:
 	actions.append({"label": "Withdraw", "action": func() -> void:
 		command("withdraw_unit", {"unit": unit.nid})
 		deselect()})
+	if _stack_line(unit) != "":
+		lines.append(_stack_line(unit))
 	return {"title": unit.display_name(), "lines": lines, "actions": actions}
 
 
@@ -567,9 +635,13 @@ func unit_info(unit: MilitaryUnit) -> Dictionary:
 func _claim_press(screen_pos: Vector2) -> bool:
 	if mode != Mode.NONE or game_over:
 		return false
-	var u := world.pick_unit(camera.screen_to_world(screen_pos))
+	var wp := camera.screen_to_world(screen_pos)
+	var u := world.pick_unit(wp)
 	if u == null:
 		return false
+	var stack := world.pick_all(wp)
+	if u != stack[0] and u != selected_unit and u != _next_pick(stack):
+		return false  # (hidden behind something: a tap there selects that, see _tap_select)
 	_udrag = {"unit": u, "from": u.post, "start": screen_pos, "active": false}
 	return true
 
@@ -602,7 +674,7 @@ func _input(event: InputEvent) -> void:
 		if _udrag["active"]:
 			_drop_stationed(unit, event.position)
 		else:
-			select_unit(unit)  # a tap
+			_tap_select(camera.screen_to_world(event.position))  # a tap
 		_end_unit_drag()
 
 
@@ -645,7 +717,7 @@ func _drop_stationed(unit: MilitaryUnit, screen_pos: Vector2) -> void:
 func drop_target(unit: MilitaryUnit, screen_pos: Vector2) -> MilitaryPost:
 	if hud.is_over_ui(screen_pos):
 		return null
-	var p := world.pick_building(camera.screen_to_world(screen_pos)) as MilitaryPost
+	var p := world.pick_post(camera.screen_to_world(screen_pos)) as MilitaryPost
 	if p == null:
 		return null
 	return p if _drop_error(unit, p) == "" else null
@@ -666,7 +738,7 @@ func swap_partner(unit: MilitaryUnit, screen_pos: Vector2) -> MilitaryUnit:
 	var b := world.pick_unit(wp)
 	if b != null and b != unit and army.swap_error(unit, b) == "":
 		return b
-	var p := world.pick_building(wp) as MilitaryPost
+	var p := world.pick_post(wp) as MilitaryPost
 	if p == null or p == unit.post or drop_target(unit, screen_pos) != null:
 		return null
 	var best: MilitaryUnit = null
@@ -719,7 +791,7 @@ func end_drag_preview() -> void:
 
 ## Drop from the HUD's reserve card at a screen position (drag & drop).
 func drop_unit(unit: MilitaryUnit, screen_pos: Vector2) -> bool:
-	var t := world.pick_building(camera.screen_to_world(screen_pos))
+	var t := world.pick_post(camera.screen_to_world(screen_pos))
 	if army.station_error(unit, t as MilitaryPost) == "":
 		events.debug("drag %s from the reserve to %s" % [unit.label(), t.label()])
 	var r := command("station_unit", {"unit": unit.nid, "post": id_of(t)})
@@ -995,6 +1067,8 @@ func building_info(b: Building) -> Dictionary:
 	if b.village and b.village != player_village:
 		d["actions"] = [] as Array[Dictionary]
 		(d["lines"] as Array).push_front("Belongs to %s." % b.village.village_name)
+	if _stack_line(b) != "":
+		(d["lines"] as Array).append(_stack_line(b))
 	return d
 
 

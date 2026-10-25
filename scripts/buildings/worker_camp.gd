@@ -43,7 +43,3 @@ func info() -> Dictionary:
 			"action": func() -> void: game.command("assign_worker", {"building": nid}),
 		})
 	return d
-
-
-func pick_rect() -> Rect2:
-	return Rect2(-48, -56, 96, 80)

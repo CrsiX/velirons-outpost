@@ -36,6 +36,8 @@ var _quiet := true
 var _mine_timer := 0.0
 var pathing: Pathing
 var buildings: Array[Building] = []
+## Instance ids of what is drawn see-through now (show_through).
+var _see_through: Array[int] = []
 
 var _props: Dictionary = {}  # tile -> Sprite2D (trees, mountain peaks, volcanoes)
 var _decor: Dictionary = {}  # tile -> Sprite2D (reeds, boulders, cacti...)
@@ -494,21 +496,109 @@ func pick_unit(world_pos: Vector2) -> MilitaryUnit:
 	return best
 
 
-## Front-most building whose sprite covers `world_pos`, falling back to the tile.
+## Everything selectable under `world_pos`, front to back (Config.PICK): the
+## figures of stationed units (each just before its post), and the buildings
+## and found map objects whose picture (an opaque pixel) or footprint is
+## there. What is drawn see-through comes last.
+func pick_all(world_pos: Vector2) -> Array:
+	var on_tile := map.building_at(Iso.to_tile(world_pos))
+	var hits: Array[Array] = []  # [depth, node]
+	for b in buildings:
+		if b == on_tile or b.covers(world_pos):
+			hits.append([_pick_depth(b), b])
+	for o in map_objects:
+		if o.visible and (o == on_tile or Iso.to_tile(world_pos) in o.tiles() or o.covers(world_pos)):
+			hits.append([_pick_depth(o), o])
+	for p in military_posts():
+		var u: MilitaryUnit = p.unit_at(world_pos - p.position)
+		if u != null:
+			hits.append([_pick_depth(p) + 0.5, u])
+	hits.sort_custom(func(a: Array, b: Array) -> bool: return a[0] > b[0])
+	var out: Array = []  # (buildings, and units: RefCounted)
+	for h in hits:
+		if not out.has(h[1]):
+			out.append(h[1])
+	return out
+
+
+## Drawing order (y-sorted), see-through things behind everything else.
+func _pick_depth(b: Building) -> float:
+	return b.position.y - (1.0e7 if b.see_through else 0.0)
+
+
+## Front-most building or map object under `world_pos` (see pick_all), or null.
 func pick_building(world_pos: Vector2) -> Building:
-	var best: Building = null
+	for n in pick_all(world_pos):
+		if n is Building:
+			return n
+	return null
+
+
+## Front-most tower, barracks or training grounds under `world_pos`, else
+## whatever pick_building finds there.
+func pick_post(world_pos: Vector2) -> Building:
+	var all := pick_all(world_pos)
+	for n in all:
+		if n is MilitaryPost:
+			return n
+	for n in all:
+		if n is Building:
+			return n
+	return null
+
+
+# --- see-through (Config.PICK) ------------------------------------------------------------
+
+## Draws see-through every building or map object in front of `target` that
+## hides enough of it (Config.PICK); with `target` null, nothing.
+func show_through(target: Building) -> void:
+	var fade: Array[int] = []
+	if target != null and is_instance_valid(target):
+		fade = _occluders(target)
+	for id in _see_through:
+		var b := instance_from_id(id) as Building
+		if b != null and id not in fade:
+			b.set_see_through(false)
+	for id in fade:
+		(instance_from_id(id) as Building).set_see_through(true)
+	_see_through = fade
+
+
+## What hides at least PICK.see_through_share of `target`'s picture: its
+## picture sampled on a grid, and for each building or found object drawn in
+## front of it the share of those points it covers.
+func _occluders(target: Building) -> Array[int]:
+	var out: Array[int] = []
+	var area := target.art_rect()
+	if not area.has_area():
+		return out
+	var step: float = Config.PICK["see_through_step"]
+	var points: Array[Vector2] = []
+	var y := area.position.y + step / 2.0
+	while y < area.end.y:
+		var x := area.position.x + step / 2.0
+		while x < area.end.x:
+			if target.covers(Vector2(x, y)):
+				points.append(Vector2(x, y))
+			x += step
+		y += step
+	if points.is_empty():
+		return out
 	var cands: Array[Building] = buildings.duplicate()
 	for o in map_objects:
 		if o.visible:
 			cands.append(o)
-	for b in cands:
-		if b.pick_rect().has_point(world_pos - b.position) and (best == null or b.position.y > best.position.y):
-			if b is Farm and map.building_at(Iso.to_tile(world_pos)) != b:
-				continue  # farm rect is a loose box; require the actual footprint
-			best = b
-	if best == null:
-		best = map.building_at(Iso.to_tile(world_pos))
-	return best
+	var need := float(Config.PICK["see_through_share"]) * points.size()
+	for c in cands:
+		if c == target or c.position.y <= target.position.y or not c.art_rect().intersects(area):
+			continue
+		var n := 0
+		for p in points:
+			if c.covers(p):
+				n += 1
+		if n >= need:
+			out.append(c.get_instance_id())
+	return out
 
 
 # --- trees (foresters) -----------------------------------------------------------

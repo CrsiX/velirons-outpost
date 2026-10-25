@@ -108,7 +108,3 @@ func info() -> Dictionary:
 			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
 		})
 	return {"title": title, "lines": lines, "actions": actions}
-
-
-func pick_rect() -> Rect2:
-	return Rect2(-50, -60, 100, 76)

@@ -113,9 +113,5 @@ func info() -> Dictionary:
 	return {"title": display_name(), "lines": [] as Array[String], "actions": [] as Array[Dictionary]}
 
 
-func pick_rect() -> Rect2:
-	return Rect2(-40 * size, -70, 80 * size, 90)
-
-
 func _draw() -> void:
 	pass

@@ -56,6 +56,8 @@ var teardown_progress := 0.0
 ## Tear-down bars count down in this colour.
 const TEARDOWN_COLOR := Color("a8553a")
 var sprite: Sprite2D
+## In front of the selection and hiding it: drawn see-through, picked last.
+var see_through := false
 
 
 func setup(p_game: Game, p_kind: String, p_tile: Vector2i, p_complete: bool) -> void:
@@ -264,14 +266,21 @@ func _update_ruin_look() -> void:
 	_update_tint()
 
 
-## Dimmed while torn down, darkened while devastated (without ruin art).
 func _update_tint() -> void:
+	modulate = tint()
+
+
+## The colour it is drawn in: dimmed while torn down, darkened while
+## devastated (without ruin art), see-through while it hides the selection.
+func tint() -> Color:
 	var c := Color.WHITE
 	if devastated and not has_ruin_art():
 		c = Color(0.5, 0.46, 0.43)
 	if tearing_down:
 		c.a = 0.6
-	modulate = c
+	if see_through:
+		c.a *= float(Config.PICK["see_through_alpha"])
+	return c
 
 
 ## Missing share of its HP (0: whole).
@@ -509,8 +518,39 @@ func add_tear_down_action(d: Dictionary) -> void:
 	})
 
 
-func pick_rect() -> Rect2:
-	return Rect2(-40, -60, 80, 80)
+# --- picking (Config.PICK) ----------------------------------------------------------------
+
+## The sprites that make up its picture on the map: its shown child sprites.
+func pick_sprites() -> Array[Sprite2D]:
+	var out: Array[Sprite2D] = []
+	for c in get_children():
+		if c is Sprite2D and (c as Sprite2D).visible and (c as Sprite2D).texture != null:
+			out.append(c)
+	return out
+
+
+## Whether an opaque pixel of its picture is at `world_pos`.
+func covers(world_pos: Vector2) -> bool:
+	for s in pick_sprites():
+		if s.is_pixel_opaque((transform * s.transform).affine_inverse() * world_pos):
+			return true
+	return false
+
+
+## The world rect its picture fills (empty without one).
+func art_rect() -> Rect2:
+	var r := Rect2()
+	for s in pick_sprites():
+		var sr: Rect2 = (transform * s.transform) * s.get_rect()
+		r = sr if not r.has_area() else r.merge(sr)
+	return r
+
+
+## Drawn see-through: it hides what is selected (World.show_through).
+func set_see_through(on: bool) -> void:
+	if see_through != on:
+		see_through = on
+		_update_tint()
 
 
 func _draw() -> void:

@@ -37,7 +37,10 @@ extends Node
 ## pack, a goblin raider charging a villager and circling the village, one
 ## unhorsed by its wolf's corpse, Legion cavalry with its footmen, the mounted
 ## captains and commanders (a hurt horse's bar), Rhodri on foot, an undead
-## horse bolting, and the library's raider and halberdier.
+## horse bolting, and the library's raider and halberdier;
+## (`--only=picking`) picking on the map in scenario 9's harbour village: taps
+## through the church to the gate and wall behind it, the church see-through
+## (it prints how long picking and measuring take on this renderer).
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -142,6 +145,8 @@ func _run() -> void:
 		await _vultures()
 	if only in ["", "riders"]:
 		await _riders()
+	if only in ["", "picking"]:
+		await _picking()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -887,6 +892,54 @@ func _cut_to_line(sc: ScenarioRunner, who: String, part := "") -> void:
 
 
 ## A scenario's game, its intro running (a few frames past its start).
+## Picking (Config.PICK): the church in scenario 9's village hides a gate and
+## walls behind it; taps at one spot go through them, the church turns
+## see-through.
+func _picking() -> void:
+	var g := await _scenario_game(9)
+	g.scenario.cutscene.skip()
+	await _frames(30)
+	var v := g.player_village
+	g.fog.reveal(Vector2(v.center), 14.0, v.id)
+	g.hud.set_dock_open(false)
+	var church: Building = v.buildings().filter(func(b: Building) -> bool: return b is Church)[0]
+	var hidden: Array[Building] = []
+	var t0 := Time.get_ticks_usec()
+	for b in g.world.buildings:
+		if church.get_instance_id() in g.world._occluders(b):
+			hidden.append(b)
+	print("measuring what hides each of %d buildings: %d ms; the church hides %s" % [g.world.buildings.size(), (Time.get_ticks_usec() - t0) / 1000, hidden.map(func(b: Building) -> String: return b.label())])
+	var hut: Building = v.buildings().filter(func(b: Building) -> bool: return b is Hut)[0]
+	print("pixel test works on this renderer: %s" % [hut.covers(hut.art_rect().get_center()) != hut.covers(hut.art_rect().position + Vector2(1, 1))])
+	if hidden.is_empty():
+		return
+	hidden.sort_custom(func(a: Building, b: Building) -> bool: return a.kind == "gate" and b.kind != "gate")
+	var back := hidden[0]
+	var spot := Vector2.INF
+	var ar := back.art_rect()
+	for i in 600:
+		var p := ar.position + Vector2(fmod(i * 7.3, ar.size.x), fmod(i * 13.7, ar.size.y))
+		if back.covers(p) and church.covers(p):
+			spot = p
+			break
+	g.camera.focus(church.position + Vector2(0, -80))
+	g.camera.zoom = Vector2(1.0, 1.0)
+	await _frames(20)
+	await shot("picking_church")
+	t0 = Time.get_ticks_usec()
+	var stack := g.world.pick_all(spot)
+	print("pick_all: %d us, %s" % [Time.get_ticks_usec() - t0, stack.map(func(o: Object) -> String: return o.label())])
+	for i in stack.size():
+		g._tap_select(spot)
+		await _frames(10)
+		var sel: Object = g.selected_unit if g.selected_unit != null else g.selected
+		await shot("picking_tap_%d_%s" % [i + 1, sel.label().replace(" ", "_").replace(",", "_")])
+	g.deselect()
+	await _frames(5)
+	g.queue_free()
+	await _frames(5)
+
+
 func _scenario_game(n: int) -> Game:
 	Settings.scenario_next = n
 	var g: Game = load("res://scenes/main.tscn").instantiate()

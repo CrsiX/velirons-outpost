@@ -126,10 +126,6 @@ func _work_info(d: Dictionary) -> void:
 		})
 
 
-func pick_rect() -> Rect2:
-	return Rect2(-100, -100, 200, 140)
-
-
 func _draw() -> void:
 	_draw_bars()
 
