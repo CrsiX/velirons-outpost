@@ -950,11 +950,15 @@ func _free_shore(r: ScenarioRunner, want: Vector2i, taken: Array[Vector2i], wet:
 ## Gull `k` circling `over` (a tile) for good, high up, at its own pace.
 func _gull(r: ScenarioRunner, over: Vector2, k: int) -> void:
 	var n := r.actor("gull", over)
+	n.z_index = 1  # (high in the air: over the trees and everything else on the ground, not sorted in among them)
 	var centre := Iso.to_world(over) + Vector2(0, -150 - 20 * k)
 	var rx := 70.0 + 22.0 * k
 	var period := 7.0 + 2.5 * k
+	var vid := r.game.player_village.id
+	var spot := Vector2i(over.round())
 	var tw := n.create_tween().set_loops()
 	tw.tween_method(func(a: float) -> void:
+		n.visible = r.game.fog.is_explored_by(vid, spot)  # (drawn over the fog: not before the beacon is found)
 		n.position = centre + Vector2(cos(a) * rx, sin(a) * rx * 0.4)
 		(n.get_child(0) as Sprite2D).flip_h = sin(a) < 0.0, k * 2.1, k * 2.1 + TAU, period)
 
