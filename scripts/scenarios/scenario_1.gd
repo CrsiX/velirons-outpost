@@ -7,6 +7,10 @@ extends Scenario
 ## When it's done, an old friend comes up the road: Pell.
 
 
+## Where the south road (Brenna's, and Pell's at the end) leaves the map.
+const SOUTH_ROAD := Vector2i(47, 49)
+
+
 func _init() -> void:
 	number = 1
 	title = "Homecoming"
@@ -27,8 +31,8 @@ func _init() -> void:
 	pieces_hp = 0.6
 	hero_name = "Brenna"
 	hero_level = 1
-	hero_start = Vector2i(41, 19)  # (by the north road, where she slept on the way home)
-	tent_tile = Vector2i(42, 18)
+	hero_start = Vector2i(46, 42)  # (by the south road, where she slept on the way home)
+	tent_tile = Vector2i(44, 41)
 	walk_title = "Homeward"
 	walk_text = "Brenna walks the last stretch of road home."
 
@@ -95,7 +99,7 @@ func arrival(r: ScenarioRunner) -> Array[Dictionary]:
 
 
 func outro(r: ScenarioRunner) -> Array[Dictionary]:
-	var road := r.road_in(hero_start, 26)
+	var road := r.road_from(SOUTH_ROAD, 26)
 	var cart_path: Array = road.slice(0, maxi(2, road.size() - 7))
 	var stop: Vector2 = r.at(cart_path[-1]) if not cart_path.is_empty() else r.at(r.game.player_village.center)
 	var cart := [null]

@@ -135,7 +135,7 @@ func _map_file() -> void:
 	if r["map"] == null:
 		return
 	var m: MapData = r["map"]
-	check(m.villages.size() == 1 and m.size == 75, "one village on a 75x75 map")
+	check(m.villages.size() == 1 and m.size == 50, "one village on a 50x50 map")
 	check(m.objects.filter(func(o: Dictionary) -> bool: return o["kind"] == "ruin").size() == 1, "one ruined watchtower")
 	check(not m.objects.any(func(o: Dictionary) -> bool: return o["kind"] in ["unlock", "lair"]), "no unlock sites, no lairs")
 	check(m.is_passable(spec.hero_start) and m.is_passable(spec.tent_tile) and not m.is_road(spec.tent_tile), "Brenna's start and her tent are on open land by the road")
@@ -147,7 +147,7 @@ func _play_through() -> void:
 	var v := game.player_village
 	check(sc != null and sc.spec.number == 1, "scenario 1 runs (from Settings.scenario_next)")
 	check(Settings.scenario_next == 0, "the request is used up")
-	check(sc.error == "" and MapJson.map_name(game.map) == "Homecoming", "its map comes from its file (%s)" % sc.error)
+	check(sc.error == "" and MapJson.map_name(game.map) == "Brenna's Home", "its map comes from its file (%s)" % sc.error)
 	check(Settings.difficulty == Settings.Difficulty.EASY and is_equal_approx(Config.enemy_stat("goblin", "hp"), 10.0), "Easy, with goblins at half HP (weaker than Easy)")
 	check(is_equal_approx(Config.enemy_stat("goblin", "speed"), 1.1 * 0.67), "speed as on Easy")
 	var roles := v.population.civilians.map(func(c: Civilian) -> String: return c.role)
@@ -506,7 +506,7 @@ func _scenario_2() -> void:
 	print("-- scenario 2: setup")
 	await _new_game(2)
 	var v := game.player_village
-	check(sc != null and sc.spec.number == 2 and game.map.size == 75 and MapJson.map_name(game.map) == "Homecoming", "scenario 2 runs on the home map")
+	check(sc != null and sc.spec.number == 2 and game.map.size == 50 and MapJson.map_name(game.map) == "Brenna's Home", "scenario 2 runs on the home map")
 	var pell: Civilian = sc.merchant()
 	check(pell != null and pell.label() == "Pell" and pell.role == "merchant" and is_instance_valid(pell.hut), "Pell is a villager (a merchant) with a hut")
 	check(game.population.count() == 5 and v.intact_huts().size() == 9, "five villagers, all nine huts stand")
@@ -666,7 +666,7 @@ func _scenario_3() -> void:
 	print("-- scenario 3: setup")
 	await _new_game(3)
 	var v := game.player_village
-	check(sc != null and sc.error == "" and game.map.size == 100 and MapJson.map_name(game.map) == "The Wardline", "scenario 3 runs on the grown 100x100 map")
+	check(sc != null and sc.error == "" and game.map.size == 75 and MapJson.map_name(game.map) == "The Wardline", "scenario 3 runs on the grown 75x75 map")
 	check(sc.ruin_sites.size() == 5 and sc.ruin_sites.filter(func(s: Dictionary) -> bool: return s["building"] == "barracks").size() == 1, "five ruins: four watchtowers and a barracks")
 	var bruin = sc.on_site(sc.ruin_sites.filter(func(s: Dictionary) -> bool: return s["building"] == "barracks")[0])
 	check(bruin is RuinedTower and bruin.size == 2 and bruin.display_name() == "Ruined barracks" and bruin.art() == "barracks_ruin", "the barracks ruin is 2x2, with its own look")

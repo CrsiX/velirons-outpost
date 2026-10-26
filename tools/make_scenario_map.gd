@@ -31,7 +31,7 @@ extends Node
 ## gone; houses (mountain tiles with a house) in blocks between lanes, off the
 ## roads and away from the walls; the throne hall (a 3x3 landmark) by a road.
 ## Maps the user has edited by hand (CLAUDE.md): never run with --force for
-## them. So far: 5 (old_fort.json).
+## them. So far: 1 (homecoming.json, "Brenna's Home", 50x50), 5 (old_fort.json), 9 (drowned_abbey.json).
 ## "citadel": scenario 5's fort in a mountain pass, laid out by citadel_map.gd
 ## rather than generated ({"seed"}); it prints where Sigmund's tent goes
 ## (scenario_5.gd's SIGMUND_TENT).
@@ -42,17 +42,11 @@ const CitadelMap := preload("res://tools/citadel_map.gd")
 const AbbeyMap := preload("res://tools/abbey_map.gd")
 
 const MAPS := {
-	1: {"map_type": "highlands", "seed": 1337, "name": "Homecoming",
-		"description": "Scenarios 1 and 2: the home village. Three roads lead in; Brenna's tent stands by the north road.",
+	1: {"map_type": "temperate", "seed": 8, "name": "Homecoming",
+		"description": "Scenarios 1 and 2: the home village. Roads lead in from the edges; Brenna's tent stands by the south road.",
 		"drop": ["unlock", "lair"], "ruins": 1},
-	3: {"grow": {"from": 1, "size": 100, "map_type": "highlands", "seed": 4711}, "name": "The Wardline",
-		"description": "Scenario 3: the home map grown, the road north to the border lined with the old Wardline's ruins.",
-		"add_ruins": [
-			{"edge": "north", "at": 13, "building": "tower"},
-			{"edge": "north", "at": 25, "building": "tower"},
-			{"edge": "north", "at": 37, "building": "tower"},
-			{"edge": "north", "at": 46, "building": "barracks"},
-		]},
+	3: {"grow": {"from": 1, "size": 75, "map_type": "temperate", "seed": 4711}, "name": "The Wardline",
+		"description": "Scenarios 3 and 10: the home map in the middle of a bigger one, the road north to the border lined with the old Wardline's ruins."},
 	4: {"map_type": "coast", "seed": 42, "name": "The Guild Town",
 		"description": "Scenario 4: the Silver Thread Guild's walled market town on the coast, its harbour on the inlet beside the walls.",
 		"drop": ["unlock", "lair"], "ruins": 0},
@@ -240,6 +234,10 @@ func grow(home: MapData, ring: MapData) -> MapData:
 	var spawns: Array[Vector2i] = []
 	for sp in home.edge_spawns:
 		spawns.append(_extend_road(m, sp + off, _outward(home, sp)))
+	for i in home.size:  # (roads to the old edge without a spawn run on too, still without one)
+		for t: Vector2i in [Vector2i(i, 0), Vector2i(i, home.size - 1), Vector2i(0, i), Vector2i(home.size - 1, i)]:
+			if home.get_terrain(t) == MapData.Terrain.ROAD and not home.edge_spawns.has(t) and not m.is_road(t + off + _outward(home, t)):
+				_extend_road(m, t + off, _outward(home, t))
 	for v in home.villages:
 		m.villages.append({"center": (v["center"] as Vector2i) + off, "home_spawns": spawns})
 	for o in home.objects:

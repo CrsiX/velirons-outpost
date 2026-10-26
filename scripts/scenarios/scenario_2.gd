@@ -11,6 +11,12 @@ extends Scenario
 ## with a shield bearer, tower upgrades.
 
 
+## Where the south road (Pell's, scenario 1) and the road by the lake (the
+## stranger's) leave the map.
+const SOUTH_ROAD := Vector2i(47, 49)
+const LAKE_ROAD := Vector2i(26, 49)
+
+
 func _init() -> void:
 	number = 2
 	title = "The Old Friend"
@@ -66,18 +72,19 @@ func _init() -> void:
 # --- the story -----------------------------------------------------------------------------
 
 func intro(r: ScenarioRunner) -> Array[Dictionary]:
-	var gate := _north_gate(r)
+	var road := r.road_from(SOUTH_ROAD, 4)  # (his cart stands where he came in)
+	var stand: Vector2i = road[0] if not road.is_empty() else r.game.player_village.center
 	var cart := [null]
 	return [
 		{"fade": "out", "time": 0.01},
-		{"camera": r.at(gate) + Vector2(0, -60), "zoom": 1.2, "time": 0.01},
+		{"camera": r.at(stand), "zoom": 1.2, "time": 0.01},
 		{"do": func() -> void:
-			cart[0] = r.actor("unit_caravan", Vector2(gate + Vector2i(1, -2)))
+			cart[0] = r.actor("unit_caravan", Vector2(stand))
 			var p := Art.sprite("unit_merchant")
 			p.position = Iso.to_world(Vector2(-0.6, 0.9))
 			(cart[0] as Node2D).add_child(p)},
 		{"title": "The Old Friend", "sub": "Scenario 2", "time": 3.0},
-		{"say": "", "text": "A few weeks later. The huts stand again, the walls hold, and the north road has been quiet."},
+		{"say": "", "text": "A few weeks later. The huts stand again, the walls hold, and the south road has been quiet."},
 		{"fade": "in", "time": 1.2},
 		{"say": "pell", "text": "There. The last stone of that wall, carried by a merchant. My back will never forgive you, Brenna."},
 		{"say": "brenna", "text": "You did more than your share, Pell. We wouldn't be done without you."},
@@ -122,7 +129,7 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 				{"say": "pell", "text": "Every last one. That's why the roads are what they are."},
 			])
 		3:
-			var road := r.road_in(r.game.player_village.center + Vector2i(0, -20), 16)
+			var road := r.road_from(LAKE_ROAD, 16)
 			var who := [null]
 			r.play_scene([
 				{"do": func() -> void:
@@ -265,16 +272,6 @@ func death_text(civ: Civilian, reason: String) -> String:
 
 
 # --- helpers -----------------------------------------------------------------------------
-
-## The village's gate nearest the north road (where Pell comes in).
-func _north_gate(r: ScenarioRunner) -> Vector2i:
-	var gates: Array = r.game.player_village.gates
-	var best: Vector2i = r.game.player_village.center
-	for t: Vector2i in gates:
-		if best == r.game.player_village.center or t.y < best.y:
-			best = t
-	return best
-
 
 ## The trade card's time: wave 2 is over and the stall has a lot to sell.
 func _goods_in(r: ScenarioRunner) -> bool:
