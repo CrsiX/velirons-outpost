@@ -198,7 +198,10 @@ func kill_random(n: int) -> void:
 func _process(delta: float) -> void:
 	if game == null or game.is_client:
 		return
-	starving = upkeep() > 0.0 and village.economy.consume_food(upkeep() * delta)
+	var due := upkeep() * delta
+	var had := village.economy.amount("food")
+	starving = due > 0.0 and village.economy.consume_food(due)
+	_count_upkeep(minf(had, due), due, delta)
 	if starving and not civilians.is_empty():
 		starve_timer += delta
 		if starve_timer >= Config.STARVATION_INTERVAL:
@@ -207,6 +210,19 @@ func _process(delta: float) -> void:
 			village.toast("A villager starved to death.", Color("ff7a6a"))
 	else:
 		starve_timer = 0.0
+
+
+## For the statistics: the food really eaten (`eaten` of the `due`), split
+## between the villagers and the army by their shares of the upkeep, and
+## the time the village went hungry.
+func _count_upkeep(eaten: float, due: float, delta: float) -> void:
+	if due > 0.0 and eaten > 0.0:
+		var army := eaten * army_upkeep() * delta / due
+		game.stats.count(village, "spend.food.upkeep_villagers", eaten - army)
+		game.stats.count(village, "spend.food.upkeep_army", army)
+		game.stats.count(village, "spend.food", eaten)
+	if starving:
+		game.stats.count(village, "hungry_time", delta)
 
 
 ## Who starves next: a random villager of the lowest tier there is. Ordinary

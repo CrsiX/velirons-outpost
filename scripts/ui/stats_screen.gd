@@ -26,6 +26,7 @@ const SOURCE_NAMES := {
 const SPENT_NAMES := {
 	"buildings": "buildings", "units": "units", "upgrades": "upgrades", "villagers": "villagers",
 	"trade": "trade", "caravans": "caravans sent", "repairs": "repairs",
+	"upkeep_villagers": "feeding the villagers", "upkeep_army": "feeding the army",
 }
 const RES_ICONS := {"gold": "icon_gold", "food": "icon_food", "materials": "icon_materials"}
 const RES_NAMES := {"gold": "Gold", "food": "Food", "materials": "Material"}
@@ -249,6 +250,9 @@ func summary_sections() -> Array[Dictionary]:
 	eco.append(_row("Gold stolen by thieves", "stolen", "low", "icon_gold"))
 	eco.append(_row("Food eaten by rats at the gates", "rat_food_gate", "low", "icon_food"))
 	eco.append(_row("Food eaten by rats on farms", "rat_food_farm", "low", "icon_food"))
+	var hungry := _row("Time out of food (the army hungry)", "hungry_time", "low", "icon_food")
+	hungry["fmt"] = "time"
+	eco.append(hungry)
 	out.append({"title": "Economy", "rows": eco})
 
 	var vil: Array = [_row("Villagers recruited", "_recruited", "high", "icon_population")]

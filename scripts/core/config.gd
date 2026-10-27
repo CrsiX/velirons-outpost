@@ -301,9 +301,14 @@ const BALANCE_BOT := {
 ## targets it works towards as resources allow, in this order of priority:
 ## huts rebuilt, villagers, economy buildings, army, upgrades.
 ##   "villagers":      role -> how many it wants (it recruits in "villager_order");
-##   "farms", "camps": worker camps and farms to build (one worker each);
-##                      the camps (and their foresters) before any new post
-##                      ahead of wave 1;
+##   "farms":          [[from wave, farms], ...]: farms to build (2 early, 3
+##                      late; more while the food runs out). A farm without
+##                      its farmer gets one first, before any other recruit
+##                      (a full village retires its explorer or a second
+##                      gatherer to make room);
+##   "camps":          worker camps to build (one forester each); the camps
+##                      (and their foresters) before any new post ahead of
+##                      wave 1;
 ##   "material_rate", "max_camps": from wave 1, one more camp while the
 ##                      foresters bring in less than this much building
 ##                      material per minute, up to max_camps;
@@ -338,9 +343,9 @@ const BALANCE_BOT := {
 const BALANCE_PROFILES := {
 	"balanced": {
 		"desc": "Economy first (three foresters before wave 1, about 20 material a minute), repairs before anything; watchtowers with archers and (once the hero unlocks them) apprentices in turn, then barracks with shield bearers and archers, training grounds and upgrades; crossbowmen, fire mages, warriors. The default player.",
-		"villagers": {"builder": 2, "farmer": 2, "forester": 4, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["forester", "forester", "forester", "builder", "farmer", "gatherer", "builder", "farmer", "gatherer", "forester", "miner"],
-		"farms": 2, "camps": 3, "max_camps": 4, "material_rate": 20.0, "retire_explorer_wave": 6,
+		"villagers": {"builder": 2, "farmer": 3, "forester": 4, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["forester", "forester", "forester", "builder", "farmer", "gatherer", "builder", "farmer", "gatherer", "forester", "miner", "farmer"],
+		"farms": [[0, 2], [6, 3]], "camps": 3, "max_camps": 4, "material_rate": 20.0, "retire_explorer_wave": 6,
 		"towers": [2, 1.0, 12], "tower_levels": [[3, 2], [8, 3]],
 		"barracks": [[2, 1], [8, 2]], "barracks_levels": [[4, 2], [9, 3]],
 		"training": 3,
@@ -352,9 +357,9 @@ const BALANCE_PROFILES := {
 	},
 	"archers": {
 		"desc": "Towers only: every wall tower and watchtower gets an archer, tower upgrades, no barracks.",
-		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
-		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"villagers": {"builder": 2, "farmer": 3, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner", "farmer"],
+		"farms": [[0, 2], [6, 3]], "camps": 2, "retire_explorer_wave": 6,
 		"towers": [3, 1.5, 16], "tower_levels": [[2, 2], [6, 3]],
 		"barracks": [], "barracks_levels": [],
 		"training": 3,
@@ -366,9 +371,9 @@ const BALANCE_PROFILES := {
 	},
 	"swift": {
 		"desc": "Like archers, but every archer becomes a swiftbowman.",
-		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
-		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"villagers": {"builder": 2, "farmer": 3, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner", "farmer"],
+		"farms": [[0, 2], [6, 3]], "camps": 2, "retire_explorer_wave": 6,
 		"towers": [3, 1.5, 16], "tower_levels": [[2, 2], [6, 3]],
 		"barracks": [], "barracks_levels": [],
 		"training": 3,
@@ -380,9 +385,9 @@ const BALANCE_PROFILES := {
 	},
 	"melee": {
 		"desc": "Barracks first: shield bearers who turn into warriors, berserkers or halberdiers, a few archer towers.",
-		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
-		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"villagers": {"builder": 2, "farmer": 3, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner", "farmer"],
+		"farms": [[0, 2], [6, 3]], "camps": 2, "retire_explorer_wave": 6,
 		"towers": [1, 0.4, 5], "tower_levels": [[4, 2]],
 		"barracks": [[1, 1], [4, 2], [8, 3]], "barracks_levels": [[2, 2], [5, 3]],
 		"training": 3,
@@ -394,9 +399,9 @@ const BALANCE_PROFILES := {
 	},
 	"mages": {
 		"desc": "Apprentices and summoners on the towers (everything unlocked at the start), fire mages and fire summoners.",
-		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
-		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"villagers": {"builder": 2, "farmer": 3, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner", "farmer"],
+		"farms": [[0, 2], [6, 3]], "camps": 2, "retire_explorer_wave": 6,
 		"towers": [3, 1.5, 16], "tower_levels": [[2, 2], [6, 3]],
 		"barracks": [], "barracks_levels": [],
 		"training": 3,
@@ -408,9 +413,9 @@ const BALANCE_PROFILES := {
 	},
 	"holy": {
 		"desc": "Acolytes in the barracks and on the towers (unlocked at the start), inquisitors and high priests.",
-		"villagers": {"builder": 2, "farmer": 2, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner"],
-		"farms": 2, "camps": 2, "retire_explorer_wave": 6,
+		"villagers": {"builder": 2, "farmer": 3, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
+		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner", "farmer"],
+		"farms": [[0, 2], [6, 3]], "camps": 2, "retire_explorer_wave": 6,
 		"towers": [2, 1.0, 12], "tower_levels": [[3, 2], [8, 3]],
 		"barracks": [[1, 1], [6, 2]], "barracks_levels": [[3, 2], [8, 3]],
 		"training": 3,
@@ -885,7 +890,7 @@ const FOOD_UPKEEP := 0.05  # food per civilian per second
 ## (post, bench, reserve, walking, downed); the hero and summons never do.
 ## Food per second: base x (1 + per_level x (level - 1)), x spec for a
 ## specialisation (a "branch_of" kind). Scenario.army_upkeep scales it.
-const MILITARY_UPKEEP := {"base": 0.03, "per_level": 0.1, "spec": 1.2}
+const MILITARY_UPKEEP := {"base": 0.02, "per_level": 0.1, "spec": 1.2}
 ## While a village's food is at 0 (hungry), every military unit of it moves
 ## this share slower, takes this share more damage, and its attack, shot,
 ## cast, summon, heal and war-cry timers run this share slower.

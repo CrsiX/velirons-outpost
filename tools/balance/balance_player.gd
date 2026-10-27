@@ -356,6 +356,14 @@ func _villagers() -> void:
 		want["explorer"] = 0
 	if _no_farm:
 		return
+	# A farm without its farmer comes first, as soon as the food pays for one
+	# (min_food doesn't hold it back: the farmer is what brings food in).
+	if _role_ready("farmer") and pop.count("farmer") < int(want.get("farmer", 0)):
+		if pop.free_huts().is_empty():
+			_make_room()
+		elif pop.recruit_error("farmer") == "":
+			_cmd("recruit_villager", {"role": "farmer"})
+		return
 	var seen := {}
 	for role: String in profile["villager_order"]:
 		seen[role] = int(seen.get(role, 0)) + 1
@@ -370,6 +378,19 @@ func _villagers() -> void:
 		if err != "" or village.economy.amount("food") < float(Config.CIVILIANS[role]["cost"]["food"]) + float(_params["min_food"]):
 			return
 		_cmd("recruit_villager", {"role": role})
+
+
+## A full village makes room for a farmer: its explorer retires, else a
+## second gatherer.
+func _make_room() -> void:
+	var pop := village.population
+	for role: String in ["explorer", "gatherer"]:
+		if pop.count(role) <= (0 if role == "explorer" else 1):
+			continue
+		for c in pop.civilians:
+			if c.role == role and pop.retire_error(c) == "":
+				_cmd("retire_villager", {"civilian": c.nid})
+				return
 
 
 ## Is there something for a villager of `role` to do (so recruiting one pays)?
@@ -400,7 +421,7 @@ func _economy_buildings() -> void:
 	if mine != null and not village.population.free_workers("miner").is_empty():
 		_cmd("assign_miner", {"mine": mine.nid})
 	# At least the profile's farms, and enough to feed the villagers and the army.
-	var farms := maxi(int(profile["farms"]), ceili(village.population.upkeep() / Config.FARM_RATE))
+	var farms := maxi(_scheduled(profile["farms"]), ceili(village.population.upkeep() / Config.FARM_RATE))
 	if village.economy.amount("food") < 40.0 and village.population.food_per_second() < 0.0:
 		farms += 1  # the food is running out
 	if _repair_wanted:

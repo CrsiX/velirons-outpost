@@ -51,19 +51,20 @@ stops mattering. The army grows all game, so it is what should eat.
 - Every military unit of a village eats (`MILITARY_UPKEEP`, food per second;
   `Config.unit_upkeep`, `MilitaryUnit.upkeep`, summed by `Population.army_upkeep`):
   `base` × (1 + `per_level` × (level − 1)) × (`spec` if it is a specialisation, a
-  `"branch_of"` kind). `base` 0.03, `per_level` 0.1, `spec` 1.2.
+  `"branch_of"` kind). `base` 0.02, `per_level` 0.1, `spec` 1.2.
 
   | Unit | per s | per min |
   |---|---|---|
-  | base unit, level 1 | 0.030 | 1.8 |
-  | base unit, level 10 | 0.057 | 3.4 |
-  | specialisation, level 1 | 0.036 | 2.2 |
-  | specialisation, level 10 | 0.068 | 4.1 |
+  | base unit, level 1 | 0.020 | 1.2 |
+  | base unit, level 10 | 0.038 | 2.3 |
+  | specialisation, level 1 | 0.024 | 1.4 |
+  | specialisation, level 10 | 0.046 | 2.7 |
 
-  A villager eats `FOOD_UPKEEP` 0.05/s (3/min): a fresh unit eats a bit more than half a
-  villager, a level 10 specialisation about 1.4. Early (3 archers at level 1: 5.4/min) it
-  hardly shows. Late (9 villagers and 12 specialisations around level 8: 27 + 44 = 71/min) it
-  takes 3 worked farms.
+  A villager eats `FOOD_UPKEEP` 0.05/s (3/min): a fresh unit eats 40 % of a villager, a
+  level 10 specialisation about 0.9. Early (3 archers at level 1: 3.6/min) it hardly shows.
+  Late, the target is about 2.5 worked farms (a farm makes 24/min, 28.8 on meadow): 9
+  villagers and 15 units around level 6, half of them specialised, eat 27 + 30 = 57/min; a
+  bigger army (20 specialisations around level 8: 27 + 49 = 76/min) needs a third farm.
 - **Who eats:** every unit the village owns, wherever it is: on a post or bench, walking,
   out on a sortie, in the reserve, downed. Scenario units that take no orders (the druids,
   Fiona's mages) eat too. A unit sent to another village (co-op) eats from its sender until it
@@ -71,9 +72,9 @@ stops mattering. The army grows all game, so it is what should eat.
 - **Who doesn't:** the hero (never: not at home, not in Support), summons (elementals,
   thornlings), caravans. The Spatial Archmage is a villager and eats as one.
 - **Food flow** next to the food counter (`Population.food_per_second`) includes the army's
-  upkeep. Shown: the Army tab's recruit entries ("Eats 1.8 food a minute."), the unit's lines
+  upkeep. Shown: the Army tab's recruit entries ("Eats 1.2 food a minute."), the unit's lines
   in its panel, a tower's panel and the reserve's selection (`MilitaryUnit.food_lines`: "Eats
-  {food} 1.8 per minute"), each upgrade option ("eats {food} 2.0/min", the level after), and
+  {food} 1.2 per minute"), each upgrade option ("eats {food} 1.3/min", the level after), and
   the library's Units page (level 1 to 10, and what hunger does).
 - **Scenarios:** `Scenario.army_upkeep` (a factor, default 1.0; `MilitaryUnit.upkeep_factor`)
   scales it per scenario, set in the scenario's own file. Scenarios 6, 8 and 11 set it to 0

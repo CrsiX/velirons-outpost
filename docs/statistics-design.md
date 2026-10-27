@@ -78,11 +78,16 @@ Counters add up from the start of the game. They are grouped as in the table.
 - Food earned, by source: farms, corpses, treasure, caravans.
 - Material earned, by source: foresters, trade, tear-down refunds,
   treasure, caravans.
-- Spent, by what: buildings, units, upgrades, repairs, villagers, trade, caravans.
+- Spent, by what: buildings, units, upgrades, repairs, villagers, trade, caravans,
+  and food eaten: feeding the villagers and feeding the army (upkeep;
+  `spend.food.upkeep_villagers` / `upkeep_army`, counted by `Population` as it
+  is eaten, not through `Economy.spent`).
 - Only income with a source counts as earned: the starting stock and the
   debug buttons don't.
 - Losses: gold stolen by thieves, food eaten by rats at the gates and on
   farms.
+- Time out of food (`hungry_time`, game seconds): the army hungry
+  (docs/village-design.md §2a).
 
 **Village**
 - Villagers recruited, by role.

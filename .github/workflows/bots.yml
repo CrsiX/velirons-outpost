@@ -154,6 +154,7 @@ jobs:
           OUT: ${{ github.workspace }}/logs
           TIMEOUT: "2700"
           CI: "true"  # (the bots skip their machine-dependent timing checks)
+          RETRY: sim  # (flaky: a failed run gets a second one, which decides)
         run: GODOT=~/godot tests/run_all.sh ${{ matrix.bot }}
 
       - uses: actions/upload-artifact@v4

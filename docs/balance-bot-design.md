@@ -68,6 +68,11 @@ Economy first: before wave 1 the profile's `camps` (and their foresters, first i
 order) come before any new post; from wave 1 one more camp while the foresters bring in less
 than `material_rate` per minute (measured over `material_window`), up to `max_camps`.
 
+Food: every profile wants 2 farms from the start and 3 from wave 6 (`farms`, a schedule),
+more while upkeep outgrows the farms worked or the food runs out. A farm without its farmer
+gets one before any other recruit, as soon as the food pays for the farmer (`min_food` doesn't
+hold it back); a full village retires its explorer, else a second gatherer, to make room.
+
 Where it builds: towers and barracks where they cover most road within `approach_steps` of
 a gate that no post of their own sort covers yet (near the village preferred, `tower_spacing`
 apart). With `BALANCE_BOT.barracks_support` (on) the two work together: a barracks goes only
@@ -111,7 +116,7 @@ orders; each key is documented in config.gd.
 | `case` | `map_type`, `seed`, `difficulty`, `policy`, `speed` |
 | `result` | `waves_survived`, `wave_reached`, `ended_by`, `censored`, `defeat` (`no_villagers` / `no_huts`), `game_seconds`, `real_seconds`, `frames` |
 | `counters` | every counter of the game's `Stats` (kills by kind and by source, earned / spent by source, villagers lost by cause, huts burned, hero numbers ...) |
-| `final` | state at the end: resources, villagers by role, huts, explored tiles, `army` (units, by kind `[count, level sum]`, nominal dps, HP, towers, barracks, free posts) and `hero` |
+| `final` | state at the end: resources, villagers by role, huts, working farms (`farms`), explored tiles, `army` (units, by kind `[count, level sum]`, nominal dps, HP, towers, barracks, free posts) and `hero` |
 | `waves[]` | per wave: `enemies`, `hp_total` (the wave's HP after difficulty and growth), `hp_scale`, `comp` (kind -> count), `start` / `end` (a `final`-like snapshot), `duration`, `survived`, `d` (the change of every counter during the wave), `by_kind` (§4.1) |
 | `timeline` | columns every `sample_interval` (15 s): `t wave in_wave gold food materials villagers huts explored units unit_levels army_hp army_dps towers barracks hero_level hero_xp enemies` |
 | `stats_series` | the game's own Stats samples (`Stats.SERIES`) |
@@ -151,6 +156,9 @@ Reading it:
 4. **Breaking point**: fatal waves, causes, who got through.
 5. **Money**: earned / spent by source; then the army's gold by what it bought (recruits, levels
    and specialisations per unit kind: the record's `army_gold`).
+   **5c. Food**: food earned, eaten by the villagers and by the army (upkeep), spent on
+   villagers, seconds out of food (the army hungry), villagers starved. Per wave the same
+   counters are in waves.csv (`d.spend.food.upkeep_army`, `d.hungry_time`, ...).
 
 ## 6. Testing a balance change without touching the config
 

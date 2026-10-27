@@ -1997,6 +1997,10 @@ func _hunger_checks() -> void:
 	await frames(2)
 	check(pop.starving and u.hungry() and is_equal_approx(u.rate(game), 1.0 - Config.HUNGER_PENALTY), "food at 0: the army is hungry, its timers run HUNGER_PENALTY slower")
 	check(u.food_lines().any(func(l: String) -> bool: return l.begins_with("Hungry")), "a hungry unit's panel says so")
+	var c: Dictionary = game.stats.villages[game.player_village.id]["c"]
+	var hungry_before := float(c.get("hungry_time", 0.0))
+	await frames(10)
+	check(float(c.get("hungry_time", 0.0)) > hungry_before, "the statistics count the time out of food")
 	var post: MilitaryPost = null
 	for b in game.world.buildings:
 		if b is MilitaryPost and b.village == game.player_village and game.army.station_error(u, b) == "":
@@ -2015,6 +2019,9 @@ func _hunger_checks() -> void:
 	game.economy.add("food", 200)
 	await frames(2)
 	check(not pop.starving and not u.hungry() and is_equal_approx(u.rate(game), 1.0), "food again: nobody is hungry")
+	var army_ate := float(c.get("spend.food.upkeep_army", 0.0))
+	await frames(10)
+	check(float(c.get("spend.food.upkeep_army", 0.0)) > army_ate and float(c.get("spend.food.upkeep_villagers", 0.0)) > 0.0, "the statistics count the food the army and the villagers eat")
 	if s != null and is_instance_valid(s):
 		check(is_equal_approx(s._walk_factor(), game.world.map.walk_factor(s.current_tile())), "fed, a soldier walks at its speed again")
 	# Who starves first: ordinary villagers, then named ones.

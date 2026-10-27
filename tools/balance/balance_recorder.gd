@@ -101,10 +101,14 @@ func state_snapshot() -> Dictionary:
 	var roles := {}
 	for c in village.population.civilians:
 		roles[c.role] = int(roles.get(c.role, 0)) + 1
+	var farms := 0
+	for b in village.buildings():
+		if b is Farm and not (b is Stall) and b.working():
+			farms += 1
 	var hero := {"level": h.level + 1, "xp": h.xp, "dps": Config.hero_stat("damage", h.level) / float(Config.HERO["attack_cooldown"]), "hp": h.max_hp, "dead": h.dead}
 	return {
 		"gold": village.economy.amount("gold"), "food": village.economy.amount("food"), "materials": village.economy.amount("materials"),
-		"villagers": roles, "huts": village.intact_huts().size(), "explored": game.fog.explored_of[village.id].count(1),
+		"villagers": roles, "huts": village.intact_huts().size(), "farms": farms, "explored": game.fog.explored_of[village.id].count(1),
 		"army": army_snapshot(), "hero": hero,
 	}
 

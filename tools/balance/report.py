@@ -18,6 +18,7 @@ What it answers
                       needs for a wave's HP
   4. breaking point   what the last waves before a defeat looked like
   5. spending         where the gold, food and material went
+  5c. food           what the village made and ate: villagers' and army's upkeep, time out of food
 """
 import argparse
 import csv
@@ -216,6 +217,22 @@ def spending(runs):
             if k.startswith(("earn.", "spend.")) and k.count(".") == 2:
                 keys[k].append(v)
     return {k: mean(v) for k, v in sorted(keys.items())}
+
+
+def food(runs):
+    """Rows of what fed and what ate the village, per run: food made, eaten by
+    the villagers and by the army (upkeep), spent on recruits, the seconds out
+    of food (the army hungry) and the villagers who starved."""
+    def m(key):
+        return mean([float(r["counters"].get(key, 0)) for r in runs]) if runs else 0.0
+    return [
+        ["food earned", f(m("earn.food"), 0)],
+        ["eaten by the villagers", f(m("spend.food.upkeep_villagers"), 0)],
+        ["eaten by the army", f(m("spend.food.upkeep_army"), 0)],
+        ["spent on villagers", f(m("spend.food.villagers"), 0)],
+        ["seconds out of food (army hungry)", f(m("hungry_time"), 0)],
+        ["villagers starved", f(m("lost.starved"), 2)],
+    ]
 
 
 def army_gold(runs):
@@ -488,6 +505,10 @@ def main():
         rows = [[k, f(n, 1), f(g, 0)] for k, (n, g) in ag]
         md.append(md_table(["bought", "times", "gold"], rows))
         sections.append(("5b. Army gold", [], [table(["bought", "times", "gold"], rows)]))
+    fd = food(runs)
+    md.append("\n## 5c. Food (mean per run)\n")
+    md.append(md_table(["what", "amount"], fd))
+    sections.append(("5c. Food", [], [table(["what", "amount"], fd)]))
     refused = defaultdict(int)
     for r in runs:
         for k, v in r.get("refusals", {}).items():
