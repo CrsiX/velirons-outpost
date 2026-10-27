@@ -701,9 +701,15 @@ func road_in(near: Vector2i, n: int) -> Array[Vector2i]:
 			best = sp
 	if best == Vector2i(-1, -1):
 		return [] as Array[Vector2i]
+	return road_from(best, n)
+
+
+## The road from road tile `from` (say, a road's end at the map edge, with or
+## without an edge spawn) to the village: its last `n` tiles before the gate.
+func road_from(from: Vector2i, n: int) -> Array[Vector2i]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = spec.number
-	var full := game.world.pathing.enemy_route(best, rng)
+	var full := game.world.pathing.enemy_route(from, rng)
 	return full.slice(maxi(0, full.size() - n))
 
 

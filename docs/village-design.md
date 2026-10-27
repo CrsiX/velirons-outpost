@@ -42,6 +42,87 @@ in docs/multiplayer-design.md.
   upkeep (`Population.food_per_second`). Corpses and rats aren't counted.
 - Rats at a gate eat food, and thieves steal gold. See the enemy rules in CLAUDE.md.
 
+## 2a. Feeding the army, hunger and starvation (designed, not built yet)
+
+**Why:** one farm (`FARM_RATE` 0.4/s = 24 food/min) feeds 8 villagers (3/min each), and
+there are at most 9 huts. Two farms feed a full village, so late in a game food piles up and
+stops mattering. The army grows all game, so it is what should eat.
+
+### Army upkeep
+
+- Every military unit of a village eats (`MILITARY_UPKEEP`, food per second):
+  `base` × (1 + `per_level` × (level − 1)) × (`spec` if it is a specialisation).
+  Proposed: `base` 0.03, `per_level` 0.1, `spec` 1.5.
+
+  | Unit | per s | per min |
+  |---|---|---|
+  | base unit, level 1 | 0.030 | 1.8 |
+  | base unit, level 10 | 0.057 | 3.4 |
+  | specialisation, level 1 | 0.045 | 2.7 |
+  | specialisation, level 10 | 0.086 | 5.1 |
+
+  Early (3 archers at level 1: 5.4/min) it hardly shows. Late (9 villagers and 12
+  specialisations around level 8: 27 + 55 = 82/min) it takes 3-4 worked farms.
+- **Who eats:** every unit the village owns, wherever it is: on a post or bench, walking,
+  out on a sortie, in the reserve, downed. Scenario units that take no orders (the druids,
+  Fiona's mages) eat too. A unit sent to another village (co-op) eats from its sender until it
+  joins the other village's army.
+- **Who doesn't:** the hero (never: not at home, not in Support), summons (elementals,
+  thornlings), caravans. The Spatial Archmage is a villager and eats as one.
+- **Food flow** next to the food counter (`Population.food_per_second`) includes the army's
+  upkeep. The Army tab's cards and the unit's panel and upgrade dialog show its upkeep
+  ("eats 2.7 food/min"; the dialog shows the level after too). The library's Units page lists
+  upkeep at level 1 and 10.
+- **Scenarios:** `Scenario.army_upkeep` (a factor, default 1.0) scales it per scenario. The
+  ones whose food is tight by design (8: the band and no recruiting; 11: no farms, food carts)
+  are checked one by one and their carts / start food or the factor tuned in their own file.
+
+### Hunger (food at 0)
+
+- The village is **hungry** while its food is at 0 and something is due (`Population.starving`,
+  as now; it ends the moment any food comes in). One number, `HUNGER_PENALTY` (0.2), sets
+  all three effects. While hungry, every military unit of that village:
+  - **moves** at speed × (1 − 0.2): walking, sorties, returning to the reserve;
+  - **takes** damage × (1 + 0.2), from every source and category;
+  - **acts** at rate × (1 − 0.2): every timer of its attack, shot, cast, summon, heal and war
+    cry runs slower (`Combat.haste` gets a factor; it multiplies with a war cry's haste and a
+    siren's song).
+- Not affected: the hero, summons already out (their summoner just summons more slowly),
+  revive and regeneration times, the units' range.
+- **Showing it:** hungry units get a small grey empty-bowl icon over their heads (`UnitFx`,
+  like the war cry's chevrons; replicated to co-op clients from `population.starving`), and
+  their panel says "Hungry: 20 % slower, 20 % more damage taken". The food counter turns red
+  as now.
+
+### Starvation
+
+- While the village stays hungry, a villager starves every `STARVATION_INTERVAL`. Proposed:
+  **30 s** (up from 15). The first death comes 30 s after food hit 0, then every 30 s while it
+  stays at 0; any food coming in resets the timer.
+  - Why 30 s: hunger now hurts at once (the army weakens the moment food hits 0), so deaths
+    can wait longer. 30 s is enough to buy food at a stall, assign a farmer or wait for a
+    farmer's trip home, but 2 minutes of neglect still cost four villagers.
+- **Who starves first** (`Population.starve_victim`): among the village's villagers, the
+  lowest tier present, at random within it:
+  1. ordinary villagers (no `given_name`), the miner and the Spatial Archmage included;
+  2. named villagers no objective needs (Einar, Sigmund);
+  3. villagers the scenario needs (`Scenario.must_live`: Pell, Wenna, Anselm, Fiona, the
+     eldest priest). One of them starving loses the scenario, as it does now.
+
+  In a free game nobody is named, so it stays random.
+- **Warning:** the food-shortage banner (§10) reads "Food shortage: the army is weakened and
+  a villager starves in 22 s." (a live countdown), with the same tips.
+
+### Touches
+
+`config.gd` (`MILITARY_UPKEEP`, `HUNGER_PENALTY`, `STARVATION_INTERVAL`), `Population`
+(upkeep, `starve_victim`), `Soldier` (speed, damage taken), `Combat.haste`, `UnitFx`, `Hud`
+(flow, warning, panels), `Library`, `Scenario.army_upkeep`, scenario 1's food card ("a
+villager starves every 15 seconds": read from Config), statistics (food eaten, villagers and
+army as sub-rows), the balance bot's player (farms by upkeep, not by head count). Tests:
+sim_bot (upkeep, hunger effects, the 30 s, the order), hud_bot (the warning), scenario_bot
+(the scenarios' food still holds), library_bot.
+
 ## 3. Village, huts, raids and defeat
 
 - **Layout** (`VILLAGE_LAYOUT`): T tower, W wall, G gate, V hut.

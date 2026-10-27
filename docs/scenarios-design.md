@@ -33,16 +33,16 @@ The Dread Legion is Rhodri's organised army (`story-design.md` section 5) and le
 
 | # | Name | Where | Map (*target*) | Hero revives | New monsters | New units unlocked | Objective |
 |---|---|---|---|---|---|---|---|
-| 1 | Homecoming | Home (ruined) | Highlands | Yes | Wilderness, weaker | Archers can be hired, no specialising | Rebuild, grow the economy, survive 5 waves; no villager may die |
-| 2 | The Old Friend | Home | Highlands | Yes | none new | Barracks, shield bearer | Survive N waves, trade |
-| 3 | The Wardline | Home | Highlands | Yes | Renegades | Specialisations, training grounds | Restore the ruined towers |
+| 1 | Homecoming | Home (ruined) | Temperate | Yes | Wilderness, weaker | Archers can be hired, no specialising | Rebuild, grow the economy, survive 5 waves; no villager may die |
+| 2 | The Old Friend | Home | Temperate | Yes | none new | Barracks, shield bearer | Survive N waves, trade |
+| 3 | The Wardline | Home | Temperate | Yes | Renegades | Specialisations, training grounds | Restore the ruined towers |
 | 4 | The Split | The guild's trading town | Coast | No | more Renegades, giant crabs, at most one siren (Arcane) | none | Hold until the convoy leaves |
 | 5 | The Betrayal | Brenna's old fort | Highlands | No | Arcane (witches, gargoyles: *open*), a Dread Legion patrol | none | Find the evidence, hold the fort |
 | 6 | The Dead | A battlefield village | Desert | No | Undead, the first necromancers (Evil) | Acolyte (chapel) | Bury the dead |
 | 7 | The Exile | Fiona's refuge | Temperate | No | none new | Apprentice (mage's tower), Summoner (stone circle) | Hold the refuge |
 | 8 | The Pale Court | The capital's outskirts | Volcanic | No | vampires (Evil), Dread Legion camps | none | Clear the crypts |
 | 9 | The Drowned Abbey | A drowned abbey on a delta shore | Coast | No | leviathan (scripted boss), giant octopus (guard), Dread Legion forces | none | Retrieve the First King's Hand, slay the leviathan |
-| 10 | The Last Wardline | Home | Highlands | No | all, led by the Dread Legion | none | Survive the Legion |
+| 10 | The Last Wardline | Home | Temperate | No | all, led by the Dread Legion | none | Survive the Legion |
 | 11 | The Crown | The capital | Capital city (new, section 6) | No | all, the Dread Legion in force | none | Defeat Rhodri, survive the last wave |
 
 Hero level and the units the village starts with are part of each baseline (*target*: the hero from level 1 in scenario 1, rising by about two
@@ -53,8 +53,8 @@ in the normal game, is stated per scenario.
 
 ### 1. Homecoming
 
-**Where:** the home village and its surroundings, a ruined outpost. Brenna starts **outside** it. The map is the old tutorial's fixed Highlands
-map (*target*, section 4).
+**Where:** the home village and its surroundings, a ruined outpost. Brenna starts **outside** it. The map is a fixed, hand-made Temperate
+map ("Brenna's Home", 50x50; section 4).
 
 **Starting point:**
 - **Brenna** (level 1) wakes in a small tent **outside the village** (provisional: she slept on the way home). Step one is that she goes to the
@@ -820,10 +820,10 @@ The game has none of this yet, except where noted:
 
 ### 7.3 Scenario 1 as built (`scenario_1.gd`)
 
-- **Map:** `data/maps/homecoming.json`, made by `tools/make_scenario_map.gd` from the generator's Highlands seed 1337 (the old tutorial's map)
-  without unlock sites and lairs, with one ruined watchtower (the one nearest the village, by the west road). It is a normal map file: open it in
-  the map editor (it is listed with the built-in maps), change it, and Export it over the same file. The tool never overwrites it without `--force`.
-  The hero's start (41, 19) and her tent (42, 18) by the north road are set in `scenario_1.gd`; move them there if the map changes.
+- **Map:** `data/maps/homecoming.json`, "Brenna's Home": a 50x50 Temperate map made by hand in the map editor (never regenerated).
+  Roads from the north and west edges (with the enemies' edge spawns), the south road (ends at (47, 49), `SOUTH_ROAD`: Brenna's
+  road home and Pell's at the end) and the road by the lake (ends at (26, 49), `LAKE_ROAD`: scenario 2's stranger). Scenario 2
+  needs one ruined watchtower. The hero's start (46, 42) and her tent (44, 41) are set in `scenario_1.gd`; move them there if the map changes.
 - **Baseline:** Easy, with enemy HP, damage and spell damage at 0.5 (speed and loot as on Easy); 150 gold, 120 food, 180 material; a builder, a
   farmer and Einar the forester; the farm and the camp stand (not damaged); 4 of 9 huts stand; 1 gate, 3 walls and 1 wall tower stand at 60 % HP,
   the rest are devastated; smoke rises over some ruined huts until they are rebuilt. Brenna is level 1.
@@ -833,7 +833,7 @@ The game has none of this yet, except where noted:
   goblins, an ork and 5 rats; 5: 5 goblins, 2 orks, 2 big slimes and 5 rats. 40 s between waves. Corpses don't rot until the gatherers' card is done.
 - **Story:** the intro (a title card; the narrator: the old king is dead, they say, a rumour out here; Brenna wakes by her tent, the camera pans to
   the ruined village and its smoke); the walk home (no orders for her meanwhile; the camera follows her); the arrival (Einar greets her and
-  tells what happened; the rule that nobody may die); the outro (dusk, a cart with a lantern on the north road: Pell).
+  tells what happened; the rule that nobody may die); the outro (dusk, a cart with a lantern on the south road: Pell).
 - **Cards** (the tutorial's steps 1-7 and 11, and the rebuilding): rebuild a hut, a watchtower on the marked spot, the builder at work, an archer
   on the tower, a second farm (food), call wave 1, a gatherer, upgrade the archer, mend the walls (repair a gate, wall or wall tower).
 - **Hints** (once each, on the card and in the log): a villager fleeing an enemy, a villager hurt, food falling below 60, enemies inside the walls.
@@ -884,12 +884,11 @@ The game has none of this yet, except where noted:
 
 ### 7.6 Scenario 3 as built (`scenario_3.gd`)
 
-- **Map:** `data/maps/wardline.json`, 100x100: `tools/make_scenario_map.gd` (`-- 3`) grows the home map: it sits in the middle, a generated
-  Highlands map (seed 4711) fills the ring around it (its roads, villages and objects left out), and the home roads run on straight to the new
-  edges (bridges and fords where they cross water). The seams between the two show; smoothing them is for the map editor. Placed along the north
-  road (the road to the border), 13, 25 and 37 road tiles from the gate: three ruined watchtowers, and at 46 a ruined **barracks** (2x2); with the
-  one by the west road from the home map, four towers and the barracks. The two monster camps by the north road (from the home map) are in the
-  way: the builders flee from them, so the hero (or towers) must clear them.
+- **Map:** `data/maps/wardline.json`, 75x75: `tools/make_scenario_map.gd` (`-- 3`) grows the home map: it sits in the middle, a generated
+  Temperate map (seed 4711) fills the ring around it (its roads, villages and objects left out), and the home roads run on straight to the new
+  edges (bridges and fords where they cross water). The seams between the two show; smoothing them is for the map editor. Every road that reaches the
+  home map's edge runs on (the north and west ones with their edge spawns). The ruins are placed by hand (in progress): the scenario needs
+  five, four watchtowers (the one from the home map among them) and a barracks, along the north road.
 - **Ruined barracks:** a ruin object can have been a watchtower or barracks (`"building"` in the map file, format version 3;
   `RuinedTower.building()`): claimed and restored the same way (half its price: 10 material and 15 gold), it becomes devastated barracks.
 - **Baseline:** Easy, enemies at 0.75; 260 gold, 160 food, 220 material; two builders, two farmers, Einar, a gatherer, Pell; Pell's Trade Stall

@@ -84,7 +84,7 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"camera": r.at(r.game.player_village.center), "zoom": 0.9, "time": 0.01},
 		{"title": "The Wardline", "sub": "Scenario 3", "time": 3.0},
 		{"fade": "in", "time": 1.2},
-		{"say": "", "text": "Brenna and Pell walk the north road, past the place where her tent once stood."},
+		{"say": "", "text": "Brenna and Pell walk the north road, out towards the border."},
 		{"camera": ruin + Vector2(0, -40), "zoom": 1.1, "time": 3.5},
 		{"say": "pell", "text": "There. The first of them. Or what's left."},
 		{"say": "brenna", "text": "A Wardline tower. A whole chain of them ran along the border, each in sight of the next."},
