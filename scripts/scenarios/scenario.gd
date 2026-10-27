@@ -100,6 +100,8 @@ var hero_revives := true
 var fail_on_villager_death := false
 ## Named villagers whose death is a defeat ("Pell").
 var must_live: Array[String] = []
+## The army's food upkeep, as a factor of Config.MILITARY_UPKEEP (0: units eat nothing).
+var army_upkeep := 1.0
 ## Building kinds that must not fall: once every one of a kind is devastated
 ## (or gone), the scenario is lost (the guild warehouse).
 var must_stand: Array[String] = []

@@ -52,6 +52,7 @@ func _init() -> void:
 	specialise = true
 	hero_revives = false
 	must_live = ["Pell"]
+	army_upkeep = 0.0  # (no army upkeep here for now)
 
 	# The crypts, nearest first: when each wakes, its guards and what it sends.
 	lairs = [

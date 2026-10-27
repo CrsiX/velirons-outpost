@@ -94,6 +94,7 @@ func _build_visuals() -> void:
 	add_child(_unit_sprite)
 	UnitFx.add_halo(_unit_sprite, game, act_center)  # (a High Priest's blessing)
 	UnitFx.add_cry_mark(_unit_sprite, game, func() -> Object: return garrison)  # (a warrior's war cry)
+	UnitFx.add_hunger_mark(_unit_sprite, game, func() -> MilitaryUnit: return garrison)  # (out of food)
 	_spell_glow = Art.sprite("spell_glow")
 	_spell_glow.show_behind_parent = true
 	_spell_glow.visible = false
@@ -256,6 +257,7 @@ func info() -> Dictionary:
 	if garrison:
 		lines.append("%s, level %d%s" % [garrison.display_name(), garrison.level + 1, "  (bewitched!)" if is_enchanted() else ""])
 		lines.append_array(garrison.behavior.info_lines(garrison))
+		lines.append_array(garrison.food_lines())
 		var g := garrison
 		if not g.upgrade_options().is_empty():
 			actions.append({"label": "Upgrade %s..." % g.display_name().to_lower(), "action": func() -> void: game.hud.open_upgrade(g)})

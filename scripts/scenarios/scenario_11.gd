@@ -53,6 +53,7 @@ func _init() -> void:
 	specialise = true
 	hero_revives = false
 	must_live = ["Pell", "Fiona"]
+	army_upkeep = 0.0  # (no army upkeep here for now)
 
 	# Everything, the Legion at full strength; Rhodri comes out in the last.
 	waves = [

@@ -45,6 +45,7 @@ func setup(p_game: Game, p_unit: MilitaryUnit, from: Vector2i) -> void:
 	UnitFx.show_unit(sprite, unit.kind)
 	UnitFx.add_halo(sprite, game, func() -> Vector2: return grid_pos)
 	UnitFx.add_cry_mark(sprite, game, func() -> Object: return unit)
+	UnitFx.add_hunger_mark(sprite, game, func() -> MilitaryUnit: return unit)
 	set_grid_pos(Vector2(from))
 	add_to_group("observers")
 	add_to_group("melee_defenders")
@@ -252,7 +253,7 @@ static func _hunt_distance(e: Enemy, d: float, hunt: Dictionary) -> float:
 ## A warrior out on a sortie: at once, and then every cry_interval seconds,
 ## his war cry hastes every ally around him (Combat.war_cry).
 func _war_cry(delta: float) -> void:
-	_cry_cd -= delta
+	_cry_cd -= delta * unit.hunger_rate()
 	if _cry_cd > 0.0:
 		return
 	_cry_cd = float(unit.spec()["cry_interval"])
@@ -302,11 +303,18 @@ func _comrades_center() -> Vector2:
 	return sum / n if n > 0 else Vector2(barracks.work_tile())
 
 
+## Hungry (its village out of food), it walks Config.HUNGER_PENALTY slower.
+func _walk_factor() -> float:
+	return super._walk_factor() * (1.0 - Config.HUNGER_PENALTY if unit and unit.hungry() else 1.0)
+
+
 # --- taking hits ---------------------------------------------------------------------------
 
 func take_damage(amount: float, source = null, category: String = "pure") -> void:
 	if dead:
 		return
+	if unit.hungry():
+		amount *= 1.0 + Config.HUNGER_PENALTY
 	unit.hp -= amount
 	# A High Priest hit in melee on a sortie strikes back once its blow is ready.
 	if unit.role() == "support" and category == "melee" and source is Enemy and out_fighting() \

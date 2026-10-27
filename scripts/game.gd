@@ -619,6 +619,7 @@ func unit_info(unit: MilitaryUnit) -> Dictionary:
 	if not (unit.post is Tower):
 		lines.append("{hp} %d / %d" % [ceili(unit.hp), ceili(unit.max_hp())])
 	lines.append_array(unit.behavior.info_lines(unit))
+	lines.append_array(unit.food_lines())
 	lines.append("Drag it onto another tower or barracks to move it there, onto another unit to swap places, or onto the %s to withdraw it." % ("panel below" if Layout.portrait else "sidebar"))
 	var actions: Array[Dictionary] = []
 	if not unit.upgrade_options().is_empty():

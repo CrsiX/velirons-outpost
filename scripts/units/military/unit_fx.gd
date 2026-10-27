@@ -4,19 +4,23 @@ extends Node2D
 ## docs/acolyte-design.md): an acolyte's soft pulsing light behind the figure
 ## (Config.MILITARY "glow"), and the small holy halo over the head of anyone
 ## in a High Priest's aura (Combat.holy_bonus), and the red-orange double
-## chevron over anyone hasted by a warrior's war cry (Combat.haste). Also
-## swaps in a unit's casting frame for a moment ("cast_art").
+## chevron over anyone hasted by a warrior's war cry (Combat.haste), and an
+## empty bowl over a hungry unit (its village out of food:
+## MilitaryUnit.hungry). Also swaps in a unit's casting frame for a moment
+## ("cast_art").
 
-enum Kind { GLOW, HALO, CRY }
+enum Kind { GLOW, HALO, CRY, HUNGER }
 
 const CAST_TIME := 0.35
 const HALO_COLOR := Color(1.0, 0.9, 0.5)
 const CRY_COLOR := Color(1.0, 0.5, 0.18)
+const HUNGER_COLOR := Color(0.78, 0.74, 0.68)
 
 var kind := Kind.GLOW
 var color := Color.WHITE
 ## HALO: whose blessing to check, and where it stands (grid). CRY: `where`
-## gives the holder (MilitaryUnit, Hero, EarthElemental, or null).
+## gives the holder (MilitaryUnit, Hero, EarthElemental, or null). HUNGER:
+## `where` gives the MilitaryUnit (or null).
 var game: Game
 var where: Callable
 var _t := 0.0
@@ -82,6 +86,19 @@ static func add_cry_mark(s: Sprite2D, p_game: Game, p_holder: Callable) -> UnitF
 	return m
 
 
+## An empty bowl on `s` that shows while `p_unit` (a Callable giving the
+## MilitaryUnit, or null) is hungry.
+static func add_hunger_mark(s: Sprite2D, p_game: Game, p_unit: Callable) -> UnitFx:
+	var m := UnitFx.new()
+	m.name = "HungerMark"
+	m.kind = Kind.HUNGER
+	m.game = p_game
+	m.where = p_unit
+	m.visible = false
+	s.add_child(m)
+	return m
+
+
 func _process(delta: float) -> void:
 	_t += delta
 	if kind == Kind.GLOW:
@@ -93,6 +110,9 @@ func _process(delta: float) -> void:
 		_scan = 0.2
 		if kind == Kind.CRY:
 			visible = is_instance_valid(game) and Combat.haste(game, where.call()) > 1.0
+		elif kind == Kind.HUNGER:
+			var u := where.call() as MilitaryUnit
+			visible = u != null and u.hungry()
 		else:
 			visible = is_instance_valid(game) and Combat.holy_bonus(game, where.call()) > 0.0
 
@@ -116,6 +136,16 @@ func _draw() -> void:
 			var pts := PackedVector2Array([c + Vector2(-6, 4), c, c + Vector2(6, 4)])
 			draw_polyline(pts, Color(0.2, 0.08, 0.02, 0.8), 5.0, true)
 			draw_polyline(pts, CRY_COLOR, 3.0, true)
+		return
+	if kind == Kind.HUNGER:  # a small empty bowl beside the head, opposite the chevrons
+		var c := Vector2(-r.size.x * 0.28, maxf(r.position.y + 12.0, -84.0))
+		var bowl := PackedVector2Array()
+		for i in 9:
+			var a := PI * i / 8.0
+			bowl.append(c + Vector2(cos(a) * 7.0, sin(a) * 5.0))
+		draw_colored_polygon(bowl, Color(0.12, 0.09, 0.07, 0.85))
+		draw_polyline(bowl, HUNGER_COLOR, 2.0, true)
+		draw_line(c + Vector2(-8.0, 0.0), c + Vector2(8.0, 0.0), HUNGER_COLOR, 2.0, true)
 		return
 	# A still, thin ring of light just over the head (sprite pixels: 2 x art units).
 	var y := maxf(r.position.y + 4.0, -92.0)

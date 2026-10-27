@@ -18,6 +18,7 @@ func _build_visuals() -> void:
 	_unit_sprite.show_behind_parent = true
 	_unit_sprite.position = Iso.to_world(Vector2(0.35, -0.1))
 	add_child(_unit_sprite)
+	UnitFx.add_hunger_mark(_unit_sprite, game, func() -> MilitaryUnit: return garrison)  # (out of food)
 	_site_sprite = Art.sprite("site")
 	_site_sprite.show_behind_parent = true
 	_site_sprite.scale *= 1.4

@@ -248,7 +248,7 @@ func _village_data(v: Village) -> Dictionary:
 		"unl": game.unlocks.keys(),
 		"rel": v.relics.duplicate(),
 		"eco": [v.economy.amount("gold"), v.economy.amount("food"), v.economy.amount("materials")],
-		"starve": v.population.starving,
+		"starve": [v.population.starving, snappedf(v.population.starve_timer, 0.1)],
 		"army": army,
 		"fallen": game.villages.map(func(o: Village) -> bool: return o.fallen),
 		"wave": [w.wave, snappedf(w.countdown, 0.1), w.in_progress(), w.enemies_left(), w.can_call()],
@@ -426,7 +426,9 @@ func _apply_village(vd: Dictionary) -> void:
 	game.world.sync_net_sacks(vd.get("sacks", []))
 	var eco: Array = vd["eco"]
 	v.economy.set_amounts({"gold": eco[0], "food": eco[1], "materials": eco[2]})
-	v.population.starving = vd["starve"]
+	var starve: Array = vd["starve"]
+	v.population.starving = starve[0]
+	v.population.starve_timer = starve[1]
 	# Army: keep our MilitaryUnit objects, keyed by id.
 	var keep := {}
 	for a in vd["army"]:

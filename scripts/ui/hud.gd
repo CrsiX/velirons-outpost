@@ -166,14 +166,13 @@ var _speed_index := 0
 ## Speed to go back to when Space ends a pause Space started (-1: the pause
 ## was set with the speed button, so Space goes to 1x).
 var _resume_index := -1
-## "No builder" banner: shown once the build queue has waited Config.NO_BUILDER_DELAY s
-## with nobody to work on it (no builder, and the hero alive but not building).
+## "No builder" banner: shown once the build queue has waited Config.NO_BUILDER_DELAY
+## game seconds with nobody to work on it (no builder, and the hero alive but not building).
 var _builder_warning: Label
 var _no_builder_for := 0.0
-## "Food shortage" banner (under the builder's): shown once the food has been
-## at 0 with a negative rate for Config.FOOD_SHORTAGE_DELAY s, with a tip how to fix it.
+## "Food shortage" banner (under the builder's): a countdown over the last
+## Config.STARVATION_WARNING s before a villager starves, with a tip how to fix it.
 var _food_warning: Label
-var _food_short_for := 0.0
 
 var _sidebar: PanelContainer  # the dock: right sidebar or bottom sheet
 var _sidebar_toggle: Button
@@ -1750,7 +1749,9 @@ func _build_page_army() -> Control:
 	var grid := _entry_grid(v)
 	for kind in Config.MILITARY_ORDER:
 		var spec: Dictionary = Config.MILITARY[kind]
-		var e := _entry(Art.tex("unit_" + kind), spec["name"], spec["desc"], "Recruit  (%s)" % Config.cost_icons(spec["cost"]), func() -> void:
+		var eats := Config.unit_upkeep(kind, 0) * MilitaryUnit.upkeep_factor(game) * 60.0
+		var desc: String = spec["desc"] + (" Eats %.1f food a minute." % eats if eats > 0.0 else "")
+		var e := _entry(Art.tex("unit_" + kind), spec["name"], desc, "Recruit  (%s)" % Config.cost_icons(spec["cost"]), func() -> void:
 			_do("recruit_unit", {"kind": kind}))
 		grid.add_child(e["panel"])
 		_military_buttons[kind] = e["button"]
@@ -1838,6 +1839,7 @@ func _refresh_reserve_texts(reserve: Array[MilitaryUnit]) -> void:
 		set_rich_text(_upgrade_reserve_button, "Selected %s is max level" % _selected_unit.display_name().to_lower() if opts.is_empty() else ("Upgrade selected..." if opts.size() > 1 else "Upgrade selected  (%s)" % Config.cost_icons(opts[0]["cost"])))
 		var info: Array[String] = ["%s, level %d: {hp} %d / %d" % [_selected_unit.display_name(), _selected_unit.level + 1, ceili(_selected_unit.hp), ceili(_selected_unit.max_hp())]]
 		info.append_array(_selected_unit.behavior.info_lines(_selected_unit))
+		info.append_array(_selected_unit.food_lines())
 		_set_rich_label(_selected_info, "\n".join(info), 15)
 
 
@@ -2215,13 +2217,13 @@ func _place_food_warning() -> void:
 		_food_warning.offset_top += _builder_warning.get_combined_minimum_size().y + 4.0
 
 
-## Out of food and still losing it?
-func food_short() -> bool:
+## Out of food, and a villager starves within Config.STARVATION_WARNING s?
+func food_warning_due() -> bool:
 	var p := game.population
-	return int(game.economy.amount("food")) <= 0 and p.food_per_second() < 0.0
+	return p.starving and p.starve_left() <= Config.STARVATION_WARNING
 
 
-## The food-shortage warning with its tip, by what is missing:
+## The food-shortage countdown with its tip, by what is missing:
 ## no farm -> build one; farms but no farmer -> recruit one; a free farm and a
 ## farmer without a farm -> assign them; all worked -> just the warning.
 func food_warning_text() -> String:
@@ -2236,12 +2238,12 @@ func food_warning_text() -> String:
 		tip = "Recruit a farmer (Village tab)."
 	elif farms.any(func(f: Farm) -> bool: return f.farmer == null) and not game.population.free_farmers().is_empty():
 		tip = "Assign a farmer to a farm (tap the farm)."
-	return "Food shortage: villagers will starve." + (" " + tip if tip != "" else "")
+	var left := maxi(ceili(game.population.starve_left()), 1)
+	return "Food shortage: a villager starves in %d." % left + (" " + tip if tip != "" else "")
 
 
-func _refresh_food_warning(delta: float) -> void:
-	_food_short_for = _food_short_for + delta if food_short() else 0.0
-	_food_warning.visible = _food_short_for >= Config.FOOD_SHORTAGE_DELAY
+func _refresh_food_warning() -> void:
+	_food_warning.visible = food_warning_due()
 	if _food_warning.visible:
 		_food_warning.text = food_warning_text()
 		_place_food_warning()
@@ -2468,7 +2470,7 @@ func open_upgrade(unit: MilitaryUnit) -> void:
 	for opt in unit.upgrade_options():
 		# (a wrapping button needs a width to wrap in, or it measures one word per line)
 		var trained := ", %d%% trained" % floori(100.0 * unit.trained_share()) if opt["to"] == unit.kind and not opt["archmage"] and unit.train_xp > 0.0 else ""
-		var b := _button("%s   (%s%s)" % [MilitaryUnit.option_text(opt), Config.cost_icons(opt["cost"]), trained], Vector2(_upgrade_width(), 52))
+		var b := _button("%s   (%s%s)" % [MilitaryUnit.option_text(opt, MilitaryUnit.upkeep_factor(game)), Config.cost_icons(opt["cost"]), trained], Vector2(_upgrade_width(), 52))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", 15)
 		b.set_meta("cost", opt["cost"])
@@ -3447,10 +3449,9 @@ func _process(delta: float) -> void:
 		_refresh_log()  # (every frame while messages fade)
 	_tick -= delta
 	if _tick <= 0.0:
-		# The warnings wait real seconds, and not while the game is paused.
-		var real := 0.0 if get_tree().paused else (0.25 - _tick) / maxf(Engine.time_scale, 0.001)
-		_refresh_builder_warning(real)
-		_refresh_food_warning(real)
+		# The builder's warning waits game seconds, not while the game is paused.
+		_refresh_builder_warning(0.0 if get_tree().paused else 0.25 - _tick)
+		_refresh_food_warning()
 		_tick = 0.25
 		_refresh_wave()
 		_refresh_resources()

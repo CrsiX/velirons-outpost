@@ -881,13 +881,24 @@ const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "acolyt
 const CIVILIAN_HP := 20.0
 const CIVILIAN_REGEN := 2.0
 const FOOD_UPKEEP := 0.05  # food per civilian per second
-const STARVATION_INTERVAL := 15.0  # a civilian dies this often while food is 0
-## HUD warnings (real seconds, whatever the game speed; paused time doesn't
-## count): "nobody can build" once the build queue has waited
-## this long with no builder (and the hero not building); "food shortage" once
-## the food has been at 0 with a negative rate this long.
+## Every military unit eats too (docs/village-design.md §2a), wherever it is
+## (post, bench, reserve, walking, downed); the hero and summons never do.
+## Food per second: base x (1 + per_level x (level - 1)), x spec for a
+## specialisation (a "branch_of" kind). Scenario.army_upkeep scales it.
+const MILITARY_UPKEEP := {"base": 0.03, "per_level": 0.1, "spec": 1.2}
+## While a village's food is at 0 (hungry), every military unit of it moves
+## this share slower, takes this share more damage, and its attack, shot,
+## cast, summon, heal and war-cry timers run this share slower.
+const HUNGER_PENALTY := 0.2
+## While food stays at 0, a villager starves every STARVATION_INTERVAL game
+## seconds (named villagers last: Population.starve_victim); the HUD's
+## food-shortage warning counts down the last STARVATION_WARNING seconds.
+const STARVATION_INTERVAL := 15.0
+const STARVATION_WARNING := 5.0
+## HUD warning "nobody can build" once the build queue has waited this long
+## (game seconds; paused time doesn't count) with no builder (and the hero
+## not building).
 const NO_BUILDER_DELAY := 5.0
-const FOOD_SHORTAGE_DELAY := 5.0
 
 const BUILDER_REST := 3.0
 ## How builders (and the hero in Build mode) pick their next job from the
@@ -1290,6 +1301,13 @@ static func unit_stat(kind: String, key: String, level: int) -> float:
 	var ends: Array = spec["stats"][key]
 	var curve: float = spec.get("curves", {}).get(key, spec.get("curve", 1.0))
 	return _curve(ends[0], ends[1], clampi(level, 0, MAX_UNIT_LEVEL - 1), MAX_UNIT_LEVEL, curve)
+
+
+## Food per second a unit of `kind` at `level` (0-based) eats (MILITARY_UPKEEP).
+static func unit_upkeep(kind: String, level: int) -> float:
+	var u: Dictionary = MILITARY_UPKEEP
+	var spec_x: float = u["spec"] if MILITARY[kind].has("branch_of") else 1.0
+	return float(u["base"]) * (1.0 + float(u["per_level"]) * level) * spec_x
 
 
 ## Gold to go from `level` to the next one (0-based), or {} at the top.

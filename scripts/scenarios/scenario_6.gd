@@ -45,6 +45,7 @@ func _init() -> void:
 	specialise = true
 	hero_revives = false
 	must_live = ["Pell", "Anselm"]
+	army_upkeep = 0.0  # (no army upkeep here for now)
 	# The chapel is only sleeping: Brenna can wake it from the start.
 	sites = {"chapel": 0}
 

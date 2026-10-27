@@ -486,6 +486,7 @@ static func _units() -> Array[Dictionary]:
 		if m.has("summon"):
 			f.append("Summons: %s" % Config.SUMMONS[m["summon"]]["name"])
 		f.append("Speed %s tiles/s" % _n(m["speed"]))
+		f.append("Eats %s to %s food a minute (level 1 to %d); while the food is at 0 it is hungry: %d %% slower, %d %% more damage taken" % [_n(snappedf(Config.unit_upkeep(kind, 0) * 60.0, 0.1)), _n(snappedf(Config.unit_upkeep(kind, top) * 60.0, 0.1)), Config.MAX_UNIT_LEVEL, roundi(Config.HUNGER_PENALTY * 100.0), roundi(Config.HUNGER_PENALTY * 100.0)])
 		f.append("Level 2 costs %s, or %d hero XP at the training grounds" % [Config.cost_text(Config.unit_upgrade_cost(kind, 0)), int(Config.unit_train_xp(kind, 0))])
 		if m.has("branches"):
 			var names := PackedStringArray()

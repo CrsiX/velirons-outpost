@@ -1483,6 +1483,7 @@ func _run() -> void:
 	game.economy.consume_food(100000.0)
 	await wait(Config.STARVATION_INTERVAL + 2.0)
 	check(game.population.count() < pop1, "a villager starves when food runs out")
+	await _hunger_checks()
 
 	# --- UI texts talk about enemies, not goblins -------------------------------------------
 	var texts := ""
@@ -1979,3 +1980,55 @@ func _test_flee_resume() -> void:
 	check(back2 and not ex.at_home and ex.job.state != ExploreJob.State.RESTING, "and its job goes on from there once it is gone (exploring, or home when nothing is left to find)")
 	game.command("hero_mode", {"mode": hero_mode})
 	await clear_enemies()
+
+
+## The army eats, goes hungry at 0 food, and named villagers starve last
+## (docs/village-design.md §2a). Food is at 0 when this starts.
+func _hunger_checks() -> void:
+	var pop := game.population
+	game.economy.add("gold", 500)
+	var base := pop.upkeep()
+	var u := game.army.recruit("archer")
+	check(u != null and is_equal_approx(pop.upkeep() - base, Config.MILITARY_UPKEEP["base"]), "a level 1 archer eats MILITARY_UPKEEP.base food per second")
+	var top := Config.MAX_UNIT_LEVEL - 1
+	var want := float(Config.MILITARY_UPKEEP["base"]) * (1.0 + float(Config.MILITARY_UPKEEP["per_level"]) * top) * float(Config.MILITARY_UPKEEP["spec"])
+	check(is_equal_approx(Config.unit_upkeep("crossbowman", top), want), "a level 10 specialisation eats base x (1 + per_level x 9) x spec")
+	check(pop.food_per_second() < 0.0 and is_equal_approx(pop.upkeep(), Config.FOOD_UPKEEP * pop.count() + pop.army_upkeep()), "the food flow counts the army's upkeep")
+	await frames(2)
+	check(pop.starving and u.hungry() and is_equal_approx(u.rate(game), 1.0 - Config.HUNGER_PENALTY), "food at 0: the army is hungry, its timers run HUNGER_PENALTY slower")
+	check(u.food_lines().any(func(l: String) -> bool: return l.begins_with("Hungry")), "a hungry unit's panel says so")
+	var post: MilitaryPost = null
+	for b in game.world.buildings:
+		if b is MilitaryPost and b.village == game.player_village and game.army.station_error(u, b) == "":
+			post = b
+			break
+	check(post != null and game.army.station(u, post), "the hungry archer walks to a post")
+	var s := u.walker as Soldier
+	if s != null:
+		var ground := game.world.map.walk_factor(s.current_tile())
+		check(is_equal_approx(s._walk_factor(), ground * (1.0 - Config.HUNGER_PENALTY)), "a hungry soldier walks HUNGER_PENALTY slower")
+		var hp := u.hp
+		s.take_damage(5.0, null, "melee")
+		check(is_equal_approx(hp - u.hp, 5.0 * (1.0 + Config.HUNGER_PENALTY)), "a hungry soldier takes HUNGER_PENALTY more damage")
+		u.hp = u.max_hp()
+		check(s.sprite.get_node_or_null("HungerMark") != null, "a soldier carries the hunger mark")
+	game.economy.add("food", 200)
+	await frames(2)
+	check(not pop.starving and not u.hungry() and is_equal_approx(u.rate(game), 1.0), "food again: nobody is hungry")
+	if s != null and is_instance_valid(s):
+		check(is_equal_approx(s._walk_factor(), game.world.map.walk_factor(s.current_tile())), "fed, a soldier walks at its speed again")
+	# Who starves first: ordinary villagers, then named ones.
+	var civs := pop.civilians.duplicate()
+	if civs.size() >= 2:
+		for c: Civilian in civs:
+			c.given_name = "Named"
+		var plain: Civilian = civs[0]
+		plain.given_name = ""
+		var picks := {}
+		for i in 20:
+			picks[pop.starve_victim()] = true
+		check(picks.size() == 1 and picks.has(plain), "an ordinary villager starves before any named one")
+		plain.given_name = "Named"
+		check(pop.starve_victim() != null, "with only named villagers left, one of them starves")
+		for c: Civilian in civs:
+			c.given_name = ""

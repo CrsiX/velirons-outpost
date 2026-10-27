@@ -179,7 +179,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
     it too, so the info panel has room above it.
 - `SIDEBAR_W`, `SHEET_MAX`, `SHEET_MIN_CONTENT`, `SHEET_FLICK` and `DRAG_THRESHOLD` are layout
   constants in `hud.gd`, not balance numbers, so they aren't in `config.gd`. (The warning delays
-  are tunables, so they are: `Config.NO_BUILDER_DELAY`, `Config.FOOD_SHORTAGE_DELAY`.)
+  are tunables, so they are: `Config.NO_BUILDER_DELAY`, `Config.STARVATION_WARNING`.)
 
 ## 5. Placing buildings (`Game.begin_build` and friends)
 
@@ -306,15 +306,17 @@ Big touch targets everywhere, so mouse and fingers work the same.
 - **No builder** (`NO_BUILDER_DELAY` 5 s): something waits in the build queue, there is no builder,
   and the hero is alive but not in Build mode. It says "No builder: nothing will be built. Recruit a
   builder (Village tab) or set the hero to Build."
-- **Food shortage** (`FOOD_SHORTAGE_DELAY` 5 s): the food has been at 0 with a negative rate for
-  that long. It sits right under the no-builder warning when that shows, else in its place.
+- **Food shortage** (`STARVATION_WARNING` 5 s): a countdown over the last 5 s before a villager
+  starves while the food is at 0 ("Food shortage: a villager starves in 5." … "1"; then it is gone
+  and a villager starves; docs/village-design.md §2a). It sits right under the no-builder warning
+  when that shows, else in its place.
   `Hud.food_warning_text()` picks the tip:
   - no farm → build one;
   - a farm but no farmer → recruit one;
   - a farm without a farmer and a farmer without a farm → assign them;
   - every farm worked → the warning alone, no tip.
-- Both are checked in the HUD's 0.25 s refresh tick (`_process`). The delays are **real seconds**,
-  whatever the game speed (4× doesn't shorten them), and time while the game is paused doesn't count.
+- Both are checked in the HUD's 0.25 s refresh tick (`_process`). Their timing is in **game
+  seconds** (4× runs it 4× as fast), and time while the game is paused doesn't count.
 
 ## 9. Settings and the library
 

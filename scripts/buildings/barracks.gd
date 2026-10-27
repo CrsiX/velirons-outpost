@@ -29,6 +29,8 @@ func _build_visuals() -> void:
 		s.visible = false
 		add_child(s)
 		_bench_sprites.append(s)
+		var at := i
+		UnitFx.add_hunger_mark(s, game, func() -> MilitaryUnit: return slots[at] if at < slots.size() else null)
 	_site_sprite = Art.sprite("site")
 	_site_sprite.show_behind_parent = true
 	_site_sprite.scale *= 1.4

@@ -30,8 +30,10 @@ var game: Game
 ## The village these villagers belong to.
 var village: Village
 var civilians: Array[Civilian] = []
+## Food at 0 with upkeep due: the army is hungry (MilitaryUnit.hungry) and a
+## villager starves every Config.STARVATION_INTERVAL s (`starve_timer` counts up).
 var starving := false
-var _starve_timer := 0.0
+var starve_timer := 0.0
 
 
 func setup(p_village: Village, spawn_start: bool = true) -> void:
@@ -55,13 +57,34 @@ func cap() -> int:
 	return village.intact_huts().size()
 
 
-## Net food flow: upkeep plus the average output of worked farms.
+## Net food flow: the average output of worked farms minus the villagers'
+## and the army's upkeep.
 func food_per_second() -> float:
 	var food := 0.0
 	for b in game.world.buildings:
 		if b is Farm and b.village == village and b.complete and b.farmer != null:
 			food += (b as Farm).rate()
-	return food - Config.FOOD_UPKEEP * civilians.size()
+	return food - upkeep()
+
+
+## Food per second the village eats: its villagers and its army.
+func upkeep() -> float:
+	return Config.FOOD_UPKEEP * civilians.size() + army_upkeep()
+
+
+## Food per second the village's military units eat (MilitaryUnit.upkeep);
+## the hero and summons eat nothing.
+func army_upkeep() -> float:
+	var food := 0.0
+	if village.army != null:
+		for u in village.army.units:
+			food += u.upkeep()
+	return food
+
+
+## Seconds until the next villager starves (only meaningful while starving).
+func starve_left() -> float:
+	return maxf(Config.STARVATION_INTERVAL - starve_timer, 0.0)
 
 
 ## Intact huts nobody lives in yet.
@@ -173,18 +196,34 @@ func kill_random(n: int) -> void:
 
 
 func _process(delta: float) -> void:
-	if game == null or game.is_client or civilians.is_empty():
+	if game == null or game.is_client:
 		return
-	starving = village.economy.consume_food(Config.FOOD_UPKEEP * civilians.size() * delta)
-	if starving:
-		_starve_timer += delta
-		if _starve_timer >= Config.STARVATION_INTERVAL:
-			_starve_timer = 0.0
-			if not civilians.is_empty():
-				kill(civilians[randi() % civilians.size()], "of starvation", "starved")
+	starving = upkeep() > 0.0 and village.economy.consume_food(upkeep() * delta)
+	if starving and not civilians.is_empty():
+		starve_timer += delta
+		if starve_timer >= Config.STARVATION_INTERVAL:
+			starve_timer = 0.0
+			kill(starve_victim(), "of starvation", "starved")
 			village.toast("A villager starved to death.", Color("ff7a6a"))
 	else:
-		_starve_timer = 0.0
+		starve_timer = 0.0
+
+
+## Who starves next: a random villager of the lowest tier there is. Ordinary
+## villagers first, then named ones (given_name), and those a scenario needs
+## (Scenario.must_live) last.
+func starve_victim() -> Civilian:
+	var must: Array[String] = []
+	if game.scenario:
+		must = game.scenario.spec.must_live
+	var tiers: Array = [[], [], []]
+	for c in civilians:
+		var tier := 0 if c.given_name == "" else (2 if must.has(c.given_name) else 1)
+		tiers[tier].append(c)
+	for t: Array in tiers:
+		if not t.is_empty():
+			return t[randi() % t.size()]
+	return null
 
 
 ## The nearest mine this village has found that nobody works or heads for.

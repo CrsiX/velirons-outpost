@@ -399,7 +399,8 @@ func _economy_buildings() -> void:
 	var mine := _free_mine()
 	if mine != null and not village.population.free_workers("miner").is_empty():
 		_cmd("assign_miner", {"mine": mine.nid})
-	var farms := int(profile["farms"])
+	# At least the profile's farms, and enough to feed the villagers and the army.
+	var farms := maxi(int(profile["farms"]), ceili(village.population.upkeep() / Config.FARM_RATE))
 	if village.economy.amount("food") < 40.0 and village.population.food_per_second() < 0.0:
 		farms += 1  # the food is running out
 	if _repair_wanted:

@@ -245,6 +245,9 @@ Their level 1 (85-90 HP, 5.2-7.2 DPS) is above the shield bearer's level 3
     reserve of the village that sent it (it never arrived).
 - **Healing:** a unit heals `UNIT_REGEN` HP per second (1 HP/s) while it sits on
   a barracks bench or rests unused in the reserve. Healing mages heal too.
+- **Food:** every unit eats (`MILITARY_UPKEEP`), and while its village's food is
+  at 0 it is hungry: `HUNGER_PENALTY` slower to move and act, more damage taken.
+  See docs/village-design.md §2a.
 
 ## 5. Barracks
 

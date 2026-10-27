@@ -328,7 +328,8 @@ func _test_hud_extras() -> void:
 	await _food_warning_check()
 
 
-## Food at 0 and falling for 5 s: a warning, with a tip by what is missing.
+## Food at 0: a countdown over the last STARVATION_WARNING s before a villager
+## starves, with a tip by what is missing.
 func _food_warning_check() -> void:
 	var hud := game.hud
 	var pop := game.population
@@ -344,25 +345,31 @@ func _food_warning_check() -> void:
 	if farm.farmer != null:
 		pop.unassign_farmer(farm)
 	game.economy.set_amounts({"food": 0})
-	hud._food_short_for = 0.0
-	hud._refresh_food_warning(3.0)
+	await frames(2)
+	pop.starve_timer = 0.0
+	hud._refresh_food_warning()
 	var early := hud._food_warning.visible
-	hud._refresh_food_warning(2.5)
-	check(not early and hud._food_warning.visible and "Food shortage" in hud._food_warning.text, "food at 0 and falling: after 5 s a food-shortage warning")
+	pop.starve_timer = Config.STARVATION_INTERVAL - Config.STARVATION_WARNING + 0.5
+	hud._refresh_food_warning()
+	check(pop.starving and not early and hud._food_warning.visible and "Food shortage: a villager starves in 5." in hud._food_warning.text, "food at 0: no warning at first, then a countdown over the last 5 s (%s)" % hud._food_warning.text)
+	pop.starve_timer = Config.STARVATION_INTERVAL - 0.2
+	check("starves in 1." in hud.food_warning_text(), "the countdown ends at 1")
+	pop.starve_timer = Config.STARVATION_INTERVAL - Config.STARVATION_WARNING + 0.5
 	check("Assign a farmer" in hud._food_warning.text, "a free farm and a farmer without one: assign them (%s)" % hud._food_warning.text)
 	pop.assign_farmer(farm)
 	for c in pop.civilians.duplicate():
 		if c.role == "farmer" and c != farm.farmer:
 			pop.kill(c)
 	var tip := hud.food_warning_text()
-	check(tip.begins_with("Food shortage") and tip.ends_with("starve."), "every farm worked: just the warning, no tip (%s)" % tip)
+	check(tip.begins_with("Food shortage") and tip.ends_with("starves in 5."), "every farm worked: just the warning, no tip (%s)" % tip)
 	pop.kill(farm.farmer)
 	check("Recruit a farmer" in hud.food_warning_text(), "a farm but no farmer: recruit one")
 	game.construction.order_tear_down(farm)
 	check("Build a farm" in hud.food_warning_text(), "no farm: build one")
 	game.economy.add("food", 10)
-	hud._refresh_food_warning(0.25)
-	check(not hud._food_warning.visible, "food in store: no warning")
+	await frames(2)
+	hud._refresh_food_warning()
+	check(not hud._food_warning.visible, "food in store: no warning (starving %s, timer %.1f, food %.1f, paused %s)" % [pop.starving, pop.starve_timer, game.economy.amount("food"), get_tree().paused])
 	game.economy.set_amounts({"food": 500})
 
 

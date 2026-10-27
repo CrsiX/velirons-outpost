@@ -130,11 +130,44 @@ func max_hp() -> float:
 	return stat("hp")
 
 
+## Food per second it eats (Config.unit_upkeep, scaled by a scenario's
+## army_upkeep; Population.army_upkeep sums them).
+func upkeep() -> float:
+	return Config.unit_upkeep(kind, level) * upkeep_factor(village.game if village else null)
+
+
+## A scenario's army_upkeep (1 in a free game).
+static func upkeep_factor(game: Game) -> float:
+	return game.scenario.spec.army_upkeep if game != null and game.scenario != null else 1.0
+
+
+## Its panel lines about food: what it eats, and how hunger weakens it.
+func food_lines() -> Array[String]:
+	var out: Array[String] = []
+	if upkeep() > 0.0:
+		out.append("Eats {food} %.1f per minute" % (upkeep() * 60.0))
+	if hungry():
+		var pct := roundi(100.0 * Config.HUNGER_PENALTY)
+		out.append("Hungry (no food): %d%% slower, %d%% more damage taken" % [pct, pct])
+	return out
+
+
+## Its village is out of food (Population.starving): it moves, acts and
+## shrugs off hits Config.HUNGER_PENALTY worse.
+func hungry() -> bool:
+	return village != null and village.population != null and village.population.starving
+
+
+## Its timers' factor from hunger (1 = fed).
+func hunger_rate() -> float:
+	return 1.0 - Config.HUNGER_PENALTY if hungry() else 1.0
+
+
 ## How fast its attack, summon and heal timers run (1 = normal): a war cry's
-## haste, a siren's song at `pos` (grid; where it acts from), and a
+## haste, a siren's song at `pos` (grid; where it acts from), hunger, and a
 ## berserker's rage (the more HP it has lost, the faster).
 func rate(game: Game, pos := Vector2.INF) -> float:
-	var r := Combat.haste(game, self, pos)
+	var r := Combat.haste(game, self, pos) * hunger_rate()
 	if has_stat("rage"):
 		var missing := clampf(1.0 - hp / max_hp(), 0.0, 1.0)
 		r /= maxf(1.0 - stat("rage") * missing, 0.05)
@@ -222,7 +255,8 @@ func upgrade_options() -> Array[Dictionary]:
 
 
 ## A short stat line for an upgrade option ("Archer 6: 27 damage, every 0.62 s").
-static func option_text(opt: Dictionary) -> String:
+## `factor`: the game's upkeep_factor, for what the option eats.
+static func option_text(opt: Dictionary, factor := 1.0) -> String:
 	if opt["archmage"]:
 		return "Spatial Archmage: leaves the army and becomes a civilian"
 	var k: String = opt["to"]
@@ -246,4 +280,6 @@ static func option_text(opt: Dictionary) -> String:
 		parts.append("hits flyers")
 	if sp.has("range"):
 		parts.append("range %.1f" % sp["range"])
+	if factor > 0.0:
+		parts.append("eats {food} %.1f/min" % (Config.unit_upkeep(k, lv) * factor * 60.0))
 	return " ".join(parts)

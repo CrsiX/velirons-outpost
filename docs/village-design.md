@@ -26,23 +26,21 @@ in docs/multiplayer-design.md.
 | Resource | Start (`START_RESOURCES`) | Comes from | Spent on |
 |---|---|---|---|
 | Gold | 150 | kills (`gold_on_kill`, at once), corpses brought home (`gold_on_collect`), calling a wave early, treasures and lairs, mines | military units and upgrades, barracks / training grounds, buying material, the Spatial Archmage |
-| Food | 120 | farms (carried home by farmers), corpses (`food_on_collect`), shipwreck treasures | recruiting villagers, upkeep |
+| Food | 120 | farms (carried home by farmers), corpses (`food_on_collect`), shipwreck treasures | recruiting villagers, upkeep of villagers and the army |
 | Material | 70 | foresters, buying it, tear-down and cancel refunds, treasures and lairs | buildings, tower / barracks / gate / wall upgrades, repairs, rebuilding huts |
 
 - **Upkeep:** `FOOD_UPKEEP` 0.05 food per villager per second (3 per minute). Every villager
-  eats, the miner and the Spatial Archmage too; the hero and soldiers eat nothing.
-- **Starvation:** while food is at 0, a timer runs. Every `STARVATION_INTERVAL` (15 s) a
-  random villager dies ("of starvation", Important) and a toast says so. The timer resets as
-  soon as there is food again.
+  eats, the miner and the Spatial Archmage too. The army eats as well (§2a); the hero never.
+- **Starvation and hunger:** see §2a.
 - **Buying material** (tap the material counter): `MATERIALS_TRADE`, 10 material for 15 gold.
   The dialog offers 1 or 5 bundles (`Economy.buy_materials`, command `buy_materials`).
 - **Calling a wave early** pays `EARLY_CALL_GOLD_PER_SECOND` (0.5) gold for every second left
   on the countdown, to every village (`Waves.early_call_bonus`).
 - **Food flow** shown next to the food (per minute): worked farms' average output minus
-  upkeep (`Population.food_per_second`). Corpses and rats aren't counted.
+  the villagers' and the army's upkeep (`Population.food_per_second`, `upkeep`). Corpses and rats aren't counted.
 - Rats at a gate eat food, and thieves steal gold. See the enemy rules in CLAUDE.md.
 
-## 2a. Feeding the army, hunger and starvation (designed, not built yet)
+## 2a. Feeding the army, hunger and starvation
 
 **Why:** one farm (`FARM_RATE` 0.4/s = 24 food/min) feeds 8 villagers (3/min each), and
 there are at most 9 huts. Two farms feed a full village, so late in a game food piles up and
@@ -50,19 +48,22 @@ stops mattering. The army grows all game, so it is what should eat.
 
 ### Army upkeep
 
-- Every military unit of a village eats (`MILITARY_UPKEEP`, food per second):
-  `base` × (1 + `per_level` × (level − 1)) × (`spec` if it is a specialisation).
-  Proposed: `base` 0.03, `per_level` 0.1, `spec` 1.5.
+- Every military unit of a village eats (`MILITARY_UPKEEP`, food per second;
+  `Config.unit_upkeep`, `MilitaryUnit.upkeep`, summed by `Population.army_upkeep`):
+  `base` × (1 + `per_level` × (level − 1)) × (`spec` if it is a specialisation, a
+  `"branch_of"` kind). `base` 0.03, `per_level` 0.1, `spec` 1.2.
 
   | Unit | per s | per min |
   |---|---|---|
   | base unit, level 1 | 0.030 | 1.8 |
   | base unit, level 10 | 0.057 | 3.4 |
-  | specialisation, level 1 | 0.045 | 2.7 |
-  | specialisation, level 10 | 0.086 | 5.1 |
+  | specialisation, level 1 | 0.036 | 2.2 |
+  | specialisation, level 10 | 0.068 | 4.1 |
 
-  Early (3 archers at level 1: 5.4/min) it hardly shows. Late (9 villagers and 12
-  specialisations around level 8: 27 + 55 = 82/min) it takes 3-4 worked farms.
+  A villager eats `FOOD_UPKEEP` 0.05/s (3/min): a fresh unit eats a bit more than half a
+  villager, a level 10 specialisation about 1.4. Early (3 archers at level 1: 5.4/min) it
+  hardly shows. Late (9 villagers and 12 specialisations around level 8: 27 + 44 = 71/min) it
+  takes 3 worked farms.
 - **Who eats:** every unit the village owns, wherever it is: on a post or bench, walking,
   out on a sortie, in the reserve, downed. Scenario units that take no orders (the druids,
   Fiona's mages) eat too. A unit sent to another village (co-op) eats from its sender until it
@@ -70,38 +71,41 @@ stops mattering. The army grows all game, so it is what should eat.
 - **Who doesn't:** the hero (never: not at home, not in Support), summons (elementals,
   thornlings), caravans. The Spatial Archmage is a villager and eats as one.
 - **Food flow** next to the food counter (`Population.food_per_second`) includes the army's
-  upkeep. The Army tab's cards and the unit's panel and upgrade dialog show its upkeep
-  ("eats 2.7 food/min"; the dialog shows the level after too). The library's Units page lists
-  upkeep at level 1 and 10.
-- **Scenarios:** `Scenario.army_upkeep` (a factor, default 1.0) scales it per scenario. The
-  ones whose food is tight by design (8: the band and no recruiting; 11: no farms, food carts)
-  are checked one by one and their carts / start food or the factor tuned in their own file.
+  upkeep. Shown: the Army tab's recruit entries ("Eats 1.8 food a minute."), the unit's lines
+  in its panel, a tower's panel and the reserve's selection (`MilitaryUnit.food_lines`: "Eats
+  {food} 1.8 per minute"), each upgrade option ("eats {food} 2.0/min", the level after), and
+  the library's Units page (level 1 to 10, and what hunger does).
+- **Scenarios:** `Scenario.army_upkeep` (a factor, default 1.0; `MilitaryUnit.upkeep_factor`)
+  scales it per scenario, set in the scenario's own file. Scenarios 6, 8 and 11 set it to 0
+  for now (no army upkeep there: their food is tight by design; the texts then don't mention
+  upkeep); the others eat as in a free game.
 
 ### Hunger (food at 0)
 
 - The village is **hungry** while its food is at 0 and something is due (`Population.starving`,
-  as now; it ends the moment any food comes in). One number, `HUNGER_PENALTY` (0.2), sets
-  all three effects. While hungry, every military unit of that village:
-  - **moves** at speed × (1 − 0.2): walking, sorties, returning to the reserve;
-  - **takes** damage × (1 + 0.2), from every source and category;
-  - **acts** at rate × (1 − 0.2): every timer of its attack, shot, cast, summon, heal and war
-    cry runs slower (`Combat.haste` gets a factor; it multiplies with a war cry's haste and a
-    siren's song).
+  as now; it ends the moment any food comes in). `MilitaryUnit.hungry`. One number,
+  `HUNGER_PENALTY` (0.2), sets all three effects. While hungry, every military unit of that
+  village:
+  - **moves** at speed × (1 − 0.2): walking, sorties, returning to the reserve
+    (`Soldier._walk_factor`);
+  - **takes** damage × (1 + 0.2), from every source and category (`Soldier.take_damage`);
+  - **acts** at rate × (1 − 0.2): every timer of its attack, shot, cast, summon and heal
+    (`MilitaryUnit.rate` × `hunger_rate`; it multiplies with a war cry's haste, a siren's
+    song and a berserker's rage) and a warrior's war-cry interval.
 - Not affected: the hero, summons already out (their summoner just summons more slowly),
   revive and regeneration times, the units' range.
-- **Showing it:** hungry units get a small grey empty-bowl icon over their heads (`UnitFx`,
-  like the war cry's chevrons; replicated to co-op clients from `population.starving`), and
-  their panel says "Hungry: 20 % slower, 20 % more damage taken". The food counter turns red
-  as now.
+- **Showing it:** hungry units get a small grey empty bowl beside the head, opposite the war
+  cry's chevrons (`UnitFx.add_hunger_mark`: soldiers, tower units, benches, the training
+  grounds; a co-op client sees it for its own village, from the replicated `starving`), and
+  their panel says "Hungry (no food): 20% slower, 20% more damage taken". The food counter
+  turns red as before.
 
 ### Starvation
 
-- While the village stays hungry, a villager starves every `STARVATION_INTERVAL`. Proposed:
-  **30 s** (up from 15). The first death comes 30 s after food hit 0, then every 30 s while it
-  stays at 0; any food coming in resets the timer.
-  - Why 30 s: hunger now hurts at once (the army weakens the moment food hits 0), so deaths
-    can wait longer. 30 s is enough to buy food at a stall, assign a farmer or wait for a
-    farmer's trip home, but 2 minutes of neglect still cost four villagers.
+- While the village stays hungry, a villager starves every `STARVATION_INTERVAL` (15 s;
+  `Population.starve_timer` counts up, replicated to co-op clients). The first death comes
+  15 s after food hit 0, then every 15 s while it stays at 0; any food coming in resets the
+  timer. The death is logged ("of starvation", Important) with a toast.
 - **Who starves first** (`Population.starve_victim`): among the village's villagers, the
   lowest tier present, at random within it:
   1. ordinary villagers (no `given_name`), the miner and the Spatial Archmage included;
@@ -109,19 +113,14 @@ stops mattering. The army grows all game, so it is what should eat.
   3. villagers the scenario needs (`Scenario.must_live`: Pell, Wenna, Anselm, Fiona, the
      eldest priest). One of them starving loses the scenario, as it does now.
 
-  In a free game nobody is named, so it stays random.
-- **Warning:** the food-shortage banner (§10) reads "Food shortage: the army is weakened and
-  a villager starves in 22 s." (a live countdown), with the same tips.
-
-### Touches
-
-`config.gd` (`MILITARY_UPKEEP`, `HUNGER_PENALTY`, `STARVATION_INTERVAL`), `Population`
-(upkeep, `starve_victim`), `Soldier` (speed, damage taken), `Combat.haste`, `UnitFx`, `Hud`
-(flow, warning, panels), `Library`, `Scenario.army_upkeep`, scenario 1's food card ("a
-villager starves every 15 seconds": read from Config), statistics (food eaten, villagers and
-army as sub-rows), the balance bot's player (farms by upkeep, not by head count). Tests:
-sim_bot (upkeep, hunger effects, the 30 s, the order), hud_bot (the warning), scenario_bot
-(the scenarios' food still holds), library_bot.
+  So named villagers are spared as long as anyone else is left. In a free game nobody is
+  named, so it stays random.
+- **Warning:** the food-shortage banner (§10) shows only in the last `STARVATION_WARNING`
+  (5) seconds of each period, as a countdown: "Food shortage: a villager starves in 5." … "4"
+  … "1", plus the same tips. Then it is gone, a villager starves (log and toast as now), and
+  the next 15 s period starts: 10 s without the banner (the bowls over the units and the red
+  food counter still show the hunger), then the countdown again. It follows the starvation
+  timer (game seconds), so at 4× speed the countdown runs 4× as fast; paused, it stops.
 
 ## 3. Village, huts, raids and defeat
 
@@ -460,18 +459,18 @@ under surveillance (clear). The rendering is `FogLayer`; the observers are anyth
 
 ## 10. Warnings
 
-Both are red banners under the top bar, checked every 0.25 s in `Hud`. Their delays are in
-config.gd and count real seconds, whatever the game speed; paused time doesn't count.
+Both are red banners under the top bar, checked every 0.25 s in `Hud`. Their timing is in
+config.gd and counts game seconds (at 4× it runs 4× as fast); paused time doesn't count.
 
 - **No builder** (`NO_BUILDER_DELAY` 5 s, `Hud.nobody_builds`):
   - shown when something waits in the build queue, the village has no builder, and the hero
     is alive but not in Build mode. While the hero is downed it doesn't show;
   - the text: "No builder: nothing will be built. Recruit a builder (Village tab) or set the
     hero to Build."
-- **Food shortage** (`FOOD_SHORTAGE_DELAY` 5 s, `Hud.food_short`, `Hud.food_warning_text`):
-  - shown when food has been at 0 with a negative food flow for 5 s. It sits under the
-    builder warning when both show;
-  - "Food shortage: villagers will starve." plus a tip, by what is missing:
+- **Food shortage** (`STARVATION_WARNING` 5 s, `Hud.food_warning_due`, `Hud.food_warning_text`):
+  - shown only in the last 5 s before a villager starves (§2a), as a countdown; then it is
+    gone until the next period's last 5 s. It sits under the builder warning when both show;
+  - "Food shortage: a villager starves in 5." (… 4, 3, 2, 1) plus a tip, by what is missing:
     1. no working farm → "Build a farm (Build tab).";
     2. farms but no farmer → "Recruit a farmer (Village tab).";
     3. a farm without a farmer and a farmer without a farm → "Assign a farmer to a farm (tap
