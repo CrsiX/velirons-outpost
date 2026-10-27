@@ -82,6 +82,9 @@ func _run() -> void:
 	game.fog.reveal_all()  # (the whole map known, as the Debug page's Reveal does)
 	game.waves.countdown = 99999.0
 	game.waves.hold = true
+	# (Fed for good: a starving village's units are slower (HUNGER_PENALTY), and
+	# how soon its food runs out depends on how long the checks take.)
+	game.economy.add("food", 100000)
 	far = game.map.edge_spawns[0]
 	Engine.time_scale = 4.0
 	await _test_barracks()

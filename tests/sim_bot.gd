@@ -2027,8 +2027,8 @@ func _hunger_checks() -> void:
 	# Who starves first: ordinary villagers, then named ones.
 	var civs := pop.civilians.duplicate()
 	if civs.size() >= 2:
-		for c: Civilian in civs:
-			c.given_name = "Named"
+		for civ: Civilian in civs:
+			civ.given_name = "Named"
 		var plain: Civilian = civs[0]
 		plain.given_name = ""
 		var picks := {}
@@ -2037,5 +2037,5 @@ func _hunger_checks() -> void:
 		check(picks.size() == 1 and picks.has(plain), "an ordinary villager starves before any named one")
 		plain.given_name = "Named"
 		check(pop.starve_victim() != null, "with only named villagers left, one of them starves")
-		for c: Civilian in civs:
-			c.given_name = ""
+		for civ: Civilian in civs:
+			civ.given_name = ""
