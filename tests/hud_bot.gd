@@ -572,6 +572,15 @@ func _test_map() -> void:
 	check(not m.visible and cam.position.distance_to(Iso.tile_to_world(spot)) < 40.0, "a click centres the view there and closes the map")
 	await frames(2)
 	check(is_equal_approx(hud._toasts.get_global_rect().end.x, beside), "closed: toasts leave the open sidebar free again")
+	# A click on a building selects it too; Shift+click only moves the view.
+	var corner: Building = game.player_village.buildings().filter(func(b: Building) -> bool: return b.kind == "wall_tower")[0]
+	game.deselect()
+	hud.toggle_map(true)
+	_map_click(m, m.to_screen(Iso.tile_to_world(corner.tile)), true)
+	var none := game.selected == null and m.visible
+	_map_click(m, m.to_screen(Iso.tile_to_world(corner.tile)))
+	check(none and not m.visible and game.selected == corner and hud._info_panel.visible, "a click on a tower selects it (its panel open); Shift+click selects nothing")
+	game.deselect()
 	check(cam.is_processing_unhandled_input() and cam.is_processing(), "closed: the camera takes input again")
 	# Esc, M, other popups and the view keys close it.
 	hud.toggle_map(true)
@@ -622,6 +631,21 @@ func _test_map() -> void:
 	fog.watched_of[fog.local][i] = was[1]
 	fog.disabled = true
 	check(seen_all and hidden and watched, "an enemy shows on the map only where the village watches the land")
+	# A post's slot: filled while its unit sits there, a ring while it is away.
+	var post: MilitaryPost = null
+	for b in game.player_village.buildings():
+		if b.kind == "wall_tower" and (b as MilitaryPost).free_slot() == 0:
+			post = b
+			break
+	var archer := game.army.recruit("archer")
+	game.army.station(archer, post)
+	await wait_until(func() -> bool: return archer.state == MilitaryUnit.State.STATIONED, 20.0)
+	var sat := m._seated(post, 0)
+	archer.out = true  # (as if out on a sortie)
+	var away := not m._seated(post, 0)
+	archer.out = false
+	check(sat and away, "a post's slot shows its unit while it sits there, not while it is away")
+	game.command("withdraw_unit", {"unit": archer.nid})
 	await frames(2)  # (drawn with every layer on, no errors)
 	await clear_enemies()
 	hud.close_map()

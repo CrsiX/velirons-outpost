@@ -400,9 +400,24 @@ func _tactical_map() -> void:
 	var walls := v.buildings().filter(func(b: Building) -> bool: return b.kind == "wall")
 	(walls[0] as Building).hp *= 0.35
 	(walls[1] as Building).hp *= 0.7
+	# Barracks at level 3 with three shield bearers, one hurt (one dot per bench).
+	var spot := _free_spot_in(g, "barracks", v.center + Vector2i(6, 0))
+	var bar := v.construction.place("barracks", spot) as Barracks
+	bar.finish()
+	for k in 2:
+		bar.upgrading = true
+		bar.finish_upgrade()
+	v.economy.add("gold", 2000)
+	var bearers: Array[MilitaryUnit] = []
+	for k in 3:
+		var sb := v.army.recruit("shield_bearer")
+		v.army.station(sb, bar)
+		bearers.append(sb)
 	g.command("hero_mode", {"mode": Hero.Mode.EXPLORE})
 	Engine.time_scale = 6.0
 	await _frames(240)
+	bearers[0].hp *= 0.4
+	bearers[1].hp *= 0.7
 	Engine.time_scale = 1.0
 	var roads: Array[Vector2i] = []  # (road tiles 6-9 out: watched land, so the map shows them)
 	for y in g.map.size:

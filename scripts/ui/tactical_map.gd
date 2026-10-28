@@ -12,6 +12,8 @@ signal closed
 
 const C := Config.TACTICAL_MAP
 const DRAG_THRESHOLD := 12.0
+## Slots in a row: centre to centre, in slot-dot radii.
+const SLOT_GAP := 4.0
 ## The toggles, in their order along the top: layer key -> [icon, tooltip].
 const LAYERS := {
 	"rings": ["icon_range", "Range rings of manned towers and barracks"],
@@ -237,8 +239,9 @@ func _clamp() -> void:
 	_center = _center.clamp(c - half, c + half)
 
 
-## A click or tap at `screen`: the game's view is centred there; closes the
-## map unless `stay`.
+## A click or tap at `screen`: the game's view is centred there; unless
+## `stay`, the map closes and what stands on that tile is selected (its panel
+## would close the map anyway).
 func pick(screen: Vector2, stay: bool) -> void:
 	var g := Iso.to_grid(to_world(screen))
 	var n := float(game.map.size)
@@ -246,8 +249,27 @@ func pick(screen: Vector2, stay: bool) -> void:
 	last_focus = Iso.to_world(g)
 	game.events.debug("map: view to %s" % str(Vector2i(g.round())))
 	game.camera.focus(last_focus)
-	if not stay:
-		close()
+	if stay:
+		return
+	close()
+	var b := building_on(Vector2i(g.round()))
+	if b != null:
+		game.select(b)
+
+
+## What a click on tile `t` selects: the building whose footprint covers it
+## (a post rather than the unit on it), else a map object the village has
+## found there; null on land it hasn't explored.
+func building_on(t: Vector2i) -> Building:
+	if not _explored(t):
+		return null
+	var b := game.map.building_at(t) as Building
+	if b != null and not (b is MapObject) and is_instance_valid(b):
+		return b
+	for o in game.world.map_objects:
+		if is_instance_valid(o) and o.is_found_by(game.player_village) and t in o.tiles():
+			return o
+	return null
 
 
 # --- input ----------------------------------------------------------------------------
@@ -455,8 +477,37 @@ func _draw_buildings() -> void:
 			draw_colored_polygon(_tile_poly(t), col)
 		if not (b is StaticPiece):  # (walls and gates join up; everything else gets an edge)
 			draw_polyline(_footprint_outline(b), Color(col.darkened(0.6), 1.0), 1.0, true)
-		if b is MilitaryPost and b.working() and not (b as MilitaryPost).units().is_empty():
-			draw_circle(_footprint_center(b), _dot_radius(0.8), C["manned"])
+		if b is MilitaryPost and b.working() and b.village != null:
+			_draw_slots(b as MilitaryPost)
+
+
+## One dot per slot (a tower's post, each bench of barracks), in a row across
+## the building: filled while its unit sits there, an empty ring while the
+## slot is free or its unit is away (marching, out on a sortie, downed).
+func _draw_slots(b: MilitaryPost) -> void:
+	var ours := b.village == game.player_village
+	if not ours and not _watched(b.tile):
+		return
+	var col: Color = C["slot"] if ours else C["ally_unit"]
+	var r := _dot_radius(0.8)
+	for i in b.capacity():
+		var p := _slot_point(b, i)
+		if _seated(b, i):
+			draw_circle(p, r, col)
+		else:
+			draw_arc(p, r, 0.0, TAU, 16, Color(col, 0.7), 1.2, true)
+
+
+## Where slot `i` of `b` is drawn: a row across its middle.
+func _slot_point(b: MilitaryPost, i: int) -> Vector2:
+	var n := b.capacity()
+	return _footprint_center(b) + Vector2((i - (n - 1) / 2.0) * _dot_radius(0.8) * SLOT_GAP, 0.0)
+
+
+## Is slot `i`'s unit sitting there now?
+func _seated(b: MilitaryPost, i: int) -> bool:
+	var u: MilitaryUnit = b.slots[i] if i < b.slots.size() else null
+	return u != null and u.state == MilitaryUnit.State.STATIONED and not u.out
 
 
 func _footprint_center(b: Building) -> Vector2:
@@ -507,25 +558,42 @@ func _ours(n: Node) -> bool:
 	return "village" in n and n.get("village") == game.player_village
 
 
+## Villagers outside the walls, units and summons out in the field, heroes:
+## ours, and (co-op) other villages' where the village watches the land, in
+## their own colours.
 func _draw_people() -> void:
 	var r := _dot_radius()
 	for n in get_tree().get_nodes_in_group("villagers"):
 		var c := n as Civilian
-		if c == null or c is Hero or c.dead or not c.visible or not _ours(c) or c.at_home or c.inside_walls():
+		if c == null or c is Hero or c.dead or not c.visible or c.at_home or c.inside_walls():
 			continue
-		draw_circle(_grid_screen(c.grid_pos), r * 0.8, C["villager"])
+		if _ours(c):
+			draw_circle(_grid_screen(c.grid_pos), r * 0.8, C["villager"])
+		elif _watched(c.current_tile()):
+			draw_circle(_grid_screen(c.grid_pos), r * 0.8, C["ally_villager"])
 	for group in ["field_units", "summons"]:
 		for n in get_tree().get_nodes_in_group(group):
 			var u := n as Unit
-			if u == null or not u.visible or not _ours(u) or ("dead" in u and u.get("dead")):
+			if u == null or not u.visible or ("dead" in u and u.get("dead")):
 				continue
-			draw_circle(_grid_screen(u.grid_pos), r, C["unit"])
-	var h: Hero = game.hero
-	if h != null:
-		var p := _grid_screen(h.grid_pos)
-		var col: Color = C["downed"] if h.dead else C["hero"]
-		draw_circle(p, r * 1.6, col)
-		draw_arc(p, r * 2.4, 0.0, TAU, 24, col, 2.0, true)
+			if _ours(u):
+				draw_circle(_grid_screen(u.grid_pos), r, C["unit"])
+			elif _watched(u.current_tile()):
+				draw_circle(_grid_screen(u.grid_pos), r, C["ally_unit"])
+	for n in get_tree().get_nodes_in_group("heroes"):
+		var h := n as Hero
+		if h == null or h.village == game.player_village or h.dead or not _watched(h.current_tile()):
+			continue
+		_hero_mark(_grid_screen(h.grid_pos), C["ally_unit"])
+	var mine: Hero = game.hero
+	if mine != null:
+		_hero_mark(_grid_screen(mine.grid_pos), C["downed"] if mine.dead else C["hero"])
+
+
+func _hero_mark(p: Vector2, col: Color) -> void:
+	var r := _dot_radius()
+	draw_circle(p, r * 1.6, col)
+	draw_arc(p, r * 2.4, 0.0, TAU, 24, col, 2.0, true)
 
 
 ## The enemies the map shows: alive, in sight, on land the village watches.
@@ -563,11 +631,14 @@ func _draw_hp_bars() -> void:
 		var share := 0.0 if b.devastated else b.hp_share()
 		if share < 1.0:
 			_hp_bar(_footprint_center(b), share)
-		elif b is MilitaryPost:
-			for u in (b as MilitaryPost).units():
-				if u.hp < u.max_hp():
-					_hp_bar(_footprint_center(b), u.hp / u.max_hp())
-					break
+		elif b is MilitaryPost and b.working():
+			# A hurt unit sitting on its post or bench: over its slot's dot
+			# (out on a sortie, its own dot carries its bar).
+			var post := b as MilitaryPost
+			for i in post.capacity():
+				var u: MilitaryUnit = post.slots[i] if i < post.slots.size() else null
+				if _seated(post, i) and u.hp < u.max_hp():
+					_hp_bar(_slot_point(post, i), u.hp / u.max_hp(), _dot_radius(0.8) * (SLOT_GAP - 0.6) / _hp_width(), 1.3)
 	if is_on("units"):
 		for n in get_tree().get_nodes_in_group("field_units"):
 			var so := n as Soldier
@@ -578,11 +649,16 @@ func _draw_hp_bars() -> void:
 			_hp_bar(_grid_screen(h.grid_pos), h.hp / h.max_hp)
 
 
-## A small bar above `p`, green / yellow / red like the hero's.
-func _hp_bar(p: Vector2, share: float) -> void:
+func _hp_width() -> float:
+	return (C["hp_bar"] as Vector2).x * clampf(sqrt(_zoom), 1.0, 2.0)
+
+
+## A small bar above `p`, green / yellow / red like the hero's (`width`: a
+## share of the usual width; `lift`: how far above, in dot radii).
+func _hp_bar(p: Vector2, share: float, width := 1.0, lift := 2.6) -> void:
 	share = clampf(share, 0.0, 1.0)
-	var bar_size: Vector2 = C["hp_bar"] * clampf(sqrt(_zoom), 1.0, 2.0)
-	var rect := Rect2(p - Vector2(bar_size.x / 2.0, bar_size.y + _dot_radius(2.6)), bar_size)
+	var bar_size := Vector2(_hp_width() * width, (C["hp_bar"] as Vector2).y * clampf(sqrt(_zoom), 1.0, 2.0))
+	var rect := Rect2(p - Vector2(bar_size.x / 2.0, bar_size.y + _dot_radius(lift)), bar_size)
 	draw_rect(rect.grow(1.0), Color("15110d"))
 	if share > 0.0:
 		draw_rect(Rect2(rect.position, Vector2(rect.size.x * share, rect.size.y)), Hud.hero_hp_color(share))

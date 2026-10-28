@@ -1472,9 +1472,10 @@ const TACTICAL_MAP := {
 		"lightstone": Color("9fd8ff"), "other": Color("b09a7a"),
 	},
 	"devastated": Color("5a1810"),
-	"manned": Color("f2e2b0"),  # the dot on a manned tower or barracks
+	"slot": Color("f6f2e6"),  # a post's slot (tower, bench): filled while its unit sits there, a ring while free or away
 	"ring": Color(0.95, 0.85, 0.5, 0.55),  # range rings
-	"unit": Color("4f8fe0"), "villager": Color("e8e0cf"), "hero": Color("e0b340"), "downed": Color("8a8a8a"),
+	"unit": Color("4f8fe0"), "villager": Color("7fd36b"), "hero": Color("e0b340"), "downed": Color("8a8a8a"),  # ours out in the field
+	"ally_unit": Color("9a6cf0"), "ally_villager": Color("d2b8ff"),  # co-op: other villages' units (heroes, posts too) and villagers
 	"enemy": Color("e0303a"), "flyer": Color("ff8a7a"), "named": Color("f2c230"), "warning": Color("ff4030"),
 	"dot": 3.0,  # px radius of a unit or enemy at the fitted size (grows a little with the zoom)
 	"hp_bar": Vector2(18, 4),  # px, at the fitted size

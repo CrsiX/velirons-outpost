@@ -494,7 +494,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
 
 An overview of the whole map from above, to read the situation at a glance: where the land is
 watched, where the enemies are, which posts are manned and what is hurt. It is only an overview:
-nothing is placed, stationed, upgraded or selected on it.
+nothing is placed, stationed or upgraded on it.
 
 - **Opening:** **M**, or the map icon (`icon_map`) in the top bar, left of the library. M again,
   Esc, the close button (`icon_no`) or a click on the map closes it. It is a HUD popup
@@ -512,8 +512,10 @@ nothing is placed, stationed, upgraded or selected on it.
   fitted size, about the pointer or the centre), and a drag or WASD / the arrows pan it. A drag never
   counts as a click (`DRAG_THRESHOLD`).
 - **A click or tap** on a spot of the map centres the game's view there (`CameraController.focus`)
-  and closes the map. Shift+click, or a long press with a finger (`TACTICAL_MAP.long_press`), centres
-  the view and keeps the map open. There is no outline of the view on the map.
+  and closes the map. If a building stands on that tile (its footprint: a post rather than the unit on
+  it), or a map object the village has found, it is selected too, its panel open
+  (`TacticalMap.building_on`). Shift+click, or a long press with a finger (`TACTICAL_MAP.long_press`), centres
+  the view and keeps the map open, selecting nothing. There is no outline of the view on the map.
 - **Layers**, bottom to top, all from the local player's village (co-op: its own fog):
   1. *Ground:* `MapPlan.ground_color` per tile, drawn when the map opens; a felled tree
      (`World.tree_felled`) changes its tile at once.
@@ -522,19 +524,24 @@ nothing is placed, stationed, upgraded or selected on it.
   3. *Buildings* on explored land: each tile of its footprint in its colour (`colors`: huts, walls,
      gates, wall towers, watchtowers, barracks, farms, camps, light stones, other buildings; another
      village's in its village colour). A devastated building or ruined hut shows dark red
-     (`devastated`), a site lighter (`site_alpha`). A tower or barracks with a unit on it has a light
-     dot (`manned`).
+     (`devastated`), a site lighter (`site_alpha`). Every tower, barracks and training grounds shows one dot per
+     slot (a tower's post, each bench) in a row across it (`slot`, white): filled while its unit sits
+     there, an empty ring while the slot is free or its unit is away (marching, out on a sortie,
+     downed). Another village's posts show theirs in `ally_unit`.
   4. *Map objects* found by the village, in `MapPlan.OBJECT_COLORS` (an awake lair with a red rim).
   5. *Range rings* (toggle): every manned tower's range (`Tower.range_tiles`) and every barracks'
      activation range with a unit on its benches, as thin ellipses (`ring`).
-  6. *Our people* (toggle): units out in the field (soldiers) and summons as dots (`unit`), villagers
-     outside the walls (`villager`), the hero bigger with a ring (`hero`); downed, her mark where
-     she fell is grey.
+  6. *Our people* (toggle): units out in the field (walking, on a sortie) and summons as blue dots
+     (`unit`), villagers outside the walls green (`villager`), the hero gold, bigger with a ring
+     (`hero`); downed, her mark where she fell is grey. Co-op: other villages' units, summons and
+     heroes violet (`ally_unit`), their villagers lavender (`ally_villager`), where the village
+     watches the land.
   7. *Enemies* (toggle): a red dot per living enemy on watched land (`enemy`; flyers lighter, named
      ones bigger with a gold ring), and the warning lights (`WarningLights.spots`) as pulsing red
      marks (`warning`). Nothing on land that isn't watched.
-  8. *HP bars* (toggle): over the hero and units in the field when hurt, over towers with a hurt unit
-     on them (the hero's and the units' bars only with *our people* on), and over every damaged building (HP below max, or devastated: empty), green / yellow /
+  8. *HP bars* (toggle): over the hero and units in the field when hurt, over a hurt unit's slot while it
+     sits there (out on a sortie its own dot carries its bar; the hero's and the field units' bars only
+     with *our people* on), and over every damaged building (HP below max, or devastated: empty), green / yellow /
      red like the hero's bar (`hp_bar`).
 - **Toggles:** four icon buttons along the top edge, each with a tooltip, framed when on and dimmed
   when off: range rings (`icon_range`), HP bars (`icon_hp`), our people (`icon_army`), enemies
