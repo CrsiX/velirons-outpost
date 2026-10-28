@@ -521,8 +521,12 @@ func _test_map() -> void:
 	check(hud._map_button.get_index() + 1 == hud._book_button.get_index() and top == hud._book_button.get_parent(), "the map icon sits left of the library")
 	check("M" in hud.KEYS_HELP.map(func(r: Array) -> String: return r[0]), "F1's list has M")
 	var layers := Settings.map_layers.duplicate()
+	hud.set_dock_open(true)
+	await frames(2)
+	var beside := hud._toasts.get_global_rect().end.x
 	hud._unhandled_key_input(_press(KEY_M))
 	await frames(2)
+	check(not hud._portrait and beside < hud._root.size.x - 1.0 and is_equal_approx(hud._toasts.get_global_rect().end.x, hud._root.get_global_rect().end.x) and is_equal_approx(hud._builder_warning.offset_right, -20.0), "the map covers the sidebar: toasts and warnings centre over it (%.0f, %.0f)" % [beside, hud._toasts.get_global_rect().end.x])
 	check(m.visible and hud.top_popup() == m, "M opens the map, a popup")
 	check(not cam.is_processing_unhandled_input() and not cam.is_processing(), "the camera takes no input while the map is open")
 	check(m.offset_top >= hud._top_h - 0.5, "the map stays under the top bar (%.0f, %.0f)" % [m.offset_top, hud._top_h])
@@ -566,6 +570,8 @@ func _test_map() -> void:
 	var spot := game.player_village.center + Vector2i(-5, 4)
 	_map_click(m, m.to_screen(Iso.tile_to_world(spot)))
 	check(not m.visible and cam.position.distance_to(Iso.tile_to_world(spot)) < 40.0, "a click centres the view there and closes the map")
+	await frames(2)
+	check(is_equal_approx(hud._toasts.get_global_rect().end.x, beside), "closed: toasts leave the open sidebar free again")
 	check(cam.is_processing_unhandled_input() and cam.is_processing(), "closed: the camera takes input again")
 	# Esc, M, other popups and the view keys close it.
 	hud.toggle_map(true)

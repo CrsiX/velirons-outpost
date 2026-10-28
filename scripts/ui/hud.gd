@@ -1686,11 +1686,13 @@ func _relayout() -> void:
 	_toasts.offset_top = _top_h + 70.0
 	_builder_warning.offset_top = _top_h + 34.0
 	_builder_warning.offset_left = 20.0
-	_builder_warning.offset_right = -(SIDEBAR_W + 20.0) if not _portrait and _side_open else -20.0
+	# (the open sidebar is left free, unless the tactical map covers it)
+	var side := not _portrait and _side_open and not (tactical_map and tactical_map.visible)
+	_builder_warning.offset_right = -(SIDEBAR_W + 20.0) if side else -20.0
 	_food_warning.offset_left = 20.0
 	_food_warning.offset_right = _builder_warning.offset_right
 	_place_food_warning()
-	_toasts.offset_right = -SIDEBAR_W if not _portrait and _side_open else 0.0
+	_toasts.offset_right = -SIDEBAR_W if side else 0.0
 	_mode_panel.offset_top = _top_h + 10.0
 	_mode_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if _portrait else TextServer.AUTOWRAP_OFF
 	_mode_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _portrait else Control.SIZE_FILL
@@ -3137,6 +3139,7 @@ func toggle_map(on: bool) -> void:
 	game.camera.set_active(false)
 	tactical_map.set_top(_top_h)
 	tactical_map.open()
+	_queue_relayout()  # (toasts and warnings centred over the map, not beside the sidebar)
 
 
 func close_map() -> void:
@@ -3146,6 +3149,7 @@ func close_map() -> void:
 
 func _on_map_closed() -> void:
 	game.camera.set_active(true)
+	_queue_relayout()
 
 
 ## The library. Single player pauses while it's open,

@@ -504,7 +504,8 @@ nothing is placed, stationed, upgraded or selected on it.
 - **Where:** it covers the screen below the top bar (`Hud._top_h`), which stays visible and usable.
   The dock, the info panel and the hero / villager panels are under it. Toasts, the warnings, the log,
   the game-over screen, the settings, the library and the statistics are above it. Opening any other
-  HUD popup (a panel, a dialog, the settings, the library, the statistics, the F1 list) closes the map.
+  HUD popup (a panel, a dialog, the settings, the library, the statistics, the F1 list) closes the map. Toasts and
+  the warnings centre over the map, the covered sidebar included (`Hud._relayout`).
 - **Drawn as the game is:** the map is the same isometric diamond as the game view, turned the same
   way, so up on the map is up on the screen. It opens on the land the village has explored
   (`open_pad` tiles round it, never smaller than the whole map fitted to its area with `margin`); the wheel, a pinch and + / - zoom it (`min_zoom` .. `max_zoom`, times the
