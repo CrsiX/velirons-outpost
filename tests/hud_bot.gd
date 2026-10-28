@@ -295,6 +295,13 @@ func _test_hud_extras() -> void:
 	game.world.float_text("+3 {gold}  +8 {food}", Vector2(100, 100), UiTheme.GOLD)
 	var ft = game.world.effects.get_child(game.world.effects.get_child_count() - 1)
 	check(ft is RichTextLabel and "icon_gold.svg" in ft.text and "icon_food.svg" in ft.text, "floating \"+3 gold +8 food\" texts show the icons")
+	# Back to title from the settings: the question shows over them.
+	hud.open_settings()
+	hud.ask_back_to_title()
+	var over := hud._confirm_panel.visible and hud._confirm_panel.get_index() > hud._settings.get_index()
+	hud.escape()
+	check(over and not hud._confirm_panel.visible and hud._settings.visible, "Back to title asks over the settings, not behind them; Esc answers no")
+	hud.close_settings()
 	# Space: pause and back to the speed before; paused with the button, Space goes to 1x.
 	var scale := Engine.time_scale
 	var pause := Game.SPEEDS.find(0.0)

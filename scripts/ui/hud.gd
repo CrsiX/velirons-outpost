@@ -2633,6 +2633,7 @@ func _ask(title: String, color: Color, text: String, yes_text: String, danger: b
 	_confirm_yes.pressed.connect(yes)
 	_confirm_ready = ready
 	_confirm_yes.disabled = ready.is_valid() and not ready.call()
+	_root.move_child(_confirm_panel, -1)  # (over the dialog it was asked from, the settings too)
 	_confirm_panel.visible = true
 	_fit_dialog(_confirm_panel)
 	_fit_dialog.call_deferred(_confirm_panel)
