@@ -39,6 +39,23 @@ func _ready() -> void:
 		var u := float(cf.get_value("ui", "scale", 1.0))
 		if (Config.UI_SCALE["choices"] as Array).has(u):
 			ui_scale = u
+	_keep_web_storage()
+
+
+## Web: user:// lives in the site's IndexedDB, which browsers may clear when
+## space runs low (Safari after 7 days without a visit). Ask once per start
+## for persistent storage so saves, maps and progress stay; Chrome decides
+## silently, Firefox may ask the player. Already granted: nothing is asked.
+func _keep_web_storage() -> void:
+	if not OS.has_feature("web"):
+		return
+	JavaScriptBridge.eval("""
+		if (navigator.storage && navigator.storage.persist) {
+			navigator.storage.persisted().then(function (kept) {
+				if (!kept) return navigator.storage.persist();
+			}).catch(function () {});
+		}
+	""", true)
 
 
 func save_player() -> void:

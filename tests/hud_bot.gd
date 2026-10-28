@@ -433,6 +433,11 @@ func _test_unit_keys() -> void:
 	var opened := hud._people_panel.visible
 	hud._unhandled_key_input(_press(KEY_V))
 	check(opened and not hud._people_panel.visible, "V opens and closes the villager list")
+	# X: the hero's panel.
+	hud._unhandled_key_input(_press(KEY_X))
+	var hero_opened := hud._hero_panel.visible
+	hud._unhandled_key_input(_press(KEY_X))
+	check(hero_opened and not hud._hero_panel.visible, "X shows and hides the hero panel")
 	# N: a workplace without its worker (whatever the earlier tests left: idle ones come first).
 	var idle_before := hud.idle_workplaces()
 	hud._unhandled_key_input(_press(KEY_N))

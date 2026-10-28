@@ -26,9 +26,12 @@ lobby. Every number lives in `scripts/core/config.gd` (`SAVE`).
   keeps its colour. Clients never need the file.
 - **View:** when any game is loaded or resumed, every player's view starts
   centred on their own village (the host's too); the camera isn't saved.
-- **Where:** `user://saves/` (desktop: the Godot user folder; web: the
-  browser's storage for the site; Android: the app's storage). Nothing leaves
-  the device; no import / export (could come later, §11).
+- **Where:** `user://saves/` (desktop: the game's own data folder, `velirons_outpost` (project setting
+  `custom_user_dir_name`: `~/.local/share/velirons_outpost`, `%APPDATA%\velirons_outpost`); web: the
+  browser's storage for the site, IndexedDB, for which the game asks the
+  browser for persistent storage at start-up (`Settings._keep_web_storage`)
+  so it isn't cleared when space runs low; Android: the app's storage).
+  Nothing leaves the device; no import / export (could come later, §11).
 
 ## 2. Goals and non-goals
 

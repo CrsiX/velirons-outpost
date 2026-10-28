@@ -569,11 +569,7 @@ func _build_topbar() -> void:
 	_hero_hp_bar.offset_bottom = -3
 	_hero_hp_bar.draw.connect(_draw_hero_hp)
 	_hero_button.add_child(_hero_hp_bar)
-	_hero_button.pressed.connect(func() -> void:
-		_hero_panel.visible = not _hero_panel.visible
-		_trade_panel.visible = _trade_panel.visible and not _hero_panel.visible
-		_people_panel.visible = _people_panel.visible and not _hero_panel.visible
-		_refresh_hero())
+	_hero_button.pressed.connect(func() -> void: toggle_hero_panel(not _hero_panel.visible))
 	row.add_child(_hero_button)
 
 	row = _top_right
@@ -739,6 +735,8 @@ func _game_key(event: InputEventKey) -> bool:
 			toggle_people(not _people_panel.visible)
 		KEY_N:
 			next_idle_workplace()
+		KEY_X:
+			toggle_hero_panel(not _hero_panel.visible)
 		KEY_PERIOD:
 			hotkey_call_wave()
 		KEY_TAB:
@@ -1159,6 +1157,15 @@ func _build_people_panel() -> void:
 
 ## Opens (or closes) the villager list; it shares the corner with the hero
 ## panel and the material dialog, so those close.
+## Shows or hides the hero's panel (the hero button, X); it closes the trade
+## and villager panels.
+func toggle_hero_panel(on: bool) -> void:
+	_hero_panel.visible = on
+	_trade_panel.visible = _trade_panel.visible and not on
+	_people_panel.visible = _people_panel.visible and not on
+	_refresh_hero()
+
+
 func toggle_people(on: bool) -> void:
 	_people_panel.visible = on
 	if on:
@@ -2623,6 +2630,7 @@ const KEYS_HELP: Array[Array] = [
 	["R", "Withdraw the selected unit (else: hero rests)"],
 	["Q", "Repair the selected building"],
 	["V", "Villager list"],
+	["X", "Hero panel"],
 	["T", "Statistics"],
 	[".", "Call the next wave now"],
 	["Esc", "Close the newest popup, or the settings"],

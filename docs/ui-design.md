@@ -428,6 +428,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
   farmer, a camp without a forester, a free mine the village has found once miners are known),
   nearest the village centre first, and moves the view there. Nothing if there is none.
 - **V** opens and closes the villager list.
+- **X** shows and hides the hero's panel.
 - **F1** shows every hotkey in a dialog (`Hud.KEYS_HELP`; F1 again, Close or Esc close it). Keep
   that list in step when a key is added.
 - **F2** (`Hud.take_screenshot`, `Screenshot`, `Config.SCREENSHOT`) saves the whole window's last
