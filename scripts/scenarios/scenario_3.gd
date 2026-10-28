@@ -4,8 +4,9 @@ extends Scenario
 ## of the Wardline. Brenna claims them (Explore mode), the builders restore
 ## them, units man them, and light stones light the road between them, while
 ## the waves keep coming; the first Renegades (thieves) in wave 3. Each
-## restored tower gives up a page of its garrison's journal; the barracks
-## its logbook, in the hand of Brenna's old captain, Lysa. Teaches:
+## restored tower (six) gives up a page of its garrison's journal, some
+## followed by a word between Brenna and Pell; the barracks its logbook, in the
+## hand of Brenna's old captain, Lysa. Teaches:
 ## specialising, the training grounds and Train mode, restoring ruins.
 
 
@@ -18,10 +19,12 @@ func _init() -> void:
 	portrait = "portrait_brenna"
 
 	# The baseline: the village at its best so far: all huts, a barracks, towers
-	# on the roads, Pell's stall; no training grounds yet.
+	# on the roads (one the ruin by the village restored in scenario 2), Pell's
+	# stall; no training grounds yet. The Wardline: six ruined watchtowers and a
+	# ruined barracks along the border road.
 	difficulty = "easy"
 	enemy_scale = {"hp": 0.75, "damage": 0.75, "spell_damage": 0.75}
-	resources = {"gold": 260, "food": 160, "materials": 220}
+	resources = {"gold": 260, "food": 160, "materials": 280}
 	civilians = ["builder", "builder", "farmer", "farmer", "forester", "gatherer", "merchant"]
 	names = {"forester": "Einar", "merchant": "Pell"}
 	buildings = ["farm", "camp"]
@@ -31,7 +34,7 @@ func _init() -> void:
 		{"kind": "barracks", "road": 0, "at": [6, 10], "units": [{"kind": "shield_bearer", "level": 3}]},
 		{"kind": "tower", "road": 0, "at": [3, 5], "units": [{"kind": "archer", "level": 3}]},
 		{"kind": "tower", "road": 1, "at": [8, 11], "units": [{"kind": "archer", "level": 3}]},
-		{"kind": "tower", "road": 2, "at": [3, 6], "units": [{"kind": "archer", "level": 2}]},
+		{"kind": "tower", "ruin": 0, "units": [{"kind": "archer", "level": 2}]},
 	]
 	hero_name = "Brenna"
 	hero_level = 4
@@ -51,6 +54,8 @@ func _init() -> void:
 		{"kinds": {"goblin": 7, "ork": 2, "thief": 2}, "spawns": 3},
 		{"kinds": {"goblin": 7, "ork": 2, "thief": 3, "slime3": 1}, "rat_packs": [5], "spawns": 3},
 		{"kinds": {"goblin": 8, "ork": 3, "thief": 3, "slime3": 2}, "rat_packs": [6], "spawns": 3},
+		{"kinds": {"goblin": 8, "ork": 3, "thief": 4, "slime3": 2}, "spawns": 4},
+		{"kinds": {"goblin": 9, "ork": 3, "thief": 4, "slime3": 2}, "rat_packs": [6], "spawns": 4},
 	]
 	repeat_last = true
 	more_each_wave = {"goblin": 2, "ork": 1, "thief": 1}
@@ -68,9 +73,24 @@ func _init() -> void:
 const PAGES: Array[String] = [
 	"Third week of the thaw. Quiet on the line. Goblins in the far hills, but they know better than to come within bowshot of a manned tower. Mended the brazier.",
 	"Orders came today: half the garrison to march for the capital. Nobody says for whom. The tower next along has its lamp out tonight. Without it the road between us is blind.",
+	"The captain rode the line today, tower to tower, from the sea cliffs to the mountains. She counted heads at every hearth and asked who could be spared. She wrote every name down, and didn't say what for.",
 	"Down to four men, too few to walk the road at night. So we set rune stones along it, between the towers: their glow shows us the stretch no tower can see. A tower alone sees its own bit of road; a lit road between them is what makes them a line.",
+	"Goblins tried the road by the river bridge last night. The stones showed them to us a long way off, and the two towers shot them down between them before they ever reached the bridge. Neither tower could have done it alone.",
 	"Last page. They called the rest of us in, and the rune stones have gone dark behind us. If anyone reads this: the Wardline was never the towers. It was the light between them, and the people who kept it burning.",
 ]
+## What Brenna and Pell say once a page is closed (by its number, from 1).
+const TALKS := {
+	2: [
+		{"say": "pell", "text": "Half the garrison in one night. And the other towers?"},
+		{"say": "brenna", "text": "The same, I'd wager. The line ran the whole border, from the sea cliffs to the mountains. Every tower that emptied left the next one blind."},
+		{"say": "pell", "text": "Then there's a long way still to go."},
+	],
+	4: [
+		{"say": "brenna", "text": "Four men to a tower, and they still held. Rune stones and stubbornness."},
+		{"say": "pell", "text": "My guild's carters will want to meet whoever thought of the stones. A lit road is a road a cart can take at dusk."},
+		{"say": "brenna", "text": "Then we light it all the way. West and east."},
+	],
+}
 const LOGBOOK := "Garrison logbook, last entry:\n\n\"By order of the crown: abandon the post and march for the capital. The border will hold itself.\"\n\nIt is signed twice, once in Fiona's name and once in Rhodri's, as if either would do. The hand that wrote it is careful and square."
 
 
@@ -87,7 +107,8 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"say": "", "text": "Brenna and Pell walk the north road, out towards the border."},
 		{"camera": ruin + Vector2(0, -40), "zoom": 1.1, "time": 3.5},
 		{"say": "pell", "text": "There. The first of them. Or what's left."},
-		{"say": "brenna", "text": "A Wardline tower. A whole chain of them ran along the border, each in sight of the next."},
+		{"say": "brenna", "text": "A Wardline tower. A whole chain of them ran along the border road, west and east, each in sight of the next."},
+		{"say": "pell", "text": "Six of them on this stretch alone, the old maps say. And the barracks at the east end, where the garrison slept."},
 		{"say": "pell", "text": "The crown paid for them, and the knights manned them, and the wilderness stayed out of the farms. Then the war came and called the knights home."},
 		{"say": "brenna", "text": "I served on the line, before. We kept a lamp burning every night. You could see the next tower's lamp from ours."},
 		{"say": "pell", "text": "Then you know what it takes. Rebuild them, man them, and light the road between them, and my guild's caravans can pass."},
@@ -149,6 +170,10 @@ func on_poll(r: ScenarioRunner) -> void:
 			var n := int(r.mark.get("pages", 0))
 			r.mark["pages"] = n + 1
 			r.show_journal("A garrison journal, page %d" % (n + 1), PAGES[mini(n, PAGES.size() - 1)])
+			if TALKS.has(n + 1):
+				var talk: Array[Dictionary] = []
+				talk.assign(TALKS[n + 1])
+				r.journal.closed.connect(func() -> void: r.play_scene(talk), CONNECT_ONE_SHOT)
 			if n == 0:
 				r.game.events.info("A Wardline tower is restored. Light stones between the towers light the road")
 		return
@@ -160,7 +185,7 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 	var g := r.game
 	return [
 		{"title": "Claim the ruins",
-			"text": "Send Brenna exploring: before new land she claims the ruins she finds. The old Wardline runs north along the road.",
+			"text": "Send Brenna exploring: before new land she claims the ruins she finds. The old Wardline runs along the border road in the north, from the west edge to the east.",
 			"done": func() -> bool: return r.ruin_sites.any(r.claimed),
 			"point": func() -> Dictionary: return {} if g.hero.mode == Hero.Mode.EXPLORE else {"hud": ["hero_mode:%d" % Hero.Mode.EXPLORE, "hero"]}},
 		{"title": "Restore a tower",

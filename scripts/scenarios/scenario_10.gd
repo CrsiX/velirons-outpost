@@ -21,7 +21,7 @@ func _init() -> void:
 	# market, barracks, training grounds, the Wardline restored and manned.
 	difficulty = "easy"
 	enemy_scale = {"hp": 1.15, "damage": 1.15, "spell_damage": 1.15}
-	resources = {"gold": 450, "food": 260, "materials": 360}
+	resources = {"gold": 450, "food": 320, "materials": 360}
 	civilians = ["builder", "builder", "farmer", "farmer", "forester", "gatherer", "gatherer", "merchant"]
 	names = {"forester": "Einar", "merchant": "Pell"}
 	buildings = ["farm", "camp"]
@@ -31,10 +31,17 @@ func _init() -> void:
 		{"kind": "barracks", "road": 0, "at": [6, 10], "level": 3,
 			"units": [{"kind": "warrior", "level": 6}, {"kind": "halberdier", "level": 5}, {"kind": "berserker", "level": 5}]},
 		{"kind": "training", "road": 1, "at": [8, 12]},
+		# The ruins, nearest the village first: the tower by the village (restored
+		# in scenario 2), then the Wardline's six along the border road (by
+		# distance: north of the village, west of the bridge, north-east, far
+		# west, east, at the west edge) and its barracks at the east end.
 		{"kind": "tower", "ruin": 0, "level": 2, "units": [{"kind": "crossbowman", "level": 6}]},
 		{"kind": "tower", "ruin": 1, "level": 2, "units": [{"kind": "swiftbowman", "level": 6}]},
 		{"kind": "tower", "ruin": 2, "units": [{"kind": "archer", "level": 8}]},
-		{"kind": "tower", "ruin": 3, "units": [{"kind": "swiftbowman", "level": 5}]},
+		{"kind": "tower", "ruin": 3, "level": 2, "units": [{"kind": "crossbowman", "level": 5}]},
+		{"kind": "tower", "ruin": 4, "units": [{"kind": "swiftbowman", "level": 5}]},
+		{"kind": "tower", "ruin": 5, "units": [{"kind": "archer", "level": 6}]},
+		{"kind": "tower", "ruin": 6, "units": [{"kind": "archer", "level": 5}]},
 		{"kind": "barracks", "ruin": 0, "level": 2, "units": [{"kind": "shield_bearer", "level": 7}, {"kind": "inquisitor", "level": 4}]},
 		{"kind": "tower", "road": 0, "at": [3, 5], "level": 2, "units": [{"kind": "high_priest", "level": 4}]},
 		{"kind": "tower", "road": 1, "at": [3, 5], "level": 2, "units": [{"kind": "crossbowman", "level": 5}]},

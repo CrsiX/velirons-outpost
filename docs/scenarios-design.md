@@ -158,7 +158,7 @@ him restore it, his guild can bring caravans.
 **Starting point:** the village at a stable baseline (all huts, a barracks, several towers, a market stall). No training grounds yet. A few ruined
 watchtowers lie along the road. Hero level about 4. **Specialisations are unlocked** (from unit level 3).
 
-**Objective:** claim, restore and station 4 ruined watchtowers and one barracks along the roads. The hero claims them in Explore mode, a builder
+**Objective:** claim, restore and station 6 ruined watchtowers and one barracks along the border road. The hero claims them in Explore mode, a builder
 restores each for half a watchtower's cost. build light stones to light up all the ways between the restored watch towers. survive the waves
 while doing so.
 
@@ -886,20 +886,27 @@ The game has none of this yet, except where noted:
 
 - **Map:** `data/maps/wardline.json`, 75x75: `tools/make_scenario_map.gd` (`-- 3`) grows the home map: it sits in the middle, a generated
   Temperate map (seed 4711) fills the ring around it (its roads, villages and objects left out), and the home roads run on straight to the new
-  edges (bridges and fords where they cross water). The seams between the two show; smoothing them is for the map editor. Every road that reaches the
-  home map's edge runs on (the north and west ones with their edge spawns). The ruins are placed by hand (in progress): the scenario needs
-  five, four watchtowers (the one from the home map among them) and a barracks, along the north road.
+  edges (bridges and fords where they cross water). The map was then **edited by hand** in the map editor (never regenerate it): the inner
+  50x50 is the home map tile for tile (offset (12, 12), village centre (36, 36)); the **border road** runs across the whole north, from the
+  west edge (0, 5) to the east edge (74, 4), crossing the river on a bridge at (30-32, 5), and joins the village by the north road. Along it
+  the Wardline's ruins: six watchtowers ((4, 4), (17, 4), (26, 6), (40, 7), (50, 4), (63, 7)) and the barracks at its east end ((72, 5),
+  2x2). The home map's ruin (21, 41) stands restored at the start (scenario 2 restored it): the prebuilt `"ruin": 0`, nearest the village.
+  Seven edge spawns; a water spawn in the pond south-west of the village.
 - **Ruined barracks:** a ruin object can have been a watchtower or barracks (`"building"` in the map file, format version 3;
   `RuinedTower.building()`): claimed and restored the same way (half its price: 10 material and 15 gold), it becomes devastated barracks.
-- **Baseline:** Easy, enemies at 0.75; 260 gold, 160 food, 220 material; two builders, two farmers, Einar, a gatherer, Pell; Pell's Trade Stall
-  (level 2), a second farm, barracks with a level 3 shield bearer, three watchtowers with archers (level 3, 3 and 2). Brenna is level 4.
+- **Baseline:** Easy, enemies at 0.75; 260 gold, 160 food, 280 material; two builders, two farmers, Einar, a gatherer, Pell; Pell's Trade Stall
+  (level 2), a second farm, barracks with a level 3 shield bearer, three watchtowers with archers (level 3, 3 and 2; the third is the restored
+  home ruin). Brenna is level 4.
 - **Rules:** archers and shield bearers, specialising open (from level 3); training grounds allowed; Pell must not die.
-- **Waves:** Wilderness, and from wave 3 thieves (the first Renegades); six listed (5 goblins and 4 rats up to 8 goblins, 3 orks, 3 thieves, 2
-  big slimes and 6 rats), then the last again with 2 goblins, an ork and a thief more each time, until the objectives are met. The first wave comes
+- **Waves:** Wilderness, and from wave 3 thieves (the first Renegades); eight listed (5 goblins and 4 rats up to 9 goblins, 3 orks, 4 thieves, 2
+  big slimes and 6 rats; the last two grow only a little, for the longer line), then the last again with 2 goblins, an ork and a thief more each time, until the objectives are met. The first wave comes
   after the usual 90 s; 45 s between waves.
 - **Story:** the intro (Brenna and Pell walk the north road to the first ruin; Pell explains the Wardline, Brenna served on it); each restored
-  watchtower gives up a page of its garrison's journal (four pages; the third says what the light stones are for: rune stones the last garrison set along the road between the towers, whose glow shows the stretch no tower sees; the fourth that they have gone dark), one at a
-  time; the restored barracks its logbook: the order to abandon the post, signed in both Fiona's and Rhodri's names, in a careful square hand,
+  watchtower gives up a page of its garrison's journal (six pages: a quiet thaw; half the garrison ordered to the capital; the captain riding
+  the line, counting heads and writing down every name (Lysa, unnamed: the logbook names her); the fourth says what the light stones are for:
+  rune stones the last garrison set along the road between the towers, whose glow shows the stretch no tower sees; the fifth, two towers and
+  the stones stopping goblins at the river bridge together; the sixth that they have gone dark), one at a time; after pages 2 and 4 Brenna
+  and Pell talk (`TALKS`: the line ran the whole border; light it west and east); the restored barracks its logbook: the order to abandon the post, signed in both Fiona's and Rhodri's names, in a careful square hand,
   and Brenna knows it: Lysa's, her old captain's; the outro (the first guild caravan comes down the lit road; word from the border town: the
   guild's store there is under pressure; Brenna leaves home with Pell; from here on nobody can bring her back).
 - **Cards:** claim the ruins (Explore), restore a tower, specialise an archer, training grounds with a unit, Train mode (a level from Brenna's XP),
@@ -907,7 +914,7 @@ The game has none of this yet, except where noted:
   waits (titled *Explore the line*) until a stretch of the line's road between the village and a restored tower is explored and still dark
   (`_known_dark_road`), or a light stone was placed already.
 - **Hints:** thieves on the road, Pell fleeing, a monster camp found (its guards keep explorers and Brenna away; Brenna attacks it on order,
-  towers and barracks in range fight its guards by themselves), no explorer once wave 3 is over (recruit one). **Objectives:** every ruined watchtower restored and manned (4); the barracks restored and manned;
+  towers and barracks in range fight its guards by themselves), no explorer once wave 3 is over (recruit one). **Objectives:** every ruined watchtower restored and manned (6); the barracks restored and manned;
   the road of the line lit: every road tile from the village out to every ruin site watched by one of the village's buildings (what towers and
   light stones see, not where people walk; `ScenarioRunner.lit`).
 
@@ -1302,10 +1309,11 @@ Built after the rework of §9a.
 ### 7.17 Scenario 10 as built (`scenario_10.gd`)
 
 - **Map:** `data/maps/wardline.json` (scenario 3's).
-- **Baseline:** Easy, enemies at 1.15; 450 gold, 260 food, 360 material; two builders, two farmers, Einar the forester, two gatherers,
+- **Baseline:** Easy, enemies at 1.15; 450 gold, 320 food, 360 material; two builders, two farmers, Einar the forester, two gatherers,
   Pell; every hut and piece standing; Pell's guild market (level 3), a second farm, barracks (level 3: a warrior 6, a halberdier 5, a
-  berserker 5), training grounds; the four Wardline towers restored and manned (a crossbowman 6, a swiftbowman 6, an archer 8, a swiftbowman
-  5; the first two at level 2) and the Wardline barracks (level 2: a shield bearer 7, an inquisitor 4); a watchtower on each road (a High
+  berserker 5), training grounds; every ruined tower restored and manned, nearest the village first: the home ruin (21, 41) (a crossbowman 6,
+  level 2), then the Wardline's six (40, 7) (a swiftbowman 6, level 2), (26, 6) (an archer 8), (50, 4) (a crossbowman 5, level 2), (17, 4) (a
+  swiftbowman 5), (63, 7) (an archer 6), (4, 4) (an archer 5), and the Wardline barracks at (72, 5) (level 2: a shield bearer 7, an inquisitor 4); a watchtower on each road (a High
   Priest 4, a crossbowman 5, a fire summoner 5); two wall towers (an archer 7, an acolyte 6); an archer and a shield bearer (5) in the
   reserve. Brenna is level 16.
 - **Rules:** everything unlocked, recruiting open; specialising, training grounds; **no revive**; Pell must not die.

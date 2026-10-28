@@ -667,7 +667,9 @@ func _scenario_3() -> void:
 	await _new_game(3)
 	var v := game.player_village
 	check(sc != null and sc.error == "" and game.map.size == 75 and MapJson.map_name(game.map) == "The Wardline", "scenario 3 runs on the grown 75x75 map")
-	check(sc.ruin_sites.size() == 5 and sc.ruin_sites.filter(func(s: Dictionary) -> bool: return s["building"] == "barracks").size() == 1, "five ruins: four watchtowers and a barracks")
+	check(sc.ruin_sites.size() == 7 and sc.ruin_sites.filter(func(s: Dictionary) -> bool: return s["building"] == "barracks").size() == 1, "seven ruins: six watchtowers and a barracks (%d)" % sc.ruin_sites.size())
+	check(sc.ruin_sites.all(func(s: Dictionary) -> bool: return (s["tile"] as Vector2i).y < v.center.y - 20), "all of them up on the border road")
+	check(v.buildings().any(func(b: Building) -> bool: return b is Tower and b.tile == Vector2i(21, 41) and not (b as Tower).units().is_empty()), "the ruin by the village (scenario 2's) stands restored and manned")
 	var bruin = sc.on_site(sc.ruin_sites.filter(func(s: Dictionary) -> bool: return s["building"] == "barracks")[0])
 	check(bruin is RuinedTower and bruin.size == 2 and bruin.display_name() == "Ruined barracks" and bruin.art() == "barracks_ruin", "the barracks ruin is 2x2, with its own look")
 	var stall: Stall = sc.stalls()[0] if not sc.stalls().is_empty() else null
@@ -677,8 +679,8 @@ func _scenario_3() -> void:
 	check(archer.upgrade_options().any(func(o: Dictionary) -> bool: return o["to"] == "crossbowman"), "level 3 archers can specialise")
 	check(game.hero.level == 3 and game.allows_building("training") and not game.allows_building("stall"), "Brenna at level 4; training grounds allowed")
 	check(game.waves.last_wave == 0 and not game.waves.call_locked, "the waves don't stop by themselves")
-	var w7 := sc.next_wave(7)
-	check(int(w7["kinds"]["goblin"]) == 10 and int(w7["kinds"]["thief"]) == 4, "past the list the last wave comes again, growing (%s)" % str(w7["kinds"]))
+	var w9 := sc.next_wave(9)
+	check(int(w9["kinds"]["goblin"]) == 11 and int(w9["kinds"]["thief"]) == 5, "past the list the last wave comes again, growing (%s)" % str(w9["kinds"]))
 	await wait(1.0)
 	await _skip_scene()
 	check(sc.card.lesson_title() == "Claim the ruins", "the first card: claim the ruins")
@@ -719,7 +721,7 @@ func _scenario_3() -> void:
 	for s in sc.ruin_sites:
 		if cmd("restore_ruin", {"ruin": sc.on_site(s).nid})["ok"]:
 			restored += 1
-	check(restored == 5, "all five are restored by order (%d)" % restored)
+	check(restored == 7, "all seven are restored by order (%d)" % restored)
 	var b_site: Dictionary = sc.ruin_sites.filter(func(s: Dictionary) -> bool: return s["building"] == "barracks")[0]
 	check(sc.on_site(b_site) is Barracks and (sc.on_site(b_site) as Building).devastated, "the ruined barracks becomes devastated barracks, for the builders")
 	check(await wait_until(func() -> bool: return sc.journal != null and sc.journal.visible, 400.0), "a restored tower gives up a journal page")
@@ -728,28 +730,39 @@ func _scenario_3() -> void:
 	check(not get_tree().paused, "closed, it goes on")
 	var pages := 1
 	var logbook := false
+	var talks := {}  # (the pages a talk followed)
+	var closed := 0  # (the page closed last; 0: the logbook)
 	var t := 0.0
-	while t < 900.0 and not sc.ruin_sites.all(func(s: Dictionary) -> bool: return sc.restored(s) != null):
+	while t < 1200.0 and not sc.ruin_sites.all(func(s: Dictionary) -> bool: return sc.restored(s) != null):
 		if sc.journal.visible:
+			closed = 0
 			if sc.journal.title() == "The garrison's logbook":
 				logbook = sc.journal.text().contains("Fiona") and sc.journal.text().contains("Rhodri")
 			else:
 				pages += 1
+				closed = pages
 			_close_journal()
+		if sc.cutscene != null and closed > 0:
+			talks[closed] = true
 		await _skip_scene()
 		await wait(0.5)
 		t += 0.5
-	for k in 20:  # (the last pages, one after the other)
+	for k in 30:  # (the last pages, one after the other)
 		await frames(10)
 		if sc.journal.visible:
+			closed = 0
 			if sc.journal.title() == "The garrison's logbook":
 				logbook = sc.journal.text().contains("Fiona") and sc.journal.text().contains("Rhodri")
 			else:
 				pages += 1
+				closed = pages
 			_close_journal()
+		if sc.cutscene != null and closed > 0:
+			talks[closed] = true
 		await _skip_scene()
-	check(sc.ruin_sites.all(func(s: Dictionary) -> bool: return sc.restored(s) != null), "all five stand again%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
-	check(pages == 4 and logbook, "four journal pages and the logbook, signed for both heirs (%d pages)" % pages)
+	check(sc.ruin_sites.all(func(s: Dictionary) -> bool: return sc.restored(s) != null), "all seven stand again%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	check(pages == 6 and logbook, "six journal pages and the logbook, signed for both heirs (%d pages)" % pages)
+	check(talks.has(2) and talks.has(4), "Brenna and Pell talk after pages 2 and 4 (%s)" % str(talks.keys()))
 
 	print("-- scenario 3: specialising, training, manning")
 	check(cmd("upgrade_unit", {"unit": archer.nid, "to": "crossbowman"})["ok"] and archer.kind == "crossbowman", "an archer becomes a crossbowman")
