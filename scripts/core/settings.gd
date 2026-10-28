@@ -26,6 +26,9 @@ var campaign_next := false
 var enemy_scale := {}
 
 const PLAYER_FILE := "user://player.cfg"
+## The player's UI size (one of Config.UI_SCALE.choices; 1 = auto), saved
+## with the name and colour. Layout applies it.
+var ui_scale := 1.0
 
 
 func _ready() -> void:
@@ -33,12 +36,16 @@ func _ready() -> void:
 	if cf.load(PLAYER_FILE) == OK:
 		player_name = str(cf.get_value("player", "name", ""))
 		player_color = clampi(int(cf.get_value("player", "color", 0)), 0, Config.VILLAGE_COLORS.size() - 1)
+		var u := float(cf.get_value("ui", "scale", 1.0))
+		if (Config.UI_SCALE["choices"] as Array).has(u):
+			ui_scale = u
 
 
 func save_player() -> void:
 	var cf := ConfigFile.new()
 	cf.set_value("player", "name", player_name)
 	cf.set_value("player", "color", player_color)
+	cf.set_value("ui", "scale", ui_scale)
 	cf.save(PLAYER_FILE)
 
 
@@ -146,6 +153,18 @@ func difficulty_name() -> String:
 const LANGUAGES: Array[String] = ["en"]
 const LANGUAGE_INFO := {"en": {"name": "English", "flag": "flag_gb"}}
 var language := "en"
+
+
+## Steps the UI size on (wrapping round), saves it and applies it at once.
+func cycle_ui_scale() -> void:
+	var c: Array = Config.UI_SCALE["choices"]
+	ui_scale = float(c[(c.find(ui_scale) + 1) % c.size()])
+	save_player()
+	Layout.refresh()
+
+
+func ui_scale_name() -> String:
+	return "Auto" if is_equal_approx(ui_scale, 1.0) else "%d %%" % roundi(ui_scale * 100.0)
 
 
 func cycle_language() -> void:

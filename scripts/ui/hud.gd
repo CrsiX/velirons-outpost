@@ -112,6 +112,7 @@ var _settings_map_label: Label
 var _settings_editor_button: Button
 var _settings_continue: Button
 var _settings_log_button: Button
+var _settings_ui_button: Button
 var _settings_lang_button: Button
 var _settings_title_button: Button
 var _settings_panel: Control
@@ -2816,6 +2817,13 @@ func _build_settings() -> void:
 		game.events.debug("log level: %s" % game.events.level_name())
 		_refresh_settings())
 	v.add_child(_settings_log_button)
+	_settings_ui_button = _button("", Vector2(0, 56))
+	_settings_ui_button.tooltip_text = "How big buttons, panels and text are drawn (Auto: by the screen)"
+	_settings_ui_button.pressed.connect(func() -> void:
+		Settings.cycle_ui_scale()
+		game.events.debug("UI size: %s" % Settings.ui_scale_name())
+		_refresh_settings())
+	v.add_child(_settings_ui_button)
 	_settings_lang_button = _button("", Vector2(0, 64))
 	_settings_lang_button.visible = false  # temporary for export, we have no support yet, so strip it
 	_settings_lang_button.expand_icon = true
@@ -3100,6 +3108,7 @@ func _on_stats_closed() -> void:
 
 func _refresh_settings() -> void:
 	_settings_log_button.text = "Log level: %s" % game.events.level_name()
+	_settings_ui_button.text = "UI size: %s" % Settings.ui_scale_name()
 	if not game.map.meta.is_empty():  # (a map from a file)
 		_settings_map_label.text = "Map: %s  ·  %s" % [MapJson.map_name(game.map), Settings.map_type_name(game.map.map_type)]
 		_settings_map_label.tooltip_text = "A map from a file (Singleplayer: Map: Custom...)"

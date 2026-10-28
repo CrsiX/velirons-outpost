@@ -248,12 +248,12 @@ func _play_steps() -> void:
 			if _cam_tween:
 				_cam_tween.kill()
 			_cam_tween = create_tween()
-			_cam_tween.tween_property(game.camera, "zoom", Vector2.ONE * float(s.get("zoom", game.camera.zoom.x)), t)
+			_cam_tween.tween_property(game.camera, "zoom", Vector2.ONE * _zoom(s), t)
 		elif s.has("camera"):
 			_follow = null
 			var t := float(s.get("time", 1.5))
 			var to: Vector2 = (s["camera"] as Callable).call() if s["camera"] is Callable else s["camera"]
-			_move_camera(to, float(s.get("zoom", game.camera.zoom.x)), t)
+			_move_camera(to, _zoom(s), t)
 			if s.get("wait", true):
 				await _sleep(t)
 		elif s.has("wait"):
@@ -370,6 +370,12 @@ func _title_card(t: String, sub: String, time: float) -> void:
 	_tween(_title, "modulate:a", 0.0, 0.5)
 	_tween(_sub, "modulate:a", 0.0, 0.5)
 	await _sleep(0.5)
+
+
+## A step's zoom (as at the UI's plain size: CameraController.set_view_zoom),
+## else the camera's own.
+func _zoom(s: Dictionary) -> float:
+	return float(s["zoom"]) * Layout.world_scale if s.has("zoom") else game.camera.zoom.x
 
 
 func _move_camera(to: Vector2, z: float, time: float) -> void:

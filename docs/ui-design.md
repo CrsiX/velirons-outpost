@@ -329,6 +329,9 @@ Big touch targets everywhere, so mouse and fingers work the same.
     game. Neither in the tutorial; a co-op client has neither, the host only Save; a game from the
     map editor's Play only Save.
   - **Log level:** cycles Info / Important / None / Debug (None: the log field stays empty; F3 does the same).
+  - **UI size:** cycles Auto / 110 % / 125 % / 150 % / 70 % / 80 % / 90 % (`Settings.ui_scale`, a factor on
+    the automatic size, `Config.UI_SCALE.choices`; saved in `user://player.cfg` with the player's
+    name and colour; applied at once, `Layout.refresh`).
   - **Language:** built (shows the flag) but hidden (`visible = false`): there is no other language yet.
   - **Map type and seed:** shown so the map can be played again; for a map from a file its name and
     type instead.
@@ -445,6 +448,18 @@ Big touch targets everywhere, so mouse and fingers work the same.
   - **Orientation:** the window is portrait while it is taller than wide. The logical canvas then
     becomes 720×1280 instead of 1280×720 (`content_scale_size`, stretch `canvas_items`, aspect
     `expand`), so the UI keeps the same physical size in both orientations.
+  - **UI scale** (`Layout.ui_scale`, `Config.UI_SCALE`): phones and tablets (the app, a mobile browser)
+    stretch the base canvas over the screen, so the UI fills it at finger size. A desktop sizes it
+    by its screen instead: the screen's short side counts as `desktop_rows` (1080) canvas rows
+    (Full HD 1×, 1440p 1.33×, 4K 2×), at least `min_scale` (0.85), times the player's UI size, and
+    never more than the plain stretch (the canvas is never smaller than the base). The window's
+    `content_scale_factor` takes the stretch down to that; the canvas grows (aspect `expand`).
+    Headless runs (the bots) keep the plain 1280×720 canvas.
+  - **The map ignores the UI size:** `Layout.world_scale` (1 / `content_scale_factor`) multiplies the
+    map cameras' zoom and their limits (`CameraController.set_view_zoom`, `zoom_limits`: the game's
+    start, the title backdrop's scenes, the editor, cutscene steps' `"zoom"`), and a change of the
+    UI size rescales the zoom (`Layout.ui_rescaled`), so the map looks and zooms out as at the plain
+    stretch. Code that sets `camera.zoom` directly sets the real zoom (bots, `ui_shots`).
   - **Rotation:** Android follows the rotation sensor (`display/window/handheld/orientation = sensor`).
     Browsers and desktop windows just resize.
   - **Touch flag:** `Layout.touch` is true after a finger press and false after a real mouse click. It

@@ -14,7 +14,8 @@ const KEY_PAN_SPEED := 900.0
 const WHEEL_BUTTONS: Array[MouseButton] = [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]
 
 var bounds := Rect2()
-## Zoom limits (the map editor zooms out further than the game).
+## Zoom limits (the map editor zooms out further than the game), at the
+## plain stretch: the camera takes them times Layout.world_scale.
 var min_zoom := MIN_ZOOM
 var max_zoom := MAX_ZOOM
 ## Optional: called with the screen position of a left press on the map; if it
@@ -41,6 +42,27 @@ var _last_pos := Vector2.ZERO
 var _repoint := false
 var _touches: Dictionary = {}  # index -> screen position
 var _pinch_dist := 0.0
+
+
+func _ready() -> void:
+	Layout.ui_rescaled.connect(_on_ui_rescaled)
+
+
+func _on_ui_rescaled(ratio: float) -> void:
+	zoom *= ratio
+	_clamp()
+
+
+## Sets the zoom as it would be at the plain stretch (the UI at its plain
+## size), so the map looks the same at every UI size.
+func set_view_zoom(z: float) -> void:
+	z *= Layout.world_scale
+	zoom = Vector2(z, z)
+
+
+## The zoom limits as they apply now (min_zoom / max_zoom times the UI's world_scale).
+func zoom_limits() -> Vector2:
+	return Vector2(min_zoom, max_zoom) * Layout.world_scale
 
 
 func screen_to_world(screen_pos: Vector2) -> Vector2:
@@ -154,7 +176,8 @@ func _process(delta: float) -> void:
 
 func zoom_at(screen_pos: Vector2, factor: float) -> void:
 	var before := screen_to_world(screen_pos)
-	var z := clampf(zoom.x * factor, min_zoom, max_zoom)
+	var lim := zoom_limits()
+	var z := clampf(zoom.x * factor, lim.x, lim.y)
 	zoom = Vector2(z, z)
 	force_update_scroll()
 	var after := screen_to_world(screen_pos)

@@ -271,7 +271,7 @@ func _ready() -> void:
 	camera.process_mode = Node.PROCESS_MODE_ALWAYS  # pan and zoom while paused
 	camera.bounds = world.world_rect().grow(-200.0)
 	camera.focus(Iso.tile_to_world(player_village.center))
-	camera.zoom = Vector2(0.75, 0.75)
+	camera.set_view_zoom(0.75)
 	camera.tapped.connect(_on_tapped)
 	camera.press_filter = _claim_press
 	camera.wheel_filter = func(screen_pos: Vector2) -> bool: return hud != null and hud.is_over_dock(screen_pos)

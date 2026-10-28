@@ -181,8 +181,7 @@ func start(g: Game) -> void:
 	var cam: Dictionary = value("camera")
 	_cam_from = _anchor(cam.get("from", 0))
 	_cam_to = _anchor(cam.get("to", cam.get("from", 0)))
-	var z := float(cam.get("zoom", 1.0))
-	g.camera.zoom = Vector2(z, z)
+	g.camera.set_view_zoom(float(cam.get("zoom", 1.0)))
 	g.camera.position = _cam_from
 	g.events.debug("title backdrop: %s on road %s" % [value("name"), str(route.back()) if not route.is_empty() else "-"])
 	_building = false

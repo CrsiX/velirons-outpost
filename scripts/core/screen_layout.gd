@@ -12,6 +12,9 @@ extends Node
 signal changed(portrait: bool)
 ## The safe area moved (a turn put the camera cutout on another side).
 signal safe_area_changed
+## The UI's scale changed (Settings.ui_scale, another screen): the map's
+## cameras multiply their zoom by `ratio` so the map keeps its size.
+signal ui_rescaled(ratio: float)
 
 
 const LANDSCAPE_BASE := Vector2i(1280, 720)
@@ -30,6 +33,11 @@ var _fullscreen_asked := false
 ## (`inset`); the map and full-screen backgrounds still go edge to edge (`bleed`).
 var insets := Vector4.ZERO
 var _forced := false
+## How much smaller the UI is drawn than the plain stretch would (1 / the
+## window's content_scale_factor). The map's cameras zoom by it (and take
+## their limits times it), so the map's look and zoom range don't depend on
+## the UI size.
+var world_scale := 1.0
 var _poll := 0.0
 ## Controls kept inside the safe area / spread over the whole screen.
 var _inset: Array[Control] = []
@@ -122,12 +130,48 @@ func _input(event: InputEvent) -> void:
 		touch = false
 
 
+## Applies a changed UI size (Settings.ui_scale) at once.
+func refresh() -> void:
+	_update()
+
+
+## The UI's drawing scale (canvas units to window pixels) on this device:
+## Config.UI_SCALE, times the player's UI size, never larger than the plain
+## stretch of the base canvas over the window (the canvas never gets smaller).
+func ui_scale(window: Vector2i, base: Vector2i) -> float:
+	var stretch := minf(float(window.x) / base.x, float(window.y) / base.y)
+	var auto := stretch
+	# (headless runs, the bots: the plain 1280x720 canvas they are written for)
+	if not _handheld() and DisplayServer.get_name() != "headless":
+		var screen := DisplayServer.screen_get_size()
+		var rows := float(mini(screen.x, screen.y)) if screen.x > 0 and screen.y > 0 \
+				else float(mini(window.x, window.y))
+		auto = maxf(rows / float(Config.UI_SCALE["desktop_rows"]), float(Config.UI_SCALE["min_scale"]))
+	return minf(auto * Settings.ui_scale, stretch)
+
+
+## A phone or tablet (the app, or a mobile browser): the UI fills the screen.
+func _handheld() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
+
+
 func _update() -> void:
-	var s := get_window().size
+	var win := get_window()
+	var s := win.size
 	var p := s.y > s.x
 	var base := PORTRAIT_BASE if p else LANDSCAPE_BASE
-	if get_window().content_scale_size != base:
-		get_window().content_scale_size = base
+	if win.content_scale_size != base:
+		win.content_scale_size = base
+	# The stretch draws the base canvas at `stretch`; the factor takes it down
+	# to the UI's scale (the canvas grows to match: aspect "expand").
+	if s.x > 0 and s.y > 0:
+		var stretch := minf(float(s.x) / base.x, float(s.y) / base.y)
+		var f := ui_scale(s, base) / stretch
+		if not is_equal_approx(win.content_scale_factor, f):
+			win.content_scale_factor = f
+			var before := world_scale
+			world_scale = 1.0 / f
+			ui_rescaled.emit(world_scale / before)
 	_update_insets()
 	if p != portrait:
 		portrait = p

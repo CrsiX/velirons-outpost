@@ -70,6 +70,7 @@ func _ready() -> void:
 	camera.name = "Camera"
 	add_child(camera)
 	camera.make_current()
+	camera.set_view_zoom(1.0)
 	camera.process_mode = Node.PROCESS_MODE_ALWAYS
 	camera.press_filter = func(pos: Vector2) -> bool: return _claims(pos)
 	camera.wheel_filter = func(pos: Vector2) -> bool: return ui != null and ui.is_over_panel(pos)
@@ -166,7 +167,8 @@ func toggle_view() -> void:
 	_set_view_bounds()
 	var px := float(Config.EDITOR["plan_tile_px"])
 	z = z * tile_w / px if plan_mode else z * px / tile_w
-	z = clampf(z, camera.min_zoom, camera.max_zoom)
+	var lim := camera.zoom_limits()
+	z = clampf(z, lim.x, lim.y)
 	camera.zoom = Vector2(z, z)
 	camera.focus(_to_world(g))
 	_redraw_pointer()

@@ -1420,6 +1420,19 @@ const MATERIALS_TRADE := {"materials": 10, "gold": 15}
 ## notch the UI keeps clear of, see Layout.insets) is read again.
 const SAFE_AREA_POLL := 0.5
 
+## How big the UI is drawn (Layout, docs/ui-design.md). Phones and tablets
+## (and mobile browsers) stretch the 1280x720 canvas over the screen, so the
+## UI fills it at finger size. A desktop screen sizes it as if its short side
+## had `desktop_rows` canvas rows (Full HD: 1x, 4K: 2x, a 1440p screen 1.33x),
+## never below `min_scale` (a small laptop screen) and never larger than the
+## plain stretch (the canvas never gets smaller than 1280x720). The player's
+## "UI size" (Settings.ui_scale, one of `choices`, 1 = auto) multiplies this.
+const UI_SCALE := {
+	"desktop_rows": 1080,
+	"min_scale": 0.85,
+	"choices": [0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5],
+}
+
 ## The map view: zoom limits (1 = the art's own size; smaller sees more of the
 ## map) and the factor of one + / - key press (the mouse wheel uses its own).
 const CAMERA_MIN_ZOOM := 0.22
