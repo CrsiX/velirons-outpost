@@ -1454,6 +1454,33 @@ const PICK := {
 	"see_through_refresh": 1.0,
 }
 
+# --- the tactical map (M; docs/ui-design.md §12) ------------------------------------------
+const TACTICAL_MAP := {
+	"margin": 24.0,  # px left free round the fitted map
+	"open_pad": 4.0,  # tiles round the explored land it opens on
+	"min_zoom": 1.0, "max_zoom": 8.0,  # times the fitted size
+	"key_zoom": 1.25,  # + / - step
+	"key_pan": 700.0,  # WASD / arrows, px per real second
+	"long_press": 0.5,  # s: a finger held this long centres the view and keeps the map open
+	"fog_refresh": 0.5,  # s between redraws of the fog while open
+	"fog_dim": 0.55,  # alpha of the dark over explored land that isn't watched
+	"background": Color("14100c"),
+	"site_alpha": 0.55,  # a building site's colour
+	"colors": {
+		"hut": Color("c0783a"), "wall": Color("4a3f36"), "gate": Color("e0bc72"), "wall_tower": Color("1a1411"),
+		"tower": Color("3d342d"), "barracks": Color("7a2a1f"), "farm": Color("d8c060"), "camp": Color("8a6a3a"),
+		"lightstone": Color("9fd8ff"), "other": Color("b09a7a"),
+	},
+	"devastated": Color("5a1810"),
+	"manned": Color("f2e2b0"),  # the dot on a manned tower or barracks
+	"ring": Color(0.95, 0.85, 0.5, 0.55),  # range rings
+	"unit": Color("4f8fe0"), "villager": Color("e8e0cf"), "hero": Color("e0b340"), "downed": Color("8a8a8a"),
+	"enemy": Color("e0303a"), "flyer": Color("ff8a7a"), "named": Color("f2c230"), "warning": Color("ff4030"),
+	"dot": 3.0,  # px radius of a unit or enemy at the fitted size (grows a little with the zoom)
+	"hp_bar": Vector2(18, 4),  # px, at the fitted size
+}
+
+
 # --- the map editor (docs/map-editor-design.md) --------------------------------------------
 const EDITOR := {
 	"undo_steps": 100,  # edits kept for undo

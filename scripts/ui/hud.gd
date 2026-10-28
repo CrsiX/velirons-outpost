@@ -53,6 +53,9 @@ var _enemies_label: Label
 var _call_button: Button
 var _settings_button: Button
 var _book_button: Button
+## The tactical map (M, the map icon; docs/ui-design.md §12): the game runs on.
+var tactical_map: TacticalMap
+var _map_button: Button
 ## The library (book icon); single player is paused while it's open.
 var library: Library
 var _lib_paused := false
@@ -82,6 +85,8 @@ var _confirm_text: Label
 var _confirm_yes: Button
 ## Whether the confirmation's OK can be pressed now (checked again as resources come and go); empty: always.
 var _confirm_ready := Callable()
+var _confirm_no: Button
+var _confirm_enter := false  # Enter presses the confirm button (set by the caller after `_ask`)
 var _gray: ColorRect
 var _settings_note: Label
 var _paused_banner: Label
@@ -316,6 +321,14 @@ func setup(p_game: Game) -> void:
 	library.move_child(_lib_gray, 0)
 	_lib_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	Layout.bleed(_lib_gray)
+	tactical_map = TacticalMap.new()
+	tactical_map.setup(game)
+	tactical_map.closed.connect(_on_map_closed)
+	_root.add_child(tactical_map)
+	_root.move_child(tactical_map, _toasts.get_index())  # (under toasts, warnings, dialogs and the log)
+	_overlay.visibility_changed.connect(func() -> void:
+		if _overlay.visible:
+			close_map())
 	_refresh_stats_button()
 	_register_popups()
 
@@ -324,6 +337,7 @@ func setup(p_game: Game) -> void:
 	bind_village(game.player_village)
 	_select_tab("build")
 	get_viewport().size_changed.connect(_queue_relayout)
+	_root.resized.connect(_fit_topbar)  # (the safe area may settle after a relayout)
 	Layout.changed.connect(func(_p: bool) -> void: _queue_relayout())
 	Layout.safe_area_changed.connect(_queue_relayout)
 	_relayout()
@@ -596,6 +610,9 @@ func _build_topbar() -> void:
 		set_speed_index(0)
 	else:
 		_on_speed_changed(game.speed_index)  # (co-op client: shows the host's speed)
+	_map_button = _icon_button("icon_map", "Map: the whole map at a glance (M)")
+	_map_button.pressed.connect(func() -> void: toggle_map(not tactical_map.visible))
+	row.add_child(_map_button)
 	_book_button = _icon_button("icon_book", "Library: enemies, units, buildings, villagers, hero, places")
 	_book_button.pressed.connect(open_library)
 	row.add_child(_book_button)
@@ -614,18 +631,34 @@ func _spacer() -> Control:
 	return c
 
 
-## Keeps the top bar inside the screen on narrow windows by dropping spacing
-## and then the (redundant) wave text, rather than running off the edge.
+## Keeps the top bar inside the screen on narrow windows by dropping spacing,
+## then the (redundant) wave text, then the food rate, then tighter still,
+## rather than running off the edge.
 func _fit_topbar() -> void:
 	var width := _root.size.x
 	for r in [_top_left, _top_right]:
 		r.add_theme_constant_override("separation", 16)
 	_wave_label.visible = true
+	_food_rate_label.visible = true
 	if _topbar.get_combined_minimum_size().x > width:
 		for r in [_top_left, _top_right]:
 			r.add_theme_constant_override("separation", 6)
 	if _topbar.get_combined_minimum_size().x > width:
 		_wave_label.visible = false
+	if _topbar.get_combined_minimum_size().x > width:
+		_food_rate_label.visible = false
+	if _topbar.get_combined_minimum_size().x > width:
+		for r in [_top_left, _top_right]:
+			r.add_theme_constant_override("separation", 2)
+
+
+## Back to the screen's width, its rows sorted again (`_process`): grown past
+## its anchors while its minimum size was wider for a moment, it doesn't
+## shrink back by itself, nor do its rows.
+func _shrink_topbar() -> void:
+	_topbar.size = Vector2(_root.size.x, _topbar.get_combined_minimum_size().y)
+	_topbar.queue_sort()
+	_topbar_box.queue_sort()
 
 
 func _icon_button(icon_name: String, tooltip: String) -> Button:
@@ -689,7 +722,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	if _zoom_key(event as InputEventKey) or event.is_echo():
 		return
-	match (event as InputEventKey).keycode:
+	var key := (event as InputEventKey).keycode
+	if _confirm_enter and _confirm_panel.visible and (key == KEY_ENTER or key == KEY_KP_ENTER):
+		get_viewport().set_input_as_handled()
+		_confirm_yes.pressed.emit()
+		return
+	match key:
 		KEY_F11:
 			toggle_fullscreen()
 		KEY_ESCAPE:
@@ -699,6 +737,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_T:
 			if not _settings.visible and not library.visible:
 				open_stats()
+		KEY_M:
+			if not _settings.visible and not library.visible and not stats_screen.visible:
+				toggle_map(not tactical_map.visible)
 		KEY_1, KEY_KP_1:
 			hotkey_speed(1.0)
 		KEY_2, KEY_KP_2:
@@ -707,6 +748,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			hotkey_speed(4.0)
 		KEY_H:
 			if not _settings.visible:
+				close_map()
 				go_to_hero()
 				_follow_hero = true
 		KEY_F1:
@@ -724,6 +766,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 ## The keys that act on the game (not while the settings or the game-over
 ## screen are open). True if `event` was one of them.
 func _game_key(event: InputEventKey) -> bool:
+	if tactical_map.visible and MAP_CLOSING_KEYS.has(event.keycode):
+		close_map()  # (they need the game's view)
 	match event.keycode:
 		KEY_Z:
 			go_to_village()
@@ -920,7 +964,10 @@ func _zoom_key(event: InputEventKey) -> bool:
 			f = 1.0 / Config.CAMERA_KEY_ZOOM
 	if f == 0.0:
 		return false
-	if not _settings.visible:
+	if tactical_map.visible:
+		var step := float(Config.TACTICAL_MAP["key_zoom"])
+		tactical_map.zoom_key(step if f > 1.0 else 1.0 / step)
+	elif not _settings.visible:
 		game.camera.zoom_at(get_viewport().get_visible_rect().size / 2.0, f)
 	get_viewport().set_input_as_handled()
 	return true
@@ -960,6 +1007,7 @@ func _register_popups() -> void:
 	register_popup(_keys_panel, func() -> void: toggle_keys_help(false))
 	register_popup(_settings, close_settings)
 	register_popup(_save_panel, func() -> void: _show_save(false))
+	register_popup(tactical_map, close_map)
 	if _debug_panel:
 		register_popup(_debug_panel, func() -> void: _show_debug(false))
 
@@ -971,7 +1019,9 @@ func register_popup(c: Control, close: Callable) -> void:
 	c.visibility_changed.connect(func() -> void:
 		_popups.erase(c)
 		if c.visible:
-			_popups.append(c))
+			_popups.append(c)
+			if c != tactical_map:
+				close_map())
 	if c.visible:
 		_popups.append(c)
 
@@ -1574,6 +1624,8 @@ func _relayout() -> void:
 	_spacer_port.visible = _portrait
 	_fit_topbar()
 	_top_h = maxf(TOPBAR_H, _topbar.get_combined_minimum_size().y)
+	if tactical_map:
+		tactical_map.set_top(_top_h)
 
 	var cols := 2 if _portrait and vp.x >= 640.0 else 1
 	for g in _entry_grids:
@@ -2549,9 +2601,22 @@ func ask_retire(c: Civilian) -> void:
 				_refresh_people())
 
 
+## "Back to title" / "Leave game": are you sure? (Esc: no, Enter: yes).
+func ask_back_to_title() -> void:
+	var leave := game.networked
+	_ask("Leave game?" if leave else "Back to title?", UiTheme.BAD, "Are you sure?",
+		"Yes", true, func() -> void:
+			_confirm_panel.visible = false
+			game.go_to_title())
+	_confirm_no.text = "No"
+	_confirm_enter = true
+
+
 ## Shows the confirmation dialog: `yes` runs on the confirm button (red when
 ## `danger`); Cancel just closes it.
 func _ask(title: String, color: Color, text: String, yes_text: String, danger: bool, yes: Callable, ready := Callable()) -> void:
+	_confirm_enter = false
+	_confirm_no.text = "Cancel"
 	_confirm_title.text = title
 	_confirm_title.add_theme_color_override("font_color", color)
 	_confirm_text.custom_minimum_size.x = _upgrade_width()
@@ -2609,13 +2674,15 @@ func _build_upgrade_dialogs() -> void:
 	c.add_child(_confirm_text)
 	_confirm_yes = _button("", Vector2(0, 54))
 	c.add_child(_confirm_yes)
-	var no := _button("Cancel", Vector2(0, 46))
-	no.pressed.connect(func() -> void: _confirm_panel.visible = false)
-	c.add_child(no)
+	_confirm_no = _button("Cancel", Vector2(0, 46))
+	_confirm_no.pressed.connect(func() -> void: _confirm_panel.visible = false)
+	c.add_child(_confirm_no)
 	_confirm_panel.visible = false
 
 
 ## F1: every hotkey, in a dialog (F1 again, Close or Esc close it).
+## Keys that need the game's view (or open a panel): they close the map first.
+const MAP_CLOSING_KEYS: Array[Key] = [KEY_Z, KEY_U, KEY_Q, KEY_N, KEY_TAB, KEY_V, KEY_X]
 const KEYS_HELP: Array[Array] = [
 	["Space", "Pause, and back to the speed before"],
 	["1 / 2 / 3", "Speed 1x / 2x / 4x"],
@@ -2632,6 +2699,7 @@ const KEYS_HELP: Array[Array] = [
 	["V", "Villager list"],
 	["X", "Hero panel"],
 	["T", "Statistics"],
+	["M", "Map: the whole map at a glance"],
 	[".", "Call the next wave now"],
 	["Esc", "Close the newest popup, or the settings"],
 	["F11", "Full screen"],
@@ -2861,7 +2929,7 @@ func _build_settings() -> void:
 	v.add_child(_settings_editor_button)
 	_settings_title_button = _button("Back to title", Vector2(0, 56))
 	UiTheme.style_danger(_settings_title_button)
-	_settings_title_button.pressed.connect(func() -> void: game.go_to_title())
+	_settings_title_button.pressed.connect(ask_back_to_title)
 	v.add_child(_settings_title_button)
 	_build_save_page(center)
 	save_list = SaveList.new()
@@ -3054,11 +3122,38 @@ func close_settings() -> void:
 		set_speed_index(_speed_before)
 
 
+## M / the map icon: opens or closes the tactical map (docs/ui-design.md §12).
+## The game runs on; placing a building or stationing a unit ends; the
+## camera takes no input meanwhile (keys and the pointer act on the map).
+func toggle_map(on: bool) -> void:
+	if not on:
+		close_map()
+		return
+	if tactical_map.visible or game.backdrop != null or _overlay.visible:
+		return
+	if game.mode != Game.Mode.NONE:
+		game.cancel_mode()
+	_follow_hero = false
+	game.camera.set_active(false)
+	tactical_map.set_top(_top_h)
+	tactical_map.open()
+
+
+func close_map() -> void:
+	if tactical_map and tactical_map.visible:
+		tactical_map.close()
+
+
+func _on_map_closed() -> void:
+	game.camera.set_active(true)
+
+
 ## The library. Single player pauses while it's open,
 ## and goes on at the old speed after; in co-op nobody pauses.
 func open_library(tab := "") -> void:
 	if library.visible:
 		return
+	close_map()
 	_lib_paused = not game.networked and not _overlay.visible
 	if _lib_paused:
 		_lib_speed_before = _speed_index
@@ -3097,6 +3192,7 @@ func open_stats(tab := "") -> void:
 	if not stats_available():
 		toast("Statistics are available from wave %d" % int(Config.STATS["from_wave"]), UiTheme.MUTED)
 		return
+	close_map()
 	_stats_paused = not game.networked and not _overlay.visible
 	if _stats_paused:
 		_stats_speed_before = _speed_index
@@ -3452,6 +3548,8 @@ func _queue_refresh() -> void:
 
 func _process(delta: float) -> void:
 	_clock += delta / maxf(Engine.time_scale, 0.001)
+	if _topbar.size.x > _root.size.x + 0.5 or _top_right.get_rect().end.x > _topbar_box.size.x + 0.5:
+		_shrink_topbar()
 	if game.networked:
 		_update_pause_gray()
 	if _place_bar.visible:

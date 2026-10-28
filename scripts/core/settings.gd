@@ -29,6 +29,9 @@ const PLAYER_FILE := "user://player.cfg"
 ## The player's UI size (one of Config.UI_SCALE.choices; 1 = auto), saved
 ## with the name and colour. Layout applies it.
 var ui_scale := 1.0
+## The tactical map's layers that are on (docs/ui-design.md §12), saved with
+## the name and colour.
+var map_layers := {"rings": true, "hp": true, "units": true, "enemies": true}
 
 
 func _ready() -> void:
@@ -39,6 +42,10 @@ func _ready() -> void:
 		var u := float(cf.get_value("ui", "scale", 1.0))
 		if (Config.UI_SCALE["choices"] as Array).has(u):
 			ui_scale = u
+		var layers: Variant = cf.get_value("ui", "map_layers", {})
+		if layers is Dictionary:
+			for k: String in map_layers:
+				map_layers[k] = bool((layers as Dictionary).get(k, true))
 	_keep_web_storage()
 
 
@@ -63,6 +70,7 @@ func save_player() -> void:
 	cf.set_value("player", "name", player_name)
 	cf.set_value("player", "color", player_color)
 	cf.set_value("ui", "scale", ui_scale)
+	cf.set_value("ui", "map_layers", map_layers)
 	cf.save(PLAYER_FILE)
 
 

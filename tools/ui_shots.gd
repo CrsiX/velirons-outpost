@@ -38,6 +38,9 @@ extends Node
 ## unhorsed by its wolf's corpse, Legion cavalry with its footmen, the mounted
 ## captains and commanders (a hurt horse's bar), Rhodri on foot, an undead
 ## horse bolting, and the library's raider and halberdier;
+## (`--only=map`) the tactical map (M): manned towers with their rings, a hurt
+## wall, the hero and units out, goblins on the roads, zoomed, toggles off,
+## portrait;
 ## (`--only=picking`) picking on the map in scenario 9's harbour village: taps
 ## through the church to the gate and wall behind it, the church see-through
 ## (it prints how long picking and measuring take on this renderer).
@@ -147,6 +150,8 @@ func _run() -> void:
 		await _riders()
 	if only in ["", "picking"]:
 		await _picking()
+	if only in ["", "map"]:
+		await _tactical_map()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -373,6 +378,60 @@ func _game() -> void:
 		await _landscape()
 	Settings.editor_play = false
 	Settings.custom_map = null
+	g.queue_free()
+	await _frames(3)
+
+
+# --- the tactical map (M) --------------------------------------------------------------
+
+func _tactical_map() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 777
+	add_child(g)
+	await _frames(60)
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	g.fog.reveal(Vector2(v.center), 22.0, v.id)
+	for b in v.buildings():
+		if b.kind == "wall_tower":
+			var u := v.army.recruit("archer")
+			v.army.station(u, b as MilitaryPost)
+	var walls := v.buildings().filter(func(b: Building) -> bool: return b.kind == "wall")
+	(walls[0] as Building).hp *= 0.35
+	(walls[1] as Building).hp *= 0.7
+	g.command("hero_mode", {"mode": Hero.Mode.EXPLORE})
+	Engine.time_scale = 6.0
+	await _frames(240)
+	Engine.time_scale = 1.0
+	var roads: Array[Vector2i] = []  # (road tiles 6-9 out: watched land, so the map shows them)
+	for y in g.map.size:
+		for x in g.map.size:
+			var t := Vector2i(x, y)
+			var d := Vector2(t - v.center).length()
+			if g.map.is_road(t) and d >= 6.0 and d <= 9.0 and not v.rect.has_point(t):
+				roads.append(t)
+	for i in mini(roads.size(), 8):
+		g.waves.spawn_at(["goblin", "ork", "gargoyle", "goblin"][i % 4], roads[i * roads.size() / 8], v, 1)
+	await _frames(20)
+	g.hud.toggle_map(true)
+	await _frames(10)
+	await shot("map_open")
+	var m := g.hud.tactical_map
+	m._center = Iso.tile_to_world(v.center)
+	m.zoom_key(4.0)
+	await _frames(5)
+	await shot("map_zoomed")
+	for k in ["rings", "hp", "units"]:
+		g.hud.tactical_map.set_layer(k, false)
+	await _frames(5)
+	await shot("map_enemies_only")
+	for k in ["rings", "hp", "units"]:
+		g.hud.tactical_map.set_layer(k, true)
+	await _size(Vector2i(540, 960))
+	await _frames(10)
+	await shot("map_portrait")
+	await _landscape()
 	g.queue_free()
 	await _frames(3)
 

@@ -930,6 +930,10 @@ func _run() -> void:
 	check(hud._settings_continue.text == "Continue" and hud._settings_log_button.text == "Log level: Info" and hud._settings_lang_button.icon == Art.tex("flag_gb") and hud._settings_lang_button.text == "" and hud._settings_title_button.text == "Back to title", "buttons: Continue, Log level, a British flag for English, Back to title")
 	var red := hud._settings_title_button.get_theme_stylebox("normal") as StyleBoxFlat
 	check(red.bg_color.r > 0.6 and red.bg_color.g < 0.3 and hud._settings_title_button.pressed.get_connections().size() > 0, "Back to title is red and wired")
+	hud._settings_title_button.pressed.emit()
+	check(hud._confirm_panel.visible and hud._confirm_yes.text == "Yes" and hud._confirm_no.text == "No" and hud.top_popup() == hud._confirm_panel, "Back to title asks first (Yes / No)")
+	hud.escape()
+	check(not hud._confirm_panel.visible and hud._settings.visible and is_instance_valid(game) and game.is_inside_tree(), "Esc answers no: still in the game")
 	await tap(center(hud._settings_log_button))
 	await frames(2)
 	check(hud._settings_log_button.text == "Log level: Important" and hud.log_lines().has("test important") and not hud.log_lines().has("Wave 1 is over"), "log level Important: only important messages, old ones included")

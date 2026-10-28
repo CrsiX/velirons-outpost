@@ -73,6 +73,17 @@ func world_to_screen(world_pos: Vector2) -> Vector2:
 	return get_viewport().get_canvas_transform() * world_pos
 
 
+## Off: the camera takes no input at all (no pan, zoom, taps or keys), while
+## something covers the map (the tactical map). On again it starts afresh.
+func set_active(on: bool) -> void:
+	set_process(on)
+	set_process_input(on)
+	set_process_unhandled_input(on)
+	_pressing = false
+	_dragging = false
+	_touches.clear()
+
+
 func focus(world_pos: Vector2) -> void:
 	position = world_pos
 	_clamp()

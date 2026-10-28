@@ -3,7 +3,8 @@ extends "res://tests/bot_base.gd"
 ## Army tab, the hero's health bar, the villager list (View, Retire, Rebuild
 ## all huts), picking on the map (pixels, tapping through, see-through),
 ## floating icons, Space, the "no builder" and food-shortage
-## warnings, and every hotkey (docs/ui-design.md §10-11; F1 lists them).
+## warnings, every hotkey (docs/ui-design.md §10-11; F1 lists them) and the
+## tactical map (M, §12).
 ## Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/hud_bot.tscn
 ## Exits 0 when every check passes.
@@ -28,6 +29,7 @@ func _run() -> void:
 	_test_hero_bar()
 	await _test_hotkeys()  # (while the village is whole: the next ones kill and retire villagers)
 	await _test_new_keys()
+	await _test_map()
 	await _test_people()
 	await _test_hud_extras()
 	Engine.time_scale = 1.0
@@ -497,6 +499,128 @@ func _test_new_keys() -> void:
 	await wait_until(func() -> bool: return not game.waves.in_progress(), 5.0)
 	game.waves.countdown = 99999.0
 	game.waves.hold = true
+
+
+# --- the tactical map (M; docs/ui-design.md §12) -------------------------------------------
+
+func _map_click(m: TacticalMap, local: Vector2, shift := false) -> void:
+	for pressed in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.pressed = pressed
+		e.position = local
+		e.shift_pressed = shift
+		m._gui_input(e)
+
+
+func _test_map() -> void:
+	var hud := game.hud
+	var m := hud.tactical_map
+	var cam := game.camera
+	var top := hud._map_button.get_parent()
+	check(hud._map_button.get_index() + 1 == hud._book_button.get_index() and top == hud._book_button.get_parent(), "the map icon sits left of the library")
+	check("M" in hud.KEYS_HELP.map(func(r: Array) -> String: return r[0]), "F1's list has M")
+	var layers := Settings.map_layers.duplicate()
+	hud._unhandled_key_input(_press(KEY_M))
+	await frames(2)
+	check(m.visible and hud.top_popup() == m, "M opens the map, a popup")
+	check(not cam.is_processing_unhandled_input() and not cam.is_processing(), "the camera takes no input while the map is open")
+	check(m.offset_top >= hud._top_h - 0.5, "the map stays under the top bar (%.0f, %.0f)" % [m.offset_top, hud._top_h])
+	var clock := game.clock
+	await wait(0.5)
+	check(game.clock > clock and not get_tree().paused, "the game runs on under the map")
+	# Keys that don't need the view work with the map open.
+	hud._unhandled_key_input(_press(KEY_2))
+	var speed_ok := Game.SPEEDS[hud._speed_index] == 2.0
+	var was_mode: int = game.hero.mode
+	hud._unhandled_key_input(_press(KEY_B))
+	check(speed_ok and game.hero.mode == Hero.Mode.BUILD and m.visible, "2 and B work with the map open, and it stays open")
+	game.command("hero_mode", {"mode": was_mode})
+	hud._unhandled_key_input(_press(KEY_3))
+	var cam_zoom := cam.zoom
+	var z := m._zoom
+	hud._unhandled_key_input(_press(KEY_PLUS))
+	check(m._zoom > z and cam.zoom == cam_zoom, "+ zooms the map, not the game's view")
+	hud._unhandled_key_input(_press(KEY_MINUS))
+	# A drag pans and doesn't pick.
+	var c0 := m._center
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = true
+	e.position = m.size / 2.0
+	m._gui_input(e)
+	var mm := InputEventMouseMotion.new()
+	mm.position = m.size / 2.0 + Vector2(60, 30)
+	m._gui_input(mm)
+	e = e.duplicate() as InputEventMouseButton
+	e.pressed = false
+	e.position = mm.position
+	m._gui_input(e)
+	check(m.visible and m._center != c0, "a drag pans the map and doesn't pick")
+	# Shift+click: the view goes there, the map stays.
+	var far := game.player_village.center + Vector2i(8, -6)
+	cam.focus(Iso.tile_to_world(game.player_village.center))
+	_map_click(m, m.to_screen(Iso.tile_to_world(far)), true)
+	check(m.visible and cam.position.distance_to(Iso.tile_to_world(far)) < 40.0, "Shift+click centres the view there and keeps the map open (%s)" % str(Iso.to_tile(cam.position)))
+	# A click: the view goes there and the map closes.
+	var spot := game.player_village.center + Vector2i(-5, 4)
+	_map_click(m, m.to_screen(Iso.tile_to_world(spot)))
+	check(not m.visible and cam.position.distance_to(Iso.tile_to_world(spot)) < 40.0, "a click centres the view there and closes the map")
+	check(cam.is_processing_unhandled_input() and cam.is_processing(), "closed: the camera takes input again")
+	# Esc, M, other popups and the view keys close it.
+	hud.toggle_map(true)
+	hud.escape()
+	var esc_ok := not m.visible
+	hud.toggle_map(true)
+	hud._unhandled_key_input(_press(KEY_M))
+	check(esc_ok and not m.visible, "Esc and M close the map")
+	hud.toggle_map(true)
+	hud.toggle_people(true)
+	check(not m.visible and hud._people_panel.visible, "another popup (the villager list) closes the map")
+	hud.toggle_people(false)
+	hud.toggle_map(true)
+	cam.focus(Vector2.ZERO)
+	hud._unhandled_key_input(_press(KEY_Z))
+	check(not m.visible and cam.position.distance_to(Iso.tile_to_world(game.player_village.center)) < 2.0, "Z closes the map and moves the view to the village")
+	hud.toggle_map(true)
+	hud.open_library()
+	check(not m.visible, "the library closes the map")
+	hud.library.close()
+	await frames(2)
+	# Placing a building ends when the map opens.
+	game.begin_build("tower")
+	hud.toggle_map(true)
+	check(game.mode == Game.Mode.NONE and m.visible, "opening the map ends placing a building")
+	# The toggles, remembered.
+	(m.buttons["enemies"] as Button).button_pressed = false
+	check(not Settings.map_layers["enemies"] and m.buttons["enemies"].modulate.a < 1.0, "a toggle turns its layer off (dimmed)")
+	var cf := ConfigFile.new()
+	cf.load(Settings.PLAYER_FILE)
+	check(cf.get_value("ui", "map_layers", {}).get("enemies", true) == false, "the toggles are remembered on the device")
+	m.set_layer("enemies", true)
+	check(m.buttons["enemies"].button_pressed and m.buttons["enemies"].modulate.a == 1.0, "and back on")
+	# Enemies only on watched land.
+	var g := game.waves.spawn_at("goblin", game.player_village.home_spawns[0], game.player_village, 1)
+	await frames(2)
+	var fog := game.fog
+	var i := game.map.index(g.current_tile())
+	var seen_all := m.shown_enemies().has(g)
+	fog.disabled = false
+	var was: Array[int] = [fog.explored_of[fog.local][i], fog.watched_of[fog.local][i]]
+	fog.explored_of[fog.local][i] = 1
+	fog.watched_of[fog.local][i] = 0
+	var hidden := not m.shown_enemies().has(g)
+	fog.watched_of[fog.local][i] = 1
+	var watched := m.shown_enemies().has(g)
+	fog.explored_of[fog.local][i] = was[0]
+	fog.watched_of[fog.local][i] = was[1]
+	fog.disabled = true
+	check(seen_all and hidden and watched, "an enemy shows on the map only where the village watches the land")
+	await frames(2)  # (drawn with every layer on, no errors)
+	await clear_enemies()
+	hud.close_map()
+	Settings.map_layers = layers
+	Settings.save_player()
 
 
 func _test_hotkeys() -> void:

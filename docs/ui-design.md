@@ -144,11 +144,13 @@ Big touch targets everywhere, so mouse and fingers work the same.
   - **Call button**: "Call now +X {gold}" while waiting, "Fighting..." during a wave, "Not yet" while
     the tutorial holds the wave.
   - **Speed button** (§10).
-  - **Library** (book icon), **statistics** (bar chart) and **settings** (gear), in that order.
+  - **Map** (`icon_map`, §12), **library** (book icon), **statistics** (bar chart) and **settings**
+    (gear), in that order.
 - **Landscape:** one row, `TOPBAR_H` 64 px. If it doesn't fit the width, `_fit_topbar` first shrinks
-  the spacing, then hides the wave text (the call button and enemy count still say enough).
-- **Portrait:** two rows. The wave controls (enemies, wave text, call, speed, library, statistics,
-  settings) are on top; the resources and hero are below.
+  the spacing, then hides the wave text (the call button and enemy count still say enough), then the
+  food rate, then tightens the spacing further.
+- **Portrait:** two rows. The wave controls (enemies, wave text, call, speed, map, library,
+  statistics, settings) are on top; the resources and hero are below.
 - **The top-left panels** (hero panel, villager list, trade dialog) share a corner. Opening one closes
   the others.
 
@@ -337,7 +339,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
     type instead.
   - **Back to editor:** only in a game the map editor's Play started (`Settings.editor_play`); back
     to the editor with its map, unsaved changes and undo (`Game.go_to_editor`).
-  - **Back to title:** red, no confirmation; "Leave game" in a networked game.
+  - **Back to title:** red, asks "Are you sure?" first (Yes / No; Esc is no, Enter is yes); "Leave game" in a networked game.
   - **Co-op client:** the dialog doesn't pause, and a note says so.
   - **Co-op host:** pausing greys everything below the top bar for all players ("Paused by the host").
   - **Debug:** in a debug build (`OS.is_debug_build()`: a debug export, or run from the editor; never
@@ -485,10 +487,66 @@ Big touch targets everywhere, so mouse and fingers work the same.
     `Hud.map_rect` is the safe area's map part.
   - The title screen and the lobby are centred with margins and need nothing. In the browser the page
     has no `viewport-fit=cover`, so the browser keeps it out of a cutout itself.
-  - The top bar fits itself again (`_fit_topbar`: less spacing, then no wave text) whenever its content
+  - The top bar fits itself again (`_fit_topbar`: less spacing, then no wave text, then no food rate, then even less spacing) whenever its content
     grows wider than the room it has, not only on a resize.
 
-## 12. Event log and floating texts
+## 12. The tactical map (`scripts/ui/tactical_map.gd`, class `TacticalMap`)
+
+An overview of the whole map from above, to read the situation at a glance: where the land is
+watched, where the enemies are, which posts are manned and what is hurt. It is only an overview:
+nothing is placed, stationed, upgraded or selected on it.
+
+- **Opening:** **M**, or the map icon (`icon_map`) in the top bar, left of the library. M again,
+  Esc, the close button (`icon_no`) or a click on the map closes it. It is a HUD popup
+  (`Hud.register_popup`), so Esc closes it before anything opened under it. Opening it ends
+  placing a building or stationing a unit (`Game.cancel_mode`). Not in the title backdrop.
+- **Live:** the game keeps running under it at its speed (nobody pauses; paused stays paused).
+- **Where:** it covers the screen below the top bar (`Hud._top_h`), which stays visible and usable.
+  The dock, the info panel and the hero / villager panels are under it. Toasts, the warnings, the log,
+  the game-over screen, the settings, the library and the statistics are above it. Opening any other
+  HUD popup (a panel, a dialog, the settings, the library, the statistics, the F1 list) closes the map.
+- **Drawn as the game is:** the map is the same isometric diamond as the game view, turned the same
+  way, so up on the map is up on the screen. It opens on the land the village has explored
+  (`open_pad` tiles round it, never smaller than the whole map fitted to its area with `margin`); the wheel, a pinch and + / - zoom it (`min_zoom` .. `max_zoom`, times the
+  fitted size, about the pointer or the centre), and a drag or WASD / the arrows pan it. A drag never
+  counts as a click (`DRAG_THRESHOLD`).
+- **A click or tap** on a spot of the map centres the game's view there (`CameraController.focus`)
+  and closes the map. Shift+click, or a long press with a finger (`TACTICAL_MAP.long_press`), centres
+  the view and keeps the map open. There is no outline of the view on the map.
+- **Layers**, bottom to top, all from the local player's village (co-op: its own fog):
+  1. *Ground:* `MapPlan.ground_color` per tile, drawn when the map opens; a felled tree
+     (`World.tree_felled`) changes its tile at once.
+  2. *Fog:* unexplored land black, explored land dimmed (`fog_dim`), watched land clear: the game's
+     three states (`FogLayer.is_explored_by` / `is_watched_by`), redrawn every `fog_refresh` s.
+  3. *Buildings* on explored land: each tile of its footprint in its colour (`colors`: huts, walls,
+     gates, wall towers, watchtowers, barracks, farms, camps, light stones, other buildings; another
+     village's in its village colour). A devastated building or ruined hut shows dark red
+     (`devastated`), a site lighter (`site_alpha`). A tower or barracks with a unit on it has a light
+     dot (`manned`).
+  4. *Map objects* found by the village, in `MapPlan.OBJECT_COLORS` (an awake lair with a red rim).
+  5. *Range rings* (toggle): every manned tower's range (`Tower.range_tiles`) and every barracks'
+     activation range with a unit on its benches, as thin ellipses (`ring`).
+  6. *Our people* (toggle): units out in the field (soldiers) and summons as dots (`unit`), villagers
+     outside the walls (`villager`), the hero bigger with a ring (`hero`); downed, her mark where
+     she fell is grey.
+  7. *Enemies* (toggle): a red dot per living enemy on watched land (`enemy`; flyers lighter, named
+     ones bigger with a gold ring), and the warning lights (`WarningLights.spots`) as pulsing red
+     marks (`warning`). Nothing on land that isn't watched.
+  8. *HP bars* (toggle): over the hero and units in the field when hurt, over towers with a hurt unit
+     on them (the hero's and the units' bars only with *our people* on), and over every damaged building (HP below max, or devastated: empty), green / yellow /
+     red like the hero's bar (`hp_bar`).
+- **Toggles:** four icon buttons along the top edge, each with a tooltip, framed when on and dimmed
+  when off: range rings (`icon_range`), HP bars (`icon_hp`), our people (`icon_army`), enemies
+  (`icon_enemies`). All are on at first; their state is remembered on the device
+  (`Settings.map_layers`, saved with the player's name and colour).
+- **Keys while it is open:** the game's hotkeys keep working. Those that don't need the view act
+  with the map open: the speed (1 / 2 / 3, Space), the hero's modes (P B E G Y R), R withdrawing the
+  selected unit, . (call the wave), F1 to F3, F11, Esc. + / - and WASD / the arrows act on the map,
+  not the game's camera (`CameraController.set_active`). The keys that move the view or open
+  something close the map first: H, Z, Tab, N, U, Q, V, X, T.
+- **Numbers:** `Config.TACTICAL_MAP` (colours, sizes, refresh times, zoom limits).
+
+## 13. Event log and floating texts
 
 - **Event log** (`scripts/systems/event_log.gd` for the data, `Hud` for the view):
   - **Levels:** Important (deaths and destroyed huts, with the cause), Info (waves, returns, finished
@@ -504,7 +562,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
   for example "+2 {gold} +8 {food}" (loot brought home, drawn as icons), "+N {materials}" from
   foresters, "Enemies!", "Level 4!", "Hero down!". The co-op host replicates them to clients.
 
-## 13. Tests
+## 14. Tests
 
 | Part | Bot |
 |---|---|
@@ -514,6 +572,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
 | The library: an entry for every kind in Config with its numbers, pausing (not in co-op), the book icon, the title button and icons, fitting the screen | tests/library_bot.gd |
 | The statistics: counters, samples in game time, the button from wave 2, T, pausing, the tabs, folding, the game-over button, a column per village, the client copy | tests/stats_bot.gd |
 | The title backdrop: made over many frames on its baked (up-to-date) map, each scene's posts, units and enemies, slow motion, starts black, fades via black, no input, speed and sound restored after | tests/title_bot.gd |
+| The tactical map: M and the icon, the popup stack (Esc, other popups close it), live game, a click centring the view, Shift+click keeping it open, zoom and pan, the camera idle meanwhile, the toggles and their memory, enemies hidden in the fog, the keys that work and those that close it | tests/hud_bot.gd |
 | The upgrade dialog and the Spatial Archmage confirmation (fit on screen, taps) | tests/military_bot.gd |
 | The tutorial card, highlights and arrows | tests/tutorial_bot.gd |
 | Co-op dialogs (send resources / units), host-only speed | tests/coop_bot.gd, tests/net_bot.gd |

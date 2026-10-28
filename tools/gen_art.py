@@ -4183,6 +4183,20 @@ def icons():
   <rect x="21" y="22" width="10" height="32" rx="1.5" fill="{GOLD}" stroke="{INK}" stroke-width="3.5"/>
   <rect x="34" y="30" width="10" height="24" rx="1.5" fill="#efe3c8" stroke="{INK}" stroke-width="3.5"/>
   <rect x="47" y="10" width="10" height="44" rx="1.5" fill="{CRIMSON}" stroke="{INK}" stroke-width="3.5"/>''')
+    # Map (the tactical map, M): a folded parchment map with a dotted route and a red cross.
+    icon_svg("icon_map", f'''
+  <path d="M6 14 L22 8 L42 14 L58 8 L58 50 L42 56 L22 50 L6 56Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M22 8 L22 50 M42 14 L42 56" stroke="#a8997c" stroke-width="2.5"/>
+  <path d="M12 44 Q20 30 30 34 Q40 38 46 24" fill="none" stroke="{CRIMSON}" stroke-width="3" stroke-dasharray="3 4" stroke-linecap="round"/>
+  <path d="M44 18 L52 26 M52 18 L44 26" stroke="{CRIMSON}" stroke-width="4" stroke-linecap="round"/>''')
+    # Range rings (the tactical map's toggle): a tower's dot in two rings.
+    icon_svg("icon_range", f'''
+  <ellipse cx="32" cy="34" rx="28" ry="20" fill="none" stroke="{INK}" stroke-width="6"/>
+  <ellipse cx="32" cy="34" rx="28" ry="20" fill="none" stroke="{GOLD}" stroke-width="3"/>
+  <ellipse cx="32" cy="34" rx="15" ry="10.5" fill="none" stroke="{INK}" stroke-width="5"/>
+  <ellipse cx="32" cy="34" rx="15" ry="10.5" fill="none" stroke="#efe3c8" stroke-width="2.5"/>
+  <rect x="27" y="14" width="10" height="20" fill="#8c7b62" stroke="{INK}" stroke-width="3"/>
+  <path d="M25 14 L39 14 L39 9 L35 9 L35 12 L32 12 L32 9 L29 9 L29 12 L25 12Z" fill="#8c7b62" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>''')
     icon_svg("icon_fast", f'''
   <path d="M6 14 L32 32 L6 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
   <path d="M32 14 L58 32 L32 50Z" fill="#efe3c8" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>''')
