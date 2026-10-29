@@ -149,7 +149,7 @@ func _spot(kind: String) -> Vector2i:
 	for dy in range(-radius, radius + 1):
 		for dx in range(-radius, radius + 1):
 			var t := c + Vector2i(dx, dy)
-			if game.construction.placement_error(kind, t) != "":
+			if p.bad_spots.has(t) or game.construction.placement_error(kind, t) != "":
 				continue
 			var score := _score(kind, t, size, ctx)
 			if score > best_score:

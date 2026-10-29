@@ -869,6 +869,7 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 		var intact := v.intact_huts()
 		hut = null if intact.is_empty() else intact.pick_random() as Hut
 	if hut != null:
+		stats.count(v, "burned_by." + g.kind)
 		hut.destroy(g.label())
 	if v.is_local():
 		Sfx.play("raid")

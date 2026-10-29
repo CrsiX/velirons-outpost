@@ -104,7 +104,9 @@ room), no defence building is placed and no other villager recruited until one i
 never builds a new post while two stand empty.
 
 The hero (`BALANCE_HERO`, the same for every policy): she explores until `explore_waves`
-(during a wave only while no enemy is near the walls) and defends during waves. She spends her
+(during a wave only while no enemy is near the walls) and defends during waves. Between waves,
+with nothing else to do (nothing to explore, no unit to train), she gathers corpses, and rests
+when there is no corpse to gather anywhere (on explored land, safe, nobody's). She spends her
 XP on levels at once until `bank_xp_from_level` (6); from then on, with training grounds and a
 unit that can still level, she keeps it for training. Below `rest_below` of her HP
 (`careful_rest_below` while she holds `careful_xp` or more XP, which a downing would cost her)

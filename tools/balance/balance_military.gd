@@ -62,6 +62,9 @@ func _free_posts() -> int:
 func _defence_buildings() -> void:
 	if p.no_farm or p.repair_wanted or p.economy.economy_first() or p.economy.site_open():
 		return
+	if _training_due():
+		_place("training")  # (before the towers: they would keep taking the material)
+		return
 	var tw: Array = _profile["towers"]
 	var want_towers := mini(int(tw[2]), int(tw[0]) + int(floorf(float(tw[1]) * _wave())))
 	# (No new post while two stand empty: nobody to man them.)
@@ -70,9 +73,6 @@ func _defence_buildings() -> void:
 			_place("tower")
 		if _buildings_of("barracks").size() < _scheduled(_profile["barracks"]):
 			_place("barracks")
-	var tr := int(_profile["training"])
-	if tr > 0 and _wave() >= tr and _buildings_of("training").is_empty():
-		_place("training")
 
 
 ## The wave ends only when its water monsters are dead: once they are all that
@@ -354,7 +354,7 @@ func _prune_held() -> void:
 ## (Not while a building waits for material: the material goes to that first,
 ## or gold would buy material for upgrades through it.)
 func _tower_upgrades() -> void:
-	if p.want_materials > 0 or p.economy.site_open():
+	if p.want_materials > 0 or p.economy.site_open() or _training_due():
 		return
 	var want_tower := _scheduled(_profile["tower_levels"], 1)
 	var want_barracks := _scheduled(_profile["barracks_levels"], 1)
@@ -431,13 +431,16 @@ func _branch_fits(u: MilitaryUnit, branch: String) -> bool:
 	return not _buildings_of("barracks").is_empty() and posts.has("barracks")
 
 
-## Gold the training grounds cost while they are due (from the profile's wave)
-## and not there yet: unit upgrades leave it alone, or it would never be saved.
-func _training_reserve() -> int:
+## The training grounds are due (from the profile's wave) and not there yet:
+## they come before other new posts and tower upgrades, and unit upgrades leave
+## their gold alone, or the price would never be saved.
+func _training_due() -> bool:
 	var tr := int(_profile["training"])
-	if tr <= 0 or _wave() < tr or not _buildings_of("training").is_empty():
-		return 0
-	return int(Config.BUILDINGS["training"]["cost"].get("gold", 0))
+	return tr > 0 and _wave() >= tr and _buildings_of("training").is_empty()
+
+
+func _training_reserve() -> int:
+	return int(Config.BUILDINGS["training"]["cost"].get("gold", 0)) if _training_due() else 0
 
 
 ## Gold of the unit an empty post waits for (0: none waits): upgrades

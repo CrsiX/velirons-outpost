@@ -53,6 +53,8 @@ var farm_unmanned := false
 ## --- state they share ---
 ## Kind -> game seconds before which it isn't tried to place again (no spot).
 var no_spot: Dictionary = {}
+## Tiles where a site stood that nobody ever started (cancelled): not tried again.
+var bad_spots: Dictionary = {}
 ## The pathing version the military's approach roads were made for.
 var approach_version := -1
 

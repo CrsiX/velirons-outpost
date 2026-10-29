@@ -270,6 +270,9 @@ const SCREENSHOT := {
 ##   "economy_site_patience": game seconds a farm or camp site that is not built
 ##                      yet holds back the military's new buildings and upgrades
 ##                      (the game's build queue builds economy sites last);
+##   "stuck_site_after": game seconds after which a construction site that no
+##                      builder has started is cancelled and its tile avoided
+##                      (the building is placed again elsewhere);
 ##   "farm_patience":  game seconds the bot goes without a farm (no spot) before
 ##                      it stops holding everything else back for one;
 ##   "barracks_support": towers and barracks work together: a barracks goes
@@ -302,6 +305,7 @@ const BALANCE_BOT := {
 	"farm_efficiency": 0.75,
 	"farm_patience": 240.0,
 	"economy_site_patience": 150.0,
+	"stuck_site_after": 240.0,
 }
 
 ## The economy of the balancing bot's player: the same for every policy

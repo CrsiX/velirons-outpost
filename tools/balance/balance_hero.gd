@@ -47,6 +47,10 @@ func think() -> void:
 		want = Hero.Mode.EXPLORE  # (Explore goes for an awake unlock site first)
 	elif _wave() < explore_waves + 4 and _unexplored_share() > 0.5:
 		want = Hero.Mode.EXPLORE
+	else:
+		# Between waves with nothing else to do: she brings corpses home (gold,
+		# food), and rests when there are none anywhere.
+		want = Hero.Mode.GATHER if _corpses_to_gather() else Hero.Mode.REST
 	if int(_plan["attack_camps"]) > 0 and not _resting and h.level + 1 >= int(_plan["attack_camps"]) and not _in_wave() and not h.dead:
 		var camp := _camp_to_attack()
 		if camp != null and h.camp_target == null:
@@ -74,6 +78,15 @@ func _banking(h: Hero) -> bool:
 		return false
 	for u in village.army.units:
 		if u.can_train() and not u.bound:
+			return true
+	return false
+
+
+## Corpses a gatherer may go for on land her village has explored (what the
+## Gather mode picks from), anywhere on the map.
+func _corpses_to_gather() -> bool:
+	for c in game.corpses.available():
+		if not c.fallen and game.fog.is_explored_by(village.id, c.tile()):
 			return true
 	return false
 

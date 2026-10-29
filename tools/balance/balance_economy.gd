@@ -30,6 +30,7 @@ func first() -> void:
 	p.repair_wanted = false
 	p.no_farm = _farm_wanted()
 	_log_materials()
+	_cancel_stuck_sites()
 	_repair_pieces()
 	if not p.repair_wanted:  # (the walls come first: a farm waits behind a wall that waits for material)
 		_ensure_farm()
@@ -44,6 +45,21 @@ func first() -> void:
 func second() -> void:
 	_villagers()
 	_economy_buildings()
+
+
+# --- sites nobody builds ------------------------------------------------------------------
+
+## A site no builder has touched for BALANCE_BOT "stuck_site_after" s (it can't
+## be reached, say) is cancelled, its tile is not tried again, and the building
+## is placed again somewhere else: it would hold the queue and, for a farm or a
+## camp, the military's builds for good.
+func _cancel_stuck_sites() -> void:
+	for b in village.buildings():
+		if b.complete or b is Hut or not b.has_work() or b.progress > 0.0 or b.repairing or b.upgrading:
+			continue
+		if game.clock - b.queued_at > float(_params["stuck_site_after"]):
+			p.bad_spots[b.tile] = true
+			_cmd("cancel_site", {"building": b.nid})
 
 
 # --- repairs ------------------------------------------------------------------------------

@@ -328,6 +328,19 @@ def hero_rows(runs):
     return rows
 
 
+def burners(runs):
+    """Who burned the huts (records with `burned_by.<kind>` counters): per kind
+    the huts burned per run, and its share of all of them."""
+    tot = defaultdict(float)
+    for r in runs:
+        for k, v in r["counters"].items():
+            if k.startswith("burned_by."):
+                tot[k[len("burned_by."):]] += float(v)
+    s = sum(tot.values())
+    n = max(len(runs), 1)
+    return [[k, f(v / n, 2), f(100.0 * v / s, 1)] for k, v in sorted(tot.items(), key=lambda kv: -kv[1])] if s else []
+
+
 def army_gold(runs):
     """(what, mean times, mean gold) per run, most gold first: recruits, levels
     and specialisations by unit kind (records with `army_gold` only)."""
@@ -612,6 +625,11 @@ def main():
         md.append("\n## 5f. The hero (mean per run)\n")
         md.append(md_table(["what", "amount"], hl))
         sections.append(("5f. The hero", [], [table(["what", "amount"], hl)]))
+    bu = burners(runs)
+    if bu:
+        md.append("\n## 5g. Who burned the huts (per run)\n")
+        md.append(md_table(["kind", "huts / run", "share %"], bu))
+        sections.append(("5g. Who burned the huts", [], [table(["kind", "huts / run", "share %"], bu)]))
     cs = casters(runs)
     md.append("\n## 5d. Witches and necromancers (mean per run)\n")
     md.append(md_table(["what", "amount"], cs))
