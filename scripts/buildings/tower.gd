@@ -167,6 +167,10 @@ func _process(delta: float) -> void:
 		_spell_glow.modulate.a = 0.6 + 0.3 * sin(_glow_t * 10.0)
 		return
 	if enchanted > 0.0:
+		if garrison != null:
+			var off := minf(delta, enchanted)
+			game.stats.count(village, "witch.disabled_s", off)
+			game.stats.count(village, "witch.disabled_s." + garrison.kind, off)
 		enchanted -= delta
 		_glow_t += delta
 		_spell_glow.modulate.a = 0.6 + 0.3 * sin(_glow_t * 10.0)
@@ -181,6 +185,7 @@ func _process(delta: float) -> void:
 func enchant(seconds: float) -> void:
 	if garrison == null:
 		return
+	game.stats.count(village, "witch.bewitched")
 	enchanted = maxf(enchanted, seconds)
 	_spell_glow.position = _unit_sprite.position + Vector2(0, -36)
 	_spell_glow.visible = true

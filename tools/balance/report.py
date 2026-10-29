@@ -19,6 +19,11 @@ What it answers
   4. breaking point   what the last waves before a defeat looked like
   5. spending         where the gold, food and material went
   5c. food           what the village made and ate: villagers' and army's upkeep, time out of food
+  5e. buildings      per kind: placed / built per run, wave placed, placing to done, idle workplaces,
+                     empty post slots, output per working minute, devastated, lost
+  5f. hero           share of the game per mode, XP by source, kills, times downed
+  5d. casters        witches (tower-seconds a bolt kept a unit from acting, damage) and
+                     necromancers (raises by kind, channelling / waiting time, raised dead at the gate)
 """
 import argparse
 import csv
@@ -233,6 +238,94 @@ def food(runs):
         ["seconds out of food (army hungry)", f(m("hungry_time"), 0)],
         ["villagers starved", f(m("lost.starved"), 2)],
     ]
+
+
+def casters(runs):
+    """Rows of what the witches and the necromancers did, per run: tower-seconds a
+    witch's bolt kept a unit from acting (and the share of the game's tower
+    time that is not known: only the seconds), the bolts that landed on manned
+    towers, the damage her bolts did elsewhere, and the necromancers' raises
+    (by what rose), the time they channelled and stood waiting, spells lost,
+    how many raised dead reached a gate and the necromancers killed."""
+    def m(key):
+        return mean([float(r["counters"].get(key, 0)) for r in runs]) if runs else 0.0
+    kinds = sorted({k[len("witch.disabled_s."):] for r in runs for k in r["counters"] if k.startswith("witch.disabled_s.")})
+    raised = sorted({k[len("necro.raised."):] for r in runs for k in r["counters"] if k.startswith("necro.raised.")})
+    rows = [
+        ["witch: bolts on manned towers", f(m("witch.bewitched"), 0)],
+        ["witch: tower-seconds a unit was disabled", f(m("witch.disabled_s"), 0)],
+    ]
+    rows += [["witch:   of them " + k, f(m("witch.disabled_s." + k), 0)] for k in kinds]
+    rows += [
+        ["witch: damage to units, hero, villagers", f(m("witch.damage"), 0)],
+        ["necromancer: raises", f(m("necro.raises"), 1)],
+    ]
+    rows += [["necromancer:   of them " + k, f(m("necro.raised." + k), 1)] for k in raised]
+    rows += [
+        ["necromancer: HP raised", f(m("necro.raised_hp"), 0)],
+        ["necromancer: seconds channelling", f(m("necro.channel_s"), 0)],
+        ["necromancer: seconds waiting (fighters near)", f(m("necro.held_s"), 0)],
+        ["necromancer: spells lost (corpse gone)", f(m("necro.lost_spells"), 1)],
+        ["necromancer: raised dead that reached a gate", f(m("necro.raised_gate"), 1)],
+        ["necromancer: necromancers killed", f(m("kill.necromancer"), 1)],
+        ["raised dead killed", f(m("kill.raised"), 1)],
+    ]
+    return rows
+
+
+def building_rows(runs):
+    """Per kind of building the bot built (records with `buildings`): how many
+    per run (at the start / built later), the wave it was first placed in, the
+    seconds from placing to finished, the share of its working time a workplace
+    stood without its worker or a post's slots stood empty, what a workplace
+    brought home per working minute, a tower's kills per working minute, how
+    often it was devastated and how many were lost."""
+    by = defaultdict(list)
+    n_runs = 0
+    for r in runs:
+        if "buildings" not in r:
+            continue
+        n_runs += 1
+        for b in r["buildings"]:
+            by[b["k"]].append(b)
+    rows = []
+    for k, bs in sorted(by.items()):
+        built = [b for b in bs if b["o"] == "built"]
+        done = [b for b in bs if b["td"] >= 0 and b["o"] == "built"]
+        up = sum(b["up"] for b in bs)
+        out = sum(b["out"] for b in bs)
+        slots = sum(b["slot_s"] for b in bs)
+        row = [k, f(sum(1 for b in bs if b["o"] == "start") / max(n_runs, 1), 1), f(len(built) / max(n_runs, 1), 1),
+               f(mean([b["w"] for b in built]), 1) if built else "-",
+               f(mean([b["td"] - b["t0"] for b in done]), 0) if done else "-",
+               f(100.0 * sum(b["idle"] for b in bs) / up, 1) if up and k in ("farm", "camp") else "-",
+               f(100.0 * sum(b["empty_s"] for b in bs) / slots, 1) if slots else "-",
+               f(out / (up / 60.0), 1) if up and k in ("farm", "camp") else "-",
+               f(sum(b["kills"] for b in bs) / (up / 60.0), 2) if up and k in ("tower", "wall_tower") else "-",
+               f(sum(b["dv"] for b in bs) / len(bs), 2), f(100.0 * sum(1 for b in bs if b["g"] >= 0) / len(bs), 1)]
+        rows.append(row)
+    return rows
+
+
+BUILDING_HEADERS = ["kind", "at start / run", "built / run", "mean wave placed", "placed to done s", "workplace idle %",
+                    "post slots empty %", "output / working min", "kills / working min", "devastated each", "lost %"]
+
+
+def hero_rows(runs):
+    """What the hero did per run (records with `hero`): the share of the game
+    in each mode, the XP by source, her kills and how often she was downed."""
+    hs = [r["hero"] for r in runs if "hero" in r]
+    if not hs:
+        return []
+    modes = sorted({m for h in hs for m in h["seconds"]})
+    total = [sum(h["seconds"].values()) or 1.0 for h in hs]
+    rows = [["time in " + m + " %", f(mean([100.0 * h["seconds"].get(m, 0.0) / t for h, t in zip(hs, total)]), 1)] for m in modes]
+    sources = sorted({k for h in hs for k in h["xp"]})
+    rows += [["xp from " + s, f(mean([h["xp"].get(s, 0.0) for h in hs]), 0)] for s in sources]
+    rows += [["kills", f(mean([h["kills"] for h in hs]), 0)], ["times downed", f(mean([h["downed"] for h in hs]), 1)],
+             ["farmer-seconds idle", f(mean([h["idle_villager_s"].get("farmer", 0.0) for h in hs]), 0)],
+             ["forester-seconds idle", f(mean([h["idle_villager_s"].get("forester", 0.0) for h in hs]), 0)]]
+    return rows
 
 
 def army_gold(runs):
@@ -509,6 +602,20 @@ def main():
     md.append("\n## 5c. Food (mean per run)\n")
     md.append(md_table(["what", "amount"], fd))
     sections.append(("5c. Food", [], [table(["what", "amount"], fd)]))
+    bl = building_rows(runs)
+    if bl:
+        md.append("\n## 5e. Buildings the bot built (per kind)\n")
+        md.append(md_table(BUILDING_HEADERS, bl))
+        sections.append(("5e. Buildings", [], [table(BUILDING_HEADERS, bl)]))
+    hl = hero_rows(runs)
+    if hl:
+        md.append("\n## 5f. The hero (mean per run)\n")
+        md.append(md_table(["what", "amount"], hl))
+        sections.append(("5f. The hero", [], [table(["what", "amount"], hl)]))
+    cs = casters(runs)
+    md.append("\n## 5d. Witches and necromancers (mean per run)\n")
+    md.append(md_table(["what", "amount"], cs))
+    sections.append(("5d. Witches and necromancers", [], [table(["what", "amount"], cs)]))
     refused = defaultdict(int)
     for r in runs:
         for k, v in r.get("refusals", {}).items():

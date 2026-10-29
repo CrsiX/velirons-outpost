@@ -7,6 +7,9 @@ extends Building
 
 ## The villager working here, or null.
 var worker: Node = null
+## What this workplace has brought home in all (food / building material;
+## the balancing bot's ledger reads it).
+var delivered := 0.0
 
 
 ## The civilian role that works here ("farmer" for a farm), or "".

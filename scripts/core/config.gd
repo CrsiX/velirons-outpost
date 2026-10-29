@@ -263,9 +263,15 @@ const SCREENSHOT := {
 ##                      devastated) is repaired, before anything else;
 ##   "material_window": game seconds over which the foresters' material rate
 ##                      is measured (a profile's "material_rate");
-##   "hero_rest_below", "hero_rest_until": below this share of her HP the
-##                      hero is sent to rest (whatever her mode) until she has
-##                      this share again;
+##   "farm_efficiency": the share of a farm's nominal food rate (FARM_RATE) it
+##                      really brings in (harvest and carrying time): farms
+##                      are built until they feed the villagers and the army
+##                      at this share;
+##   "economy_site_patience": game seconds a farm or camp site that is not built
+##                      yet holds back the military's new buildings and upgrades
+##                      (the game's build queue builds economy sites last);
+##   "farm_patience":  game seconds the bot goes without a farm (no spot) before
+##                      it stops holding everything else back for one;
 ##   "barracks_support": towers and barracks work together: a barracks goes
 ##                      where towers (the higher the better) shoot over its
 ##                      fighting ground, towers don't shun a barracks' road,
@@ -285,8 +291,6 @@ const BALANCE_BOT := {
 	"queue_slack": 2,
 	"farm_road_gap": 2,
 	"farm_road_penalty": 30.0,
-	"hero_rest_below": 0.15,
-	"hero_rest_until": 0.6,
 	"repair_below": 0.9,
 	"material_window": 180.0,
 	"min_food": 20.0,
@@ -295,25 +299,90 @@ const BALANCE_BOT := {
 	"track_interval": 0.25,
 	"unit_dps_summon_life": 12.0,
 	"barracks_support": true,
+	"farm_efficiency": 0.75,
+	"farm_patience": 240.0,
+	"economy_site_patience": 150.0,
 }
 
-## The player the balancing bot plays (--policy=<name>). All counts are
-## targets it works towards as resources allow, in this order of priority:
-## huts rebuilt, villagers, economy buildings, army, upgrades.
-##   "villagers":      role -> how many it wants (it recruits in "villager_order");
-##   "farms":          [[from wave, farms], ...]: farms to build (2 early, 3
-##                      late; more while the food runs out). A farm without
-##                      its farmer gets one first, before any other recruit
+## The economy of the balancing bot's player: the same for every policy
+## (tools/balance/balance_economy.gd). In this order of priority: repairs of
+## gates, walls and wall towers, a working farm (one that stands, with a farmer
+## on it), ruined huts rebuilt, every other repair, villagers, farms and camps.
+##   "villagers":      role -> how many it wants (it recruits in "villager_order",
+##                      a role's n-th entry is its n-th villager, and only once
+##                      there is a workplace for them);
+##   "farms":          [[from wave, farms], ...]: farms to build (more while
+##                      the food runs out or upkeep outgrows them, see
+##                      BALANCE_BOT "farm_efficiency"). There is always one:
+##                      with none standing the farm comes before everything
+##                      but the walls, and gold buys its material. A farm
+##                      without its farmer gets one before any other recruit
 ##                      (a full village retires its explorer or a second
 ##                      gatherer to make room);
-##   "camps":          worker camps to build (one forester each); the camps
-##                      (and their foresters) before any new post ahead of
-##                      wave 1;
+##   "camps":          [[from wave, camps], ...]: worker camps to build (one
+##                      forester each); before wave 1 the camps the schedule
+##                      wants come before any new defence building;
 ##   "material_rate", "max_camps": from wave 1, one more camp while the
 ##                      foresters bring in less than this much building
 ##                      material per minute, up to max_camps;
 ##   "retire_explorer_wave": from this wave the explorer retires, to free a hut
 ##                      (0 = never);
+##   "buy_materials":  trades gold for building material, only for what
+##                      can't wait: a repair, a ruined hut, the farm.
+## A second forester and farm in the first waves, a third forester soon after:
+## the economy is what the late game is built on.
+const BALANCE_ECONOMY := {
+	"villagers": {"builder": 2, "farmer": 3, "forester": 4, "explorer": 1, "gatherer": 2, "miner": 1},
+	"villager_order": ["builder", "builder", "forester", "forester", "farmer", "farmer", "gatherer", "forester", "gatherer", "forester", "miner", "farmer"],
+	"farms": [[0, 1], [1, 2], [6, 3]],
+	"camps": [[0, 1], [1, 2], [3, 3]],
+	"max_camps": 4,
+	"material_rate": 20.0,
+	"retire_explorer_wave": 6,
+	"buy_materials": true,
+}
+
+## The hero of the balancing bot's player: the same for every policy
+## (tools/balance/balance_hero.gd). She spends her XP on levels at once.
+##   "explore_waves": until this wave she explores between waves, and during
+##                      them while no enemy is near the walls (then she trains,
+##                      or defends); an awake unlock site a policy's units need
+##                      draws her too;
+##   "attack_camps":  from this hero level she is sent against known monster
+##                      camps (0 = never);
+##   "rest_below", "rest_until": below this share of her HP she is sent to rest
+##                      (whatever her mode) until she has "rest_until" again;
+##   "careful_xp", "careful_rest_below": with this much XP or more she would
+##                      lose a lot by being downed (she loses all of it), so she
+##                      rests below this higher share instead;
+##   "bank_xp_from_level": from this hero level (as shown, 1-20) on, while there
+##                      are training grounds and a unit that can still level
+##                      up, she stops buying levels and keeps her XP for
+##                      training; 0 = she always buys levels. A unit level from
+##                      XP is worth more than one more hero level late in the
+##                      game, the thought;
+##   "train_levels":  a unit goes to the training grounds only when her XP
+##                      covers this many of its levels completely (1: one
+##                      whole level is enough; 2 is better: fewer trips). She
+##                      trains only between waves, only once the unit stands
+##                      there, and goes back to her earlier mode when the unit
+##                      has gained that many levels (or her XP no longer covers
+##                      the next one); the unit goes back to its post.
+const BALANCE_HERO := {
+	"explore_waves": 4,
+	"attack_camps": 0,
+	"rest_below": 0.15,
+	"rest_until": 0.9,
+	"careful_xp": 60,
+	"careful_rest_below": 0.4,
+	"bank_xp_from_level": 6,
+	"train_levels": 2,
+}
+
+## The policies the balancing bot plays (--policy=<name>): only the military
+## differs (the economy and the hero are the same for all, see above). All
+## counts are targets it works towards as resources allow:
+##   "desc":           what the policy is;
 ##   "towers":         [at start, more per wave, at most] watchtowers;
 ##   "tower_levels":   [[from wave, level], ...] the level every tower is
 ##                      upgraded to (wall towers too);
@@ -327,103 +396,71 @@ const BALANCE_BOT := {
 ##   "barracks_units": the same for the barracks' benches;
 ##   "branch":         unit kind -> specialisation it takes as soon as it can
 ##                      (BRANCH_MIN_LEVEL); a kind not listed keeps levelling;
-##   "upgrade_order":  which units get gold first: "lowest" level first, or
-##                      "kinds" (the order of the unit lists, then lowest);
-##   "hero":           "explore_waves": until this wave she explores between
-##                      waves and during them while no enemy is near the
-##                      walls (then she trains, or defends); "attack_camps":
-##                      from this hero level she is sent against known camps;
+##   "upgrade_order":  which units get gold first: "lowest" level first;
 ##   "call_early":     calls the next wave as soon as everything is bought and
 ##                      manned (for the bonus gold; faster games);
-##   "buy_materials":  trades gold for building material, only for what
-##                      can't wait: a repair, a ruined hut, the farm when
-##                      there is none (repairs come before everything);
 ##   "cheats":         debug commands run at the start ("unlock": every
 ##                      unit and role that has to be found, "gold": +1000...).
 const BALANCE_PROFILES := {
 	"balanced": {
-		"desc": "Economy first (three foresters before wave 1, about 20 material a minute), repairs before anything; watchtowers with archers and (once the hero unlocks them) apprentices in turn, then barracks with shield bearers and archers, training grounds and upgrades; crossbowmen, fire mages, warriors. The default player.",
-		"villagers": {"builder": 2, "farmer": 3, "forester": 4, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["forester", "forester", "forester", "builder", "farmer", "gatherer", "builder", "farmer", "gatherer", "forester", "miner", "farmer"],
-		"farms": [[0, 2], [6, 3]], "camps": 3, "max_camps": 4, "material_rate": 20.0, "retire_explorer_wave": 6,
+		"desc": "Watchtowers with archers and (once the hero unlocks them) apprentices in turn, then barracks with shield bearers and archers, training grounds and upgrades; crossbowmen, fire mages, warriors. The default player.",
 		"towers": [2, 1.0, 12], "tower_levels": [[3, 2], [8, 3]],
 		"barracks": [[2, 1], [8, 2]], "barracks_levels": [[4, 2], [9, 3]],
 		"training": 3,
 		"tower_units": ["archer", "apprentice"], "wall_units": [], "barracks_units": ["shield_bearer", "archer"],
 		"branch": {"archer": "crossbowman", "shield_bearer": "warrior", "apprentice": "fire_mage"},
 		"upgrade_order": "lowest",
-		"hero": {"explore_waves": 4, "attack_camps": 0},
-		"call_early": false, "buy_materials": true, "cheats": [],
+		"call_early": false, "cheats": [],
 	},
 	"archers": {
 		"desc": "Towers only: every wall tower and watchtower gets an archer, tower upgrades, no barracks.",
-		"villagers": {"builder": 2, "farmer": 3, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner", "farmer"],
-		"farms": [[0, 2], [6, 3]], "camps": 2, "retire_explorer_wave": 6,
 		"towers": [3, 1.5, 16], "tower_levels": [[2, 2], [6, 3]],
 		"barracks": [], "barracks_levels": [],
 		"training": 3,
 		"tower_units": ["archer"], "wall_units": ["archer"], "barracks_units": [],
 		"branch": {"archer": "crossbowman"},
 		"upgrade_order": "lowest",
-		"hero": {"explore_waves": 4, "attack_camps": 0},
-		"call_early": false, "buy_materials": true, "cheats": [],
+		"call_early": false, "cheats": [],
 	},
 	"swift": {
 		"desc": "Like archers, but every archer becomes a swiftbowman.",
-		"villagers": {"builder": 2, "farmer": 3, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner", "farmer"],
-		"farms": [[0, 2], [6, 3]], "camps": 2, "retire_explorer_wave": 6,
 		"towers": [3, 1.5, 16], "tower_levels": [[2, 2], [6, 3]],
 		"barracks": [], "barracks_levels": [],
 		"training": 3,
 		"tower_units": ["archer"], "wall_units": ["archer"], "barracks_units": [],
 		"branch": {"archer": "swiftbowman"},
 		"upgrade_order": "lowest",
-		"hero": {"explore_waves": 4, "attack_camps": 0},
-		"call_early": false, "buy_materials": true, "cheats": [],
+		"call_early": false, "cheats": [],
 	},
 	"melee": {
-		"desc": "Barracks first: shield bearers who turn into warriors, berserkers or halberdiers, a few archer towers.",
-		"villagers": {"builder": 2, "farmer": 3, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner", "farmer"],
-		"farms": [[0, 2], [6, 3]], "camps": 2, "retire_explorer_wave": 6,
-		"towers": [1, 0.4, 5], "tower_levels": [[4, 2]],
-		"barracks": [[1, 1], [4, 2], [8, 3]], "barracks_levels": [[2, 2], [5, 3]],
+		"desc": "Archers on the first towers (the efficient start), then barracks with shield bearers who turn into warriors: tanks that stall enemies inside the towers' ranges (the towers do the damage).",
+		"towers": [2, 0.8, 10], "tower_levels": [[3, 2], [8, 3]],
+		"barracks": [[2, 1], [5, 2], [9, 3]], "barracks_levels": [[4, 2], [9, 3]],
 		"training": 3,
 		"tower_units": ["archer"], "wall_units": [], "barracks_units": ["shield_bearer"],
-		"branch": {"shield_bearer": "berserker"},
+		"branch": {"archer": "crossbowman", "shield_bearer": "warrior"},
 		"upgrade_order": "lowest",
-		"hero": {"explore_waves": 4, "attack_camps": 0},
-		"call_early": false, "buy_materials": true, "cheats": [],
+		"call_early": false, "cheats": [],
 	},
 	"mages": {
 		"desc": "Apprentices and summoners on the towers (everything unlocked at the start), fire mages and fire summoners.",
-		"villagers": {"builder": 2, "farmer": 3, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner", "farmer"],
-		"farms": [[0, 2], [6, 3]], "camps": 2, "retire_explorer_wave": 6,
 		"towers": [3, 1.5, 16], "tower_levels": [[2, 2], [6, 3]],
 		"barracks": [], "barracks_levels": [],
 		"training": 3,
 		"tower_units": ["apprentice", "summoner"], "wall_units": ["apprentice", "summoner"], "barracks_units": [],
 		"branch": {"apprentice": "fire_mage", "summoner": "fire_summoner"},
 		"upgrade_order": "lowest",
-		"hero": {"explore_waves": 0, "attack_camps": 0},
-		"call_early": false, "buy_materials": true, "cheats": ["unlock"],
+		"call_early": false, "cheats": ["unlock"],
 	},
 	"holy": {
 		"desc": "Acolytes in the barracks and on the towers (unlocked at the start), inquisitors and high priests.",
-		"villagers": {"builder": 2, "farmer": 3, "forester": 2, "explorer": 1, "gatherer": 2, "miner": 1},
-		"villager_order": ["builder", "farmer", "forester", "gatherer", "builder", "farmer", "forester", "gatherer", "miner", "farmer"],
-		"farms": [[0, 2], [6, 3]], "camps": 2, "retire_explorer_wave": 6,
 		"towers": [2, 1.0, 12], "tower_levels": [[3, 2], [8, 3]],
 		"barracks": [[1, 1], [6, 2]], "barracks_levels": [[3, 2], [8, 3]],
 		"training": 3,
 		"tower_units": ["acolyte"], "wall_units": [], "barracks_units": ["acolyte"],
 		"branch": {"acolyte": "inquisitor"},
 		"upgrade_order": "lowest",
-		"hero": {"explore_waves": 0, "attack_camps": 0},
-		"call_early": false, "buy_materials": true, "cheats": ["unlock"],
+		"call_early": false, "cheats": ["unlock"],
 	},
 }
 

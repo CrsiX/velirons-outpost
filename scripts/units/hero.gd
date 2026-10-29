@@ -263,6 +263,7 @@ func wants_to_evade() -> bool:
 func on_action(kind: String) -> void:
 	xp += int(Config.HERO_XP_PER_ACTION.get(kind, 0))
 	game.stats.count(village, "hero.xp", int(Config.HERO_XP_PER_ACTION.get(kind, 0)))
+	game.stats.count(village, "hero.xp." + kind, int(Config.HERO_XP_PER_ACTION.get(kind, 0)))
 	changed.emit()
 
 

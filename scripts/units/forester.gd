@@ -97,6 +97,8 @@ func _arrive_camp() -> void:
 func _deliver(where: String) -> void:
 	if carrying > 0:
 		village.economy.add("materials", carrying, "foresters")
+		if camp != null:
+			camp.delivered += carrying
 		village.events.debug("%s delivers %d building material %s" % [label(), carrying, where])
 		float_text("+%d {materials}" % carrying, Color("c9b98f"))
 	carrying = 0

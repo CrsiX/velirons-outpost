@@ -11,6 +11,7 @@ var enchant := 0.0
 var speed_px := 400.0
 ## Cast at a wall, gate or wall tower in her way: it takes `damage`.
 var at_building := false
+var _game: Game
 var _sprite: Sprite2D
 var _t := 0.0
 
@@ -18,6 +19,7 @@ var _t := 0.0
 func launch(p_witch: Enemy, p_target: Node) -> void:
 	target = p_target
 	witch = p_witch
+	_game = p_witch.game
 	damage = p_witch.stat("spell_damage")
 	enchant = p_witch.stat("spell_cooldown") * p_witch.stat("enchant_ratio")
 	speed_px = p_witch.stat("spell_speed") * Iso.HALF_W * 1.4
@@ -61,4 +63,5 @@ func _hit() -> void:
 		t.enchant(enchant)
 	elif (target.is_in_group("melee_defenders") or target.is_in_group("villagers")) and not target.dead:
 		target.take_damage(damage, source, "magical")  # elementals, the hero, units, villagers
+		_game.stats.count(_game.village_of(target), "witch.damage", damage)
 	queue_free()

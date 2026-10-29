@@ -52,26 +52,44 @@ and policy (the same code and config give the same game, up to floating-point or
 
 `BalancePlayer` thinks every `think_interval` (2) game seconds and acts only through
 `Game.command` (the commands the UI sends); a refused command is counted in `refusals`.
-A round, in order of priority: cheats (debug commands a profile asks for) -> hero ->
-rebuild huts / restore claimed ruins -> recruit villagers -> farms and camps -> towers,
-barracks, training grounds -> units onto empty posts -> training grounds' unit swapped into
-the field -> tower upgrades -> unit upgrades (lowest level first, the profile's
-specialisation as soon as possible) -> gold into material (essentials only) -> call the wave.
-Repairs come before everything: ruined huts (rebuilt for `Hut.rebuild_cost()`, 40), then
-every building of ours that is devastated or below `repair_below` of its HP, the most broken
-first. While one waits for material, nothing else spends any (no building, camp, ruin or
-upgrade). Gold buys material only for these and for the farm when there is none
-(`_want_critical`); everything else waits for the foresters, so gold goes to the army. Tower
+It is three parts (`tools/balance/`), each its own class, plus a ledger:
+
+| part | class | what it decides | where its numbers are |
+|---|---|---|---|
+| economy | `BalanceEconomy` | repairs, the farm, villagers, farms and camps, gold into material | `Config.BALANCE_ECONOMY`: the same for every policy |
+| hero | `BalanceHero` | her modes, levels, resting, camps | `Config.BALANCE_HERO`: the same for every policy |
+| military | `BalanceMilitary` | towers, barracks, training grounds, units, upgrades, calling waves | `Config.BALANCE_PROFILES`: what a policy is |
+| ledger | `BalanceLedger` | only looks: what got built and how it did (§4) | |
+
+The parts share `BalancePart` (helpers, sending a command, placing a building where it is worth
+most) and talk through the player's fields (`repair_wanted`, `no_farm`, `farm_unmanned`,
+`want_materials`, `want_critical`). A round, in order of priority: cheats (debug commands a
+profile asks for) -> economy, first part: repairs of gates, walls and wall towers -> **the farm**
+-> ruined huts rebuilt -> every other repair, claimed ruins restored, idle villagers sent to
+vacant workplaces -> hero -> economy, second part: recruit villagers, farms and camps ->
+military: towers, barracks, training grounds -> units onto empty posts -> training grounds' unit
+swapped into the field -> tower upgrades -> unit upgrades (lowest level first, the profile's
+specialisation as soon as possible) -> economy: gold into material (essentials only) -> call the
+wave -> ledger. While a repair waits for material, nothing else spends any (no building, camp,
+ruin or upgrade), a farm included when it is a wall that waits. Gold buys material only for these
+and for the farm; everything else waits for the foresters, so gold goes to the army. Tower
 upgrades also wait while any building waits for material.
 
-Economy first: before wave 1 the profile's `camps` (and their foresters, first in the villager
-order) come before any new post; from wave 1 one more camp while the foresters bring in less
-than `material_rate` per minute (measured over `material_window`), up to `max_camps`.
+The farm: every round first checks whether one stands (or is being built or repaired). A
+devastated one is repaired (cheaper than a new one), none at all means a new one at once; it is
+looked for every 4 s and given up on only after `farm_patience` (240 s) without a spot. Then it
+checks the farm is *worked*: a farm that stands without a farmer (the farmer died, was never
+assigned) gets one before any other recruit; a free farmer or forester is sent to a vacant
+workplace (`assign_worker`).
 
-Food: every profile wants 2 farms from the start and 3 from wave 6 (`farms`, a schedule),
-more while upkeep outgrows the farms worked or the food runs out. A farm without its farmer
-gets one before any other recruit, as soon as the food pays for the farmer (`min_food` doesn't
-hold it back); a full village retires its explorer, else a second gatherer, to make room.
+Economy (`BALANCE_ECONOMY`, the same for every policy): the village starts with one farm and
+one camp, and the schedule adds a second farm and a second camp (and forester) from wave 1, a
+third camp from wave 3 and a third farm from wave 6 (`farms`, `camps`); one more camp while the
+foresters bring in less than `material_rate` per minute (measured over `material_window`), up to
+`max_camps`; more farms while upkeep (at `farm_efficiency`, 75 % of a farm's nominal rate)
+outgrows them or the food runs out. A farmer comes as soon as the food pays for one
+(`min_food` doesn't hold it back); a full village retires its explorer, else a second
+gatherer, to make room. Before wave 1 the camps the schedule wants come before any new post.
 
 Where it builds: towers and barracks where they cover most road within `approach_steps` of
 a gate that no post of their own sort covers yet (near the village preferred, `tower_spacing`
@@ -82,13 +100,24 @@ barracks are upgraded first, the barracks only once every tower has its level. O
 covers the road no post covers yet (towers and barracks apart). Farms
 nearest, on meadow and by water, away from roads (rats) where any other spot fits
 (`farm_road_penalty`); camps by trees. While no farm stands (a starting farm that found no
-room) and there may be a spot for one, the farm comes first: no other building, camp or recruit
-until one is placed. It never builds a
-new post while two stand empty. The hero explores until `explore_waves` (during a wave only while no
-enemy is near the walls), then trains the unit at the grounds (which then swaps into the field),
-and defends during waves. Below `hero_rest_below` of her HP she rests in the centre until she has
-`hero_rest_until` again (downed, she would lose all her XP). Between waves she also explores
-while an awake unlock site gives a unit the profile uses.
+room), no defence building is placed and no other villager recruited until one is. The military
+never builds a new post while two stand empty.
+
+The hero (`BALANCE_HERO`, the same for every policy): she explores until `explore_waves`
+(during a wave only while no enemy is near the walls) and defends during waves. She spends her
+XP on levels at once until `bank_xp_from_level` (6); from then on, with training grounds and a
+unit that can still level, she keeps it for training. Below `rest_below` of her HP
+(`careful_rest_below` while she holds `careful_xp` or more XP, which a downing would cost her)
+she rests in the centre until she has `rest_until` again. Between waves she also explores while
+an awake unlock site gives a unit the profile uses.
+
+Training grounds (military and hero together): a unit goes there only when her XP covers
+`train_levels` (2) of its levels completely: the weakest unit (the cheapest per level), from the
+reserve or from its post, which stays free for that time (nobody else is sent to it). Only once
+it stands there, and between waves, she switches to Train; when the unit has gained those levels
+(or her XP no longer covers the next one, or a wave starts) she is back to her earlier choice
+(explore / defend) and the unit goes back to its post (else a free one, else the place of a weaker
+unit, which goes to the reserve). A unit her XP can't take through a whole level is not moved there.
 
 Units: each post class takes the profile's kinds in turn, and the turn moves on only once one
 is bought (else the cheaper kind would always win while gold is short); unit upgrades leave the
@@ -102,11 +131,12 @@ average player, not an optimal one: compare runs with each other, not with a hum
 **Profiles** (`Config.BALANCE_PROFILES`, `--policy`): `balanced` (archers and apprentices on towers in
 turn, barracks with shield bearers and archers, specialising into crossbowmen, fire mages and
 warriors), `archers`, `swift`
-(swiftbowmen), `melee` (barracks and berserkers), `mages` (apprentices and summoners, fire
+(swiftbowmen), `melee` (the balanced economy; archers on the towers, barracks with shield
+bearers who become warriors: tanks that hold enemies in the towers' ranges, not DPS), `mages` (apprentices and summoners, fire
 mage / fire summoner; everything unlocked by cheat), `holy` (acolytes, inquisitors; unlocked
-by cheat). A profile lists villager targets, building counts by wave, tower levels, the
-units for towers / wall towers / benches, the specialisation per unit kind and the hero's
-orders; each key is documented in config.gd.
+by cheat). A profile lists only the military: building counts by wave, tower levels, the
+units for towers / wall towers / benches and the specialisation per unit kind; each key is
+documented in config.gd.
 
 ## 4. The record (one JSON line per run, `schema` 1)
 
@@ -123,6 +153,8 @@ orders; each key is documented in config.gd.
 | `actions`, `refusals`, `early_calls` | the bot's commands (`ok` / `fail`) and the game's reasons for refusing, to see where the bot was stuck |
 | `army_gold` | the gold that went into the army by what it bought: `recruit <kind>`, `level <kind>`, `branch <kind> -> <branch>`, each `{"n", "gold"}` |
 | `important_log` | the last important events (what killed the village) |
+| `buildings` | the ledger: a row per farm, camp, tower, wall tower, barracks, training grounds and light stone: `k` kind, `o` origin (`start` / `built`), `w` / `t0` wave and game second first seen (placed), `td` finished, `up` seconds working, `dv` / `dv_s` times devastated and seconds lying devastated, `idle` seconds a workplace stood without its worker, `slot_s` / `empty_s` a post's slot seconds and the empty ones, `out` what a workplace brought home, `kills` a tower's kills, `lv` level, `g` when gone |
+| `hero` | `seconds` per mode (and `down`), `xp` by source, `kills`, `kills_by_wave`, `downed`, `level`, `idle_villager_s` (farmers and foresters without a workplace) |
 
 4.1 `by_kind[kind]`: `spawned`, `hp` (their HP together), `killed`, `reached` (got to the gate),
 `gone` (vanished: rats leaving, thieves escaping ...), `progress` (sum over the enemies that ended:
@@ -159,6 +191,17 @@ Reading it:
    **5c. Food**: food earned, eaten by the villagers and by the army (upkeep), spent on
    villagers, seconds out of food (the army hungry), villagers starved. Per wave the same
    counters are in waves.csv (`d.spend.food.upkeep_army`, `d.hungry_time`, ...).
+   **5e. Buildings** (from the ledger): per kind how many were there at the start and built later,
+   the wave they were placed in, the seconds from placing to finished, the share of their working
+   time a workplace stood without its worker or a post's slots stood empty, output per working
+   minute (food / material), a tower's kills per working minute, devastated and lost.
+   **5f. The hero**: her time per mode, XP by source, kills, times downed, idle farmers and foresters.
+   **5d. Witches and necromancers**: the witches' bolts on manned towers and the tower-seconds
+   a unit was kept from acting (`witch.disabled_s`, by unit kind), their damage elsewhere
+   (`witch.damage`); the necromancers' raises (`necro.raises`, by kind, HP raised), time
+   channelling and waiting (`necro.channel_s`, `necro.held_s`), lost spells, raised dead that
+   reached a gate (`necro.raised_gate`), necromancers and raised dead killed. All are game
+   statistics (`Stats` counters), so they are in the record's `counters` and in waves.csv per wave.
 
 ## 6. Testing a balance change without touching the config
 

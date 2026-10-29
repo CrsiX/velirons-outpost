@@ -27,10 +27,12 @@ func tick(enemy: Enemy, delta: float) -> bool:
 	if corpse != null:
 		if not _corpse_ok(enemy):
 			enemy.game.log_all(EventLog.Level.DEBUG, "%s loses its spell" % enemy.label())
+			enemy.game.stats.count(enemy.target_village, "necro.lost_spells")
 			_stop(enemy)
 			_cool = cast
 			return false
 		# Near a High Priest (it or the corpse in an aura) the spell takes longer.
+		enemy.game.stats.count(enemy.target_village, "necro.channel_s", delta)
 		_channel += delta / maxf(Combat.necro_slow(enemy.game, enemy.grid_pos), Combat.necro_slow(enemy.game, corpse.grid_pos))
 		enemy.face(corpse.grid_pos)
 		corpse.modulate = Color(0.7, 1.0, 0.75).lerp(Color.WHITE, 0.5 + 0.5 * sin(_channel * 6.0))
@@ -45,6 +47,8 @@ func tick(enemy: Enemy, delta: float) -> bool:
 	if _ally_scan <= 0.0:
 		_ally_scan = 0.3
 		_held = _fighter_near(enemy, float(enemy.spec()["raise_range"]))
+	if _held:
+		enemy.game.stats.count(enemy.target_village, "necro.held_s", delta)
 	if _cool > 0.0:
 		return _held
 	_scan -= delta

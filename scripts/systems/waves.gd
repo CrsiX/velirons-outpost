@@ -672,6 +672,9 @@ func raise_corpse(c: Corpse, by: Enemy) -> Enemy:
 	g.make_raised(float(spec["raise_hp"]), float(spec["raise_decay"]))
 	game.corpses.remove(c)
 	_add(g, target)
+	game.stats.count(target, "necro.raises")
+	game.stats.count(target, "necro.raised_hp", g.max_hp)
+	game.stats.count(target, "necro.raised." + c.kind)
 	var first := not _raise_logged.has(target.id)
 	_raise_logged[target.id] = true
 	target.events.add(EventLog.Level.INFO if first else EventLog.Level.DEBUG, "A necromancer raised a dead %s!" % str(g.spec()["name"]).to_lower() if first else "%s raised %s from the dead" % [by.label(), g.label()])
