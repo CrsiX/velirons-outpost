@@ -169,7 +169,11 @@ func _post(g: Game, p: Dictionary, used: Array) -> Building:
 				return b
 		return null
 	for b in g.player_village.buildings():
-		if b.kind == p["kind"] and not used.has(b) and not g.map.in_village(b.tile) and (b is MilitaryPost or p.has("at")):
+		if p.get("shore", false) and b.kind == p["kind"] and not used.has(b) and not g.map.in_village(b.tile) \
+				and Building.footprint(b.tile, Config.BUILDINGS[b.kind]["size"]).any(func(f: Vector2i) -> bool: return MapData.neighbors4(f).any(func(n: Vector2i) -> bool: return g.map.is_water(n))):
+			return b
+	for b in g.player_village.buildings():
+		if b.kind == p["kind"] and not used.has(b) and not g.map.in_village(b.tile) and not p.get("shore", false) and (b is MilitaryPost or p.has("at")):
 			var at: Array = p.get("at", [0, 99])
 			for d in range(int(at[0]), int(at[1]) + 1):
 				for f in Building.footprint(b.tile, Config.BUILDINGS[b.kind]["size"]):

@@ -98,12 +98,15 @@ Big touch targets everywhere, so mouse and fingers work the same.
   screens the buttons shrink from 64 to 52 px with less spacing.
 - **The backdrop** (`TitleBackdrop`, settings in `Config.TITLE_BACKDROP`): a real game plays itself
   behind the menu.
-  - Each scene is a fresh `Game` with `backdrop = true` on a fixed map (`map_type`, `seed`). It has
-    its own posts, manned units, timed enemy groups down one road, and a camera drifting from `from`
-    to `to`.
+  - Each scene is a fresh `Game` with `backdrop = true` on a fixed map (`map_type`, `seed`: temperate
+    38, desert 7, volcanic 5, coast 4). It has its own posts (by the road, or `"shore"`: by the water
+    nearest the village), manned units, timed enemy groups down one road (or, `"water"`, water
+    monsters coming up in the deep water nearest the village: `TitleBackdrop.water_spawn`), and a
+    camera drifting from `from` to `to` (a road tile, an offset from the village centre, or `"water"`).
   - The scenes are: Archers hold the gate, Fire on the farm, The barracks turn out, Summoner and witch,
-    Flyers over the swamp, Slimes split, A quiet day. With `random` on, each next scene is a random one,
-    never the one just played.
+    Flyers over the swamp, Slimes split, Raiders in the dunes, Thieves in the heat, The spider brood,
+    Ash and bone, Crabs on the shore, The leviathan (a shore farm whose farmer it comes up for),
+    A quiet day. With `random` on, each next scene is a random one, never the one just played.
   - **Timing:** each scene plays `duration` (40 s) at `speed` 0.33 (slow motion). It fades in from black
     over `fade_in` (2.5 s) and out over `fade_out` (1.5 s). The screen is black until the first scene
     is made. `shade` (0.3) darkens the game so the menu reads.

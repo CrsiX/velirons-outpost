@@ -15,6 +15,9 @@ extends TextureRect
 
 signal scene_started(index: int)
 
+## How far from the village centre "shore" posts and the "water" camera spot are looked for.
+const SPOT_RADIUS := 22
+
 ## The scene's game (null while none is; set once it's made).
 var game: Game = null
 ## The scene plays: made, shown and fading in (or in).
@@ -31,7 +34,7 @@ var game_time := 0.0
 var _viewport: SubViewport
 ## Per enemy group: game time it comes next (INF: done).
 var _next_group: Array[float] = []
-## Enemies of the groups still to show up: {"kind", "at", "from", "wave"}.
+## Enemies of the groups still to show up: {"kind", "at", "from", "wave", "water"}.
 var _pending: Array[Dictionary] = []
 var _cam_from := Vector2.ZERO
 var _cam_to := Vector2.ZERO
@@ -228,16 +231,36 @@ func _spawn_due() -> void:
 		var j := 0
 		for kind: String in grp["kinds"]:
 			for k in int(grp["kinds"][kind]):
-				_pending.append({"kind": kind, "at": _next_group[i] + j * float(grp.get("gap", 1.0)), "from": int(grp.get("from", 18)), "wave": int(grp.get("wave", 1))})
+				_pending.append({"kind": kind, "at": _next_group[i] + j * float(grp.get("gap", 1.0)), "from": int(grp.get("from", 18)), "wave": int(grp.get("wave", 1)),
+					"water": bool(grp.get("water", false))})
 				j += 1
 		var every := float(grp.get("every", 0.0))
 		_next_group[i] = _next_group[i] + every if every > 0.0 else INF
 	for e in _pending.duplicate():
 		if game_time >= float(e["at"]):
 			_pending.erase(e)
-			var at := road_tile(int(e["from"]))
+			var at := water_spawn(e["kind"]) if e["water"] else Vector2i(-1, -1)
+			if at == Vector2i(-1, -1):
+				at = road_tile(int(e["from"]))
 			if at != Vector2i(-1, -1):
 				game.waves.spawn_at(e["kind"], at, game.player_village, e["wave"])
+
+
+## Where a water monster `kind` comes up in a scene: in the water of its spawn
+## nearest the village (Aqua.eligibility, as the waves use), at the deep tile
+## nearest the village, as a scene is short; (-1, -1) when it has none (an
+## amphibian then comes down the road).
+func water_spawn(kind: String) -> Vector2i:
+	var spawns: Array = game.waves.aqua(game.player_village).get(kind, [])
+	var c := Vector2(game.player_village.center)
+	var best := Vector2i(-1, -1)
+	for t: Vector2i in spawns:
+		if best.x < 0 or Vector2(t).distance_to(c) < Vector2(best).distance_to(c):
+			best = t
+	if best.x < 0:
+		return best
+	var near := game.world.pathing.nearest_deep(game.world.pathing.body_of(best), c)
+	return near if near.x >= 0 else best
 
 
 # --- the spots ------------------------------------------------------------------------
@@ -263,8 +286,11 @@ func road_tile(d: int) -> Vector2i:
 
 
 ## A camera spot: a number is a road tile that far before the gate, [x, y] a
-## tile offset from the village centre.
+## tile offset from the village centre, "water" the deep water nearest the village.
 func _anchor(a) -> Vector2:
+	if a is String and a == "water":
+		var w := _nearest(func(t: Vector2i) -> bool: return game.map.is_deep_water(t))
+		return Iso.tile_to_world(w if w.x >= 0 else game.player_village.center)
 	if a is Array:
 		return Iso.tile_to_world(game.player_village.center + Vector2i(int(a[0]), int(a[1])))
 	var t := road_tile(int(a))
@@ -279,7 +305,7 @@ func _place(p: Dictionary, taken: Array[Vector2i]) -> void:
 		b = _wall_tower()
 	else:
 		var at: Array = p.get("at", [3, 6])
-		var tile := _by_road(kind, int(at[0]), int(at[1]), taken)
+		var tile := _by_shore(kind, taken) if p.get("shore", false) else _by_road(kind, int(at[0]), int(at[1]), taken)
 		if tile == Vector2i(-1, -1):
 			push_warning("Title backdrop: no room for a %s in %s" % [kind, value("name")])
 			return
@@ -351,6 +377,35 @@ func _by_road(kind: String, lo: int, hi: int, taken: Array[Vector2i]) -> Vector2
 				if score < best_score:
 					best_score = score
 					best = t
+	return best
+
+
+## A free spot for `kind` on the shore (by water) nearest the village, clear of `taken`.
+func _by_shore(kind: String, taken: Array[Vector2i]) -> Vector2i:
+	var size: int = Config.BUILDINGS[kind]["size"]
+	return _nearest(func(t: Vector2i) -> bool:
+		if not _fits(kind, t, taken):
+			return false
+		for f in Building.footprint(t, size):
+			for n in MapData.neighbors4(f):
+				if game.map.is_water(n):
+					return true
+		return false)
+
+
+## The tile nearest the village centre (within SPOT_RADIUS) for which `ok` holds,
+## or (-1, -1).
+func _nearest(ok: Callable) -> Vector2i:
+	var c := game.player_village.center
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for dy in range(-SPOT_RADIUS, SPOT_RADIUS + 1):
+		for dx in range(-SPOT_RADIUS, SPOT_RADIUS + 1):
+			var t := c + Vector2i(dx, dy)
+			var d := Vector2(dx, dy).length()
+			if d < best_d and game.map.in_bounds(t) and ok.call(t):
+				best_d = d
+				best = t
 	return best
 
 

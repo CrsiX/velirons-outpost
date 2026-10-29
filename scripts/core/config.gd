@@ -96,17 +96,22 @@ const TUTORIAL := {
 ##   "posts":   what stands there, ready, before it starts. Each one: "kind" (a
 ##              BUILDINGS key, or "wall_tower": the village's corner tower
 ##              nearest the road's gate), "at" [lo, hi] (by the road, lo to hi
-##              road tiles before the gate), "level" (towers, barracks),
+##              road tiles before the gate) or "shore": true (by the water
+##              nearest the village), "level" (towers, barracks),
 ##              "units" [{"kind": a MILITARY key, specialisations too, "level"}]
 ##              (barracks: one per bench), "site": true (a construction site
 ##              the builders work on instead).
 ##   "enemies": groups coming down the road: "kinds" {kind: count}, "from" (road
 ##              tiles before the gate), "at" (first, game seconds after the
 ##              start), "every" (again and again; 0: once), "gap" (seconds
-##              between two of a group), "wave" (their strength, as in that wave).
+##              between two of a group), "wave" (their strength, as in that wave),
+##              "water": true (water monsters: from the deep water nearest the
+##              village in the body of its nearest water spawn, Aqua.eligibility;
+##              without one, down the road).
 ##   "camera":  "from" and "to", where it drifts in the scene's time: a number is
 ##              the road tile that far before the gate, [x, y] a tile offset from
-##              the village centre; "zoom".
+##              the village centre, "water" the deep water nearest the village;
+##              "zoom".
 const TITLE_BACKDROP := {
 	"speed": 0.33,  # game speed behind the menu (1.0: normal): slow motion
 	"duration": 40.0,  # per scene
@@ -178,6 +183,64 @@ const TITLE_BACKDROP := {
 			],
 			"enemies": [{"kinds": {"slime3": 2, "goblin": 2}, "from": 16, "at": 0.0, "every": 15.0, "gap": 2.0, "wave": 4}],
 			"camera": {"from": 12, "to": 4, "zoom": 1.2},
+		},
+		{
+			"name": "Raiders in the dunes", "map_type": "desert", "seed": 7, "road": 0,
+			"posts": [
+				{"kind": "barracks", "at": [6, 10], "level": 3, "units": [
+					{"kind": "halberdier", "level": 4}, {"kind": "halberdier", "level": 3}, {"kind": "warrior", "level": 3}]},
+				{"kind": "tower", "at": [3, 6], "level": 3, "units": [{"kind": "crossbowman", "level": 4}]},
+			],
+			"enemies": [{"kinds": {"goblin_raider": 3, "wolf": 2}, "from": 24, "at": 0.0, "every": 18.0, "gap": 1.4, "wave": 8}],
+			"camera": {"from": 18, "to": 4, "zoom": 1.1},
+		},
+		{
+			"name": "Thieves in the heat", "map_type": "desert", "seed": 7, "road": 1,
+			"posts": [
+				{"kind": "tower", "at": [4, 7], "level": 3, "units": [{"kind": "swiftbowman", "level": 4}]},
+				{"kind": "tower", "at": [9, 12], "level": 2, "units": [{"kind": "ice_mage", "level": 3}]},
+			],
+			"enemies": [{"kinds": {"thief": 3, "goblin": 3}, "from": 20, "at": 0.0, "every": 16.0, "gap": 1.2, "wave": 8}],
+			"camera": {"from": 15, "to": 3, "zoom": 1.1},
+		},
+		{
+			"name": "The spider brood", "map_type": "volcanic", "seed": 5, "road": 0,
+			"posts": [
+				{"kind": "tower", "at": [5, 8], "level": 3, "units": [{"kind": "fire_mage", "level": 5}]},
+				{"kind": "barracks", "at": [10, 14], "level": 2, "units": [{"kind": "berserker", "level": 4}, {"kind": "shield_bearer", "level": 4}]},
+			],
+			"enemies": [{"kinds": {"spider_mother": 1, "goblin": 2}, "from": 22, "at": 0.0, "every": 22.0, "gap": 2.0, "wave": 10}],
+			"camera": {"from": 20, "to": 8, "zoom": 1.15},
+		},
+		{
+			"name": "Ash and bone", "map_type": "volcanic", "seed": 5, "road": 1,
+			"posts": [
+				{"kind": "barracks", "at": [6, 10], "level": 3, "units": [{"kind": "inquisitor", "level": 4}, {"kind": "inquisitor", "level": 3}]},
+				{"kind": "tower", "at": [2, 5], "level": 3, "units": [{"kind": "high_priest", "level": 3}]},
+				{"kind": "tower", "at": [12, 16], "level": 2, "units": [{"kind": "acolyte", "level": 4}]},
+			],
+			"enemies": [{"kinds": {"skeleton": 4, "necromancer": 1}, "from": 22, "at": 0.0, "every": 18.0, "gap": 1.3, "wave": 13}],
+			"camera": {"from": 17, "to": 5, "zoom": 1.1},
+		},
+		{
+			"name": "Crabs on the shore", "map_type": "coast", "seed": 4, "road": 0,
+			"posts": [
+				{"kind": "tower", "shore": true, "level": 2, "units": [{"kind": "archer", "level": 4}]},
+				{"kind": "tower", "shore": true, "level": 3, "units": [{"kind": "fire_mage", "level": 3}]},
+			],
+			"enemies": [{"kinds": {"crab": 5}, "water": true, "at": 0.0, "every": 16.0, "gap": 1.0, "wave": 6}],
+			"camera": {"from": "water", "to": [0, 0], "zoom": 1.1},
+		},
+		{
+			"name": "The leviathan", "map_type": "coast", "seed": 4, "road": 0, "speed": 0.5,
+			"buildings": ["camp"],  # (the farmer works the shore farm, where the leviathan comes up for him)
+			"posts": [
+				{"kind": "farm", "shore": true},
+				{"kind": "tower", "shore": true, "level": 3, "units": [{"kind": "crossbowman", "level": 5}]},
+				{"kind": "tower", "shore": true, "level": 3, "units": [{"kind": "ice_mage", "level": 4}]},
+			],
+			"enemies": [{"kinds": {"leviathan": 1, "crab": 2}, "water": true, "at": 0.0, "every": 30.0, "gap": 1.5, "wave": 12}],
+			"camera": {"from": [0, 0], "to": "water", "zoom": 1.0},
 		},
 		{
 			"name": "A quiet day", "road": 1, "hero": "build",
