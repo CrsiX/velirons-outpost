@@ -4,7 +4,7 @@ extends RefCounted
 ## ridge noise on high ground, volcanoes (3x3, impassable) with a ragged ring
 ## of ash land, and on the Volcanic type a lava river from each volcano.
 
-const PEAK_ARTS: Array[String] = ["mountain_0", "mountain_1", "mountain_2"]
+const PEAK_ARTS: Array[String] = ["mountain_0", "mountain_1", "mountain_2", "mountain_3"]
 
 
 static func raise(c: GenContext) -> void:

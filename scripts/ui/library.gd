@@ -528,6 +528,8 @@ static func _buildings() -> Array[Dictionary]:
 			f.append("Cost: %s · built in %s s · %dx%d" % [Config.cost_text(b["cost"]), _n(b["build_time"]), b["size"], b["size"]])
 		f.append(_hp_fact(kind))
 		match kind:
+			"hut":
+				f.append("Looks like its village: a timber cabin (stone), a flat-roofed sandstone house (sandstone), a dark stone house (basalt) or a tent (wood)")
 			"tower":
 				f.append_array(_tower_facts("tower"))
 			"farm":
@@ -552,7 +554,7 @@ static func _buildings() -> Array[Dictionary]:
 	out.append({
 		"name": "Wall Tower", "art": "wall_tower",
 		"text": "The towers at the corners of the village walls. They come with the village; station a unit on them and upgrade them like watchtowers.",
-		"facts": PackedStringArray([_hp_fact("wall_tower")]) + _tower_facts("wall_tower"),
+		"facts": PackedStringArray([_hp_fact("wall_tower"), _material_fact()]) + _tower_facts("wall_tower"),
 	})
 	for kind: String in Config.PIECE_LEVELS:
 		var f := PackedStringArray([_hp_fact(kind)])
@@ -560,6 +562,7 @@ static func _buildings() -> Array[Dictionary]:
 		for i in range(1, levels.size()):
 			f.append("Level %d: %s" % [i + 1, Config.cost_text(levels[i]["cost"])])
 		f.append("Repairs count it as %s" % Config.cost_text(Config.PIECE_PRICES[kind]["cost"]))
+		f.append(_material_fact())
 		out.append({
 			"name": "Village Gate" if kind == "gate" else "Village Wall", "art": kind,
 			"text": "Holds enemies back until they break it; the cheapest way in is the gate unless a wall is weaker. Upgrade it for more HP."
@@ -578,6 +581,21 @@ static func _hp_fact(kind: String) -> String:
 	if kind == "hut":
 		return "HP 1: any enemy that gets to it burns it"
 	return "HP %s · repairs cost up to %s %% of the material spent on it" % [" / ".join(parts), _n(Config.REPAIR_SHARE * 100.0)]
+
+
+## What walls, gates and wall towers are made of (Config.PIECE_MATERIALS): "Stone,
+## sandstone or basalt, all alike; wood (a palisade): 60 % of their HP, costs and build times".
+static func _material_fact() -> String:
+	var alike := PackedStringArray()
+	var other := PackedStringArray()
+	for k in Config.PIECE_MATERIAL_ORDER:
+		var m: Dictionary = Config.PIECE_MATERIALS[k]
+		if float(m["factor"]) == 1.0:
+			alike.append(str(m["name"]).to_lower())
+		else:
+			other.append("%s: %s %% of their HP, costs and build times" % [str(m["name"]).to_lower(), _n(float(m["factor"]) * 100.0)])
+	var a := ", ".join(alike.slice(0, -1)) + " or " + alike[-1] if alike.size() > 1 else ", ".join(alike)
+	return "Made of %s, all alike; %s" % [a, "; ".join(other)]
 
 
 static func _tower_facts(kind: String) -> PackedStringArray:

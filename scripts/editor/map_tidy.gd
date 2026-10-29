@@ -7,7 +7,7 @@ extends RefCounted
 ## under village pieces are ground (gates: road). Choices it makes (which
 ## tree) depend only on the tile, so redoing an edit gives the same map.
 
-const PEAK_ARTS: Array[String] = ["mountain_0", "mountain_1", "mountain_2"]
+const PEAK_ARTS: Array[String] = ["mountain_0", "mountain_1", "mountain_2", "mountain_3"]
 
 
 ## What stands on mountain tile `t`: its zone's "peaks" (the city's houses), else PEAK_ARTS.
@@ -123,7 +123,7 @@ static func tree_for(m: MapData, t: Vector2i) -> String:
 static func decor_for(m: MapData, t: Vector2i) -> String:
 	var mix: Dictionary = Config.ZONES[m.zone(t)].get("decor_mix", {})
 	if mix.is_empty():
-		return "boulder"
+		return Config.ZONES["oak"]["decor_mix"].keys()[_hash(t) % 2]  # a boulder
 	var keys: Array = mix.keys()
 	return keys[_hash(t) % keys.size()]
 

@@ -22,13 +22,16 @@ func _run() -> void:
 		var m := await _generated(spec)
 		if spec[1] == 50:
 			small = m
+		_generated_material(m, str(spec[0]))
 		_conversions(m, "%s %dx%d, %d %s" % [spec[0], spec[1], spec[1], spec[2], "village" if spec[2] == 1 else "villages"])
 	_title_map()
 	_tolerant(small)
 	_refusals(small)
+	_materials(small)
 	_sizes()
 	await _play_loaded()
 	await _play_odd_village()
+	await _play_materials()
 	two = MapGenerator.generate(12, 2, "temperate")
 	two.meta = {"name": "Two villages"}
 	await _play_ownerless(MapJson.read(MapJson.write(two))["map"])
@@ -145,7 +148,7 @@ func differ(a: MapData, b: MapData, with_meta: bool = false) -> String:
 	for i in a.village_layout.size():
 		var pa := a.village_layout[i]
 		var pb := b.village_layout[i]
-		for k in ["kind", "tile", "flip", "owner"]:
+		for k in ["kind", "tile", "flip", "owner", "material"]:
 			if pa.get(k) != pb.get(k):
 				return "village_layout[%d].%s: %s vs %s" % [i, k, str(pa.get(k)), str(pb.get(k))]
 	if a.objects.size() != b.objects.size():
@@ -271,6 +274,7 @@ func _refusals(m: MapData) -> void:
 		["a crossing off the road", func(d: Dictionary) -> Variant: d["crossings"] = [{"tile": [0, 0], "art": "tile_ford", "under": "shallow"}]; d["layers"]["terrain"][0] = "." + str(d["layers"]["terrain"][0]).substr(1); return d, "isn't road in layers.terrain"],
 		["a bad map type", func(d: Dictionary) -> Variant: d["map_type"] = "<script>"; return d, "map_type: only letters"],
 		["a name too long", func(d: Dictionary) -> Variant: d["name"] = "x".repeat(61); return d, "name: must be 1 to 60 characters"],
+		["an unknown material", func(d: Dictionary) -> Variant: _piece(d, "wall")["material"] = "marble"; return d, "material: must be one of"],
 	]
 	for c in cases:
 		var d: Dictionary = JSON.parse_string(text)
@@ -280,6 +284,14 @@ func _refusals(m: MapData) -> void:
 		var errs: Array = r["errors"]
 		var named := errs.any(func(e: String) -> bool: return str(c[2]) in e)
 		check(r["map"] == null and named, "import refuses %s, naming the place (%s)" % [c[0], errs[0] if not errs.is_empty() else "no error"])
+
+
+## The first piece of `kind` in the file's first village.
+func _piece(d: Dictionary, kind: String) -> Dictionary:
+	for p in d["villages"][0]["pieces"]:
+		if p["kind"] == kind:
+			return p
+	return {}
 
 
 ## A camp guarding treasure `guards` (default: the first treasure) with `monsters`.
@@ -292,6 +304,83 @@ func _with_camp(d: Dictionary, monsters: Array, guards: int = -1) -> Dictionary:
 			treasure = int(o["id"])
 	d["objects"].append({"id": top + 1, "kind": "camp", "tile": [1, 1], "size": 1, "tier": 1, "guards": guards if guards >= 0 else treasure, "monsters": monsters})
 	return d
+
+
+# --- materials (docs/siege-design.md §2a) ----------------------------------------------------
+
+## The generator gives a village one material, by map type.
+func _generated_material(m: MapData, map_type: String) -> void:
+	var want: String = Config.PIECE_MATERIAL_BY_MAP_TYPE.get(map_type, "stone")
+	check(m.village_layout.all(func(p: Dictionary) -> bool: return p["material"] == want), "%s: every piece, huts too, is %s" % [map_type, want])
+
+
+## Mixed materials come back from a file; a file without them (format 4) is stone.
+func _materials(m: MapData) -> void:
+	var mixed := m.copy()
+	var k := 0
+	for p in mixed.village_layout:
+		p["material"] = Config.PIECE_MATERIAL_ORDER[k % Config.PIECE_MATERIAL_ORDER.size()] if p["kind"] != "hut" else "basalt"
+		k += 1
+	var text := MapJson.write(mixed)
+	var hut_lines := Array(text.split("\n")).filter(func(l: String) -> bool: return '"kind": "hut"' in l)
+	check('"material": "wood"' in text and not hut_lines.is_empty() and hut_lines.all(func(l: String) -> bool: return '"material": "basalt"' in l), "the export writes each piece's material, huts too")
+	var back: MapData = MapJson.read(text)["map"]
+	check(back != null and differ(back, mixed) == "", "every piece keeps its material through a file (%s)" % (differ(back, mixed) if back else "not read"))
+	var d: Dictionary = JSON.parse_string(text)
+	d["format_version"] = 4
+	for p in d["villages"][0]["pieces"]:
+		p.erase("material")
+	var old: MapData = MapJson.read(JSON.stringify(d))["map"]
+	check(old != null and old.village_layout.all(func(p: Dictionary) -> bool: return p["material"] == "stone"), "a format 4 file (no materials) reads as all stone")
+
+
+## A village of wood: 60 % of the HP, costs and times, its own art; a sandstone piece among it.
+func _play_materials() -> void:
+	var g := MapGenerator.generate(38, 1, "temperate")
+	g.meta = {"name": "Wooden outpost"}
+	var odd := Vector2i(-1, -1)
+	for p in g.village_layout:
+		p["material"] = "wood"
+		if p["kind"] == "wall" and odd.x < 0:
+			odd = p["tile"]
+			p["material"] = "sandstone"
+	Settings.custom_map = MapJson.read(MapJson.write(g))["map"]
+	Settings.custom_village = 0
+	await _start_game()
+	var f := float(Config.PIECE_MATERIALS["wood"]["factor"])
+	var wall: StaticPiece = null
+	var gate: StaticPiece = null
+	var tower: Tower = null
+	var other: StaticPiece = null
+	for b in game.player_village.buildings():
+		if b.tile == odd:
+			other = b
+		elif b.kind == "wall" and wall == null:
+			wall = b
+		elif b.kind == "gate" and gate == null:
+			gate = b
+		elif b.kind == "wall_tower" and tower == null:
+			tower = b
+	check(wall != null and wall.made_of == "wood" and is_equal_approx(wall.max_hp(), Config.BUILDING_HP["wall"][0] * f) and wall.hp == wall.max_hp(), "a wooden wall has %s %% of a stone wall's HP" % Library._n(f * 100.0))
+	check(gate != null and gate.upgrade_cost() == Config.material_cost(Config.PIECE_LEVELS["gate"][1]["cost"], "wood") and int(gate.upgrade_cost()["materials"]) < int(Config.PIECE_LEVELS["gate"][1]["cost"]["materials"]), "its upgrade costs less (%s)" % (str(gate.upgrade_cost()) if gate else ""))
+	check(gate != null and is_equal_approx(gate.build_time, float(Config.PIECE_PRICES["gate"]["build_time"]) * f) and gate.materials_spent() == roundi(float(Config.PIECE_PRICES["gate"]["cost"]["materials"]) * f), "and it counts a cheaper price and a shorter build time for repairs")
+	check(tower != null and tower.made_of == "wood" and is_equal_approx(tower.hp_at(3), Config.BUILDING_HP["wall_tower"][2] * f) and tower.upgrade_cost() == Config.material_cost(Config.TOWER_LEVELS[1]["cost"], "wood"), "a wooden wall tower too: HP and upgrades")
+	check(wall != null and wall._look() == "wood_wall" and tower != null and tower._look() == "wood_wall_tower" and tower._front_art() == "wood_wall_tower_front", "they look wooden")
+	check(tower != null and Art.info(tower._art())["platform"] < Art.info("wall_tower")["platform"], "the wooden tower's deck is lower: its unit stands on it")
+	check(other != null and other.made_of == "sandstone" and is_equal_approx(other.max_hp(), Config.BUILDING_HP["wall"][0]) and other._look() == "sandstone_wall", "a sandstone wall among them is as strong as stone and looks its own")
+	if wall:
+		wall.take_damage(wall.max_hp() + 1.0, null)
+		check(wall.devastated and wall._look() == "wood_wall_ruin", "a devastated wooden wall shows its own ruin")
+	if gate:
+		gate.level = 2
+		gate.refresh()
+		check(gate._look() == "wood_gate_2", "and a gate its level")
+	var hut: Hut = game.player_village.intact_huts()[0]
+	check(hut.made_of == "wood" and hut.sprite.texture == Art.tex("wood_hut") and hut.max_hp() == 1.0 and hut.build_time == float(Config.BUILDINGS["hut"]["build_time"]), "a hut of wood is a tent, as fragile and as dear as a cabin")
+	hut.destroy("test")
+	check(hut.sprite.texture == Art.tex("wood_hut_ruin"), "burnt, its ruin")
+	await _end_game()
+	Settings.custom_map = null
 
 
 # --- sizes -----------------------------------------------------------------------------------

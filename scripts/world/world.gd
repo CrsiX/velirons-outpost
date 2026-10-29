@@ -354,6 +354,7 @@ func _spawn_piece(piece: Dictionary, owner: Village) -> void:
 	var b: Building = PIECE_SCRIPTS[kind].new()
 	if b is StaticPiece:
 		b.flip = piece["flip"]
+	b.made_of = piece.get("material", "stone")
 	b.village = owner
 	if owner == null:
 		b.set_meta("abandoned", true)

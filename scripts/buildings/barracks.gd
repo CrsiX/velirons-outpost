@@ -224,7 +224,7 @@ func info() -> Dictionary:
 		add_cancel_action(lines, actions, "Cancel upgrade")
 	elif level < max_level() and not repairing:
 		var nxt: Dictionary = Config.BARRACKS_LEVELS[level]
-		lines.append("Next level: %d benches, range %.1f, {hp} %d." % [nxt["slots"], nxt["range"], roundi(Config.BUILDING_HP[kind][level])])
+		lines.append("Next level: %d benches, range %.1f, {hp} %d." % [nxt["slots"], nxt["range"], roundi(hp_at(level + 1))])
 		actions.append({
 			"label": "Upgrade barracks (%s)" % Config.cost_icons(upgrade_cost()),
 			"disabled": not village.economy.can_afford(upgrade_cost()),

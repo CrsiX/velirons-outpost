@@ -17,6 +17,10 @@ var size := 1
 var complete := true
 var progress := 0.0
 var build_time := 1.0
+## What a village piece (wall, gate, wall tower, hut) is made of
+## (Config.PIECE_MATERIALS): its look, and for walls, gates and wall towers its
+## HP, costs and times. Everything else is "stone" (factor 1). Set before setup().
+var made_of := "stone"
 ## Builder currently assigned to this site (if any).
 var builder: Node = null
 ## Its job in the build queue (Construction.claim): when it was queued
@@ -67,7 +71,7 @@ func setup(p_game: Game, p_kind: String, p_tile: Vector2i, p_complete: bool) -> 
 	complete = p_complete
 	if Config.BUILDINGS.has(kind):
 		size = Config.BUILDINGS[kind]["size"]
-	build_time = float(Building.price(kind).get("build_time", 1.0))
+	build_time = float(Building.price(kind).get("build_time", 1.0)) * material_factor()
 	hp = max_hp()
 	position = Building.anchor_world(tile, size)
 	add_to_group("observers")
@@ -206,10 +210,25 @@ func add_progress(dt: float) -> bool:
 
 # --- HP, devastation and repairs (docs/siege-design.md) -------------------------------------
 
-## Max HP at its level (Config.BUILDING_HP).
+## Max HP at its level (Config.BUILDING_HP, times its material's factor).
 func max_hp() -> float:
+	return hp_at(level)
+
+
+## Max HP at level `lv`.
+func hp_at(lv: int) -> float:
 	var list: Array = Config.BUILDING_HP.get(kind, [1.0])
-	return float(list[clampi(level - 1, 0, list.size() - 1)])
+	return float(list[clampi(lv - 1, 0, list.size() - 1)]) * material_factor()
+
+
+## Its material's factor on HP, costs and times (Config.PIECE_MATERIALS).
+func material_factor() -> float:
+	return float(Config.PIECE_MATERIALS[made_of]["factor"]) if Config.PIECE_MATERIAL_SCALED.has(kind) else 1.0
+
+
+## Its art name `art` in its material: "wall_2" -> "wood_wall_2".
+func material_art(art: String) -> String:
+	return Config.piece_art(made_of, art)
 
 
 func hp_share() -> float:
@@ -395,7 +414,7 @@ func teardown_time() -> float:
 ## Building material spent on it: its price plus paid upgrades (override).
 ## The village's pieces count their Config.PIECE_PRICES.
 func materials_spent() -> int:
-	return int(Building.price(kind).get("cost", {}).get("materials", 0))
+	return int(Config.material_cost(Building.price(kind).get("cost", {}), made_of).get("materials", 0))
 
 
 ## What a finished tear-down gives back: a share of the material spent on

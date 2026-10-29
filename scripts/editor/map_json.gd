@@ -8,7 +8,7 @@ extends RefCounted
 ## of every problem and where it is.
 
 const FORMAT := "velirons-outpost-map"
-const VERSION := 4
+const VERSION := 5
 ## One character per tile; the index is the MapData.Terrain value.
 const TERRAIN_CODES := ".RFDMWSL"
 ## One character per tile; the index is the Config.ZONE_ORDER index.
@@ -114,7 +114,7 @@ static func write(m: MapData) -> String:
 		pieces.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return MapData.row_order(a["tile"], b["tile"]))
 		var pl := PackedStringArray()
 		for p in pieces:
-			pl.append('{"kind": %s, "tile": %s, "flip": %s}' % [_q(p["kind"]), _t(p["tile"]), "true" if p["flip"] else "false"])
+			pl.append('{"kind": %s, "tile": %s, "flip": %s, "material": %s}' % [_q(p["kind"]), _t(p["tile"]), "true" if p["flip"] else "false", _q(p["material"])])
 		_list(out, "pieces", pl, "      ", false)
 		out.append("    }" + ("," if i < m.villages.size() - 1 else ""))
 	if not m.villages.is_empty():
@@ -627,7 +627,7 @@ class _Reader:
 				if not (p is Dictionary):
 					err(pw, "must be an object")
 					continue
-				_keys(p, ["kind", "tile", "flip"], ["kind", "tile"], pw)
+				_keys(p, ["kind", "tile", "flip", "material"], ["kind", "tile"], pw)
 				if not PIECE_KINDS.has(p.get("kind")):
 					err(pw + ".kind", "must be one of %s" % ", ".join(PIECE_KINDS))
 					continue
@@ -636,13 +636,17 @@ class _Reader:
 				if not (flip is bool):
 					err(pw + ".flip", "must be true or false")
 					continue
+				var mat = p.get("material", "stone")
+				if not Config.PIECE_MATERIALS.has(mat):
+					err(pw + ".material", "must be one of %s" % ", ".join(Config.PIECE_MATERIAL_ORDER))
+					continue
 				if t == null:
 					continue
 				if used.has(t):
 					err(pw, "a second village piece on [%d, %d]" % [t.x, t.y])
 					continue
 				used[t] = true
-				pieces.append({"kind": p["kind"], "tile": t, "flip": flip})
+				pieces.append({"kind": p["kind"], "tile": t, "flip": flip, "material": mat})
 			if center == null:
 				continue
 			pieces.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return MapData.row_order(a["tile"], b["tile"]))

@@ -16,13 +16,13 @@ var _site_sprite: Sprite2D
 
 func _art() -> String:
 	var base := "wall_tower" if kind == "wall_tower" else "watchtower"
-	return base if level == 1 else "%s_%d" % [base, level]
+	return material_art(base if level == 1 else "%s_%d" % [base, level])
 
 
 ## What it looks like now: its ruin while devastated.
 func _look() -> String:
 	if devastated:
-		return "wall_tower_ruin" if kind == "wall_tower" else "watchtower_ruin"
+		return material_art("wall_tower_ruin") if kind == "wall_tower" else "watchtower_ruin"
 	return _art()
 
 
@@ -32,7 +32,7 @@ func has_ruin_art() -> bool:
 
 func _front_art() -> String:
 	var base := "wall_tower_front" if kind == "wall_tower" else "watchtower_front"
-	return base if level == 1 else "%s_%d" % [base, level]
+	return material_art(base if level == 1 else "%s_%d" % [base, level])
 
 
 func display_name() -> String:
@@ -57,18 +57,18 @@ func can_upgrade() -> bool:
 func materials_spent() -> int:
 	var n := super.materials_spent()
 	for i in range(1, level):
-		n += int(Config.TOWER_LEVELS[i]["cost"].get("materials", 0))
+		n += int(Config.material_cost(Config.TOWER_LEVELS[i]["cost"], made_of).get("materials", 0))
 	return n
 
 
 func upgrade_cost() -> Dictionary:
-	return Config.TOWER_LEVELS[level]["cost"] if level < max_level() else {}
+	return Config.material_cost(Config.TOWER_LEVELS[level]["cost"], made_of) if level < max_level() else {}
 
 
 func start_upgrade() -> void:
 	upgrading = true
 	upgrade_progress = 0.0
-	upgrade_time = Config.TOWER_LEVELS[level]["work_time"]
+	upgrade_time = Config.TOWER_LEVELS[level]["work_time"] * material_factor()
 	queue_redraw()
 
 
@@ -253,7 +253,7 @@ func info() -> Dictionary:
 			"disabled": not village.economy.can_afford(upgrade_cost()),
 			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
 		})
-		lines.append("Next level: +%.1f range, {hp} %d" % [bonus, roundi(Config.BUILDING_HP[kind][level])])
+		lines.append("Next level: +%.1f range, {hp} %d" % [bonus, roundi(hp_at(level + 1))])
 	if garrison:
 		lines.append("%s, level %d%s" % [garrison.display_name(), garrison.level + 1, "  (bewitched!)" if is_enchanted() else ""])
 		lines.append_array(garrison.behavior.info_lines(garrison))

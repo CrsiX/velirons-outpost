@@ -259,7 +259,10 @@ func _village_data(v: Village) -> Dictionary:
 
 
 func _building_spawn(b: Building) -> Dictionary:
-	return {"k": b.kind, "t": b.tile, "v": b.village.id if b.village else -1, "f": b.get("flip") == true, "u": b.uid}
+	var s := {"k": b.kind, "t": b.tile, "v": b.village.id if b.village else -1, "f": b.get("flip") == true, "u": b.uid}
+	if b.made_of != "stone":
+		s["m"] = b.made_of
+	return s
 
 
 func _building_state(b: Building) -> Dictionary:
@@ -489,6 +492,7 @@ func _spawn(nid: int, type: String, s: Dictionary, st: Dictionary) -> void:
 			var b: Building = script.new()
 			if b is StaticPiece:
 				b.flip = s["f"]
+			b.made_of = s.get("m", "stone")
 			b.village = game.villages[s["v"]] if int(s["v"]) >= 0 else null
 			if b.village == null and World.PIECE_SCRIPTS.has(kind):
 				b.set_meta("abandoned", true)  # (a village of the map nobody plays)

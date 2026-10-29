@@ -272,12 +272,12 @@ func copy() -> MapData:
 	return MapData.from_bytes(to_bytes())
 
 
-## The pieces (walls, gates, wall towers, huts) of village `i`: [{kind, tile, flip}].
+## The pieces (walls, gates, wall towers, huts) of village `i`: [{kind, tile, flip, material}].
 func village_pieces(i: int) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for p in village_layout:
 		if int(p.get("owner", 0)) == i:
-			out.append({"kind": p["kind"], "tile": p["tile"], "flip": p["flip"]})
+			out.append({"kind": p["kind"], "tile": p["tile"], "flip": p["flip"], "material": p.get("material", "stone")})
 	return out
 
 

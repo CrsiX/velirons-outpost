@@ -165,7 +165,7 @@ looks and what grows there.
 
 | Zone | Where | Ground | What grows | Trees | Rules |
 |---|---|---|---|---|---|
-| Pine forest | wet (moisture > 0.6) | dark grass | pines, some dead trees | 85 % | |
+| Pine forest | wet (moisture > 0.6) | dark grass | pines and spruces, some dead trees | 85 % | |
 | Oak woods | middling moisture, or higher ground | grass | oaks, a few pines; boulders | 45 % | |
 | Meadow | drier, low ground | bright grass | a lone oak | 6 % | farms +20 % food (see below) |
 | Heath | high ground (dry, or very dry and very high) | brown-green | dead trees, boulders | 15 % | |
@@ -868,8 +868,20 @@ Everything is in `scripts/core/config.gd`, in two blocks:
   `tile_ford`, `tile_road_pass` (rocky road).
 - **Bridges** (2 directions each): `bridge_stone`, `bridge_timber`,
   `bridge_rope`, `bridge_stilts`, `bridge_charred`.
-- **Props:** `reeds`, `boulder`, `cactus`, `stump_charred`, `lava_rock`,
-  `volcano` (3×3, crater glow) and `volcano_smoke`.
+- **Trees and peaks** (a zone's `mix` picks among them, weighted; every one
+  of a kind behaves alike): `tree_oak`, `tree_oak_1`, `tree_oak_2` (a broad
+  old oak, a young tall one, a gnarled lopsided one), `tree_pine_0`,
+  `tree_pine_1`, `tree_pine_2` (a slim drooping spruce), `tree_dead`,
+  `tree_dead_1` (a broken snag); `mountain_0` to `mountain_3` (3: a twin
+  peak); the city's `house_0` to `house_3` (3 half-timbered) and
+  `house_ruin_0` to `house_ruin_2`.
+- **Props:** `reeds`, `boulder`, `boulder_1` (a split slab with lichen; the
+  game still mirrors and scales each decor a little), `cactus`,
+  `stump_charred`, `lava_rock`, `volcano` (3×3, crater glow) and
+  `volcano_smoke`.
+- **Village pieces:** the generator gives a village one material for its
+  walls, gates and wall towers by map type: basalt on Volcanic, sandstone on
+  Desert, stone otherwise (docs/siege-design.md §2a).
 - **Objects:** `chest`, `ruins`, `shrine`, `standing_stones`, `shipwreck`,
   `dragon_bones`, each with a "looted" version; `sack` (dropped loot);
   `camp` and `camp_cleared`; `stone_circle`, `mage_tower_ruin`,

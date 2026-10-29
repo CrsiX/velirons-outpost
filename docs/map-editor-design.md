@@ -181,6 +181,14 @@ stroke (a drag counts as one).
   - *Pieces:* add, remove or change single pieces (wall, gate, wall tower,
     hut) of a village, and flip a wall. A village may have any layout; a
     layout that isn't the standard one is a warning, not an error (§5.4).
+  - *Materials* (stone, sandstone, basalt, wood: docs/siege-design.md §2a):
+    the Village and Pieces tools share a material choice (`opts.material`).
+    A new village is all of it; so is a new piece (a changed piece keeps its
+    own); the Pieces tool's *Paint material* gives the clicked piece, a hut
+    too, the chosen one. The village's inspector lists its
+    materials and makes all its pieces one with a click
+    (`MapEditor.set_village_material`); the tile under the pointer names a
+    piece's material.
   - Village ids are 0..n-1; reorder in the inspector.
 - **Spawns:** mark edge road tiles as spawns, each assigned to a village
   (default: the village of its slice).
@@ -284,7 +292,7 @@ All keys in this order on export.
 | key | type | |
 |---|---|---|
 | `format` | string | always `"velirons-outpost-map"` |
-| `format_version` | int | 4 (format 1: no `water_spawns`; 2: no ruin `building`; 3: no city zone `c`) |
+| `format_version` | int | 5 (format 1: no `water_spawns`; 2: no ruin `building`; 3: no city zone `c`; 4: no piece `material`) |
 | `name` | string | 1-60 characters; shown in the map list and the lobby |
 | `author` | string | 0-60 characters |
 | `description` | string | 0-1000 characters |
@@ -335,8 +343,10 @@ are sorted by `y`, then `x` on export.
   "center": [37, 37],
   "spawns": [[0, 12], [74, 50], [30, 74]],
   "pieces": [
-    {"kind": "wall_tower", "tile": [35, 35], "flip": false},
-    {"kind": "wall", "tile": [36, 35], "flip": false},
+    {"kind": "wall_tower", "tile": [35, 35], "flip": false, "material": "stone"},
+    {"kind": "wall", "tile": [36, 35], "flip": false, "material": "stone"},
+    ...
+    {"kind": "hut", "tile": [36, 36], "flip": false, "material": "stone"},
     ...
   ]
 }
@@ -346,8 +356,10 @@ are sorted by `y`, then `x` on export.
 - `spawns`: the edge road tiles its waves come from.
 - `pieces`: every piece of the village, one entry each: `kind` (`wall`,
   `gate`, `wall_tower`, `hut`), `tile`, `flip` (walls on a village's left and
-  right sides are drawn mirrored, as the generator does today). Sorted by
-  `y`, then `x` on export. Generated maps always have the standard 25 pieces.
+  right sides are drawn mirrored, as the generator does today), `material`
+  (`stone`, `sandstone`, `basalt`, `wood`).
+  Sorted by `y`, then `x` on export. Generated maps always have the standard
+  25 pieces, all of one material (by map type).
 
 ### 6.7 Objects
 
@@ -389,7 +401,7 @@ from `config.gd`).
 - missing optional keys, with their defaults: `author`, `description`,
   `origin`, `legend`, `village_links` (`[]`), `volcanoes` (`[]`),
   `crossings` (`[]`), `beach` and `decor` layers (all `.`), `flip` (`false`),
-  `size` (1);
+  a piece's `material` (`stone`: every older file), `size` (1);
 - numbers written as floats when they are whole (`37.0`);
 - lists in any order;
 - palette letters in any order and unused palette entries.
@@ -407,7 +419,7 @@ e.g. `layers.terrain row 12, column 40: unknown code "X"`) when:
 - `size` isn't one of the map sizes; a layer hasn't `size` rows of `size`
   characters; a code is unknown; a palette letter is used but not defined; an
   art name (palette, crossing, lair) isn't one of the game's arts; an enemy,
-  treasure, site or unit kind is unknown;
+  treasure, site, unit kind or piece material is unknown;
 - a coordinate is outside the map; ids are duplicated; a reference points
   nowhere (`guards`); village ids aren't exactly 0..n-1; there are more
   villages than the size's slots;
@@ -552,16 +564,16 @@ not format errors: the map loads, and the checks (§5.4) report them.
       "center": [37, 37],
       "spawns": [[0, 12], [74, 50], [30, 74]],
       "pieces": [
-        {"kind": "wall_tower", "tile": [35, 35], "flip": false},
-        {"kind": "wall", "tile": [36, 35], "flip": false},
-        {"kind": "gate", "tile": [37, 35], "flip": false},
-        {"kind": "wall", "tile": [38, 35], "flip": false},
-        {"kind": "wall_tower", "tile": [39, 35], "flip": false},
-        {"kind": "wall", "tile": [35, 36], "flip": true},
-        {"kind": "hut", "tile": [36, 36], "flip": false},
-        {"kind": "hut", "tile": [37, 36], "flip": false},
-        {"kind": "hut", "tile": [38, 36], "flip": false},
-        {"kind": "wall", "tile": [39, 36], "flip": true}
+        {"kind": "wall_tower", "tile": [35, 35], "flip": false, "material": "stone"},
+        {"kind": "wall", "tile": [36, 35], "flip": false, "material": "stone"},
+        {"kind": "gate", "tile": [37, 35], "flip": false, "material": "stone"},
+        {"kind": "wall", "tile": [38, 35], "flip": false, "material": "stone"},
+        {"kind": "wall_tower", "tile": [39, 35], "flip": false, "material": "stone"},
+        {"kind": "wall", "tile": [35, 36], "flip": true, "material": "stone"},
+        {"kind": "hut", "tile": [36, 36], "flip": false, "material": "stone"},
+        {"kind": "hut", "tile": [37, 36], "flip": false, "material": "stone"},
+        {"kind": "hut", "tile": [38, 36], "flip": false, "material": "stone"},
+        {"kind": "wall", "tile": [39, 36], "flip": true, "material": "stone"}
       ]
     }
   ],

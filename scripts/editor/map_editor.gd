@@ -25,7 +25,7 @@ var tool := "file"
 var opts := {
 	"terrain": MapData.Terrain.FOREST, "zone": "meadow", "brush": 3, "round": true, "fill": false,
 	"prop": "auto", "decor": "auto", "beach": true, "road": "free", "volcano": "add", "ash": true,
-	"piece": "wall", "slice": 0, "object": "treasure", "object_size": 1, "paint": false,
+	"piece": "wall", "material": "stone", "slice": 0, "object": "treasure", "object_size": 1, "paint": false,
 }
 ## Layer switches (EditorOverlay); "flow": the village whose road steps show (-1: none).
 var layers := {
@@ -382,14 +382,14 @@ func _press(t: Vector2i) -> void:
 			else:
 				var r := []  # (a lambda can't assign the caller's locals; it can fill this)
 				if edit(func() -> Variant:
-						r.append(EditorTools.add_village(map, t))
+						r.append(EditorTools.add_village(map, t, str(opts["material"])))
 						return r[0] if r[0] is String else MapChecks.standard_pieces(t).map(func(p: Dictionary) -> Vector2i: return p["tile"]), true):
 					select({"type": "village", "index": int(r[0])})
 		"piece":
 			var owner := village_at(t)
 			if owner < 0:
 				owner = int(selected["index"]) if selected.get("type") == "village" else _nearest_village(t)
-			edit(func() -> Variant: return EditorTools.set_piece(map, t, str(opts["piece"]), owner), true)
+			edit(func() -> Variant: return EditorTools.set_piece(map, t, str(opts["piece"]), owner, str(opts["material"])), true)
 		"spawn":
 			var owner := int(selected["index"]) if selected.get("type") == "village" else -1
 			edit(func() -> Variant: return EditorTools.toggle_spawn(map, t, owner))
@@ -783,6 +783,16 @@ func move_village_number(i: int, by: int) -> void:
 		EditorTools.swap_villages(map, i, j)
 		return [] as Array[Vector2i], true)
 	select({"type": "village", "index": j})
+
+
+## Every piece of village `i` becomes `material`.
+func set_village_material(i: int, material: String) -> void:
+	edit(func() -> Variant:
+		for p in map.village_layout:
+			if int(p.get("owner", 0)) == i:
+				p["material"] = material
+		return [] as Array[Vector2i], true)
+	select({"type": "village", "index": i})
 
 
 func set_village_center(i: int, t: Vector2i) -> void:

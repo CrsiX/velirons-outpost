@@ -451,15 +451,15 @@ const MAP_TYPES := {
 const EXTRA_DECOR: Array[String] = ["well_dry"]
 const ZONE_ORDER: Array[String] = ["meadow", "oak", "pine", "heath", "steppe", "swamp", "ash", "city"]
 const ZONES := {
-	"meadow": {"name": "Meadow", "ground": ["tile_meadow_0", "tile_meadow_1", "tile_meadow_2"], "trees": 0.06, "mix": {"tree_oak": 1}, "decor": 0.0, "decor_mix": {}, "farm_bonus": 0.2},
-	"oak": {"name": "Oak woods", "ground": ["tile_grass_0", "tile_grass_1", "tile_grass_2"], "forest_floor": "tile_forest_oak", "trees": 0.45, "mix": {"tree_oak": 6, "tree_pine_0": 1}, "decor": 0.01, "decor_mix": {"boulder": 1}},
-	"pine": {"name": "Pine forest", "ground": ["tile_grass_dark_0", "tile_grass_dark_1"], "forest_floor": "tile_forest", "trees": 0.85, "mix": {"tree_pine_0": 4, "tree_pine_1": 4, "tree_dead": 1}, "decor": 0.0, "decor_mix": {}},
-	"heath": {"name": "Heath", "ground": ["tile_heath_0", "tile_heath_1"], "trees": 0.15, "mix": {"tree_dead": 1}, "decor": 0.06, "decor_mix": {"boulder": 1}},
-	"steppe": {"name": "Steppe", "ground": ["tile_desert_0", "tile_desert_1"], "trees": 0.03, "mix": {"tree_dead": 1}, "decor": 0.03, "decor_mix": {"cactus": 1}, "no_farms": true},
-	"swamp": {"name": "Swamp", "ground": ["tile_swamp_0", "tile_swamp_1"], "trees": 0.2, "mix": {"tree_dead": 1}, "decor": 0.18, "decor_mix": {"reeds": 1}, "no_farms": true, "walk": 0.7},
+	"meadow": {"name": "Meadow", "ground": ["tile_meadow_0", "tile_meadow_1", "tile_meadow_2"], "trees": 0.06, "mix": {"tree_oak": 1, "tree_oak_1": 1, "tree_oak_2": 1}, "decor": 0.0, "decor_mix": {}, "farm_bonus": 0.2},
+	"oak": {"name": "Oak woods", "ground": ["tile_grass_0", "tile_grass_1", "tile_grass_2"], "forest_floor": "tile_forest_oak", "trees": 0.45, "mix": {"tree_oak": 2, "tree_oak_1": 2, "tree_oak_2": 2, "tree_pine_0": 1}, "decor": 0.01, "decor_mix": {"boulder": 1, "boulder_1": 1}},
+	"pine": {"name": "Pine forest", "ground": ["tile_grass_dark_0", "tile_grass_dark_1"], "forest_floor": "tile_forest", "trees": 0.85, "mix": {"tree_pine_0": 3, "tree_pine_1": 3, "tree_pine_2": 2, "tree_dead": 0.5, "tree_dead_1": 0.5}, "decor": 0.0, "decor_mix": {}},
+	"heath": {"name": "Heath", "ground": ["tile_heath_0", "tile_heath_1"], "trees": 0.15, "mix": {"tree_dead": 1, "tree_dead_1": 1}, "decor": 0.06, "decor_mix": {"boulder": 1, "boulder_1": 1}},
+	"steppe": {"name": "Steppe", "ground": ["tile_desert_0", "tile_desert_1"], "trees": 0.03, "mix": {"tree_dead": 1, "tree_dead_1": 1}, "decor": 0.03, "decor_mix": {"cactus": 1}, "no_farms": true},
+	"swamp": {"name": "Swamp", "ground": ["tile_swamp_0", "tile_swamp_1"], "trees": 0.2, "mix": {"tree_dead": 1, "tree_dead_1": 1}, "decor": 0.18, "decor_mix": {"reeds": 1}, "no_farms": true, "walk": 0.7},
 	"ash": {"name": "Ash land", "ground": ["tile_ash_0", "tile_ash_1"], "trees": 0.05, "mix": {"stump_charred": 1}, "decor": 0.05, "decor_mix": {"lava_rock": 1}, "no_farms": true},
 	"city": {"name": "City", "ground": ["tile_cobble_0", "tile_cobble_1", "tile_cobble_2"], "trees": 0.0, "mix": {}, "decor": 0.05, "decor_mix": {"city_rubble": 1}, "no_farms": true,
-		"peaks": ["house_0", "house_1", "house_2", "house_ruin_0", "house_ruin_1"]},
+		"peaks": ["house_0", "house_1", "house_2", "house_3", "house_ruin_0", "house_ruin_1", "house_ruin_2"]},
 }
 ## Land shares of the zones from height x moisture (before map-type shifts);
 ## ash comes on top, around volcanoes.
@@ -787,6 +787,41 @@ const PIECE_LEVELS := {
 	"gate": [{}, {"cost": {"materials": 30}, "work_time": 8.0}, {"cost": {"materials": 60}, "work_time": 12.0}],
 	"wall": [{}, {"cost": {"materials": 35}, "work_time": 8.0}, {"cost": {"materials": 70}, "work_time": 12.0}],
 }
+## What a village's pieces are made of (docs/siege-design.md §2a). "art" prefixes
+## their art names (stone: the plain names: "wall_2", "sandstone_wall_2", "wood_hut":
+## a tent); "factor" scales the HP (BUILDING_HP), prices and upgrade costs
+## (PIECE_PRICES, PIECE_LEVELS, TOWER_LEVELS: each amount rounded, at least 1) and
+## build and upgrade times of walls, gates and wall towers (PIECE_MATERIAL_SCALED;
+## a hut only looks the part). Every piece has its own (map files, format 5); the
+## generator gives a village one material, by map type (PIECE_MATERIAL_BY_MAP_TYPE,
+## else stone). Wood is an improvised
+## palisade with tents for forward outposts: only hand-made maps have it.
+const PIECE_MATERIALS := {
+	"stone": {"name": "Stone", "art": "", "factor": 1.0},
+	"sandstone": {"name": "Sandstone", "art": "sandstone_", "factor": 1.0},
+	"basalt": {"name": "Basalt", "art": "basalt_", "factor": 1.0},
+	"wood": {"name": "Wood", "art": "wood_", "factor": 0.6},
+}
+const PIECE_MATERIAL_ORDER: Array[String] = ["stone", "sandstone", "basalt", "wood"]
+## The pieces whose HP, costs and times the material's factor scales.
+const PIECE_MATERIAL_SCALED: Array[String] = ["wall", "gate", "wall_tower"]
+const PIECE_MATERIAL_BY_MAP_TYPE := {"volcanic": "basalt", "desert": "sandstone"}
+
+
+## Art name `art` ("wall_2", "gate_ruin", "wall_tower_front") in `material`: "wood_wall_2".
+static func piece_art(material: String, art: String) -> String:
+	return str(PIECE_MATERIALS[material]["art"]) + art
+
+
+## `cost` for a piece of `material`: every amount times its factor, rounded, at least 1.
+static func material_cost(cost: Dictionary, material: String) -> Dictionary:
+	var f := float(PIECE_MATERIALS[material]["factor"])
+	var out := {}
+	for k in cost:
+		out[k] = maxi(1, roundi(float(cost[k]) * f)) if int(cost[k]) > 0 else cost[k]
+	return out
+
+
 ## Repairs (docs/siege-design.md §4): building material only, REPAIR_SHARE of
 ## the material spent on the building (price plus paid upgrades) times the
 ## missing share of its HP (rounded up); a builder's REPAIR_TIME_SHARE of its
@@ -976,7 +1011,8 @@ const FORESTER_MATERIAL_PER_TRIP := 3  # paid every time the forester is back at
 const FORESTER_SEARCH_RADIUS := 10.0  # trees farther than this from the camp are ignored
 ## Total chopping time (seconds) before a tree falls and its tile turns to
 ## meadow, per tree art/flavour.
-const TREE_CHOP_TIME := {"tree_pine_0": 20.0, "tree_pine_1": 28.0, "tree_oak": 36.0, "tree_dead": 10.0, "stump_charred": 8.0}
+const TREE_CHOP_TIME := {"tree_pine_0": 20.0, "tree_pine_1": 28.0, "tree_pine_2": 24.0, "tree_oak": 36.0, "tree_oak_1": 36.0, "tree_oak_2": 36.0,
+	"tree_dead": 10.0, "tree_dead_1": 10.0, "stump_charred": 8.0}
 const GATHERER_CAPACITY := 6  # corpses carried per trip
 const GATHERER_LOOT_TIME := 1.0  # seconds per corpse
 const GATHERER_REST := 3.0
@@ -2153,7 +2189,7 @@ const MOUNTED := {
 ## A village has one at most at a time. Never in the tutorial or the title
 ## backdrop (Game.wrathwoods).
 const WRATHWOOD := {
-	"chance": {"tree_oak": 0.015, "tree_pine_0": 0.003, "tree_pine_1": 0.003},
+	"chance": {"tree_oak": 0.015, "tree_oak_1": 0.015, "tree_oak_2": 0.015, "tree_pine_0": 0.003, "tree_pine_1": 0.003, "tree_pine_2": 0.003},
 	"remember": 0.0005,
 	"max_chance": 0.03,
 	"from_wave": 8,

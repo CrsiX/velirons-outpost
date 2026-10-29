@@ -27,7 +27,7 @@ func is_intact() -> bool:
 
 
 func refresh() -> void:
-	Art.apply(sprite, ("hut" if look == "" else look) if is_intact() else "hut_ruin")
+	Art.apply(sprite, (material_art("hut") if look == "" else look) if is_intact() else material_art("hut_ruin"))
 	_site_overlay.visible = not complete
 	queue_redraw()
 

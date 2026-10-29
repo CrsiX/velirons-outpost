@@ -48,6 +48,39 @@ docs/enemies-design.md.
   same. It is logged at Debug level, the building flashes red, and its HP bar shows (see §7).
   The title backdrop's buildings take no damage.
 
+## 2a. Materials of walls, gates and wall towers
+
+Every wall, gate and wall tower is made of one material (`Building.made_of`, from the
+map's village layout: `"material"` per piece, map format 5; `Config.PIECE_MATERIALS`):
+
+| Material | Look | Factor |
+|---|---|---|
+| Stone | grey masonry, crimson banners, gold trim at level 3 (the plain art names) | 1 |
+| Sandstone | warm ashlar on a plinth, stepped merlons, a pointed arch; level 2 blue glazed tiles and blue cloth, level 3 gilded tops and brass lamps (`sandstone_…`) | 1 |
+| Basalt | dark columns of uneven height with an obsidian sheen, jagged merlons; level 2 iron spikes and bands, level 3 lava glowing in the seams and ember braziers (`basalt_…`) | 1 |
+| Wood | an improvised palisade of sharpened logs with rope lashings; the tower a timber platform on legs; level 2 a second rank with iron bands, level 3 hides over the top, stakes in front and lanterns (`wood_…`) | 0.6 |
+
+Huts have a material too, only for their look (the factor never touches them: HP 1, the
+same rebuild price): stone a timber cabin (`hut`), sandstone a sandstone flat-roofed
+house of sandstone with a domed roof room and blue doors and shutters (`sandstone_hut`),
+basalt a squat house of black blocks under a slate roof (`basalt_hut`), wood a canvas tent
+(`wood_hut`), each with its ruin (`…_hut_ruin`). The generator gives a village's huts its
+material; in the editor each hut can have its own. A scenario's special homes (`Hut.look`)
+keep their own art.
+
+- The **factor** scales a wall's, gate's or wall tower's (`PIECE_MATERIAL_SCALED`) max HP at every level, its price (`PIECE_PRICES`,
+  which repairs count), its upgrade costs (`PIECE_LEVELS`, `TOWER_LEVELS`; each amount
+  rounded, at least 1: `Config.material_cost`) and its build, repair and upgrade times.
+  A wooden wall has 60 / 120 / 240 HP, a wooden gate's level 2 costs 18 material.
+- Each material has its own ruin and level looks. The art name is the stone name with
+  the material's prefix (`Config.piece_art`): `wood_wall_2`, `basalt_gate_ruin`,
+  `sandstone_wall_tower_front_3`. A wall tower's platform height comes from its art
+  (wood: a lower deck).
+- **Where it comes from:** the generator gives a village one material for all its pieces,
+  by map type (`PIECE_MATERIAL_BY_MAP_TYPE`: Volcanic basalt, Desert sandstone, else
+  stone), never mixed, huts included. Wood (forward outposts) and mixed villages come only
+  from map files (the editor: docs/map-editor-design.md §4). Watchtowers have no material.
+
 ## 3. Devastation
 
 At 0 HP the building is **devastated** (`Building.devastated`). It is logged as Important

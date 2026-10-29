@@ -17,7 +17,7 @@ const TOOL_NAMES := {
 const TOOL_HINTS := {
 	"file": "While this tab is open the map isn't edited: click a tile, object or village to see it in the inspector, drag to pan.",
 	"village": "Click open land: a new village (the standard layout). Drag a village to move it. Delete removes the selected one.",
-	"piece": "Click a tile: the piece below goes there (for the selected or nearest village). Flip turns a wall; Erase removes a piece.",
+	"piece": "Click a tile: the piece below goes there (for the selected or nearest village), of the material below. Flip turns a wall; Paint material gives a piece the material below; Erase removes a piece.",
 	"spawn": "Click a road tile at the map's edge: a spawn (for the selected village, or the one of its slice). Click one again to remove it.",
 	"water": "Click deep water: a water spawn, where water monsters come from (crabs, sirens, leviathans, octopuses). Its body of water must fit one of them. Click one again to remove it.",
 	"object": "Click open land: a new object. Click one to select it, drag it to move it. Delete removes it.",
@@ -281,6 +281,14 @@ func _choices(parent: Control, items: Array, current: Variant, pick: Callable, c
 	return g
 
 
+## The materials of walls, gates and wall towers (Config.PIECE_MATERIALS) as choices for option "material".
+func _material_choices(o: Dictionary) -> void:
+	var items := []
+	for k in Config.PIECE_MATERIAL_ORDER:
+		items.append([k, Config.PIECE_MATERIALS[k]["name"]])
+	_choices(_options, items, o["material"], func(v: Variant) -> void: set_option("material", v))
+
+
 func _toggle(parent: Control, text: String, on: bool, cb: Callable) -> CheckBox:
 	var c := CheckBox.new()
 	c.text = text
@@ -390,7 +398,11 @@ func _build_options() -> void:
 			_choices(_options, [["add", "Add"], ["remove", "Remove"]], o["volcano"], func(v: Variant) -> void: set_option("volcano", v))
 			_toggle(_options, "Ash land around it", bool(o["ash"]), func(on: bool) -> void: set_option("ash", on))
 		"piece":
-			_choices(_options, [["wall", "Wall"], ["gate", "Gate"], ["wall_tower", "Wall tower"], ["hut", "Hut"], ["flip", "Flip"], ["erase", "Erase"]], o["piece"], func(v: Variant) -> void: set_option("piece", v))
+			_choices(_options, [["wall", "Wall"], ["gate", "Gate"], ["wall_tower", "Wall tower"], ["hut", "Hut"], ["flip", "Flip"], ["material", "Paint material"], ["erase", "Erase"]], o["piece"], func(v: Variant) -> void: set_option("piece", v))
+			_material_choices(o)
+		"village":
+			_options.add_child(_label("A new village is made of:", 14, UiTheme.MUTED))
+			_material_choices(o)
 		"slice":
 			_slice_choices(int(o["slice"]))
 			var b := _button("Recompute from the villages")
@@ -626,9 +638,9 @@ func tile_text(t: Vector2i) -> String:
 		parts.append(str(m.crossings[t][0]))
 	if m.beaches.has(t):
 		parts.append("beach")
-	var pieces := MapTidy.piece_tiles(m)
-	if pieces.has(t):
-		parts.append(str(pieces[t]).replace("_", " "))
+	for p in m.village_layout:
+		if p["tile"] == t:
+			parts.append("%s (%s)" % [str(p["kind"]).replace("_", " "), str(Config.PIECE_MATERIALS[p["material"]]["name"]).to_lower()])
 	return " · ".join(parts)
 
 
@@ -762,6 +774,22 @@ func _village_info(i: int) -> void:
 		var by: int = d[0]
 		b.pressed.connect(func() -> void: editor.move_village_number(i, by))
 		row.add_child(b)
+	var mats := {}
+	for p in pieces:
+		mats[p["material"]] = true
+	var names := []
+	for k in Config.PIECE_MATERIAL_ORDER:
+		if mats.has(k):
+			names.append(str(Config.PIECE_MATERIALS[k]["name"]).to_lower())
+	_inspect.add_child(_label("Made of %s. Make it all:" % (", ".join(names) if not names.is_empty() else "nothing"), 14))
+	var mrow := _grid(_inspect, _cols(2, Config.PIECE_MATERIAL_ORDER.size()))
+	for k in Config.PIECE_MATERIAL_ORDER:
+		var mb := _button(str(Config.PIECE_MATERIALS[k]["name"]))
+		mb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		UiTheme.style_selected(mb, names.size() == 1 and mats.has(k))
+		var mk: String = k
+		mb.pressed.connect(func() -> void: editor.set_village_material(i, mk))
+		mrow.add_child(mb)
 	var centre := _button("Pick its centre")
 	centre.pressed.connect(func() -> void: editor.start_pick("center", i))
 	_inspect.add_child(centre)

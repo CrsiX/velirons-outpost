@@ -95,7 +95,9 @@ static func _stamp(c: GenContext, center: Vector2i, s: int) -> void:
 			var kind: String = {"T": "wall_tower", "W": "wall", "G": "gate", "V": "hut"}[Config.VILLAGE_LAYOUT[row][col]]
 			# Walls on the left/right edges run along the grid's y axis: mirror them.
 			var flip := col == 0 or col == 4
-			m.village_layout.append({"kind": kind, "tile": t, "flip": flip, "owner": id})
+			# One material for the whole village, by map type.
+			var mat: String = Config.PIECE_MATERIAL_BY_MAP_TYPE.get(c.type_key, "stone")
+			m.village_layout.append({"kind": kind, "tile": t, "flip": flip, "owner": id, "material": mat})
 			if kind == "gate":
 				m.gates.append(t)
 				(v["gates"] as Array[Vector2i]).append(t)

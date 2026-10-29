@@ -15,8 +15,8 @@ func _build_visuals() -> void:
 
 func _look() -> String:
 	if devastated:
-		return "%s_ruin" % kind
-	return kind if level == 1 else "%s_%d" % [kind, level]
+		return material_art("%s_ruin" % kind)
+	return material_art(kind if level == 1 else "%s_%d" % [kind, level])
 
 
 func has_ruin_art() -> bool:
@@ -58,13 +58,13 @@ func can_upgrade() -> bool:
 
 
 func upgrade_cost() -> Dictionary:
-	return Config.PIECE_LEVELS[kind][level]["cost"] if level < max_level() else {}
+	return Config.material_cost(Config.PIECE_LEVELS[kind][level]["cost"], made_of) if level < max_level() else {}
 
 
 func start_upgrade() -> void:
 	upgrading = true
 	upgrade_progress = 0.0
-	upgrade_time = Config.PIECE_LEVELS[kind][level]["work_time"]
+	upgrade_time = Config.PIECE_LEVELS[kind][level]["work_time"] * material_factor()
 	queue_redraw()
 
 
@@ -82,7 +82,7 @@ func finish_upgrade() -> void:
 func materials_spent() -> int:
 	var n := super.materials_spent()
 	for i in range(1, level):
-		n += int(Config.PIECE_LEVELS[kind][i]["cost"].get("materials", 0))
+		n += int(Config.material_cost(Config.PIECE_LEVELS[kind][i]["cost"], made_of).get("materials", 0))
 	return n
 
 
@@ -101,7 +101,7 @@ func info() -> Dictionary:
 		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
 		add_cancel_action(lines, actions, "Cancel upgrade")
 	elif level < max_level() and village != null and not devastated and not repairing:
-		lines.append("Next level: {hp} %d" % roundi(Config.BUILDING_HP[kind][level]))
+		lines.append("Next level: {hp} %d" % roundi(hp_at(level + 1)))
 		actions.append({
 			"label": "Upgrade %s (%s)" % ["gate" if kind == "gate" else "wall", Config.cost_icons(upgrade_cost())],
 			"disabled": not can_upgrade() or not village.economy.can_afford(upgrade_cost()),

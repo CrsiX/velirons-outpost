@@ -188,9 +188,10 @@ func _render(m: MapData) -> void:
 	for piece in m.village_layout:
 		var pos := Iso.tile_to_world(piece["tile"])
 		var kind: String = piece["kind"]
-		objs.append([pos.y, kind, pos, piece["flip"]])
+		var mat: String = piece.get("material", "stone")
+		objs.append([pos.y, Config.piece_art(mat, kind), pos, piece["flip"]])
 		if kind == "wall_tower":
-			objs.append([pos.y + 0.01, "wall_tower_front", pos, piece["flip"]])
+			objs.append([pos.y + 0.01, Config.piece_art(mat, "wall_tower_front"), pos, piece["flip"]])
 	objs.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
 	for o in objs:
 		_blit_anchored(o[1], o[2], o[3])

@@ -92,9 +92,8 @@ func refresh_things() -> void:
 
 func _add_piece(p: Dictionary, ruined: bool) -> void:
 	var kind: String = p["kind"]
-	var art := kind
-	if kind == "hut":
-		art = "hut_ruin" if ruined else "hut"
+	var mat: String = p.get("material", "stone")
+	var art := Config.piece_art(mat, "hut_ruin" if ruined else kind)
 	var s := Art.sprite(art)
 	s.position = Iso.tile_to_world(p["tile"])
 	if kind in ["wall", "gate"]:
@@ -102,7 +101,7 @@ func _add_piece(p: Dictionary, ruined: bool) -> void:
 	things.add_child(s)
 	_built.append(s)
 	if kind == "wall_tower":
-		var f := Art.sprite("wall_tower_front")
+		var f := Art.sprite(Config.piece_art(mat, "wall_tower_front"))
 		f.position = Vector2(0, 0.01)
 		s.add_child(f)
 

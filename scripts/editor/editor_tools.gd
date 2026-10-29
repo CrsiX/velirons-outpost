@@ -271,13 +271,14 @@ static func remove_volcano(m: MapData, t: Vector2i) -> Array[Vector2i]:
 
 # --- villages --------------------------------------------------------------------------------
 
-## A standard village (Config.VILLAGE_LAYOUT) around `center`: its index, or why not.
-static func add_village(m: MapData, center: Vector2i) -> Variant:
+## A standard village (Config.VILLAGE_LAYOUT) around `center`, its walls, gates
+## and wall towers of `material`: its index, or why not.
+static func add_village(m: MapData, center: Vector2i, material := "stone") -> Variant:
 	var slots := int(Config.MAP_SIZE_SLOTS.get(m.size, Config.MAX_PLAYERS))
 	if m.villages.size() >= slots:
 		return "A %dx%d map holds at most %d villages" % [m.size, m.size, slots]
 	var pieces := MapCheckFree.new(m)
-	var want := MapChecks.standard_pieces(center)
+	var want := MapChecks.standard_pieces(center, material)
 	for p in want:
 		var why := pieces.why_not(p["tile"])
 		if why != "":
@@ -351,8 +352,10 @@ static func swap_villages(m: MapData, i: int, j: int) -> void:
 
 
 ## A village piece on `t`: `kind` ("wall", "gate", "wall_tower", "hut"),
-## "erase", or "flip" (a wall's side). New pieces belong to village `owner`.
-static func set_piece(m: MapData, t: Vector2i, kind: String, owner: int) -> Variant:
+## "erase", "flip" (a wall's side) or "material" (the piece there becomes
+## `material`). New pieces belong to village `owner` and are of `material`; a
+## changed one keeps its own.
+static func set_piece(m: MapData, t: Vector2i, kind: String, owner: int, material := "stone") -> Variant:
 	if not m.in_bounds(t):
 		return "Outside the map"
 	for k in m.village_layout.size():
@@ -364,17 +367,19 @@ static func set_piece(m: MapData, t: Vector2i, kind: String, owner: int) -> Vari
 				m.village_layout.remove_at(k)
 			"flip":
 				p["flip"] = not p["flip"]
+			"material":
+				p["material"] = material
 			_:
 				p["kind"] = kind
 		return [t] as Array[Vector2i]
-	if kind in ["erase", "flip"]:
+	if kind in ["erase", "flip", "material"]:
 		return "No village piece there"
 	if owner < 0 or owner >= m.villages.size():
 		return "Place or pick a village first"
 	var why := MapCheckFree.new(m).why_not(t)
 	if why != "":
 		return why
-	m.village_layout.append({"kind": kind, "tile": t, "flip": false, "owner": owner})
+	m.village_layout.append({"kind": kind, "tile": t, "flip": false, "owner": owner, "material": material})
 	m.village_layout.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["owner"]) < int(b["owner"]) or (int(a["owner"]) == int(b["owner"]) and MapData.row_order(a["tile"], b["tile"])))
 	return [t] as Array[Vector2i]
 

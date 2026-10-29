@@ -107,14 +107,15 @@ static func standard_layout(m: MapData, i: int) -> bool:
 	return true
 
 
-## The standard village (Config.VILLAGE_LAYOUT) around `center`: [{kind, tile, flip}].
-static func standard_pieces(center: Vector2i) -> Array[Dictionary]:
+## The standard village (Config.VILLAGE_LAYOUT) around `center`: [{kind, tile,
+## flip, material}], all of `material`.
+static func standard_pieces(center: Vector2i, material := "stone") -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var o := center - Vector2i(2, 2)
 	for row in 5:
 		for col in 5:
 			var kind: String = {"T": "wall_tower", "W": "wall", "G": "gate", "V": "hut"}[Config.VILLAGE_LAYOUT[row][col]]
-			out.append({"kind": kind, "tile": o + Vector2i(col, row), "flip": col == 0 or col == 4})
+			out.append({"kind": kind, "tile": o + Vector2i(col, row), "flip": col == 0 or col == 4, "material": material})
 	return out
 
 

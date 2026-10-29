@@ -125,7 +125,8 @@ stops mattering. The army grows all game, so it is what should eat.
 
 ## 3. Village, huts, raids and defeat
 
-- **Layout** (`VILLAGE_LAYOUT`): T tower, W wall, G gate, V hut.
+- **Layout** (`VILLAGE_LAYOUT`): T tower, W wall, G gate, V hut. Walls, gates and wall
+  towers are of stone, sandstone, basalt or wood (docs/siege-design.md §2a).
   ```
   TWGWT
   WVVVW
@@ -263,8 +264,9 @@ stops mattering. The army grows all game, so it is what should eat.
   |---|---|---|
   | `tree_pine_0` | 20 s | 5 (15) |
   | `tree_pine_1` | 28 s | 7 (21) |
-  | `tree_oak` | 36 s | 9 (27) |
-  | `tree_dead` | 10 s | 3 (9) |
+  | `tree_pine_2` (spruce) | 24 s | 6 (18) |
+  | `tree_oak`, `tree_oak_1`, `tree_oak_2` | 36 s | 9 (27) |
+  | `tree_dead`, `tree_dead_1` | 10 s | 3 (9) |
   | `stump_charred` | 8 s | 2 (6) |
 
 - **Explorer** (`ExploreJob`, shared with the hero's Explore mode):
