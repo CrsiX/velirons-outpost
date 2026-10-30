@@ -1600,10 +1600,839 @@ def wood_hut(ruin=False):
     a.save("wood_hut")
 
 
+# --------------------------------------------------- village pieces in limestone
+# Limestone (Coast): sea-worn ashlar of pale grey-cream blocks (cooler and greyer
+# than sandstone) on a sloped, battered foot crusted with barnacles and weed;
+# dark rain streaks under the copings, orange lichen; merlons with saddle-backed
+# caps, round arches. Level 2 crimson cloth and arrow loops, level 3 gilt, ship's
+# lanterns and a beacon fire on the towers.
+
+LIME_T, LIME_L, LIME_R = "#d6d1c1", "#bdb7a5", "#928c7c"
+LIME_J, LIME_JR = "#857f6f", "#6c6759"  # joints on the front and side faces
+LIME_STREAK = "#4e4a40"
+LICHEN, LICHEN_L = "#cf8a24", "#e6b445"
+WEED = "#3b5a34"
+
+
+def _lime_q(face, at):
+    return (lambda g, z: P(g, at, z)) if face == "front" else (lambda g, z: P(at, g, z))
+
+
+def _lime_ashlar(a, rng, face, at, g0, g1, z0, z1, rows):
+    """Courses of big blocks of uneven height, staggered joints."""
+    q = _lime_q(face, at)
+    col = LIME_J if face == "front" else LIME_JR
+    cuts = [z0] + sorted(z0 + (z1 - z0) * (r + rng.uniform(-0.15, 0.15)) / rows for r in range(1, rows)) + [z1]
+    for r in range(rows):
+        za, zb = cuts[r], cuts[r + 1]
+        if r > 0:
+            a.line([q(g0, za), q(g1, za)], col, 1)
+        u = g0 + rng.uniform(0.08, 0.22)
+        while u < g1 - 0.07:
+            a.line([q(u, za), q(u, zb)], col, 1)
+            u += rng.uniform(0.2, 0.32)
+
+
+def _streaks(a, rng, face, at, g0, g1, z_top, n, length=(10, 20)):
+    """Dark rain streaks running down a face from z_top, tapering."""
+    q = _lime_q(face, at)
+    for _ in range(n):
+        g = rng.uniform(g0 + 0.03, g1 - 0.03)
+        w = rng.uniform(0.012, 0.025)
+        ln = rng.uniform(*length)
+        a.poly([q(g - w, z_top), q(g + w, z_top), q(g + w * 0.3, z_top - ln), q(g, z_top - ln - 3), q(g - w * 0.5, z_top - ln * 0.7)], LIME_STREAK, stroke=None, opacity=0.28)
+
+
+def _lichen(a, rng, face, at, g0, g1, z0, z1, n):
+    """Orange lichen in little clusters."""
+    q = _lime_q(face, at)
+    for _ in range(n):
+        x, y = q(rng.uniform(g0 + 0.03, g1 - 0.03), rng.uniform(z0, z1))
+        for _ in range(3):
+            a.ellipse(x + rng.uniform(-2.2, 2.2), y + rng.uniform(-1.2, 1.2), rng.uniform(0.9, 1.6), rng.uniform(0.7, 1.1), rng.choice([LICHEN, LICHEN_L]), opacity=0.9)
+
+
+def _battered_foot(a, rng, x0, x1, y0, y1, zb, out=0.06):
+    """A sloped foot round a box (wider at the ground), barnacles and weed on it."""
+    fx0, fx1, fy1, fy0 = x0 - out, x1 + out, y1 + out, y0 - out
+    a.poly([P(fx0, fy1, 0), P(fx1, fy1, 0), P(x1, y1, zb), P(x0, y1, zb)], LIME_L, INK, 1.3)
+    a.poly([P(fx1, fy1, 0), P(fx1, fy0, 0), P(x1, y0, zb), P(x1, y1, zb)], LIME_R, INK, 1.3)
+    n = max(4, int((x1 - x0) / 0.06))
+    pts = [P(fx0, fy1, 0), P(fx1, fy1, 0)]
+    for k in range(n, -1, -1):  # weed along the waterline, ragged
+        t = k / n
+        pts.append(P(fx0 + (fx1 - fx0) * t, fy1 - out * 0.35, 2.4 + (1.6 if k % 2 else 0)))
+    a.poly(pts, WEED, stroke=None, opacity=0.7)
+    a.poly([P(fx1, fy1, 0), P(fx1, fy0, 0), P(fx1 - out * 0.35, fy0, 2.6), P(fx1 - out * 0.35, fy1, 3.6)], "#2c4528", stroke=None, opacity=0.7)
+    for _ in range(max(2, n // 3)):  # barnacles in little clusters, low on the foot
+        t = rng.uniform(0.08, 0.92)
+        for _ in range(3):
+            h = rng.uniform(0.3, 0.5)
+            x, y = P(fx0 + (fx1 - fx0) * t, fy1 - out * h, zb * h)
+            x += rng.uniform(-2.5, 2.5)
+            a.ellipse(x, y, 0.9, 0.7, "#d8d2c2", "#5e5a4e", 0.4)
+
+
+def _saddle(a, gx, gy, kx, ky, z, rise=4.0, gold=False):
+    """A saddle-backed coping stone on top of a merlon: its ridge along gx."""
+    ym = gy + ky / 2
+    o = 0.012
+    a.poly([P(gx - o, ym, z + rise), P(gx + kx + o, ym, z + rise), P(gx + kx + o, gy + ky + o, z), P(gx - o, gy + ky + o, z)], LIME_T, INK, 1)
+    a.poly([P(gx + kx + o, gy - o, z), P(gx + kx + o, ym, z + rise), P(gx + kx + o, gy + ky + o, z)], LIME_R, INK, 1)
+    if gold:
+        a.line([P(gx - o, ym, z + rise), P(gx + kx + o, ym, z + rise)], GOLD, 1.6)
+
+
+def _ledge(a, x0, x1, y0, y1, z0, z1, o=0.02):
+    """A course standing out from a body's two visible faces (no top over the body)."""
+    a.poly([P(x0 - o, y1 + o, z0), P(x1 + o, y1 + o, z0), P(x1 + o, y1 + o, z1), P(x0 - o, y1 + o, z1)], LIME_L, INK, 1.1)
+    a.poly([P(x1 + o, y1 + o, z0), P(x1 + o, y0 - o, z0), P(x1 + o, y0 - o, z1), P(x1 + o, y1 + o, z1)], LIME_R, INK, 1.1)
+    a.poly([P(x0 - o, y1 + o, z1), P(x1 + o, y1 + o, z1), P(x1 + o, y0 - o, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)], LIME_T, INK, 0.9)
+
+
+def _lime_merlon(a, gx, gy, kx, ky, z, hgt=7, gold=False):
+    a.box(gx, gx + kx, gy, gy + ky, z, z + hgt, LIME_T, LIME_L, LIME_R, sw=1.2)
+    _saddle(a, gx, gy, kx, ky, z + hgt, gold=gold)
+
+
+def _arrow_loop(a, face, at, g, z, hgt=12):
+    """A cross-shaped arrow loop on a face."""
+    q = _lime_q(face, at)
+    a.poly([q(g - 0.012, z), q(g + 0.012, z), q(g + 0.012, z + hgt), q(g - 0.012, z + hgt)], "#1c1a16", INK, 0.6)
+    a.poly([q(g - 0.04, z + hgt * 0.55), q(g + 0.04, z + hgt * 0.55), q(g + 0.04, z + hgt * 0.7), q(g - 0.04, z + hgt * 0.7)], "#1c1a16", INK, 0.6)
+
+
+def _ship_lantern(a, x, y):
+    """A brass ship's lantern hung from an iron bracket, its top at screen (x, y)."""
+    a.ellipse(x, y + 6, 8, 8, GLOW, opacity=0.3)
+    a.line([(x, y - 1), (x, y + 1.5)], INK, 1)
+    a.poly([(x - 2.6, y + 1.5), (x + 2.6, y + 1.5), (x + 2.6, y + 9), (x - 2.6, y + 9)], GLOW, BRASS, 1.1)
+    a.poly([(x - 3.4, y + 1.5), (x, y - 1.5), (x + 3.4, y + 1.5)], BRASS, INK, 0.8)
+
+
+def lime_wall(level=1):
+    rng = random.Random(1500 + level)
+    a = Art()
+    x0, x1, y0, y1, h = -0.5, 0.5, -0.13, 0.13, 32
+    _battered_foot(a, rng, x0, x1, y0, y1, 8)
+    a.box(x0, x1, y0, y1, 8, h, LIME_T, LIME_L, LIME_R)
+    _lime_ashlar(a, rng, "front", y1, x0, x1, 8, h, 3)
+    _streaks(a, rng, "front", y1, x0, x1, h, 4)
+    _lichen(a, rng, "front", y1, x0, x1, 10, h - 3, 3)
+    a.box(x0, x1, y0 - 0.02, y1 + 0.02, h, h + 3, LIME_T, LIME_L, LIME_R, sw=1.2)  # the coping
+    if level >= 2:
+        _arrow_loop(a, "front", y1, -0.3, 14)
+        _arrow_loop(a, "front", y1, 0.32, 14)
+        hanging_banner(a, ("left", y1), -0.07, 0.07, h - 2, 10)
+    for gx in (-0.44, -0.1, 0.24):
+        _lime_merlon(a, gx, y0, 0.18, y1 - y0, h + 3, gold=level >= 3)
+    if level >= 3:
+        a.line([P(x0, y1 + 0.02, h + 3), P(x1, y1 + 0.02, h + 3)], GOLD, 1.8)
+        x, y = P(0.15, y1 + 0.05, h - 4)
+        a.line([P(0.15, y1, h - 4), (x, y)], IRON, 1.6)
+        _ship_lantern(a, x, y)
+    a.save("limestone_wall" if level == 1 else "limestone_wall_%d" % level)
+
+
+def _lime_rubble(a, rng, n, g0, g1, d0, d1):
+    for _ in range(n):
+        x, y = P(rng.uniform(g0, g1), rng.uniform(d0, d1))
+        w = rng.uniform(3.5, 6)
+        a.poly([(x - w, y), (x - w * 0.6, y - w * 0.75), (x + w * 0.6, y - w * 0.7), (x + w, y)], rng.choice([LIME_T, LIME_L, LIME_R]), INK, 1)
+        if rng.random() < 0.3:
+            a.ellipse(x - w * 0.2, y - w * 0.5, 1.2, 0.8, LICHEN, opacity=0.9)
+
+
+def lime_wall_ruin():
+    rng = random.Random(1510)
+    a = Art()
+    y0, y1 = -0.13, 0.13
+    a.poly(diamond(0.75, 0.4), "#2d2a24", stroke=None, opacity=0.4)
+    _battered_foot(a, rng, -0.5, 0.5, y0, y1, 6)
+    for (u0, u1, h) in [(-0.5, -0.2, 18), (-0.2, 0.06, 8), (0.06, 0.3, 23), (0.3, 0.5, 11)]:
+        if h > 8:
+            a.box(u0, u1, y0, y1, 6, h, LIME_T, LIME_L, LIME_R)
+            _lime_ashlar(a, rng, "front", y1, u0, u1, 6, h, max(1, int((h - 6) / 7)))
+            x, y = P(u1 - 0.04, y1, h)
+            a.poly([(x - 5, y), (x - 2, y - 4), (x + 2, y + 1)], "#5e5a4e", stroke=None)
+    _streaks(a, rng, "front", y1, -0.45, 0.45, 16, 3, (6, 10))
+    _lime_rubble(a, rng, 9, -0.45, 0.45, 0.22, 0.45)
+    a.save("limestone_wall_ruin")
+
+
+def lime_gate(level=1):
+    rng = random.Random(1520 + level)
+    a = Art()
+    x0, x1, y0, y1 = -0.5, 0.5, -0.16, 0.16
+    def tower(g0, g1):
+        _battered_foot(a, rng, g0, g1, y0, y1, 10, out=0.05)
+        a.box(g0, g1, y0, y1, 10, 50, LIME_T, LIME_L, LIME_R)
+        _lime_ashlar(a, rng, "front", y1, g0, g1, 10, 50, 5)
+        _lime_ashlar(a, rng, "side", g1, y0, y1, 10, 50, 5)
+        _streaks(a, rng, "front", y1, g0, g1, 50, 2)
+        _lichen(a, rng, "front", y1, g0, g1, 14, 44, 2)
+        a.box(g0, g1, y0 - 0.02, y1 + 0.02, 50, 53, LIME_T, LIME_L, LIME_R, sw=1.2)
+        if level >= 2:
+            _arrow_loop(a, "front", y1, (g0 + g1) / 2, 30)
+    tower(x0, -0.22)  # back to front: the left tower, the arch, the right tower
+    a.box(-0.22, 0.22, y0, y1, 0, 46, LIME_T, LIME_L, LIME_R)
+    w, spring, rise = 0.17, 20, 13
+    arc = [P(-w * math.cos(math.pi * k / 12), y1, spring + rise * math.sin(math.pi * k / 12)) for k in range(13)]
+    a.poly([P(-w, y1, 0)] + arc + [P(w, y1, 0)], "#6a5a48", INK, 1.2)  # weathered doors
+    for gx in (-0.115, -0.06, 0.06, 0.115):
+        a.line([P(gx, y1, 0), P(gx, y1, spring + rise * math.sqrt(max(0.0, 1 - (gx / w) ** 2)) - 1)], "#4a3e30", 1.1)
+    a.line([P(0.0, y1, 0), P(0.0, y1, spring + rise - 1)], INK, 1.4)
+    for z in (7, 18):
+        a.line([P(-w, y1, z), P(w, y1, z)], IRON, 2.6 if level >= 2 else 1.8)
+    if level >= 2:
+        for z in (7, 18):
+            for gx in (-0.13, -0.05, 0.05, 0.13):
+                x, y = P(gx, y1, z)
+                a.ellipse(x, y, 1.2, 1.2, IRON_L)
+    ring = [P(-(w + 0.025) * math.cos(math.pi * k / 9), y1, spring + (rise + 3) * math.sin(math.pi * k / 9)) for k in range(10)]
+    a.line(ring, INK, 6.4)
+    a.line(ring, LIME_T, 4.6)  # the voussoirs
+    for k in range(1, 9):
+        p0 = P(-w * math.cos(math.pi * k / 9), y1, spring + rise * math.sin(math.pi * k / 9))
+        p1 = ring[k]
+        a.line([p0, (p1[0] + (p1[0] - p0[0]) * 0.6, p1[1] + (p1[1] - p0[1]) * 0.6)], LIME_J, 0.9)
+    _streaks(a, rng, "front", y1, -0.2, 0.2, 46, 2, (6, 9))
+    a.box(-0.22, 0.22, y0 - 0.02, y1 + 0.02, 46, 49, LIME_T, LIME_L, LIME_R, sw=1.2)
+    tower(0.22, x1)
+    hanging_banner(a, ("left", y1), -0.42, -0.3, 48, 22)
+    hanging_banner(a, ("left", y1), 0.3, 0.42, 48, 22)
+    for gx in (x0, 0.26):
+        _lime_merlon(a, gx, y0, 0.1, y1 - y0, 53, gold=level >= 3)
+        _lime_merlon(a, gx + 0.14, y0, 0.1, y1 - y0, 53, gold=level >= 3)
+    if level >= 3:
+        a.line([P(-0.22, y1 + 0.02, 46), P(0.22, y1 + 0.02, 46)], GOLD, 2)
+        for gx in (-0.2, 0.2):
+            x, y = P(gx, y1 + 0.05, 32)
+            a.line([P(gx, y1, 32), (x, y)], IRON, 1.6)
+            _ship_lantern(a, x, y)
+    a.save("limestone_gate" if level == 1 else "limestone_gate_%d" % level)
+
+
+def lime_gate_ruin():
+    rng = random.Random(1530)
+    a = Art()
+    y0, y1 = -0.16, 0.16
+    a.poly(diamond(0.75, 0.42), "#2d2a24", stroke=None, opacity=0.4)
+    _battered_foot(a, rng, -0.5, -0.22, y0, y1, 8, out=0.05)
+    a.box(-0.5, -0.22, y0, y1, 8, 30, LIME_T, LIME_L, LIME_R)
+    _lime_ashlar(a, rng, "front", y1, -0.5, -0.22, 8, 30, 3)
+    _battered_foot(a, rng, 0.22, 0.5, y0, y1, 8, out=0.05)
+    a.box(0.22, 0.5, y0, y1, 8, 15, LIME_T, LIME_L, LIME_R)
+    for (gx, h) in [(-0.24, 30), (0.48, 15)]:
+        x, y = P(gx, y1, h)
+        a.poly([(x - 6, y), (x - 2, y - 5), (x + 3, y + 1)], "#5e5a4e", stroke=None)
+    a.poly([P(-0.2, y1 + 0.04, 0), P(0.14, y1 + 0.06, 0), P(0.18, y1 + 0.32, 0), P(-0.14, y1 + 0.29, 0)], "#3e3226", INK, 1.2)  # a door, burnt
+    a.line([P(-0.03, y1 + 0.05, 0), P(0.01, y1 + 0.31, 0)], "#241c14", 1.2)
+    _lime_rubble(a, rng, 9, -0.45, 0.45, 0.22, 0.46)
+    a.poly([P(-0.42, y1, 28), P(-0.32, y1, 28), P(-0.33, y1, 14), P(-0.37, y1, 18), P(-0.41, y1, 12)], CRIMSON_D, INK, 0.9)
+    a.save("limestone_gate_ruin")
+
+
+def _beacon(a, x, y):
+    """A beacon fire in an iron basket on a short post at screen (x, y)."""
+    a.ellipse(x, y - 18, 18, 14, GLOW, opacity=0.35)
+    a.line([(x, y), (x, y - 6)], INK, 3)
+    a.poly([(x - 7, y - 6), (x + 7, y - 6), (x + 5, y - 12), (x - 5, y - 12)], IRON, INK, 1)
+    for d in (-3.5, 0, 3.5):
+        a.line([(x + d * 1.3, y - 6), (x + d, y - 12)], IRON_L, 0.6)
+    a.poly([(x - 6, y - 12), (x - 3, y - 22), (x - 0.5, y - 16), (x + 1.5, y - 27), (x + 3.5, y - 17), (x + 6, y - 12)], GLOW, "#b8401e", 1.1)
+    a.poly([(x - 2.5, y - 12), (x + 0.5, y - 20), (x + 2.5, y - 12)], "#fff1b8", stroke=None)
+
+
+def lime_wall_tower(front=False, level=1):
+    rng = random.Random(1540 + level)
+    a = Art()
+    s, h, k = 0.34, 74, 0.12
+    p = s + 0.03  # the parapet's half-size
+    if front:
+        a._track([P(-0.36, 0.36, 0), P(0.36, -0.36, 0), P(-0.36, -0.36, h + 60), P(0.36, 0.36, 0)])
+        for gx, gy in _merlon_spots(p, True, k):
+            _lime_merlon(a, gx, gy, k, k, h + 4, hgt=8, gold=level >= 3)
+        return a
+    a.shadow(52, 26, cy=4)
+    _battered_foot(a, rng, -s, s, -s, s, 14, out=0.07)
+    a.box(-s, s, -s, s, 14, h, LIME_T, LIME_L, LIME_R)
+    _lime_ashlar(a, rng, "front", s, -s, s, 14, h - 4, 7)
+    _lime_ashlar(a, rng, "side", s, -s, s, 14, h - 4, 7)
+    _ledge(a, -s, s, -s, s, 40, 43)  # a string course
+    _streaks(a, rng, "front", s, -s, s, h - 4, 4, (12, 26))
+    _streaks(a, rng, "side", s, -s, s, h - 4, 3, (12, 22))
+    _streaks(a, rng, "front", s + 0.02, -s, s, 40, 3, (6, 12))
+    _lichen(a, rng, "front", s, -s, s, 18, h - 8, 4)
+    _lichen(a, rng, "side", s, -s, s, 18, h - 8, 3)
+    for u, z in ((-0.12, 48), (0.14, 22)):
+        _opening(a, "front", s, u, u + 0.06, z, z + 10, "#1c1a16", arch=3, sw=0.8)
+    _opening(a, "side", s, 0.03, -0.03, 50, 60, "#1c1a16", arch=3, sw=0.8)
+    a.box(-p, p, -p, p, h - 4, h + 4, LIME_T, LIME_L, LIME_R)  # the parapet's course
+    a.poly([P(-p + 0.04, -p + 0.04, h + 4), P(p - 0.04, -p + 0.04, h + 4), P(p - 0.04, p - 0.04, h + 4), P(-p + 0.04, p - 0.04, h + 4)], "#b5af9e", stroke=None)  # flagstones
+    for t in (-0.12, 0.12):
+        a.line([P(-p + 0.04, t, h + 4), P(p - 0.04, t, h + 4)], LIME_J, 0.8, opacity=0.8)
+        a.line([P(t, -p + 0.04, h + 4), P(t, p - 0.04, h + 4)], LIME_J, 0.8, opacity=0.8)
+    a.line([P(-p + 0.07, -p + 0.07, h + 4), P(-p + 0.07, -p + 0.07, h + 44)], INK, 3)
+    x, y = P(-p + 0.07, -p + 0.07, h + 44)
+    a.poly([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], CRIMSON)
+    for gx, gy in _merlon_spots(p, False, k):
+        _lime_merlon(a, gx, gy, k, k, h + 4, hgt=8, gold=level >= 3)
+    if level >= 2:
+        hanging_banner(a, ("left", s), -0.24, -0.04, h - 6, h - 34)
+        _arrow_loop(a, "side", s, 0.12, 22)
+    if level >= 3:
+        hanging_banner(a, ("right", s), -0.06, 0.14, h - 6, h - 34)
+        a.line([P(-p, p, h + 4), P(p, p, h + 4), P(p, -p, h + 4)], GOLD, 2)
+        bx, by = P(p - 0.13, -p + 0.13, h + 4)
+        _beacon(a, bx, by)
+    return a
+
+
+def lime_wall_tower_ruin():
+    rng = random.Random(1550)
+    a = Art()
+    s, h = 0.34, 30
+    a.shadow(52, 26, cy=4)
+    _battered_foot(a, rng, -s, s, -s, s, 14, out=0.07)
+    a.box(-s, s, -s, s, 14, h, LIME_T, LIME_L, LIME_R)
+    a.box(-s, -s + 0.22, -s, -s + 0.22, h, h + 24, LIME_T, LIME_L, LIME_R)  # the back corner still standing
+    a.box(-s + 0.22, s - 0.28, -s, -s + 0.13, h, h + 10, LIME_T, LIME_L, LIME_R)
+    _lime_ashlar(a, rng, "front", s, -s, s, 14, h, 2)
+    _lime_ashlar(a, rng, "front", -s + 0.22, -s, -s + 0.22, h, h + 24, 3)
+    _streaks(a, rng, "front", s, -s, s, h, 3, (6, 12))
+    _lichen(a, rng, "front", s, -s, s, 16, h - 2, 3)
+    for _ in range(10):
+        gx, gy = rng.uniform(-0.5, 0.5), rng.uniform(0.45, 0.56)
+        if rng.random() < 0.5:
+            gx, gy = rng.uniform(0.45, 0.56), rng.uniform(-0.5, 0.5)
+        _lime_rubble(a, rng, 1, gx, gx, gy, gy)
+    a.save("limestone_wall_tower_ruin")
+
+
+PLANK, PLANK_L, PLANK_D = "#8a7b68", "#a39480", "#64584a"
+SHINGLE, SHINGLE_D = "#6e655b", "#4e4740"
+
+
+def _pile(a, x, y, top, r=2.6):
+    """A tarred pile from the ground (screen x, y) up `top` px, weed at its foot."""
+    a.line([(x, y), (x, y - top)], INK, r * 2 + 1.4)
+    a.line([(x, y), (x, y - top)], "#5a4a3a", r * 2)
+    a.line([(x, y), (x, y - 6)], "#2a241e", r * 2)  # tarred foot
+    a.ellipse(x, y, r + 1.2, 1.4, WEED, opacity=0.8)
+
+
+def _fish(a, x, y, s=1.0):
+    a.poly([(x, y), (x + 1.6 * s, y + 3 * s), (x + 1 * s, y + 7 * s), (x, y + 8 * s), (x - 1 * s, y + 7 * s), (x - 1.6 * s, y + 3 * s)], "#a8a8a0", INK, 0.6)
+    a.poly([(x, y + 8 * s), (x + 1.8 * s, y + 10.5 * s), (x - 1.8 * s, y + 10.5 * s)], "#8a8a82", INK, 0.6)
+
+
+def lime_hut(ruin=False):
+    """Limestone: a fisher's hut of weathered planks on tarred piles over
+    stone footings, a ladder up to its little porch, a net over the rail, fish
+    drying on a rack, a shingle roof and a lantern by the door."""
+    rng = random.Random(1560)
+    a = Art()
+    d = 18  # the deck's height
+    x0, x1, y0, y1 = -0.34, 0.3, -0.3, 0.32  # the deck
+    hx0, hx1, hy0, hy1 = -0.3, 0.26, -0.27, 0.1  # the hut on it
+    piles = [(-0.3, -0.26), (0.26, -0.26), (-0.3, 0.02), (0.26, 0.02), (-0.3, 0.28), (0.26, 0.28), (-0.02, 0.28)]
+    if ruin:
+        a.poly(diamond(0.8), "#2d2a24", stroke=None, opacity=0.5)
+        for (gx, gy), hh in zip(piles, (14, 8, 18, 5, 10, 16, 3)):  # broken piles, charred tops
+            x, y = P(gx, gy)
+            a.ellipse(x, y, 4.5, 2.2, LIME_L, INK, 0.9)
+            _pile(a, x, y, hh)
+            a.ellipse(x, y - hh, 2.6, 1.3, "#1e1810")
+        a.poly([P(-0.3, -0.1, 14), P(0.2, -0.24, 6), P(0.26, 0.08, 0), P(-0.24, 0.24, 6)], "#4e4236", INK, 1.2)  # the deck, slumped
+        for t in (0.25, 0.5, 0.75):
+            a.line([P(-0.3 + 0.5 * t, -0.1 - 0.14 * t, 14 - 8 * t), P(-0.24 + 0.5 * t, 0.24 - 0.16 * t, 6 - 6 * t)], "#2e261e", 1)
+        a.poly([P(-0.1, 0.05, 6), P(0.2, -0.05, 3), P(0.24, 0.15, 1), P(-0.04, 0.24, 3)], SHINGLE_D, INK, 1)  # a piece of roof
+        for (g0, dd0, g1, dd1) in [(-0.4, 0.36, -0.05, 0.48), (0.25, 0.3, 0.46, 0.1)]:
+            a.line([P(g0, dd0, 1), P(g1, dd1, 1)], INK, 4)
+            a.line([P(g0, dd0, 1), P(g1, dd1, 1)], PLANK, 2.4)
+        for _ in range(3):
+            x, y = P(rng.uniform(-0.2, 0.2), rng.uniform(-0.1, 0.2))
+            a.ellipse(x, y, 2, 1.3, "#c04a1e", opacity=0.7)
+        a.save("limestone_hut_ruin")
+        return
+    a.shadow(44, 22, cy=4)
+    for gx, gy in sorted(piles, key=lambda q: q[0] + q[1]):  # stone footings, piles
+        x, y = P(gx, gy)
+        a.ellipse(x, y, 4.5, 2.2, LIME_L, INK, 0.9)
+        _pile(a, x, y, d - 3)
+    for f0, f1 in [((-0.3, 0.28), (0.26, 0.28)), ((0.26, 0.28), (0.26, -0.26))]:  # cross braces
+        p0, p1 = P(f0[0], f0[1], 2), P(f1[0], f1[1], d - 4)
+        a.line([p0, p1], INK, 3)
+        a.line([p0, p1], "#4a3c2e", 1.6)
+    a.box(x0, x1, y0, y1, d - 3, d, PLANK_L, PLANK_D, "#4e4438", sw=1.2)  # the deck
+    for k in range(1, 6):
+        u = x0 + (x1 - x0) * k / 6
+        a.line([P(u, hy1, d), P(u, y1, d)], PLANK_D, 0.8, opacity=0.8)
+    # the hut: vertical boards
+    h = d + 22
+    a.box(hx0, hx1, hy0, hy1, d, h, PLANK_L, PLANK, PLANK_D)
+    for k in range(1, 9):
+        u = hx0 + (hx1 - hx0) * k / 9
+        a.line([P(u, hy1, d), P(u, hy1, h)], PLANK_D, 0.9)
+    for k in range(1, 6):
+        u = hy0 + (hy1 - hy0) * k / 6
+        a.line([P(hx1, u, d), P(hx1, u, h)], "#4e4438", 0.9)
+    _opening(a, "front", hy1, -0.08, 0.06, d, d + 15, "#2a2018", sw=1.1)
+    _opening(a, "front", hy1, 0.12, 0.21, d + 7, d + 14, GLOW, sw=1)
+    _opening(a, "side", hx1, -0.06, -0.16, d + 7, d + 14, GLOW, sw=1)
+    # a shingle roof, ridge along gx
+    ridge = h + 20
+    ym = (hy0 + hy1) / 2
+    ey, ex = 0.05, 0.04
+    slope = (ridge - h) / (hy1 - ym)
+    eave_h = h - slope * ey
+    xa, xb = hx0 - ex, hx1 + ex
+    a.poly([P(xa, hy0 - ey, eave_h), P(xb, hy0 - ey, eave_h), P(xb, ym, ridge), P(xa, ym, ridge)], SHINGLE_D)
+    a.poly([P(hx1, hy0, h), P(hx1, ym, ridge), P(hx1, hy1, h)], PLANK_D, INK, 1.2)
+    front = [P(xa, ym, ridge), P(xb, ym, ridge), P(xb, hy1 + ey, eave_h), P(xa, hy1 + ey, eave_h)]
+    a.poly(front, SHINGLE)
+    for t in (0.25, 0.5, 0.75):
+        yy = ym + (hy1 + ey - ym) * t
+        zz = ridge - (ridge - eave_h) * t
+        a.line([P(xa, yy, zz), P(xb, yy, zz)], SHINGLE_D, 1)
+    a.line(front + [front[0]], INK, 1.3)
+    a.line([P(xb, hy0 - ey, eave_h), P(xb, ym, ridge), P(xb, hy1 + ey, eave_h)], INK, 2)
+    a.line([P(xa, ym, ridge), P(xb, ym, ridge)], INK, 3.4)
+    a.line([P(xa, ym, ridge), P(xb, ym, ridge)], "#3a342e", 1.8)
+    x, y = P(-0.18, ym - 0.04, ridge - 4)  # a stovepipe
+    a.line([(x, y), (x, y - 14)], INK, 4.4)
+    a.line([(x, y), (x, y - 14)], "#4a4642", 2.8)
+    a.ellipse(x + 2, y - 22, 4, 6, "#8a8580", opacity=0.22)
+    # the porch rail with a net over it, a lantern by the door
+    for gx in (x0 + 0.02, -0.16, 0.12, x1 - 0.02):
+        a.line([P(gx, y1 - 0.02, d), P(gx, y1 - 0.02, d + 9)], INK, 2.6)
+        a.line([P(gx, y1 - 0.02, d), P(gx, y1 - 0.02, d + 9)], PLANK, 1.4)
+    a.line([P(x0 + 0.02, y1 - 0.02, d + 9), P(x1 - 0.02, y1 - 0.02, d + 9)], INK, 2.8)
+    a.line([P(x0 + 0.02, y1 - 0.02, d + 9), P(x1 - 0.02, y1 - 0.02, d + 9)], PLANK_L, 1.5)
+    for k in range(6):  # the net hanging over the rail
+        u = 0.02 + 0.045 * k
+        a.line([P(u, y1 - 0.01, d + 9), P(u + 0.01, y1 + 0.01, d - 4 - 2 * math.sin(k))], "#4a4030", 0.8)
+    for z in (d + 4, d - 1):
+        a.line([P(0.02, y1, z + 2), P(0.13, y1, z), P(0.25, y1, z + 2)], "#4a4030", 0.8)
+    x, y = P(0.25, y1, d + 9)
+    a.ellipse(x, y, 2.2, 1.6, "#c58a3a", INK, 0.7)  # a cork float
+    x, y = P(-0.11, hy1 + 0.02, d + 18)
+    _ship_lantern(a, x, y)
+    # the fish rack on the side: a pole on two posts, fish hung from it
+    for gy in (-0.2, 0.0):
+        a.line([P(x1 + 0.08, gy, 0), P(x1 + 0.08, gy, d + 6)], INK, 2.6)
+        a.line([P(x1 + 0.08, gy, 0), P(x1 + 0.08, gy, d + 6)], "#5a4a3a", 1.4)
+    a.line([P(x1 + 0.08, -0.22, d + 6), P(x1 + 0.08, 0.02, d + 6)], INK, 2.4)
+    a.line([P(x1 + 0.08, -0.22, d + 6), P(x1 + 0.08, 0.02, d + 6)], PLANK_L, 1.2)
+    for gy in (-0.16, -0.11, -0.06, -0.01):
+        x, y = P(x1 + 0.08, gy, d + 6)
+        _fish(a, x, y, 0.9)
+    # the ladder up to the porch
+    for gx in (-0.26, -0.17):
+        a.line([P(gx, y1 + 0.14, 0), P(gx, y1, d + 4)], INK, 2.8)
+        a.line([P(gx, y1 + 0.14, 0), P(gx, y1, d + 4)], PLANK_L, 1.4)
+    for j in range(1, 5):
+        t = j / 5
+        a.line([P(-0.26, y1 + 0.14 * (1 - t), (d + 4) * t), P(-0.17, y1 + 0.14 * (1 - t), (d + 4) * t)], PLANK_L, 1.3)
+    a.save("limestone_hut")
+
+
+THATCH, THATCH_L, THATCH_D = "#b8954e", "#cfae66", "#8a6c34"
+
+
+# ----------------------------------------------------- village pieces in granite
+# Granite (Highlands): rough dry-stone of rounded, speckled blocks without
+# mortar, moss in the joints, overhanging slate coping; the wall towers round
+# brochs. Level 2 a tartan banner and timber shoring, level 3 gilt and a peat
+# brazier.
+
+GRAN_T, GRAN_L, GRAN_R, GRAN_D = "#a89c95", "#8a7f79", "#665d59", "#3e3835"
+GRAN_FL = "#d9cdc3"
+MOSS, MOSS_D = "#5e7c34", "#45602a"
+SLATE_T, SLATE_L, SLATE_R = "#66717c", "#4d5761", "#383f47"
+TARTAN = "#2f5a3a"
+
+
+def _dry_face(a, rng, face, at, g0, g1, z0, z1, rows, side_shade=False):
+    """Rough dry-stone: rounded blocks of random size on a face, moss in some joints."""
+    def q(g, z):
+        return P(g, at, z) if face == "front" else P(at, g, z)
+    shades = [GRAN_R, "#5b534f", "#70675f"] if side_shade else [GRAN_L, "#948880", "#7e746e"]
+    for r in range(rows):
+        za = z0 + (z1 - z0) * r / rows
+        zb = z0 + (z1 - z0) * (r + 1) / rows
+        u = g0
+        while u < g1 - 0.02:
+            w = rng.uniform(0.09, 0.2)
+            v = min(g1, u + w)
+            if g1 - v < 0.05:
+                v = g1
+            pad_u, pad_z = 0.008, 0.8
+            ua, ub = u + pad_u, v - pad_u
+            zz0, zz1 = za + pad_z, zb - pad_z + rng.uniform(-0.8, 0.8)
+            m = (ua + ub) / 2
+            pts = [q(ua + 0.015, zz0), q(m, zz0 - 0.6), q(ub - 0.015, zz0), q(ub, (zz0 + zz1) / 2), q(ub - 0.015, zz1), q(m, zz1 + 0.6), q(ua + 0.015, zz1), q(ua, (zz0 + zz1) / 2)]
+            a.poly(pts, rng.choice(shades), GRAN_D, 0.8)
+            if rng.random() < 0.35:
+                x, y = q(ua + (ub - ua) * rng.uniform(0.2, 0.8), (zz0 + zz1) / 2 + rng.uniform(-1, 1))
+                a.ellipse(x, y, 0.7, 0.7, GRAN_FL, opacity=0.8)
+            if rng.random() < 0.18:
+                x, y = q(ub, zz0)
+                a.ellipse(x, y - 0.5, 2.6, 1.3, MOSS, opacity=0.85)
+            u = v
+
+
+def _slate_cap(a, x0, x1, y0, y1, z, t=3, o=0.035):
+    a.box(x0 - o, x1 + o, y0 - o, y1 + o, z, z + t, SLATE_T, SLATE_L, SLATE_R, sw=1.1)
+
+
+def _gran_merlon(a, rng, gx, gy, kx, ky, z, hgt=8, gold=False):
+    """A rough stack of stones under a slate slab."""
+    a.box(gx, gx + kx, gy, gy + ky, z, z + hgt, GRAN_T, GRAN_L, GRAN_R, sw=1.1)
+    zm = z + hgt * rng.uniform(0.4, 0.6)
+    a.line([P(gx, gy + ky, zm), P(gx + kx, gy + ky, zm + rng.uniform(-1, 1)), P(gx + kx, gy, zm)], GRAN_D, 0.8)
+    a.box(gx - 0.015, gx + kx + 0.015, gy - 0.015, gy + ky + 0.015, z + hgt, z + hgt + 2.4, SLATE_T, SLATE_L, SLATE_R, sw=1)
+    if gold:
+        a.line([P(gx - 0.015, gy + ky + 0.015, z + hgt + 2.4), P(gx + kx + 0.015, gy + ky + 0.015, z + hgt + 2.4), P(gx + kx + 0.015, gy - 0.015, z + hgt + 2.4)], GOLD, 1.5)
+
+
+def _tartan_banner(a, face, u0, u1, z_top, z_bot):
+    """Veliron's crimson with a green and gold check (a hanging banner)."""
+    hanging_banner(a, face, u0, u1, z_top, z_bot)
+    def at(u, z):
+        return P(u, face[1], z) if face[0] == "left" else P(face[1], -u, z)
+    um = (u0 + u1) / 2
+    for z in (z_top - (z_top - z_bot) * 0.3, z_top - (z_top - z_bot) * 0.65):
+        a.line([at(u0, z), at(u1, z)], TARTAN, 2.2, opacity=0.85)
+    for u in (u0 + (u1 - u0) * 0.25, u0 + (u1 - u0) * 0.75):
+        a.line([at(u, z_top), at(u, z_bot + 3)], TARTAN, 2, opacity=0.85)
+    a.line([at(um, z_top), at(um, z_bot + 6)], GOLD, 0.8, opacity=0.8)
+
+
+def _peat_brazier(a, x, y):
+    a.ellipse(x, y - 14, 16, 12, GLOW, opacity=0.35)
+    a.poly([(x - 6, y - 6), (x + 6, y - 6), (x + 4, y), (x - 4, y)], IRON, INK, 1)
+    a.poly([(x - 5, y - 6), (x - 4, y - 9), (x + 4, y - 9), (x + 5, y - 6)], "#3a2a1a", INK, 0.8)  # the peat
+    a.poly([(x - 3.5, y - 9), (x, y - 19), (x + 3.5, y - 9)], GLOW, "#b8401e", 1)
+
+
+def gran_wall(level=1):
+    rng = random.Random(1300 + level)
+    a = Art()
+    x0, x1, y0, y1, h = -0.5, 0.5, -0.15, 0.15, 28
+    a.box(x0, x1, y0, y1, 0, h, GRAN_T, GRAN_L, GRAN_R)
+    _dry_face(a, rng, "front", y1, x0, x1, 0, h, 4)
+    _slate_cap(a, x0, x1, y0, y1, h)
+    if level >= 2:  # timber shoring against the face
+        for gx in (-0.3, 0.3):
+            a.line([P(gx, y1 + 0.16, 0), P(gx, y1 + 0.01, h - 4)], INK, 5)
+            a.line([P(gx, y1 + 0.16, 0), P(gx, y1 + 0.01, h - 4)], LOG, 3.2)
+        _tartan_banner(a, ("left", y1), -0.07, 0.07, h - 2, 6)
+    for gx in (-0.44, -0.1, 0.24):
+        _gran_merlon(a, rng, gx, y0, 0.2, y1 - y0, h + 3, gold=level >= 3)
+    for gx in (-0.2, 0.36):
+        x, y = P(gx, y1, h + 3)
+        a.ellipse(x, y, 4, 1.6, MOSS, opacity=0.85)
+    if level >= 3:
+        a.line([P(x0 - 0.035, y1 + 0.035, h + 3), P(x1 + 0.035, y1 + 0.035, h + 3)], GOLD, 1.8)
+    a.save("granite_wall" if level == 1 else "granite_wall_%d" % level)
+
+
+def _boulders(a, rng, n, g0, g1, d0, d1):
+    for _ in range(n):
+        x, y = P(rng.uniform(g0, g1), rng.uniform(d0, d1))
+        w = rng.uniform(3.5, 6.5)
+        a.poly([(x - w, y), (x - w, y - w * 0.5), (x - w * 0.5, y - w * 0.9), (x + w * 0.5, y - w * 0.85), (x + w, y - w * 0.4), (x + w * 0.8, y)], rng.choice([GRAN_L, GRAN_R, "#948880"]), INK, 1)
+        if rng.random() < 0.4:
+            a.ellipse(x - w * 0.2, y - w * 0.8, w * 0.5, w * 0.2, MOSS, opacity=0.85)
+
+
+def gran_wall_ruin():
+    rng = random.Random(1310)
+    a = Art()
+    y0, y1 = -0.15, 0.15
+    a.poly(diamond(0.75, 0.4), "#2a2826", stroke=None, opacity=0.4)
+    for (u0, u1, h) in [(-0.5, -0.18, 14), (-0.18, 0.08, 5), (0.08, 0.32, 18), (0.32, 0.5, 8)]:
+        a.box(u0, u1, y0, y1, 0, h, GRAN_T, GRAN_L, GRAN_R)
+        _dry_face(a, rng, "front", y1, u0, u1, 0, h, max(1, int(h / 7)))
+    a.box(0.1, 0.34, 0.24, 0.4, 0, 3, SLATE_T, SLATE_L, SLATE_R, sw=1)  # a fallen slate
+    _boulders(a, rng, 8, -0.45, 0.45, 0.2, 0.44)
+    for _ in range(3):
+        x, y = P(rng.uniform(-0.4, 0.4), rng.uniform(-0.3, 0.3))
+        _tuft(a, x, y, "#4e6a2c")
+    a.save("granite_wall_ruin")
+
+
+def gran_gate(level=1):
+    rng = random.Random(1320 + level)
+    a = Art()
+    x0, x1, y0, y1 = -0.5, 0.5, -0.16, 0.16
+    a.poly(diamond(0.62, 0.26), "#2a2826", stroke=None, opacity=0.3)
+    # the door, thick planks set back between the piers
+    a.box(-0.2, 0.2, y1 - 0.12, y1 - 0.04, 0, 29, "#6a4c30", "#3e2c1c", "#2a1e12", sw=1.2)
+    for gx in (-0.1, 0.0, 0.1):
+        a.line([P(gx, y1 - 0.04, 0), P(gx, y1 - 0.04, 29)], "#21170e", 1.3)
+    for z in (6, 22):
+        a.line([P(-0.2, y1 - 0.04, z), P(0.2, y1 - 0.04, z)], IRON, 2.6 if level >= 2 else 1.8)
+    if level >= 2:
+        for z in (6, 22):
+            for gx in (-0.15, -0.05, 0.05, 0.15):
+                x, y = P(gx, y1 - 0.04, z)
+                a.ellipse(x, y, 1.2, 1.2, IRON_L)
+    for g0, g1 in [(x0, -0.2), (0.2, x1)]:
+        a.box(g0, g1, y0, y1, 0, 48, GRAN_T, GRAN_L, GRAN_R)
+        _dry_face(a, rng, "front", y1, g0, g1, 0, 48, 6)
+        _dry_face(a, rng, "side", g1, y0, y1, 0, 48, 6, side_shade=True)  # the right end, or the passage's side
+        _slate_cap(a, g0, g1, y0, y1, 48)
+    # over the door a thin granite lintel and dry-stone above it to the piers' height
+    a.box(-0.2, 0.2, y0, y1, 34, 48, GRAN_T, GRAN_L, GRAN_R)
+    _dry_face(a, rng, "front", y1, -0.2, 0.2, 34, 48, 2)
+    _slate_cap(a, -0.2, 0.2, y0, y1, 48)
+    a.box(-0.23, 0.23, y1 - 0.03, y1 + 0.01, 29, 34, "#b0a59e", "#9a8e87", GRAN_R, sw=1.2)
+    for gx in (-0.13, 0.09):
+        x, y = P(gx, y1 + 0.01, 31.5)
+        a.ellipse(x, y, 0.8, 0.8, GRAN_FL)
+    _tartan_banner(a, ("left", y1), -0.42, -0.3, 44, 18)
+    _tartan_banner(a, ("left", y1), 0.3, 0.42, 44, 18)
+    for gx in (x0, 0.26):
+        _gran_merlon(a, rng, gx, y0, 0.11, y1 - y0, 51, gold=level >= 3)
+        _gran_merlon(a, rng, gx + 0.13, y0, 0.11, y1 - y0, 51, gold=level >= 3)
+    if level >= 2:  # stag antlers over the door
+        x, y = P(0.0, y1, 40)
+        for d in (-1, 1):
+            a.line([(x, y - 2), (x + 7 * d, y - 9), (x + 10 * d, y - 15)], "#e6dcc8", 1.6)
+            a.line([(x + 5 * d, y - 7), (x + 4 * d, y - 13)], "#e6dcc8", 1.3)
+        a.ellipse(x, y - 1, 2.6, 2, "#6a5038", INK, 0.8)
+    if level >= 3:
+        a.line([P(-0.23, y1 + 0.01, 34), P(0.23, y1 + 0.01, 34)], GOLD, 2)
+        for gx in (-0.2, 0.2):
+            x, y = P(gx, y1 + 0.02, 26)
+            a.ellipse(x, y, 7, 7, GLOW, opacity=0.3)
+            a.poly([(x - 2.5, y - 3.5), (x + 2.5, y - 3.5), (x + 2.5, y + 3.5), (x - 2.5, y + 3.5)], GLOW, INK, 0.9)
+    a.save("granite_gate" if level == 1 else "granite_gate_%d" % level)
+
+
+def gran_gate_ruin():
+    rng = random.Random(1330)
+    a = Art()
+    y0, y1 = -0.16, 0.16
+    a.poly(diamond(0.75, 0.42), "#2a2826", stroke=None, opacity=0.4)
+    a.box(-0.5, -0.2, y0, y1, 0, 28, GRAN_T, GRAN_L, GRAN_R)
+    _dry_face(a, rng, "front", y1, -0.5, -0.2, 0, 28, 4)
+    a.box(0.2, 0.5, y0, y1, 0, 14, GRAN_T, GRAN_L, GRAN_R)
+    _dry_face(a, rng, "front", y1, 0.2, 0.5, 0, 14, 2)
+    # the lintel fallen across the opening, the door burnt under it
+    a.poly([P(-0.18, y1 + 0.03, 0), P(0.14, y1 + 0.05, 0), P(0.17, y1 + 0.3, 0), P(-0.15, y1 + 0.27, 0)], "#3a2818", INK, 1.2)
+    a.box(-0.22, 0.24, y1 + 0.08, y1 + 0.2, 0, 7, GRAN_T, "#9a8e87", GRAN_R, sw=1.3)
+    _boulders(a, rng, 8, -0.45, 0.45, 0.24, 0.46)
+    a.poly([P(-0.42, y1, 26), P(-0.32, y1, 26), P(-0.33, y1, 12), P(-0.37, y1, 16), P(-0.41, y1, 10)], CRIMSON_D, INK, 0.9)
+    a.save("granite_gate_ruin")
+
+
+def _ring(r, z, t0, t1, n=12):
+    """Points round a circle of radius r (tiles) at height z, angles t0..t1 (degrees)."""
+    return [P(r * math.cos(math.radians(t0 + (t1 - t0) * k / n)), r * math.sin(math.radians(t0 + (t1 - t0) * k / n)), z) for k in range(n + 1)]
+
+
+def _cylinder(a, r, z0, z1, left, right, top=None, sw=1.4):
+    """A round drum: its front half shaded left and right, an outline, a top."""
+    a.poly(_ring(r, z0, 45, 135) + _ring(r, z1, 135, 45), left, stroke=None)
+    a.poly(_ring(r, z0, -45, 45) + _ring(r, z1, 45, -45), right, stroke=None)
+    a.line(_ring(r, z0, -45, 135, 24), INK, sw)
+    a.line([_ring(r, z0, 135, 135, 1)[0], _ring(r, z1, 135, 135, 1)[0]], INK, sw)
+    a.line([_ring(r, z0, -45, -45, 1)[0], _ring(r, z1, -45, -45, 1)[0]], INK, sw)
+    if top:
+        a.poly(_ring(r, z1, 0, 360, 36), top, INK, sw)
+
+
+def _broch_courses(a, rng, r, z0, z1, rows):
+    """Dry-stone courses round a drum: wavy bed joints, staggered head joints, moss."""
+    for k in range(1, rows):
+        z = z0 + (z1 - z0) * k / rows
+        pts = []
+        for j in range(25):
+            t = -45 + 180 * j / 24
+            pts.append(P(r * math.cos(math.radians(t)), r * math.sin(math.radians(t)), z + math.sin(j * 1.7 + k) * 0.8))
+        a.line(pts, GRAN_D, 0.9)
+    for k in range(rows):
+        za = z0 + (z1 - z0) * k / rows
+        zb = z0 + (z1 - z0) * (k + 1) / rows
+        t = -45 + rng.uniform(4, 16)
+        while t < 132:
+            p0 = P(r * math.cos(math.radians(t)), r * math.sin(math.radians(t)), za)
+            p1 = P(r * math.cos(math.radians(t)), r * math.sin(math.radians(t)), zb)
+            a.line([p0, p1], GRAN_D, 0.9)
+            if rng.random() < 0.3:
+                a.ellipse(p0[0] + 3, p0[1] - 3, 0.7, 0.7, GRAN_FL, opacity=0.8)
+            if rng.random() < 0.12:
+                a.ellipse(p0[0], p0[1] - 1, 3, 1.3, MOSS, opacity=0.85)
+            t += rng.uniform(14, 26)
+
+
+def _broch_merlons(a, rng, r, z, front, level, k=0.12):
+    """Merlons round the broch's top: the back ones, or the front ones (by depth)."""
+    spots = []
+    for j in range(10):
+        t = math.radians(36 * j + 18)
+        gx, gy = r * math.cos(t), r * math.sin(t)
+        if (gx + gy > 0.05) == front:
+            spots.append((gx, gy))
+    spots.sort(key=lambda q: q[0] + q[1])
+    for gx, gy in spots:
+        _gran_merlon(a, rng, gx - k / 2, gy - k / 2, k, k, z, 9, gold=level >= 3)
+
+
+def gran_wall_tower(front=False, level=1):
+    """A broch: a round dry-stone tower, battered at the foot."""
+    rng = random.Random(1340 + level)
+    a = Art()
+    s, r, h = 0.36, 0.4, 74
+    if front:
+        a._track([P(-s, s, 0), P(s, -s, 0), P(-s, -s, h + 60), P(s, s, 0)])
+        _broch_merlons(a, random.Random(1349), r - 0.04, h + 4, True, level)
+        return a
+    a.shadow(52, 26, cy=4)
+    _cylinder(a, r + 0.05, 0, 10, GRAN_L, GRAN_R)
+    _broch_courses(a, rng, r + 0.05, 0, 10, 2)
+    _cylinder(a, r, 10, h, GRAN_L, GRAN_R)
+    _broch_courses(a, rng, r, 10, h, 9)
+    # a low door and two slits
+    t = math.radians(80)
+    gx, gy = r * math.cos(t), r * math.sin(t)
+    _opening(a, "front", gy + 0.005, gx - 0.05, gx + 0.05, 10, 24, "#1a1612", sw=1)
+    for deg, z in ((60, 44), (20, 50)):
+        t = math.radians(deg)
+        x, y = P(r * math.cos(t), r * math.sin(t), z)
+        a.poly([(x - 1.6, y), (x + 1.6, y), (x + 1.6, y - 10), (x - 1.6, y - 10)], "#1a1612", INK, 0.8)
+    # the slate-capped top and its floor
+    _cylinder(a, r + 0.03, h, h + 4, SLATE_L, SLATE_R, top=SLATE_T)
+    a.poly(_ring(r - 0.03, h + 4, 0, 360, 36), "#8d837c", INK, 1)  # flagstones
+    for k in (-0.12, 0.12):
+        a.line([P(-0.3, k, h + 4), P(0.3, k, h + 4)], GRAN_R, 0.8, opacity=0.7)
+        a.line([P(k, -0.3, h + 4), P(k, 0.3, h + 4)], GRAN_R, 0.8, opacity=0.7)
+    a.line([P(-s + 0.1, -s + 0.1, h + 4), P(-s + 0.1, -s + 0.1, h + 44)], INK, 3)
+    x, y = P(-s + 0.1, -s + 0.1, h + 44)
+    a.poly([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], CRIMSON)
+    a.line([(x + 6, y + 1.5), (x + 6, y + 14)], TARTAN, 1.6)
+    a.line([(x + 1, y + 8), (x + 16, y + 8)], TARTAN, 1.6)
+    _broch_merlons(a, random.Random(1348), r - 0.04, h + 4, False, level)
+    if level >= 2:
+        # a tartan banner down the front, an iron ring round the top
+        t0, t1 = 70, 100
+        z_top, z_bot = h - 4, h - 36
+        tm = (t0 + t1) / 2
+        pts = _ring(r + 0.005, z_top, t0, t1, 4) + [_ring(r + 0.005, z_bot, t1, t1, 1)[0], _ring(r + 0.005, z_bot + 6, tm, tm, 1)[0], _ring(r + 0.005, z_bot, t0, t0, 1)[0]]
+        a.poly(pts, CRIMSON, INK, 1.2)
+        for z in (z_top - 10, z_top - 21):
+            a.line(_ring(r + 0.006, z, t0, t1, 4), TARTAN, 2.2, opacity=0.85)
+        for tt in (t0 + 8, t1 - 8):
+            a.line([_ring(r + 0.006, z_top, tt, tt, 1)[0], _ring(r + 0.006, z_bot + 3, tt, tt, 1)[0]], TARTAN, 2, opacity=0.85)
+        a.line(_ring(r + 0.004, h - 2, -45, 135, 24), IRON, 3)
+    if level >= 3:
+        a.line(_ring(r + 0.03, h + 4, -45, 135, 24), GOLD, 2)
+        bx, by = P(0.18, -0.18, h + 4)
+        _peat_brazier(a, bx, by)
+    return a
+
+
+def gran_wall_tower_ruin():
+    rng = random.Random(1350)
+    a = Art()
+    r, h = 0.4, 26
+    a.shadow(52, 26, cy=4)
+    _cylinder(a, r + 0.05, 0, 10, GRAN_L, GRAN_R)
+    _cylinder(a, r, 10, h, GRAN_L, GRAN_R)
+    _broch_courses(a, rng, r, 10, h, 2)
+    a.poly(_ring(r, h, 0, 360, 36), GRAN_T, INK, 1.4)  # the wall head, broken
+    a.poly(_ring(r - 0.08, h, 0, 360, 36), "#4a423d", INK, 1)  # hollow, rubble inside
+    # the back of the wall still stands higher, ragged: its inner face shows
+    inner = _ring(r - 0.08, h, 150, 300, 10)
+    rise = [6, 14, 22, 27, 31, 26, 20, 23, 14, 8, 2]
+    top = [(x, y - rise[j]) for j, (x, y) in enumerate(inner)]
+    a.poly(inner + top[::-1], GRAN_R, INK, 1.2)
+    for z in (8, 16):
+        a.line([(x, y - min(z, rise[j] - 1)) for j, (x, y) in enumerate(inner)], GRAN_D, 0.8)
+    a.line(top, GRAN_T, 2.4)
+    a.line(top, INK, 0.8)
+    for (x, y) in top[2:9:3]:
+        a.ellipse(x, y, 3, 1.3, MOSS, opacity=0.9)
+    for _ in range(5):  # fallen stones on the rubble inside
+        x, y = P(rng.uniform(-0.2, 0.15), rng.uniform(-0.05, 0.2), h)
+        w = rng.uniform(3, 5)
+        a.poly([(x - w, y), (x - w * 0.6, y - w * 0.8), (x + w * 0.5, y - w * 0.8), (x + w, y)], rng.choice([GRAN_L, GRAN_R, "#948880"]), INK, 1)
+    for _ in range(10):
+        gx, gy = rng.uniform(-0.5, 0.5), rng.uniform(0.42, 0.56)
+        if rng.random() < 0.5:
+            gx, gy = rng.uniform(0.42, 0.56), rng.uniform(-0.5, 0.5)
+        _boulders(a, rng, 1, gx, gx, gy, gy)
+    a.save("granite_wall_tower_ruin")
+
+
+TURF, TURF_L, TURF_D = "#5d7a36", "#7a9a48", "#3e5426"
+
+
+def gran_hut(ruin=False):
+    """Granite: a blackhouse, long and low, thick dry-stone walls with rounded
+    corners, a thatch roof under turf held by ropes weighted with stones, peat
+    smoke out of a hole in the roof."""
+    rng = random.Random(1360)
+    a = Art()
+    x0, x1, y0, y1, h = -0.38, 0.38, -0.26, 0.26, 18
+    if ruin:
+        a.poly(diamond(0.82), "#2a2826", stroke=None, opacity=0.5)
+        for (u0, u1, hh) in [(x0, -0.1, 12), (-0.1, 0.12, 4), (0.12, x1, 9)]:
+            a.box(u0, u1, y1 - 0.12, y1, 0, hh, GRAN_T, GRAN_L, GRAN_R, sw=1.2)
+            _dry_face(a, rng, "front", y1, u0, u1, 0, hh, max(1, int(hh / 6)))
+        a.box(x1 - 0.12, x1, y0, y1 - 0.12, 0, 14, GRAN_T, GRAN_L, GRAN_R, sw=1.2)
+        a.box(x0, x0 + 0.4, y0, y0 + 0.12, 0, 10, GRAN_T, GRAN_L, GRAN_R, sw=1.2)
+        a.poly([P(-0.28, -0.08, 2), P(0.18, -0.12, 3), P(0.22, 0.08, 5), P(-0.22, 0.12, 3)], TURF_D, INK, 1.1)  # the fallen turf
+        a.poly([P(-0.05, -0.06, 4), P(0.12, -0.08, 4), P(0.14, 0.04, 5)], "#2a1e15", stroke=None, opacity=0.8)
+        a.line([P(-0.25, 0.18, 1), P(0.22, -0.02, 10)], INK, 4.5)
+        a.line([P(-0.25, 0.18, 1), P(0.22, -0.02, 10)], "#2a1e15", 2.6)
+        _boulders(a, rng, 6, -0.3, 0.4, 0.32, 0.55)
+        a.save("granite_hut_ruin")
+        return
+    a.shadow(48, 22, cy=4)
+    a.box(x0, x1, y0, y1, 0, h, GRAN_T, GRAN_L, GRAN_R)
+    _dry_face(a, rng, "front", y1, x0, x1, 0, h, 3)
+    _dry_face(a, rng, "side", x1, y0, y1, 0, h, 3, side_shade=True)
+    _opening(a, "front", y1, -0.12, 0.02, 0, 13, "#3e2c1c", sw=1.1)  # a low door
+    a.box(-0.15, 0.05, y1, y1 + 0.03, 13, 16, GRAN_T, "#9a8e87", GRAN_R, sw=1)  # its lintel stone
+    _opening(a, "front", y1, 0.18, 0.25, 6, 12, GLOW, sw=1)
+    # the roof: a low hipped mass of thatch under turf, sitting inside the wall head
+    ridge = h + 24
+    ym = (y0 + y1) / 2
+    i = 0.04
+    rx0, rx1 = x0 + i, x1 - i
+    hip = 0.16
+    front = [P(rx0 + hip, ym, ridge), P(rx1 - hip, ym, ridge), P(rx1, y1 - i, h), P(rx0, y1 - i, h)]
+    end = [P(rx1 - hip, ym, ridge), P(rx1, y0 + i, h), P(rx1, y1 - i, h)]
+    a.poly([P(rx0 + hip, ym, ridge), P(rx1 - hip, ym, ridge), P(rx1, y0 + i, h), P(rx0, y0 + i, h)], TURF_D)
+    a.poly(end, "#4a6430", INK, 1.2)
+    a.poly(front, TURF, INK, 1.3)
+    a.poly([P(rx0, y1 - i, h), P(rx1, y1 - i, h), P(rx1, y1 - i + 0.02, h - 3), P(rx0, y1 - i + 0.02, h - 3)], THATCH_D, INK, 1)  # thatch showing at the eave
+    for k in range(10):  # grass tufts on the turf
+        t = rng.uniform(0.15, 0.85)
+        gx = rx0 + 0.06 + (rx1 - rx0 - 0.12) * rng.random()
+        x, y = P(gx, ym + (y1 - i - ym) * t, ridge - (ridge - h) * t)
+        _tuft(a, x, y, TURF_L, 0.9, 3.5)
+    for gx in (-0.18, 0.02, 0.2):  # ropes over the roof, weighted with stones
+        p0 = P(gx, ym, ridge)
+        p1 = P(gx, y1 - i + 0.03, h - 4)
+        a.line([p0, p1], ROPE_D, 1.2)
+        a.ellipse(p1[0], p1[1] + 2, 3, 2.6, GRAN_L, INK, 0.9)
+    x, y = P(-0.05, ym, ridge)  # the smoke hole, peat smoke
+    a.ellipse(x, y, 4, 2, "#1a1612")
+    a.ellipse(x + 2, y - 9, 5, 7, "#8a8580", opacity=0.25)
+    a.ellipse(x + 6, y - 20, 6, 8, "#8a8580", opacity=0.18)
+    a.save("granite_hut")
+
+
 def village_pieces_materials():
-    """The walls, gates and wall towers in wood, sandstone and basalt (stone's
-    are wall(), gate(), wall_tower()); each tower's levels and front layer on
-    one canvas."""
+    """The walls, gates and wall towers in wood, sandstone, basalt, limestone and
+    granite (stone's are wall(), gate(), wall_tower()); each tower's levels and
+    front layer on one canvas."""
     for lvl in (1, 2, 3):
         wood_wall(lvl)
         wood_gate(lvl)
@@ -1611,6 +2440,10 @@ def village_pieces_materials():
         sand_gate(lvl)
         bas_wall(lvl)
         bas_gate(lvl)
+        lime_wall(lvl)
+        lime_gate(lvl)
+        gran_wall(lvl)
+        gran_gate(lvl)
     wood_wall_ruin()
     wood_gate_ruin()
     wood_wall_tower_ruin()
@@ -1618,13 +2451,22 @@ def village_pieces_materials():
         sand_hut(ruin)
         bas_hut(ruin)
         wood_hut(ruin)
+        lime_hut(ruin)
+        gran_hut(ruin)
     sand_wall_ruin()
     sand_gate_ruin()
     sand_wall_tower_ruin()
     bas_wall_ruin()
     bas_gate_ruin()
     bas_wall_tower_ruin()
-    for prefix, fn, deck in [("wood_", wood_wall_tower, WOOD_DECK), ("sandstone_", sand_wall_tower, 76), ("basalt_", bas_wall_tower, 76)]:
+    lime_wall_ruin()
+    lime_gate_ruin()
+    lime_wall_tower_ruin()
+    gran_wall_ruin()
+    gran_gate_ruin()
+    gran_wall_tower_ruin()
+    for prefix, fn, deck in [("wood_", wood_wall_tower, WOOD_DECK), ("sandstone_", sand_wall_tower, 76), ("basalt_", bas_wall_tower, 76),
+                             ("limestone_", lime_wall_tower, 76), ("granite_", gran_wall_tower, 76)]:
         for lvl in (1, 2, 3):
             suffix = "" if lvl == 1 else "_%d" % lvl
             wt = fn(level=lvl)

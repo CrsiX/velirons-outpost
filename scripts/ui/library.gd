@@ -529,7 +529,7 @@ static func _buildings() -> Array[Dictionary]:
 		f.append(_hp_fact(kind))
 		match kind:
 			"hut":
-				f.append("Looks like its village: a timber cabin (stone), a flat-roofed sandstone house (sandstone), a dark stone house (basalt) or a tent (wood)")
+				f.append("Looks like its village: a timber cabin (stone), a flat-roofed sandstone house (sandstone), a dark stone house (basalt), a fisher's hut on stilts (limestone), a turf-roofed blackhouse (granite) or a tent (wood)")
 			"tower":
 				f.append_array(_tower_facts("tower"))
 			"farm":
@@ -584,7 +584,7 @@ static func _hp_fact(kind: String) -> String:
 
 
 ## What walls, gates and wall towers are made of (Config.PIECE_MATERIALS): "Stone,
-## sandstone or basalt, all alike; wood (a palisade): 60 % of their HP, costs and build times".
+## sandstone, basalt, limestone or granite, all alike; wood (a palisade): 60 % of their HP, costs and build times".
 static func _material_fact() -> String:
 	var alike := PackedStringArray()
 	var other := PackedStringArray()

@@ -881,7 +881,7 @@ Everything is in `scripts/core/config.gd`, in two blocks:
   `volcano_smoke`.
 - **Village pieces:** the generator gives a village one material for its
   walls, gates and wall towers by map type: basalt on Volcanic, sandstone on
-  Desert, stone otherwise (docs/siege-design.md §2a).
+  Desert, limestone on Coast, granite on Highlands, stone otherwise (docs/siege-design.md §2a).
 - **Objects:** `chest`, `ruins`, `shrine`, `standing_stones`, `shipwreck`,
   `dragon_bones`, each with a "looted" version; `sack` (dropped loot);
   `camp` and `camp_cleared`; `stone_circle`, `mage_tower_ruin`,

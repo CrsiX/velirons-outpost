@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="259" height="214" viewBox="-56.95 -73.99 129.5 107">
+  <ellipse cx="0" cy="4" rx="52" ry="26" fill="#000" opacity="0.35"/>
+  <polygon points="0,20.36 -5.32,20.19 -10.54,19.67 -15.59,18.81 -20.36,17.64 -24.79,16.16 -28.8,14.4 -32.31,12.4 -35.27,10.18 -37.63,7.79 -39.34,5.27 -40.38,2.66 -40.73,0 -40.73,-10 -40.38,-7.34 -39.34,-4.73 -37.63,-2.21 -35.27,0.18 -32.31,2.4 -28.8,4.4 -24.79,6.16 -20.36,7.64 -15.59,8.81 -10.54,9.67 -5.32,10.19 0,10.36" fill="#8a7f79"/>
+  <polygon points="40.73,0 40.38,2.66 39.34,5.27 37.63,7.79 35.27,10.18 32.31,12.4 28.8,14.4 24.79,16.16 20.36,17.64 15.59,18.81 10.54,19.67 5.32,20.19 0,20.36 0,10.36 5.32,10.19 10.54,9.67 15.59,8.81 20.36,7.64 24.79,6.16 28.8,4.4 32.31,2.4 35.27,0.18 37.63,-2.21 39.34,-4.73 40.38,-7.34 40.73,-10" fill="#665d59"/>
+  <polyline points="40.73,0 40.38,2.66 39.34,5.27 37.63,7.79 35.27,10.18 32.31,12.4 28.8,14.4 24.79,16.16 20.36,17.64 15.59,18.81 10.54,19.67 5.32,20.19 0,20.36 -5.32,20.19 -10.54,19.67 -15.59,18.81 -20.36,17.64 -24.79,16.16 -28.8,14.4 -32.31,12.4 -35.27,10.18 -37.63,7.79 -39.34,5.27 -40.38,2.66 -40.73,0" fill="none" stroke="#15110d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-40.73,0 -40.73,-10" fill="none" stroke="#15110d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="40.73,0 40.73,-10" fill="none" stroke="#15110d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="0,8.1 -4.73,7.95 -9.37,7.49 -13.85,6.72 -18.1,5.68 -22.04,4.36 -25.6,2.8 -28.72,1.02 -31.35,-0.95 -33.45,-3.07 -34.97,-5.31 -35.89,-7.64 -36.2,-10 -36.2,-26 -35.89,-23.64 -34.97,-21.31 -33.45,-19.07 -31.35,-16.95 -28.72,-14.98 -25.6,-13.2 -22.04,-11.64 -18.1,-10.32 -13.85,-9.28 -9.37,-8.51 -4.73,-8.05 0,-7.9" fill="#8a7f79"/>
+  <polygon points="36.2,-10 35.89,-7.64 34.97,-5.31 33.45,-3.07 31.35,-0.95 28.72,1.02 25.6,2.8 22.04,4.36 18.1,5.68 13.85,6.72 9.37,7.49 4.73,7.95 0,8.1 0,-7.9 4.73,-8.05 9.37,-8.51 13.85,-9.28 18.1,-10.32 22.04,-11.64 25.6,-13.2 28.72,-14.98 31.35,-16.95 33.45,-19.07 34.97,-21.31 35.89,-23.64 36.2,-26" fill="#665d59"/>
+  <polyline points="36.2,-10 35.89,-7.64 34.97,-5.31 33.45,-3.07 31.35,-0.95 28.72,1.02 25.6,2.8 22.04,4.36 18.1,5.68 13.85,6.72 9.37,7.49 4.73,7.95 0,8.1 -4.73,7.95 -9.37,7.49 -13.85,6.72 -18.1,5.68 -22.04,4.36 -25.6,2.8 -28.72,1.02 -31.35,-0.95 -33.45,-3.07 -34.97,-5.31 -35.89,-7.64 -36.2,-10" fill="none" stroke="#15110d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-36.2,-10 -36.2,-26" fill="none" stroke="#15110d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="36.2,-10 36.2,-26" fill="none" stroke="#15110d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="36.2,-18.67 35.89,-15.98 34.97,-12.55 33.45,-10.93 31.35,-9.75 28.72,-6.92 25.6,-4.42 22.04,-3.9 18.1,-3.04 13.85,-0.83 9.37,0.09 4.73,-0.65 0,-0.34 -4.73,0.66 -9.37,-0.25 -13.85,-2.06 -18.1,-2.38 -22.04,-2.84 -25.6,-5.35 -28.72,-7.74 -31.35,-8.61 -33.45,-10.4 -34.97,-13.83 -35.89,-16.18 -36.2,-17.34" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="35.67,-6.89 35.67,-14.89" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="38.67" cy="-9.89" rx="0.7" ry="0.7" fill="#d9cdc3" opacity="0.8"/>
+  <polyline points="32.36,-1.88 32.36,-9.88" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="24.99,3.1 24.99,-4.9" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="12.66,6.96 12.66,-1.04" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="12.66" cy="5.96" rx="3" ry="1.3" fill="#5e7c34" opacity="0.85"/>
+  <polyline points="-0.76,8.1 -0.76,0.1" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-10.24,7.36 -10.24,-0.64" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="-7.24" cy="4.36" rx="0.7" ry="0.7" fill="#d9cdc3" opacity="0.8"/>
+  <polyline points="-21.71,4.49 -21.71,-3.51" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="-21.71" cy="3.49" rx="3" ry="1.3" fill="#5e7c34" opacity="0.85"/>
+  <polyline points="-30.87,-0.54 -30.87,-8.54" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="-27.87" cy="-3.54" rx="0.7" ry="0.7" fill="#d9cdc3" opacity="0.8"/>
+  <polyline points="-35.58,-6.66 -35.58,-14.66" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="-32.58" cy="-9.66" rx="0.7" ry="0.7" fill="#d9cdc3" opacity="0.8"/>
+  <ellipse cx="-35.58" cy="-7.66" rx="3" ry="1.3" fill="#5e7c34" opacity="0.85"/>
+  <polyline points="35.99,-16.03 35.99,-24.03" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="38.99" cy="-19.03" rx="0.7" ry="0.7" fill="#d9cdc3" opacity="0.8"/>
+  <polyline points="33.81,-11.52 33.81,-19.52" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="28.5,-6.84 28.5,-14.84" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="28.5" cy="-7.84" rx="3" ry="1.3" fill="#5e7c34" opacity="0.85"/>
+  <polyline points="18.82,-2.54 18.82,-10.54" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="5.92,-0.14 5.92,-8.14" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="8.92" cy="-3.14" rx="0.7" ry="0.7" fill="#d9cdc3" opacity="0.8"/>
+  <polyline points="-5.97,-0.15 -5.97,-8.15" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="-2.97" cy="-3.15" rx="0.7" ry="0.7" fill="#d9cdc3" opacity="0.8"/>
+  <polyline points="-17.88,-2.26 -17.88,-10.26" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-29.22,-7.31 -29.22,-15.31" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-35.51,-14.48 -35.51,-22.48" fill="none" stroke="#3e3835" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="-35.51" cy="-15.48" rx="3" ry="1.3" fill="#5e7c34" opacity="0.85"/>
+  <polygon points="25.6,-13.2 20.77,-11.17 15.3,-9.59 9.37,-8.51 3.16,-7.97 -3.16,-7.97 -9.37,-8.51 -15.3,-9.59 -20.77,-11.17 -25.6,-13.2 -29.66,-15.62 -32.81,-18.35 -34.97,-21.31 -36.07,-24.42 -36.07,-27.58 -34.97,-30.69 -32.81,-33.65 -29.66,-36.38 -25.6,-38.8 -20.77,-40.83 -15.3,-42.41 -9.37,-43.49 -3.16,-44.03 3.16,-44.03 9.37,-43.49 15.3,-42.41 20.77,-40.83 25.6,-38.8 29.66,-36.38 32.81,-33.65 34.97,-30.69 36.07,-27.58 36.07,-24.42 34.97,-21.31 32.81,-18.35 29.66,-15.62 25.6,-13.2" fill="#a89c95" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
+  <polygon points="20.48,-15.76 16.61,-14.14 12.24,-12.88 7.5,-12.01 2.52,-11.57 -2.52,-11.57 -7.5,-12.01 -12.24,-12.88 -16.61,-14.14 -20.48,-15.76 -23.73,-17.69 -26.25,-19.88 -27.98,-22.25 -28.85,-24.74 -28.85,-27.26 -27.98,-29.75 -26.25,-32.12 -23.73,-34.31 -20.48,-36.24 -16.61,-37.86 -12.24,-39.12 -7.5,-39.99 -2.52,-40.43 2.52,-40.43 7.5,-39.99 12.24,-39.12 16.61,-37.86 20.48,-36.24 23.73,-34.31 26.25,-32.12 27.98,-29.75 28.85,-27.26 28.85,-24.74 27.98,-22.25 26.25,-19.88 23.73,-17.69 20.48,-15.76" fill="#4a423d" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-27.98,-29.75 -25.08,-33.24 -20.48,-36.24 -14.48,-38.54 -7.5,-39.99 -0,-40.48 7.5,-39.99 14.48,-38.54 20.48,-36.24 25.08,-33.24 27.98,-29.75 27.98,-31.75 25.08,-41.24 20.48,-50.24 14.48,-61.54 7.5,-59.99 -0,-66.48 -7.5,-70.99 -14.48,-65.54 -20.48,-58.24 -25.08,-47.24 -27.98,-35.75" fill="#665d59" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polyline points="-27.98,-34.75 -25.08,-41.24 -20.48,-44.24 -14.48,-46.54 -7.5,-47.99 -0,-48.48 7.5,-47.99 14.48,-46.54 20.48,-44.24 25.08,-40.24 27.98,-30.75" fill="none" stroke="#3e3835" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-27.98,-34.75 -25.08,-46.24 -20.48,-52.24 -14.48,-54.54 -7.5,-55.99 -0,-56.48 7.5,-55.99 14.48,-54.54 20.48,-49.24 25.08,-40.24 27.98,-30.75" fill="none" stroke="#3e3835" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-27.98,-35.75 -25.08,-47.24 -20.48,-58.24 -14.48,-65.54 -7.5,-70.99 -0,-66.48 7.5,-59.99 14.48,-61.54 20.48,-50.24 25.08,-41.24 27.98,-31.75" fill="none" stroke="#a89c95" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-27.98,-35.75 -25.08,-47.24 -20.48,-58.24 -14.48,-65.54 -7.5,-70.99 -0,-66.48 7.5,-59.99 14.48,-61.54 20.48,-50.24 25.08,-41.24 27.98,-31.75" fill="none" stroke="#15110d" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="-20.48" cy="-58.24" rx="3" ry="1.3" fill="#5e7c34" opacity="0.9"/>
+  <ellipse cx="-0" cy="-66.48" rx="3" ry="1.3" fill="#5e7c34" opacity="0.9"/>
+  <ellipse cx="20.48" cy="-50.24" rx="3" ry="1.3" fill="#5e7c34" opacity="0.9"/>
+  <polygon points="-8.21,-18.29 -6.6,-21.52 -2.16,-21.52 -0.15,-18.29" fill="#948880" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-8.65,-31.43 -7.27,-34.19 -3.47,-34.19 -1.74,-31.43" fill="#948880" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-18.19,-29.62 -16.25,-33.5 -10.92,-33.5 -8.5,-29.62" fill="#8a7f79" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-18.22,-22.04 -16.47,-25.53 -11.68,-25.53 -9.5,-22.04" fill="#8a7f79" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="0.21,-22.09 1.79,-25.26 6.14,-25.26 8.12,-22.09" fill="#8a7f79" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="43.37,5.59 43.37,3.09 45.86,1.1 50.85,1.35 53.34,3.59 52.35,5.59" fill="#665d59" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <ellipse cx="47.36" cy="1.6" rx="2.49" ry="1" fill="#5e7c34" opacity="0.85"/>
+  <polygon points="-34.13,17.4 -34.13,14.83 -31.56,12.77 -26.4,13.02 -23.82,15.34 -24.85,17.4" fill="#8a7f79" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <ellipse cx="-30.01" cy="13.28" rx="2.58" ry="1.03" fill="#5e7c34" opacity="0.85"/>
+  <polygon points="55.9,2.02 55.9,0.15 57.77,-1.35 61.51,-1.16 63.39,0.52 62.64,2.02" fill="#8a7f79" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <ellipse cx="58.89" cy="-0.97" rx="1.87" ry="0.75" fill="#5e7c34" opacity="0.85"/>
+  <polygon points="42.89,5.05 42.89,2.15 45.78,-0.17 51.57,0.12 54.47,2.73 53.31,5.05" fill="#8a7f79" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-25.76,24.75 -25.76,22.28 -23.28,20.29 -18.33,20.54 -15.85,22.77 -16.84,24.75" fill="#8a7f79" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <ellipse cx="-21.8" cy="20.79" rx="2.48" ry="0.99" fill="#5e7c34" opacity="0.85"/>
+  <polygon points="-3.99,26.94 -3.99,24.09 -1.14,21.81 4.56,22.09 7.41,24.66 6.27,26.94" fill="#665d59" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="42.21,7.9 42.21,5.78 44.32,4.09 48.55,4.3 50.66,6.21 49.82,7.9" fill="#665d59" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-2.15,25.79 -2.15,22.75 0.89,20.32 6.97,20.63 10.01,23.36 8.79,25.79" fill="#8a7f79" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="-53.95,3.57 -53.95,1.44 -51.82,-0.26 -47.56,-0.05 -45.43,1.87 -46.28,3.57" fill="#665d59" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="56.23,3.97 56.23,0.76 59.44,-1.81 65.86,-1.49 69.07,1.4 67.78,3.97" fill="#8a7f79" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+</svg>
