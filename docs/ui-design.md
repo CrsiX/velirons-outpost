@@ -422,7 +422,9 @@ Big touch targets everywhere, so mouse and fingers work the same.
   `upgrade_tower` command, a job in the build queue), like its panel's *Upgrade* button. A toast says
   why not (highest level, already ordered, not enough material).
 - **Q** (`Hud.hotkey_repair`) repairs the selected building (a ruined hut: rebuilds it), like its
-  panel's *Repair*.
+  panel's *Repair*. **Shift+Q** (`Hud.hotkey_repair_all`) sends the same `repair` / `rebuild_hut` command
+  for every damaged building and destroyed hut, nearest to the village centre first (so the queue's
+  age favours the nearest), until the building material runs out; the toast says how many are left.
 - **R** with a unit selected withdraws it to the reserve (and deselects it); otherwise R is the
   hero's Rest.
 - **Tab / Shift+Tab** (`Hud.cycle_units`) select the next / previous unit on a post (towers,
@@ -433,7 +435,7 @@ Big touch targets everywhere, so mouse and fingers work the same.
   farmer, a camp without a forester, a free mine the village has found once miners are known),
   nearest the village centre first, and moves the view there. Nothing if there is none.
 - **V** opens and closes the villager list.
-- **X** shows and hides the hero's panel.
+- **X** shows and hides the hero's panel; **Shift+X** levels the hero up at once when she has the XP for her next level (the panel's *Level up*), else nothing happens.
 - **F1** shows every hotkey in a dialog (`Hud.KEYS_HELP`; F1 again, Close or Esc close it). Keep
   that list in step when a key is added.
 - **F2** (`Hud.take_screenshot`, `Screenshot`, `Config.SCREENSHOT`) saves the whole window's last

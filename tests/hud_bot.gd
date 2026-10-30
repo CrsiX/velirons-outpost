@@ -437,6 +437,29 @@ func _test_unit_keys() -> void:
 	corner.hp = corner.max_hp()
 	game.economy.add("materials", -500)
 	game.deselect()
+	# Shift+Q: every damaged building, nearest the centre first in the queue.
+	var near_b: Building = corners[0]
+	var far_b: Building = corners[1]
+	var centre := Vector2(game.player_village.center)
+	if Vector2(near_b.tile).distance_to(centre) > Vector2(far_b.tile).distance_to(centre):
+		var swap := near_b
+		near_b = far_b
+		far_b = swap
+	game.economy.add("materials", 1000)
+	near_b.hp = near_b.max_hp() * 0.5
+	far_b.hp = far_b.max_hp() * 0.5
+	var shift_q := _press(KEY_Q)
+	shift_q.shift_pressed = true
+	hud._unhandled_key_input(shift_q)
+	check(near_b.repairing and far_b.repairing, "Shift+Q orders every damaged building's repair")
+	check(game.construction.queue.find(near_b) < game.construction.queue.find(far_b), "nearest the village centre first in the queue")
+	game.command("cancel_site", {"building": near_b.nid})
+	game.command("cancel_site", {"building": far_b.nid})
+	near_b.hp = near_b.max_hp()
+	far_b.hp = far_b.max_hp()
+	hud._unhandled_key_input(shift_q)
+	check(not near_b.repairing and not far_b.repairing, "Shift+Q with nothing damaged does nothing")
+	game.economy.add("materials", -1000)
 	# V: the villager list.
 	hud._unhandled_key_input(_press(KEY_V))
 	var opened := hud._people_panel.visible
@@ -447,6 +470,16 @@ func _test_unit_keys() -> void:
 	var hero_opened := hud._hero_panel.visible
 	hud._unhandled_key_input(_press(KEY_X))
 	check(hero_opened and not hud._hero_panel.visible, "X shows and hides the hero panel")
+	# Shift+X: the hero levels up at once with the XP for it, else nothing happens.
+	var lv_key := _press(KEY_X)
+	lv_key.shift_pressed = true
+	var hero_lv: int = game.hero.level
+	game.hero.xp = 0
+	hud._unhandled_key_input(lv_key)
+	check(game.hero.level == hero_lv and not hud._hero_panel.visible, "Shift+X without the XP does nothing")
+	game.hero.xp = game.hero.level_up_cost()
+	hud._unhandled_key_input(lv_key)
+	check(game.hero.level == hero_lv + 1 and game.hero.xp == 0 and not hud._hero_panel.visible, "Shift+X with the XP levels the hero up (and doesn't open her panel)")
 	# N: a workplace without its worker (whatever the earlier tests left: idle ones come first).
 	var idle_before := hud.idle_workplaces()
 	hud._unhandled_key_input(_press(KEY_N))
