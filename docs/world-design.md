@@ -505,7 +505,7 @@ walk to:
 |---|---|---|---|
 | Buried chest | anywhere | 4 s | 40-80 gold |
 | Overgrown ruins | oak woods, pine forest, heath | 8 s | 30-60 material + 20-40 gold |
-| Shrine | meadow, heath | 6 s | hero +80-120 XP, or (half the time) every unit healed fully |
+| Shrine | meadow, heath | 6 s | hero +80-120 XP, or (half the time) every unit and the hero healed fully |
 | Standing stones | heath, hills | 6 s | 50-90 gold, or a **relic** |
 | Shipwreck | beach | 8 s | 60-120 gold + 20-40 food |
 | Dragon bones | ash land | 10 s | 100-150 gold, or a relic |

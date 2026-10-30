@@ -114,6 +114,9 @@ static func pay(v: Village, r: Dictionary) -> String:
 			"heal_units":
 				for u in v.army.units:
 					u.heal(u.max_hp())
+				if v.hero and not v.hero.dead:
+					v.hero.hp = v.hero.max_hp
+					v.hero.changed.emit()
 				parts.append("units healed")
 			"item":  # (a campaign's: the relic sword)
 				if not v.items.has(str(r[k])):
