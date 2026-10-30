@@ -859,7 +859,8 @@ const PIECE_LEVELS := {
 ## generator gives a village one material, by map type (PIECE_MATERIAL_BY_MAP_TYPE,
 ## else stone): sandstone in the desert, basalt by volcanoes, sea-worn pale
 ## limestone on the coast, rough dry-stone granite (round
-## brochs for towers) in the highlands. Wood is an improvised
+## brochs for towers) in the highlands. Ice (blocks of glacier ice under
+## snow, icicles, igloos for huts) has no map type: only hand-made maps have it. Wood is an improvised
 ## palisade with tents for forward outposts: only hand-made maps have it.
 const PIECE_MATERIALS := {
 	"stone": {"name": "Stone", "art": "", "factor": 1.0},
@@ -867,9 +868,10 @@ const PIECE_MATERIALS := {
 	"basalt": {"name": "Basalt", "art": "basalt_", "factor": 1.0},
 	"limestone": {"name": "Limestone", "art": "limestone_", "factor": 1.0},
 	"granite": {"name": "Granite", "art": "granite_", "factor": 1.0},
+	"ice": {"name": "Ice", "art": "ice_", "factor": 1.0},
 	"wood": {"name": "Wood", "art": "wood_", "factor": 0.6},
 }
-const PIECE_MATERIAL_ORDER: Array[String] = ["stone", "sandstone", "basalt", "limestone", "granite", "wood"]
+const PIECE_MATERIAL_ORDER: Array[String] = ["stone", "sandstone", "basalt", "limestone", "granite", "ice", "wood"]
 ## The pieces whose HP, costs and times the material's factor scales.
 const PIECE_MATERIAL_SCALED: Array[String] = ["wall", "gate", "wall_tower"]
 const PIECE_MATERIAL_BY_MAP_TYPE := {"volcanic": "basalt", "desert": "sandstone", "coast": "limestone", "highlands": "granite"}

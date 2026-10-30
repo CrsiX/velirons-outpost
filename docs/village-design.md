@@ -126,7 +126,7 @@ stops mattering. The army grows all game, so it is what should eat.
 ## 3. Village, huts, raids and defeat
 
 - **Layout** (`VILLAGE_LAYOUT`): T tower, W wall, G gate, V hut. Walls, gates and wall
-  towers are of stone, sandstone, basalt, limestone, granite or wood (docs/siege-design.md §2a).
+  towers are of stone, sandstone, basalt, limestone, granite, ice or wood (docs/siege-design.md §2a).
   ```
   TWGWT
   WVVVW

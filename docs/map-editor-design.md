@@ -181,7 +181,7 @@ stroke (a drag counts as one).
   - *Pieces:* add, remove or change single pieces (wall, gate, wall tower,
     hut) of a village, and flip a wall. A village may have any layout; a
     layout that isn't the standard one is a warning, not an error (§5.4).
-  - *Materials* (stone, sandstone, basalt, limestone, granite, wood: docs/siege-design.md §2a):
+  - *Materials* (stone, sandstone, basalt, limestone, granite, ice, wood: docs/siege-design.md §2a):
     the Village and Pieces tools share a material choice (`opts.material`).
     A new village is all of it; so is a new piece (a changed piece keeps its
     own); the Pieces tool's *Paint material* gives the clicked piece, a hut
@@ -357,7 +357,7 @@ are sorted by `y`, then `x` on export.
 - `pieces`: every piece of the village, one entry each: `kind` (`wall`,
   `gate`, `wall_tower`, `hut`), `tile`, `flip` (walls on a village's left and
   right sides are drawn mirrored, as the generator does today), `material`
-  (`stone`, `sandstone`, `basalt`, `limestone`, `granite`, `wood`).
+  (`stone`, `sandstone`, `basalt`, `limestone`, `granite`, `ice`, `wood`).
   Sorted by `y`, then `x` on export. Generated maps always have the standard
   25 pieces, all of one material (by map type).
 

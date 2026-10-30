@@ -59,7 +59,8 @@ map's village layout: `"material"` per piece, map format 5; `Config.PIECE_MATERI
 | Sandstone | warm ashlar on a plinth, stepped merlons, a pointed arch; level 2 blue glazed tiles and blue cloth, level 3 gilded tops and brass lamps (`sandstone_…`) | 1 |
 | Basalt | dark columns of uneven height with an obsidian sheen, jagged merlons; level 2 iron spikes and bands, level 3 lava glowing in the seams and ember braziers (`basalt_…`) | 1 |
 | Limestone | sea-worn ashlar of pale grey-cream blocks (cooler and greyer than sandstone) on a sloped, battered foot with weed and barnacles; dark rain streaks, orange lichen, saddle-backed merlon caps, a round arch over weathered doors; level 2 arrow loops and crimson cloth, level 3 gilt, ship's lanterns and a beacon fire on the towers (`limestone_…`) | 1 |
-| Granite | rough dry-stone of rounded, speckled blocks with moss, slate coping; the gate a thin lintel between the piers, the tower a round broch with a flagstone top; level 2 tartan banners, timber shoring and stag antlers over the gate, level 3 gilt and a peat brazier (`granite_…`) | 1 |
+| Ice | blocks of glacier ice with snow heaped on every coping and icicles hanging from ledges, the gate a dark door under a frosted lintel, the tower square with a snowy parapet; level 2 frost-blue banners and walrus tusks over the gate, level 3 gilt and a cold blue fire (`ice_…`) | 1 |
+| Granite | rough dry-stone of rounded, speckled blocks with moss, slate coping; the gate a thin lintel between the piers, the tower a round broch with a flagstone top; level 2 tartan banners and stag antlers over the gate, level 3 gilt and a peat brazier (`granite_…`) | 1 |
 | Wood | an improvised palisade of sharpened logs with rope lashings; the tower a timber platform on legs; level 2 a second rank with iron bands, level 3 hides over the top, stakes in front and lanterns (`wood_…`) | 0.6 |
 
 Huts have a material too, only for their look (the factor never touches them: HP 1, the
@@ -68,7 +69,8 @@ house of sandstone with a domed roof room and blue doors and shutters (`sandston
 basalt a squat house of black blocks under a slate roof (`basalt_hut`), limestone a
 fisher's hut of weathered planks on tarred piles over stone footings, a ladder to its
 porch, a net over the rail and fish drying on a rack (`limestone_hut`), granite a
-low blackhouse of dry-stone under turf held by weighted ropes (`granite_hut`), wood a canvas tent
+low blackhouse of dry-stone under turf held by weighted ropes (`granite_hut`), ice an
+igloo of stacked ice blocks with a snow-heaped top, a low entrance tunnel and icicles (`ice_hut`), wood a canvas tent
 (`wood_hut`), each with its ruin (`…_hut_ruin`). The generator gives a village's huts its
 material; in the editor each hut can have its own. A scenario's special homes (`Hut.look`)
 keep their own art.
@@ -83,7 +85,7 @@ keep their own art.
   (wood: a lower deck).
 - **Where it comes from:** the generator gives a village one material for all its pieces,
   by map type (`PIECE_MATERIAL_BY_MAP_TYPE`: Volcanic basalt, Desert sandstone, Coast
-  limestone, Highlands granite, else stone), never mixed, huts included. Wood (forward outposts) and mixed villages come only
+  limestone, Highlands granite, else stone), never mixed, huts included. Ice, wood (forward outposts) and mixed villages come only
   from map files (the editor: docs/map-editor-design.md §4). Watchtowers have no material.
 
 ## 3. Devastation

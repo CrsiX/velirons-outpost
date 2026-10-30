@@ -2044,7 +2044,7 @@ THATCH, THATCH_L, THATCH_D = "#b8954e", "#cfae66", "#8a6c34"
 # ----------------------------------------------------- village pieces in granite
 # Granite (Highlands): rough dry-stone of rounded, speckled blocks without
 # mortar, moss in the joints, overhanging slate coping; the wall towers round
-# brochs. Level 2 a tartan banner and timber shoring, level 3 gilt and a peat
+# brochs. Level 2 a tartan banner, level 3 gilt and a peat
 # brazier.
 
 GRAN_T, GRAN_L, GRAN_R, GRAN_D = "#a89c95", "#8a7f79", "#665d59", "#3e3835"
@@ -2124,10 +2124,7 @@ def gran_wall(level=1):
     a.box(x0, x1, y0, y1, 0, h, GRAN_T, GRAN_L, GRAN_R)
     _dry_face(a, rng, "front", y1, x0, x1, 0, h, 4)
     _slate_cap(a, x0, x1, y0, y1, h)
-    if level >= 2:  # timber shoring against the face
-        for gx in (-0.3, 0.3):
-            a.line([P(gx, y1 + 0.16, 0), P(gx, y1 + 0.01, h - 4)], INK, 5)
-            a.line([P(gx, y1 + 0.16, 0), P(gx, y1 + 0.01, h - 4)], LOG, 3.2)
+    if level >= 2:
         _tartan_banner(a, ("left", y1), -0.07, 0.07, h - 2, 6)
     for gx in (-0.44, -0.1, 0.24):
         _gran_merlon(a, rng, gx, y0, 0.2, y1 - y0, h + 3, gold=level >= 3)
@@ -2169,27 +2166,28 @@ def gran_gate(level=1):
     a = Art()
     x0, x1, y0, y1 = -0.5, 0.5, -0.16, 0.16
     a.poly(diamond(0.62, 0.26), "#2a2826", stroke=None, opacity=0.3)
-    # the door, thick planks set back between the piers
-    a.box(-0.2, 0.2, y1 - 0.12, y1 - 0.04, 0, 29, "#6a4c30", "#3e2c1c", "#2a1e12", sw=1.2)
-    for gx in (-0.1, 0.0, 0.1):
-        a.line([P(gx, y1 - 0.04, 0), P(gx, y1 - 0.04, 29)], "#21170e", 1.3)
-    for z in (6, 22):
-        a.line([P(-0.2, y1 - 0.04, z), P(0.2, y1 - 0.04, z)], IRON, 2.6 if level >= 2 else 1.8)
-    if level >= 2:
-        for z in (6, 22):
-            for gx in (-0.15, -0.05, 0.05, 0.15):
-                x, y = P(gx, y1 - 0.04, z)
-                a.ellipse(x, y, 1.2, 1.2, IRON_L)
     for g0, g1 in [(x0, -0.2), (0.2, x1)]:
         a.box(g0, g1, y0, y1, 0, 48, GRAN_T, GRAN_L, GRAN_R)
         _dry_face(a, rng, "front", y1, g0, g1, 0, 48, 6)
-        _dry_face(a, rng, "side", g1, y0, y1, 0, 48, 6, side_shade=True)  # the right end, or the passage's side
+        _dry_face(a, rng, "side", g1, y0, y1, 0, 48, 6, side_shade=True)  # the right end
         _slate_cap(a, g0, g1, y0, y1, 48)
-    # over the door a thin granite lintel and dry-stone above it to the piers' height
-    a.box(-0.2, 0.2, y0, y1, 34, 48, GRAN_T, GRAN_L, GRAN_R)
+    # between the piers the passage's body, over the door dry-stone to the piers' height
+    a.box(-0.2, 0.2, y0, y1, 0, 48, GRAN_T, GRAN_L, GRAN_R)
     _dry_face(a, rng, "front", y1, -0.2, 0.2, 34, 48, 2)
     _slate_cap(a, -0.2, 0.2, y0, y1, 48)
-    a.box(-0.23, 0.23, y1 - 0.03, y1 + 0.01, 29, 34, "#b0a59e", "#9a8e87", GRAN_R, sw=1.2)
+    # the door in the front face: a dark reveal, thick planks, iron bands
+    a.poly([P(-0.2, y1, 0), P(0.2, y1, 0), P(0.2, y1, 29), P(-0.2, y1, 29)], "#1a1612", INK, 1.2)
+    a.poly([P(-0.17, y1, 0), P(0.17, y1, 0), P(0.17, y1, 27), P(-0.17, y1, 27)], "#6a4c30", INK, 1)
+    for gx in (-0.085, 0.0, 0.085):
+        a.line([P(gx, y1, 0), P(gx, y1, 27)], "#21170e", 1.3)
+    for z in (6, 21):
+        a.line([P(-0.17, y1, z), P(0.17, y1, z)], IRON, 2.6 if level >= 2 else 1.8)
+    if level >= 2:
+        for z in (6, 21):
+            for gx in (-0.13, -0.045, 0.045, 0.13):
+                x, y = P(gx, y1, z)
+                a.ellipse(x, y, 1.2, 1.2, IRON_L)
+    a.box(-0.23, 0.23, y1 - 0.03, y1 + 0.01, 29, 34, "#b0a59e", "#9a8e87", GRAN_R, sw=1.2)  # the lintel stone
     for gx in (-0.13, 0.09):
         x, y = P(gx, y1 + 0.01, 31.5)
         a.ellipse(x, y, 0.8, 0.8, GRAN_FL)
@@ -2429,9 +2427,365 @@ def gran_hut(ruin=False):
     a.save("granite_hut")
 
 
+# ----------------------------------------------------- village pieces in ice
+# Ice (the cold north): blocks of glacier ice, pale blue and a little see-through,
+# with snow heaped on every coping and ledge and icicles hanging from them; the
+# wall towers square, the huts igloos. Level 2 a frost-blue banner and walrus
+# tusks over the gate, level 3 gilt and a cold blue fire.
+
+ICE_T, ICE_L, ICE_R, ICE_D = "#e3f3fa", "#a6cfe2", "#7aa5c3", "#3d6987"
+ICE_B = ["#b6d9ea", "#9cc6dc", "#add3e6", "#c4e2ef"]  # a block's face shades, light to dark
+ICE_BS = ["#86b0cc", "#78a2c0", "#8db7d1"]  # the shaded right faces
+ICE_FL = "#f6fcff"
+ICE_DEEP = "#14202b"
+SNOW, SNOW_L, SNOW_R = "#f7fbfe", "#d3e3ee", "#b3cadb"
+FROST = "#2f5f8a"
+COLD_FIRE = "#7fd0ff"
+
+
+def _ice_face(a, rng, face, at, g0, g1, z0, z1, rows, side_shade=False):
+    """Blocks of ice on a face in staggered courses: a lit top edge on each, a few cracks."""
+    def q(g, z):
+        return P(g, at, z) if face == "front" else P(at, g, z)
+    shades = ICE_BS if side_shade else ICE_B
+    for r in range(rows):
+        za = z0 + (z1 - z0) * r / rows
+        zb = z0 + (z1 - z0) * (r + 1) / rows
+        u = g0 - (0.0 if r % 2 == 0 else rng.uniform(0.04, 0.1))
+        while u < g1 - 0.02:
+            w = rng.uniform(0.15, 0.24)
+            ua, ub = max(g0, u), min(g1, u + w)
+            if g1 - ub < 0.06:
+                ub = g1
+            if ub - ua > 0.03:
+                a.poly([q(ua, za), q(ub, za), q(ub, zb), q(ua, zb)], rng.choice(shades), ICE_D, 0.8)
+                a.line([q(ua + 0.01, zb - 0.9), q(ub - 0.01, zb - 0.9)], ICE_FL, 1.0, opacity=0.8)
+                if rng.random() < 0.14:
+                    x, y = q(ua + (ub - ua) * rng.uniform(0.3, 0.7), (za + zb) / 2)
+                    a.line([(x, y - 2.2), (x + 1.4, y), (x - 0.8, y + 1.6), (x + 0.6, y + 3)], ICE_D, 0.7, opacity=0.8)
+            u += w
+
+
+def _icicles(a, rng, face, at, g0, g1, z, n, lo=3.0, hi=9.0):
+    """Icicles hanging below height z along a face's edge, g0 to g1."""
+    for k in range(n):
+        g = g0 + (g1 - g0) * (k + rng.uniform(0.2, 0.8)) / n
+        x, y = P(g, at, z) if face == "front" else P(at, g, z)
+        ln = rng.uniform(lo, hi)
+        w = rng.uniform(1.0, 1.7)
+        a.poly([(x - w, y), (x + w, y), (x + w * 0.2, y + ln)], "#d6eef8", ICE_D, 0.6)
+        a.line([(x - w * 0.3, y + 0.5), (x, y + ln * 0.6)], ICE_FL, 0.6, opacity=0.9)
+
+
+def _snow_cap(a, rng, x0, x1, y0, y1, z, t=4, o=0.04, drips=True):
+    """A heap of snow over a coping: a white slab with a lumpy lip and icicles under its front and right edges."""
+    a.box(x0 - o, x1 + o, y0 - o, y1 + o, z, z + t, SNOW, SNOW_L, SNOW_R, sw=1.1)
+    for k in range(max(2, int((x1 - x0) / 0.12))):
+        gx = x0 + (x1 - x0) * (k + 0.5) / max(2, int((x1 - x0) / 0.12))
+        x, y = P(gx, y1 + o, z + t)
+        a.ellipse(x, y - 0.4, rng.uniform(2.4, 4.2), rng.uniform(1.2, 1.9), SNOW, opacity=0.95)
+    if drips:
+        _icicles(a, rng, "front", y1 + o, x0, x1, z, max(2, int((x1 - x0) / 0.09)))
+        _icicles(a, rng, "side", x1 + o, y0, y1, z, max(1, int((y1 - y0) / 0.09)), 3, 6)
+
+
+def _ice_merlon(a, rng, gx, gy, kx, ky, z, hgt=8, gold=False):
+    a.box(gx, gx + kx, gy, gy + ky, z, z + hgt, ICE_T, ICE_L, ICE_R, sw=1.1)
+    zm = z + hgt * rng.uniform(0.4, 0.6)
+    a.line([P(gx, gy + ky, zm), P(gx + kx, gy + ky, zm), P(gx + kx, gy, zm)], ICE_D, 0.8)
+    a.box(gx - 0.012, gx + kx + 0.012, gy - 0.012, gy + ky + 0.012, z + hgt, z + hgt + 2.6, SNOW, SNOW_L, SNOW_R, sw=1)
+    x, y = P(gx + kx * 0.5, gy + ky + 0.012, z + hgt + 2.6)
+    a.ellipse(x, y - 0.3, kx * 26, 1.3, SNOW, opacity=0.95)
+    if gold:
+        a.line([P(gx - 0.012, gy + ky + 0.012, z + hgt + 2.6), P(gx + kx + 0.012, gy + ky + 0.012, z + hgt + 2.6), P(gx + kx + 0.012, gy - 0.012, z + hgt + 2.6)], GOLD, 1.5)
+    _icicles(a, rng, "front", gy + ky, gx, gx + kx, z + hgt, 2, 2, 4)
+
+
+def _drifts(a, rng, n, g0, g1, d0, d1, big=1.0):
+    """Snow banked on the ground."""
+    for _ in range(n):
+        x, y = P(rng.uniform(g0, g1), rng.uniform(d0, d1))
+        w = rng.uniform(4, 8) * big
+        a.ellipse(x, y, w, w * 0.4, SNOW_L, opacity=0.9)
+        a.ellipse(x - 1, y - 1, w * 0.85, w * 0.32, SNOW)
+
+
+def _ice_shards(a, rng, n, g0, g1, d0, d1):
+    """Broken blocks and shards lying about."""
+    for _ in range(n):
+        x, y = P(rng.uniform(g0, g1), rng.uniform(d0, d1))
+        w = rng.uniform(3.2, 6)
+        a.poly([(x - w, y), (x - w * 0.8, y - w * 0.7), (x - w * 0.1, y - w * 1.1), (x + w * 0.7, y - w * 0.8), (x + w, y)], rng.choice(ICE_B), ICE_D, 0.9)
+        a.line([(x - w * 0.5, y - w * 0.6), (x - w * 0.1, y - w * 0.95)], ICE_FL, 0.8)
+        if rng.random() < 0.6:
+            a.ellipse(x, y - w * 1.0, w * 0.7, w * 0.25, SNOW, opacity=0.95)
+
+
+def ice_wall(level=1):
+    rng = random.Random(1600 + level)
+    a = Art()
+    x0, x1, y0, y1, h = -0.5, 0.5, -0.15, 0.15, 28
+    a.box(x0, x1, y0, y1, 0, h, ICE_T, ICE_L, ICE_R)
+    _ice_face(a, rng, "front", y1, x0, x1, 0, h, 4)
+    _ice_face(a, rng, "side", x1, y0, y1, 0, h, 4, side_shade=True)
+    _snow_cap(a, rng, x0, x1, y0, y1, h)
+    if level >= 2:
+        hanging_banner(a, ("left", y1), -0.07, 0.07, h - 2, 6, FROST, ICE_T)
+    for gx in (-0.44, -0.1, 0.24):
+        _ice_merlon(a, rng, gx, y0, 0.2, y1 - y0, h + 4, gold=level >= 3)
+    if level >= 3:
+        a.line([P(x0 - 0.04, y1 + 0.04, h + 4), P(x1 + 0.04, y1 + 0.04, h + 4), P(x1 + 0.04, y0 - 0.04, h + 4)], GOLD, 1.8)
+    _drifts(a, rng, 3, -0.45, 0.45, 0.14, 0.2, 0.7)
+    a.save("ice_wall" if level == 1 else "ice_wall_%d" % level)
+
+
+def ice_wall_ruin():
+    rng = random.Random(1610)
+    a = Art()
+    y0, y1 = -0.15, 0.15
+    a.poly(diamond(0.75, 0.4), "#27323a", stroke=None, opacity=0.35)
+    for (u0, u1, h) in [(-0.5, -0.18, 14), (-0.18, 0.08, 5), (0.08, 0.32, 18), (0.32, 0.5, 8)]:
+        a.box(u0, u1, y0, y1, 0, h, ICE_T, ICE_L, ICE_R)
+        _ice_face(a, rng, "front", y1, u0, u1, 0, h, max(1, int(h / 7)))
+        x, y = P((u0 + u1) / 2, (y0 + y1) / 2, h)
+        a.ellipse(x, y - 0.5, (u1 - u0) * 34, 3.2, SNOW, opacity=0.97)
+        _icicles(a, rng, "front", y1, u0, u1, h, 2, 2.5, 5)
+    a.box(0.1, 0.34, 0.24, 0.4, 0, 3, SNOW, SNOW_L, SNOW_R, sw=1)  # a fallen slab under snow
+    _ice_shards(a, rng, 8, -0.45, 0.45, 0.2, 0.44)
+    _drifts(a, rng, 5, -0.45, 0.45, 0.18, 0.4)
+    a.save("ice_wall_ruin")
+
+
+def ice_gate(level=1):
+    rng = random.Random(1620 + level)
+    a = Art()
+    x0, x1, y0, y1 = -0.5, 0.5, -0.16, 0.16
+    a.poly(diamond(0.62, 0.26), "#27323a", stroke=None, opacity=0.3)
+    for g0, g1 in [(x0, -0.2), (0.2, x1)]:
+        a.box(g0, g1, y0, y1, 0, 48, ICE_T, ICE_L, ICE_R)
+        _ice_face(a, rng, "front", y1, g0, g1, 0, 48, 6)
+        _ice_face(a, rng, "side", g1, y0, y1, 0, 48, 6, side_shade=True)
+        _snow_cap(a, rng, g0, g1, y0, y1, 48)
+    # between the piers the passage's body, over the door ice to the piers' height
+    a.box(-0.2, 0.2, y0, y1, 0, 48, ICE_T, ICE_L, ICE_R)
+    _ice_face(a, rng, "front", y1, -0.2, 0.2, 34, 48, 2)
+    _snow_cap(a, rng, -0.2, 0.2, y0, y1, 48, drips=False)
+    # the door in the front face: a dark reveal, frosted planks, iron bands
+    a.poly([P(-0.2, y1, 0), P(0.2, y1, 0), P(0.2, y1, 29), P(-0.2, y1, 29)], ICE_DEEP, INK, 1.2)
+    a.poly([P(-0.17, y1, 0), P(0.17, y1, 0), P(0.17, y1, 27), P(-0.17, y1, 27)], "#5f7587", INK, 1)
+    for gx in (-0.085, 0.0, 0.085):
+        a.line([P(gx, y1, 0), P(gx, y1, 27)], "#2f3f4c", 1.3)
+    for z in (6, 21):
+        a.line([P(-0.17, y1, z), P(0.17, y1, z)], IRON, 2.6 if level >= 2 else 1.8)
+    if level >= 2:
+        for z in (6, 21):
+            for gx in (-0.13, -0.045, 0.045, 0.13):
+                x, y = P(gx, y1, z)
+                a.ellipse(x, y, 1.2, 1.2, IRON_L)
+    for gx in (-0.15, -0.05, 0.06, 0.14):  # frost furred on the planks' top
+        x, y = P(gx, y1, 27)
+        a.ellipse(x, y, 3.4, 1.4, SNOW, opacity=0.95)
+    a.box(-0.23, 0.23, y1 - 0.03, y1 + 0.01, 29, 34, ICE_T, ICE_L, ICE_R, sw=1.2)  # the lintel block
+    _icicles(a, rng, "front", y1 + 0.01, -0.22, 0.22, 29, 6, 3, 8)
+    hanging_banner(a, ("left", y1), -0.42, -0.3, 44, 18, FROST, ICE_T)
+    hanging_banner(a, ("left", y1), 0.3, 0.42, 44, 18, FROST, ICE_T)
+    for gx in (x0, 0.26):
+        _ice_merlon(a, rng, gx, y0, 0.11, y1 - y0, 52, gold=level >= 3)
+        _ice_merlon(a, rng, gx + 0.13, y0, 0.11, y1 - y0, 52, gold=level >= 3)
+    if level >= 2:  # walrus tusks over the door
+        x, y = P(0.0, y1, 40)
+        for d in (-1, 1):
+            a.line([(x + 2 * d, y - 1), (x + 8 * d, y - 3), (x + 11 * d, y - 11)], INK, 3.4)
+            a.line([(x + 2 * d, y - 1), (x + 8 * d, y - 3), (x + 11 * d, y - 11)], "#efe6d2", 2)
+        a.ellipse(x, y - 1, 3, 2.2, "#6a5a48", INK, 0.8)
+    if level >= 3:
+        a.line([P(-0.23, y1 + 0.01, 34), P(0.23, y1 + 0.01, 34)], GOLD, 2)
+        for gx in (-0.2, 0.2):
+            x, y = P(gx, y1 + 0.02, 26)
+            a.ellipse(x, y, 7, 7, COLD_FIRE, opacity=0.3)
+            a.poly([(x - 2.5, y - 3.5), (x + 2.5, y - 3.5), (x + 2.5, y + 3.5), (x - 2.5, y + 3.5)], COLD_FIRE, INK, 0.9)
+    _drifts(a, rng, 4, -0.45, 0.45, 0.18, 0.28, 0.8)
+    a.save("ice_gate" if level == 1 else "ice_gate_%d" % level)
+
+
+def ice_gate_ruin():
+    rng = random.Random(1630)
+    a = Art()
+    y0, y1 = -0.16, 0.16
+    a.poly(diamond(0.75, 0.42), "#27323a", stroke=None, opacity=0.35)
+    a.box(-0.5, -0.2, y0, y1, 0, 28, ICE_T, ICE_L, ICE_R)
+    _ice_face(a, rng, "front", y1, -0.5, -0.2, 0, 28, 4)
+    x, y = P(-0.35, 0, 28)
+    a.ellipse(x, y - 0.5, 9, 3.4, SNOW, opacity=0.97)
+    _icicles(a, rng, "front", y1, -0.5, -0.2, 28, 3, 3, 7)
+    a.box(0.2, 0.5, y0, y1, 0, 14, ICE_T, ICE_L, ICE_R)
+    _ice_face(a, rng, "front", y1, 0.2, 0.5, 0, 14, 2)
+    x, y = P(0.35, 0, 14)
+    a.ellipse(x, y - 0.5, 9, 3.4, SNOW, opacity=0.97)
+    # the lintel fallen across the opening, the door split under it
+    a.poly([P(-0.18, y1 + 0.03, 0), P(0.14, y1 + 0.05, 0), P(0.17, y1 + 0.3, 0), P(-0.15, y1 + 0.27, 0)], "#3f4d59", INK, 1.2)
+    a.box(-0.22, 0.24, y1 + 0.08, y1 + 0.2, 0, 7, ICE_T, ICE_L, ICE_R, sw=1.3)
+    x, y = P(0.01, y1 + 0.14, 7)
+    a.ellipse(x, y - 0.5, 12, 3.4, SNOW, opacity=0.97)
+    _ice_shards(a, rng, 8, -0.45, 0.45, 0.24, 0.46)
+    _drifts(a, rng, 5, -0.45, 0.45, 0.2, 0.44)
+    a.poly([P(-0.42, y1, 26), P(-0.32, y1, 26), P(-0.33, y1, 12), P(-0.37, y1, 16), P(-0.41, y1, 10)], FROST, INK, 0.9)
+    a.save("ice_gate_ruin")
+
+
+def ice_wall_tower(front=False, level=1):
+    """A square tower of ice, snow heaped on its parapet and icicles under every ledge."""
+    rng = random.Random(1640 + level)
+    a = Art()
+    s, h, k = 0.34, 74, 0.12
+    p = s + 0.03
+    if front:
+        a._track([P(-0.36, 0.36, 0), P(0.36, -0.36, 0), P(-0.36, -0.36, h + 60), P(0.36, 0.36, 0)])
+        frng = random.Random(1649)
+        for gx, gy in _merlon_spots(p, True, k):
+            _ice_merlon(a, frng, gx, gy, k, k, h + 4, hgt=8, gold=level >= 3)
+        return a
+    a.shadow(52, 26, cy=4)
+    a.box(-s - 0.04, s + 0.04, -s - 0.04, s + 0.04, 0, 12, ICE_T, ICE_L, ICE_R)  # a broader foot
+    _ice_face(a, rng, "front", s + 0.04, -s - 0.04, s + 0.04, 0, 12, 2)
+    _ice_face(a, rng, "side", s + 0.04, -s - 0.04, s + 0.04, 0, 12, 2, side_shade=True)
+    a.box(-s, s, -s, s, 12, h, ICE_T, ICE_L, ICE_R)
+    _ice_face(a, rng, "front", s, -s, s, 12, h, 8)
+    _ice_face(a, rng, "side", s, -s, s, 12, h, 8, side_shade=True)
+    for u, z in ((-0.12, 46), (0.14, 24)):
+        _opening(a, "front", s, u, u + 0.06, z, z + 10, ICE_DEEP, arch=3, sw=0.8)
+    _opening(a, "side", s, 0.03, -0.03, 50, 60, ICE_DEEP, arch=3, sw=0.8)
+    a.box(-p, p, -p, p, h - 4, h + 4, ICE_T, ICE_L, ICE_R)  # the parapet's course
+    _ice_face(a, rng, "front", p, -p, p, h - 4, h + 4, 1)
+    _icicles(a, rng, "front", p, -p, p, h - 4, 7, 3, 10)
+    _icicles(a, rng, "side", p, -p, p, h - 4, 7, 3, 10)
+    a.poly([P(-p + 0.04, -p + 0.04, h + 4), P(p - 0.04, -p + 0.04, h + 4), P(p - 0.04, p - 0.04, h + 4), P(-p + 0.04, p - 0.04, h + 4)], SNOW, stroke=None)
+    for gx, gy in ((0.0, 0.1), (-0.12, -0.05), (0.14, -0.1)):  # snow drifted on the floor
+        x, y = P(gx, gy, h + 4)
+        a.ellipse(x, y, 8, 3, SNOW_L, opacity=0.9)
+    a.line([P(-p + 0.07, -p + 0.07, h + 4), P(-p + 0.07, -p + 0.07, h + 44)], INK, 3)
+    x, y = P(-p + 0.07, -p + 0.07, h + 44)
+    a.poly([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], FROST)
+    for gx, gy in _merlon_spots(p, False, k):
+        _ice_merlon(a, rng, gx, gy, k, k, h + 4, hgt=8, gold=level >= 3)
+    if level >= 2:
+        hanging_banner(a, ("left", s), -0.24, -0.04, h - 6, h - 34, FROST, ICE_T)
+        a.line([P(-s, s, h - 2), P(s, s, h - 2), P(s, -s, h - 2)], "#3a3632", 3)
+    if level >= 3:
+        hanging_banner(a, ("right", s), -0.06, 0.14, h - 6, h - 34, FROST, ICE_T)
+        a.line([P(-p, p, h + 4), P(p, p, h + 4), P(p, -p, h + 4)], GOLD, 2)
+        bx, by = P(p - 0.13, -p + 0.13, h + 4)
+        a.ellipse(bx, by - 14, 16, 12, COLD_FIRE, opacity=0.35)
+        a.poly([(bx - 6, by - 6), (bx + 6, by - 6), (bx + 4, by), (bx - 4, by)], IRON, INK, 1)
+        a.poly([(bx - 4, by - 6), (bx - 1, by - 15), (bx + 1.5, by - 10), (bx + 4, by - 17), (bx + 5, by - 6)], COLD_FIRE, "#3d6987", 1)
+    return a
+
+
+def ice_wall_tower_ruin():
+    rng = random.Random(1650)
+    a = Art()
+    s, h = 0.34, 30
+    a.shadow(52, 26, cy=4)
+    a.box(-s - 0.04, s + 0.04, -s - 0.04, s + 0.04, 0, 12, ICE_T, ICE_L, ICE_R)
+    a.box(-s, s, -s, s, 12, h, ICE_T, ICE_L, ICE_R)
+    a.box(-s, -s + 0.22, -s, -s + 0.22, h, h + 24, ICE_T, ICE_L, ICE_R)  # the back corner still standing
+    a.box(-s + 0.22, s - 0.28, -s, -s + 0.13, h, h + 10, ICE_T, ICE_L, ICE_R)
+    _ice_face(a, rng, "front", s, -s, s, 12, h, 2)
+    _ice_face(a, rng, "front", -s + 0.22, -s, -s + 0.22, h, h + 24, 3)
+    a.poly([P(-s, -s, h), P(s, -s, h), P(s, s, h), P(-s, s, h)], SNOW, ICE_D, 1)  # snow over the broken head
+    for gx, gy in ((0.1, 0.05), (-0.1, 0.15), (0.2, -0.1)):
+        x, y = P(gx, gy, h)
+        a.ellipse(x, y, 8, 3, SNOW_L, opacity=0.9)
+    _icicles(a, rng, "front", s, -s, s, h, 6, 3, 8)
+    x, y = P(-s + 0.11, -s + 0.11, h + 24)
+    a.ellipse(x, y - 0.5, 9, 3.4, SNOW, opacity=0.97)
+    for _ in range(10):
+        gx, gy = rng.uniform(-0.5, 0.5), rng.uniform(0.45, 0.56)
+        if rng.random() < 0.5:
+            gx, gy = rng.uniform(0.45, 0.56), rng.uniform(-0.5, 0.5)
+        _ice_shards(a, rng, 1, gx, gx, gy, gy)
+    _drifts(a, rng, 4, -0.5, 0.5, 0.4, 0.55)
+    a.save("ice_wall_tower_ruin")
+
+
+def ice_hut(ruin=False):
+    """Ice: an igloo, a dome of stacked ice blocks with a low entrance tunnel,
+    snow heaped on top, icicles hanging off the tunnel and the courses, a smoke
+    hole; the ruin a caved-in ring of blocks."""
+    rng = random.Random(1660)
+    a = Art()
+    R, RZ, bands = 0.36, 26, 5
+
+    def ring_at(k):
+        t = math.pi / 2 * k / bands
+        return R * math.cos(t), RZ * math.sin(t)
+
+    if ruin:
+        a.poly(diamond(0.82), "#27323a", stroke=None, opacity=0.4)
+        for k in range(2):  # the low courses still standing
+            r0, z0 = ring_at(k)
+            r1, z1 = ring_at(k + 1)
+            a.poly(_ring(r0, z0, 45, 135) + _ring(r1, z1, 135, 45), ICE_L, stroke=None)
+            a.poly(_ring(r0, z0, -45, 45) + _ring(r1, z1, 45, -45), ICE_R, stroke=None)
+            a.line(_ring(r0, z0, -45, 135, 24), ICE_D, 1.0)
+        a.line(_ring(ring_at(2)[0], ring_at(2)[1], -45, 135, 24), ICE_D, 1.2)
+        a.poly(_ring(ring_at(2)[0], ring_at(2)[1], -45, 135, 24) + _ring(ring_at(2)[0] - 0.06, ring_at(2)[1], 135, -45, 24), SNOW, ICE_D, 0.8)
+        # the back of the dome still rises, ragged
+        for k in range(1, 4):
+            r0, z0 = ring_at(k)
+            r1, z1 = ring_at(k + 1)
+            a.poly(_ring(r0, z0, 150, 290, 8) + _ring(r1, z1, 290, 150, 8), ICE_R, ICE_D, 0.8)
+        x, y = P(ring_at(4)[0] * 0.0 - 0.05, -0.22, ring_at(3)[1])
+        a.ellipse(x, y - 1, 10, 3.6, SNOW, opacity=0.97)
+        _ice_shards(a, rng, 8, -0.4, 0.4, 0.3, 0.52)
+        _drifts(a, rng, 6, -0.4, 0.4, 0.1, 0.45)
+        a.save("ice_hut_ruin")
+        return
+    a.shadow(46, 22, cy=4)
+    _drifts(a, rng, 4, -0.4, 0.4, 0.3, 0.46, 0.8)
+    for k in range(bands):
+        r0, z0 = ring_at(k)
+        r1, z1 = ring_at(k + 1)
+        a.poly(_ring(r0, z0, 45, 135) + _ring(r1, z1, 135, 45), ICE_B[k % 2 + 1], stroke=None)
+        a.poly(_ring(r0, z0, -45, 45) + _ring(r1, z1, 45, -45), ICE_BS[k % 3], stroke=None)
+        a.line(_ring(r0, z0, -45, 135, 24), ICE_D, 1.0)
+        a.line(_ring(r0, z0 + 0.8, -35, 125, 20), ICE_FL, 0.8, opacity=0.7)
+        t = -45 + rng.uniform(4, 12) + (k % 2) * 12
+        while t < 132:  # head joints, staggered
+            a.line([P(r0 * math.cos(math.radians(t)), r0 * math.sin(math.radians(t)), z0), P(r1 * math.cos(math.radians(t)), r1 * math.sin(math.radians(t)), z1)], ICE_D, 0.8)
+            t += rng.uniform(22, 34)
+    r4, z4 = ring_at(bands - 1)
+    a.poly(_ring(r4, z4, 0, 360, 36), SNOW, ICE_D, 1.0)  # the heap of snow on top
+    x, y = P(0.0, 0.0, RZ)
+    a.ellipse(x, y - 1.5, 8, 3.2, SNOW, ICE_D, 0.8)
+    x, y = P(-0.05, -0.04, RZ + 1)  # the smoke hole and its breath
+    a.ellipse(x, y - 1.5, 3.4, 1.6, ICE_DEEP)
+    a.ellipse(x + 2, y - 9, 4.5, 6, "#dfeaf2", opacity=0.3)
+    a.ellipse(x + 5, y - 19, 5.5, 7.5, "#dfeaf2", opacity=0.2)
+    for t in (10, 55, 100, 125):  # icicles hanging from the courses
+        for k in (1, 2):
+            r0, z0 = ring_at(k)
+            x, y = P(r0 * math.cos(math.radians(t)), r0 * math.sin(math.radians(t)), z0)
+            if rng.random() < 0.7:
+                ln = rng.uniform(3, 6)
+                a.poly([(x - 1.2, y), (x + 1.2, y), (x, y + ln)], "#d6eef8", ICE_D, 0.6)
+    # the entrance tunnel toward the front: a half-barrel of blocks
+    tx0, tx1, ty0, ty1, th = -0.1, 0.1, 0.22, 0.46, 12
+    a.box(tx0, tx1, ty0, ty1, 0, th, ICE_T, ICE_L, ICE_R, sw=1.2)
+    _ice_face(a, rng, "front", ty1, tx0, tx1, 0, th, 2)
+    _ice_face(a, rng, "side", tx1, ty0, ty1, 0, th, 2, side_shade=True)
+    _opening(a, "front", ty1, -0.065, 0.065, 0, 8, ICE_DEEP, arch=3, sw=1)
+    x, y = P(0, (ty0 + ty1) / 2, th)
+    a.ellipse(x, y - 0.5, 10, 4.2, SNOW, ICE_D, 0.8)
+    x, y = P(0, ty1, th)
+    a.ellipse(x, y - 0.5, 8.5, 2.4, SNOW, opacity=0.97)
+    _icicles(a, rng, "front", ty1, tx0, tx1, th, 4, 3, 7)
+    a.save("ice_hut")
+
+
 def village_pieces_materials():
-    """The walls, gates and wall towers in wood, sandstone, basalt, limestone and
-    granite (stone's are wall(), gate(), wall_tower()); each tower's levels and
+    """The walls, gates and wall towers in wood, sandstone, basalt, limestone,
+    granite and ice (stone's are wall(), gate(), wall_tower()); each tower's levels and
     front layer on one canvas."""
     for lvl in (1, 2, 3):
         wood_wall(lvl)
@@ -2444,6 +2798,8 @@ def village_pieces_materials():
         lime_gate(lvl)
         gran_wall(lvl)
         gran_gate(lvl)
+        ice_wall(lvl)
+        ice_gate(lvl)
     wood_wall_ruin()
     wood_gate_ruin()
     wood_wall_tower_ruin()
@@ -2453,6 +2809,7 @@ def village_pieces_materials():
         wood_hut(ruin)
         lime_hut(ruin)
         gran_hut(ruin)
+        ice_hut(ruin)
     sand_wall_ruin()
     sand_gate_ruin()
     sand_wall_tower_ruin()
@@ -2465,8 +2822,11 @@ def village_pieces_materials():
     gran_wall_ruin()
     gran_gate_ruin()
     gran_wall_tower_ruin()
+    ice_wall_ruin()
+    ice_gate_ruin()
+    ice_wall_tower_ruin()
     for prefix, fn, deck in [("wood_", wood_wall_tower, WOOD_DECK), ("sandstone_", sand_wall_tower, 76), ("basalt_", bas_wall_tower, 76),
-                             ("limestone_", lime_wall_tower, 76), ("granite_", gran_wall_tower, 76)]:
+                             ("limestone_", lime_wall_tower, 76), ("granite_", gran_wall_tower, 76), ("ice_", ice_wall_tower, 76)]:
         for lvl in (1, 2, 3):
             suffix = "" if lvl == 1 else "_%d" % lvl
             wt = fn(level=lvl)
