@@ -480,7 +480,7 @@ func _test_effects() -> void:
 	ar.walker = null
 	hero.set_grid_pos(hero_home)
 	game.army.unstation(hm[0])
-	# Fire summoner: fire elementals hover, hit hard, burn themselves.
+	# Fire summoner: fire elementals hover, hit hard, explode when killed.
 	await clear_enemies()
 	var fs: Array = await _manned("fire_summoner")
 	var foe := spawn_dummy("ork", _near_tower(fs[1], 2.5), 50.0)
@@ -491,11 +491,27 @@ func _test_effects() -> void:
 		var fe: EarthElemental = beh.summons[0]
 		var expected := Config.unit_stat("fire_summoner", "summon_hp", 0) * Config.SUMMONS["fire"]["hp"]
 		check(is_equal_approx(fe.max_hp, expected), "less HP (%.0f), more damage (%.1f)" % [fe.max_hp, fe.damage])
-		var full := fe.max_hp
-		var burned := await wait_until(when_gone(fe, func(x: Object) -> bool: return x.dead or x.hp < full), 20.0)
+		check(Config.unit_stat("fire_summoner", "interval", 0) < Config.unit_stat("summoner", "interval", 0), "it summons faster than a summoner")
+		var r: float = Config.SUMMONS["fire"]["explode_radius"]
+		var close := await wait_until(when_gone(fe, func(x: Object) -> bool: return not x.dead and x.grid_pos.distance_to(foe.grid_pos) <= r), 20.0)
+		check(close, "the fire elemental reaches the ork")
+		if close:
+			var before := foe.hp
+			fe.take_damage(fe.hp + 1.0)
+			var blast: float = fe.damage * float(Config.SUMMONS["fire"]["explode"]) * (1.0 + Combat.holy_bonus(game, fe.grid_pos))
+			check(fe.dead and is_equal_approx(before - foe.hp, blast), "killed, it explodes: %.1f fire damage to the ork (%.1f)" % [before - foe.hp, blast])
+	var fresh := await wait_until(func() -> bool: return not beh.summons.is_empty(), 20.0)
+	if fresh:
+		var fe2: EarthElemental = beh.summons[0]
+		var full := fe2.max_hp
+		var burned := await wait_until(when_gone(fe2, func(x: Object) -> bool: return x.dead or x.hp < full), 20.0)
 		check(burned, "hitting burns the fire elemental itself")
-	foe.take_damage(1e9)
+	await wait_until(func() -> bool: return not beh.summons.is_empty(), 20.0)
+	var left := foe.hp
 	game.army.unstation(fs[0])
+	await frames(2)
+	check(is_equal_approx(foe.hp, left), "dismissed, fire elementals don't explode")
+	foe.take_damage(1e9)
 	await clear_enemies()
 	# Druid: thornlings, slow and tough; every blow roots (docs/military-design.md §3b).
 	var dr: Array = await _manned("druid")

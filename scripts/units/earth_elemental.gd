@@ -4,7 +4,8 @@ extends Unit
 ## barracks). It wanders around there until it spots an enemy, then walks up
 ## to it and fights in close combat. Enemies fight back; at 0 hp it crumbles
 ## (no corpse). Kinds (Config.SUMMONS): earth; fire, which hovers and
-## flickers, is quick and hits hard, but burns itself with every hit; and the
+## flickers, is quick and frail, hits hard, burns itself with every hit and
+## explodes when killed; and the
 ## druid's thornlings, slow and tough, whose every blow roots (Enemy.root).
 
 signal died(elemental: EarthElemental)
@@ -211,7 +212,28 @@ func take_damage(amount: float, source = null, _category: String = "pure") -> vo
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
 	if hp <= 0.0:
 		village.events.debug("%s destroyed by %s" % [label(), game.who(source)])
+		_explode()
 		crumble()
+
+
+## Killed, a fire elemental bursts (SUMMONS "explode"): its blow's damage x
+## "explode" to every enemy within "explode_radius" it could be hit by.
+func _explode() -> void:
+	var sm: Dictionary = Config.SUMMONS[summon]
+	var share: float = sm.get("explode", 0.0)
+	if share <= 0.0:
+		return
+	var r: float = sm["explode_radius"]
+	var dmg := damage * share * (1.0 + Combat.holy_bonus(game, grid_pos))
+	var hit := 0
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var e := node as Enemy
+		if not e.dead and e.targetable() and e.grid_pos.distance_to(grid_pos) <= r:
+			e.take_damage(dmg, self, str(sm["category"]))
+			hit += 1
+	Combat.burst(game, "explosion", Iso.to_world(grid_pos) + Vector2(0, -16), r)
+	Sfx.play("hit", 0.25)
+	village.events.debug("%s explodes, hitting %d" % [label(), hit])
 
 
 ## Dies and falls apart into the earth; leaves no corpse.

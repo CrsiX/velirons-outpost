@@ -136,7 +136,7 @@ plus the tower level's `range_bonus` (+0.8 at level 2, +1.6 at level 3,
 | Unit | Interval s (L1 → L10) | Max summons | Summon HP stat | Summon damage stat |
 |---|---|---|---|---|
 | Summoner | 6.0 → 2.5 (L3 5.2) | 2 → 8 (L3 3) | 20 → 90 (L3 36) | 4 → 18 (L3 7.1) |
-| Fire Summoner | 3.9 → 2.5 | 4 → 8 | 36 → 95 | 7.5 → 20 |
+| Fire Summoner | 3.0 → 1.6 | 4 → 8 | 36 → 95 | 7.5 → 20 |
 | Druid | 5.0 → 2.5 | 3 → 8 | 36 → 100 | 7.2 → 23 |
 
 **Summons** (`SUMMONS`; `hp` and `damage` multiply the summoner's `summon_hp` and
@@ -148,7 +148,7 @@ blow or hurt; a fire elemental burns itself only with its blows, so it heals idl
 | Summon | HP | Speed | Damage | Special |
 |---|---|---|---|---|
 | Earth elemental | 1.0× summon HP (20 → 90) | 1.1 | 1.0× summon damage (4 → 18), melee | at level 1 as strong as a Normal goblin (20 HP, 4 damage); difficulty scales goblins, not elementals |
-| Fire elemental | 0.5× (18 → 48) | 1.8 | 2.5× (19 → 50), fire | burns itself: loses 25 % of the damage it deals, as HP (`self_damage`); hovers and flickers, a flyer |
+| Fire elemental | 0.5× (18 → 48) | 1.8 | 2.5× (19 → 50), fire | burns itself: loses 25 % of the damage it deals, as HP (`self_damage`); **explodes when killed** (`explode` 2.5 × its blow's damage, 47 → 125: about 3× a fire mage's hit at the same level; fire, to every enemy within `explode_radius` 1.2 tiles, flyers too, not divers; an explosion burst; `EarthElemental._explode`), not when dismissed (its summoner withdrawn, downed, specialised) nor drowned; hovers and flickers, a flyer |
 | Thornling | 1.5× (54 → 150) | 0.8 | 0.8× (5.8 → 18.4), melee | every blow roots the enemy for the druid's `root` (0.6 → 1.2 s), §3b |
 
 Existing elementals keep their stats when the summoner levels up. They crumble
@@ -389,7 +389,7 @@ const ATTACKS := {  # what a shot looks like, its damage category, fixed effect 
     "warp":     {"projectile": "warp_orb", "push_immunity": 4.0, "category": "magical", ...},
     ...
 }
-const SUMMONS := {"earth": {"hp": 1.0, "damage": 1.0, "speed": 1.1, ...}, "fire": {"hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, ...}}
+const SUMMONS := {"earth": {"hp": 1.0, "damage": 1.0, "speed": 1.1, ...}, "fire": {"hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "explode": 2.5, "explode_radius": 1.2, ...}}
 const SUMMON := {"attack_cooldown": 1.0, "attack_range": 0.8, "sight": 3.5, "leash": 4.0}
 ```
 

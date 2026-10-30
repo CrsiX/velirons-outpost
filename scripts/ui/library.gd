@@ -509,6 +509,8 @@ static func _units() -> Array[Dictionary]:
 			f.append("Heals %s %% of its HP per second while idle (%s s after its last fight)" % [_n(float(sp["regen"]) * 100.0), _n(Config.SUMMON["regen_delay"])])
 		if float(sp["self_damage"]) > 0.0:
 			f.append("Burns itself up: loses %s %% of the damage it deals as HP" % _n(float(sp["self_damage"]) * 100.0))
+		if float(sp.get("explode", 0.0)) > 0.0:
+			f.append("Explodes when killed: %s x its blow's damage (%s) to every enemy within %s tiles" % [_n(sp["explode"]), str(sp["category"]), _n(sp["explode_radius"])])
 		var by := ""
 		for kind: String in Config.MILITARY:
 			if Config.MILITARY[kind].get("summon", "") == s:

@@ -1237,8 +1237,8 @@ const MILITARY := {
 		"name": "Fire Summoner", "role": "summoner", "posts": ["tower", "barracks"], "recruit": false,
 		"branch_of": "summoner", "branch_cost": {"gold": 100},
 		"speed": 1.4, "summon": "fire",
-		"desc": "Summons fire elementals: quick and deadly, but they burn themselves up.",
-		"stats": {"hp": [26.0, 55.0], "interval": [3.9, 2.5], "max_summons": [4.0, 8.0], "summon_hp": [36.0, 95.0], "summon_damage": [7.5, 20.0]},
+		"desc": "Summons fire elementals, fast: quick and frail, they burn themselves up and explode when they die.",
+		"stats": {"hp": [26.0, 55.0], "interval": [3.0, 1.6], "max_summons": [4.0, 8.0], "summon_hp": [36.0, 95.0], "summon_damage": [7.5, 20.0]},
 		"upgrade_cost": [70, 300], "train_xp": [45, 400],
 	},
 	"apprentice": {
@@ -1382,12 +1382,16 @@ const DAMAGE_INFO := {
 ## and summon_damage; "speed" is in tiles per second; "category": what their
 ## blows do (DAMAGE_CATEGORIES).
 ## "regen" (optional): share of its max HP it heals per second while idle
-## (no target, and SUMMON.regen_delay seconds since its last blow or hurt;
-## a fire elemental burns itself only with its blows, so it heals idle too).
+## (no target, and SUMMON.regen_delay seconds since its last blow or hurt).
+## "self_damage": share of the damage it deals that it loses itself, as HP.
+## "explode" (optional): killed, it bursts: "explode" x its blow's damage, of its
+## own category, to every enemy within "explode_radius" tiles (flyers too, not
+## divers). Dismissed (its summoner withdrawn, downed, specialised) it doesn't.
 const SUMMONS := {
 	"earth": {"name": "Earth Elemental", "art": "unit_earth_elemental", "hp": 1.0, "damage": 1.0, "speed": 1.1, "self_damage": 0.0, "hover": false, "category": "melee", "regen": 0.04},
-	# Fire elementals hover and flicker; they lose self_damage x the damage they deal, as HP.
-	"fire": {"name": "Fire Elemental", "art": "unit_fire_elemental", "hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "hover": true, "category": "fire", "regen": 0.04},
+	# Fire elementals hover and flicker; frail and quick, they burn themselves with
+	# every blow (self_damage) and explode when they die.
+	"fire": {"name": "Fire Elemental", "art": "unit_fire_elemental", "hp": 0.5, "damage": 2.5, "speed": 1.8, "self_damage": 0.25, "hover": true, "category": "fire", "regen": 0.04, "explode": 2.5, "explode_radius": 1.2},
 	# The druid's thornlings: slow and tough; each blow roots the enemy (the
 	# druid's "root" seconds); a rooted enemy is then immune to roots for
 	# root_immunity seconds. Flyers can't be rooted (nor reached).
