@@ -107,13 +107,14 @@ Acolyte ────────────┬──────►  Inquisitor
     real attack, only its HP counts for the specialisation rules, docs/military-design.md §3).
   - Counter-strike: damage 3 → 10, every 1.4 → 1.0 s.
   - `aura`: 0.02 → 0.20 (+2 % → +20 % damage).
+  - `revive`: 1.25 → 3.0 (how many times as fast units downed on a bench in the aura revive).
 - **No attack of its own.** When an enemy hits it in melee and its blow is ready, it strikes
   back once.
 - **The aura:**
   - **Where it works:**
     - On a tower, always, as far as the tower reaches (so tower upgrades widen it).
-    - Out of barracks, only while out on a sortie, within its own 2.6 tiles. On the bench it
-      does nothing.
+    - In barracks, within its own 2.6 tiles: from the yard's middle while it sits on its
+      bench, from where it stands while out on a sortie.
     - On the training grounds and while walking it does nothing.
     - A witch's spell doesn't stop it (bewitching only stops attacks and summons).
   - **Who gets it:** every allied unit, of any village: soldiers in the field, units on towers
@@ -122,6 +123,12 @@ Acolyte ────────────┬──────►  Inquisitor
     takes the strongest aura it stands in. It doesn't change range, and heals aren't boosted.
   - **The halo:** a buffed unit shows a tiny, still holy circle over its head, as long as the
     buff lasts. On a tower it shows over the unit's figure.
+  - **Reviving:** units downed on a barracks bench (docs/military-design.md) whose barracks
+    is in an aura (the nearest point of its 2x2 yard within reach: its own barracks, and
+    those right around it) count down to their return `revive` times as fast
+    (`Combat.revive_rate`; the strongest aura counts, no stacking; any village's barracks).
+    They come back as always: on their bench with full HP. A downed sitter shows a clock
+    on its bench, golden with a pale rim while an aura speeds it up.
   - **Necromancers:** raising takes `necro_slow` (×2) as long when the necromancer or the
     corpse is inside an aura. The spell still works.
   - **Invisible enemies** (none yet): `Combat.in_holy_aura(game, grid_pos)` is the hook. Enemies
@@ -170,6 +177,7 @@ Acolyte ────────────┬──────►  Inquisitor
 4. Recruit cost 50 gold.
 5. Inquisitor: bonus 4 tiles for witches, 2 for the unholy; caps raised slightly to 7 and 5
    tiles; switch margin 1 tile.
-6. High Priest: the aura works out of barracks only on a sortie; it boosts summons too.
+6. High Priest: the aura works in barracks too, on the bench and on a sortie; it boosts
+   summons too; units downed on a bench in it revive x1.25 → x3 as fast (no stacking).
 7. The Inquisitor may stand on the training grounds.
 8. Every military unit can go in barracks (already the case).

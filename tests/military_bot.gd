@@ -801,7 +801,27 @@ func _test_holy() -> void:
 	check(game.army.station(pu, barracks), "a High Priest can sit in the barracks (%s)" % game.army.station_error(pu, barracks))
 	await wait_until(func() -> bool: return barracks.slots[0] == pu, 60.0)
 	await frames(1)
-	check(Combat.holy_bonus(game, barracks.act_center()) == 0.0, "on its bench its aura does nothing")
+	var reach := pu.field_range()
+	check(is_equal_approx(Combat.holy_bonus(game, barracks.act_center()), 0.2) and Combat.holy_bonus(game, barracks.act_center() + Vector2(reach + 0.3, 0.0)) == 0.0, "on its bench its aura works too, within its own %.1f tiles" % reach)
+	# Units downed on a bench in it come back faster (x3 at level 10).
+	var x := Config.unit_stat("high_priest", "revive", pu.level)
+	check(is_equal_approx(x, 3.0) and is_equal_approx(Config.unit_stat("high_priest", "revive", 0), 1.25), "revive speed-up: x1.25 at level 1, x3 at level 10")
+	check(is_equal_approx(Combat.revive_rate(game, barracks), x), "its own barracks is in it")
+	check(is_equal_approx(barracks.yard_distance(barracks.act_center()), 0.0) and is_equal_approx(barracks.yard_distance(Vector2(barracks.tile) + Vector2(-1.5, 0.5)), 1.0), "a barracks counts by the nearest point of its yard")
+	var mate: MilitaryUnit = barracks.slots[1] if barracks.slots.size() > 1 else null
+	if mate == null:
+		mate = game.army.recruit("shield_bearer")
+		game.army.station(mate, barracks)
+		await wait_until(func() -> bool: return barracks.slots[1] == mate and mate.state == MilitaryUnit.State.STATIONED, 60.0)
+	game.army.down(mate)
+	var rl0 := mate.revive_left
+	await wait(1.0)
+	var sped := rl0 - mate.revive_left
+	check(mate.is_downed() and sped > 2.5 and sped < 3.5, "a unit downed on a bench in it counts down %.1f s per second" % sped)
+	await frames(2)
+	check(barracks._bars_shown, "the downed unit shows its clock on the bench")
+	game.army.revive(mate)
+	await frames(2)
 	var bg := spawn_dummy("goblin", Vector2(game.world.pathing.nearest_walkable(Vector2i((bc + Vector2(2.0, 0)).round()))), 200.0)
 	var sortie := await wait_until(func() -> bool: return pu.out and is_instance_valid(pu.walker), 20.0)
 	await frames(1)
@@ -814,6 +834,8 @@ func _test_holy() -> void:
 	bg.take_damage(1e9)
 	await wait_until(func() -> bool: return not pu.out, 60.0)
 	game.army.unstation(pu)
+	await frames(2)
+	check(Combat.revive_rate(game, barracks) == 1.0, "without a priest: the normal revive time")
 	await clear_enemies()
 
 

@@ -6,7 +6,8 @@ extends MilitaryPost
 ## comes within the barracks' range, everyone on the benches turns out and
 ## fights (Soldier sortie), and walks back once no enemy is left. Upgrades
 ## (building material and a builder's time) add a bench and range. Units heal
-## on the benches.
+## on the benches; a downed one shows a clock until it is back (golden while
+## a High Priest's aura speeds it up, Combat.revive_rate).
 
 ## Where the benches' sitters are drawn (per bench, local coordinates).
 const BENCH_SPOTS: Array[Vector2] = [Vector2(-0.35, 0.45), Vector2(0.45, 0.35), Vector2(0.1, -0.25)]
@@ -58,6 +59,13 @@ func act_center() -> Vector2:
 	return Vector2(tile) + Vector2(0.5, 0.5)
 
 
+## Tiles from grid point `p` to the nearest point of the yard (0 inside).
+func yard_distance(p: Vector2) -> float:
+	var lo := Vector2(tile) - Vector2(0.5, 0.5)
+	var hi := lo + Vector2(size, size)
+	return p.distance_to(Vector2(clampf(p.x, lo.x, hi.x), clampf(p.y, lo.y, hi.y)))
+
+
 func refresh() -> void:
 	fit_slots()
 	Art.apply(sprite, _art())
@@ -89,7 +97,7 @@ func bench_point(unit: MilitaryUnit) -> Vector2:
 ## Enemies near? Everyone who's sitting on a bench (and not downed) goes out.
 func _process(delta: float) -> void:
 	if _hurt_on_bench() or _bars_shown:
-		queue_redraw()  # (their HP bars, while they heal)
+		queue_redraw()  # (their HP bars while they heal, the clocks of the downed)
 	if game.is_client or not working():
 		return
 	_scan -= delta
@@ -233,29 +241,53 @@ func info() -> Dictionary:
 	return d
 
 
-## A unit sitting on a bench (shown) with less than full HP.
+## A unit on a bench (shown) with less than full HP, or downed.
 func _hurt_on_bench() -> bool:
 	for i in mini(_bench_sprites.size(), slots.size()):
 		var u: MilitaryUnit = slots[i]
-		if u != null and _bench_sprites[i].visible and not u.is_downed() and u.hp < u.max_hp():
+		if u != null and _bench_sprites[i].visible and u.hp < u.max_hp():
 			return true
 	return false
 
 
-## The bars, and an HP bar over every hurt sitter (as over a soldier out), until it has healed.
+## The bars, an HP bar over every hurt sitter (as over a soldier out) until it
+## has healed, and a clock over every downed one until it is back.
 func _draw() -> void:
 	super._draw()
 	_bars_shown = false
 	for i in mini(_bench_sprites.size(), slots.size()):
 		var u: MilitaryUnit = slots[i]
 		var spr := _bench_sprites[i]
-		if u == null or not spr.visible or u.is_downed() or u.hp >= u.max_hp():
+		if u == null or not spr.visible or u.hp >= u.max_hp():
 			continue
 		_bars_shown = true
+		if u.is_downed():
+			_draw_revive_clock(u, spr.position + Vector2(0.0, -46.0))
+			continue
 		var r := Rect2(spr.position + Vector2(-13.0, -50.0), Vector2(26.0, 4.0))
 		draw_rect(r.grow(1.5), Color("15110d"))
 		draw_rect(r, Color("3a2a10"))
 		draw_rect(Rect2(r.position, Vector2(26.0 * clampf(u.hp / u.max_hp(), 0.0, 1.0), 4.0)), Color("e0c050"))
+
+
+## A downed sitter's clock: the share of its revive time gone fills clockwise
+## from the top; golden (with a rim) while a High Priest's aura speeds it up.
+func _draw_revive_clock(u: MilitaryUnit, at: Vector2) -> void:
+	var total := u.village.army.revive_time(u)
+	var done := clampf(1.0 - u.revive_left / total, 0.0, 1.0) if total > 0.0 else 1.0
+	var blessed := Combat.revive_rate(game, self) > 1.0
+	var r := 7.0
+	draw_circle(at, r + 1.5, Color("15110d"))
+	draw_circle(at, r, Color("3a3530"))
+	if done > 0.0:
+		var pts := PackedVector2Array([at])
+		var steps := maxi(2, ceili(24.0 * done))
+		for k in steps + 1:
+			var ang := -PI / 2.0 + TAU * done * k / steps
+			pts.append(at + Vector2(cos(ang), sin(ang)) * r)
+		draw_colored_polygon(pts, Color("f0d060") if blessed else Color("c8c0b0"))
+	if blessed:
+		draw_arc(at, r + 1.0, 0.0, TAU, 24, Color("fff2c0"), 1.2, true)
 
 
 func _bar_y() -> float:

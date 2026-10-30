@@ -71,7 +71,8 @@ func _process(delta: float) -> void:
 	for u in units:
 		match u.state:
 			MilitaryUnit.State.DOWNED:
-				u.revive_left -= delta
+				# (a High Priest's aura over its barracks speeds it up)
+				u.revive_left -= delta * (Combat.revive_rate(game, u.post as Barracks) if u.revive_at_post and u.post is Barracks else 1.0)
 				if u.revive_left <= 0.0:
 					revive(u)
 			MilitaryUnit.State.RESERVE:
@@ -370,12 +371,18 @@ func down(unit: MilitaryUnit, source = null) -> void:
 	unit.travel_to = null  # (downed on the way: it never got there)
 	unit.revive_at_post = at_bench
 	unit.hp = 0.0
-	unit.revive_left = Config.unit_revive_time(unit.level) * maxf(0.2, 1.0 + village.relic_bonus("revive"))
+	unit.revive_left = revive_time(unit)
 	unit.state = MilitaryUnit.State.DOWNED
 	if at_bench:
 		unit.post.refresh()
 	Sfx.play("death", 0.2)
 	changed.emit()
+
+
+## Seconds a downed `unit` needs to come back (its level's, relics applied;
+## a High Priest's aura makes them pass faster on a barracks bench).
+func revive_time(unit: MilitaryUnit) -> float:
+	return Config.unit_revive_time(unit.level) * maxf(0.2, 1.0 + village.relic_bonus("revive"))
 
 
 func revive(unit: MilitaryUnit) -> void:

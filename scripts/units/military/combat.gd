@@ -122,9 +122,11 @@ static func burst(game: Game, kind: String, at: Vector2, radius: float) -> void:
 # --- holy auras (High Priests) -------------------------------------------------------
 
 ## Every High Priest's aura right now: on a tower (as far as the tower
-## reaches), or out on a barracks sortie (its own range). Not on a bench, on
-## the training grounds or walking. [{"c": grid centre, "r": radius,
-## "bonus": damage share, "slow": necromancer factor}], made once per frame.
+## reaches), on a barracks bench (its own range from the yard's middle) or out
+## on a sortie (its own range). Not on the training grounds or walking.
+## [{"c": grid centre, "r": radius, "bonus": damage share, "slow": necromancer
+## factor, "revive": how many times as fast units downed on a bench in it
+## revive}], made once per frame.
 static var _auras: Array[Dictionary] = []
 static var _auras_frame := -1
 static var _auras_game := 0
@@ -141,12 +143,32 @@ static func holy_auras(game: Game) -> Array[Dictionary]:
 		var t := b as Tower
 		var u := t.garrison
 		if t.working() and u != null and u.role() == "support" and u.state == MilitaryUnit.State.STATIONED:
-			_auras.append({"c": t.act_center(), "r": t.act_range(), "bonus": u.stat("aura"), "slow": float(u.spec()["necro_slow"])})
+			_auras.append(_aura(u, t.act_center(), t.act_range()))
+	for b in game.world.buildings:
+		var br := b as Barracks
+		if br != null and br.working():
+			for u in br.units():
+				if u.role() == "support" and u.state == MilitaryUnit.State.STATIONED and not u.out:
+					_auras.append(_aura(u, br.act_center(), u.field_range()))
 	for node in game.get_tree().get_nodes_in_group("field_units"):
 		var so := node as Soldier
 		if not so.dead and so.unit.role() == "support" and so.unit.out:
-			_auras.append({"c": so.grid_pos, "r": so.unit.field_range(), "bonus": so.unit.stat("aura"), "slow": float(so.unit.spec()["necro_slow"])})
+			_auras.append(_aura(so.unit, so.grid_pos, so.unit.field_range()))
 	return _auras
+
+
+static func _aura(u: MilitaryUnit, c: Vector2, r: float) -> Dictionary:
+	return {"c": c, "r": r, "bonus": u.stat("aura"), "slow": float(u.spec()["necro_slow"]), "revive": u.stat("revive")}
+
+
+## How many times as fast units downed on a bench of `barracks` revive: the
+## strongest aura reaching any of its yard (no stacking); 1 outside any.
+static func revive_rate(game: Game, barracks: Barracks) -> float:
+	var best := 1.0
+	for a in holy_auras(game):
+		if barracks.yard_distance(a["c"]) <= a["r"]:
+			best = maxf(best, a["revive"])
+	return best
 
 
 ## The damage bonus (share) of the strongest aura over `pos` (grid); 0 outside.

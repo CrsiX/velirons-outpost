@@ -237,7 +237,9 @@ Their level 1 (85-90 HP, 5.2-7.2 DPS) is above the shield bearer's level 3
   - it vanishes with a small animation and leaves no corpse;
   - a **revive timer** starts (`UNIT_REVIVE_TIME`, 30 s at L1 → 45 s at L10,
     linear; the Phoenix feather relic makes it 20 % shorter);
-  - *stationed in barracks:* it revives on its bench there;
+  - *stationed in barracks:* it revives on its bench there, with a clock over it
+    on the bench; a High Priest's aura over the barracks makes the timer run
+    ×1.25 → ×3 as fast (docs/acolyte-design.md §6);
   - *anything else* (walking, travelling, on the way back): it revives in the
     **reserve**, where its card shows a dimmed portrait and a countdown. It can't
     be stationed, upgraded, sent or trained until it revives;
