@@ -52,11 +52,11 @@
   <polygon points="0,-112.79 8.32,-108.63 0,-104.47 -8.32,-108.63" fill="#5a5862" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
   <polygon points="-8.32,-108.63 0,-113.63 0,-104.47" fill="#45434d" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
   <polygon points="0,-104.47 0,-113.63 8.32,-108.63" fill="#312f37" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
-  <polygon points="4.16,-92.56 12.48,-88.4 12.48,-96.55 4.16,-100.71" fill="#45434d" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
-  <polygon points="12.48,-88.4 20.8,-92.56 20.8,-100.71 12.48,-96.55" fill="#312f37" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
-  <polygon points="12.48,-104.87 20.8,-100.71 12.48,-96.55 4.16,-100.71" fill="#5a5862" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
-  <polygon points="4.16,-100.71 12.48,-105.71 12.48,-96.55" fill="#45434d" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
-  <polygon points="12.48,-96.55 12.48,-105.71 20.8,-100.71" fill="#312f37" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
+  <polygon points="12.48,-88.4 20.8,-84.24 20.8,-92.39 12.48,-96.55" fill="#45434d" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
+  <polygon points="20.8,-84.24 29.12,-88.4 29.12,-96.55 20.8,-92.39" fill="#312f37" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
+  <polygon points="20.8,-100.71 29.12,-96.55 20.8,-92.39 12.48,-96.55" fill="#5a5862" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
+  <polygon points="12.48,-96.55 20.8,-101.55 20.8,-92.39" fill="#45434d" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
+  <polygon points="20.8,-92.39 20.8,-101.55 29.12,-96.55" fill="#312f37" stroke="#15110d" stroke-width="0.9" stroke-linejoin="round"/>
   <polygon points="33.28,-78 41.6,-73.84 41.6,-82.73 33.28,-86.89" fill="#45434d" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
   <polygon points="41.6,-73.84 49.92,-78 49.92,-86.89 41.6,-82.73" fill="#312f37" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
   <polygon points="41.6,-91.05 49.92,-86.89 41.6,-82.73 33.28,-86.89" fill="#5a5862" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>

@@ -449,14 +449,47 @@ def hut(ruin=False):
     a.save("hut")
 
 
+STONE_BRICK = (0.2, 11)  # one brick's length and height: walls, gates and wall towers alike
+
+
+def _stone_bricks(a, rng, face, u0, u1, at, z0, z1, faint=0):
+    """Brick courses on a stone face ('front': u along gx at gy=at; 'side': u along -gy
+    at gx=at), head joints staggered course by course and aligned to the tile grid so
+    neighbouring pieces match; `faint` bricks a shade darker."""
+    bw, bh = STONE_BRICK
+
+    def at_(u, z):
+        return P(u, at, z) if face == "front" else P(at, -u, z)
+    zs = [z0]
+    while zs[-1] + bh < z1 - 3:
+        zs.append(zs[-1] + bh)
+    bricks = []
+    for i, z in enumerate(zs):
+        zt = zs[i + 1] if i + 1 < len(zs) else z1
+        if i > 0:
+            a.line([at_(u0, z), at_(u1, z)], STONE_D, 1)
+        u = -0.5 + bw * 0.5 * (i % 2)
+        edges = [u0]
+        while u < u1:
+            if u0 + 0.04 < u < u1 - 0.04:
+                a.line([at_(u, z), at_(u, zt)], STONE_D, 1)
+                edges.append(u)
+            u += bw
+        edges.append(u1)
+        bricks += [(e0, e1, z, zt) for e0, e1 in zip(edges, edges[1:])]
+    for e0, e1, z, zt in rng.sample(bricks, min(faint, len(bricks))):
+        colour, op = (STONE_D, 0.35) if face == "front" else ("#2a2622", 0.25)
+        a.poly([at_(e0, z), at_(e1, z), at_(e1, zt), at_(e0, zt)], colour, stroke=None, opacity=op)
+    a.poly([at_(u0, z0), at_(u1, z0), at_(u1, z1), at_(u0, z1)], "none")  # the outline again, over the joints' ends
+
+
 def wall(level=1):
     a = Art()
     x0, x1, y0, y1, h = -0.5, 0.5, -0.14, 0.14, 34
     a.box(x0, x1, y0, y1, 0, h, STONE_T, STONE_L, STONE_R)
-    for z in (11, 22):
-        a.line([P(x0, y1, z), P(x1, y1, z)], STONE_D, 1)
-    for gx, z0 in [(-0.25, 0), (0.15, 0), (-0.05, 11), (0.35, 11), (-0.35, 22), (0.05, 22)]:
-        a.line([P(gx, y1, z0), P(gx, y1, z0 + 11)], STONE_D, 1)
+    rng = random.Random(450 + level)
+    _stone_bricks(a, rng, "front", x0, x1, y1, 0, h, faint=2)
+    _stone_bricks(a, rng, "side", -y1, -y0, x1, 0, h)
     if level >= 2:  # iron bands and a crimson pennon
         for z in (5, h - 3):
             a.line([P(x0, y1, z), P(x1, y1, z)], "#3a3632", 2.6)
@@ -499,9 +532,12 @@ def wall_ruin():
 def gate(level=1):
     a = Art()
     x0, x1, y0, y1 = -0.5, 0.5, -0.16, 0.16
+    # back to front: the left pillar, the lintel and the doors, then the right pillar over them
+    rng = random.Random(500 + level)
     a.box(x0, -0.22, y0, y1, 0, 46, STONE_T, STONE_L, STONE_R)
-    a.box(0.22, x1, y0, y1, 0, 46, STONE_T, STONE_L, STONE_R)
+    _stone_bricks(a, rng, "front", x0, -0.22, y1, 0, 46, faint=1)
     a.box(-0.22, 0.22, y0, y1, 30, 42, STONE_T, STONE_L, STONE_R)
+    _stone_bricks(a, rng, "front", -0.22, 0.22, y1, 30, 42)
     # doors in the opening
     a.poly([P(-0.22, y1 - 0.04, 0), P(0.22, y1 - 0.04, 0), P(0.22, y1 - 0.04, 30), P(-0.22, y1 - 0.04, 30)], WOOD_D)
     for gx in (-0.11, 0.0, 0.11):
@@ -513,6 +549,9 @@ def gate(level=1):
             for gx in (-0.17, -0.06, 0.06, 0.17):
                 x, y = P(gx, y1 - 0.04, z)
                 a.ellipse(x, y, 1.2, 1.2, "#9a9a9a")
+    a.box(0.22, x1, y0, y1, 0, 46, STONE_T, STONE_L, STONE_R)
+    _stone_bricks(a, rng, "front", 0.22, x1, y1, 0, 46, faint=1)
+    _stone_bricks(a, rng, "side", -y1, -y0, x1, 0, 46)
     for gx in (-0.5, -0.36, 0.22, 0.36):
         a.box(gx, gx + 0.14, y0, y1, 46, 54, STONE_T, STONE_L, STONE_R)
         if level >= 3:
@@ -936,7 +975,7 @@ def _merlon_spots(s, front, k=0.13):
     """The merlon corners round a square top of half-size s (as merlons())."""
     if front:
         return [(-s, s - k), (0 - k / 2, s - k), (s - k, s - k), (s - k, 0 - k / 2), (s - k, -s)]
-    return [(-s, -s), (-s + 0.25 * 2 * s, -s), (s - k, -s), (-s, 0 - k / 2)]
+    return [(-s, -s), (0 - k / 2, -s), (s - k, -s), (-s, 0 - k / 2)]
 
 
 def _sand_merlon(a, gx, gy, kx, ky, z, gold=False):
@@ -1143,7 +1182,7 @@ def sand_wall_tower(front=False, level=1):
     if level >= 3:
         hanging_banner(a, ("right", s), -0.12, 0.08, h - 8, h - 36, colour=TILE_BLUE)
         a.line([P(-s - 0.04, s + 0.04, h + 4), P(s + 0.04, s + 0.04, h + 4), P(s + 0.04, -s - 0.04, h + 4)], GOLD, 2)
-        bx, by = P(s - 0.12, -s + 0.12, h + 4)
+        bx, by = P(0.16, -0.16, h + 4)  # inside, between the back and front merlons
         a.ellipse(bx, by - 14, 16, 12, GLOW, opacity=0.35)
         a.poly([(bx - 6, by - 6), (bx + 6, by - 6), (bx + 4, by), (bx - 4, by)], BRASS, INK, 1)
         a.poly([(bx - 4, by - 6), (bx, by - 18), (bx + 4, by - 6)], GLOW, "#b8401e", 1)
@@ -1373,7 +1412,7 @@ def bas_wall_tower(front=False, level=1):
         _seam(a, [P(-s + 2 * s / 6, s, 2), P(-s + 2 * s / 6, s, 20), P(-s + 2 * s / 6 + 0.01, s, 34)])
         _seam(a, [P(s, -(-s + 4 * s / 6), 4), P(s, -(-s + 4 * s / 6), 30)])
         _seam(a, [P(s, -(-s + 2 * s / 6), 40), P(s, -(-s + 2 * s / 6), 58)])
-        bx, by = P(s - 0.12, -s + 0.12, h + 4)
+        bx, by = P(0.16, -0.16, h + 4)  # inside, between the back and front merlons
         a.ellipse(bx, by - 14, 16, 12, LAVA_GLOW, opacity=0.35)
         a.poly([(bx - 6, by - 6), (bx + 6, by - 6), (bx + 4, by), (bx - 4, by)], "#2a2a2e", INK, 1)
         a.poly([(bx - 4, by - 6), (bx, by - 18), (bx + 4, by - 6)], LAVA_GLOW, LAVA, 1)
@@ -1884,7 +1923,7 @@ def lime_wall_tower(front=False, level=1):
     if level >= 3:
         hanging_banner(a, ("right", s), -0.06, 0.14, h - 6, h - 34)
         a.line([P(-p, p, h + 4), P(p, p, h + 4), P(p, -p, h + 4)], GOLD, 2)
-        bx, by = P(p - 0.13, -p + 0.13, h + 4)
+        bx, by = P(0.16, -0.16, h + 4)  # inside, between the back and front merlons
         _beacon(a, bx, by)
     return a
 
@@ -2981,7 +3020,7 @@ def rubble():
 def merlons(a, s, z, front):
     """Merlons around a square top of half-size s. front=True draws only the front edges."""
     k = 0.13
-    spots_back = [(-s, -s), (-s + 0.25 * 2 * s, -s), (s - k, -s), (-s, 0 - k / 2)]
+    spots_back = [(-s, -s), (0 - k / 2, -s), (s - k, -s), (-s, 0 - k / 2)]
     spots_front = [(-s, s - k), (0 - k / 2, s - k), (s - k, s - k), (s - k, 0 - k / 2), (s - k, -s)]
     for gx, gy in (spots_front if front else spots_back):
         a.box(gx, gx + k, gy, gy + k, z, z + 9, STONE_T, STONE_L, STONE_R)
@@ -3003,9 +3042,9 @@ def wall_tower(front=False, level=1):
     if not front:
         a.shadow(52, 26, cy=4)
         a.box(-s, s, -s, s, 0, h, STONE_T, STONE_L, STONE_R)
-        for z in (18, 36, 54):
-            a.line([P(-s, s, z), P(s, s, z)], STONE_D, 1)
-            a.line([P(s, s, z), P(s, -s, z)], STONE_D, 1)
+        rng = random.Random(3000 + level)
+        _stone_bricks(a, rng, "front", -s, s, s, 0, h, faint=6)
+        _stone_bricks(a, rng, "side", -s, s, s, 0, h, faint=6)
         a.poly([P(-0.05, s, 34), P(0.05, s, 34), P(0.05, s, 48), P(-0.05, s, 48)], "#1a1612")
         a.box(-s - 0.03, s + 0.03, -s - 0.03, s + 0.03, h, h + 4, STONE_T, STONE_L, STONE_R)
         # banner pole at the back
@@ -3020,9 +3059,9 @@ def wall_tower(front=False, level=1):
             hanging_banner(a, ("right", s), -0.12, 0.08, h - 4, h - 34)
             a.line([P(-s - 0.03, s + 0.03, h + 4), P(s + 0.03, s + 0.03, h + 4), P(s + 0.03, -s - 0.03, h + 4)], GOLD, 2)
             for u in (-0.25, 0.0, 0.25):
-                x, y = P(u, s, h - 2)
-                a.ellipse(x, y, 1.4, 1.4, GOLD)
-            bx, by = P(s - 0.12, -s + 0.12, h + 4)
+                for x, y in (P(u, s, h - 2), P(s, -u, h - 2)):  # studs on both faces' ring
+                    a.ellipse(x, y, 1.4, 1.4, GOLD)
+            bx, by = P(0.16, -0.16, h + 4)  # inside, between the back and front merlons
             a.ellipse(bx, by - 14, 16, 12, GLOW, opacity=0.35)
             a.poly([(bx - 6, by - 6), (bx + 6, by - 6), (bx + 4, by), (bx - 4, by)], "#3a3632", INK, 1)
             a.poly([(bx - 4, by - 6), (bx, by - 18), (bx + 4, by - 6)], GLOW, "#b8401e", 1)

@@ -109,11 +109,11 @@
   <polygon points="0,-109.68 7.68,-105.84 0,-102 -7.68,-105.84" fill="#d6d1c1" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
   <polygon points="-4.61,-112.14 4.61,-107.54 0,-101.23 -9.22,-105.84" fill="#d6d1c1" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
   <polygon points="9.22,-105.84 4.61,-107.54 0,-101.23" fill="#928c7c" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
-  <polygon points="4.16,-91.92 11.84,-88.08 11.84,-96.08 4.16,-99.92" fill="#bdb7a5" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
-  <polygon points="11.84,-88.08 19.52,-91.92 19.52,-99.92 11.84,-96.08" fill="#928c7c" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
-  <polygon points="11.84,-103.76 19.52,-99.92 11.84,-96.08 4.16,-99.92" fill="#d6d1c1" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
-  <polygon points="7.23,-106.22 16.45,-101.62 11.84,-95.31 2.62,-99.92" fill="#d6d1c1" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
-  <polygon points="21.06,-99.92 16.45,-101.62 11.84,-95.31" fill="#928c7c" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="12.16,-87.92 19.84,-84.08 19.84,-92.08 12.16,-95.92" fill="#bdb7a5" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="19.84,-84.08 27.52,-87.92 27.52,-95.92 19.84,-92.08" fill="#928c7c" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="19.84,-99.76 27.52,-95.92 19.84,-92.08 12.16,-95.92" fill="#d6d1c1" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="15.23,-102.22 24.45,-97.62 19.84,-91.31 10.62,-95.92" fill="#d6d1c1" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  <polygon points="29.06,-95.92 24.45,-97.62 19.84,-91.31" fill="#928c7c" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
   <polygon points="32,-78 39.68,-74.16 39.68,-82.16 32,-86" fill="#bdb7a5" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
   <polygon points="39.68,-74.16 47.36,-78 47.36,-86 39.68,-82.16" fill="#928c7c" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
   <polygon points="39.68,-89.84 47.36,-86 39.68,-82.16 32,-86" fill="#d6d1c1" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
