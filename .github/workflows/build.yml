@@ -40,6 +40,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+          fetch-depth: 0 # the whole history and the tags: the stamp names the latest tag
 
       # The same cache key as pages.yml, on purpose: Godot and its templates are
       # a gigabyte, and one download should serve every job of both workflows.
@@ -131,6 +132,11 @@ jobs:
             echo "::warning title=Unsigned Android build::No ANDROID_KEYSTORE_BASE64 secret, exporting a debug APK."
           fi
       # ---------------------------------------------------------------------
+
+      # The commit and the latest tag, for the title screen and the game log
+      # (BuildInfo). Fails the build when git can't say.
+      - name: Stamp the version
+        run: tools/stamp_version.sh
 
       - name: Import assets
         run: ~/godot --headless --import

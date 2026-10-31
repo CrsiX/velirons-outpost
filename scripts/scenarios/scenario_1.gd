@@ -14,7 +14,7 @@ const SOUTH_ROAD := Vector2i(47, 49)
 func _init() -> void:
 	number = 1
 	title = "Homecoming"
-	blurb = "Brenna Hale comes home to a half-burned village. Rebuild it with her father Einar, and don't lose a single villager."
+	blurb = "Brenna Hale comes home to a half-burned village. Rebuild it together with her father Einar."
 	map_path = "res://data/maps/homecoming.json"
 	place = "outpost"
 	portrait = "portrait_einar"
@@ -72,14 +72,14 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"fade": "out", "time": 0.01},
 		{"camera": tent, "zoom": 1.25, "time": 0.01},
 		{"title": "Homecoming", "sub": "Scenario 1", "time": 3.0},
-		{"say": "", "text": "The old king is dead, they say, and the knights have left the border towers. Out here, at the edge of the kingdom, that is only a rumour."},
+		{"say": "", "text": "The old king is dead, they say. The knights have left the border towers, and beasts and worse now roam unchecked. Out here, at the edge of the kingdom, where people live simple lives, danger lurks behind every tree."},
 		{"fade": "in", "time": 1.5},
-		{"say": "brenna", "text": "Morning already. One more stretch of road, and I'm home."},
-		{"say": "brenna", "text": "No more orders. No more marching. Father won't believe it when I walk through the gate."},
+		{"say": "brenna", "text": "Oh, it's morning already. One more stretch of road, and I'm home."},
+		{"say": "brenna", "text": "I didn't plan to come back this early. Father won't believe it when I walk through the gate."},
 		{"camera": r.at(r.game.player_village.center), "zoom": 0.8, "time": 3.5},
 		{"wait": 0.4},
 		{"say": "brenna", "text": "...Smoke?"},
-		{"say": "brenna", "text": "The walls are down. Half the huts are burned. Gods, what happened here?"},
+		{"say": "brenna", "text": "Oh no! The walls are down. Half the huts are burned. Gods, what happened here?"},
 		{"say": "brenna", "text": "Father..."},
 		{"camera": tent, "zoom": 1.0, "time": 1.5},
 	]
@@ -89,12 +89,12 @@ func arrival(r: ScenarioRunner) -> Array[Dictionary]:
 	return [
 		{"camera": r.at(r.game.player_village.center), "zoom": 1.1, "time": 1.0},
 		{"say": "einar", "text": "Brenna? Is that... my girl! Look at you, in a knight's steel!"},
-		{"say": "brenna", "text": "Father! You're alive. What happened here?"},
-		{"say": "einar", "text": "Goblins, out of the hills. Orks too. Nobody mans the old towers any more, so nothing stops them on the roads."},
-		{"say": "einar", "text": "We lost the walls and half the huts. There's just the three of us left: me, the builder and the farmer."},
-		{"say": "brenna", "text": "Then we rebuild. And nobody else dies here, Father. Not one."},
+		{"say": "brenna", "text": "Father! You're alive! Thank the gods! Who did this to us?"},
+		{"say": "einar", "text": "Rats and goblins, out of the hills. Orcs too. Nobody mans the towers anymore, so nothing stops them on the roads."},
+		{"say": "einar", "text": "We lost the walls and half the village. There's just the three of us left: me, the builder and the farmer. No one left to defend us. I fear the worst."},
+		{"say": "brenna", "text": "I will protect you! And we'll rebuild the village, so that nobody else dies here, Father. Not one."},
 		{"say": "einar", "text": "That's my girl. The builder will follow your lead, and I'll keep the timber coming."},
-		{"say": "", "text": "No villager may die in this scenario. Keep them safe, and keep them fed."},
+		{"say": "", "text": "No villager may die in this scenario. Keep them safe."},
 	]
 
 
@@ -120,10 +120,10 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 				c.add_child(glow)
 				r.move_actor(c, cart_path, 14.0)
 				cart[0] = c},
-		{"say": "", "text": "Evening falls over the mended walls. Out on the road, a lantern swings."},
+		{"say": "", "text": "Evening falls over the mended walls. Out on the road, a lantern swings.", "italic": true},
 		{"camera": stop + Vector2(0, -40), "zoom": 1.2, "time": 3.0},
-		{"say": "brenna", "text": "A cart, at this hour? Alone, on that road?"},
-		{"say": "brenna", "text": "That lantern... I know that lantern. Pell? Pell Dunmore!"},
+		{"say": "einar", "text": "A cart, at this hour? Alone, on that road?"},
+		{"say": "brenna", "text": "That lantern... I know that lantern. Pell! Pell Dunmore!"},
 		{"say": "pell", "text": "Brenna Hale, as I live and breathe! I heard the outpost had burned. Nobody told me you'd come home to put it back together."},
 		{"say": "pell", "text": "Have you room for a tired old friend and his cart? I bring news. Not much of it good."},
 		{"say": "brenna", "text": "For you, always. Come inside, Pell. The walls hold again."},

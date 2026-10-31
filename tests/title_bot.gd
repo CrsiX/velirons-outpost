@@ -21,6 +21,7 @@ func _run() -> void:
 	bd = title.backdrop
 	check(bd != null and bd.modulate == Color.BLACK and bd.game == null, "the title screen starts on black, the game not made yet")
 	check(title.singleplayer_button.is_visible_in_tree(), "the menu is there at once")
+	await _check_version()
 	# The scene is made over many frames, none of them a long freeze of the menu.
 	var longest := [0, 0]  # (real usec, frames)
 	var start := Time.get_ticks_usec()
@@ -181,3 +182,29 @@ func _post(g: Game, p: Dictionary, used: Array) -> Building:
 						if n == bd.road_tile(d):
 							return b
 	return null
+
+
+## The build's version and commit (BuildInfo): from the stamp only, "unknown"
+## without one (and in the editor), shown small in the bottom right.
+func _check_version() -> void:
+	check(BuildInfo.game_version() == "unknown" and BuildInfo.game_commit() == "unknown", "in the editor binary the version and the commit are unknown (a stamp is never read)")
+	check(title.version_label == null or not title.version_label.visible, "the title screen shows no version then")
+	BuildInfo.test_stamp = {"COMMIT": "abc123de-dirty", "TAG": "v5.2.1"}
+	check(BuildInfo.game_version() == "v5.2.1" and BuildInfo.game_commit() == "abc123de-dirty", "a stamp gives the latest tag and the commit")
+	check(BuildInfo.display_text() == "v5.2.1 (abc123de-dirty)", "shown as the tag with the commit in brackets")
+	title.show_version()
+	var label := title.version_label
+	check(label != null and label.visible and label.text == "v5.2.1 (abc123de-dirty)", "the title screen shows both")
+	check(label != null and label.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT and label.get_theme_font_size("font_size") <= 14, "in small letters, right-aligned")
+	await frames(2)
+	var vp := title.get_viewport_rect().size
+	check(label != null and label.get_global_rect().end.x > vp.x - 20.0 and label.get_global_rect().end.y > vp.y - 20.0, "in the very bottom right")
+	BuildInfo.test_stamp = {"COMMIT": "abc123de", "TAG": ""}
+	check(BuildInfo.game_version() == "unknown" and BuildInfo.display_text() == "abc123de", "no tag yet: just the commit")
+	title.show_version()
+	check(label != null and label.text == "abc123de", "and the label follows")
+	BuildInfo.test_stamp = {}
+	check(BuildInfo.game_commit() == "unknown" and BuildInfo.display_text() == "", "no stamp: unknown, nothing to show")
+	title.show_version()
+	check(label != null and not label.visible, "the label is hidden again")
+	BuildInfo.test_stamp = null

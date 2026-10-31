@@ -281,6 +281,18 @@ const SAVE := {
 	"name_max": 30,
 }
 
+## The game log file (GameLog): every event-log message of a game, at every
+## level, written to one text file per game in `dir`
+## (<start date>_<start time>_<game id>.log). A game that is saved and loaded
+## goes on in its file. Only the newest `keep` files are kept (older ones are
+## deleted when a game starts). Not written on the web (user:// is hidden in
+## the browser's storage), nor for the tutorial, the title backdrop or a co-op
+## client.
+const GAME_LOG := {
+	"dir": "user://game_logs",
+	"keep": 20,
+}
+
 ## F2 (Hud, Screenshot): the whole window as a PNG named
 ## <prefix>_YYYY-MM-DD_HH-MM-SS.png, saved in the system's pictures folder
 ## (Pictures on Linux / Windows / Android) when it exists and can be written,

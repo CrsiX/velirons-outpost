@@ -128,6 +128,10 @@ Big touch targets everywhere, so mouse and fingers work the same.
     and tweens run in real time, whatever `Engine.time_scale` is.
   - Leaving the title screen ends the backdrop and puts speed and sound back to normal.
   - The SubViewport is sized by the final canvas transform (`_fit`), or it would be blurry.
+- **Build version** (`BuildInfo`): the title screen shows the latest git tag and the commit in small
+  letters, right-aligned in the very bottom right: `v5.2.1 (abc123de)`, with `-dirty` after a commit whose
+  tracked files had changes; only the part that is known, nothing when neither is (the editor and any build
+  made without `tools/export.sh` or CI). The numbers come from a stamp file written while a build is exported.
 
 ## 3. The top bar
 
@@ -569,6 +573,14 @@ nothing is placed, stationed or upgraded on it.
   - **View:** plain, slightly see-through text without a box, coloured by level. It is bottom left in
     landscape and across the bottom in portrait. It sits above the info panel when one is open, else
     above the sheet or the screen edge, and stays clear of the hero panel. It never catches taps.
+- **Game log file** (`scripts/systems/game_log.gd`, `Config.GAME_LOG`): for debugging, every message at every
+  level goes into `user://game_logs/<date>_<time>_<game id>.log` (the newest 20 files are kept; not on the web,
+  in the tutorial, the title backdrop or on a co-op client). The header gives the game version
+  (`application/config/version`), game id, map type, seed, map name, villages and the real start time. Each line
+  is `[HH:MM:SS] [D|I|W] [WW] message`: in-game time, level (Important is W), wave counter, so every field has a
+  fixed offset. In co-op the message starts with `[village name]`. A game loaded from a save appends to its own
+  file and writes, to the file only, an Info line "Game resumed" (real time, in-game time, wave) and a Debug
+  snapshot per village (hero level, XP and HP, gold, food, materials, villagers, huts, military units, buildings).
 - **Floating texts** (`World.float_text`, `Unit.float_text`): a short text rises from a spot and fades,
   for example "+2 {gold} +8 {food}" (loot brought home, drawn as icons), "+N {materials}" from
   foresters, "Enemies!", "Level 4!", "Hero down!". The co-op host replicates them to clients.

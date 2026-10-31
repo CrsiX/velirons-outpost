@@ -41,6 +41,8 @@ var _menu: VBoxContainer
 var _main_page: VBoxContainer
 var _sp_page: VBoxContainer
 var _title: Label
+## The build's version and commit, small in the bottom right (BuildInfo); null when unknown.
+var version_label: Label
 
 
 func _ready() -> void:
@@ -74,6 +76,8 @@ func _ready() -> void:
 	title.anchor_right = 1.0
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(title)
+
+	show_version()
 
 	_menu = VBoxContainer.new()
 	_menu.add_theme_constant_override("separation", 14)
@@ -152,6 +156,33 @@ func _ready() -> void:
 	_layout()
 	if Settings.take_campaign():  # (the campaign's last scenario won: Show campaign map)
 		open_campaign()
+
+
+## The version in small letters, right-aligned in the very bottom right (inside
+## a camera cutout's safe area): "v5.2.1 (abc123de)". Nothing when neither is known.
+func show_version() -> void:
+	var text := BuildInfo.display_text()
+	if version_label == null:
+		if text == "":
+			return
+		var safe := Control.new()
+		safe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		safe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(safe)
+		Layout.inset(safe)
+		version_label = Label.new()
+		version_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		version_label.add_theme_font_size_override("font_size", 12)
+		version_label.add_theme_color_override("font_color", UiTheme.MUTED)
+		version_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+		version_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		version_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		version_label.offset_right = -8.0
+		version_label.offset_bottom = -4.0
+		safe.add_child(version_label)
+	version_label.text = text
+	version_label.visible = text != ""
 
 
 ## Landscape: title on top, menu on the left over the backdrop.

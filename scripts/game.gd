@@ -126,6 +126,7 @@ var _ids: Dictionary = {}
 @onready var corpses: Corpses = $Systems/Corpses
 @onready var hud: Hud = $HUD
 ## The in-game statistics (docs/statistics-design.md).
+var game_log: GameLog
 var stats: Stats
 ## Enemies breaking into villages (docs/siege-design.md).
 var siege: Siege
@@ -226,6 +227,10 @@ func _ready() -> void:
 	waves.setup(self)
 	waves.wave_started.connect(func(_n: int) -> void: siege.on_wave_started())
 	corpses.setup(self)
+	game_log = GameLog.new()
+	game_log.name = "GameLog"
+	$Systems.add_child(game_log)
+	game_log.setup(self)
 	await build_step()
 	if scenario:
 		scenario.apply_baseline()  # (ruins, before the villagers move in)
@@ -242,6 +247,7 @@ func _ready() -> void:
 		SaveGame.restore_entities(self, restoring)
 		stats.load_state(restoring["stats"])
 		_log_loaded(restoring["villages"], waves.wave)
+		game_log.note_resumed()
 		restoring = {}
 	elif is_client and bool(Net.setup.get("resumed", false)) and not Net.resume.is_empty():  # (not when rejoining later)
 		_log_loaded(Net.resume.get("villages", []), int(Net.resume.get("wave", 0)))
@@ -1188,8 +1194,12 @@ func _reroute_from(v: Village) -> void:
 
 ## Logs to every village (waves, enemies: things everyone may hear about).
 func log_all(level: EventLog.Level, text: String) -> void:
+	if game_log:
+		game_log.begin_all(level, text)
 	for v in villages:
 		v.events.add(level, text)
+	if game_log:
+		game_log.end_all()
 
 
 ## Logs to the village `about` belongs to, or to every village if none.
