@@ -864,11 +864,11 @@ func _test_holy() -> void:
 	await frames(1)
 	check(sortie and Combat.holy_bonus(game, pu.walker.grid_pos) > 0.0, "out on a sortie it is (its own %.1f tiles)" % Config.MILITARY["high_priest"]["range"])
 	if sortie:
-		var reach: float = Config.MILITARY["high_priest"]["range"]
+		var out_reach: float = Config.MILITARY["high_priest"]["range"]
 		var at: Vector2 = pu.walker.grid_pos
-		var near_ok := await ghost_revealed(at + Vector2(reach * 0.4, 0.0))
-		var far_ok := not await ghost_revealed(at + Vector2(reach + 2.5, 0.0))
-		check(near_ok and far_ok, "out on a sortie he reveals a ghost within his own %.1f tiles, not beyond" % reach)
+		var near_ok := await ghost_revealed(at + Vector2(out_reach * 0.4, 0.0))
+		var far_ok := not await ghost_revealed(at + Vector2(out_reach + 2.5, 0.0))
+		check(near_ok and far_ok, "out on a sortie he reveals a ghost within his own %.1f tiles, not beyond" % out_reach)
 	if sortie:
 		var bh := bg.hp
 		pu.walker._strike_cd = 0.0
