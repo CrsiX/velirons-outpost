@@ -18,7 +18,7 @@ Outline and reasoning: `docs/scenarios-design.md` (index of the campaign docs; t
 ## Where things live
 - A campaign scenario is one file, `scripts/scenarios/scenario_<n>.gd` (a `Scenario`), listed in `Campaign.SCENARIOS`; `ScenarioRunner` plays it. **Its own content and numbers (baseline, waves, texts, cards, objectives) go in that file, not in `config.gd`.** Engine-wide tunables still go in `config.gd`.
 - A scenario is a single-player game: no saving, its own map file, intro and outro cutscenes, cards, objectives. Progress is stored by title in `user://campaign.json`; release builds only open unlocked scenarios, debug builds open all.
-- Maps are JSON files (`data/maps/` built in, `user://maps` the user's). The format is canonical and readable; export is strict, import tolerant but refuses anything outside the format. A format change bumps the version in `MapJson`, and older files get defaults.
+- Maps are JSON files (`data/maps/` built in, `user://maps` the user's). The format is canonical and readable; export is strict, import tolerant but refuses anything outside the format. A format change bumps the version in `MapJson`, and older files without the new keys must still read (they get defaults, e.g. no water spawns).
 - The scenarios' maps: `homecoming.json` for 1 and 2, `wardline.json` for 3 and 10, `guildtown.json` for 4, `old_fort.json` for 5, `battlefield.json` for 6, `refuge.json` for 7, `pale_court.json` for 8, `drowned_abbey.json` for 9, `capital.json` for 11. Some are laid out by tools (`citadel_map.gd`, `abbey_map.gd`, `make_scenario_map.gd`), not generated.
 
 ## Hand-edited maps (important)

@@ -83,6 +83,7 @@ The factors are data on each enemy, not here. The reasoning:
 - **Role:** `"support"`, no attack of its own. When an enemy hits it in melee and its blow is
   ready, it strikes back once. Only its HP counts for the specialisation rules.
 - **The aura** (`aura`: a fraction of damage added):
+  - **Applies to every blow:** the hero's sword and elementals' blows take it too, not only units' attacks (`Combat.attack`).
   - **Where it works:** on a tower always, as far as the tower reaches (so tower upgrades widen
     it); in barracks within its own range, from the yard's middle while it sits on its bench
     and from where it stands on a sortie; not on the training grounds and not while walking.
@@ -113,21 +114,6 @@ The factors are data on each enemy, not here. The reasoning:
   broken roof and motes drift up.
 - Everything else works as for the other sites: rumour, found message, Explore mode goes there
   first, unlocked for every village, a library entry under Places.
-
-## 8. Code
-
-- `Config`: the three units, `holy_beam` / `smite` in `ATTACKS`, holy factors and `unholy`
-  flags, the chapel, `LOCKED`, `MILITARY_ORDER` / `MILITARY_TREE`.
-- `Combat`: `attack` multiplies damage by `1 + holy_bonus(game, attacker position)` and plays the
-  attack's `burst`; `holy_bonus`, `in_holy_aura` and the auras list (cached per frame). The
-  hero's sword and elementals' blows take the bonus too.
-- `SupportBehavior` (`role` "support"): no tick work, panel lines.
-- `Soldier`: the Inquisitor's hunt targeting; support units keep with their comrades on a
-  sortie, like healers; the High Priest's counter-strike in `take_damage`.
-- `NecromancerBehavior`: cast time scaled inside an aura.
-- `UnitFx`: glow, cast frame and halo, attached to whatever sprite shows a unit.
-- `Burst`: "holy_beam" and "holy_flash". Art: `unit_acolyte`, `unit_acolyte_cast`,
-  `unit_inquisitor`, `unit_high_priest`, `chapel_ruin`, `chapel_awake`.
 
 ## 9. Decisions (confirmed)
 

@@ -1,6 +1,6 @@
 # Veliron's Outpost: co-op multiplayer design
 
-Status: built (§11), open questions resolved (§13) · Scope: LAN co-op · Engine: Godot 4.7
+Status: built, open questions resolved (§13) · Scope: LAN co-op · Engine: Godot 4.7
 
 All numbers (player cap, tax, sizes, intervals, ports, spawn counts) live in
 `scripts/core/config.gd` and `scripts/net/`; this document gives the reasons.
@@ -466,40 +466,6 @@ dock, log level, panels) never go to the host.
    `VILLAGE_COLORS`, and the generator's numbers)
    are in `config.gd`; the ports are in `Net`.
 
-## 11. Milestones
-
-Each milestone was playable and testable on its own.
-
-1. ✅ **Command layer** in single player.
-2. ✅ **Village object and per-village systems.**
-3. ✅ **Multi-village map generator and a test mode with several villages in
-   one game** (`Game.test_villages`, tests only; `tests/coop_bot.gd`). Tests
-   start several villages in one game, played as village 0, which covers the
-   rules (waves per village, reroute on fall, standing again) without a
-   network. Several players only play through LAN.
-4. ✅ **Help:** caravans, sending units, hero support.
-5. ✅ **Networking** (`scripts/net/`; `tests/net_bot.gd` +
-   `tests/run_net_test.sh`): discovery, lobby, map transfer, commands,
-   snapshots, per-player fog.
-6. ✅ **Polish:** client settings behaviour, rejoining, the statistics at game
-   over, portrait layouts. Not done yet: a balance pass with simulations
-   (2 / 4 / 8 players).
-
-## 12. Testing
-
-- **`tests/coop_bot.gd`** (headless, several villages in one game): the
-  generator for every player count, the tax and size formulas, per-village
-  start, enemies' roads ending at the right village, fall / reroute / standing
-  again / game lost only when the last falls, caravan delivery and tax, a sent
-  unit joining the other reserve, Support mode.
-- **`tests/net_bot.gd`** (two processes on localhost, `tests/run_net_test.sh`):
-  discovery, lobby, ready / start, a latecomer refused, the map received
-  identical to the host's, per-village fog with others' walls known, public
-  huts, commands, object states and unlocks reaching the client, host-only
-  speed and pause, *Leave game*.
-- **Balance simulations** for 2, 4 and 8 bot villages (not built yet): how
-  often does one early fall cascade into a total loss?
-
 ## 13. Decisions (formerly open questions)
 
 | # | Question | Decision |
@@ -512,3 +478,5 @@ Each milestone was playable and testable on its own.
 | 6 | Late joining | **No late joining.** Only rejoining one's own village after a drop (§8.6). |
 | 7 | Village identity | **Name and colour**, both chosen by the player on the multiplayer screen / lobby, from a fixed set of colours, unique per game. **No banner** (§3.1, §3.2). |
 | 8 | Web version | **LAN play now.** Keep the design open for a web version later: transport behind `MultiplayerPeer`, discovery in its own node with a small interface, host logic able to run headless (§8.2). |
+
+Not done: a balance pass with simulations for 2, 4 and 8 villages (does one early fall cascade into a total loss?). Tests run several villages in one game as village 0 (`Game.test_villages`, tests only); several players only play through LAN.

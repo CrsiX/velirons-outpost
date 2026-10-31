@@ -8,30 +8,6 @@ categories, flyers, corpses and raids. **Every number lives in `scripts/core/con
 (`ENEMIES`, `WAVE_MIX`, `RAT_PACKS`, `WRATHWOOD`, `VULTURES`, `MOUNTED`, ...); this doc keeps
 the reasoning and points at the symbols.
 
-## 1. Code
-
-- `scripts/units/enemy.gd` (`Enemy`): walks the road flow field to a gate (near the village it
-  breaks in along the siege field, `Siege`, docs/siege-design.md), takes damage (applying
-  `resist`), dies, flies, gets slowed or pushed back. It reads every number through `stat()`
-  (`Config.enemy_stat`, difficulty-scaled).
-- `scripts/units/enemies/`: one behavior per `"behavior"` key (`Enemy.BEHAVIORS`):
-  - `melee_behavior.gd`: goblins, skeletons, orcs, gargoyles, slimes (and the base of thief,
-    vampire, spider mother, vulture and the riders);
-  - `witch_behavior.gd` + `spell_bolt.gd`; `rat_behavior.gd`, `thief_behavior.gd`,
-    `necromancer_behavior.gd`, `vampire_behavior.gd`;
-  - `spider_mother_behavior.gd` and `egg_behavior.gd` (her eggs);
-  - `wrathwood_behavior.gd` (§15c), woken by `scripts/systems/wrathwoods.gd`;
-  - `vulture_behavior.gd` + `vulture_pack.gd` (§15d), sent by `Waves._vulture_packs`;
-  - `mounted_behavior.gd`: a rider while its mount lives (§15e; the base of `captain_behavior.gd`
-    and `commander_behavior.gd`); `flee_behavior.gd`: the undead horse;
-  - `camp_behavior.gd`: monster-camp and lair guards (set by the camp, not by config).
-- `scripts/systems/waves.gd` (`Waves`): countdown, wave make-up, spawning, rat packs, lair
-  themes, the co-op extra, raising corpses, slime splits, spider eggs, kill gold.
-- `scripts/systems/corpses.gd` (`Corpses`) + `scripts/units/corpse.gd`.
-- `Game.on_enemy_reached_gate`, `Game.thief_steals`, `Game.raid_roll`: what happens once an
-  enemy gets in (the hut it reached burns: `Enemy.raid_hut`).
-- `scripts/world/warning_lights.gd`: the red warning lights for hidden enemies.
-
 ## 2. Wave flow
 
 - **Timing:** a generous delay before wave 1 (`FIRST_WAVE_DELAY`) so the player can set up; later

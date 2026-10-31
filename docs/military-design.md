@@ -1,6 +1,6 @@
 # Veliron's Outpost: military expansion (design)
 
-Status: **built** (decisions in §12 confirmed). Tested by tests/military_bot.gd. Piercing (crossbowman) waits for shielded enemies.
+Status: **built** (decisions in §12 confirmed). Piercing (crossbowman) waits for shielded enemies.
 Scope: why units, levels, HP and downing, barracks, the tech tree of specialisations and the
 Spatial Archmage work as they do. Every number (stats, costs, ranges, timers, curves) lives in
 `scripts/core/config.gd` (`MILITARY`, `ATTACKS`, `SUMMONS`, `SUMMON`, `BARRACKS_LEVELS`,
@@ -331,31 +331,6 @@ own staff top; the shield bearer's line gets progressively more armour or wildne
 (war cry ring and chevrons, bolts, orbs, fireballs, frost, healing pulse, warp) are bursts and
 projectiles from `ATTACKS`. Revive countdowns and bench markers are UI icons. The acolyte line's
 art is in docs/acolyte-design.md.
-
-## 10. Code
-
-- **`MilitaryPost` has slots** with a capacity (tower, training grounds, barracks by level).
-  Commands, replication, drag & drop and panels work per unit.
-- **Behaviours by role** (`MilitaryUnit.BEHAVIORS`, scripts/units/military/): `RangedBehavior`
-  handles every projectile or effect type through `ATTACKS`; `HealerBehavior`,
-  `SupportBehavior`; `SummonerBehavior`, parametrised by summon type (`SUMMONS`); melee units use
-  the plain `MilitaryBehavior` (their fighting is in `Soldier`). `Combat` plays attacks and their
-  effects (splash, slow, push, heal, holy auras, the war cry's haste, the berserker's lifesteal);
-  `Combat.haste(holder)` is the factor every attack, summon and heal timer runs at, and
-  `MilitaryUnit.rate()` adds the berserker's rage. The same behaviours work from a tower (tower
-  range) and in the field (own range).
-- **Field units.** `Soldier` is the unit's body outside, with HP, a combat behaviour, and
-  membership of the "melee_defenders" and "field_units" groups. Sorties, walking, downing and
-  reviving live there and in `Army`.
-- **`MilitaryUnit`** has `hp`, `revive_left`, `kind` changes on specialising, and a `role()`
-  helper. **Elementals:** `EarthElemental` is every summon kind, configured by `SUMMONS`.
-- **Co-op:** the replicator sends barracks slots, unit HP and revive timers, field units and
-  projectile effects; commands `upgrade_unit` (with a chosen option) and `station_unit` (with a
-  slot); healing covers other villages' units and heroes.
-- **Tests** (tests/military_bot.gd): config sanity (ranges below the tower range, curves, the tech
-  tree consistent, specialisations never weaker than their base unit), barracks (slots, benches,
-  sorties, returning), downing and reviving in both places, every attack type, branching and the
-  archmage conversion.
 
 ## 12. Decisions (confirmed)
 

@@ -458,16 +458,3 @@ nothing is placed, stationed or upgraded on it, so it can never be a second, wor
   fades ("+2 gold +8 food" as icons, "Level 4!", "Hero down!"), to show where a thing happened
   without a log line. The co-op host replicates them to clients.
 
-## 14. Tests
-
-| Part | Bot |
-|---|---|
-| Title menu, portrait title, map drag (Firefox rule), wheel zoom, portrait top bar / sheet basics, trade dialog, log placement and levels, settings pause and dialog, dragging stationed units | tests/sim_bot.gd |
-| Placing (one per pick, Cancel, touch preview, dragging from the Build tab, back button), the portrait sheet, a faked camera cutout | tests/build_bot.gd |
-| Picking, Space and the speed button, every hotkey and the Esc stack, the villager list, icons in texts, the hero's health bar, the warnings, the tactical map | tests/hud_bot.gd |
-| The library | tests/library_bot.gd |
-| The statistics | tests/stats_bot.gd |
-| The title backdrop | tests/title_bot.gd |
-| The upgrade dialog and the Spatial Archmage confirmation | tests/military_bot.gd |
-| The tutorial card, highlights and arrows | tests/tutorial_bot.gd |
-| Co-op dialogs (send resources / units), host-only speed | tests/coop_bot.gd, tests/net_bot.gd |

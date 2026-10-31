@@ -27,7 +27,7 @@ scope (§12).
 
 | Stage | What | Done when |
 |---|---|---|
-| 1. Inspect | Generate (type, seed, size, villages), isometric and top-down view with overlays, tile and object inspector, problems list, save / open / import / export JSON, map library, play the map (single player and co-op, with village assignment) | the conversion tests pass (§10) and a saved map plays |
+| 1. Inspect | Generate (type, seed, size, villages), isometric and top-down view with overlays, tile and object inspector, problems list, save / open / import / export JSON, map library, play the map (single player and co-op, with village assignment) | the conversion tests pass and a saved map plays |
 | 2. Edit | Brushes (terrain, zone, trees, decor, beach), roads, objects, villages and their pieces, spawns; undo / redo; automatic tidy-up (§5.3); live checks | a hand-made map passes the checks and plays |
 | (3. Scenarios) | later, not in this scope | |
 
@@ -125,7 +125,7 @@ state, the tile under the pointer).
 - **Problems:** the checks of §5.4, each an error or a warning, run shortly
   after an edit; tapping one centres the view on its tile and marks it.
 - **Files:** Save / Save as / Open (the map library, §7), Import / Export
-  (a file anywhere: §7.2).
+  (a file anywhere; the import is checked, §6.3).
 - **Play:** starts a single-player game on this map (difficulty and, if the map
   has several villages, which one you play, in the dialog). Its settings
   dialog then offers *Back to editor* (keeping the editor's state, unsaved
@@ -334,32 +334,19 @@ keeps a half-finished map openable.
 
 ### 7.1 Where maps live
 
-- **Your maps:** `user://maps/<name>.json` (desktop: the Godot user folder;
-  web: the browser's storage for the site; Android: the app's storage).
-  *Open* lists them with name, size, villages, map type and date.
+- **Your maps:** `user://maps/<name>.json`, listed by *Open*.
 - **Built-in maps:** `res://data/maps/*.json`, shipped with the game,
   read-only, listed under "Built-in": the campaign's scenario maps
   (docs/scenarios-design.md). Opened in the editor, one is saved as a new
   file under your maps; to change a scenario's map, Export it over its file in
   `data/maps/`. (If loading JSON turns out too slow for big maps, they can be
   baked into `.res` files like the title maps; not planned until measured.)
-- **The map picker** (`MapPicker`; the editor's Open, Singleplayer's and the
-  lobby's Custom...): your maps (newest first), then the built-in ones, each
-  with its size and villages; the selected one with a preview (`MapPreview`),
-  its details and its problems: a file that breaks the format can't be
-  chosen, and for playing neither can a map with errors. Import (into your
-  maps), Delete (your maps; after a confirmation), Cancel / Esc.
-
-### 7.2 Import and export
-
-- **Desktop, Android:** Godot's file dialog to read a `.json` from anywhere,
-  or write one anywhere.
-- **Web:** Export downloads the file (`JavaScriptBridge.download_buffer`).
-  Import opens the browser's file picker (a small JavaScript snippet through
-  `JavaScriptBridge`) and reads the chosen file.
-- Import runs the format check (§6.3) and lists every problem instead of
-  loading a broken file. The editor's Import opens the map as a new, unsaved
-  one; the picker's Import adds it to your maps.
+- **The map picker** (`MapPicker`) is shared by the editor, Singleplayer and
+  the lobby. A file that breaks the format can't be chosen, and for playing
+  neither can a map with errors.
+- **Import** always runs the format check (§6.3) and lists every problem
+  instead of loading a broken file. The editor's Import opens a new, unsaved
+  map; the picker's adds to your maps. On the web, export is a download.
 
 ## 8. Playing a map
 
@@ -425,64 +412,10 @@ replicator sends them with owner -1.
 
 ## 9. Code
 
-The files under `scripts/editor/` each own one concern: the scene root
-(`map_editor.gd`: state, input, undo, files, Play, session), the panels and
-dialogs (`editor_ui.gd`), every edit (`editor_tools.gd`: returns the changed
-tiles or why not), the overlays (`editor_overlay.gd`), the two views
-(`iso_view.gd`, `plan_view.gd`), the format (`map_json.gd`), files
-(`map_library.gd`), tidy-up (`map_tidy.gd`), checks (`map_checks.gd`) and the
-picker and preview (`map_picker.gd`, `map_preview.gd`).
-`scripts/world/map_plan.gd` draws a map's top-down colours (also
-`tools/map_shot`'s plan).
-
-- `MapData`: `meta` (name, author, description, origin), `abandoned`,
-  `village_pieces`, `derive` / `derive_slices` (what follows from pieces,
-  centres, spawns and slices), `for_game`, `copy`, `row_order`. `meta` and
-  `abandoned` are packed only when set, so maps made before stay byte-equal.
-- `MapGenerator.generate(seed, players, type, size)`; `GenContext` scales the
-  per-slice amounts by `Config.gen_area_scale` and spawns and rivers by
-  `gen_length_scale` (both 1 at `map_size(players)`, so those maps are
-  unchanged).
-- `Settings.custom_map`, `custom_village`, `editor_session`, `editor_play`;
-  `Net.custom_map`, `set_custom_map`, `set_slot`, `max_players`, the players'
-  `"slot"`; `Game._use_custom_map`, `go_to_editor`; `World._spawn_piece`.
-- Config: `MAP_SIZES`, `MAP_SIZE_SLOTS`, `gen_area_scale`, `gen_length_scale`,
-  `EDITOR`.
-- Docs: this file; `world-design.md` carries the size scaling; `ui-design.md`
-  the title button and the map pickers; `multiplayer-design.md` the custom map
-  in the lobby, the village assignment and ownerless villages.
-
-## 10. Tests
-
-`tests/map_format_bot.*`, end-to-end tests of the conversions, on generated
-maps (every map type, several sizes, one and several villages). The forms:
-**MapData** (in memory), **JSON** (text), **packed** (`MapData.to_bytes`, as
-in `BakedMap` and the co-op start message). What is guarded:
-
-- every round trip between the forms is lossless and the comparison names the
-  field and the first tile or entry that differs;
-- export is canonical and deterministic (byte-identical);
-- tolerant import: the same map reshaped (minified, shuffled keys, other line
-  ends, a BOM, floats, reordered lists, dropped optional keys) imports to the
-  same `MapData`;
-- every refusal, one broken file each, with a message naming the place;
-- a map loaded from JSON plays; a custom map with a non-standard village
-  layout and one approach loads with warnings and no errors, and plays;
-- ownerless villages (§8.2): their huts are ruins and can't be rebuilt, their
-  spawns send nothing, no enemy heads there; generated maps pass the
-  custom-map checks; `for_game` renumbers villages and slices and keeps the
-  abandoned one.
-
-`editor_bot`: the title button, both views, New, every tool's edit with its
-tidy-up, undo and redo, a real mouse drag as one undo step, the right button,
-the inspector, every layer, the problems, the panels (folding, the portrait
-sheet), save, the map list, the picker, Play and Back to editor, the web's
-big-map warning (`MapPicker.pretend_web`).
-
-`net_bot --custom` (run by `tests/run_net_test.sh`): the lobby with a
-multi-village map, assignment and swapping, the game on some villages with
-the others ownerless on both sides. `mapgen_bot`: every size passes the
-custom-map checks, with treasures and every unlock site.
+Invariants worth knowing: `MapData.meta` and `abandoned` are packed only when
+set, so maps made before stay byte-equal. `GenContext` scales per-slice amounts
+and spawn / river lengths so that maps at the default size are unchanged by
+the size work.
 
 ## 11. Decisions (from review)
 
@@ -497,7 +430,7 @@ custom-map checks, with treasures and every unlock site.
 6. Isometric and top-down 2D views, switchable.
 7. The web build warns whenever a big map is opened.
 8. Custom maps: too few approaches is a warning.
-9. End-to-end conversion tests (§10); export strict, import tolerant within
+9. End-to-end conversion tests; export strict, import tolerant within
    bounds, refusing format violations.
 
 ## 12. Not in this scope

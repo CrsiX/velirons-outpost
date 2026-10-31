@@ -36,7 +36,7 @@ Goals:
   after a crash (the last autosave).
 - A loaded game plays on as if it had never stopped: every durable state kept.
 - Small, quick files and no noticeable hitch on the autosave.
-- Testable headless: saving a loaded game gives the same save again (§10).
+- Testable headless: saving a loaded game gives the same save again.
 
 Non-goals:
 - **Saving in the middle of a wave** (§12, decision 1), also no extra save on
@@ -213,91 +213,35 @@ Rules behind the table:
 
 ### 8.1 Layout
 
-`user://saves/<file>.vsave`, one file per save: autosaves are
-`auto-<game_id>.vsave`; manual saves are a slug of the name (never beginning
-with "auto", so the two can't collide). Saving under a name that slugs to an
-existing file saves over it, after the question.
-
-A file is a magic, `SaveGame.FORMAT`, a header, then the body (layout:
-`SaveGame.write` / `read`). The **header** is uncompressed and holds all the
-save list needs (name, kind, game id, time, wave, difficulty, map, villages,
-co-op or not), so listing never unpacks a body. The **body** is compressed
-and holds §7 as plain Dictionaries and Arrays: no objects (references are
-nids, villages by index, map objects by index), the map as its own blob.
-Serialising without objects means a file can't carry code.
-
-Size is small (tens of KB single player, a few hundred KB for an 8-village
-co-op game), so writing costs no visible hitch.
-
-### 8.2 Writing
-
-Into a temporary file, then renamed over the old one, so a crash mid-write
-leaves the previous save intact. Done on the main thread (the web build has no
-threads); building the Dictionaries is a walk over a few hundred entities.
+One self-contained file per save, so a save can be copied, deleted or listed on its own and
+never depends on a second file being in step with it. Autosaves and manual saves have
+disjoint names (a manual slug never begins with "auto"), so one can never overwrite the other.
+The header is uncompressed so the save list never unpacks a body. The body holds only plain
+Dictionaries and Arrays, no objects, so a file can't carry code and the format doesn't depend
+on class layouts. It is written to a temporary file and renamed over the old one, so a crash
+mid-write leaves the previous save intact. It is written on the main thread because the web
+build has no threads; the body is small enough that this costs no hitch.
 
 ### 8.3 Loading and refusing
 
-A file is **loadable** when magic and `FORMAT` match, the body unpacks, and
-every kind in it exists (`SaveGame.check`: a save naming a unit or building
-the game no longer has must not half-load). Otherwise the list says why.
-`FORMAT` goes up whenever the body's layout changes; old saves are then listed
-but refused. Balance changes in `Config` don't change the format: a save
-plays on with the new numbers (a unit's HP is clamped to its new max).
+A save naming a kind the game no longer has is refused, not half-loaded. `FORMAT` goes up
+whenever the body's layout changes; old saves are then listed but refused. A migration layer
+would cost more than losing old saves is worth (§2). Balance numbers in `Config` are not part
+of the format: a save plays on with the new numbers (a unit's HP is clamped to its new
+max).
 
-A single-player save has one village and loads only from the single-player
-places; a co-op save (2+ villages) loads only in the lobby.
+A single-player save (one village) loads only from the single-player places (Continue,
+Load...); a co-op save (two or more villages) only in the lobby.
 
 ### 8.4 How a game is built from a save
 
-`Settings.pending_save` (the unpacked body) is taken by `Game._ready`, like
-`tutorial_next`. The order matters:
-1. Difficulty, map, seed, `game_id` and colours come from the save; single
-   player keeps the saved name, co-op takes each village's new player's name.
-2. The saved map is used as a preset map, built like a map file's (no
-   generation), *without* camp guards (`Game.restoring`). Then
-   `SaveGame.restore_world`: objects gone since are removed, the others get
-   their state, trees their chopping, villages their fog.
-3. Villages are set up **empty** (`Village.setup_restored`: nothing spent,
-   logged, counted or auto-assigned), then `SaveGame.restore_entities` fills
-   them in dependency order (buildings, queues, villagers, heroes, units,
-   elementals, caravans, corpses, guards, wrathwoods); then everyone out in the
-   field asks what to do, and last the label counters are set so new entities
-   don't reuse names.
-4. Statistics are restored instead of started, and the camera is centred.
+The order matters: the saved map is built like a map file's, but without camp guards; villages
+are set up empty and then filled in dependency order; whoever is out in the field asks what to
+do; statistics are restored, not started. The label counters (the numbers in "archer 5",
+"tree 482") are set last, so entities created while restoring don't use up or reuse names.
 
-Rule: restoring never goes through the gameplay mutators (`recruit`, `place`,
-`kill`, `level_up`, `unlock`, `Economy.add`...), which spend, log, count
-statistics or assign workers. A new piece of durable state needs a line in
-`capture` and in the matching `_restore_*` (also noted in CLAUDE.md).
-
-## 9. Code
-
-Everything is in `scripts/systems/save_game.gd` (capture, restore, files,
-checks, autosave, pruning); the entry points are in `game.gd` (`save_error`,
-`save_named`, `load_save`, the restore path in `_ready`), `net.gd` (resume
-lobby), and the UI in `save_list.gd`, `title_screen.gd`, `hud.gd`,
-`multiplayer_menu.gd`.
-
-## 10. Tests
-
-`tests/save_bot.*` (its saves in a scratch directory, `SaveGame.dir_override`):
-- **Round trip:** a game set up with every kind of durable state is saved,
-  loaded paused into a new scene and **saved again: the same body** (except
-  the id counter). This catches most forgotten fields, which is why a new
-  field needs no test of its own as long as the setup includes it. Plus
-  targeted checks on the loaded game and on what the out-in-the-field people
-  do next.
-- The loaded game runs on: a wave comes, can't be saved meanwhile, the
-  autosave follows and is what Continue takes.
-- The save list's map shows only explored land; a co-op save's shows every
-  village's.
-- Files: no temporary file left, header-only listing, every refusal, delete,
-  pruning, safe names, Continue on the Singleplayer page only.
-- The tutorial can't be saved; two villages round trip.
-
-`tests/net_bot` has a `--resume` run (`tests/run_net_test.sh`): a two-village
-save resumed in a lobby, villages swapped, each side playing its village under
-its own name in the saved colour.
+Rule: restoring never goes through the gameplay mutators (`recruit`, `place`, `kill`,
+`level_up`, `unlock`, `Economy.add`...), which spend, log, count statistics or assign workers.
 
 ## 11. Later (not in this design)
 

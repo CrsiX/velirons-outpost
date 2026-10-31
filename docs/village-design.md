@@ -385,17 +385,3 @@ are silent failures: nothing visibly breaks, the village just stops progressing 
   - The last villager can't retire (`Population.retire_error`), or the village would fall.
   - The campaign's merchant and residents never retire.
 
-## 12. Code map
-
-- `Village` (scripts/systems/village.gd): one player's village. It holds the `Economy`,
-  `Population`, `Construction`, `Army`, the hero and the `EventLog`, plus the centre, walls,
-  gates and home spawns.
-- `Economy`: the three amounts, `spend` / `refund` / `add`, food consumption, `buy_materials`.
-- `Population`: recruiting, spawning into a free hut, upkeep and starvation, kill / retire,
-  worker and mine assignment.
-- `Construction`: placement rules, sites, the job queue, upgrades, hut rebuilds, the starting
-  buildings, tear-down.
-- `Commands` (scripts/systems/commands.gd): every player action as a checked command. Co-op
-  clients send the same commands.
-- `Game` (scripts/game.gd): raids (`on_enemy_reached_gate`), thieves' theft, defeat
-  (`_check_defeat`).

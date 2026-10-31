@@ -166,29 +166,14 @@ this order and are worded as they are:
 
 ## 5. Code sketch
 
-- `scripts/tutorial/tutorial.gd` (a Node, child of Game while the tutorial
-  runs): the steps, the card, the highlight; it holds the waves
-  (`Waves.hold`) and stops corpses rotting.
-- A step is a Dictionary with a title, text, a polled "done" check and a
-  "point" (what to highlight), plus optional hooks for the steps that need
-  to wait or react (see `_build_steps` for the keys).
-- `scripts/tutorial/highlight.gd`: the pulsing outline over a Control or a
-  tile, and the arrow.
-- `scripts/ui/library.gd`: the tabbed dialog, built from `Config`, used by the
-  HUD and the title screen.
-- **Spots are picked on the map** (`RoadSpots`, `scripts/tutorial/road_spots.gd`,
-  which the scenarios' cards use too), so a change to the world generator
-  can't put them in a river: they are chosen by distance along the road the
-  waves come down (tower nearer the gate than the barracks), the farm by the
-  village. A tile set in `Config.TUTORIAL` overrides the pick.
-  - If something gets built on a spot before its step, the step marks the
-    nearest free spot nearby instead, and if there's none, the original
-    anyway.
-  - The forester's camp has a fixed tile, west of the village in plain view,
-    where no wall or tower hides it on screen.
-- `tests/tutorial_bot.gd` plays the tutorial by doing each step with commands
-  and taps and checks Skip and Play on. `tests/library_bot.gd` checks pausing,
-  an entry for every kind, and fitting the screen.
+- **Spots are picked on the map** (`RoadSpots`, which the scenarios' cards use too), so a change
+  to the world generator can't put them in a river: they are chosen by distance along the road
+  the waves come down (tower nearer the gate than the barracks), the farm by the village. A
+  tile set in `Config.TUTORIAL` overrides the pick.
+  - If something gets built on a spot before its step, the step marks the nearest free spot
+    nearby instead, and if there's none, the original anyway.
+  - The forester's camp has a fixed tile, west of the village in plain view, where no wall or
+    tower hides it on screen.
 
 ## 6. Effort
 

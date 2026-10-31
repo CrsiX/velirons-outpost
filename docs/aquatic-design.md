@@ -1,6 +1,6 @@
 # Veliron's Outpost: water monsters (design)
 
-Status: **built** (all five phases of §14). Numbers live in `scripts/core/config.gd`
+Status: **built** (all of it). Numbers live in `scripts/core/config.gd`
 (`ENEMIES`, `AQUA`, `AQUA_FIRST`, `WAVE_MIX`, the generator's `COAST_INLET_*`, `LAGOON_*`,
 `WATER_SPAWNS` and each map type's `"lagoon"`); this doc keeps the reasoning only. All numbers
 are first guesses: tune with the bot and by playing.
@@ -189,7 +189,7 @@ rare: late, only where the conditions are right (§9), and only now and then (`c
   would never end.
 - **Spawns** *(decided)*: explicit `water_spawns` in the map data, deep tiles only, on the map
   edge or inside the water, each in an eligible body. The generator and the editor place them
-  (§11). Amphibians may also use ordinary edge spawns. With no `water_spawns` in an eligible
+  (docs/map-editor-design.md). Amphibians may also use ordinary edge spawns. With no `water_spawns` in an eligible
   body the game picks a random deep tile of it away from the threatened shore.
 - **Waves.** `WAVE_MIX` entries get `"needs": "water"`; where not eligible their share goes to
   the filler. Every water kind is an ordinary `WAVE_MIX` member and counts towards the wave's
@@ -212,27 +212,6 @@ difficulty like every enemy's, `DIFFICULTY_SCALED`). `AQUA`: dive and surface ti
 `sink_time`, `threat_radius`, grapple numbers. `WAVE_MIX` (+`needs`, `max_count`, `chance`). All
 documented there.
 
-## 11. Code and data
-
-- `Enemy`: `habitat()`, `submerged`, `targetable()`, dive/surface state; behaviors for each
-  kind (+ an arm entity); the crab reuses `melee_behavior`.
-- `Pathing`: water bodies, the amphibian field, deep-tile BFS for water-bound movement.
-- `Corpse`: sinking in deep water; `revivable` (a kind's setting) decides whether it can be raised.
-- `Unit`: forced movement (§7). `Combat`: song slow as a rate, melee reach rule, the siren's
-  melee filter, holy-aura immunity.
-- `MapData`: `water_spawns` (packed form, `to_bytes`/`from_bytes`), JSON map format key
-  `"water_spawns"` with a format version bump, tolerant import, strict export. A change to the
-  map in the save means `SaveGame.FORMAT` + 1. Rebake `data/title_maps/`.
-- Editor: a *Water spawn* tool (deep tiles only), a layer, an inspector line for the water body
-  (deep tiles, width, which kinds fit), checks (a water spawn must be on deep water in a body
-  that fits at least one kind; error), Tidy leaves them alone.
-- Replication: `submerged`, the arms and the song ring reach co-op clients; they see only what
-  their village sees.
-- Library: an entry per kind. Log: the first of each kind per game.
-- Art (`tools/gen_art.py`): crab, leviathan, siren, octopus and tentacle, water column, song
-  ring, dive splash.
-- Test: `tests/aqua_bot` on hand-built maps (made with `MapData` edits).
-
 ## 12. Later
 
 - The leviathan may blast buildings (the octopus already smashes them, docs/siege-design.md).
@@ -245,28 +224,14 @@ documented there.
   the gold, do they fight back?).
 - All numbers are first guesses.
 
-## 14. Phases
-
-1. **Foundation and crab:** `habitat`, `targetable()`, the dive state, water bodies, the
-   amphibian field, `water_spawns` (map, JSON, editor tool, check), deep-water corpses, wave
-   eligibility and "blocks the wave", library, `aqua_bot`.
-2. **Leviathan.**
-3. **Forced movement, then siren.**
-4. **Gigantic octopus** (and `max_count`, `chance`).
-5. **World generator:** the map must really give them water (docs/world-objects-design.md §9.8).
-
 ## 15. As built
 
-**Code.** `Enemy` (`habitat()`, `dive`, `targetable()`, `melee_ok(from, flame)`,
-`melee_reach(base)`, `fx` for what a behavior shows: the song ring, the water column, the arms),
-behaviors on a shared base `aqua_behavior` (who of ours they go for, swimming over deep water);
-the crab is `melee_behavior` with `"auto_submerge"`. `Pathing`: `label_water` (static, also
-used by the editor and the generator), the amphibians' flow fields, `water_path`, `stand_near`.
-`Unit.force_move` / `is_forced` / `held_by` (§7). `Combat.songs` / `song_at` / `song_rate`, and
-`Combat.haste` takes the place a holder acts from. `Aqua` (`scripts/systems/aqua.gd`): §9's
-eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`).
-
 **Decisions taken while building:**
+
+- *Map and save:* `water_spawns` live in `MapData` and in the JSON map format (tolerant import,
+  strict export); a map file from before they existed still reads, with no water spawns. The
+  map is part of a save, so a change to its stored form means `SaveGame.FORMAT` + 1, and the
+  title backdrop's baked maps must be rebaked (rebake-title-maps skill).
 
 - *Width* of a body: twice the most Chebyshev steps from a tile that isn't deep water, minus 1,
   with the map's edge counting as water (the sea goes on). Bodies are 4-connected deep tiles;
@@ -316,16 +281,6 @@ eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`)
   and elementals fight it first. The grapple's damage is melee.
 - *Drowning:* a villager dies ("drowned, dragged under by ..."), a soldier is downed, the hero
   is downed (her XP lost), an elemental crumbles; a fire elemental (a flyer) doesn't drown.
-- *The log:* the first of each kind per game (`AQUA_FIRST`): Info, the octopus Important.
-- *Saves and files:* the save's map holds the water spawns; map files carry `"water_spawns"`
-  (an older file without it still reads).
-- *The generator* (docs/world-objects-design.md §9.8): Coast maps carve an inlet per village, other map
-  types a lagoon with the type's chance; each gets a landing road; water spawns per fitting
-  body near a village.
-- *How they move in water* (`Enemy._wade`): no walking sway; up in the water they rise and fall
-  slowly, and while moving they throw a splash now and then (on each machine by itself). The
-  leviathan and the octopus always; the crab and the siren while in water; on roads and land
-  they walk like anyone.
 - *Water monsters left at the end of a wave:* once nothing but water monsters is left:
   - *Water-bound ones left alone go:* when all that is left is water-bound (habitat `"water"`),
     none named (a scenario's boss, like scenario 9's leviathan) or on a post (a guard), and none
@@ -336,5 +291,3 @@ eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`)
   - Otherwise the wave ends only when they are dead. After `AQUA.warn_after` the villages they
     came for hear it once per wave (log, Important, and a toast) so the player knows to build
     towers by the water.
-- *Replication:* the dive state and `fx` travel with every enemy's state; arms are enemies, so
-  they reach clients like any other.

@@ -238,19 +238,3 @@ mode makes her stronger and Explore, Gather and Build are not a sacrifice. The w
   "Your hero" step asks the player to send her exploring. Later steps have her level up and
   mention passing XP on at the grounds; the tutorial tops her XP up to the next level's cost if
   she has less. See docs/tutorial-design.md.
-
-## 11. Code
-
-- `scripts/units/hero.gd` (`class_name Hero extends Civilian`): modes (`Mode`, `MODE_*`,
-  `set_mode`, `effective_mode`: Train falls back to Defend), `base()`, Defend (`_defend`,
-  `_pick_enemy`), the sword (`_strike`, `counter_strike`), `_regen`, `level_up`, camps
-  (`attack_camp`), `_train`, `_snore`, downing (`take_damage`, `_downed`, `revive`), `status()`.
-  She reuses `Civilian`'s fleeing (`wants_to_evade` only in Build / Explore / Gather and never
-  during a camp order) and path following.
-- `scripts/units/jobs/`: `BuildJob`, `GatherJob`, `ExploreJob`, shared with the villagers and
-  built with her weaker numbers; `HeroExploreJob` adds claims, looting, carrying, paying and
-  dropping.
-- `scripts/systems/commands.gd`: `hero_mode`, `hero_level_up`, `hero_support`, `attack_camp`,
-  `_debug`. Every order goes through these, so co-op clients can give them.
-- `scripts/ui/hud.gd`: the hero panel and top-bar button, `HERO_MODE_HINTS`.
-- `scripts/world/fog_layer.gd`: `_unit_reveal`.

@@ -131,13 +131,10 @@ tool. What to read, and its traps:
 
 ## 6. Testing a balance change without touching the config
 
-`variant.py` makes a copy of the project with config numbers changed, and `sweep.py --variant`
-runs the bot on that copy, with the label and the changes in every record, so base and variant
-share seeds and the report can compare them. Paths address a constant of config.gd then dictionary
-keys / array indexes with dots; `=` puts a GDScript literal in, `*=` multiplies. A path that doesn't
-exist is an error, never a silent "no change" (a typo must not look like "no effect"). Once a
-change is good, make it in config.gd for real. Command examples belong in the balance-sweep skill
-and the scripts' `--help`.
+The bot runs on a project copy with the numbers changed, never on the real config, so base and
+variant share seeds and the report can compare them, and nothing is half-edited if a run is
+abandoned. A path that doesn't exist is an error, never a silent "no change" (a typo must not
+look like "no effect"). Once a change is good, make it in config.gd for real.
 
 ## 7. Decisions
 
