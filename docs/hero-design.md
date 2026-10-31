@@ -2,330 +2,255 @@
 
 Status: **built; describes the current code**. Tested by tests/sim_bot.gd (modes, XP, levels,
 training, downing), tests/world_bot.gd (Explore claims and loot) and tests/coop_bot.gd (Support).
-Scope: the hero: who she is, her panel, her modes, healing, XP, levels, being downed, and where
-the code lives. Every number lives in `scripts/core/config.gd` (`HERO`, `HERO_LEVELS`,
-`HERO_MAX_LEVEL`, `HERO_XP_PER_ACTION`, `UNIT_REVEAL`, `TRAIN_XP_DIFFICULTY`). See
-docs/military-design.md for units and training grounds, docs/world-design.md §9 for the special
-objects she claims and loots.
+Scope: why the hero works the way she does: her panel, her modes, healing, XP, levels, being
+downed. Every number lives in `scripts/core/config.gd` (`HERO`, `HERO_LEVELS`,
+`HERO_MAX_LEVEL`, `HERO_XP_PER_ACTION`, `UNIT_REVEAL`, `TRAIN_XP_DIFFICULTY`); the behaviour is in
+`scripts/units/hero.gd`. See docs/military-design.md for units and training grounds,
+docs/world-design.md §9 for the special objects she claims and loots.
 
 ## 1. Summary
 
 - **Half villager, half soldier**, with a sword. One per village; she starts in its centre.
-- **Her post** (`Hero.home()`) is the village centre (in Support mode the supported village's). A campaign scenario can give her another
-  one (`Hero.home_override`: scenario 7, her tent outside the walls until she is let in): everything this page says about "the centre"
-  (standing guard, the leash, resting, healing, reviving) is then about her tent.
+- **Her post** (`Hero.home()`) is the village centre (in Support mode the supported village's).
+  A campaign scenario can give her another (`Hero.home_override`, scenario 7: her tent outside
+  the walls until she is let in); everything below about "the centre" (standing guard, the leash,
+  resting, healing, reviving) is then about her tent.
 - **No hut, no upkeep:** she eats nothing, doesn't count as a villager or towards the hut cap,
-  and isn't in the villager list.
+  and isn't in the villager list. She is the player's one flexible agent, not a population
+  unit, so losing her never starves or shrinks the village.
 - **The player picks her mode**; she carries it out on her own. Seven modes: Defend (default),
   Build, Explore, Gather, Train, Rest, Support (co-op only). An order to attack a monster camp
   overrides the mode until the camp is cleared.
 - **XP** comes from fighting, building, exploring, looting and gathering. She spends it on her
-  own levels, or passes it to a unit at the training grounds.
+  own levels, or passes it to a unit at the training grounds: the one decision that makes her
+  XP a real trade-off.
 - **Downed** at 0 HP: she loses her unspent XP (never her levels) and comes back when the wave is
   over, or, downed between waves, when the next one begins.
 
 ## 2. Base stats (`HERO`)
 
-| Key | Value | Meaning |
-|---|---|---|
-| `hp` | 60 | HP at level 1 (the level curve starts here) |
-| `speed` | 1.8 | tiles per second |
-| `damage` | 8 | sword damage at level 1 (the level curve starts here) |
-| `attack_cooldown` | 0.9 s | between sword blows |
-| `attack_range` | 0.8 tiles | close combat |
-| `sight` | 4 tiles | surveillance around her while outside; also how far she notices enemies in a fight |
-| `alert_radius` | 6 tiles | Defend: enemies this close to the village's walls draw her out |
-| `leash` | 14 tiles | Defend: she never goes for enemies farther than this from the centre |
-| `build_efficiency` | 0.5 | Build: half a builder's speed |
-| `explore_reveal` | 1.8 tiles | Explore: her reveal radius (an explorer's is 2.6) |
-| `gather_capacity` | 2 | Gather: corpses per trip (a gatherer carries 6) |
-| `train_rate` | 10 XP/s | Train: XP passed on per second |
-| `train_pause` | 4 real s | Train: pause after each level-up the unit gets |
-| `rest_regen` | 3 HP/s | healing while idle in the centre |
-| `rest_delay` | 3 s | idle time before the healing starts |
+`Config.HERO` holds her base stats and the tunables of each mode (speed, sword, sight, alert
+radius, leash, build efficiency, reveal radius, gather capacity, training rate and pause, rest
+regeneration). The design points behind them:
+
+- Her HP and damage at level 1 are the start of the level curves (§7).
+- In the villager jobs she is deliberately a little worse than the specialist (half a builder's
+  speed, a smaller reveal radius than an explorer, a smaller load than a gatherer). She can fill
+  a gap, but never replaces the villagers.
+- `leash` bounds how far Defend chases, so she can't be lured across the map; `alert_radius`
+  makes her react to the walls, not just the gates.
 
 ## 3. The top-bar button and the panel
 
-- **Top-bar button:** the hero icon and her XP ("XP 120"). Her health bar runs along its bottom:
-  green from 50 %, yellow from 20 %, red below, empty while downed. While she is downed the button
-  is tinted red. Tapping it opens the panel.
-- **The panel**, from top to bottom:
-  - a title with her current mode's icon and word ("Hero: defending");
-  - level, HP and XP;
-  - one icon button per mode, the current one framed. Support only shows with more than one
-    village. In Support mode a second button under the modes names the village she helps; tap it
-    to cycle to the next one;
-  - *Level up to N (cost XP)*, or *Highest level*. It is disabled without enough XP, and for a
-    village you aren't playing;
-  - "Now: ..." (her status: what she is doing right now) and a one-line hint for the mode;
-  - Train only: the unit being trained, "XP so far / XP needed", the XP she has left, a progress
-    bar, and the pause countdown after a level-up;
-  - *Go to hero* (or the H key) moves the camera to her; while she is downed, to where she fell.
-- **Mode icons:** a shield (Defend), a crossed hammer and saw (Build), a globe (Explore), a
-  wheelbarrow with bones (Gather), a straw training dummy (Train), "Zzz" (Rest), a handshake
-  (Support).
+- **Top-bar button:** the hero icon and her XP. A health bar runs along its bottom (green, yellow,
+  red by share; empty while downed), and it is tinted red while she is downed, so her state is
+  readable without opening anything.
+- **The panel**, top to bottom: a title with her mode's icon and word; level, HP and XP; one icon
+  button per mode, the current one framed (Support only with more than one village; in Support a
+  second button names the village she helps and cycles); *Level up* (disabled without XP, and for
+  a village you aren't playing); "Now: ..." (what she is doing right now) with a one-line hint for
+  the mode; for Train, the unit, its progress and her leftover XP and the pause countdown; *Go to
+  hero* (the H key), which goes to where she fell while she is downed.
+- **Mode icons** (`Hero.MODE_ICONS`) are wordless on purpose: shield, crossed hammer and saw,
+  globe, wheelbarrow with bones, straw dummy, "Zzz", handshake.
 
 ## 4. Modes
 
-Changing the mode drops whatever she was doing: the old mode's job, any training, any fight.
-Explore drops loot she is carrying (§4.3). The new mode starts at once, wherever she is, with no
-rest first:
-- **While she flees** (Build / Explore / Gather): she stops running and takes up the new mode out
-  there; Defend fights the enemy she ran from if it is in her sight, else she walks back to the
-  centre and takes on what comes her way (even beyond `leash`, §4.1). Only a switch to another of these three modes while an
-  enemy is still close keeps her running (`Hero._stop_evading`). A camp order stops the running too.
-- **Her sword's cooldown** (`attack_cooldown`) runs in every mode, also while she flees, and no mode
-  change resets it, so switching modes back and forth never gives her an extra blow.
+Changing the mode drops whatever she was doing: the old job, any training, any fight. Explore drops
+loot she is carrying (§4.3). The new mode starts at once, wherever she is, with no rest first, so a
+mode button is always an immediate command:
+
+- **While she flees** (Build / Explore / Gather) she stops running and takes up the new mode
+  out there. Defend fights the enemy she ran from if it is in sight, else she walks back and takes
+  on what comes her way (even beyond the leash). Only a switch to another of the three villager
+  modes with an enemy still close keeps her running (`Hero._stop_evading`). A camp order stops the
+  running too.
+- **Her sword's cooldown** runs in every mode, also while she flees, and no mode change resets it:
+  switching modes back and forth must never give an extra blow (an exploit that would otherwise
+  be the best way to fight).
 - **Build / Explore / Gather out in the field** with nothing to do yet: she walks back to the centre
   and starts work as soon as there is some (`Hero._job_idle`).
 
 ### 4.1 Defend (default)
 
-- She waits in the village centre.
-- **Choosing an enemy** (rethought every 0.3 s): only ground enemies within `leash` (14) of the
-  centre count, and only those that are either
-  - inside the walls, or within `alert_radius` (6) of the village's walls (any piece of its
-    5×5; docs/siege-design.md §6), or
-  - within her `sight` (4) of her while she is outside.
-- Beyond the leash herself (another mode took her out there), enemies within her sight count
-  wherever they are, so she fights her way back.
-- Of those, enemies inside the walls come first; then the nearest wins, measured in whole
-  tiles. Between equals, the one with the most max HP wins.
-- **Last priority: rats on farms.** With nothing else to fight, she goes for rats sitting on her
-  village's farms, however far out (no leash), the nearest first.
-- **Flyers** (gargoyles, vampire bats) are never chosen: her sword can't reach them. When one
-  hits her and her blow is ready, she strikes back once (`counter_strike`).
-- With no target she walks back to the centre on a real path (she never teleports), and keeps
-  looking for enemies on the way.
-- She doesn't flee in this mode. Enemies fight back, and a witch's spells hurt her.
+- She waits in the village centre. The choice of enemy is rethought often (`Hero._pick_enemy`).
+- **Who counts:** ground enemies within the leash of the centre that are inside the walls, near
+  the wall ring (docs/siege-design.md §6) or within her sight while she is outside. Beyond the
+  leash herself (another mode took her out there) enemies in sight count wherever they are, so
+  she fights her way back instead of standing helpless.
+- **Priority:** inside the walls first (a breach is the worst case), then the nearest, and
+  between equals the one with the most max HP (the biggest threat).
+- **Last priority: rats on farms.** With nothing else to fight she goes for rats on her village's
+  farms, however far out, because nobody else would and they eat the food the village lives on.
+- **Flyers** are never chosen: her sword can't reach them. When one hits her and her blow is
+  ready she strikes back once (`counter_strike`), so she isn't a punching bag but is no anti-air.
+- With no target she walks back on a real path (never teleports) and keeps looking on the way.
+- She doesn't flee in this mode: Defend is the mode where she is meant to be in danger.
 
 ### 4.2 Build
 
-- Like a builder (the shared `BuildJob`) at `build_efficiency` (half speed): next construction
-  site, upgrade or tear-down, then home.
-- She runs home from enemies like a villager.
+- Like a builder (the shared `BuildJob`) at reduced efficiency: next site, upgrade or tear-down,
+  then home. She runs from enemies like a villager. Her value is as a second builder when the
+  village is short of one.
 
 ### 4.3 Explore (`HeroExploreJob`, docs/world-design.md §9.1)
 
-She runs from enemies like a villager. Every 0.5 s she picks the best task: the highest priority
-first, then the nearest. It must be something her village has found, anywhere on the map, that
-she can walk to.
+She runs from enemies like a villager. She re-picks her task often: highest priority first, then
+the nearest, from what her village has found and she can walk to. The ordering is about what only
+she can do and what is most valuable first:
 
-1. **Claims:** awakened unit-unlock sites (stone circle, mage's tower, ruined chapel) and
-   unclaimed ruined watchtowers.
-   - She visits for the site's `visit_time`, or `RUIN_CLAIM_TIME` for a ruin.
-   - A site unlocks its unit for every village. A ruin becomes her village's, to be restored by
-     a builder.
-2. **Unguarded treasures** (none of a camp's monsters alive), first come, first served.
-   - She loots for the treasure's loot time, earns `loot` XP (10) and carries the loot home. It
-     is paid when she gets there; a shrine's blessing gives her XP.
-   - Dropped loot (a sack, see below) counts as a treasure too: she picks it up the same way, but
-     earns no `loot` XP for it.
-   - Every other village gets an Info message.
-   - **Dropping:** if she is downed on the way, or her mode changes, the loot is left on her tile
-     as *dropped loot*. The hero or a gatherer can pick it up later. An order to attack a camp
-     keeps it (§4.5).
-   - Fleeing from enemies doesn't drop it: running home is where she was going anyway. She is paid
-     once safe.
-3. **Exploring** unknown land, like an explorer (the shared `ExploreJob`), with the smaller
-   `explore_reveal` (1.8). Fog it uncovers pays `explore` XP (§6).
-- **Sites she fled from** (`HeroExploreJob._blocked_sites`): fleeing from enemies on her way to
-  a claim or a treasure, or while at it, she sets it aside with the enemies she fled from. She
-  goes for another site instead; with every site set aside she explores, with fog near the
-  nearest of them counting up to 1 + `site_near_bonus` 2 times as much within `site_near_radius`
-  12 tiles (`_bias`), so she stays close. Every `site_retry` 15 s she looks again: once none of
-  those enemies is alive within `EVADE_RADIUS` + 1 of the site, it is wanted again
-  (`Config.EXPLORE`).
-- A task that is no longer wanted is dropped: the treasure got looted or guarded, the unit got
-  unlocked, the ruin got claimed.
+1. **Claims:** awakened unit-unlock sites and unclaimed ruined watchtowers. A site unlocks its unit
+   for every village; a ruin becomes her village's, to be restored by a builder. These come first
+   because they unlock whole parts of the game.
+2. **Unguarded treasures,** first come, first served, so co-op villages race for them. She carries
+   the loot home and is paid there (a shrine's blessing gives XP); other villages get an Info
+   message.
+   - Dropped loot counts as a treasure too, without paying XP again (no farming a drop).
+   - **Dropping:** downed on the way, or a changed mode, leaves it on her tile for the hero or a
+     gatherer to pick up. A camp order keeps it. Fleeing doesn't drop it: running home is where
+     she was going anyway.
+3. **Exploring** unknown land like an explorer (the shared `ExploreJob`), with a smaller reveal
+   radius.
+- **Sites she fled from** (`HeroExploreJob._blocked_sites`): she sets a site aside together with
+  the enemies she fled from and goes for another; with every site set aside she explores near
+  them (fog near them counts extra, `Config.EXPLORE`) so she stays close, and looks again from
+  time to time. Once none of those enemies is alive near the site it is wanted again. This keeps
+  her from either suiciding at a site or abandoning it forever.
+- A task that is no longer wanted (looted, guarded, unlocked, claimed) is dropped.
 
 ### 4.4 Gather
 
-- Like a gatherer (the shared `GatherJob`), with `gather_capacity` 2 corpses per trip. She only
-  goes for safe corpses on explored land, and picks up dropped loot first.
-- She earns `corpse` XP (4) the moment she picks a corpse up. Back home each corpse pays
-  `gold_on_collect` and `food_on_collect`.
-- She runs home from enemies like a villager.
+- Like a gatherer (the shared `GatherJob`) with a smaller load. She only goes for safe corpses on
+  explored land and picks up dropped loot first. XP is paid when a corpse is picked up, while the
+  gold and food are paid at home as for any gatherer. She runs from enemies like a villager.
 
 ### 4.5 Attack a camp (an order, not a mode)
 
-- Given from a monster camp's panel (*Attack with the hero*, command `attack_camp`). The camp
-  must be found by her village and still attackable, and she must not be downed.
-- It overrides whatever mode she is in. She fights the camp's monsters, nearest first, until none
-  is left. Hurt monsters don't heal.
-- She doesn't flee meanwhile.
-- Only the hero needs this order: towers and barracks fight a camp's guards on their own once
-  they are in range.
-- In Explore mode the current task is dropped, but loot she carries is kept.
-- When the camp is cleared (or gone) she goes back to her mode. If she was carrying loot, she heads
-  home with it first.
-- A mode button is a new order: picking any mode (her current one too) cancels the camp order at
-  once ("The hero gives up on the ..."), and she does what that mode says (Rest: home, and she heals).
-- She gives the order up by herself when she can't get at any of its monsters (no way to them)
-  for `HERO.camp_give_up` (3 s), and goes back to her mode; she never stands stuck on it.
+- Given from a monster camp's panel (*Attack with the hero*, command `attack_camp`); the camp must
+  be found by her village and attackable, and she must not be downed. It is an order, not a mode,
+  because it is a one-off goal with an end: she goes back to her mode afterwards.
+- It overrides whatever mode she is in. She fights the camp's monsters, nearest first, and
+  doesn't flee meanwhile. Hurt monsters don't heal, so retreating is not punished (the player can
+  wear a camp down in steps; towers and barracks do it on their own once in range, so only the
+  hero needs the order).
+- Explore's task is dropped but carried loot is kept; once the camp is cleared she heads home with
+  it first.
+- A mode button is a new order: any mode (her current one too) cancels the camp order at once.
+  The player is never trapped in an order.
+- She gives the order up by herself when she can't get at any monster for a short time
+  (`HERO.camp_give_up`), so she never stands stuck on it.
 
 ### 4.6 Train
 
-- **Needs** training grounds of her village with a unit stationed there that isn't at max level
-  ("ready"). She picks the nearest such grounds.
-- **Without such grounds** she defends instead (status: "defending (no unit ready at training
-  grounds)"). She drops any fight the moment a unit becomes ready.
-- **At the grounds** she walks to their work tile and passes on `train_rate` (10) XP per second,
-  sparring (a little sway). Each XP goes into the unit's training progress, never past what its
-  next level needs.
-- **XP needed** for the unit's next level: `MILITARY[kind].train_xp` (level 1 → 10 curve) ×
-  `TRAIN_XP_DIFFICULTY` (Easy 0.8, Normal 1.0, Hard 1.5).
-- When the progress reaches it, the unit **levels up for free** (no gold) and the log says so.
-- **The pause:** after each level-up, if she still has XP, she stops for `train_pause` (4 s) of
-  real time, whatever the game speed. The log and her panel say so, so the player can switch her
-  mode and keep the rest of her XP.
-- With no XP left she just stands there ("no XP left to pass on").
+- **Needs** training grounds of her village with a unit stationed there that isn't at max level.
+  **Without** she defends instead and drops any fight the moment a unit becomes ready, so
+  selecting Train never leaves her idle and defenceless.
+- **At the grounds** she walks to their work tile and passes on XP at a steady rate, never past
+  what the unit's next level needs. XP needed is the kind's `MILITARY[kind].train_xp` curve,
+  scaled by difficulty (`TRAIN_XP_DIFFICULTY`).
+- When the progress is full the unit **levels up for free** (no gold).
+- **The pause:** after each level-up, if she still has XP, she stops for `HERO.train_pause` in
+  **real** time, whatever the game speed, so the player has time to switch her mode and keep the
+  rest of her XP. Without it the XP would drain into the next level whether the player wanted it
+  or not.
 - **Gold and XP mix 1:1:** the share of the next level's XP the unit already has comes off that
-  level's gold price (`TRAIN_GOLD_DISCOUNT` 1.0; `MilitaryUnit.upgrade_cost`, rounded, at least
-  1 gold): 60 % trained leaves 40 % of the gold. The upgrade dialog says "n% trained", the grounds'
-  panel the gold for the rest. Specialising costs its full price.
-- A gold upgrade of the unit resets its training progress. Training never specialises a unit.
+  level's gold price (`TRAIN_GOLD_DISCOUNT`; `MilitaryUnit.upgrade_cost`), so partial training is
+  never wasted. Specialising costs its full price (training can't pay for a branch choice). A
+  gold upgrade resets the unit's training progress. Training never specialises a unit.
 
 ### 4.7 Rest
 
-- She walks back to the village centre and stays there, in Rest mode until the player changes
-  it. She fights nobody and flees from nobody, and heals as she idles there (§5). The panel's
-  hint: "Walks back to the village centre and rests there, fighting nobody, healing as she
-  idles." Her status reads "resting (HP recovering)" or "resting (full HP)".
-- **Snoring:** while she rests in the centre, a "z" rises from her head every 0.8 s, fading away.
-  Every third one is a bigger "Z". Co-op clients show it too.
+- She walks back to the village centre and stays, fighting nobody and fleeing from nobody, healing
+  as she idles (§5), until the player changes the mode. It is the "keep her safe" button.
+- **Snoring:** a rising "z" (every third bigger) shows she is resting, a cheap readable cue
+  (co-op clients show it too).
 
 ### 4.8 Support (co-op only)
 
-- Only with more than one village (command `hero_mode` refuses it otherwise). Picking it
-  without a target sends her to the nearest other village; the second panel button (command
-  `hero_support`) changes which.
-- She walks there and **defends it exactly as in Defend mode**, relative to its centre and its
-  gates (`base()`), including rats on *its* farms.
-- She heals idling in its centre and keeps earning XP.
-- The village she helps can't give her orders.
-- **Downed** there, she revives in her own village's centre after the wave and walks back.
+- Only with more than one village. Picking it without a target sends her to the nearest other
+  village; the second panel button (`hero_support`) changes which.
+- She walks there and **defends it exactly as in Defend mode**, relative to its centre and walls
+  (`base()`), including rats on its farms. She heals idling in its centre and keeps earning XP.
+- The village she helps can't give her orders, so help can't be turned into a hijack.
+- **Downed** there, she revives in her own village after the wave and walks back.
 
 ## 5. Healing
 
-- **Resting idle** in the centre of the village she guards (her own, or the one she supports), in
-  any mode, heals her.
-  - "Idle" means at home, not fleeing, no target, and within 0.2 tiles of the centre.
-  - After `rest_delay` (3 s) of that she gets `rest_regen` (3 HP/s) up to her max HP.
-  - This also runs during a camp order, but she is rarely idle in the centre then.
-  - The *Hearth stone* relic adds +1 HP/s (`RELICS.hearth.hero_rest`).
-- **Healing mages** heal her (every village's hero), in their tower's range or their own radius.
-- Nothing else heals her. She doesn't use the villagers' home healing.
+- **Resting idle** at the centre of the village she guards, in any mode, heals her: idle means at
+  home, not fleeing, no target, near the centre; after a short delay she regenerates up to max
+  HP. The delay stops her healing in the middle of a fight she merely paused. Relics can add to
+  it (`RELICS.hearth.hero_rest`).
+- **Healing mages** heal her (every village's hero), by their tower's range or their own radius.
+- Nothing else heals her; she doesn't use the villagers' home healing, so the village centre is
+  the place that matters.
 
 ## 6. XP (`HERO_XP_PER_ACTION`)
 
-| Action | XP | When |
-|---|---|---|
-| `hit` | 2 | every sword blow that lands (counter-strikes too) |
-| `kill` | +10 | extra, for the blow that kills (on top of its `hit`) |
-| `build_second` | 1 | each second of construction work (Build mode) |
-| `explore` | 1 | each reveal that uncovers fog (see below); each claim (unlock site, ruin) |
-| `corpse` | 4 | each corpse **picked up** (Gather mode), not when it is paid at home |
-| `loot` | 10 | each treasure looted in Explore mode, when the looting is done; not for picking up dropped loot again |
+XP comes from every kind of work she does (a sword hit, with a bonus for the killing blow;
+seconds of building; reveals of fog; claims; corpses picked up; treasures looted), so every
+mode makes her stronger and Explore, Gather and Build are not a sacrifice. The weights are in
+`HERO_XP_PER_ACTION`.
 
 - **Uncovering fog, always:** whenever she uncovers new tiles she earns `explore` XP, in every
-  mode and whatever she is doing (walking to a claim or loot, carrying it home, gathering a corpse
-  by the fog, fighting, walking home). Like every unit outside she explores the fog within
-  `UNIT_REVEAL` (1.8 tiles) around her (`FogLayer._unit_reveal`); in Explore mode her Explore job
-  reveals as well (every 0.15 s while it is exploring unknown land). Each reveal that uncovers
-  something pays `explore` once; a tile is new only once, so nothing is paid twice. A claim
-  itself pays `explore` once too.
-- **Shrines:** looting a shrine can pay 80-120 XP (×the tier scale) when she gets home.
-- **Debug:** *+1000 XP* in the Debug dialog (command `_debug` "xp").
+  mode and whatever she is doing. Like every unit outside she explores the fog around her
+  (`UNIT_REVEAL`, `FogLayer._unit_reveal`); in Explore her job reveals as well. A tile is new only
+  once, so nothing is paid twice.
+- Corpse XP is paid on pick-up, not at home; loot XP when the looting is done and not for
+  picking up dropped loot again.
+- **Shrines:** looting a shrine pays a bigger XP lump when she gets home.
 - Training earns nothing. No other unit ever gains XP.
+- Debug builds: *+1000 XP* in the Debug dialog (command `_debug` "xp").
 
-## 7. Levels (`HERO_LEVELS`, `HERO_MAX_LEVEL` = 20)
+## 7. Levels (`HERO_LEVELS`, `HERO_MAX_LEVEL`)
 
-- She spends her own XP in her panel (*Level up*, command `hero_level_up`), one level at a time.
-- **HP and damage** grow linearly from level 1 to level 20 (`Config.hero_stat`). On a level-up she
-  gains the max HP difference at once.
-- **The XP cost** of each step grows linearly from 50 (1 → 2) to 400 (19 → 20)
-  (`Config.hero_level_cost`). All 19 steps together cost 4275 XP.
-- **The effect:** three glowing green chevrons rise over her head, she lights up for a moment, and
-  the log and a floating "Level N!" say so. Co-op clients play it too.
-
-| Level | HP | Damage | XP to the next |
-|---|---|---|---|
-| 1 | 60 | 8.0 | 50 |
-| 2 | 74 | 10.9 | 69 |
-| 3 | 87 | 13.9 | 89 |
-| 4 | 101 | 16.8 | 108 |
-| 5 | 115 | 19.8 | 128 |
-| 6 | 128 | 22.7 | 147 |
-| 7 | 142 | 25.7 | 167 |
-| 8 | 156 | 28.6 | 186 |
-| 9 | 169 | 31.6 | 206 |
-| 10 | 183 | 34.5 | 225 |
-| 11 | 197 | 37.5 | 244 |
-| 12 | 211 | 40.4 | 264 |
-| 13 | 224 | 43.4 | 283 |
-| 14 | 238 | 46.3 | 303 |
-| 15 | 252 | 49.3 | 322 |
-| 16 | 265 | 52.2 | 342 |
-| 17 | 279 | 55.2 | 361 |
-| 18 | 293 | 58.1 | 381 |
-| 19 | 306 | 61.1 | 400 |
-| 20 | 320 | 64.0 | (top) |
+- She spends her own XP in her panel (*Level up*, command `hero_level_up`), one level at a time:
+  the player decides when, and whether to keep XP for the training grounds instead.
+- **HP and damage** grow linearly across the levels (`Config.hero_stat`), and a level-up adds the
+  max HP difference at once. **The XP cost** per step also grows linearly
+  (`Config.hero_level_cost`). Linear, not exponential, so a late level is always within reach and
+  the choice between levels and training stays alive. The per-level table is derived from these
+  curves; read it off the functions rather than keeping a copy.
+- **The effect:** glowing green chevrons rise over her head, the log and a floating "Level N!" say
+  so; co-op clients play it too.
 
 ## 8. The High Priest's blessing
 
-- Inside a High Priest's aura her sword deals +`aura` damage (+2 % to +20 %; the strongest aura
-  counts): `Combat.holy_bonus(game, grid_pos)` in `Hero._strike`. See docs/acolyte-design.md §6.
-- While she is blessed, a tiny still halo shows over her head (`UnitFx.add_halo`).
-- Her sword stays *melee* damage.
+- Inside a High Priest's aura her sword deals extra damage (the strongest aura counts):
+  `Combat.holy_bonus(game, grid_pos)` in `Hero._strike`. See docs/acolyte-design.md §6. A tiny
+  still halo shows over her while blessed. Her sword stays *melee* damage, so the bonus never
+  turns it into holy damage.
 
 ## 9. Downed and revival
 
-- **At 0 HP** she is downed:
-  - the log says who struck her down and how much XP was lost (Important), and "Hero down!"
-    floats up;
-  - all her unspent XP is gone; her level stays;
-  - she drops any camp order and her mode's work. Loot she carries is left on the spot;
-  - she leaves no corpse and vanishes.
-- **Revival:** when the current wave is finished (`Waves.wave_finished`), or when the next one
-  begins (`Waves.wave_started`: downed between waves, say at a camp, she doesn't sit out a whole
-  wave), she is back in her own village's centre with full HP, in the same mode. Her panel says
-  which ("revives when the wave is over" / "... when the next wave begins"). The log says so (Info) and "The hero returns!"
-  floats up.
+- **At 0 HP** she is downed: the log says who struck her down and how much XP was lost
+  (Important); all unspent XP is gone, her levels stay (the penalty stings without erasing long
+  progress); she drops any camp order and her mode's work, loot she carries is left on the spot;
+  she leaves no corpse.
+- **Revival:** when the wave is finished, or when the next begins (so one downed between waves,
+  say at a camp, doesn't sit out a whole wave), she is back in her own village's centre at full
+  HP, in the same mode. The panel says which. Campaign scenarios can turn revival off
+  (`hero_revives`: away from home downed is a defeat).
 - Commands that need her (attacking a camp) are refused while she is down.
 
 ## 10. The tutorial
 
 - The guided tutorial sets her to **Rest** at the start, so she snores in the centre until the
-  "Your hero" step asks the player to send her exploring.
-- Later steps have her level up and mention passing her XP on at the training grounds. The
-  tutorial tops her XP up to the next level's cost if she has less. See docs/tutorial-design.md.
+  "Your hero" step asks the player to send her exploring. Later steps have her level up and
+  mention passing XP on at the grounds; the tutorial tops her XP up to the next level's cost if
+  she has less. See docs/tutorial-design.md.
 
 ## 11. Code
 
-- `scripts/units/hero.gd` (`class_name Hero extends Civilian`):
-  - the modes (`Mode`, `MODE_NAMES` / `MODE_WORDS` / `MODE_ICONS`), `set_mode`, and
-    `effective_mode` (Train falls back to Defend);
-  - `base()` (the village she guards);
-  - Defend: `_defend`, `_pick_enemy`, `_fight`, `_chase`, `_return_home`;
-  - the sword: `_strike` (holy bonus, XP), `counter_strike`;
-  - healing: `_regen`;
-  - levels: `level_up`, `play_level_up_fx`;
-  - camps: `attack_camp`, `_attack_camp`, `_end_camp`;
-  - Train: `_train`;
-  - Rest: `_snore`;
-  - downing: `take_damage`, `_downed`, `revive`;
-  - `status()` for the panel and the villager-style status line.
-  - She reuses `Civilian`'s fleeing (`wants_to_evade` only in Build / Explore / Gather and never
-    during a camp order; `_stop_evading` ends it on a new order) and its path following.
-- `scripts/units/jobs/`: `BuildJob`, `GatherJob` and `ExploreJob`, shared with the villagers and
-  built with her weaker numbers. `HeroExploreJob` (extends `ExploreJob`) adds claims, looting,
-  carrying, paying and dropping.
-- `scripts/systems/commands.gd`: `hero_mode`, `hero_level_up`, `hero_support`, `attack_camp`, and
-  `_debug` "xp". Every order goes through these, so co-op clients can give them.
-- `scripts/ui/hud.gd`: `_build_hero_panel`, `_refresh_hero`, the top-bar button with its health
-  bar, `HERO_MODE_HINTS`.
-- `scripts/world/fog_layer.gd`: `_unit_reveal` (exploring XP outside Explore mode).
-- `HeroExploreJob._finish`: claim XP and `loot` XP.
-- `scripts/core/config.gd`: `HERO`, `HERO_MAX_LEVEL`, `HERO_LEVELS`, `hero_stat`,
-  `hero_level_cost`, `HERO_XP_PER_ACTION`, `UNIT_REVEAL`, `TRAIN_XP_DIFFICULTY`, `RELICS.hearth`.
+- `scripts/units/hero.gd` (`class_name Hero extends Civilian`): modes (`Mode`, `MODE_*`,
+  `set_mode`, `effective_mode`: Train falls back to Defend), `base()`, Defend (`_defend`,
+  `_pick_enemy`), the sword (`_strike`, `counter_strike`), `_regen`, `level_up`, camps
+  (`attack_camp`), `_train`, `_snore`, downing (`take_damage`, `_downed`, `revive`), `status()`.
+  She reuses `Civilian`'s fleeing (`wants_to_evade` only in Build / Explore / Gather and never
+  during a camp order) and path following.
+- `scripts/units/jobs/`: `BuildJob`, `GatherJob`, `ExploreJob`, shared with the villagers and
+  built with her weaker numbers; `HeroExploreJob` adds claims, looting, carrying, paying and
+  dropping.
+- `scripts/systems/commands.gd`: `hero_mode`, `hero_level_up`, `hero_support`, `attack_camp`,
+  `_debug`. Every order goes through these, so co-op clients can give them.
+- `scripts/ui/hud.gd`: the hero panel and top-bar button, `HERO_MODE_HINTS`.
+- `scripts/world/fog_layer.gd`: `_unit_reveal`.

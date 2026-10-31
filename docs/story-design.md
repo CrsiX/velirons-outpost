@@ -1,8 +1,6 @@
 # Story design
 
-Status: **scenarios 1 to 9 are built** (Brenna, Einar, Pell, Wenna, Sigmund, Lysa and Torben, Anselm, Fiona, Elder Oren and Idris, Lothar,
-Rurik, Rhodri, the portraits, the cutscene format, the Legion's footman, captain, archer, guardsman,
-banner-bearer and champion: `scenarios-design.md` §7); the rest is planned. This page holds the story the game's scenarios, library texts and event log will draw on. It changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
+Status: **the whole campaign (scenarios 1 to 11) is built** (`scenarios-design.md` §7). This page holds the story the game's scenarios, library texts and event log will draw on. It changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
 *open* is not decided.
 
 ## 1. Premise
@@ -172,7 +170,7 @@ Any of them, or several, could have sent the spies. The story never settles it. 
 
 ## 4a. The map of Veliron
 
-Where things lie (the campaign map on the title screen, `ui-design.md`; `Campaign.PLACES`):
+Where things lie (the campaign map on the title screen, `ui-design.md`; `Campaign.places()`):
 
 - **Borders:** the ocean to the west; the **wilderness** to the north, beyond the **Wardline**, the chain of towers along the whole northern
   border; the **Kingdom of Karmere** to the north-east, the **Republic of Lyrenne** along the middle and the south-east, the **Holy Dominion
