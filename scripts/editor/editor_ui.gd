@@ -1070,7 +1070,7 @@ func _slide_sheet(from: float) -> void:
 	_slide.finished.connect(func() -> void: _slide = null)
 
 
-func _touch_scrollable(n: Node) -> void:
+func _touch_scrollable(n: Variant) -> void:  # Variant: a deferred call may get a freed node
 	if not is_instance_valid(n) or not n is Control:
 		return
 	var c := n as Control

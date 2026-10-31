@@ -7,6 +7,7 @@ paths:
 
 - **Warnings are errors.** A variable inferred from a Variant, a local shadowing a signal (such as `changed`), a coroutine called without `await`: give the type, rename, `await` in plain `if` branches. Lint does not see warnings-as-errors; a script that fails to parse only shows when you run a bot.
 - **Freed objects.** Calling a lambda whose captured object was freed is an engine error even if it checks `is_instance_valid` first; so is `has()` on a typed array holding a freed object. Compare instance ids instead.
+- **Deferred calls with a node.** `f.call_deferred(n)` fails ("Cannot convert argument 1 from Object to Object") if `n` is freed before the call runs and `f` types it `Node`: type that parameter `Variant` and check `is_instance_valid` inside.
 - **Lambdas capture by value.** A lambda can't assign the caller's local variables: let it fill an Array or Dictionary the caller holds.
 - **Typed arrays.** Assigning a filtered array to a typed array fails at runtime: `typed.assign(arr.filter(...))`.
 - **Packed arrays inside containers.** `arr[i][k] = x` on a packed array held in an Array or Dictionary can copy the whole packed array. Fill a local one and store it once.

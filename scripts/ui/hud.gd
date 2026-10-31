@@ -1973,7 +1973,7 @@ func _on_build_down(kind: String) -> void:
 ## Lets drags anywhere on `n` (and below it) reach the scroll container:
 ## buttons (and anything with a tooltip) pass them on, the rest ignores the
 ## mouse; sliders and text fields keep theirs.
-func _touch_scrollable(n: Node) -> void:
+func _touch_scrollable(n: Variant) -> void:  # Variant: a deferred call may get a freed node
 	if not is_instance_valid(n) or not n is Control:
 		return
 	var c := n as Control
