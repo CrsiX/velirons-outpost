@@ -3091,6 +3091,10 @@ func _build_debug(center: Control) -> void:
 		_debug_main.visible = false
 		_debug_enemies.visible = true)
 	v.add_child(spawn)
+	if OS.has_feature("web") and game.game_log and game.game_log.active():  # (no file to look at in a browser)
+		var dl := _button("Download game log", Vector2(0, 48))
+		dl.pressed.connect(func() -> void: game.game_log.download())
+		v.add_child(dl)
 	var back := _button("Back", Vector2(0, 52))
 	UiTheme.style_good(back)
 	back.pressed.connect(func() -> void: _show_debug(false))

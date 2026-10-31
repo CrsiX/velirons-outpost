@@ -285,9 +285,10 @@ const SAVE := {
 ## level, written to one text file per game in `dir`
 ## (<start date>_<start time>_<game id>.log). A game that is saved and loaded
 ## goes on in its file. Only the newest `keep` files are kept (older ones are
-## deleted when a game starts). Not written on the web (user:// is hidden in
-## the browser's storage), nor for the tutorial, the title backdrop or a co-op
-## client.
+## deleted when a game starts). No file on the web (user:// is hidden in the
+## browser's storage): a debug build keeps the lines in memory and the Debug
+## page downloads them. Not kept for the tutorial, the title backdrop or a
+## co-op client.
 const GAME_LOG := {
 	"dir": "user://game_logs",
 	"keep": 20,

@@ -280,7 +280,8 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   - **Co-op client:** the dialog doesn't pause, and a note says so. **Co-op host:** pausing greys
     everything below the top bar for all players.
   - **Debug:** only in a debug build, never a release export; cheats are commands
-    (`Commands._debug`), so they also work for a co-op client.
+    (`Commands._debug`), so they also work for a co-op client. On the web it also downloads the
+    game log (see *Game log file*).
 - **Library** (`scripts/ui/library.gd`; also on the title screen): tabs of reference pages (see
   `Library.TAB_NAMES`), each entry with its picture, a short text and its real numbers. Every entry
   is built from Config when its tab opens, so the numbers never go out of date, and it shows
@@ -457,7 +458,9 @@ nothing is placed, stationed or upgraded on it, so it can never be a second, wor
   the title backdrop or on a co-op client). Each line has fixed fields (in-game time, level, wave)
   so the files can be cut and searched by offset; co-op adds the village. A game loaded from a save
   appends to its own file and writes a "Game resumed" line and a snapshot per village, to the file
-  only. The header and line format are in `GameLog`.
+  only. The header and line format are in `GameLog`. On the web there is no file; a debug build keeps
+  the lines in memory instead and the Debug page has *Download game log*, which hands the browser
+  the whole log of the running game (since the load, for a loaded game).
 - **Floating texts** (`World.float_text`, `Unit.float_text`): a short text rises from a spot and
   fades ("+2 gold +8 food" as icons, "Level 4!", "Hero down!"), to show where a thing happened
   without a log line. The co-op host replicates them to clients.

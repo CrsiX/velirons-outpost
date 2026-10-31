@@ -16,4 +16,4 @@ paths:
 - **CI** (`.github/workflows`): every push runs lint, the mapgen job and one job per bot; any failure blocks the Pages deploy. `balance.yml` is manual. CI fetches Godot from the pinned version in the workflows; the sandbox uses the copy in `bin/`.
 - Exports need the Godot export templates; Android also needs the SDK and a keystore. Presets are in `export_presets.cfg`.
 - Release exports behave differently from the editor binary in a few ways (see the BOM note in gdscript-gotchas); check a release export when file reading differs.
-- The game log file is not written on the web.
+- The game log file is not written on the web; a debug build keeps it in memory (`GameLog.web_lines`) and the Debug page's *Download game log* button saves it.

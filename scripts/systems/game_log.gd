@@ -7,11 +7,17 @@ extends Node
 ## padded to 2 digits. The file starts with a header (game version and commit, map, seed,
 ## village names, real time). A game that was loaded appends to its own file
 ## and says so (a line that never shows in the game's own log).
+## On the web (debug builds only) there is no file: the lines are kept in
+## memory for this running game and the Debug page downloads them
+## (`download`). A loaded game's lines start at the load there.
 
 const LEVEL_LETTERS := ["D", "I", "W"]
 
 var game: Game
 var path := ""
+## Web debug builds: the lines kept in memory instead of a file.
+var web_lines := PackedStringArray()
+var _web := false
 ## Game.log_all adds the same message to every village: only one copy is written.
 var _muted := false
 
@@ -20,7 +26,14 @@ var _muted := false
 ## village's log. Writes nothing where a log makes no sense.
 func setup(p_game: Game) -> void:
 	game = p_game
-	if OS.has_feature("web") or game.backdrop or game.tutorial_mode or game.is_client:
+	if game.backdrop or game.tutorial_mode or game.is_client:
+		return
+	if OS.has_feature("web"):
+		if not OS.is_debug_build():
+			return
+		_web = true
+		_listen()
+		_write_header()
 		return
 	var dir := str(Config.GAME_LOG["dir"])
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -29,11 +42,28 @@ func setup(p_game: Game) -> void:
 	if not resumed:
 		path = dir.path_join("%s_%s.log" % [Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_"), game.game_id])
 		_prune(dir)
-	for v in game.villages:
-		v.events.logged.connect(func(level: int, text: String) -> void: _on_logged(v, level, text))
+	_listen()
 	if resumed:
 		return
 	_write_header()
+
+
+## Whether this game's log is being kept (in a file or, on the web, in memory).
+func active() -> bool:
+	return path != "" or _web
+
+
+## Web: hands the browser the whole log so far as a text file.
+func download() -> void:
+	if not _web:
+		return
+	var file := "game_%s.log" % game.game_id
+	JavaScriptBridge.download_buffer(("\n".join(web_lines) + "\n").to_utf8_buffer(), file, "text/plain")
+
+
+func _listen() -> void:
+	for v in game.villages:
+		v.events.logged.connect(func(level: int, text: String) -> void: _on_logged(v, level, text))
 
 
 ## Game.log_all: one line for all villages, then the villages' own copies are
@@ -50,7 +80,7 @@ func end_all() -> void:
 ## A loaded game: the INFO line (real time, in-game time, wave) and a DEBUG
 ## snapshot of every village.
 func note_resumed() -> void:
-	if path == "":
+	if not active():
 		return
 	var real := Time.get_datetime_string_from_system(false, true)
 	_write(EventLog.Level.INFO, "Game resumed (real time %s, in-game time %s, wave %d)" % [real, _clock(), game.waves.wave])
@@ -94,13 +124,20 @@ func _write_header() -> void:
 		"Started:      %s" % Time.get_datetime_string_from_system(false, true),
 		"",
 	]
+	if _web:
+		web_lines.append_array(lines)
+		return
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f:
 		f.store_string("\n".join(lines) + "\n")
 
 
 func _write(level: int, text: String, prefix := "") -> void:
-	if path == "" or level >= LEVEL_LETTERS.size():
+	if not active() or level >= LEVEL_LETTERS.size():
+		return
+	var line := "[%s] [%s] [%02d] %s%s" % [_clock(), LEVEL_LETTERS[level], game.waves.wave, prefix, text]
+	if _web:
+		web_lines.append(line)
 		return
 	var f := FileAccess.open(path, FileAccess.READ_WRITE)
 	if f == null:
@@ -108,7 +145,7 @@ func _write(level: int, text: String, prefix := "") -> void:
 	if f == null:
 		return
 	f.seek_end()
-	f.store_line("[%s] [%s] [%02d] %s%s" % [_clock(), LEVEL_LETTERS[level], game.waves.wave, prefix, text])
+	f.store_line(line)
 
 
 ## The in-game time, HH:MM:SS.
