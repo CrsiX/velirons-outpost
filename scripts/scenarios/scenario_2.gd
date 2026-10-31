@@ -46,16 +46,16 @@ func _init() -> void:
 	specialise = false
 	must_live = ["Pell"]
 
-	# Wilderness: goblins, orks, rats, slimes. Wave 4's rat packs test the
+	# Wilderness: goblins, orcs, rats, slimes. Wave 4's rat packs test the
 	# farm's defence. The first wave comes once the stall stands (on_card_done).
 	waves = [
 		{"kinds": {"goblin": 4}, "spawns": 1},
 		{"kinds": {"goblin": 5}, "rat_packs": [4], "spawns": 2},
-		{"kinds": {"goblin": 5, "ork": 1}, "spawns": 2},
-		{"kinds": {"goblin": 4, "ork": 1}, "rat_packs": [6, 5], "spawns": 3},
-		{"kinds": {"goblin": 6, "ork": 2, "slime3": 1}, "spawns": 2},
-		{"kinds": {"goblin": 7, "ork": 2}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"goblin": 8, "ork": 3, "slime3": 2}, "rat_packs": [5], "spawns": 3},
+		{"kinds": {"goblin": 5, "orc": 1}, "spawns": 2},
+		{"kinds": {"goblin": 4, "orc": 1}, "rat_packs": [6, 5], "spawns": 3},
+		{"kinds": {"goblin": 6, "orc": 2, "slime3": 1}, "spawns": 2},
+		{"kinds": {"goblin": 7, "orc": 2}, "rat_packs": [5], "spawns": 3},
+		{"kinds": {"goblin": 8, "orc": 3, "slime3": 2}, "rat_packs": [5], "spawns": 3},
 	]
 	first_wave_waits = true
 	first_wave_call = false

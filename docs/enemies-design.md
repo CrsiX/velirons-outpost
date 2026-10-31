@@ -13,7 +13,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   (applying `resist`), dies, flies, gets slowed or pushed back. It reads every number through
   `stat()` (`Config.enemy_stat`, difficulty-scaled).
 - `scripts/units/enemies/`: one behavior per `"behavior"` key (`Enemy.BEHAVIORS`):
-  - `melee_behavior.gd`: goblins, skeletons, orks, gargoyles, slimes (and the base of thief and vampire);
+  - `melee_behavior.gd`: goblins, skeletons, orcs, gargoyles, slimes (and the base of thief and vampire);
   - `witch_behavior.gd` + `spell_bolt.gd`;
   - `rat_behavior.gd`, `thief_behavior.gd`, `necromancer_behavior.gd`, `vampire_behavior.gd`;
   - `spider_mother_behavior.gd` (extends `MeleeBehavior`) and `egg_behavior.gd` (her eggs);
@@ -57,7 +57,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 | Kind | From wave | Share | Growth / wave | Max share |
 |---|---|---|---|---|
 | Skeleton | 2 | 12 % | 6 % | 35 % |
-| Ork | 3 | 10 % | 3 % | 25 % |
+| Orc | 3 | 10 % | 3 % | 25 % |
 | Big slime | 4 | 6 % | 2 % | 15 % |
 | Witch | 5 | 10 % | 2 % | 20 % |
 | Wolf | 5 | 6 % | 2 % | 15 % (in packs of 2-3, §15e) |
@@ -117,7 +117,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 - `resist` maps a category to a factor on the damage taken (`Enemy.take_damage`); missing = ×1.
 - The library's *Damage* tab shows all of this, read from Config (`Library._damage`,
   `Config.DAMAGE_INFO`; docs/tutorial-design.md §4).
-- **Holy** (the acolyte line, docs/acolyte-design.md §3): goblin, ork, thief, gargoyle, spider
+- **Holy** (the acolyte line, docs/acolyte-design.md §3): goblin, orc, thief, gargoyle, spider
   mother, spider egg, spiderling ×0.75;
   skeleton ×1.25; necromancer and vampire (bat too) ×1.5; witch, rat, slimes ×1. Anything a
   necromancer raised, and anything undead (`Enemy.undead`: a raised spider mother's eggs and
@@ -179,7 +179,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 - While an enemy is inside a village's walls, villagers walking in there are exposed.
 - Enemies are only visible on watched tiles.
 
-## 8. Melee kinds: goblin, skeleton, ork
+## 8. Melee kinds: goblin, skeleton, orc
 
 - `MeleeBehavior`: walks the road; when a melee defender (the hero, a soldier outside, an
   elemental) or an exposed villager is within `SUMMON.attack_range` (0.8 tiles), it stops, lunges and hits
@@ -189,7 +189,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 |---|---|---|---|---|---|---|
 | Goblin | 20 | 1.1 | 4 / 1.0 s | 3 | 3 / 2 | ×0.75 |
 | Skeleton | 20 | 1.1 | 4 / 1.0 s | 3 | 3 / 0 | ×1.25, unholy |
-| Ork | 55 | 0.8 | 11 / 1.2 s | 6 | 0 / 6 | ×0.75 |
+| Orc | 55 | 0.8 | 11 / 1.2 s | 6 | 0 / 6 | ×0.75 |
 
 - A level-1 earth elemental is as strong as a Normal goblin, and as fast (`SUMMONS.earth.speed`,
   1.1 tiles/s).
@@ -332,7 +332,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
 - **Spider mother:** from wave 9 (`WAVE_MIX`; at most 2 per wave and village, one more every 5
   waves after wave 9: 3 from wave 14, 4 from 19; `Config.wave_max_count`), and out of
   hollow-tree lairs (`LAIR_THEMES.lair_tree`; a lair's entries aren't held to `max_count`).
-  Bigger than an ork. Otherwise a melee fighter like the ork (`SpiderMotherBehavior` extends
+  Bigger than an orc. Otherwise a melee fighter like the orc (`SpiderMotherBehavior` extends
   `MeleeBehavior`; breaks walls and gates, burns a hut when she gets in), plus her eggs:
   - *On the way:* once she is within `lay_near` (7 tiles, a little more than a level 3 wall
     tower's 6.4) of a manned tower or barracks of any village whose units fight (a unit
@@ -351,7 +351,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
     `alarm_cooldown` (12 s, counted from the laying); the next clutch on the way comes
     `lay_every` after it.
   - *At most `max_clutches` (5)* clutches per mother, timed and alarmed together
-    (`SpiderMotherBehavior.clutches`). Laid out, she fights on like an ork: she no longer
+    (`SpiderMotherBehavior.clutches`). Laid out, she fights on like an orc: she no longer
     stops to guard. A raised mother is a new enemy and counts afresh.
   - Killed: 10 gold, a corpse worth 8 gold and no food. A necromancer can raise her; raised,
     she lays a clutch at once and then every `lay_every` (15 s; she drains away in 20 s),
@@ -604,8 +604,8 @@ rider moves and picks its fights; `CaptainBehavior` and `CommanderBehavior` exte
 
 - Every far treasure (and half of the middle ones) has a camp (`CAMP_CHANCE`, docs/world-design.md
   §9.3) with `CAMP_MONSTERS`:
-  - tier 2: goblin, goblin, ork;
-  - tier 3: goblin, ork, ork, witch.
+  - tier 2: goblin, goblin, orc;
+  - tier 3: goblin, orc, orc, witch.
 - They have `CAMP_HP_SCALE` (×1.5) HP, fixed (not wave-scaled), and use `CampBehavior` instead of
   their kind's behavior.
 - They never walk a road. They attack any defender or exposed villager within `CAMP_AGGRO` (3.5

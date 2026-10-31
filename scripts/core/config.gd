@@ -76,7 +76,7 @@ const TUTORIAL := {
 	"tower_tile": Vector2i(-1, -1), "farm_tile": Vector2i(-1, -1), "barracks_tile": Vector2i(-1, -1),
 	"camp_tile": Vector2i(32, 38),  # (west of the village, by the forest, in plain view; -1: the usual start spot)
 	"spawn_distance": 18,
-	"waves": [{"goblin": 2}, {"goblin": 5, "ork": 1}],
+	"waves": [{"goblin": 2}, {"goblin": 5, "orc": 1}],
 	"step_pause": 1.0,  # seconds between a finished step and the next card
 }
 
@@ -134,7 +134,7 @@ const TITLE_BACKDROP := {
 				{"kind": "tower", "at": [3, 6], "level": 3, "units": [{"kind": "crossbowman", "level": 3}]},
 				{"kind": "tower", "at": [8, 11], "level": 2, "units": [{"kind": "swiftbowman", "level": 2}]},
 			],
-			"enemies": [{"kinds": {"goblin": 5, "ork": 1}, "from": 18, "at": 0.0, "every": 14.0, "gap": 1.2, "wave": 4}],
+			"enemies": [{"kinds": {"goblin": 5, "orc": 1}, "from": 18, "at": 0.0, "every": 14.0, "gap": 1.2, "wave": 4}],
 			"camera": {"from": 13, "to": 3, "zoom": 1.1},
 		},
 		{
@@ -153,7 +153,7 @@ const TITLE_BACKDROP := {
 					{"kind": "shield_bearer", "level": 4}, {"kind": "shield_bearer", "level": 4}, {"kind": "shield_bearer", "level": 3}]},
 				{"kind": "tower", "at": [3, 6], "level": 2, "units": [{"kind": "archer", "level": 3}]},
 			],
-			"enemies": [{"kinds": {"ork": 3, "goblin": 2}, "from": 20, "at": 0.0, "every": 16.0, "gap": 1.5, "wave": 4}],
+			"enemies": [{"kinds": {"orc": 3, "goblin": 2}, "from": 20, "at": 0.0, "every": 16.0, "gap": 1.5, "wave": 4}],
 			"camera": {"from": 15, "to": 6, "zoom": 1.1},
 		},
 		{
@@ -269,7 +269,7 @@ const STATS := {
 	"sample_interval": 15.0,
 	"client_refresh": 5.0,
 	"unit_sent_value": 50,
-	"kill_kinds": ["goblin", "skeleton", "ork", "witch", "rat", "wolf", "goblin_raider", "thief", "gargoyle", "necromancer", "wrathwood"],
+	"kill_kinds": ["goblin", "skeleton", "orc", "witch", "rat", "wolf", "goblin_raider", "thief", "gargoyle", "necromancer", "wrathwood"],
 }
 
 ## Saving and loading games (docs/save-design.md): where the save files go,
@@ -635,7 +635,7 @@ const RELICS := {
 ## Monster camps guard some far treasures: neutral monsters that stay by the
 ## camp and fight whoever comes close. Cleared only on the player's order.
 const CAMP_CHANCE: Array[float] = [0.0, 0.5, 1.0]  # a camp guards a treasure of tier 1/2/3 (every slice has one tier-3 camp)
-const CAMP_MONSTERS: Array = [["goblin", "goblin"], ["goblin", "goblin", "ork"], ["goblin", "ork", "ork", "witch"]]
+const CAMP_MONSTERS: Array = [["goblin", "goblin"], ["goblin", "goblin", "orc"], ["goblin", "orc", "orc", "witch"]]
 const CAMP_AGGRO := 3.5  # monsters attack what comes this close to the camp
 const CAMP_LEASH := 5.0  # and never follow it farther from the camp
 const CAMP_HP_SCALE := 1.5  # camp monsters are a bit tougher than wave enemies
@@ -680,10 +680,10 @@ const LAIR_FROM_WAVE := 10
 const LAIR_EVERY := 3
 const LAIR_QUIET_WAVES := 3
 const LAIR_THEMES := {
-	"lair_cave": {"name": "cave", "kinds": ["ork", "gargoyle"], "guards": ["ork", "ork", "goblin"]},
+	"lair_cave": {"name": "cave", "kinds": ["orc", "gargoyle"], "guards": ["orc", "orc", "goblin"]},
 	"lair_tree": {"name": "hollow tree", "kinds": ["goblin", "rat", "spider_mother"], "guards": ["goblin", "goblin", "goblin"]},
 	"lair_ruin": {"name": "sunken ruin", "kinds": ["skeleton", "witch"], "guards": ["skeleton", "skeleton", "witch"]},
-	"lair_pit": {"name": "smoking pit", "kinds": ["ork", "gargoyle"], "guards": ["ork", "ork", "goblin"]},
+	"lair_pit": {"name": "smoking pit", "kinds": ["orc", "gargoyle"], "guards": ["orc", "orc", "goblin"]},
 	"lair_crypt": {"name": "crypt", "kinds": ["skeleton", "necromancer", "vampire"], "guards": ["skeleton", "skeleton", "skeleton"]},
 }
 ## A cleared lair's loot (a sack at its door): x (1 + LAIR_LOOT_GROWTH per
@@ -1667,8 +1667,8 @@ const ENEMIES := {
 		"resist": {"holy": 1.25}, "unholy": true,
 	},
 	# Slower and much tougher; hits hard. Gold only on kill, lots of food as a corpse.
-	"ork": {
-		"name": "Ork", "art": "ork", "behavior": "melee",
+	"orc": {
+		"name": "Orc", "art": "orc", "behavior": "melee",
 		"siege": 1.0,
 		"desc": "Slow and very tough, and it hits hard. A good meal as a corpse.",
 		"hp": 55.0, "speed": 0.8,
@@ -1825,7 +1825,7 @@ const ENEMIES := {
 		"bat_below": 0.33, "bat_time": 10.0, "bat_speed": 1.8, "bat_gate_heal": 0.33,
 	},
 	# --- spiders (Wilderness; docs/enemies-design.md §15b) ---
-	# A huge, slow spider that fights like an ork and lays eggs (`lays`, a kind
+	# A huge, slow spider that fights like an orc and lays eggs (`lays`, a kind
 	# of its own): a clutch of clutch[0]..clutch[1] eggs around her
 	# (lay_spread tiles) as she walks, without stopping: the first once she is
 	# within lay_near tiles of a manned tower or barracks of ours whose units
@@ -2369,7 +2369,7 @@ static func difficulty_multiplier(difficulty: String, key: String) -> float:
 ## rolled per wave and village by Waves).
 const WAVE_MIX := {
 	"skeleton": {"from_wave": 2, "share": 0.12, "growth": 0.06, "max_share": 0.35},
-	"ork": {"from_wave": 3, "share": 0.10, "growth": 0.03, "max_share": 0.25},
+	"orc": {"from_wave": 3, "share": 0.10, "growth": 0.03, "max_share": 0.25},
 	"slime3": {"from_wave": 4, "share": 0.06, "growth": 0.02, "max_share": 0.15},
 	"witch": {"from_wave": 5, "share": 0.10, "growth": 0.02, "max_share": 0.2},
 	"wolf": {"from_wave": 5, "share": 0.06, "growth": 0.02, "max_share": 0.15},

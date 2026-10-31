@@ -39,7 +39,7 @@ Acolyte ────────────┬──────►  Inquisitor
 |---|---|
 | Goblin | ×0.75 |
 | Skeleton | ×1.25 |
-| Ork | ×0.75 |
+| Orc | ×0.75 |
 | Slime (every size) | ×1.0 |
 | Witch | ×1.0 |
 | Rat | ×1.0 |

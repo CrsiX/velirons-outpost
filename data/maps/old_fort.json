@@ -534,9 +534,9 @@
   "village_links": [],
   "objects": [
     {"id": 1, "kind": "treasure", "tile": [15, 11], "size": 1, "treasure": "ruins", "tier": 3, "reward": {"gold": 120, "materials": 40}},
-    {"id": 2, "kind": "camp", "tile": [17, 11], "size": 1, "tier": 3, "guards": 1, "monsters": ["goblin", "goblin", "ork"]},
+    {"id": 2, "kind": "camp", "tile": [17, 11], "size": 1, "tier": 3, "guards": 1, "monsters": ["goblin", "goblin", "orc"]},
     {"id": 3, "kind": "treasure", "tile": [58, 8], "size": 1, "treasure": "ruins", "tier": 3, "reward": {"gold": 120, "materials": 40}},
-    {"id": 4, "kind": "camp", "tile": [60, 8], "size": 1, "tier": 3, "guards": 3, "monsters": ["goblin", "ork", "ork"]},
+    {"id": 4, "kind": "camp", "tile": [60, 8], "size": 1, "tier": 3, "guards": 3, "monsters": ["goblin", "orc", "orc"]},
     {"id": 5, "kind": "treasure", "tile": [46, 21], "size": 1, "treasure": "chest", "tier": 1, "reward": {"gold": 50}},
     {"id": 6, "kind": "treasure", "tile": [58, 64], "size": 1, "treasure": "shrine", "tier": 2, "reward": {"hero_xp": 100}},
     {"id": 7, "kind": "treasure", "tile": [13, 61], "size": 1, "treasure": "chest", "tier": 1, "reward": {"gold": 60}},

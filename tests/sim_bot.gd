@@ -427,12 +427,12 @@ func _run() -> void:
 				mix_ok = false
 	check(mix_ok, "wave mix adds up and nobody shows up before their first wave")
 	check(not Config.wave_composition(4).has("witch") and Config.wave_composition(5).has("witch"), "witches first appear in wave %d" % Config.WAVE_MIX["witch"]["from_wave"])
-	check(not Config.wave_composition(2).has("ork") and Config.wave_composition(3).has("ork"), "orks first appear in wave %d" % Config.WAVE_MIX["ork"]["from_wave"])
+	check(not Config.wave_composition(2).has("orc") and Config.wave_composition(3).has("orc"), "orcs first appear in wave %d" % Config.WAVE_MIX["orc"]["from_wave"])
 	var gob: Dictionary = Config.ENEMIES["goblin"]
-	var orc: Dictionary = Config.ENEMIES["ork"]
+	var orc: Dictionary = Config.ENEMIES["orc"]
 	var wit: Dictionary = Config.ENEMIES["witch"]
-	check(orc["speed"] < gob["speed"] and orc["hp"] > gob["hp"] and orc["damage"] > gob["damage"] * 2.0, "orks: slower, tougher, much harder hitting")
-	check(orc["gold_on_kill"] > 0 and orc["gold_on_collect"] == 0 and orc["food_on_collect"] > gob["food_on_collect"], "orks: gold on kill only, more food when gathered")
+	check(orc["speed"] < gob["speed"] and orc["hp"] > gob["hp"] and orc["damage"] > gob["damage"] * 2.0, "orcs: slower, tougher, much harder hitting")
+	check(orc["gold_on_kill"] > 0 and orc["gold_on_collect"] == 0 and orc["food_on_collect"] > gob["food_on_collect"], "orcs: gold on kill only, more food when gathered")
 	check(wit["hp"] < gob["hp"] and wit["damage"] == 0 and wit["gold_on_kill"] > gob["gold_on_kill"] and wit["gold_on_collect"] == 0 and wit["food_on_collect"] <= gob["food_on_collect"], "witches: frail, no melee, rich kill, no gold and little food as corpses")
 	check(is_equal_approx(wit["spell_cooldown"], 2.0 * Config.unit_stat("archer", "cooldown", 0)), "witch spell cycle is twice an archer's shot interval")
 	Settings.difficulty = Settings.Difficulty.HARD
@@ -1199,13 +1199,13 @@ func _run() -> void:
 	await wait_until(func() -> bool: return game.army.walking().is_empty(), 60.0)
 	game.waves.countdown = 99999.0
 
-	# --- ork ---------------------------------------------------------------------------------
-	game.waves._spawn({"kind": "ork", "spawn": far_spot, "hp_scale": 1.0})
-	var brute_ork: Enemy = get_tree().get_nodes_in_group("enemies").back()
-	check(brute_ork.kind == "ork" and brute_ork.behavior is MeleeBehavior and brute_ork.max_hp == Config.enemy_stat("ork", "hp"), "orks spawn with their own stats and melee behavior")
-	var g_ork := game.economy.amount("gold")
-	brute_ork.take_damage(1e9)
-	check(game.economy.amount("gold") == g_ork + Config.enemy_stat_int("ork", "gold_on_kill") and cs.corpses.back().kind == "ork", "a killed ork pays gold and leaves a corpse")
+	# --- orc ---------------------------------------------------------------------------------
+	game.waves._spawn({"kind": "orc", "spawn": far_spot, "hp_scale": 1.0})
+	var brute_orc: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	check(brute_orc.kind == "orc" and brute_orc.behavior is MeleeBehavior and brute_orc.max_hp == Config.enemy_stat("orc", "hp"), "orcs spawn with their own stats and melee behavior")
+	var g_orc := game.economy.amount("gold")
+	brute_orc.take_damage(1e9)
+	check(game.economy.amount("gold") == g_orc + Config.enemy_stat_int("orc", "gold_on_kill") and cs.corpses.back().kind == "orc", "a killed orc pays gold and leaves a corpse")
 	cs.remove(cs.corpses.back())
 	game.waves.countdown = 99999.0
 
@@ -1398,7 +1398,7 @@ func _run() -> void:
 	# Hard difficulty: still exactly one hut per enemy that gets in.
 	Settings.difficulty = Settings.Difficulty.HARD
 	var huts_h := game.population.cap()
-	game.waves._spawn({"kind": "ork", "spawn": outside, "hp_scale": 1.0})
+	game.waves._spawn({"kind": "orc", "spawn": outside, "hp_scale": 1.0})
 	await wait_until(func() -> bool: return game.population.cap() < huts_h, 20.0)
 	await wait(1.0)
 	check(game.population.cap() == huts_h - 1, "on hard, an enemy at the gate still destroys exactly one hut")
@@ -1590,7 +1590,7 @@ func _run() -> void:
 			"collected corpse", "corpses home", "cut down tree", "building material at", "food home", "summoned elemental", "crumbles", "casts a spell at", "bewitched by",
 			"fights elemental", "the hero attacks", "hero mode: ", "flees home", "heads for the fog", "buy 10 building material", "game speed", "open settings", "log level", "rotted away", "order upgrade of", "broke into the village"],
 		EventLog.Level.INFO: ["Wave 1 begins", "Wave 1 is over", "watchtower 1 finished", "upgraded to level 2", "The hero returns", "fully trained to level 2", "rebuilt", " cancelled: "],
-		EventLog.Level.IMPORTANT: ["destroyed by goblin", "destroyed by ork", "died when", "died of starvation", "The hero was struck down"],
+		EventLog.Level.IMPORTANT: ["destroyed by goblin", "destroyed by orc", "died when", "died of starvation", "The hero was struck down"],
 	}
 	var missing: Array[String] = []
 	for level in expect:
@@ -1646,7 +1646,7 @@ func _test_hero(far: Vector2i) -> void:
 	var xp_fight := hero.xp
 	# Re-targeting: nearest first, then the strongest.
 	var weak := spawn_dummy("goblin", hero.grid_pos + Vector2(1.5, 0.0), 1.0, far)
-	var strong := spawn_dummy("ork", hero.grid_pos + Vector2(0.0, 1.5), 1.0, far)
+	var strong := spawn_dummy("orc", hero.grid_pos + Vector2(0.0, 1.5), 1.0, far)
 	brute.take_damage(1e9)
 	await wait(0.8)
 	check(hero.target == strong or (is_instance_valid(weak) and weak.dead), "after a kill she picks the nearest enemy, the strongest among equals")

@@ -203,7 +203,7 @@ func _test_config() -> void:
 	var breaks := _spec_rule_breaks()
 	check(breaks.is_empty(), "every specialisation: level 1 at least as strong as its base unit's level 3, level 10 stronger than its level 10 %s" % str(breaks))
 	check(Config.unit_stat("crossbowman", "cooldown", 0) > 2.0 * Config.unit_stat("archer", "cooldown", 2) and Config.MILITARY["crossbowman"]["range"] > Config.MILITARY["archer"]["range"], "crossbowman: much slower fire, more range")
-	check(Config.unit_stat("shield_bearer", "hp", 0) >= 0.8 * Config.ENEMIES["ork"]["hp"] and Config.unit_stat("shield_bearer", "hp", 0) > 1.5 * Config.unit_stat("archer", "hp", 0) and Config.MILITARY["shield_bearer"]["posts"] == ["barracks"], "shield bearer: ork-like HP, barracks only")
+	check(Config.unit_stat("shield_bearer", "hp", 0) >= 0.8 * Config.ENEMIES["orc"]["hp"] and Config.unit_stat("shield_bearer", "hp", 0) > 1.5 * Config.unit_stat("archer", "hp", 0) and Config.MILITARY["shield_bearer"]["posts"] == ["barracks"], "shield bearer: orc-like HP, barracks only")
 	check(Config.unit_stat("apprentice", "hp", 0) < Config.unit_stat("archer", "hp", 0), "HP: apprentice < archer")
 	check(Config.unit_stat("ice_mage", "slow", 9) < Config.unit_stat("ice_mage", "slow", 0), "the ice mage's slow grows with its level")
 	var top := 0
@@ -316,7 +316,7 @@ func _test_downing() -> void:
 	# Downed during a sortie: back on its bench after the revive time.
 	sb.hp = sb.max_hp()
 	var c := barracks.act_center()
-	var foe := spawn_dummy("ork", c + Vector2(1.5, 0), 50.0)
+	var foe := spawn_dummy("orc", c + Vector2(1.5, 0), 50.0)
 	await wait_until(func() -> bool: return sb.out, 5.0)
 	(sb.walker as Soldier).take_damage(1e9, foe)
 	check(sb.is_downed() and sb.revive_at_post and barracks.slots[0] == sb and sb.walker == null, "0 HP: downed, keeps its bench")
@@ -385,8 +385,8 @@ func _test_effects() -> void:
 	# Fire mage: splash + explosion.
 	var fm: Array = await _manned("fire_mage")
 	var p := _near_tower(fm[1], 2.0)
-	var a := spawn_dummy("ork", p, 20.0)
-	var b := spawn_dummy("ork", p + Vector2(0.4, 0.3), 20.0)
+	var a := spawn_dummy("orc", p, 20.0)
+	var b := spawn_dummy("orc", p + Vector2(0.4, 0.3), 20.0)
 	var bhp := b.hp
 	var ahp := a.hp
 	var exploded := await wait_until(func() -> bool: return game.world.effects.get_children().any(func(n: Node) -> bool: return n.get_script() == Combat.BURST_SCRIPT and n.kind == "explosion"), 10.0)
@@ -483,7 +483,7 @@ func _test_effects() -> void:
 	# Fire summoner: fire elementals hover, hit hard, explode when killed.
 	await clear_enemies()
 	var fs: Array = await _manned("fire_summoner")
-	var foe := spawn_dummy("ork", _near_tower(fs[1], 2.5), 50.0)
+	var foe := spawn_dummy("orc", _near_tower(fs[1], 2.5), 50.0)
 	var beh: SummonerBehavior = fs[0].behavior
 	var summoned := await wait_until(func() -> bool: return not beh.summons.is_empty(), 20.0)
 	check(summoned and beh.summons[0].summon == "fire", "the fire summoner summons fire elementals")
@@ -494,12 +494,12 @@ func _test_effects() -> void:
 		check(Config.unit_stat("fire_summoner", "interval", 0) < Config.unit_stat("summoner", "interval", 0), "it summons faster than a summoner")
 		var r: float = Config.SUMMONS["fire"]["explode_radius"]
 		var close := await wait_until(when_gone(fe, func(x: Object) -> bool: return not x.dead and x.grid_pos.distance_to(foe.grid_pos) <= r), 20.0)
-		check(close, "the fire elemental reaches the ork")
+		check(close, "the fire elemental reaches the orc")
 		if close:
 			var before := foe.hp
 			fe.take_damage(fe.hp + 1.0)
 			var blast: float = fe.damage * float(Config.SUMMONS["fire"]["explode"]) * (1.0 + Combat.holy_bonus(game, fe.grid_pos))
-			check(fe.dead and is_equal_approx(before - foe.hp, blast), "killed, it explodes: %.1f fire damage to the ork (%.1f)" % [before - foe.hp, blast])
+			check(fe.dead and is_equal_approx(before - foe.hp, blast), "killed, it explodes: %.1f fire damage to the orc (%.1f)" % [before - foe.hp, blast])
 	var fresh := await wait_until(func() -> bool: return not beh.summons.is_empty(), 20.0)
 	if fresh:
 		var fe2: EarthElemental = beh.summons[0]
@@ -516,7 +516,7 @@ func _test_effects() -> void:
 	# Druid: thornlings, slow and tough; every blow roots (docs/military-design.md §3b).
 	var dr: Array = await _manned("druid")
 	var dbeh: SummonerBehavior = dr[0].behavior
-	var dfoe := spawn_dummy("ork", _near_tower(dr[1], 2.5), 50.0)
+	var dfoe := spawn_dummy("orc", _near_tower(dr[1], 2.5), 50.0)
 	var grown := await wait_until(func() -> bool: return not dbeh.summons.is_empty(), 20.0)
 	check(grown and dbeh.summons[0].summon == "thorn" and dbeh.summons[0].label().begins_with("thornling"), "the druid calls up thornlings")
 	if grown:
@@ -675,7 +675,7 @@ func _test_holy() -> void:
 		game.army.unstation(u)
 	await frames(2)
 	# Config: the factors and flags of docs/acolyte-design.md, the chapel.
-	var want := {"goblin": 0.75, "skeleton": 1.25, "ork": 0.75, "witch": 1.0, "rat": 1.0, "thief": 0.75, "gargoyle": 0.75, "necromancer": 1.5, "vampire": 1.5}
+	var want := {"goblin": 0.75, "skeleton": 1.25, "orc": 0.75, "witch": 1.0, "rat": 1.0, "thief": 0.75, "gargoyle": 0.75, "necromancer": 1.5, "vampire": 1.5}
 	var factors_ok := true
 	for k in want:
 		factors_ok = factors_ok and is_equal_approx(float(Config.ENEMIES[k].get("resist", {}).get("holy", 1.0)), want[k])

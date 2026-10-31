@@ -61,21 +61,21 @@ func _init() -> void:
 
 	# Everything that follows Rhodri, by every road; the Legion from wave 4.
 	waves = [
-		{"kinds": {"goblin": 6, "ork": 2}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"goblin": 6, "skeleton": 4, "ork": 2, "thief": 2}, "spawns": 3},
+		{"kinds": {"goblin": 6, "orc": 2}, "rat_packs": [5], "spawns": 3},
+		{"kinds": {"goblin": 6, "skeleton": 4, "orc": 2, "thief": 2}, "spawns": 3},
 		{"kinds": {"goblin": 6, "skeleton": 5, "witch": 2, "gargoyle": 1, "slime3": 1}, "rat_packs": [6], "spawns": 4},
-		{"kinds": {"skeleton": 5, "ork": 2, "witch": 1, "legion_footman": 6, "legion_archer": 2, "legion_banner": 1}, "spawns": 4},
+		{"kinds": {"skeleton": 5, "orc": 2, "witch": 1, "legion_footman": 6, "legion_archer": 2, "legion_banner": 1}, "spawns": 4},
 		{"kinds": {"goblin": 6, "vampire": 1, "necromancer": 1, "legion_footman": 6, "legion_cavalry": 1, "legion_archer": 2, "legion_guard": 1}, "rat_packs": [5], "spawns": 4},
 		{"kinds": {"skeleton": 6, "spider_mother": 1, "gargoyle": 2, "legion_footman": 7, "legion_cavalry": 1, "legion_archer": 3, "legion_banner": 1}, "spawns": 4},
 		{"kinds": {"goblin": 6, "thief": 3, "witch": 2, "vampire": 2, "legion_footman": 7, "legion_cavalry": 1, "legion_guard": 2, "legion_archer": 3}, "spawns": 4},
 		{"kinds": {"skeleton": 6, "necromancer": 2, "gargoyle": 2, "legion_footman": 8, "legion_cavalry": 2, "legion_guard": 2, "legion_archer": 3, "legion_banner": 1}, "spawns": 4},
-		{"kinds": {"goblin": 8, "ork": 3, "vampire": 2, "slime3": 2, "legion_footman": 8, "legion_cavalry": 2, "legion_archer": 4, "legion_banner": 1}, "rat_packs": [6], "spawns": 4},
+		{"kinds": {"goblin": 8, "orc": 3, "vampire": 2, "slime3": 2, "legion_footman": 8, "legion_cavalry": 2, "legion_archer": 4, "legion_banner": 1}, "rat_packs": [6], "spawns": 4},
 		{"kinds": {"skeleton": 8, "witch": 2, "gargoyle": 3, "spider_mother": 1, "legion_footman": 9, "legion_cavalry": 2, "legion_guard": 3, "legion_archer": 4}, "spawns": 4},
-		{"kinds": {"ork": 4, "vampire": 3, "necromancer": 2, "thief": 3, "legion_footman": 9, "legion_cavalry": 2, "legion_guard": 3, "legion_archer": 4, "legion_banner": 2}, "spawns": 4},
+		{"kinds": {"orc": 4, "vampire": 3, "necromancer": 2, "thief": 3, "legion_footman": 9, "legion_cavalry": 2, "legion_guard": 3, "legion_archer": 4, "legion_banner": 2}, "spawns": 4},
 		{"kinds": {"skeleton": 8, "gargoyle": 3, "witch": 2, "legion_footman": 10, "legion_cavalry": 3, "legion_guard": 3, "legion_archer": 5, "legion_banner": 2}, "rat_packs": [6], "spawns": 4},
-		{"kinds": {"goblin": 8, "ork": 4, "vampire": 3, "spider_mother": 1, "legion_footman": 10, "legion_cavalry": 3, "legion_guard": 4, "legion_archer": 5, "legion_banner": 2}, "spawns": 4},
+		{"kinds": {"goblin": 8, "orc": 4, "vampire": 3, "spider_mother": 1, "legion_footman": 10, "legion_cavalry": 3, "legion_guard": 4, "legion_archer": 5, "legion_banner": 2}, "spawns": 4},
 		{"kinds": {"skeleton": 10, "necromancer": 2, "gargoyle": 4, "witch": 3, "legion_footman": 11, "legion_cavalry": 3, "legion_guard": 4, "legion_archer": 5, "legion_banner": 2}, "rat_packs": [7], "spawns": 4},
-		{"kinds": {"ork": 5, "vampire": 4, "slime3": 2, "thief": 3, "legion_footman": 12, "legion_cavalry": 3, "legion_guard": 4, "legion_archer": 6, "legion_banner": 2}, "spawns": 4},
+		{"kinds": {"orc": 5, "vampire": 4, "slime3": 2, "thief": 3, "legion_footman": 12, "legion_cavalry": 3, "legion_guard": 4, "legion_archer": 6, "legion_banner": 2}, "spawns": 4},
 		{"kinds": {"skeleton": 8, "gargoyle": 3, "vampire": 3, "legion_footman": 12, "legion_cavalry": 4, "legion_guard": 5, "legion_archer": 6, "legion_banner": 3}, "spawns": 4},
 	]
 	first_wave_waits = true

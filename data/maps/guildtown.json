@@ -546,8 +546,8 @@
     {"id": 1, "kind": "mine", "tile": [15, 54], "size": 1, "front": [14, 54]},
     {"id": 2, "kind": "treasure", "tile": [47, 26], "size": 1, "treasure": "chest", "tier": 1, "reward": {"gold": 57}},
     {"id": 3, "kind": "treasure", "tile": [50, 50], "size": 1, "treasure": "chest", "tier": 2, "reward": {"gold": 71}},
-    {"id": 4, "kind": "camp", "tile": [53, 49], "size": 1, "tier": 2, "guards": 3, "monsters": ["goblin", "goblin", "ork"]},
+    {"id": 4, "kind": "camp", "tile": [53, 49], "size": 1, "tier": 2, "guards": 3, "monsters": ["goblin", "goblin", "orc"]},
     {"id": 5, "kind": "treasure", "tile": [22, 10], "size": 1, "treasure": "shrine", "tier": 3, "reward": {"hero_xp": 182}},
-    {"id": 6, "kind": "camp", "tile": [20, 10], "size": 1, "tier": 3, "guards": 5, "monsters": ["goblin", "ork", "ork", "witch"]}
+    {"id": 6, "kind": "camp", "tile": [20, 10], "size": 1, "tier": 3, "guards": 5, "monsters": ["goblin", "orc", "orc", "witch"]}
   ]
 }

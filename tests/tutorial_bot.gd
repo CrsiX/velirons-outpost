@@ -234,7 +234,7 @@ func _play_through() -> void:
 	for sp in game.waves._queue:
 		w2[sp["kind"]] = w2.get(sp["kind"], 0) + 1
 	check(game.waves.wave == 2 and game.waves.enemies_left() == 6, "wave 2 started: 6 enemies (%d)" % game.waves.enemies_left())
-	check(w2.get("ork", 0) + (0 if game.waves._queue.size() == 6 else 1) >= 1, "with an ork (%s)" % str(w2))
+	check(w2.get("orc", 0) + (0 if game.waves._queue.size() == 6 else 1) >= 1, "with an orc (%s)" % str(w2))
 
 	print("-- step 11: a unit level")
 	await at_step(10, 5.0)

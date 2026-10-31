@@ -53,13 +53,13 @@ func _init() -> void:
 	waves = [
 		{"kinds": {"goblin": 12, "thief": 5}, "spawns": 2},
 		{"kinds": {"goblin": 12, "crab": 4, "thief": 4}, "rat_packs": [5, 5], "spawns": 2},
-		{"kinds": {"goblin": 12, "ork": 3, "thief": 6, "crab": 5}, "spawns": 3},
-		{"kinds": {"goblin": 14, "ork": 4, "thief": 7}, "rat_packs": [6, 5], "spawns": 3},
-		{"kinds": {"goblin": 14, "ork": 5, "crab": 6, "thief": 7, "slime3": 2}, "spawns": 3},
-		{"kinds": {"goblin": 16, "ork": 5, "thief": 8, "crab": 5}, "rat_packs": [6, 6], "spawns": 3},
-		{"kinds": {"goblin": 15, "ork": 6, "thief": 16, "crab": 6, "siren": 1}, "spawns": 3},
-		{"kinds": {"goblin": 16, "ork": 6, "thief": 18, "crab": 6, "slime3": 3}, "rat_packs": [6, 6], "spawns": 3},
-		{"kinds": {"goblin": 20, "ork": 8, "thief": 22, "crab": 8}, "rat_packs": [6, 6, 5], "spawns": 3},
+		{"kinds": {"goblin": 12, "orc": 3, "thief": 6, "crab": 5}, "spawns": 3},
+		{"kinds": {"goblin": 14, "orc": 4, "thief": 7}, "rat_packs": [6, 5], "spawns": 3},
+		{"kinds": {"goblin": 14, "orc": 5, "crab": 6, "thief": 7, "slime3": 2}, "spawns": 3},
+		{"kinds": {"goblin": 16, "orc": 5, "thief": 8, "crab": 5}, "rat_packs": [6, 6], "spawns": 3},
+		{"kinds": {"goblin": 15, "orc": 6, "thief": 16, "crab": 6, "siren": 1}, "spawns": 3},
+		{"kinds": {"goblin": 16, "orc": 6, "thief": 18, "crab": 6, "slime3": 3}, "rat_packs": [6, 6], "spawns": 3},
+		{"kinds": {"goblin": 20, "orc": 8, "thief": 22, "crab": 8}, "rat_packs": [6, 6, 5], "spawns": 3},
 	]
 	amphibians_from_water = true
 	first_wave_waits = true

@@ -56,14 +56,14 @@ func _init() -> void:
 		{"kinds": {"skeleton": 6, "goblin": 2}, "spawns": 2},
 		{"kinds": {"skeleton": 7, "goblin": 3}, "rat_packs": [5], "spawns": 3},
 		{"kinds": {"skeleton": 7, "goblin": 3, "necromancer": 1}, "spawns": 3},
-		{"kinds": {"skeleton": 8, "ork": 2, "thief": 1, "witch": 1}, "spawns": 3},
-		{"kinds": {"skeleton": 9, "goblin": 3, "ork": 2, "necromancer": 1}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"skeleton": 10, "ork": 2, "necromancer": 2, "witch": 1, "thief": 1}, "spawns": 3},
-		{"kinds": {"skeleton": 11, "ork": 3, "necromancer": 2, "slime3": 1}, "rat_packs": [6], "spawns": 4},
-		{"kinds": {"skeleton": 12, "ork": 3, "necromancer": 2, "witch": 2, "thief": 2}, "spawns": 4},
+		{"kinds": {"skeleton": 8, "orc": 2, "thief": 1, "witch": 1}, "spawns": 3},
+		{"kinds": {"skeleton": 9, "goblin": 3, "orc": 2, "necromancer": 1}, "rat_packs": [5], "spawns": 3},
+		{"kinds": {"skeleton": 10, "orc": 2, "necromancer": 2, "witch": 1, "thief": 1}, "spawns": 3},
+		{"kinds": {"skeleton": 11, "orc": 3, "necromancer": 2, "slime3": 1}, "rat_packs": [6], "spawns": 4},
+		{"kinds": {"skeleton": 12, "orc": 3, "necromancer": 2, "witch": 2, "thief": 2}, "spawns": 4},
 	]
 	repeat_last = true
-	more_each_wave = {"skeleton": 2, "ork": 1}
+	more_each_wave = {"skeleton": 2, "orc": 1}
 	# (the waves come by themselves: the field is only safe for so long)
 	first_wave_waits = false
 	wave_gap = 45.0

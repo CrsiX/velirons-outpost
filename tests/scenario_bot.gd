@@ -1678,9 +1678,9 @@ func _s9_rescued() -> void:
 	var w11: Dictionary = sc.next_wave(11)["kinds"]
 	var w13: Dictionary = sc.next_wave(13)["kinds"]
 	var more := func(w: Dictionary, k: String) -> int: return int(w.get(k, 0)) - int(w10.get(k, 0))
-	check(more.call(w11, "crab") == 2 and more.call(w11, "skeleton") == 2 and more.call(w11, "goblin") == 1 and more.call(w11, "ork") == 2
+	check(more.call(w11, "crab") == 2 and more.call(w11, "skeleton") == 2 and more.call(w11, "goblin") == 1 and more.call(w11, "orc") == 2
 		and more.call(w13, "goblin") == 1 and more.call(w13, "spider_mother") == 1 and more.call(w13, "thief") == 1 and more.call(w13, "crab") == 7,
-		"past wave 10 the waves grow: 2 crabs, 2 skeletons, an ork, and 2 more in turn each time (wave 13: %s)" % str(w13))
+		"past wave 10 the waves grow: 2 crabs, 2 skeletons, an orc, and 2 more in turn each time (wave 13: %s)" % str(w13))
 	var piers: Array = sc.mark.get("piers", [])
 	var q2: Vector2i = _s9()._second_quay(sc)
 	check(q2.x >= 0 and piers.any(func(t: Vector2i) -> bool: return t.x == q2.x) and piers.any(func(t: Vector2i) -> bool: return t.x == _s9()._quay(sc).x),

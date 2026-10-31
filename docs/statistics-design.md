@@ -64,7 +64,7 @@ Plus one sample at game start (time 0) and one at game over.
 Counters add up from the start of the game. They are grouped as in the table.
 
 **Military**
-- Enemies killed, total and by kind (goblin, skeleton, ork, witch, rat,
+- Enemies killed, total and by kind (goblin, skeleton, orc, witch, rat,
   thief, gargoyle, necromancer, wrathwood, raised dead and all others), and by whom: towers, barracks
   units, summons, the hero.
 - Enemies that got into the village; huts burned.

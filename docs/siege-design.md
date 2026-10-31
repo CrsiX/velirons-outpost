@@ -219,7 +219,7 @@ covers the village and a band of `SIEGE.approach` (3) tiles around its pieces.
 
 | Kind | `entry` | `siege` | At the village |
 |---|---|---|---|
-| goblin, skeleton, ork, slimes, crab, vampire (on foot) | siege | 1.0 | break in |
+| goblin, skeleton, orc, slimes, crab, vampire (on foot) | siege | 1.0 | break in |
 | witch | siege | 1.0 | spells at the barrier when nothing else is in range |
 | necromancer, siren | siege | 0 | wait, slip past after 45 s |
 | gargoyle | (flies) | 1.0 | over the walls |

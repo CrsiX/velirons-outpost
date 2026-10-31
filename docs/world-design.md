@@ -543,8 +543,8 @@ walk to:
   ones. Every slice has at least one tier-3 camp (its tier-3 treasure is
   placed where a camp fits, closer to the village if need be). A camp is a
   tent and a fire 2-3 tiles from its treasure, with neutral monsters by its
-  tier (`CAMP_MONSTERS`): two goblins and an ork at tier 2; a goblin, two
-  orks and a witch at tier 3. They have `CAMP_HP_SCALE` (1.5) × the normal
+  tier (`CAMP_MONSTERS`): two goblins and an orc at tier 2; a goblin, two
+  orcs and a witch at tier 3. They have `CAMP_HP_SCALE` (1.5) × the normal
   HP. They stay by their camp (they don't walk the roads), attack what comes
   within `CAMP_AGGRO` (3.5 tiles) and never follow it farther than
   `CAMP_LEASH` (5 tiles) from the camp.
@@ -686,10 +686,10 @@ get a road is placed elsewhere.
 
   | Lair | Sends | Guards |
   |---|---|---|
-  | Cave | orks, gargoyles | 2 orks, a goblin |
+  | Cave | orcs, gargoyles | 2 orcs, a goblin |
   | Hollow tree | goblins, rat packs | 3 goblins |
   | Sunken ruin | skeletons, witches | 2 skeletons, a witch |
-  | Smoking pit | orks, gargoyles | 2 orks, a goblin |
+  | Smoking pit | orcs, gargoyles | 2 orcs, a goblin |
   | Crypt | skeletons, necromancers, vampires | 3 skeletons |
 
   In co-op its enemies go for its slice's village.

@@ -1,6 +1,6 @@
 class_name MeleeBehavior
 extends EnemyBehavior
-## Goblins, skeletons, orks, slimes, gargoyles (and, extended, thieves and
+## Goblins, skeletons, orcs, slimes, gargoyles (and, extended, thieves and
 ## vampires): stop to fight any defender that
 ## stands in the way (group "melee_defenders": the hero, soldiers, elementals),
 ## or a villager outside in reach, then walk on.

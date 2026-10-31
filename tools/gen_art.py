@@ -4591,7 +4591,7 @@ def skeleton():
     a.save("unit_skeleton")
 
 
-def ork():
+def orc():
     """Big, hunched brute with pointy ears, tusks, an iron pauldron and a sword."""
     a = Art()
     a.shadow(14, 5.5, opacity=0.45)
@@ -4622,7 +4622,7 @@ def ork():
     a.ellipse(3.5, -38.5, 1.3, 1.1, "#e03020")
     a.poly([(-4, -32), (-3, -36), (-2, -32)], "#efe8d0", INK, 0.7)  # tusks
     a.poly([(2, -32), (3, -36), (4, -32)], "#efe8d0", INK, 0.7)
-    a.save("unit_ork")
+    a.save("unit_orc")
 
 
 def witch():
@@ -4644,7 +4644,7 @@ def witch():
     person("unit_witch", ("#1c1820", "#141118"), hat=hat, robe=True, skin="#e8d8c8", extra=extra)
 
 
-def corpse_ork():
+def corpse_orc():
     a = Art()
     a.ellipse(0, 0, 22, 7, "#000", opacity=0.3)
     a.ellipse(0, 1, 18, 5, "#3a1a14", opacity=0.5)
@@ -4656,7 +4656,7 @@ def corpse_ork():
     a.line([(12.5, -6), (15, -3)], INK, 1.3)
     a.line([(15, -6), (12.5, -3)], INK, 1.3)
     a.poly([(-4, 7), (-20, 11), (-19, 13), (-3, 9)], "#b8b8b8", INK, 1)  # dropped sword
-    a.save("corpse_ork")
+    a.save("corpse_orc")
 
 
 def corpse_witch():
@@ -8742,9 +8742,9 @@ def main():
     corpse_skeleton()
     summoner()
     earth_elemental()
-    ork()
+    orc()
     witch()
-    corpse_ork()
+    corpse_orc()
     corpse_witch()
     thief()
     gargoyle(0)

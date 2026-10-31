@@ -569,7 +569,7 @@
     {"id": 5, "kind": "ruin", "tile": [47, 32], "size": 2, "building": "barracks"},
     {"id": 6, "kind": "treasure", "tile": [31, 18], "size": 1, "treasure": "chest", "tier": 2, "reward": {"gold": 60}},
     {"id": 7, "kind": "treasure", "tile": [22, 11], "size": 1, "treasure": "shrine", "tier": 2, "reward": {"gold": 20, "heal_units": 1}},
-    {"id": 8, "kind": "camp", "tile": [22, 8], "size": 1, "tier": 3, "guards": 7, "monsters": ["goblin", "ork", "ork", "witch"]},
+    {"id": 8, "kind": "camp", "tile": [22, 8], "size": 1, "tier": 3, "guards": 7, "monsters": ["goblin", "orc", "orc", "witch"]},
     {"id": 9, "kind": "treasure", "tile": [8, 28], "size": 1, "treasure": "chest", "tier": 1, "reward": {"gold": 50}},
     {"id": 10, "kind": "ruin", "tile": [32, 10], "size": 1, "building": "tower"},
     {"id": 11, "kind": "treasure", "tile": [65, 46], "size": 1, "treasure": "chest", "tier": 2, "reward": {"gold": 50, "food": 50, "hero_xp": 50}},

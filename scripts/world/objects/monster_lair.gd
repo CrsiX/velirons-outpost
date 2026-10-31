@@ -225,7 +225,7 @@ func refresh() -> void:
 	if _glow:
 		_glow.visible = awake
 
-## "Orks and gargoyles".
+## "Orcs and gargoyles".
 static func _plural_list(kinds: Array[String]) -> String:
 	var names: Array[String] = []
 	for k in kinds:

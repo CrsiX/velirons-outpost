@@ -123,7 +123,7 @@ Notes on the list:
 - **Wave 1** (called in step 6): 2 goblins on the road next to the tower, so
   the archer clearly wins. The hero rests in the village, so the tower does
   the work.
-- **Wave 2** (starts when step 10 is done): 5 goblins and an ork on the
+- **Wave 2** (starts when step 10 is done): 5 goblins and an orc on the
   barracks' road, so the shield bearer has something to do.
 - **After the end card** (Play on): the same map goes on as a normal endless
   game from wave 3, with the normal countdown and wave sizes.

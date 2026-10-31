@@ -102,7 +102,7 @@ checks both rules for every specialisation (`_spec_rule_breaks`).
 | **Archer** | ranged · tower, barracks | 30 → 90 | 2.6 | 7 → 40 | 1.0 → 0.45 | 7 → 89 | L3 16 DPS, L5 29, L7 46 |
 | **Crossbowman** | ranged · tower, barracks | 44 → 100 | 3.2 | 50 → 170 | 2.25 → 1.7 | 22 → 100 | `pierce` flag reserved (no shielded enemies yet) |
 | **Swiftbowman** | ranged · tower, barracks | 44 → 95 | 2.6 | 7.5 → 18 | 0.30 → 0.18 | 25 → 100 | ≥ 2× the archer's fire rate, small hits; fancier art, multi-string bow |
-| **Shield Bearer** | melee · barracks only | 55 → 180 | melee (0.8) | 3 → 12 | 1.2 → 0.9 | 2.5 → 13 | ork-like HP, very low damage: holds enemies up |
+| **Shield Bearer** | melee · barracks only | 55 → 180 | melee (0.8) | 3 → 12 | 1.2 → 0.9 | 2.5 → 13 | orc-like HP, very low damage: holds enemies up |
 | **Warrior** | melee · barracks only | 90 → 300 | melee (0.8) | 6 → 30 | 1.15 → 0.85 | 5.2 → 35 | the most HP; war cry (§3a) |
 | **Berserker** | melee · barracks only | 85 → 200 | melee (0.8) | 8 → 71 | 1.15 → 0.8 | 7 → 89 at full HP | rage and lifesteal (§3a); ~317 DPS at L10 with 10 % HP |
 | **Halberdier** | melee · barracks only | 85 → 200 | 1.2 | 9 → 76 | 1.25 → 0.85 | 7.2 → 89 | reaches flyers (§3a) |

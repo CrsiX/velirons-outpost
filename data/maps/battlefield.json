@@ -546,11 +546,11 @@
     {"id": 2, "kind": "treasure", "tile": [54, 41], "size": 1, "treasure": "ruins", "tier": 1, "reward": {"gold": 38, "materials": 49}},
     {"id": 3, "kind": "treasure", "tile": [24, 40], "size": 1, "treasure": "chest", "tier": 1, "reward": {"gold": 75}},
     {"id": 4, "kind": "treasure", "tile": [17, 27], "size": 1, "treasure": "ruins", "tier": 2, "reward": {"gold": 33, "materials": 69}},
-    {"id": 5, "kind": "camp", "tile": [16, 30], "size": 1, "tier": 2, "guards": 4, "monsters": ["goblin", "goblin", "ork"]},
+    {"id": 5, "kind": "camp", "tile": [16, 30], "size": 1, "tier": 2, "guards": 4, "monsters": ["goblin", "goblin", "orc"]},
     {"id": 6, "kind": "treasure", "tile": [18, 50], "size": 1, "treasure": "chest", "tier": 2, "reward": {"gold": 102}},
-    {"id": 7, "kind": "camp", "tile": [17, 48], "size": 1, "tier": 2, "guards": 6, "monsters": ["goblin", "goblin", "ork"]},
+    {"id": 7, "kind": "camp", "tile": [17, 48], "size": 1, "tier": 2, "guards": 6, "monsters": ["goblin", "goblin", "orc"]},
     {"id": 8, "kind": "treasure", "tile": [65, 31], "size": 1, "treasure": "chest", "tier": 3, "reward": {"gold": 120}},
-    {"id": 9, "kind": "camp", "tile": [62, 30], "size": 1, "tier": 3, "guards": 8, "monsters": ["goblin", "ork", "ork", "witch"]},
+    {"id": 9, "kind": "camp", "tile": [62, 30], "size": 1, "tier": 3, "guards": 8, "monsters": ["goblin", "orc", "orc", "witch"]},
     {"id": 10, "kind": "unlock", "tile": [45, 42], "size": 1, "site": "chapel", "unlocks": "acolyte", "wave": 6}
   ]
 }

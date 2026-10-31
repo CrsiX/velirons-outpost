@@ -112,7 +112,7 @@ manpower and stone, not magic.
    help. The story makes clear that the
    spies were the reason. It stays **unclear whom they belonged to**.
 3. Both sides pull knights off the Wardline and the towers empty.
-4. The wilderness walks in: goblins and orks first.
+4. The wilderness walks in: goblins and orcs first.
 5. Renegades (deserters, unpaid soldiers, ruined merchants) prey on the roads.
 6. Heir 2's corruption grows. To keep winning he gives his own towns and soldiers to the crown's ritual, and that becomes part of the corruption.
    The hero is betrayed in this step (scenario 5). The soldiers given to it are not killed but **bound to Rhodri**: the ritual takes their free
@@ -202,7 +202,7 @@ the library marks them as such.
 
 | Category | Members now | Planned or open | Why they came |
 |---|---|---|---|
-| **Wilderness** | goblin, ork, rat, slime | spider mother with her eggs and spiderlings (built: `enemies-design.md` §15b); vultures, carrion animals (built: §15d); **sea monsters**: giant crab (4), giant octopus and leviathan (9), which swim rivers, lakes and the sea (built: `aquatic-design.md`) | Always lived around the kingdom. The Wardline held them back. |
+| **Wilderness** | goblin, orc, rat, slime | spider mother with her eggs and spiderlings (built: `enemies-design.md` §15b); vultures, carrion animals (built: §15d); **sea monsters**: giant crab (4), giant octopus and leviathan (9), which swim rivers, lakes and the sea (built: `aquatic-design.md`) | Always lived around the kingdom. The Wardline held them back. |
 | **Renegades** (*Abtrünnige*) | thief | bandit, deserter, assassin | **Fully human**, ordinary criminals who saw the chance when the order collapsed: bad people, but not evil. |
 | **Undead** | skeleton | ghost, wraith, zombie | The war's dead, unburied. |
 | **Evil** | vampire, necromancer | demon | Intelligent and malicious, drawn by the death. |

@@ -545,9 +545,9 @@
     {"id": 3, "kind": "treasure", "tile": [49, 46], "size": 1, "treasure": "chest", "tier": 1, "reward": {"gold": 79}},
     {"id": 4, "kind": "treasure", "tile": [41, 58], "size": 1, "treasure": "ruins", "tier": 2, "reward": {"gold": 42, "materials": 77}},
     {"id": 5, "kind": "treasure", "tile": [55, 47], "size": 1, "treasure": "chest", "tier": 2, "reward": {"gold": 111}},
-    {"id": 6, "kind": "camp", "tile": [57, 48], "size": 1, "tier": 2, "guards": 5, "monsters": ["goblin", "goblin", "ork"]},
+    {"id": 6, "kind": "camp", "tile": [57, 48], "size": 1, "tier": 2, "guards": 5, "monsters": ["goblin", "goblin", "orc"]},
     {"id": 7, "kind": "treasure", "tile": [51, 62], "size": 1, "treasure": "shrine", "tier": 3, "reward": {"hero_xp": 196}},
-    {"id": 8, "kind": "camp", "tile": [50, 60], "size": 1, "tier": 3, "guards": 7, "monsters": ["goblin", "ork", "ork", "witch"]},
+    {"id": 8, "kind": "camp", "tile": [50, 60], "size": 1, "tier": 3, "guards": 7, "monsters": ["goblin", "orc", "orc", "witch"]},
     {"id": 9, "kind": "unlock", "tile": [33, 25], "size": 1, "site": "stone_circle", "unlocks": "summoner", "wave": 3},
     {"id": 10, "kind": "unlock", "tile": [30, 31], "size": 1, "site": "mage_tower", "unlocks": "apprentice", "wave": 5}
   ]

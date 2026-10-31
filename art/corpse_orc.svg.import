@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dv4uekdrwscwk"
-path="res://.godot/imported/corpse_ork.svg-7a88fe68524e31cf863089f9086a4692.ctex"
+uid="uid://cuslekpalabhs"
+path="res://.godot/imported/corpse_orc.svg-291499f48e381d1cc33714551325f299.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/corpse_ork.svg"
-dest_files=["res://.godot/imported/corpse_ork.svg-7a88fe68524e31cf863089f9086a4692.ctex"]
+source_file="res://art/corpse_orc.svg"
+dest_files=["res://.godot/imported/corpse_orc.svg-291499f48e381d1cc33714551325f299.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

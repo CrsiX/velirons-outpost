@@ -555,7 +555,7 @@
     {"id": 9, "kind": "ruin", "tile": [26, 6], "size": 1, "building": "tower"},
     {"id": 10, "kind": "ruin", "tile": [4, 4], "size": 1, "building": "tower"},
     {"id": 11, "kind": "treasure", "tile": [8, 28], "size": 1, "treasure": "chest", "tier": 2, "reward": {"gold": 70, "food": 60}},
-    {"id": 12, "kind": "camp", "tile": [11, 31], "size": 1, "tier": 2, "guards": 11, "monsters": ["goblin", "goblin", "goblin", "ork", "ork"]},
+    {"id": 12, "kind": "camp", "tile": [11, 31], "size": 1, "tier": 2, "guards": 11, "monsters": ["goblin", "goblin", "goblin", "orc", "orc"]},
     {"id": 13, "kind": "treasure", "tile": [39, 69], "size": 1, "treasure": "ruins", "tier": 2, "reward": {"gold": 50, "food": 40}},
     {"id": 14, "kind": "treasure", "tile": [7, 68], "size": 1, "treasure": "shrine", "tier": 2, "reward": {"gold": 250, "hero_xp": 200}}
   ]

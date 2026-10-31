@@ -23,7 +23,7 @@ things get built and who mans the towers, and the village works on its own.
 
 <h2><b>Face endless waves</b></h2>
 <ul>
-<li>Goblins, skeletons, orks, witches, rat packs, thieves, gargoyles, necromancers, vampires, slimes and many more</li>
+<li>Goblins, skeletons, orcs, witches, rat packs, thieves, gargoyles, necromancers, vampires, slimes and many more</li>
 <li>Waves grow stronger every time, and monster lairs wake up later in the game</li>
 </ul>
 

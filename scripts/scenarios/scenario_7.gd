@@ -64,16 +64,16 @@ func _init() -> void:
 	waves = [
 		{"kinds": {"goblin": 5, "skeleton": 3}, "spawns": 2},
 		{"kinds": {"goblin": 5, "skeleton": 4, "thief": 1}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"goblin": 6, "skeleton": 4, "ork": 1, "witch": 1}, "spawns": 3},
-		{"kinds": {"goblin": 6, "skeleton": 5, "ork": 2, "thief": 1}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"goblin": 6, "skeleton": 5, "ork": 2, "witch": 1}, "spawns": 3},
-		{"kinds": {"goblin": 7, "skeleton": 6, "ork": 2, "necromancer": 1, "thief": 2}, "spawns": 3},
-		{"kinds": {"goblin": 7, "skeleton": 6, "ork": 3, "witch": 2}, "rat_packs": [6], "spawns": 3},
-		{"kinds": {"goblin": 8, "skeleton": 7, "ork": 3, "necromancer": 1, "slime3": 1, "thief": 2}, "spawns": 4},
-		{"kinds": {"goblin": 8, "skeleton": 8, "ork": 3, "witch": 3}, "rat_packs": [6], "spawns": 4},
-		{"kinds": {"goblin": 9, "skeleton": 8, "ork": 4, "necromancer": 2, "thief": 2}, "spawns": 4},
-		{"kinds": {"goblin": 9, "skeleton": 9, "ork": 4, "witch": 3, "slime3": 1}, "rat_packs": [6], "spawns": 4},
-		{"kinds": {"goblin": 10, "skeleton": 10, "ork": 5, "necromancer": 2, "witch": 3, "thief": 3}, "rat_packs": [7], "spawns": 4},
+		{"kinds": {"goblin": 6, "skeleton": 4, "orc": 1, "witch": 1}, "spawns": 3},
+		{"kinds": {"goblin": 6, "skeleton": 5, "orc": 2, "thief": 1}, "rat_packs": [5], "spawns": 3},
+		{"kinds": {"goblin": 6, "skeleton": 5, "orc": 2, "witch": 1}, "spawns": 3},
+		{"kinds": {"goblin": 7, "skeleton": 6, "orc": 2, "necromancer": 1, "thief": 2}, "spawns": 3},
+		{"kinds": {"goblin": 7, "skeleton": 6, "orc": 3, "witch": 2}, "rat_packs": [6], "spawns": 3},
+		{"kinds": {"goblin": 8, "skeleton": 7, "orc": 3, "necromancer": 1, "slime3": 1, "thief": 2}, "spawns": 4},
+		{"kinds": {"goblin": 8, "skeleton": 8, "orc": 3, "witch": 3}, "rat_packs": [6], "spawns": 4},
+		{"kinds": {"goblin": 9, "skeleton": 8, "orc": 4, "necromancer": 2, "thief": 2}, "spawns": 4},
+		{"kinds": {"goblin": 9, "skeleton": 9, "orc": 4, "witch": 3, "slime3": 1}, "rat_packs": [6], "spawns": 4},
+		{"kinds": {"goblin": 10, "skeleton": 10, "orc": 5, "necromancer": 2, "witch": 3, "thief": 3}, "rat_packs": [7], "spawns": 4},
 	]
 	first_wave_waits = true
 	first_wave_call = true
@@ -93,7 +93,7 @@ const TRUST_IN := 2
 const TRUST_BUILD := 7
 ## The wave that comes for the grove, and the band it adds down the north road.
 const GROVE_WAVE := 5
-const GROVE_BAND := {"goblin": 4, "skeleton": 4, "ork": 2, "witch": 1}
+const GROVE_BAND := {"goblin": 4, "skeleton": 4, "orc": 2, "witch": 1}
 ## What Fiona's people won't do for Brenna yet, by trust.
 const LOCKED_OUT: Array[String] = ["place_building", "repair", "rebuild_hut", "rebuild_all_huts", "upgrade_tower", "tear_down", "recruit_villager", "retire_villager", "assign_worker", "unassign_worker", "assign_miner", "unassign_miner", "restore_ruin"]
 const LOCKED_IN: Array[String] = ["place_building"]

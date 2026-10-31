@@ -54,15 +54,15 @@ func _init() -> void:
 	# the gargoyles above the pass).
 	waves = [
 		{"kinds": {"goblin": 6}, "rat_packs": [4], "spawns": 2, "lairs": true},
-		{"kinds": {"goblin": 6, "ork": 1, "thief": 2}, "spawns": 3, "lairs": true},
-		{"kinds": {"goblin": 6, "ork": 2, "witch": 1}, "spawns": 3, "lairs": true},
-		{"kinds": {"goblin": 6, "ork": 2, "witch": 1, "thief": 2}, "rat_packs": [5], "spawns": 3, "lairs": true},
-		{"kinds": {"goblin": 7, "ork": 2, "witch": 2, "slime3": 1}, "spawns": 4, "lairs": true},
-		{"kinds": {"goblin": 7, "ork": 3, "witch": 1, "gargoyle": 1, "thief": 2}, "rat_packs": [5], "spawns": 4, "lairs": true},
-		{"kinds": {"goblin": 8, "ork": 3, "witch": 2, "gargoyle": 1}, "spawns": 4, "lairs": true},
-		{"kinds": {"goblin": 8, "ork": 3, "witch": 2, "gargoyle": 2, "thief": 3}, "rat_packs": [6], "spawns": 4, "lairs": true},
-		{"kinds": {"goblin": 9, "ork": 4, "witch": 2, "gargoyle": 2, "slime3": 2}, "rat_packs": [6], "spawns": 4, "lairs": true},
-		{"kinds": {"goblin": 6, "ork": 2}, "spawns": 2, "lairs": true},
+		{"kinds": {"goblin": 6, "orc": 1, "thief": 2}, "spawns": 3, "lairs": true},
+		{"kinds": {"goblin": 6, "orc": 2, "witch": 1}, "spawns": 3, "lairs": true},
+		{"kinds": {"goblin": 6, "orc": 2, "witch": 1, "thief": 2}, "rat_packs": [5], "spawns": 3, "lairs": true},
+		{"kinds": {"goblin": 7, "orc": 2, "witch": 2, "slime3": 1}, "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 7, "orc": 3, "witch": 1, "gargoyle": 1, "thief": 2}, "rat_packs": [5], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 8, "orc": 3, "witch": 2, "gargoyle": 1}, "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 8, "orc": 3, "witch": 2, "gargoyle": 2, "thief": 3}, "rat_packs": [6], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 9, "orc": 4, "witch": 2, "gargoyle": 2, "slime3": 2}, "rat_packs": [6], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 6, "orc": 2}, "spawns": 2, "lairs": true},
 	]
 	# The hollow tree in the northern forest (the map's only lair) wakes at
 	# wave 6, or as soon as it is found (on_poll), and sends its theme with

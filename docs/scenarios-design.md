@@ -81,7 +81,7 @@ Defeat is the usual (no villagers, or no intact huts) **and also if any villager
 in the order the player chooses.
 
 **Monsters:** Wilderness, kept **weaker on purpose** (an enemy strength setting for this scenario, below Easy: *target*). Wave 1 is goblins,
-**rats come from wave 2**, **orks from wave 3**, **slimes in the last wave** (wave 5). The scenario overrides the normal wave mix.
+**rats come from wave 2**, **orcs from wave 3**, **slimes in the last wave** (wave 5). The scenario overrides the normal wave mix.
 
 **Problems:**
 - One builder, one farmer, one forester: every repair competes with food and gold. Gold comes only from kills and corpses.
@@ -106,7 +106,7 @@ economy.**
 - Arrival: Brenna's father greets her (a short scene or scripted event: *open*).
 - Wave 1 waits until the player calls it, so a tower and an archer come first (as in the old tutorial). After that waves follow on the normal
   countdown.
-- Wave 2: the first rats. Wave 3: the first ork. Wave 5: slimes, a last test.
+- Wave 2: the first rats. Wave 3: the first orc. Wave 5: slimes, a last test.
 
 **Story covered:** who Brenna is (a royal knight who came home to a half-burned village) and her father. The kingdom is in trouble and this
 village is remote. The war is a rumour, no more.
@@ -132,7 +132,7 @@ end, as at the start).
 **Tutorial pieces:** setting a building (the stall), the hero (exploring, which claims the broken watchtower, and levelling up), the barracks with
 a shield bearer, tower upgrades, and trade through Pell.
 
-**Monsters:** Wilderness: goblins, orks, rats, slimes.
+**Monsters:** Wilderness: goblins, orcs, rats, slimes.
 
 **Problems:** food is short (more mouths with Pell's party), so farms matter. Rats go for the farms and the stall's goods. The player learns to
 spend gold on material through Pell.
@@ -829,8 +829,8 @@ The game has none of this yet, except where noted:
   the rest are devastated; smoke rises over some ruined huts until they are rebuilt. Brenna is level 1.
 - **Rules:** archers only, no specialising; watchtowers, farms, camps and light stones (no barracks, no training grounds); she revives as usual;
   any villager's death is a defeat ("Einar, Brenna's father, died from the attack of goblin 4. No villager may die in this scenario.").
-- **Waves:** 1: 3 goblins, called by the player, down the cards' road; 2: 4 goblins and a pack of 4 rats; 3: 4 goblins, an ork and 4 rats; 4: 6
-  goblins, an ork and 5 rats; 5: 5 goblins, 2 orks, 2 big slimes and 5 rats. 40 s between waves. Corpses don't rot until the gatherers' card is done.
+- **Waves:** 1: 3 goblins, called by the player, down the cards' road; 2: 4 goblins and a pack of 4 rats; 3: 4 goblins, an orc and 4 rats; 4: 6
+  goblins, an orc and 5 rats; 5: 5 goblins, 2 orcs, 2 big slimes and 5 rats. 40 s between waves. Corpses don't rot until the gatherers' card is done.
 - **Story:** the intro (a title card; the narrator: the old king is dead, they say, a rumour out here; Brenna wakes by her tent, the camera pans to
   the ruined village and its smoke); the walk home (no orders for her meanwhile; the camera follows her); the arrival (Einar greets her and
   tells what happened; the rule that nobody may die); the outro (dusk, a cart with a lantern on the south road: Pell).
@@ -864,8 +864,8 @@ The game has none of this yet, except where noted:
   is level 2.
 - **Rules:** archers and shield bearers, no specialising; watchtowers, farms, camps, light stones, barracks and the stall; Pell must not die
   (`must_live`; "Pell died ... Pell must not die.").
-- **Waves:** seven, Wilderness only: 1: 4 goblins; 2: 5 goblins, 4 rats; 3: 5 goblins, an ork; 4: 4 goblins, an ork and two rat packs (6, 5: the
-  farm test); 5: 6 goblins, 2 orks, a big slime; 6: 7 goblins, 2 orks, 5 rats; 7: 8 goblins, 3 orks, 2 big slimes, 5 rats. Wave 1 can't be called:
+- **Waves:** seven, Wilderness only: 1: 4 goblins; 2: 5 goblins, 4 rats; 3: 5 goblins, an orc; 4: 4 goblins, an orc and two rat packs (6, 5: the
+  farm test); 5: 6 goblins, 2 orcs, a big slime; 6: 7 goblins, 2 orcs, 5 rats; 7: 8 goblins, 3 orcs, 2 big slimes, 5 rats. Wave 1 can't be called:
   its 45 s countdown starts once the stall stands. 40 s between waves.
 - **Story:** the intro (a title card; a few weeks later; Pell's cart by the north gate, where it has stood since he came; he has carried the
   last stone of the wall, and asks for a place for his wares; she wasn't at the capital, and they leave it at that); after wave 1 Pell tells of
@@ -898,8 +898,8 @@ The game has none of this yet, except where noted:
   (level 2), a second farm, barracks with a level 3 shield bearer, three watchtowers with archers (level 3, 3 and 2; the third is the restored
   home ruin). Brenna is level 4.
 - **Rules:** archers and shield bearers, specialising open (from level 3); training grounds allowed; Pell must not die.
-- **Waves:** Wilderness, and from wave 3 thieves (the first Renegades); eight listed (5 goblins and 4 rats up to 9 goblins, 3 orks, 4 thieves, 2
-  big slimes and 6 rats; the last two grow only a little, for the longer line), then the last again with 2 goblins, an ork and a thief more each time, until the objectives are met. The first wave comes
+- **Waves:** Wilderness, and from wave 3 thieves (the first Renegades); eight listed (5 goblins and 4 rats up to 9 goblins, 3 orcs, 4 thieves, 2
+  big slimes and 6 rats; the last two grow only a little, for the longer line), then the last again with 2 goblins, an orc and a thief more each time, until the objectives are met. The first wave comes
   after the usual 90 s; 45 s between waves.
 - **Story:** the intro (Brenna and Pell walk the north road to the first ruin; Pell explains the Wardline, Brenna served on it); each restored
   watchtower gives up a page of its garrison's journal (six pages: a quiet thaw; half the garrison ordered to the capital; the captain riding
@@ -964,7 +964,7 @@ The game has none of this yet, except where noted:
   (stall level 3), barracks with a level 3 shield bearer, two watchtowers with archers (level 3 and 2). Brenna is level 5.
 - **Rules:** archers and shield bearers, specialising, training grounds; Brenna **can't be revived** (downed is a defeat); Pell and Wenna must
   not die; the warehouse must not fall (`must_stand`).
-- **Waves:** nine, about 2.5 times a home wave (17 enemies in wave 1, 64 and three rat packs in wave 9). Goblins and orks, which go for the
+- **Waves:** nine, about 2.5 times a home wave (17 enemies in wave 1, 64 and three rat packs in wave 9). Goblins and orcs, which go for the
   huts; **thieves** in every wave, which go for the warehouse (4 to 8 in waves 1-6; once the foreign coins are found after wave 6 the
   paymasters send about twice as many: 16, 18, 22; bandits are not built: thieves are the Renegades, as decided); **crabs** from wave 2 and
   **one siren** in wave 7, out of the sea only (`amphibians_from_water`: never from the map edge); rat packs and big slimes now and then.
@@ -1009,8 +1009,8 @@ The game has none of this yet, except where noted:
   he walks to his hut) once his scene is over (he stands by his tent while he talks). If no hut is free, a builder leaves (retired, logged) and Sigmund takes his hut; if there is no builder either, the
   objective **"Give Sigmund a roof over his head"** appears (`"shown"`) and he waits by his tent until a hut is free (the player retires
   someone in the villager list), then moves in at once. The objective shows once he is found and is ticked as soon as he lives in the fort.
-- **Waves:** ten, from both halves (six spawns). Goblins, orks, rats, thieves; **witches** from wave 3 and **gargoyles** from wave 6 (the first
-  Arcane). Wave 10: 6 goblins and 2 orks, and when it starts (`on_wave_started`) the **Dread Legion** comes down from the north edge (8 footmen,
+- **Waves:** ten, from both halves (six spawns). Goblins, orcs, rats, thieves; **witches** from wave 3 and **gargoyles** from wave 6 (the first
+  Arcane). Wave 10: 6 goblins and 2 orcs, and when it starts (`on_wave_started`) the **Dread Legion** comes down from the north edge (8 footmen,
   and the captains **Lysa** and **Torben**), while 3 **gargoyles** wake on the rocks above the pass (a road tile 14 tiles up the north road).
   45 s between waves.
 - **Evidence:** three treasures: the two guarded ones in the north and the one in the south (the guarded treasures farthest north, the
@@ -1074,8 +1074,8 @@ The game has none of this yet, except where noted:
 - **Rules:** archers, shield bearers and acolytes; specialising, training grounds; no revive; Pell and Anselm must not die; the chapel is
   awake from the start (`sites`): Brenna wakes it by going there (Explore), and acolytes can be recruited. **Lost** once fewer of the fallen are
   left (on the field and carried) than still have to be buried ("Too many of the fallen have risen").
-- **Waves:** Undead with Wilderness leftovers: skeletons and goblins, orks from wave 4, the first **necromancer** in wave 3 (two from wave 6),
-  a few thieves and witches, rats, a big slime. Eight listed, then the last again with 2 skeletons and an ork more each time
+- **Waves:** Undead with Wilderness leftovers: skeletons and goblins, orcs from wave 4, the first **necromancer** in wave 3 (two from wave 6),
+  a few thieves and witches, rats, a big slime. Eight listed, then the last again with 2 skeletons and an orc more each time
   (`repeat_last`) until enough are buried. The first comes by itself after the usual 90 s; 45 s between waves.
 - **Story:** the intro (the plain of the dead, Anselm alone digging a grave by the chapel; he will tell where the court went if they help; the
   chapel is only sleeping); after wave 1 who the dead were (Fiona's soldiers and mages, Rhodri's soldiers; the church couldn't bury them); wave
@@ -1102,10 +1102,10 @@ The game has none of this yet, except where noted:
   Pell and Fiona must not die. **Fiona's trust** (`command_error`): until wave 2 is over her people take no orders (no building, repairs, hut
   rebuilds, upgrades, tear-down, recruiting, retiring or assigning villagers, restoring ruins); units can be hired and stationed. After wave 2
   (trust 1) Brenna moves in, everything but new buildings opens, and the court mages open their tower (the apprentice, by visiting it). After
-  wave 7 (trust 2) new buildings too. **Wave 5** comes for the grove: a second band (4 goblins, 4 skeletons, 2 orks, a witch) down the north
+  wave 7 (trust 2) new buildings too. **Wave 5** comes for the grove: a second band (4 goblins, 4 skeletons, 2 orcs, a witch) down the north
   road past it, and a druid downed in that wave loses the scenario (one still down from before counts once it stood again). After it the stone
   circle answers (the summoner, by visiting it).
-- **Waves:** twelve. Goblins and skeletons, orks from wave 3, witches, thieves, necromancers from wave 6, rats and big slimes now and then.
+- **Waves:** twelve. Goblins and skeletons, orcs from wave 3, witches, thieves, necromancers from wave 6, rats and big slimes now and then.
   Wave 1 waits to be called; 45 s between waves.
 - **Story:** the intro (out of the trees; Fiona at the gate with two mages: Anselm vouches for Brenna, but she wears Rhodri's colours; she may
   camp outside, her people take no orders; Pell's wagon may come in); after wave 2 Fiona lets her in, counting her people, not trusting her, and
@@ -1233,9 +1233,9 @@ Built after the rework of §9a.
 - **Wave 1** waits (it can be called) until the player has built a watchtower of theirs within 3 tiles of deep water (finished; nobody
   needs to be on it; not a prebuilt one): then its 60 s countdown starts. An objective says so ("Build a watchtower by the shore",
   "then wave 1 comes"); ticked (or once wave 1 is called early), it stays 4 s (`WATCH_GOAL_STAYS`) and is then gone for good (an objective's `"gone"`: only for the start). Ten listed waves, then the last again, bigger, until it is won (no number of waves to hold); 45 s between waves. Each repeat adds
-  2 crabs, 2 skeletons and an ork more than the one before (`more_each_wave`), and 2 more in turn from goblin, ork, big slime, crab,
+  2 crabs, 2 skeletons and an orc more than the one before (`more_each_wave`), and 2 more in turn from goblin, orc, big slime, crab,
   spider mother, thief, vampire, necromancer (`rotate_kinds`, `rotate_count`: round robin, on from where the last repeat stopped).
-  Besides crabs, the drowned dead and the Evil, the Wilderness all along: goblins, orks from wave 2 (1 to 3), big slimes (waves 3,
+  Besides crabs, the drowned dead and the Evil, the Wilderness all along: goblins, orcs from wave 2 (1 to 3), big slimes (waves 3,
   5, 8, 10), a spider mother in waves 7, 9 and 10, rat packs (6; 7 and 5 in wave 8).
 - **The rescue** (after wave 4): a scene (the priest walks down to ring the ferry bell); the younger priest walks to the quay
   (`Resident.start_rounds`). Only when he gets there does the guard octopus come: moved to the deep water by the harbour, at
@@ -1317,7 +1317,7 @@ Built after the rework of §9a.
   Priest 4, a crossbowman 5, a fire summoner 5); two wall towers (an archer 7, an acolyte 6); an archer and a shield bearer (5) in the
   reserve. Brenna is level 16.
 - **Rules:** everything unlocked, recruiting open; specialising, training grounds; **no revive**; Pell must not die.
-- **Waves:** sixteen, from 3-4 roads: Wilderness first (goblins, orks, rats, thieves), witches, gargoyles and a slime in 3; the Legion
+- **Waves:** sixteen, from 3-4 roads: Wilderness first (goblins, orcs, rats, thieves), witches, gargoyles and a slime in 3; the Legion
   from wave 4 (footmen, archers, banner-bearers, guardsmen) with Undead and Evil (vampires, necromancers, spider mothers) growing to wave
   16. **Torben** (a captain) leads wave 8, **Lysa** wave 12; wave 16 brings **Halvard** down the Wardline road with 2 guardsmen and a
   banner-bearer, Torben and Lysa with him. Wave 1 waits to be called; 40 s between waves.

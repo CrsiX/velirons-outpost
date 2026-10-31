@@ -581,7 +581,7 @@ not format errors: the map loads, and the checks (§5.4) report them.
   "village_links": [],
   "objects": [
     {"id": 1, "kind": "treasure", "tile": [12, 60], "size": 1, "treasure": "standing_stones", "tier": 3, "reward": {"relic": "hawkeye"}},
-    {"id": 2, "kind": "camp", "tile": [14, 58], "size": 1, "tier": 3, "guards": 1, "monsters": ["ork", "ork", "goblin"]},
+    {"id": 2, "kind": "camp", "tile": [14, 58], "size": 1, "tier": 3, "guards": 1, "monsters": ["orc", "orc", "goblin"]},
     {"id": 3, "kind": "unlock", "tile": [55, 20], "size": 1, "site": "stone_circle", "unlocks": "summoner", "wave": 3},
     {"id": 4, "kind": "ruin", "tile": [48, 30], "size": 1, "building": "tower"},
     {"id": 5, "kind": "lair", "tile": [5, 8], "size": 2, "art": "lair_cave", "front": [4, 9]},

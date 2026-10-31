@@ -44,15 +44,15 @@ func _init() -> void:
 	fail_on_villager_death = true
 	corpses_rot = false  # (until the gatherers' card is done: on_card_done)
 
-	# Wilderness only, kept weak: goblins, rats from wave 2, an ork from wave 3,
+	# Wilderness only, kept weak: goblins, rats from wave 2, an orc from wave 3,
 	# slimes in the last wave. Wave 1 comes when the player calls it, down the
 	# road the watchtower card points at (on_start).
 	waves = [
 		{"kinds": {"goblin": 3}, "spawns": 1},
 		{"kinds": {"goblin": 4}, "rat_packs": [4], "spawns": 2},
-		{"kinds": {"goblin": 4, "ork": 1}, "rat_packs": [4], "spawns": 2},
-		{"kinds": {"goblin": 6, "ork": 1}, "rat_packs": [5], "spawns": 2},
-		{"kinds": {"goblin": 5, "ork": 2, "slime3": 2}, "rat_packs": [5], "spawns": 3},
+		{"kinds": {"goblin": 4, "orc": 1}, "rat_packs": [4], "spawns": 2},
+		{"kinds": {"goblin": 6, "orc": 1}, "rat_packs": [5], "spawns": 2},
+		{"kinds": {"goblin": 5, "orc": 2, "slime3": 2}, "rat_packs": [5], "spawns": 3},
 	]
 	first_wave_waits = true
 	wave_gap = 40.0

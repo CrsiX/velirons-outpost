@@ -130,8 +130,8 @@ func _test_config() -> void:
 	var enemies := Config.ENEMIES
 	check(enemies["thief"]["speed"] > enemies["goblin"]["speed"] and enemies["thief"]["speed"] < enemies["rat"]["speed"] and enemies["thief"]["hp"] == enemies["goblin"]["hp"] and enemies["thief"]["damage"] == enemies["goblin"]["damage"], "the thief: a goblin's strength, quicker (%.1f)" % enemies["thief"]["speed"])
 	check(enemies["thief"]["gold_on_kill"] > 0 and enemies["thief"]["gold_on_collect"] > 0 and enemies["thief"]["food_on_collect"] == 0, "a thief pays a little gold at once and as a corpse, no food")
-	check(enemies["gargoyle"].get("flying", false) and is_equal_approx(enemies["gargoyle"]["speed"], enemies["ork"]["speed"]) and enemies["gargoyle"]["gold_on_kill"] > 0 and enemies["gargoyle"]["gold_on_collect"] == 0 and enemies["gargoyle"]["food_on_collect"] > 0, "the gargoyle flies, as slow as an ork; kill gold, a corpse of food only")
-	check(enemies["necromancer"]["speed"] < enemies["skeleton"]["speed"] and enemies["necromancer"]["speed"] > enemies["ork"]["speed"] and enemies["necromancer"]["damage"] == 0.0 and enemies["necromancer"]["hp"] == enemies["goblin"]["hp"], "the necromancer: between skeleton and ork in speed, goblin HP, no attack")
+	check(enemies["gargoyle"].get("flying", false) and is_equal_approx(enemies["gargoyle"]["speed"], enemies["orc"]["speed"]) and enemies["gargoyle"]["gold_on_kill"] > 0 and enemies["gargoyle"]["gold_on_collect"] == 0 and enemies["gargoyle"]["food_on_collect"] > 0, "the gargoyle flies, as slow as an orc; kill gold, a corpse of food only")
+	check(enemies["necromancer"]["speed"] < enemies["skeleton"]["speed"] and enemies["necromancer"]["speed"] > enemies["orc"]["speed"] and enemies["necromancer"]["damage"] == 0.0 and enemies["necromancer"]["hp"] == enemies["goblin"]["hp"], "the necromancer: between skeleton and orc in speed, goblin HP, no attack")
 	check(enemies["necromancer"]["gold_on_kill"] >= 4 * enemies["goblin"]["gold_on_kill"] and enemies["necromancer"]["gold_on_collect"] == 0 and enemies["necromancer"]["food_on_collect"] == 0 and not enemies["necromancer"].get("revivable", true), "much gold on kill; its corpse yields nothing and can't be raised")
 	check(enemies["witch"]["spell_range"] <= Config.TOWER_RANGE["tower"] + Config.TOWER_LEVELS[0]["range_bonus"], "a witch can't outrange a level 1 watchtower (%.1f vs %.1f)" % [enemies["witch"]["spell_range"], Config.TOWER_RANGE["tower"]])
 	var firsts := {}
@@ -302,7 +302,7 @@ func _test_necromancer() -> void:
 	check(raise_levels.size() == 1 and raise_levels[0] == EventLog.Level.INFO and logs.any(func(l: String) -> bool: return "A necromancer raised a dead goblin" in l), "the first raise is logged (Info)")
 	check(nec.channel_to == Vector2.INF and nb.corpse == null, "the necromancer walks on")
 	# Right after a raise it won't start the next spell for a while.
-	var c3 := game.corpses.spawn("ork", game.waves.wave, nec.grid_pos + Vector2(-1.0, 0.5))
+	var c3 := game.corpses.spawn("orc", game.waves.wave, nec.grid_pos + Vector2(-1.0, 0.5))
 	var soon := await wait_until(func() -> bool: return nb.corpse == c3, Config.ENEMIES["necromancer"]["cast_time"] * 0.5)
 	check(not soon, "after a raise it walks on for a while before the next spell")
 	# Its HP drains away; decayed it pays nothing and leaves no corpse.
@@ -323,27 +323,27 @@ func _test_necromancer() -> void:
 		if x.kind == "goblin":
 			c2 = x
 	check(decayed and seen.get("decayed", false) and int(v.economy.amount("gold")) == gold0 and c2 == null, "decayed: no gold and no corpse")
-	# The second raise (the ork, after the cooldown): logged at Debug only; killed, half the gold.
+	# The second raise (the orc, after the cooldown): logged at Debug only; killed, half the gold.
 	var again := await wait_until(func() -> bool: return raise_levels.size() >= 2, 30.0)
 	check(again and raise_levels[1] == EventLog.Level.DEBUG, "the next raise is logged at Debug only")
 	var orc: Enemy = null
 	for e in get_tree().get_nodes_in_group("enemies"):
-		if e.raised and e.kind == "ork" and not e.dead:
+		if e.raised and e.kind == "orc" and not e.dead:
 			orc = e
 	if orc == null:  # (it may have drained away already: raise a fresh one)
-		var c5 := game.corpses.spawn("ork", game.waves.wave, nec.grid_pos + Vector2(0.5, 1.0))
+		var c5 := game.corpses.spawn("orc", game.waves.wave, nec.grid_pos + Vector2(0.5, 1.0))
 		nb._cool = 0.0
 		await wait_until(when_gone(c5, func(x: Object) -> bool: return not game.corpses.corpses.has(x)), 20.0)
 		for e in get_tree().get_nodes_in_group("enemies"):
-			if e.raised and e.kind == "ork" and not e.dead:
+			if e.raised and e.kind == "orc" and not e.dead:
 				orc = e
 	if orc:
 		var gold1 := int(v.economy.amount("gold"))
 		orc.take_damage(1e9, game.hero)
 		await frames(2)
 		var got := int(v.economy.amount("gold")) - gold1
-		check(got == floori(Config.enemy_stat_int("ork", "gold_on_kill") * 0.5), "a raised ork killed pays half an ork's gold, rounded down (%d)" % got)
-		check(not game.corpses.corpses.any(func(x: Corpse) -> bool: return x.kind == "ork"), "and leaves no corpse")
+		check(got == floori(Config.enemy_stat_int("orc", "gold_on_kill") * 0.5), "a raised orc killed pays half an orc's gold, rounded down (%d)" % got)
+		check(not game.corpses.corpses.any(func(x: Corpse) -> bool: return x.kind == "orc"), "and leaves no corpse")
 	# Never its own kind, nor corpses already claimed; a lost corpse ends the spell.
 	await clear_corpses()
 	var nc := game.corpses.spawn("necromancer", game.waves.wave, nec.grid_pos + Vector2(1.0, 0.0))
@@ -626,7 +626,7 @@ func _test_lairs() -> void:
 		comp[sp["kind"]] = comp.get(sp["kind"], 0) + 1
 	var elig := w.aqua(v)  # (water monsters too, if water by the village lets them come)
 	check(comp == Config.wave_composition(10, not elig.is_empty(), elig.keys()), "the wave keeps its mix (the lair takes its kinds from the share)")
-	check(str(b.kinds_for(13)) == str(["ork", "gargoyle"]) and str(a.kinds_for(13)) == str(["skeleton", "necromancer", "vampire"]) and str(b.kinds_for(3)) == str(["ork"]) and str(b.kinds_for(1)) == str(["goblin"]), "themes: a cave sends orks and gargoyles, a crypt skeletons, necromancers and vampires (once their wave has come; goblins before)")
+	check(str(b.kinds_for(13)) == str(["orc", "gargoyle"]) and str(a.kinds_for(13)) == str(["skeleton", "necromancer", "vampire"]) and str(b.kinds_for(3)) == str(["orc"]) and str(b.kinds_for(1)) == str(["goblin"]), "themes: a cave sends orcs and gargoyles, a crypt skeletons, necromancers and vampires (once their wave has come; goblins before)")
 	w._spawn(from_lair[0])
 	await frames(2)
 	var e: Enemy = null
@@ -673,10 +673,10 @@ func _test_slimes() -> void:
 	var s3: Dictionary = enemies["slime3"]
 	var s2: Dictionary = enemies["slime2"]
 	var s1: Dictionary = enemies["slime1"]
-	check(s3["hp"] == 40.0 and s3["damage"] == enemies["ork"]["damage"] and s3["attack_cooldown"] == enemies["ork"]["attack_cooldown"] and s3["speed"] == enemies["ork"]["speed"], "a big slime: 40 HP, an ork's blows and pace")
+	check(s3["hp"] == 40.0 and s3["damage"] == enemies["orc"]["damage"] and s3["attack_cooldown"] == enemies["orc"]["attack_cooldown"] and s3["speed"] == enemies["orc"]["speed"], "a big slime: 40 HP, an orc's blows and pace")
 	check(s3["hp"] == 2.0 * s2["hp"] and s2["hp"] == 2.0 * s1["hp"] and s3["damage"] == 2.0 * s2["damage"] and s2["damage"] == 2.0 * s1["damage"], "each level has twice the HP and damage of the one below")
 	check(s1["speed"] > s2["speed"] and s2["speed"] == enemies["goblin"]["speed"] and s2["speed"] > s3["speed"], "level 1 is fast, level 2 normal, level 3 slow")
-	check([s3, s2, s1].all(func(d: Dictionary) -> bool: return not d.get("corpse", true) and d["behavior"] == "melee"), "slimes leave no corpse (nothing to raise) and walk the roads like goblins and orks")
+	check([s3, s2, s1].all(func(d: Dictionary) -> bool: return not d.get("corpse", true) and d["behavior"] == "melee"), "slimes leave no corpse (nothing to raise) and walk the roads like goblins and orcs")
 	check(not s3.has("raid_chance") and s2["raid_chance"] == 0.25 and s1["raid_chance"] == 0.1, "at the gate: a big slime always burns a hut, a slime a quarter, a small one a tenth of the time")
 	var first := 0
 	for n in range(1, 30):
@@ -786,7 +786,7 @@ func _test_spiders() -> void:
 	var sm: Dictionary = en["spider_mother"]
 	var egg_cfg: Dictionary = en["spider_egg"]
 	var sl: Dictionary = en["spiderling"]
-	check(sm["hp"] == 90.0 and sm["hp"] > en["ork"]["hp"] and sm["speed"] < en["ork"]["speed"] and sm["behavior"] == "spider_mother", "a spider mother: more HP than an ork (90), slower")
+	check(sm["hp"] == 90.0 and sm["hp"] > en["orc"]["hp"] and sm["speed"] < en["orc"]["speed"] and sm["behavior"] == "spider_mother", "a spider mother: more HP than an orc (90), slower")
 	check(sm.get("corpse", true) and sm["gold_on_collect"] > 0 and sm["food_on_collect"] == 0 and sm["resist"]["holy"] == 0.75, "her corpse brings gold, no food; holy x0.75 (Wilderness)")
 	check(not sl.get("corpse", true) and sl["raid_chance"] == 0.0 and sl["speed"] == 1.8 and sl["behavior"] == "melee" and sl["siege"] > 0.0 and sl["gold_on_kill"] == 1, "spiderlings: goblin-like, break walls, burn no huts, no corpse, 1 gold")
 	check(sl["hp"] <= 2.0 * en["rat"]["hp"] and sl["damage"] <= 3.0 * en["rat"]["damage"] and sl["speed"] < en["rat"]["speed"], "a spiderling is about a rat's strength (and rats stay the fastest)")
@@ -802,7 +802,7 @@ func _test_spiders() -> void:
 	var art_ok := true
 	for a in ["unit_spider_mother", "corpse_spider_mother", "unit_spiderling", "unit_spider_egg", "unit_spider_egg_shell"]:
 		art_ok = art_ok and ResourceLoader.exists("res://art/%s.svg" % a)
-	check(art_ok and Art.tex("unit_spider_mother").get_width() > Art.tex("unit_ork").get_width(), "art for mother, corpse, spiderling, egg and shell; she is bigger than an ork")
+	check(art_ok and Art.tex("unit_spider_mother").get_width() > Art.tex("unit_orc").get_width(), "art for mother, corpse, spiderling, egg and shell; she is bigger than an orc")
 
 	# On her way she lays a clutch every lay_every s, without stopping.
 	var alive0: int = game.waves._alive
@@ -1039,7 +1039,7 @@ func _test_wrathwood() -> void:
 	var art_ok := true
 	for a in ["unit_wrathwood", "unit_wrathwood_grip", "corpse_wrathwood"]:
 		art_ok = art_ok and ResourceLoader.exists("res://art/%s.svg" % a)
-	check(art_ok and Art.tex("unit_wrathwood").get_height() > Art.tex("unit_ork").get_height(), "art for it, its root grip and its log; it towers over an ork")
+	check(art_ok and Art.tex("unit_wrathwood").get_height() > Art.tex("unit_orc").get_height(), "art for it, its root grip and its log; it towers over an orc")
 	trees.allowed = true
 
 	# The odds.
@@ -1344,7 +1344,7 @@ func _test_riders() -> void:
 			if not first.has(k) and Config.wave_composition(n).has(k):
 				first[k] = n
 	check(first.get("wolf", 0) == 5 and first.get("goblin_raider", 0) == 7 and first["goblin_raider"] - first["wolf"] >= 2, "wolves join from wave 5, goblin raiders from wave 7 (two waves later)")
-	check(is_equal_approx(Config.WAVE_MIX["goblin_raider"]["share"], 0.5 * Config.WAVE_MIX["ork"]["share"]) and not Config.WAVE_MIX["goblin_raider"].has("max_count"), "the raider's share is half the ork's, no cap")
+	check(is_equal_approx(Config.WAVE_MIX["goblin_raider"]["share"], 0.5 * Config.WAVE_MIX["orc"]["share"]) and not Config.WAVE_MIX["goblin_raider"].has("max_count"), "the raider's share is half the orc's, no cap")
 	check(not en["wolf"].has("resist") and not en["horse"].has("resist") and not en["wolf"].get("unholy", false), "the wolf and the horse are animals: holy x1")
 	check(en["wolf"]["gold_on_collect"] == 0 and en["wolf"]["food_on_collect"] > 0 and en["horse"]["gold_on_collect"] == 0 and en["horse"]["food_on_collect"] > en["wolf"]["food_on_collect"], "corpses: a wolf's and a horse's give food, no gold (a horse more)")
 	check(en["goblin_raider"]["gold_on_kill"] < en["goblin"]["gold_on_kill"] and en["goblin_raider"]["gold_on_kill"] > en["rat"]["gold_on_kill"] and en["legion_cavalry"]["gold_on_kill"] == en["goblin_raider"]["gold_on_kill"], "a mount's kill gold: below a goblin's, above a rat's")

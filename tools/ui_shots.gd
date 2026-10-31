@@ -427,7 +427,7 @@ func _tactical_map() -> void:
 			if g.map.is_road(t) and d >= 6.0 and d <= 9.0 and not v.rect.has_point(t):
 				roads.append(t)
 	for i in mini(roads.size(), 8):
-		g.waves.spawn_at(["goblin", "ork", "gargoyle", "goblin"][i % 4], roads[i * roads.size() / 8], v, 1)
+		g.waves.spawn_at(["goblin", "orc", "gargoyle", "goblin"][i % 4], roads[i * roads.size() / 8], v, 1)
 	await _frames(20)
 	g.hud.toggle_map(true)
 	await _frames(10)
@@ -769,7 +769,7 @@ func _siege() -> void:
 				road = n
 				break
 	for k in 4:
-		g.waves._spawn({"kind": "goblin" if k < 3 else "ork", "spawn": g.map.edge_spawns[0], "hp_scale": 50.0, "village": v})
+		g.waves._spawn({"kind": "goblin" if k < 3 else "orc", "spawn": g.map.edge_spawns[0], "hp_scale": 50.0, "village": v})
 		var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
 		var at := Vector2(road) + Vector2(randf_range(-0.3, 0.3), randf_range(-0.3, 0.3))
 		e.set_grid_pos(at)
@@ -1501,11 +1501,11 @@ func _spiders() -> void:
 			pts.append(Vector2(t))
 		e.follow(pts)
 		return e
-	# A mother next to an ork and a goblin, for size; she lays a clutch.
+	# A mother next to an orc and a goblin, for size; she lays a clutch.
 	var m: Enemy = spawn.call("spider_mother", Vector2(road), 50.0)
-	var ork: Enemy = spawn.call("ork", Vector2(road) + Vector2(0.9, -0.6), 50.0)
+	var orc: Enemy = spawn.call("orc", Vector2(road) + Vector2(0.9, -0.6), 50.0)
 	var gob: Enemy = spawn.call("goblin", Vector2(road) + Vector2(-0.6, 0.9), 50.0)
-	for e: Enemy in [m, ork, gob]:
+	for e: Enemy in [m, orc, gob]:
 		e.speed = 0.0
 	(m.behavior as SpiderMotherBehavior).started = true
 	(m.behavior as SpiderMotherBehavior)._lay = 0.01
@@ -1514,7 +1514,7 @@ func _spiders() -> void:
 	g.camera.zoom = Vector2(1.6, 1.6)
 	await _frames(10)
 	await shot("spiders_mother_lays")
-	ork.vanish()
+	orc.vanish()
 	gob.vanish()
 	# Wobbling just before they hatch, then the shells and the spiderlings.
 	var eggs: Array[Enemy] = []
@@ -1833,7 +1833,7 @@ func _vultures() -> void:
 				road = n
 				break
 	var meal := g.corpses.spawn("goblin", 1, Vector2(road))
-	g.corpses.spawn("ork", 1, Vector2(road) + Vector2(0.8, 0.5))
+	g.corpses.spawn("orc", 1, Vector2(road) + Vector2(0.8, 0.5))
 	g.corpses.spawn("skeleton", 1, Vector2(road) + Vector2(-0.6, 0.7))
 	var pack := VulturePack.new(g, meal)
 	var birds: Array[Enemy] = []

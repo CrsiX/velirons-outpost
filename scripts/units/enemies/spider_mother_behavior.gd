@@ -1,6 +1,6 @@
 class_name SpiderMotherBehavior
 extends MeleeBehavior
-## Spider mothers (Config.ENEMIES["spider_mother"]): fight like an ork
+## Spider mothers (Config.ENEMIES["spider_mother"]): fight like an orc
 ## (MeleeBehavior) and lay clutches of eggs (Waves.lay_eggs) as she walks,
 ## without stopping: the first once she is within lay_near of a manned tower or
 ## barracks whose units fight (or when she is first alarmed), then one every
@@ -12,7 +12,7 @@ extends MeleeBehavior
 ## alarm_cooldown s. Raised by a necromancer she lays a clutch at once (then
 ## every lay_every s). Laying takes no time. She lays at most max_clutches
 ## clutches (timed and alarmed together; a raised mother counts afresh); then
-## she fights on like an ork and no longer stops to guard.
+## she fights on like an orc and no longer stops to guard.
 
 ## The clutch she waits for (empty: none).
 var clutch: Array[Enemy] = []

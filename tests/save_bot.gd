@@ -209,11 +209,11 @@ func _single() -> void:
 	h.head_home()
 	# A gatherer out with corpses, the world: corpses, a hurt camp guard, trees, fog, a relic.
 	var gath := v.population.recruit("gatherer") as Gatherer
-	gath.job.carried.assign(["goblin", "ork"])
+	gath.job.carried.assign(["goblin", "orc"])
 	gath.job.carried_gold = 3
 	gath.set_grid_pos(Vector2(c + Vector2i(3, -4)))
 	gath._set_home(false)
-	game.corpses.spawn("ork", 0, Vector2(tower.work_tile()))
+	game.corpses.spawn("orc", 0, Vector2(tower.work_tile()))
 	var guard: Enemy = null
 	for o in w.map_objects:
 		if o is MonsterCamp and not (o as MonsterCamp).alive().is_empty():
@@ -326,7 +326,7 @@ func _single() -> void:
 	var bui2 := game.entity(ids["builder"]) as Builder
 	check(bui2 != null and bui2.job.state == BuildJob.State.TO_SITE and bui2.job.site != null and bui2.job.site.builder == bui2 and not bui2.evading,
 		"the builder out in the field walks from there to a site (state %d)" % bui2.job.state)
-	check(game.corpses.corpses.size() == 1 and game.corpses.corpses[0].kind == "ork", "the corpse lies there")
+	check(game.corpses.corpses.size() == 1 and game.corpses.corpses[0].kind == "orc", "the corpse lies there")
 	var living2 := game.entity(ids["living"]) as Enemy
 	var lb2 := living2.behavior as WrathwoodBehavior if living2 else null
 	check(living2 != null and lb2 != null and absf(living2.hp - living_hp) < 0.01 and lb2.state == WrathwoodBehavior.State.WANDER and is_equal_approx(lb2.wander_left, 7.5)

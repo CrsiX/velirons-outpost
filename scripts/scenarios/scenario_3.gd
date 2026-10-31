@@ -49,16 +49,16 @@ func _init() -> void:
 	# coming until the line is restored and lit: the last one again, growing.
 	waves = [
 		{"kinds": {"goblin": 5}, "rat_packs": [4], "spawns": 2},
-		{"kinds": {"goblin": 6, "ork": 1}, "spawns": 2},
-		{"kinds": {"goblin": 5, "ork": 1, "thief": 2}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"goblin": 7, "ork": 2, "thief": 2}, "spawns": 3},
-		{"kinds": {"goblin": 7, "ork": 2, "thief": 3, "slime3": 1}, "rat_packs": [5], "spawns": 3},
-		{"kinds": {"goblin": 8, "ork": 3, "thief": 3, "slime3": 2}, "rat_packs": [6], "spawns": 3},
-		{"kinds": {"goblin": 8, "ork": 3, "thief": 4, "slime3": 2}, "spawns": 4},
-		{"kinds": {"goblin": 9, "ork": 3, "thief": 4, "slime3": 2}, "rat_packs": [6], "spawns": 4},
+		{"kinds": {"goblin": 6, "orc": 1}, "spawns": 2},
+		{"kinds": {"goblin": 5, "orc": 1, "thief": 2}, "rat_packs": [5], "spawns": 3},
+		{"kinds": {"goblin": 7, "orc": 2, "thief": 2}, "spawns": 3},
+		{"kinds": {"goblin": 7, "orc": 2, "thief": 3, "slime3": 1}, "rat_packs": [5], "spawns": 3},
+		{"kinds": {"goblin": 8, "orc": 3, "thief": 3, "slime3": 2}, "rat_packs": [6], "spawns": 3},
+		{"kinds": {"goblin": 8, "orc": 3, "thief": 4, "slime3": 2}, "spawns": 4},
+		{"kinds": {"goblin": 9, "orc": 3, "thief": 4, "slime3": 2}, "rat_packs": [6], "spawns": 4},
 	]
 	repeat_last = true
-	more_each_wave = {"goblin": 2, "ork": 1, "thief": 1}
+	more_each_wave = {"goblin": 2, "orc": 1, "thief": 1}
 	first_wave_waits = false
 	wave_gap = 45.0
 

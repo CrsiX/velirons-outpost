@@ -275,8 +275,8 @@ func _open_mouths() -> void:
 ## in the south (tier 2); a small chest a side (tier 1)) and Sigmund's tent: {"tent": tile}.
 func _objects() -> Dictionary:
 	var guarded := [
-		[Vector2i(c.x - 22, 11), ["goblin", "goblin", "ork"]],
-		[Vector2i(c.x + 21, 8), ["goblin", "ork", "ork"]],
+		[Vector2i(c.x - 22, 11), ["goblin", "goblin", "orc"]],
+		[Vector2i(c.x + 21, 8), ["goblin", "orc", "orc"]],
 	]
 	for g in guarded:
 		var ti := _treasure(g[0], "ruins", 3, {"gold": 120, "materials": 40})

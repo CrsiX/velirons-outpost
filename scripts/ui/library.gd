@@ -803,7 +803,7 @@ static func _zones_text(zones: Array) -> String:
 	return ", ".join(w)
 
 
-## Kinds as words: ["goblin", "goblin", "ork"] -> "2 goblins, ork".
+## Kinds as words: ["goblin", "goblin", "orc"] -> "2 goblins, orc".
 static func _kind_names(kinds: Array) -> String:
 	var counts := {}
 	var order: Array[String] = []
@@ -819,7 +819,7 @@ static func _kind_names(kinds: Array) -> String:
 	return ", ".join(w)
 
 
-## Kinds in general: ["ork", "gargoyle"] -> "orks and gargoyles".
+## Kinds in general: ["orc", "gargoyle"] -> "orcs and gargoyles".
 static func _kinds_plural(kinds: Array) -> String:
 	var w := PackedStringArray()
 	for k: String in kinds:

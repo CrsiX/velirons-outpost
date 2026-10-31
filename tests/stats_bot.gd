@@ -118,10 +118,10 @@ func _single() -> void:
 	check(st.value(0, "hero.kills") == 1.0 and not (st.villages[0]["hero_waves"] as Dictionary).is_empty(), "the hero's kills, per wave too")
 	check(st.value(0, "earn.gold.kills") - gold0 == float(Config.enemy_stat("goblin", "gold_on_kill")), "its kill gold counts as gold from kills")
 	var tower := _tower()
-	var o := game.waves.debug_spawn("ork", v)
+	var o := game.waves.debug_spawn("orc", v)
 	kill(o, tower)
 	await frames(2)
-	check(st.value(0, "kill.ork") == 1.0 and st.value(0, "kill_by.tower") == 1.0, "an ork killed by a tower")
+	check(st.value(0, "kill.orc") == 1.0 and st.value(0, "kill_by.tower") == 1.0, "an orc killed by a tower")
 	check((st.villages[0]["towers"] as Dictionary).has(tower.nid), "the tower is in the running for Deadliest tower")
 	var r := game.waves.debug_spawn("skeleton", v)
 	r.raised = true
