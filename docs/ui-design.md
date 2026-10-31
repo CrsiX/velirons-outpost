@@ -67,7 +67,7 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
     completed one, or one before a completed one, so a scenario added later never locks out what was
     already played); debug builds open them all. The file carries a format number, and another format
     is read as no progress rather than migrated.
-- **In a scenario** (docs/scenarios-design.md §7): its **card** sits top left where the tutorial's
+- **In a scenario** (docs/scenario-system-design.md): its **card** sits top left where the tutorial's
   does (`ScenarioCard`): a heading that folds the card, the teaching card, an orange hint when one
   comes up, and the objectives with their progress. The highlight is the tutorial's. **Cutscenes**
   (`Cutscene`, a layer over everything) hide the HUD and use black bars and a dialogue box at the
@@ -293,7 +293,7 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   - Greyed out before `Config.STATS["from_wave"]` (the tooltip says so, a tap only toasts).
   - The game-over screen stacks the retry / continue actions and *Statistics* under each other (a
     won scenario's offers *Next scenario*, or after the campaign's last one *Show campaign map*;
-    docs/scenarios-design.md §7).
+    docs/scenario-system-design.md).
   - Pauses like the library and the settings, with the same exceptions.
 - **The three top-right buttons behave alike:** settings, library and statistics each pause a
   single-player game, grey it out behind them, and go back to the speed before when closed. One

@@ -66,7 +66,7 @@ Acolyte ────────────┬──────►  Inquisitor
   mage.
 - Only the five base units (`MILITARY_ORDER`) can be recruited; specialisations come only from
   upgrades. The summoner, apprentice and acolyte must be unlocked first (`LOCKED`,
-  docs/world-design.md §9.4).
+  docs/world-objects-design.md §9.4).
 
 ## 3. Unit roster
 
@@ -158,7 +158,7 @@ slips past: rats running for farms, thieves fleeing with gold, slimes.
 
 Scenario 7's grove druids are druids that take no orders (`MilitaryUnit.bound`, set by the
 scenario's prebuilt units: no moving, withdrawing, swapping, upgrading or sending); only druids
-serve in a grove (docs/scenarios-design.md §7.10).
+serve in a grove (docs/scenarios-7-9-design.md).
 
 ### 3a. The shield bearer's specialisations
 
@@ -375,7 +375,7 @@ art is in docs/acolyte-design.md.
 | D12 | Sortie rules | As in §5 |
 | D13 | Spatial push | Back along the road, growing with level; the same enemy at most once per `push_immunity` |
 | D14 | Crossbow piercing | Flag only, for now |
-| D15 | Recruitable units | Archer, shield bearer, summoner, apprentice, acolyte; the summoner, the apprentice and the acolyte have to be unlocked first at their unlock sites (docs/world-design.md §9.4) |
+| D15 | Recruitable units | Archer, shield bearer, summoner, apprentice, acolyte; the summoner, the apprentice and the acolyte have to be unlocked first at their unlock sites (docs/world-objects-design.md §9.4) |
 | D16 | Upgrade costs | Gentle curve (per unit, in config) |
 | D17 | Hero training XP | Rising with level (per unit, × difficulty) |
 | D18 | Specialisations vs base unit | Level 1 **never weaker than the base unit's level 3** (HP, DPS, summons); level 10 **stronger than the base unit's level 10**; in between it may fall a little short (§3) |

@@ -1,6 +1,6 @@
 # Story design
 
-Status: **the whole campaign (scenarios 1 to 11) is built** (`scenarios-design.md` §7). This page holds the story the game's scenarios, library texts and event log will draw on. It changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
+Status: **the whole campaign (scenarios 1 to 11) is built** (`scenarios-design.md`). This page holds the story the game's scenarios, library texts and event log will draw on. It changes no rule or number. `scenarios-design.md` is the detailed campaign outline and **takes precedence** where the two differ. Anything marked
 *open* is not decided.
 
 ## 1. Premise
@@ -77,7 +77,7 @@ manpower and stone, not magic.
 | Ruined watchtowers (claimed by the hero, restored by a builder) | Broken links of the Wardline. Restoring one rebuilds it. |
 | Watchtowers, wall towers | Links that still stand or are rebuilt. |
 | Light stones | Stay *light stones*: a building that helps the player, with no story role. |
-| Walls and gates | The last intact stretch of the line. In scenario 1 they are broken, and a breach lets enemies in (`scenarios-design.md` section 6). |
+| Walls and gates | The last intact stretch of the line. In scenario 1 they are broken, and a breach lets enemies in (`scenarios-1-3-design.md`). |
 | Roads | The old King's Roads. Enemies walk them because they are the way in. |
 
 ## 4. How the kingdom fell
@@ -204,7 +204,7 @@ the library marks them as such.
 | **Renegades** (*Abtrünnige*) | thief | bandit, deserter, assassin | **Fully human**, ordinary criminals who saw the chance when the order collapsed: bad people, but not evil. |
 | **Undead** | skeleton | ghost, wraith, zombie | The war's dead, unburied. |
 | **Evil** | vampire, necromancer | demon | Intelligent and malicious, drawn by the death. |
-| **Dread Legion** | footman, captain, archer, guardsman, banner-bearer, the court champion (campaign only: `scenarios-design.md` §7.7, §7.13) | the marshal (a mid-boss) | Rhodri's own army: human soldiers under the corruption's influence, like brainwashing. See below. |
+| **Dread Legion** | footman, captain, archer, guardsman, banner-bearer, the court champion (campaign only: `scenarios-4-6-design.md`, `scenarios-7-9-design.md`) | the marshal (a mid-boss) | Rhodri's own army: human soldiers under the corruption's influence, like brainwashing. See below. |
 | **Arcane** (*open*) | witch, gargoyle | siren, wisp, golem | Magic-made or magic-using. Goes with neither Wilderness nor Evil. |
 
 Library and log text should use the category name ("a Renegade", "the Undead"), not a person's backstory.
@@ -288,7 +288,7 @@ back. Pell's death fails every scenario from 4 on, and Fiona's death is always a
 per-scenario settings (in each scenario's own file, `scripts/scenarios/scenario_<n>.gd`), and a message on entering the first away scenario should say so.
 
 Each scenario opens and closes with a cutscene (section 8). The outro plays when the scenario's **objective** is fulfilled. The objectives are in
-`scenarios-design.md`. The tutorial is merged into scenarios 1 to 3 (see `scenarios-design.md` section 4).
+`scenarios-design.md`. The tutorial is merged into scenarios 1 to 3 (see `scenarios-1-3-design.md`).
 
 ## 8. Where the story shows
 
@@ -300,7 +300,7 @@ The rest of the telling is in places the game already has.
 - **Outro cutscene (every scenario):** plays when the scenario's objective is fulfilled and gives further information that closes the scenario and
   leads to the next. The campaign's last one is the story's ending, an open end (scenario 11).
 - **Skipping and format:** cutscenes may be skipped by the player. They play in the game's engine: the map behind, the camera moving, people
-  speaking in dialogue boxes with their portraits (`scenarios-design.md` §7.2). Whether they can be watched again from the title screen or the
+  speaking in dialogue boxes with their portraits (`scenario-system-design.md`). Whether they can be watched again from the title screen or the
   library is *open*.
 - **Title screen:** a one-line intro (draft below).
 - **Library:** category groupings on the Enemies tab (the Renegades and the Dread Legion marked as people), a short lore line per entry, lore on
@@ -317,7 +317,7 @@ Draft intro:
 
 ## 9. Open questions
 
-The story is otherwise settled. What remains (the other open questions are in `scenarios-design.md` section 5):
+The story is otherwise settled. What remains (the other open questions are in `scenarios-design.md` section 4):
 
 - Whether the rival guilds hire Renegades.
 - Whether witch, gargoyle and siren form an Arcane category.

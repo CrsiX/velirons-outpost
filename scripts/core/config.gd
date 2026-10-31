@@ -1480,7 +1480,7 @@ const HERO := {
 	"damage": 8.0, "attack_cooldown": 0.9, "attack_range": 0.8,
 	"category": "melee",  # his sword's damage (DAMAGE_CATEGORIES)
 	"sight": 4.0,  # surveillance while outside
-	"alert_radius": 6.0,  # Defend: enemies this close to a gate draw her out
+	"alert_radius": 6.0,  # Defend: enemies this close to the village's walls (the whole wall ring, measured from its rect) draw her out
 	"leash": 14.0,  # Defend: she won't chase farther than this from the centre
 	"build_efficiency": 0.5,  # "a little" of each job: half a builder's speed
 	"explore_reveal": 1.8,  # explorers see 2.6

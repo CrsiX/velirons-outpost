@@ -253,7 +253,7 @@ documented there.
 2. **Leviathan.**
 3. **Forced movement, then siren.**
 4. **Gigantic octopus** (and `max_count`, `chance`).
-5. **World generator:** the map must really give them water (docs/world-design.md §9.8).
+5. **World generator:** the map must really give them water (docs/world-objects-design.md §9.8).
 
 ## 15. As built
 
@@ -319,7 +319,7 @@ eligibility and spawns, per village, worked out at the first wave (`Waves.aqua`)
 - *The log:* the first of each kind per game (`AQUA_FIRST`): Info, the octopus Important.
 - *Saves and files:* the save's map holds the water spawns; map files carry `"water_spawns"`
   (an older file without it still reads).
-- *The generator* (docs/world-design.md §9.8): Coast maps carve an inlet per village, other map
+- *The generator* (docs/world-objects-design.md §9.8): Coast maps carve an inlet per village, other map
   types a lagoon with the type's chance; each gets a landing road; water spawns per fitting
   body near a village.
 - *How they move in water* (`Enemy._wade`): no walking sway; up in the water they rise and fall

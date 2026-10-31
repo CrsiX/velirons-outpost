@@ -339,7 +339,7 @@ keeps a half-finished map openable.
   *Open* lists them with name, size, villages, map type and date.
 - **Built-in maps:** `res://data/maps/*.json`, shipped with the game,
   read-only, listed under "Built-in": the campaign's scenario maps
-  (docs/scenarios-design.md §7). Opened in the editor, one is saved as a new
+  (docs/scenarios-design.md). Opened in the editor, one is saved as a new
   file under your maps; to change a scenario's map, Export it over its file in
   `data/maps/`. (If loading JSON turns out too slow for big maps, they can be
   baked into `.res` files like the title maps; not planned until measured.)

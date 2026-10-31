@@ -6,7 +6,7 @@ Scope: why the hero works the way she does: her panel, her modes, healing, XP, l
 downed. Every number lives in `scripts/core/config.gd` (`HERO`, `HERO_LEVELS`,
 `HERO_MAX_LEVEL`, `HERO_XP_PER_ACTION`, `UNIT_REVEAL`, `TRAIN_XP_DIFFICULTY`); the behaviour is in
 `scripts/units/hero.gd`. See docs/military-design.md for units and training grounds,
-docs/world-design.md §9 for the special objects she claims and loots.
+docs/world-objects-design.md §9 for the special objects she claims and loots.
 
 ## 1. Summary
 
@@ -93,7 +93,7 @@ mode button is always an immediate command:
   then home. She runs from enemies like a villager. Her value is as a second builder when the
   village is short of one.
 
-### 4.3 Explore (`HeroExploreJob`, docs/world-design.md §9.1)
+### 4.3 Explore (`HeroExploreJob`, docs/world-objects-design.md §9.1)
 
 She runs from enemies like a villager. She re-picks her task often: highest priority first, then
 the nearest, from what her village has found and she can walk to. The ordering is about what only

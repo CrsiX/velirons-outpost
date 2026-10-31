@@ -495,7 +495,7 @@ it) and `FleeBehavior` (the undead horse).
   the raised drain; it counts for the wave. Villagers don't run from it (`"scares": false`).
 - **Goblin raider:** a wolf rider, alone, no cap. **Legion cavalry** only where a scenario sends
   it.
-- **Mounted captains and commanders** (docs/scenarios-design.md §7): Lysa and Torben ride
+- **Mounted captains and commanders** (docs/scenarios-4-6-design.md, scenarios-7-9-design.md, scenarios-10-11-design.md): Lysa and Torben ride
   (scenarios 5, 9 and 10): they escort their column like cavalry and fall back faster while
   mounted; a captain whose horse falls goes on (and falls back) on foot. Halvard rides
   (scenario 10) and keeps rallying. Rhodri (scenario 11) fights in two phases: mounted, then on
@@ -507,7 +507,7 @@ it) and `FleeBehavior` (the undead horse).
 ## 16. Monster-camp guards
 
 - Every far treasure (and half of the middle ones) has a camp (`CAMP_CHANCE`,
-  docs/world-design.md §9.3) with `CAMP_MONSTERS` by treasure tier: a richer treasure, a harder
+  docs/world-objects-design.md §9.3) with `CAMP_MONSTERS` by treasure tier: a richer treasure, a harder
   camp.
 - They have extra HP (`CAMP_HP_SCALE`), fixed (not wave-scaled), and use `CampBehavior` instead
   of their kind's behavior.
@@ -536,17 +536,17 @@ Rhodri's bound soldiers (docs/story-design.md §5): `legion_footman` and `legion
 released (`"release"`: no corpse, the colour warms, a pale breath), not killed: they are
 victims. The captain (`CaptainBehavior`) is never killed: below `retreat_below` it falls back,
 untargetable, off the map the way it came. Named ones (Lysa, Torben) carry a name and art of
-their own (`Enemy.set_identity`). Numbers and the rest: docs/scenarios-design.md §7.7.
+their own (`Enemy.set_identity`). Numbers and the rest: docs/scenarios-4-6-design.md.
 - The **archer** (`LegionArcherBehavior`) stops to shoot our people out in the open, out-ranged
   by a level 1 watchtower; the **guardsman** takes less from projectiles; the **banner-bearer**
   hastes every Legion soldier near it (`Enemy.haste`); the **court champion** (scenario 8's
-  Rurik) cleaves (`EnemyBehavior.cleave`). docs/scenarios-design.md §7.13.
+  Rurik) cleaves (`EnemyBehavior.cleave`). docs/scenarios-7-9-design.md.
 - **Commanders** (`CommanderBehavior`; scenario 10's marshal Halvard, `legion_marshal`, and
   scenario 11's king Rhodri, `legion_king`): bosses whose Legion soldiers near them strike faster
   and take less damage (`command_haste`, `command_guard`; `Enemy.haste`, `Enemy.guard`), and who
   rally soldiers for the wave from an edge spawn while they live (`rally`, `rally_every`). The
   king's blows cleave, and he is `"downed"` at 0 HP: 1 HP left, untargetable, back along his road
-  and gone. docs/scenarios-design.md §7.16.
+  and gone. docs/scenarios-10-11-design.md.
 - A camp of Legion soldiers only is a *Legion camp* (its own look). A scenario can set a lair's
   guards, kinds and waking wave and keep it cleared (`Scenario.lairs`).
 

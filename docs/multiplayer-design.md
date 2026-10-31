@@ -146,7 +146,7 @@ There is **one wave counter** for the whole game.
   edge spawns of the whole map and head for the standing village nearest to
   their spawn.
 - **Spawning:** a village's own share spawns at its own edge spawns (§5.3) and
-  at the awake lairs in its slice (docs/world-design.md §9.6), and walks to
+  at the awake lairs in its slice (docs/world-objects-design.md §9.6), and walks to
   that village. Shares of fallen villages still spawn but turn to the nearest
   standing village. The shares are interleaved so every village's share
   arrives at the same time.
@@ -212,7 +212,7 @@ formula keeps working past it if the cap is raised.
   fails, the map is made again from another seed.
 - **Winding roads:** each road is found by A* over a cost map by zone, with
   low-frequency noise, so paths meander instead of running straight
-  (docs/world-design.md §5.2). Roads never pass through a village's walls.
+  (docs/world-roads-design.md §5.2). Roads never pass through a village's walls.
 - Each road leaves by the gate facing where it goes, an unused gate preferred.
   Every village needs at least 2 approaches.
 - Enemies only walk on roads, as in single player. Rerouted enemies (§4.1) use
@@ -463,7 +463,7 @@ dock, log level, panels) never go to the host.
    simulation scripts inactive.
 7. **Config:** the co-op tunables (`MAX_PLAYERS`, `map_size`, `help_tax`,
    `WAVE_EXTRA_PER_PLAYER`, `CARAVAN_SPEED`, `VILLAGE_NAMES`,
-   `VILLAGE_COLORS`, and the generator's numbers, docs/world-design.md §11)
+   `VILLAGE_COLORS`, and the generator's numbers)
    are in `config.gd`; the ports are in `Net`.
 
 ## 11. Milestones

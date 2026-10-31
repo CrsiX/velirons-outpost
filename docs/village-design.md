@@ -158,7 +158,7 @@ farms and defended farms.
 
 Roles, costs, speeds, rests and work times are in `CIVILIANS` and the `*_REST` / `*_TIME`
 constants. Roles that don't work from a recruit button: the **merchant**, **guild master**,
-**priest** and **princess** exist only in the campaign (docs/scenarios-design.md §7; the last
+**priest** and **princess** exist only in the campaign (docs/scenarios-4-6-design.md, scenarios-7-9-design.md; the last
 three are `Resident`s who stay home), the **miner** is locked until anyone walks up to a mine
 (`LOCKED.miner`), and the **Spatial Archmage** can't be recruited.
 
@@ -285,7 +285,7 @@ Costs, sizes and build times are in `BUILDINGS`. What each is for:
 - **Hut:** only rebuilt on its ruined lot (§3).
 - **Campaign-only buildings** (`"campaign": true`: trade stall, guild warehouse, graveyard,
   druids' grove) are placed by their scenario or only where it lists them; they are prebuilt or
-  not torn down: docs/scenarios-design.md §7 and docs/military-design.md §6.
+  not torn down: docs/scenario-system-design.md and docs/military-design.md §6.
 
 - **Farm output** (`Farm.rate`, `FARM_RATE`): while it has a farmer and no rats. A bonus when
   more than half its tiles are meadow (`ZONES.meadow.farm_bonus`) and when a tile borders water

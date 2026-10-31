@@ -37,7 +37,7 @@ Goals:
 
 Non-goals:
 - No voice-over, no cutscenes (the campaign's scenarios have them, see
-  scenarios-design.md §7; this tutorial stays without). New art: only the
+  scenario-system-design.md; this tutorial stays without). New art: only the
   highlight (outline and arrow) and the open-book icon.
 - No tutorial in co-op. The library works in co-op too.
 - No change to the rules of a normal game.

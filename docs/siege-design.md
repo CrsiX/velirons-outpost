@@ -89,7 +89,7 @@ and a toast says so.
   time) for the repair formula; a restored ruin counts its full list price.
 - **Huts** are repaired all or nothing (*Rebuild*, half the price); *Rebuild all huts* queues
   every ruin.
-- **The ruined watchtower** (docs/world-design.md §9.5) is claimed by the hero; *Restore*
+- **The ruined watchtower** (docs/world-objects-design.md §9.5) is claimed by the hero; *Restore*
   turns it into a devastated watchtower of the claimer and orders its repair at once, for
   half a watchtower's price: cheaper than building new, as the reward for claiming it.
 - **Gate and wall levels** (`PIECE_LEVELS`): up to level 3 for material and a builder's time,
@@ -115,7 +115,7 @@ Each enemy kind has an `"entry"`:
 
 `Siege` (one per village, rebuilt on demand) is a 4-connected Dijkstra field over the village
 and a band (`SIEGE.approach`) round its pieces, towards its intact huts. The guild warehouse
-is never a target (only thieves go for it, docs/scenarios-design.md §7.7).
+is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
 
 - **Costs:** open ground is cheap; a ruined hut, devastated piece or open gate counts as
   ground; an intact gate, wall or wall tower costs a detour proportional to its HP

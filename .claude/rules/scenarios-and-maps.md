@@ -13,7 +13,7 @@ paths:
 
 # Scenarios, maps and the map editor
 
-Outline and reasoning: `docs/scenarios-design.md` (§7 says how the system is built), `docs/map-editor-design.md`, `docs/story-design.md`.
+Outline and reasoning: `docs/scenarios-design.md` (index of the campaign docs; the system itself is `docs/scenario-system-design.md`), `docs/map-editor-design.md`, `docs/story-design.md`.
 
 ## Where things live
 - A campaign scenario is one file, `scripts/scenarios/scenario_<n>.gd` (a `Scenario`), listed in `Campaign.SCENARIOS`; `ScenarioRunner` plays it. **Its own content and numbers (baseline, waves, texts, cards, objectives) go in that file, not in `config.gd`.** Engine-wide tunables still go in `config.gd`.

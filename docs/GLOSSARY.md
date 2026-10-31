@@ -31,7 +31,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 
 ## World
 - **Fog of war**: unexplored (black), explored (darkened), under surveillance (clear). Enemies are only visible when watched.
-- **Map object**: treasure, monster camp, unit-unlock site, ruined watchtower, mine, monster lair; hidden until found. `world-design.md`
+- **Map object**: treasure, monster camp, unit-unlock site, ruined watchtower, mine, monster lair; hidden until found. `world-objects-design.md`
 - **Relic**: a small permanent bonus some treasures hold.
 - **Lair**: wakes late and adds a spawn point; the hero can clear it.
 - **Spawn / water spawn**: where enemies enter at the map edge or from deep water.
