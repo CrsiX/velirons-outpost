@@ -33,7 +33,9 @@ extends Node
 ## library entry (with the log at Debug; it prints what it sees), and
 ## (`--only=wrathwood`) a tree waking up under a forester's axe, the living
 ## tree chasing him, its roots holding the hero, smashing the camp, its log, and the library's Damage tab;
-## (`--only=vultures`) vultures; (`--only=riders`) wolves and riders: a wolf
+## (`--only=ghosts`) a ghost: faded on its road, revealed by a light stone, hunting
+## its villager (solid, the villager runs), roaming and vanishing; prints what it
+## sees; (`--only=vultures`) vultures; (`--only=riders`) wolves and riders: a wolf
 ## pack, a goblin raider charging a villager and circling the village, one
 ## unhorsed by its wolf's corpse, Legion cavalry with its footmen, the mounted
 ## captains and commanders (a hurt horse's bar), Rhodri on foot, an undead
@@ -148,6 +150,8 @@ func _run() -> void:
 		await _vultures()
 	if only in ["", "riders"]:
 		await _riders()
+	if only in ["", "ghosts"]:
+		await _ghosts()
 	if only in ["", "picking"]:
 		await _picking()
 	if only in ["", "map"]:
@@ -2060,5 +2064,103 @@ func _riders() -> void:
 		await shot("riders_library_" + str(pair[1]).to_lower().replace(" ", "_"))
 		lib.close()
 		await _frames(3)
+	g.queue_free()
+	await _frames(3)
+
+
+## A ghost (docs/enemies-design.md §15f). Prints what it sees.
+func _ghosts() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	g.disable_fog = true
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	for t in g.world.towers():
+		if t.garrison:
+			g.army.unstation(t.garrison)
+	var road: Vector2i = v.gates[0]
+	var seen := {road: true}
+	for i in 9:
+		for n in MapData.neighbors4(road):
+			if g.map.is_road(n) and not seen.has(n) and not g.map.in_village(n):
+				seen[n] = true
+				road = n
+				break
+	var prey: Civilian = g.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "forester")[0]
+	prey.at_home = false
+	prey.visible = true
+	prey.set_grid_pos(Vector2(road))
+	prey.set_process(false)
+	# A real spawn: faded, on its road, hunting the forester.
+	g.waves._spawn({"kind": "ghost", "spawn": g.map.edge_spawns[0], "hp_scale": 1.0, "village": v})
+	var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	var gb := e.behavior as GhostBehavior
+	gb.target = prey
+	e.set_grid_pos(Vector2(road) + Vector2(-6.0, -3.0))
+	gb._picked = true
+	gb.mode = GhostBehavior.Mode.SEARCH
+	await _frames(40)
+	g.camera.focus(Iso.to_world((e.grid_pos + Vector2(road)) / 2.0))
+	g.camera.zoom = Vector2(1.6, 1.6)
+	await _frames(5)
+	print("faded far: faded %s alpha %.2f dist %.1f scares %s" % [e.faded, e.modulate.a, e.grid_pos.distance_to(prey.grid_pos), e.scary()])
+	await shot("ghost_faded")
+	# Lit by a light stone.
+	var spot := Vector2i((e.grid_pos + Vector2(2, 1)).round())
+	var stone := g.construction.place("lightstone", spot)
+	if stone != null:
+		g.construction.complete(stone)
+	await _game_wait(1.0)
+	print("lit: faded %s alpha %.2f" % [e.faded, e.modulate.a])
+	await shot("ghost_lit")
+	if stone != null:
+		stone.devastated = true
+		await _game_wait(1.0)
+	# It closes in: solid, the villager runs.
+	prey.set_process(true)
+	Engine.time_scale = 2.0
+	for i in 900:
+		await get_tree().process_frame
+		if not e.faded and e.grid_pos.distance_to(prey.grid_pos) < 2.0:
+			break
+	Engine.time_scale = 1.0
+	g.camera.focus(Iso.to_world(prey.grid_pos))
+	await _frames(10)
+	print("hunting: faded %s alpha %.2f dist %.1f prey evading %s hp %.0f/%.0f" % [e.faded, e.modulate.a, e.grid_pos.distance_to(prey.grid_pos), prey.evading, prey.hp, prey.max_hp])
+	await shot("ghost_hunting")
+	await _game_wait(2.0)
+	g.camera.focus(Iso.to_world((e.grid_pos + prey.grid_pos) / 2.0))
+	await _frames(5)
+	print("chase: faded %s dist %.1f prey hp %.0f evading %s at home %s" % [e.faded, e.grid_pos.distance_to(prey.grid_pos), prey.hp, prey.evading, prey.at_home])
+	await shot("ghost_chase")
+	# The forester reaches home: the ghost lurks, strolling about.
+	Engine.time_scale = 2.0
+	for i in 900:
+		await get_tree().process_frame
+		if gb.mode == GhostBehavior.Mode.LURK:
+			break
+	Engine.time_scale = 1.0
+	print("lurk: mode %d retreats %d faded %s prey at home %s" % [gb.mode, gb.retreats, e.faded, prey.at_home])
+	g.camera.focus(Iso.to_world(e.grid_pos))
+	var path := PackedStringArray()
+	for k in 6:
+		await _game_wait(1.5)
+		path.append("%s (%s)" % [str(e.grid_pos.snapped(Vector2(0.1, 0.1))), "faded" if e.faded else "solid"])
+	print("lurk path: %s" % ", ".join(path))
+	await shot("ghost_lurk")
+	# Its victim retired: it roams faded, then vanishes.
+	g.population.retire(prey)
+	await _game_wait(1.0)
+	print("roaming: mode %d faded %s alpha %.2f" % [gb.mode, e.faded, e.modulate.a])
+	await shot("ghost_roaming")
+	for i in 400:
+		await get_tree().process_frame
+		if not is_instance_valid(e) or e.dead:
+			break
+	print("gone: %s" % str(not is_instance_valid(e) or e.dead))
 	g.queue_free()
 	await _frames(3)

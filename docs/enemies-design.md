@@ -1,7 +1,7 @@
 # Veliron's Outpost: enemies (design)
 
 Status: **built; describes the current code**. Tested by tests/enemy_bot.gd (thief, gargoyle,
-necromancer, vampire, slimes, spiders, the wrathwood, vultures, wolves and riders), tests/rat_bot.gd (rats) and tests/sim_bot.gd (waves, raids, corpses).
+necromancer, vampire, slimes, spiders, the wrathwood, vultures, ghosts, wolves and riders), tests/rat_bot.gd (rats) and tests/sim_bot.gd (waves, raids, corpses).
 Scope: every enemy kind, how waves are put together and escalate, difficulty, damage
 categories, flyers, corpses and raids. Every number lives in `scripts/core/config.gd`
 (`ENEMIES`, `WAVE_MIX`, `RAT_PACKS`, ...). The tables below give the Normal values at wave 1.
@@ -19,6 +19,7 @@ categories, flyers, corpses and raids. Every number lives in `scripts/core/confi
   - `spider_mother_behavior.gd` (extends `MeleeBehavior`) and `egg_behavior.gd` (her eggs);
   - `wrathwood_behavior.gd`: the wrathwood (§15c), woken by `scripts/systems/wrathwoods.gd`;
   - `vulture_behavior.gd` + `vulture_pack.gd`: vultures (§15d), sent by `Waves._vulture_packs`;
+  - `ghost_behavior.gd`: the ghost (§15f);
   - `mounted_behavior.gd`: a rider while its mount lives (§15e; the base of `captain_behavior.gd` and
     `commander_behavior.gd`), `flee_behavior.gd`: the undead horse;
   - `camp_behavior.gd`: monster-camp and lair guards (set by the camp, not by config).
@@ -600,6 +601,98 @@ rider moves and picks its fights; `CaptainBehavior` and `CommanderBehavior` exte
 - Co-op: clients see the mount, its HP, the charge and the change of kind through the replicator.
 - Library: wolf, goblin raider, Legion cavalry (with the mount's HP and the charge) and the horse.
 
+## 15f. Ghost (a haunting)
+
+A spirit that comes for one villager, not for the village. It is unseen and untouchable until
+something reveals it or it closes in on its victim; the answer is detection (light stones, a High
+Priest) and the right damage (holy, magic, fire), not more arrows. Numbers: `Config.GHOST` (the
+haunt) and `ENEMIES.ghost` (the body); code: `GhostBehavior` (extends `EnemyBehavior`).
+
+| Kind | HP | Speed | Damage / cooldown | Kill gold | Corpse | Resist |
+|---|---|---|---|---|---|---|
+| Ghost | goblin's (placeholder) | goblin's | goblin's (placeholder) | placeholder | none | melee ×0, projectile ×0, fire ×0.75, magical ×1, pure ×1, holy ×2 |
+
+- **Damage:** melee and projectile do nothing (×0). Holy ×2 is the final factor (`raised_holy` is
+  not added on top), and it is `"unholy": true`. A fire elemental's blow is fire, the Inquisitor's
+  holy melee is holy: both hurt it. Nothing that deals only melee or projectile damage (archers,
+  crossbowmen, shield bearers and their branches, the hero's sword, earth elementals, thornlings)
+  can target it at all, revealed or not, so towers and barracks never waste shots or turn out for
+  it (`Combat` targeting asks whether a damage category hurts it).
+- **Phases:** *faded* (the default) or *solid*. Faded: it can't be targeted or hit (shots in
+  flight fizzle, splash skips it), it can't attack, villagers don't see it (no flee), and it is
+  drawn at 20 % opacity on watched land (`GHOST.faded_alpha`). Solid: drawn fully, targetable by
+  what can hurt it, and it can attack. It turns solid when:
+  - it is **revealed**: within a working light stone's light radius (the stone's own sight radius,
+    `LIGHTSTONE_SIGHT`; a site or a devastated one doesn't count), or in a High Priest's aura
+    (`Combat.in_holy_aura`). Any village's stone or priest counts. Towers, their lanterns and
+    their levels reveal nothing; or
+  - it is **hunting** and within the target's reach: melee range + 1 tile (`GHOST.solid_margin`).
+  Beyond that it fades again. Revealed wins over the hunt's rule: a revealed ghost is solid
+  wherever it is. The change is a short fade (`phase_time`, art only; the rule applies at once).
+- **Target:** at spawn it picks one living villager of its village at random (the hero is not a
+  villager). It never takes another. Any villager may be picked, a miner too. The hut isn't its aim: it ignores huts altogether. The player isn't told who is hunted.
+- **Journey** (`GhostBehavior`): from its edge spawn it follows the **road** to its village until
+  it has covered `road_share` (90 %) of the road distance to the walls. Then it **searches**: it
+  flies (`Pathing.ghost_path`: like the vultures' `sky_path`, over land, forest and deep water,
+  never over mountains, lava or solid map objects, but it also passes every building) towards
+  where the target is now, re-planning as the target moves. It ignores walls, gates, wall towers
+  and huts. Now and then the straight-ish route takes a detour for flavour
+  (`detour_chance`, `detour_length`). Still a ground unit for everything else: no swamp or ford
+  effects (it floats), not a flyer (§5: it isn't reached by ranged only, its damage table decides).
+- **A miner as target:** the ghost goes to the miner's mine. Once it is adjacent to the mine (it
+  doesn't go in) the miner leaves it, so the ghost sees them, turns solid and hunts. The miner
+  flees to the village, never back into the mine. That is the whole mechanic.
+- **Hunt:** within reach it attacks the target (goblin-like blows); the villager flees as from any
+  enemy (`FleeBehavior`-independent: the normal villager flee, triggered by a solid ghost in
+  sight). Speed is a goblin's. After `enrage_after` (60) s of hunting in all (faded or solid, the
+  journey counts) its speed **doubles** for good, so a hunt can't stall.
+- **Breaching:** while a ghost is inside its village's walls **and solid**, the village counts as
+  breached (`Siege.breached`: villagers in there are exposed, at home too). Inside and faded it
+  does not. It never damages buildings and never burns a hut.
+- **Lurking:** when its target runs home and is hidden in the village, the ghost loses them: it
+  counts an **escape** (`GhostBehavior.retreats`, per ghost: it has one target; an escape is a
+  target that was fleeing (`evading`) and got home), fades and **lurks** (`Mode.LURK`): faded
+  (unless lit), it strolls without a goal: it picks a random place `lurk_step` (3 to 6) tiles
+  from where it floats, no farther than `lurk_leash` (12) from its target, drifts there and
+  picks again. It doesn't fight there (only back at what hurt it, when lit). When the target
+  comes out again (no longer home) it goes after them (`SEARCH`). A target already at home when
+  it arrives is lurked at, without counting. After `retreats` (3) escapes it gives up: the
+  target counts as gone (next point), so a ghost can't block the village for ever. The 60 s
+  enrage counts only the road and the search, not the lurking.
+- **Hovering:** it never walks: no walking sway, it bobs up and down (`Enemy.hovers()`,
+  `"hover": true`, `_hover`) over a shadow of its own (the same `_shadow` a flyer has), moving
+  or standing. It is no flyer (`flies()` stays false: the damage table decides who reaches it).
+- **Target gone:** when the target is dead or retired (any cause: the ghost, rats, starvation, the
+  villager list's *Retire*) the ghost fades, stops hunting and **roams** for `roam_time` (20) s:
+  it wanders the map (`sky_path` to random explored places), faded, never picking a new target.
+  Revealed and hurt meanwhile, it **counterattacks** whoever hurt it if it can reach them
+  (acolytes, fire elementals, summons and units in reach) and ignores what it can't reach (an
+  archer on a tower); the roam is its main part. The 20 s are the ghost's maximum lifetime after its target is gone. After them it **vanishes** (`Enemy.vanish`:
+  no corpse, no gold, no longer counts for the wave). A revealed ghost that takes damage while hunting
+  also fights back like that, and otherwise goes on hunting.
+- **Waves:** from wave 12 (`WAVE_MIX`), a small share, at most one per village per wave
+  (`max_count`, `Config.wave_max_count`); it counts for the wave, and the wave is over only once
+  every ghost has been killed **or has vanished** (so a wave with a ghost lasts at least until its
+  target is gone plus 20 s, or until it is killed). No warning light marks its road. It comes
+  from the village's edge spawns like the others; not in the tutorial or, for now, the title backdrop (it may come later), and
+  scenarios take it only when their own waves list it.
+- **Loot:** killed (only while solid, so only by what hurts it): `gold_on_kill`. A ghost that
+  vanishes pays nothing. No corpse: nothing to gather, nothing for a necromancer or a vulture.
+- **Co-op and saves:** the replicator sends the phase (`Enemy.faded`; a client draws the opacity).
+  Nothing of a ghost is saved: a wave isn't (docs/save-design.md).
+- **Library:** its own entry (from wave 12, the damage table, how it is revealed, what it hunts);
+  the Damage tab shows melee/projectile ×0 and the rest from Config. A ghost kill counts under
+  "Others" in the statistics (it is not in `STATS.kill_kinds`).
+- **Code:** `Enemy.faded` / `set_faded` / `scary()` / `hurt_by(category)`, `targetable()` is false
+  while faded and `take_damage` ignores everything; the villagers' flee checks and the build queue's
+  danger test use `scary()`; `Siege` skips faded enemies; `MilitaryUnit.can_face(e)` (its
+  `damage_category()`) filters the targets of towers (`MilitaryBehavior.enemies_near(post, r, unit)`),
+  barracks (`enemy_near`), sortie soldiers, elementals and the hero. A miner is driven out by
+  `Miner.drive_out`. Art `unit_ghost` (`gen_art.py`).
+- **Tested** in `tests/enemy_bot.gd` (`_test_ghosts`): the table, the wave rule, faded damage, who
+  can target it, light stones, the grudge, the hunt, the breach flag, the enrage, retire and death
+  ending the hunt with the 20 s vanish, the miner.
+
 ## 16. Monster-camp guards
 
 - Every far treasure (and half of the middle ones) has a camp (`CAMP_CHANCE`, docs/world-design.md
@@ -649,7 +742,7 @@ the map the way it came. Named ones (Lysa, Torben) carry a name and art of their
 
 ## 17. Open ideas / not built
 
-- **Invisible enemies:** none exist yet. `Combat.in_holy_aura(game, grid_pos)` is the hook: a
+- **Invisible enemies:** the ghost (§15f) is the first. `Combat.in_holy_aura(game, grid_pos)` is the hook: a
   High Priest's aura is meant to reveal them (docs/acolyte-design.md §6).
 - **Flying allied units:** none yet. The vampire's comments note that a bat would be theirs to
   fight.

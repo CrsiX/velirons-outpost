@@ -1,7 +1,7 @@
 extends "res://tests/bot_base.gd"
 ## Headless test of the thief, the gargoyle, the necromancer, the vampire,
 ## the monster lairs, slimes, the spider mother, the wrathwood, vultures,
-## wolves and riders. Run with:
+## wolves and riders, and ghosts. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/enemy_bot.tscn
 ## Exits 0 when every check passes.
 
@@ -45,6 +45,7 @@ func _run() -> void:
 	await _test_wrathwood()
 	await _test_vultures()
 	await _test_riders()
+	await _test_ghosts()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -1567,3 +1568,271 @@ func _test_riders() -> void:
 	check(game.corpses.corpses.any(func(c: Corpse) -> bool: return c.kind == "horse"), "the horse's corpse lies there")
 	await clear_enemies()
 	await clear_corpses()
+
+
+# --- ghosts (docs/enemies-design.md §15f) --------------------------------------------------------
+
+## A ghost spawned the way a wave does. `target`: the villager it hunts (it flies
+## straight at them); none: it roams. `still`: it doesn't move.
+func spawn_ghost(at: Vector2, target: Civilian, still := false, hp_scale := 1.0) -> Enemy:
+	game.waves._spawn({"kind": "ghost", "spawn": game.map.edge_spawns[0], "hp_scale": hp_scale, "village": game.player_village})
+	var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	e.set_grid_pos(at)
+	var gb := e.behavior as GhostBehavior
+	gb._picked = true
+	if target != null:
+		gb.target = target
+		gb.mode = GhostBehavior.Mode.SEARCH
+	else:
+		gb.mode = GhostBehavior.Mode.ROAM
+		gb._roam_left = 1000.0
+	if still:
+		e.speed = 0.0
+		e.base_speed = 0.0
+	return e
+
+
+## A villager of `role` standing outside at `at`, not doing anything on its own.
+func stand_villager(role: String, at: Vector2) -> Civilian:
+	var c := ensure_role(role)
+	c.set_process(false)
+	c.at_home = false
+	c.visible = true
+	c.evading = false
+	c.hp = c.max_hp
+	c.set_grid_pos(at)
+	return c
+
+
+## A summoned elemental of `kind` standing at `at`.
+func _elemental(kind: String, at: Vector2, hp := 100.0) -> EarthElemental:
+	var el: EarthElemental = SummonerBehavior.ELEMENTAL_SCRIPT.new()
+	el.setup(game, Vector2i(at.round()), Vector2i(at.round()), hp, 2.0, kind)
+	el.village = game.player_village
+	game.world.objects.add_child(el)
+	el.set_grid_pos(at)
+	return el
+
+
+func _test_ghosts() -> void:
+	await clear_enemies()
+	var w := game.waves
+	var v := game.player_village
+	var gc: Dictionary = Config.GHOST
+	var sp: Dictionary = Config.ENEMIES["ghost"]
+	var gob: Dictionary = Config.ENEMIES["goblin"]
+	check(sp["hp"] == gob["hp"] and sp["speed"] == gob["speed"] and sp["damage"] == gob["damage"] and sp["attack_cooldown"] == gob["attack_cooldown"] and sp["gold_on_kill"] == gob["gold_on_kill"], "a ghost has a goblin's HP, speed, blows and kill gold")
+	var rs: Dictionary = sp["resist"]
+	check(rs["melee"] == 0.0 and rs["projectile"] == 0.0 and rs["fire"] == 0.75 and rs["holy"] == 2.0 and not rs.has("magical") and not rs.has("pure") and sp["unholy"] and not sp.get("corpse", true), "melee and projectile x0, fire x0.75, magical and pure x1, holy x2; unholy; no corpse")
+	var mix: Dictionary = Config.WAVE_MIX["ghost"]
+	var biggest := 0
+	for i in 20:
+		biggest = maxi(biggest, w._kinds(60, v).count("ghost"))
+	check(mix["from_wave"] == 12 and Config.wave_max_count("ghost", 60) == 1 and not Config.wave_composition(11).has("ghost") and Config.wave_composition(12).has("ghost") and biggest == 1, "in the waves from wave 12, one per village at most")
+	# It spawns faded.
+	var alive0: int = w._alive
+	var g := spawn_ghost(Vector2(road_out(10)), null, true, 1000.0)
+	await frames(3)
+	check(g.faded and g.modulate.a < 0.5 and not g.targetable() and w._alive == alive0 + 1, "a ghost counts for the wave, faded: untargetable and 20 %% opaque (alpha %.2f)" % g.modulate.a)
+	# Damage while faded: none. Solid: melee and projectile x0, the rest by its table.
+	var dmg := {"melee": 10.0, "projectile": 10.0, "magical": 10.0, "pure": 10.0, "fire": 10.0, "holy": 10.0}
+	var hp0 := g.hp
+	for cat: String in dmg:
+		g.take_damage(dmg[cat], null, cat)
+	check(g.hp == hp0, "faded, it takes no damage of any kind")
+	g.set_faded(false)
+	var got := {}
+	for cat: String in dmg:
+		var before := g.hp
+		g.take_damage(dmg[cat], null, cat)
+		got[cat] = before - g.hp
+	check(got["melee"] == 0.0 and got["projectile"] == 0.0 and absf(got["fire"] - 7.5) < 0.01 and absf(got["magical"] - 10.0) < 0.01 and absf(got["pure"] - 10.0) < 0.01 and absf(got["holy"] - 20.0) < 0.01, "solid: melee 0, projectile 0, fire 7.5, magical 10, pure 10, holy 20 of 10 (%s)" % str(got))
+	# Who can go for it: only units dealing a hurting kind of damage.
+	var can := {}
+	var no := ["archer", "crossbowman", "swiftbowman", "shield_bearer", "warrior", "berserker", "halberdier", "summoner", "druid"]
+	var yes := ["healing_mage", "high_priest", "fire_summoner", "apprentice", "fire_mage", "ice_mage", "spatial_mage", "acolyte", "inquisitor"]
+	for k: String in no + yes:
+		can[k] = MilitaryUnit.new(k).can_face(g)
+	check(no.all(func(k: String) -> bool: return not can[k]) and yes.all(func(k: String) -> bool: return can[k]), "archers, bowmen, shield bearers and their branches, earth and thorn summoners: can't face it; fire summoners, mages, the acolyte line (and healers, who deal no damage): can (%s)" % str(can))
+	var tower: Building = game.world.towers()[0]
+	g.set_grid_pos(Vector2(tower.tile) + Vector2(1, 1))
+	g.set_faded(false)
+	var near_archer := MilitaryBehavior.enemies_near(tower, 30.0, MilitaryUnit.new("archer"))
+	var near_fire := MilitaryBehavior.enemies_near(tower, 30.0, MilitaryUnit.new("fire_mage"))
+	check(near_archer.is_empty() and near_fire.has(g), "a tower's archer finds no target in a revealed ghost, a fire mage does")
+	var earth := _elemental("earth", g.grid_pos)
+	var fire := _elemental("fire", g.grid_pos)
+	check(not earth._can_hit(g) and fire._can_hit(g), "an earth elemental can't go for it, a fire elemental can")
+	earth.crumble()
+	fire.crumble()
+	# Villagers see it only solid.
+	var c := stand_villager("builder", Vector2(road_out(10)) + Vector2(0, 1))
+	g.set_grid_pos(c.grid_pos + Vector2(0.5, 0))
+	g.set_faded(true)
+	check(not c.enemy_nearby() and not g.scary(), "a faded ghost next to a villager doesn't scare them")
+	g.set_faded(false)
+	check(c.enemy_nearby() and g.scary(), "a solid one does")
+	g.vanish()
+	await clear_enemies()
+	# Light stones reveal it within their light.
+	var spot := find_spot("lightstone", v.center + Vector2i(0, 9))
+	var stone := game.construction.place("lightstone", spot)
+	game.construction.complete(stone)
+	var g2 := spawn_ghost(Vector2(spot) + Vector2(3, 0), null, true, 1000.0)
+	await wait(0.6)
+	check(not g2.faded and g2.targetable() and g2.modulate.a > 0.9, "within a light stone's light it is revealed: solid and targetable")
+	g2.set_grid_pos(Vector2(spot) + Vector2(Config.LIGHTSTONE_SIGHT + 1.0, 0))
+	await wait(0.6)
+	check(g2.faded and not g2.targetable(), "out of its light it is faded again")
+	g2.set_grid_pos(Vector2(spot) + Vector2(Config.LIGHTSTONE_SIGHT - 0.5, 0))
+	await wait(0.6)
+	var edge_lit := not g2.faded
+	stone.devastated = true
+	await wait(0.6)
+	check(edge_lit and g2.faded, "the light reaches as far as the stone's own light; a devastated stone reveals nothing")
+	stone.devastated = false
+	# A lit ghost fights back at what hurt it that it can reach, and ignores what it can't.
+	g2.set_grid_pos(Vector2(spot) + Vector2(1, 1))
+	await wait(0.6)
+	var f2 := _elemental("fire", g2.grid_pos + Vector2(0.4, 0), 500.0)
+	var e2 := _elemental("earth", g2.grid_pos + Vector2(-0.4, 0), 500.0)
+	var hp_g := g2.hp
+	await wait(6.0)
+	check(g2.hp < hp_g and f2.hp < f2.max_hp and e2.hp == e2.max_hp, "revealed, hit by a fire elemental: it hits back at it, and leaves an earth elemental alone")
+	f2.crumble()
+	e2.crumble()
+	g2.take_damage(1.0, tower, "fire")
+	check((g2.behavior as GhostBehavior)._hurt_by != tower, "hurt by a tower (a building), it holds no grudge")
+	g2.vanish()
+	# The hunt: faded while far, solid within melee range + 1, the villager runs and is hurt.
+	await clear_enemies()
+	var home := Vector2(road_out(8))
+	var prey := stand_villager("builder", home)
+	var hunter := spawn_ghost(home + Vector2(9, 0), prey)
+	var hb := hunter.behavior as GhostBehavior
+	await frames(2)
+	check(hunter.faded and not prey.enemy_nearby(), "hunting from afar it is faded, and the villager doesn't run")
+	var reach := float(Config.SUMMON["attack_range"]) + float(gc["solid_margin"])
+	var arrived := await wait_until(func() -> bool: return is_instance_valid(hunter) and hunter.grid_pos.distance_to(prey.grid_pos) <= reach - 0.05, 40.0)
+	await frames(3)
+	check(arrived and not hunter.faded and prey.enemy_nearby(), "within melee range + %s tiles of its target it turns solid, and the villager sees it" % gc["solid_margin"])
+	var hurt := await wait_until(func() -> bool: return prey.hp < prey.max_hp, 20.0)
+	check(hurt, "it hits its target")
+	prey.hp = prey.max_hp
+	prey.set_grid_pos(prey.grid_pos + Vector2(7, 0))
+	await frames(3)
+	check(hunter.faded, "its target out of reach again: faded")
+	# A solid ghost inside the walls is a breach, a faded one is not.
+	var inner := stand_villager("builder", Vector2(v.center))
+	hunter.set_grid_pos(Vector2(v.center) + Vector2(0.6, 0))
+	hunter.speed = 0.0
+	hunter.base_speed = 0.0
+	hb.target = inner
+	await wait(0.6)
+	check(not hunter.faded and game.siege.breached(v.id), "a solid ghost inside the walls breaches the village")
+	inner.set_grid_pos(Vector2(v.center) + Vector2(3, 0))
+	await wait(0.6)
+	check(hunter.faded and not game.siege.breached(v.id), "a faded one inside doesn't")
+	# The enrage: after enrage_after seconds of hunting it moves twice as fast.
+	hunter.speed = 1.0
+	hunter.base_speed = 1.0
+	hb.hunted = float(gc["enrage_after"]) - 0.1
+	await wait(0.5)
+	check(hb.enraged and absf(hunter.base_speed - float(gc["enrage_speed"])) < 0.01, "after %d s of hunting it is %sx as fast" % [int(gc["enrage_after"]), gc["enrage_speed"]])
+	hunter.vanish()
+	# It floats: bobbing up and down over a shadow, never the walking sway, moving or still.
+	await clear_enemies()
+	var bobber := spawn_ghost(home, null, true)
+	var offs := {}
+	for k in 90:
+		await get_tree().process_frame
+		offs[snappedf(bobber.sprite.offset.y, 0.5)] = true
+	var span := 0.0
+	for o: float in offs:
+		span = maxf(span, absf(o - offs.keys()[0]))
+	check(offs.size() > 8 and span >= 4.0 and bobber._shadow != null and bobber._shadow.visible and not bobber.flies(), "a ghost hovers: it bobs up and down (%d heights, %.1f px) over a shadow, and is no flyer" % [offs.size(), span])
+	bobber.vanish()
+	var mover := spawn_ghost(home + Vector2(9, 0), stand_villager("builder", home))
+	var swayed := false
+	for k in 60:
+		await get_tree().process_frame
+		swayed = swayed or mover.sprite.rotation != 0.0 or mover.sprite.position.y != 0.0
+	check(not swayed and mover.moving, "flying along it has no walking sway (no tilt, no hop)")
+	mover.vanish()
+	# Its target flees home and hides: it lurks, strolling 3 to 6 tiles at a time, and when
+	# they come out it hunts them again; the third escape and it gives up.
+	await clear_enemies()
+	var shy := stand_villager("builder", home)
+	var lurker := spawn_ghost(home + Vector2(2, 0), shy)
+	var lb := lurker.behavior as GhostBehavior
+	var step: Array = gc["lurk_step"]
+	for n in int(gc["retreats"]):
+		shy.at_home = false
+		shy.visible = true
+		shy.evading = true
+		await frames(3)
+		check(lb.mode == GhostBehavior.Mode.SEARCH, "escape %d: it is after them (hunting)" % (n + 1))
+		shy.evading = false
+		shy.at_home = true
+		shy.visible = false
+		await frames(3)
+		if n < int(gc["retreats"]) - 1:
+			check(lb.mode == GhostBehavior.Mode.LURK and lurker.faded and lb.retreats == n + 1 and lb.target == shy, "escape %d: it lurks, faded, and keeps its target" % (n + 1))
+			if n == 0:
+				var good := 0
+				for k in 40:
+					var d := lurker.grid_pos.distance_to(lb._lurk_point(lurker))
+					good += 1 if d >= float(step[0]) - 0.01 and d <= float(step[1]) + 0.01 else 0
+				var from := lurker.grid_pos
+				lurker.speed = lurker.base_speed
+				await wait(6.0)
+				check(good >= 36 and lurker.grid_pos.distance_to(from) > 1.0 and lb.mode == GhostBehavior.Mode.LURK and lurker.faded, "lurking: it strolls to places %s-%s tiles away (%d of 40 picks), faded, with no clear goal" % [step[0], step[1], good])
+	check(lb.retreats == int(gc["retreats"]) and lb.mode == GhostBehavior.Mode.ROAM and lb.target == null, "the %dth escape and it gives up: it roams, its decay starts" % int(gc["retreats"]))
+	var given_up := await wait_until(when_gone(lurker), float(gc["roam_time"]) + 8.0)
+	check(given_up, "and it vanishes within %d s" % int(gc["roam_time"]))
+	# The target gone (killed, retired): it fades, roams, and vanishes after roam_time, no gold.
+	for how in ["retired", "killed"]:
+		await clear_enemies()
+		var victim := stand_villager("forester", home) if how == "retired" else stand_villager("builder", home)
+		var h2 := spawn_ghost(home + Vector2(1, 0), victim)
+		await frames(3)
+		var gold0: int = game.economy.amount("gold")
+		var corpses0: int = game.corpses.corpses.size()
+		var left0: int = w._alive
+		if how == "retired":
+			game.population.retire(victim)
+		else:
+			game.population.kill(victim, "in a test")
+		await frames(3)
+		var roam := h2.behavior as GhostBehavior
+		check(roam.mode == GhostBehavior.Mode.ROAM and roam.target == null and h2.faded, "its target %s: it fades and roams" % how)
+		var gone := await wait_until(when_gone(h2), float(gc["roam_time"]) + 8.0)
+		await frames(2)
+		check(gone and w._alive == left0 - 1 and game.economy.amount("gold") == gold0 and game.corpses.corpses.size() == corpses0, "it vanishes within %d s of it: no gold, no corpse, and the wave no longer counts it" % int(gc["roam_time"]))
+	# A miner inside his mine is driven out when the ghost stands by it.
+	await clear_enemies()
+	var mines: Array = game.world.map_objects.filter(func(o: MapObject) -> bool: return o is Mine)
+	if mines.is_empty():
+		check(true, "(no mine on this map: the miner part is skipped)")
+	else:
+		var mine: Mine = mines[0]
+		game.economy.add("food", 100)
+		var miner := ensure_role("miner") as Miner
+		miner.set_process(false)
+		miner.mine = mine
+		mine.worker = miner
+		miner.state = Miner.State.WORKING
+		miner.at_home = false
+		miner.visible = false
+		miner.set_grid_pos(Vector2(mine.visit_tile()))
+		var mg := spawn_ghost(Vector2(mine.visit_tile()) + Vector2(6, 0), miner)
+		var out := await wait_until(func() -> bool: return miner.state != Miner.State.WORKING, 40.0)
+		await frames(2)
+		check(out and miner.visible and miner.evading and mine.worker == null and miner.mine == null, "the ghost at the mine drives the miner out: he runs, and is unassigned")
+		await frames(3)
+		check(not mg.faded and miner.enemy_nearby(), "now it sees him: solid, and he runs for the village")
+		mg.vanish()
+		miner.set_process(true)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		(e as Enemy).vanish()
+	await frames(3)

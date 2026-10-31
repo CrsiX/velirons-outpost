@@ -127,6 +127,8 @@ func enemy_near() -> bool:
 		var e := node as Enemy
 		if not e.targetable() or (e.flies() and no_flyers):
 			continue  # (only melee on the benches, no halberdier: they can't go for flyers)
+		if not units().any(func(u: MilitaryUnit) -> bool: return u.can_face(e)):
+			continue  # (a ghost: nothing on the benches can hurt it)
 		if only_melee and not e.melee_ok(c):
 			continue  # (out in deep water, or a siren in the water: blades can't reach it)
 		if e.grid_pos.distance_to(c) <= r:

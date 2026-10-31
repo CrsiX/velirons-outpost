@@ -180,6 +180,25 @@ func hits_flyers() -> bool:
 	return role() != "melee" or spec().get("hits_flyers", false)
 
 
+## The kind of damage it deals (Config.DAMAGE_CATEGORIES): its attack's, or its
+## summons' for a summoner; "" for a healer or a High Priest.
+func damage_category() -> String:
+	match role():
+		"healer", "support":
+			return ""
+		"summoner":
+			return str(Config.SUMMONS[spec().get("summon", "earth")]["category"])
+	return str(Config.ATTACKS[spec()["attack"]]["category"])
+
+
+## Is `e` worth turning out for: does its damage hurt it at all (a ghost takes no
+## melee or projectile damage)? A healer or a High Priest deals none, and goes
+## all the same (its aura or heal helps the others).
+func can_face(e: Enemy) -> bool:
+	var c := damage_category()
+	return c == "" or e.hurt_by(c)
+
+
 ## Does it fight at all? Not a Healing Mage or a High Priest (no attack); a
 ## summoner does (its elementals).
 func fights() -> bool:

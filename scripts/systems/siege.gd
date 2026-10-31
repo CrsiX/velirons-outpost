@@ -43,8 +43,8 @@ func _process(delta: float) -> void:
 	_inside.clear()
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e == null or e.dead:
-			continue
+		if e == null or e.dead or e.faded:
+			continue  # (a faded ghost is no breach)
 		var vid := game.map.village_at(e.current_tile())
 		if vid >= 0:
 			_inside[vid] = true

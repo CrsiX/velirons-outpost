@@ -293,6 +293,7 @@ const SPRITES := {
 	"unit_gargoyle": {"ax": 31, "ay": 50, "w": 62, "h": 53},
 	"unit_gargoyle_flap": {"ax": 31, "ay": 50, "w": 62, "h": 53},
 	"unit_gatherer": {"ax": 21, "ay": 54, "w": 43, "h": 61.5},
+	"unit_ghost": {"ax": 20, "ay": 46, "w": 40, "h": 48},
 	"unit_goblin": {"ax": 17, "ay": 42, "w": 37, "h": 49.5},
 	"unit_goblin_raider": {"ax": 34, "ay": 56, "w": 69, "h": 64},
 	"unit_guildmaster": {"ax": 14, "ay": 46, "w": 28, "h": 53.5},

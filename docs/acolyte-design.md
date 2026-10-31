@@ -124,8 +124,8 @@ Acolyte ────────────┬──────►  Inquisitor
     buff lasts. On a tower it shows over the unit's figure.
   - **Necromancers:** raising takes `necro_slow` (×2) as long when the necromancer or the
     corpse is inside an aura. The spell still works.
-  - **Invisible enemies** (none yet): `Combat.in_holy_aura(game, grid_pos)` is the hook. Enemies
-    inside an aura will be revealed once they exist.
+  - **Invisible enemies:** `Combat.in_holy_aura(game, grid_pos)` is the hook. A ghost
+    (docs/enemies-design.md §15f) inside an aura is revealed: solid and targetable.
 
 ## 7. Ruined chapel (unlock site)
 

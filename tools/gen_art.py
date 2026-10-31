@@ -5887,6 +5887,30 @@ def vulture(frame):
     a.save("unit_vulture" if frame == 0 else "unit_vulture_flap", fixed=(-34, -50, 34, 3))
 
 
+def ghost():
+    """A restless spirit: a pale blue-white shroud trailing into wisps instead of
+    legs, long hanging arms, a hollow hooded face with two cold eyes. No ground
+    shadow: it hovers (the game bobs it over a shadow of its own, and draws it
+    faded unless something lights it)."""
+    a = Art()
+    pale, mid, deep = "#dfe9f2", "#b4c6d8", "#7f95ae"
+    # the trailing wisps below the shroud
+    a.poly([(-8, -14), (-10, -6), (-6, -9), (-4, -2), (-1, -8), (2, -1), (5, -9), (9, -5), (8, -14)], mid, INK, 1.1)
+    # the shroud
+    a.poly([(-9, -14), (-7, -30), (-3, -36), (3, -36), (7, -30), (9, -14)], pale, INK, 1.3)
+    a.poly([(-9, -14), (-7, -30), (-4, -33), (-5, -14)], mid, stroke=None, opacity=0.7)
+    # long hanging arms with ragged sleeves
+    a.poly([(-8, -29), (-15, -22), (-17, -12), (-14, -15), (-12, -9), (-10, -16), (-7, -22)], mid, INK, 1.1)
+    a.poly([(8, -29), (15, -22), (17, -12), (14, -15), (12, -9), (10, -16), (7, -22)], mid, INK, 1.1)
+    # the hood and its hollow face
+    a.poly([(-7, -30), (-5, -40), (0, -43), (5, -40), (7, -30), (0, -33)], pale, INK, 1.3)
+    a.ellipse(0, -35, 4.6, 5.4, deep, INK, 1.0)
+    a.ellipse(-1.9, -35.5, 1.3, 1.9, "#bff4ff")
+    a.ellipse(1.9, -35.5, 1.3, 1.9, "#bff4ff")
+    a.ellipse(0, -31.3, 1.4, 2.0, "#2a3a4c")
+    a.save("unit_ghost")
+
+
 def vulture_landed():
     """A vulture on the ground, eating: hunched, wings half folded, bald red
     head down at its meal."""
@@ -9243,6 +9267,7 @@ def main():
     vulture(1)
     vulture_landed()
     corpse_vulture()
+    ghost()
     crab()
     corpse_crab()
     leviathan()

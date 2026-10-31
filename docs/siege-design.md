@@ -208,7 +208,8 @@ covers the village and a band of `SIEGE.approach` (3) tiles around its pieces.
   (Game.on_enemy_reached_gate, now given the hut) and is gone. A small slime first rolls its
   `raid_chance` and else melts away, as before.
 - **While any enemy is inside a village's walls** (`Siege.breached(village)`), villagers
-  walking in there are exposed: enemies can hurt them. Villagers at home are still safe.
+  walking in there are exposed: enemies can hurt them. Villagers at home are still safe. A
+  faded ghost (docs/enemies-design.md §15f) inside doesn't count; a solid one does.
 - **Remaining distance** (`Enemy.remaining()`, what archers use to find the enemy closest to
   the gate): for a sieging enemy, whole tiles to the village's walls (0 at or inside them).
 - **Spatial magic** throws a sieging enemy back up the field (away from the huts), tile by

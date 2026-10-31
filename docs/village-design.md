@@ -307,7 +307,9 @@ stops mattering. The army grows all game, so it is what should eat.
   - earns `MINE_GOLD_RATE` 0.25 gold/s, paid in whole coins (the mine's panel shows the rate
     with two decimals);
   - one miner per mine: the first to arrive works it, a later one walks home unassigned;
-  - still lives in a hut and dies with it.
+  - still lives in a hut and dies with it;
+  - a ghost hunting him drives him out of the mine (`Miner.drive_out`): he runs home and is
+    unassigned (the player sends him to a mine again).
 - **Spatial Archmage:** a level 10 spatial mage becomes one (`ARCHMAGE_COST` 600 gold, needs a
   free hut; docs/military-design.md §7). It strolls just outside the walls, glowing faintly.
   Decoration for now.
