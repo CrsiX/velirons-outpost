@@ -46,7 +46,8 @@ the reasoning and points at the symbols.
   (`Enemy.retarget`).
 - **Leftover rats:** once only rats are left (and none to come) they vanish after
   `RAT_WAVE_LINGER` (`Waves.rats_leave`): otherwise a rat idling on an empty farm would stall
-  the wave.
+  the wave. *Planned:* folded into the general leaving rule for enemies that can't break in
+  (§7a).
 - **Warning lights** (Easy and Normal only): in the first `WARNING_LIGHT_WAVES` waves a soft red
   light marks where a hidden enemy's road enters watched land; later, in a wave in which a lair
   woke, the hidden enemies coming from lairs get one. Hard has none: surprise is part of it.
@@ -86,6 +87,59 @@ the reasoning and points at the symbols.
   see `ENEMIES.*.resist`. A factor of 0 means immune, and units whose only category it is
   can't target that enemy at all (`MilitaryUnit.can_face`, `Enemy.hurt_by`; the ghost, §15f),
   so towers and barracks don't waste shots or sorties on it.
+- Buildings take categories too, by their defence class (planned, docs/siege-design.md §2b).
+
+## 4a. Poison (planned, not built yet)
+
+A new category, `poison`, that works as damage over time. It is the threat to *people*: it
+burns no hut and breaks no wall (docs/siege-design.md §2b), so a poisoner is answered with
+soldiers and healing, not with stone.
+
+- **A dose, not a hit.** A poison blow puts a dose on its target. The dose hits at once and then
+  again every tick interval, each tick a share smaller than the one before (decay), until a
+  tick would fall below the cut-off and the dose ends. The total is a finite sum, so a dose can
+  be balanced like a single blow, but its damage is spread out: the fight can be won and the
+  target still be lost, which makes a poisoner dangerous after it is dead.
+- **Each tick is a poison hit**, so resists apply per tick, a mount takes the ticks while it
+  lives, and the hit counts for statistics like any other.
+- **Data:** the first tick is the attacker's damage (so difficulty scales it like any blow);
+  decay, tick interval and cut-off are per source in Config and never scaled (rates and
+  timings, §3).
+- **No stacking.** A new dose replaces the running one only if it would deal more in total
+  than what the running one has left. Otherwise many weak poisoners (and later the snake's
+  packs) would kill anything by sheer count.
+- **Immune:** a factor of 0 means no dose is put on at all (no tint, no ticks). The undead
+  (skeleton, ghost, vampire, necromancer, and anything raised or undead whatever its kind) and
+  the Aberrations (slimes, gargoyle) are immune: there is no blood to poison. Our units, the
+  hero and villagers take ×1 (they have no resist tables).
+- A dose ends when its target dies or is downed. Healing doesn't cure it; the ticks go on.
+- **Seen:** a poisoned unit or enemy is tinted green. The dose travels in the replicated
+  state (co-op clients see the tint) and is saved (`SaveGame.FORMAT` goes up with it).
+- **Who deals it:** the spider mother (§15b) and the snake (§15g).
+
+## 4b. Enemy families (planned, not built yet)
+
+Every enemy kind belongs to one family. A family is a **description only**: it answers "what
+may attack me?" for the player ("lots of undead around" → expect skeletons, vampires,
+necromancers, ...). It never sets a number: resists stay per kind (§4), so a family can't
+become a second source of truth with exceptions for the vampire or the necromancer.
+
+| Family | Kinds |
+|---|---|
+| The Horde | goblin, orc, goblin raider: thinking monsters, raiders and warbands |
+| Beasts | wolf, rat, vulture, spider mother (with eggs and spiderlings), wrathwood, horse, snake |
+| Undead | skeleton, ghost, vampire, necromancer |
+| Aquatic | crab, leviathan, siren, octopus (with its arms) |
+| Humans | thief, witch, the Dread Legion (brainwashed living soldiers, not undead) |
+| Aberrations | slimes, gargoyle: unnatural things |
+
+- A raised enemy keeps its kind's family; that it is undead now is shown by its look and by
+  the holy and poison rules, not by the family.
+- The necromancer is a living sorcerer, but for the player it belongs with what it raises.
+- **In code:** one `family` field per `ENEMIES` entry and a table of the families' names and
+  "expect..." texts in Config. Nothing in the simulation reads them; the library groups
+  enemies by family and names it on each enemy's page, and a scenario's text may refer to a
+  family. A new kind needs a family.
 
 ## 5. Flyers
 
@@ -123,7 +177,8 @@ the reasoning and points at the symbols.
   - `"siege"` (default): near the village it leaves its road and follows the siege field to the
     cheapest way in, hitting the barrier in its way (`damage` × `siege`; a witch casts at it).
     Kinds with `siege` 0 (necromancer, siren) can't break anything, so they wait and slip past
-    after `SIEGE.stuck_slip`: otherwise they would stall a wave forever.
+    after `SIEGE.stuck_slip`: otherwise they would stall a wave forever. *Planned:* replaced by
+    lurking and leaving (§7a); `stuck_slip` goes.
   - `"slip"` (rats, thieves): an intact gate holds them `SIEGE.slip_time`, then they get
     through unharmed: they are sneaks, not breakers.
   - Flyers fly over walls and gates to the nearest hut.
@@ -138,6 +193,54 @@ the reasoning and points at the symbols.
 - Then the defeat check runs: a village falls with no villagers or no intact huts. While an
   enemy is inside a village's walls, villagers walking in there are exposed.
 - Enemies are only visible on watched tiles.
+- *Known gap, to be fixed by §7a:* an enemy whose road ends where it can't start a siege
+  (the road ends outside the village, or it can't siege at that moment) still "reaches the
+  gate" and burns a random hut, the rule from before walls had HP. It is logged at Important
+  with its reason, and the full state at Debug (`Enemy._log_unbroken_entry`), until the fix.
+
+## 7a. A held wall, lurking and leaving (planned, not built yet)
+
+**The rule: a held wall loses no hut to ground enemies.** As long as no wall, gate or wall
+tower is broken, no enemy on foot burns a hut. Holding the wall must be a full answer; before
+this, `stuck_slip` let the kinds that can't break anything walk through intact walls after a
+wait, so a wall the player held could still cost a hut and a life.
+
+- **Flyers are the deliberate exception:** the gargoyle flies over and burns a hut; it exists
+  so ranged units are needed (§5). A vampire bat still turns back at a gate.
+- **What gets in without a breach burns nothing:** rats eat food, thieves steal gold, a ghost
+  hunts its villager (§15f). A gate is never open: an intact gate is a barrier like a wall,
+  for every enemy (villagers pass through it; enemies don't).
+- **Gone:** `SIEGE.stuck_slip`, and the road-end fallback (§7): an enemy whose road ends where
+  it can't break in starts its siege from there, or lurks.
+- **Raised enemies:** a necromancer can't raise a corpse inside the walls of a village that
+  has no breach (no broken wall, gate or wall tower), since what it raised would be inside
+  without having broken in. Outside the walls, or once there is a breach, it raises as before.
+
+**Lurking** is a shared state for every kind that can't break anything (`siege` 0, entry
+siege): the necromancer, the siren, the spider mother and the snake. Waiting motionless in
+front of a gate is dull and gives the player nothing to answer, so a lurker keeps busy:
+
+- **When:** it is in its village's siege zone and there is no way in for it (the siege field
+  reaches no hut without an intact barrier on the way).
+- **Moving:** it roams in short stretches outside the walls, never standing still for long, and
+  never further from the village than a leash (Config) a few tiles beyond the siege zone, so it
+  stays a threat to this village and doesn't wander off into the wild.
+- **Busy, by kind** (each kind's behaviour decides what its roaming goes for):
+  - *necromancer:* corpses within the leash, also away from the walls; it walks there, raises,
+    and roams on;
+  - *spider mother:* her clutches go on (timed and alarmed, §15b), wherever she roams;
+  - *snake:* goes for anyone of ours outside and keeps out of reach of manned towers (§15g);
+  - *siren:* sings at units in reach of her song, as on her way (docs/aquatic-design.md §6).
+- **The village stays its goal:** the moment a breach opens a way in, it stops lurking and goes
+  in, and raids as its kind does (the snake mauls, the others burn a hut).
+- **Leaving:** once a wave's enemies still about are all ones that can't get in (lurkers, and
+  rats), and each lurker has lurked at least a minimum time (Config; so one that arrives last
+  still has its moment), they turn round: they walk back along their road and vanish at the
+  map edge, with no loot and no corpse. On the way they can still be killed for their kill
+  gold. Logged at Info ("The necromancer gives up and leaves"). The wave can then end. This
+  replaces `RAT_WAVE_LINGER`'s own rule (§2): rats leave by the same rule and timer.
+- They count for the wave while they lurk; the leaving rule bounds how long they hold it up.
+- The ghost (§15f) and the vultures (§15d) keep their own rules; they don't lurk.
 
 ## 8. Melee kinds: goblin, skeleton, orc
 
@@ -238,6 +341,9 @@ Tough and slow, pays food from its corpse.
   pays nothing; neither leaves a corpse. The first raise per village and game is logged at
   Info, later ones at Debug. Its own corpse yields nothing and can't be raised.
 - It takes extra holy damage, and what it raised takes more again (§4).
+- *Planned (§7a):* at intact walls it lurks: it roams within the leash and goes for corpses,
+  also away from the walls, instead of waiting to slip in. It can't raise a corpse inside the
+  walls of a village without a breach.
 
 ## 15. Vampire
 
@@ -281,6 +387,11 @@ Tough and slow, pays food from its corpse.
     lays a clutch at once and then every `lay_every`, but her eggs are **undead** (`Enemy.undead`,
     pale like the raised): unholy and extra holy damage, and so are the spiderlings out of them.
     Undead ones don't drain away (only the raised do).
+  - *Planned (§4a):* every blow of hers is poison, with no exceptions. Since poison does
+    nothing to buildings, she gets `siege` 0: at intact walls she lurks (§7a), laying as she
+    roams, and comes in through a breach her spiderlings (or anyone) make. She shelters behind
+    her brood. Inside she burns a hut like any enemy (a raid destroys the hut directly; it isn't
+    a blow). Spiderlings stay melee.
 - **Spider egg** (`spider_egg`, behavior `egg`, `"entry": "none"`): `"fixed_hp"`: always 1 HP,
   never scaled. It never moves and counts for the wave (an egg of a debug mother doesn't). After
   `hatch_time` it hatches (`Waves.hatch`) into `hatch_into` (a spiderling with its mother's HP
@@ -533,6 +644,40 @@ High Priest) and the right damage (holy, magic, fire), not more arrows. Numbers:
 - Co-op: the replicator sends `faded`; clients draw the opacity. Nothing of it is saved (a wave
   isn't).
 - Library: its own entry; the Damage tab shows its immunities from Config.
+
+## 15g. Snake (planned, not built yet)
+
+A Beast (§4b) that threatens the work outside the walls, where the spider mother threatens the
+edge of the defences. It joins the waves after the slimes (`WAVE_MIX`).
+
+- **Stats** about a big slime's (`slime3`): HP, slow speed, and a first poison tick about the
+  big slime's blow. Kill gold like the big slime; a corpse worth food (gatherers, necromancers
+  and vultures can use it).
+- **Only poison** (§4a), with its own decay, tick interval and cut-off, apart from the spider
+  mother's, so the two are balanced separately. So `siege` 0: it never hits walls, gates or
+  buildings.
+- **On its way** it strikes anyone of ours within reach, like a melee kind.
+- **At the village it lurks** (§7a): it roams outside the walls, keeps out of reach of manned
+  towers, and goes for whoever is outside: foresters, gatherers, farmers, a sortie, the hero.
+  Villagers fear it. Towers can't solve it alone; it asks for soldiers or the hero outside,
+  or for keeping the work inside for a while.
+- **Only a breach lets it in**, like every lurker: someone else must break a wall or gate.
+- **Inside it mauls** like the wolf (`"raid": "maul"`, §15e): it kills one villager in their hut
+  and is gone, with no loot and no corpse. It never burns a hut, so it keeps the held-wall rule
+  (§7a).
+- **Leaving:** like every lurker (§7a).
+- **Look:** a natural slither, no walking sway:
+  - a coiled base image, head raised: at rest, striking, and in the library;
+  - a slither cycle of about six frames: one tapered body drawn along an S-curve whose wave
+    runs back along the body while the head moves almost straight on; each frame shifts the
+    curve's phase by a sixth. All frames come from the same parameters in `tools/gen_art.py`,
+    so they match exactly;
+  - frames advance by the distance moved, not by time, so it never slides on the spot when
+    slowed or rooted and every speed looks right; it shows the coiled image when it stops;
+  - a corpse image. A raised snake is pale and drained like any raised enemy.
+  - Co-op clients pick the frame from its movement themselves; nothing extra is sent.
+- Library: its own entry; enemy_bot checks its lurking, that it gets in only through a breach,
+  its maul and its poison.
 
 ## 16. Monster-camp guards
 

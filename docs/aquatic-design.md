@@ -128,7 +128,9 @@ when it reaches her, resists magic and fire.
   of ours, sings and lets them come. After a patience timer without anyone lured, or an overall
   hold limit (`max_hold`), she walks on to the gate: villagers walking past to their work can't
   keep her out of the towers' reach and the wave going for good. At a gate she raids a hut like
-  any other mob *(decided)*.
+  any other mob *(decided)*. *Planned:* she can't break walls (`siege` 0), so at intact walls
+  she lurks, singing at whoever is in reach, and goes in only through a breach, or leaves
+  (docs/enemies-design.md §7a).
 - **Diving.** Submerged while travelling in deep water; surfaces when one of ours is within her
   song; dives briefly when she loses a share of her HP quickly.
 - Ranged units are slowed by the song but can kill her: she is frail.

@@ -29,8 +29,34 @@ docs/village-design.md, enemies in docs/enemies-design.md.
 - **Upgrades** raise the max HP and add the difference to current HP, so a damaged piece
   keeps the HP it was missing: an upgrade is not a free repair. A devastated building, or
   one being repaired, can't be upgraded.
-- **Damage:** every category counts the same. Differentiating buildings by category would
-  need resistances nobody can see; the title backdrop's buildings take none.
+- **Damage:** today every category counts the same; the title backdrop's buildings take none.
+  Planned: categories count by the building's defence class (§2b).
+
+## 2b. Defence classes (planned, not built yet)
+
+Since more enemies are going to hit with categories other than melee (the Legion's arrows, the
+spider mother's poison), buildings take damage by category. To keep that readable, there are
+no per-building resist tables, only three **defence classes**, each with one factor table in
+Config, shown in the library's Damage tab:
+
+- **Stone defence:** walls, gates and wall towers of every material except wood (ice is stone
+  with other art), watchtowers, light stones. Projectiles do half: arrows don't break stone.
+- **Wood defence:** walls, gates and wall towers of wood, barracks, training grounds. As stone,
+  but fire does more: this is what makes a palisade outpost (scenarios) a different fight.
+- **Civilian:** every other building (huts, farms, worker camps, warehouses, stalls, church,
+  graveyard, grove, ...). Normal damage.
+- **Poison does nothing to any building.** A poisoner threatens people, not walls (enemies
+  §4a).
+- **Who decides:** a building kind names its class in `BUILDINGS`; walls, gates and wall towers
+  take theirs from their material (§2a), because a village's pieces share one kind each.
+- **The factor multiplies the blow's `siege` factor.** `siege` is how good the enemy is at
+  breaking things, the class is what the building is made of; they are independent.
+- **Huts** still burn on any blow, but only one that does damage after the factor: a poison
+  blow does nothing to a hut. Raids are not blows: an enemy that gets in burns a hut whatever
+  it deals. The kinds that never burn huts (spiderlings, small slimes' `raid_chance`) keep their
+  rules.
+- **Hits on a tower land on the tower**, not on the unit inside.
+- Units, the hero and villagers have no class: they take every category ×1.
 
 ## 2a. Materials of walls, gates and wall towers
 
@@ -110,6 +136,9 @@ Each enemy kind has an `"entry"`:
 - **Flyers** (`"flying"`) keep to the roads until close, then fly over to the nearest hut.
   A vampire bat still turns back at a gate (docs/enemies-design.md).
 - **Water-bound monsters** never come ashore and don't break in.
+- *Planned:* **a held wall loses no hut to ground enemies** (docs/enemies-design.md §7a).
+  Whatever gets in without a breach (rats, thieves, a ghost) burns nothing; a gate is never
+  open to enemies; only flyers (the gargoyle) burn a hut over intact walls.
 
 ### 5.2 The siege field
 
@@ -117,7 +146,7 @@ Each enemy kind has an `"entry"`:
 and a band (`SIEGE.approach`) round its pieces, towards its intact huts. The guild warehouse
 is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
 
-- **Costs:** open ground is cheap; a ruined hut, devastated piece or open gate counts as
+- **Costs:** open ground is cheap; a ruined hut, or a devastated or unfinished piece, counts as
   ground; an intact gate, wall or wall tower costs a detour proportional to its HP
   (`SIEGE.hp_per_step`); what an enemy can't walk on is out.
 - **Why a cost field instead of "attack the gate":** enemies should take the cheapest way in
@@ -149,6 +178,8 @@ is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
     clearly cheaper (`SIEGE.switch_margin`), so it doesn't run back and forth.
 - **Enemies that can't hurt a barrier** (`siege` 0: necromancer, siren) wait in front of it
   and slip past after `SIEGE.stuck_slip`, so a wave can't stall at a gate nobody guards.
+  *Planned:* they lurk instead and leave once only those who can't get in are left
+  (docs/enemies-design.md §7a); `stuck_slip` goes, so a held wall really holds.
 - **Inside:** it walks to the nearest intact hut, burns it and is gone (small slimes roll
   their `raid_chance` first).
 - **While any enemy is inside** (`Siege.breached(village)`), villagers walking in there are
@@ -166,7 +197,8 @@ is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
 Per kind, `"entry"` and `"siege"` in `Config.ENEMIES` decide: walking melee kinds break in;
 the witch casts at barriers; necromancer and siren wait, then slip; gargoyles fly over;
 rats and thieves slip; leviathan and octopus stay in the water. Raised enemies keep their
-kind's values.
+kind's values. *Planned:* necromancer, siren, spider mother and snake lurk until a breach,
+then go in (docs/enemies-design.md §7a).
 
 ### 5.5 Other buildings
 
