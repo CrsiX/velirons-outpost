@@ -871,7 +871,8 @@ const PIECE_LEVELS := {
 ## generator gives a village one material, by map type (PIECE_MATERIAL_BY_MAP_TYPE,
 ## else stone): sandstone in the desert, basalt by volcanoes, sea-worn pale
 ## limestone on the coast, rough dry-stone granite (round
-## brochs for towers) in the highlands. Wood is an improvised
+## brochs for towers) in the highlands. Ice (blocks of glacier ice under
+## snow, icicles, igloos for huts) has no map type: only hand-made maps have it. Wood is an improvised
 ## palisade with tents for forward outposts: only hand-made maps have it.
 const PIECE_MATERIALS := {
 	"stone": {"name": "Stone", "art": "", "factor": 1.0},
@@ -879,9 +880,10 @@ const PIECE_MATERIALS := {
 	"basalt": {"name": "Basalt", "art": "basalt_", "factor": 1.0},
 	"limestone": {"name": "Limestone", "art": "limestone_", "factor": 1.0},
 	"granite": {"name": "Granite", "art": "granite_", "factor": 1.0},
+	"ice": {"name": "Ice", "art": "ice_", "factor": 1.0},
 	"wood": {"name": "Wood", "art": "wood_", "factor": 0.6},
 }
-const PIECE_MATERIAL_ORDER: Array[String] = ["stone", "sandstone", "basalt", "limestone", "granite", "wood"]
+const PIECE_MATERIAL_ORDER: Array[String] = ["stone", "sandstone", "basalt", "limestone", "granite", "ice", "wood"]
 ## The pieces whose HP, costs and times the material's factor scales.
 const PIECE_MATERIAL_SCALED: Array[String] = ["wall", "gate", "wall_tower"]
 const PIECE_MATERIAL_BY_MAP_TYPE := {"volcanic": "basalt", "desert": "sandstone", "coast": "limestone", "highlands": "granite"}
@@ -1624,6 +1626,7 @@ const CAMERA_KEY_ZOOM := 1.12
 ##                      "witch", "rat", "thief", "necromancer", "vampire",
 ##                      "spider_mother", "egg" (a spider egg),
 ##                      "mounted" (a rider: goblin raider, Legion cavalry), "flee" (the undead horse),
+##                      "ghost" (a haunting, see GHOST),
 ##                      "leviathan", "siren", "octopus" or "arm" (an octopus's arm)
 ##   hp, speed ........ hit points; tiles per second along the road
 ##   damage ........... close-combat damage per hit (0 = never fights in melee)
@@ -1647,6 +1650,9 @@ const CAMERA_KEY_ZOOM := 1.12
 ## fixed_hp (true: its hp is never scaled by difficulty or wave, see "spider_egg"),
 ## low_priority (true: towers and fighters go for it only when nothing else is in reach),
 ## scares (false: villagers don't run from it, see "spider_egg"),
+## ethereal (true: no ground slows it, see "ghost"), hover (true: it floats, bobbing up and
+## down over a shadow instead of walking), no_warning (true: no warning light
+## marks its road),
 ## entry ("siege", the default: breaks into the village; "slip": held a while
 ## by an intact gate, then through it; docs/siege-design.md §5.1; "none":
 ## never moves, see "spider_egg"),
@@ -1944,6 +1950,22 @@ const ENEMIES := {
 		"damage": 3.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 2, "gold_on_collect": 0, "food_on_collect": 3,
 		"resist": {"projectile": 1.25, "fire": 1.25, "holy": 0.75},
+	},
+	# A goblin's strength and speed, but a spirit: melee and projectile damage do
+	# nothing to it (resist 0: towers, archers, shield bearers, the hero's sword and
+	# earth elementals can't even target it), fire hurts it less, holy twice as much.
+	# It hunts one villager (GHOST) and is faded (untargetable, harmless, unseen by
+	# villagers) unless a light stone or a High Priest reveals it or it closes in on
+	# its target. No corpse. It never breaks in: GhostBehavior moves it itself.
+	"ghost": {
+		"name": "Ghost", "art": "ghost", "behavior": "ghost", "entry": "none", "siege": 0.0,
+		"ethereal": true, "hover": true, "no_warning": true, "corpse": false, "revivable": false, "unholy": true,
+		"first": "A ghost is abroad: it has come for one of our people.",
+		"desc": "A restless spirit that hunts a single villager. Unseen unless lit by a light stone or a High Priest, and no blade or arrow can hurt it.",
+		"hp": 20.0, "speed": 1.1,
+		"damage": 4.0, "attack_cooldown": 1.0,
+		"gold_on_kill": 3, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"melee": 0.0, "projectile": 0.0, "fire": 0.75, "holy": 2.0},
 	},
 	# --- water monsters (docs/aquatic-design.md; the shared rules are in AQUA) ---
 	# Every kind has a "habitat": "land" (the default), "amphibian" (roads and
@@ -2310,6 +2332,36 @@ const VULTURES := {
 	"chase": 6.0, "flee_time": 8.0, "flee_margin": 1.0,
 }
 
+## Ghosts (docs/enemies-design.md §15f; GhostBehavior, Pathing.ghost_path). At its
+## spawn a ghost picks one living villager of its village and hunts it:
+##   road_share ..... it follows its road until it has covered this share of it,
+##                    then flies (ghost_path: over everything but mountains, lava
+##                    and solid objects) towards where its target is now
+##   replan ......... seconds between plotting that flight again
+##   detour_chance .. per replan, the flight may take a detour first ...
+##   detour_length .. ... to a point this many tiles off (flavour)
+##   solid_margin ... hunting, it turns solid within melee range (SUMMON
+##                    attack_range) plus this many tiles of its target, else faded
+##   faded_alpha .... how it is drawn faded (its opacity)
+##   phase_time ..... seconds its look takes to change between faded and solid
+##   enrage_after ... hunting for this long in all, its speed is multiplied by ...
+##   enrage_speed ... ... this for good, so a hunt can't stall
+##   retreats ....... each time its target flees home (and is hidden in the village)
+##                    it lurks faded and strolls (lurk_step: each leg is this many
+##                    tiles (from, to) from where it stands, within lurk_leash tiles of
+##                    its target) until they come out again; after this many retreats
+##                    it gives up: the target counts as gone (below)
+##   roam_time ...... its target gone (dead, retired or given up), it roams faded
+##                    this long and then vanishes: its maximum lifetime from then on
+##   roam_leg ....... each leg of its roaming is about this many tiles
+const GHOST := {
+	"road_share": 0.9, "replan": 1.5, "detour_chance": 0.2, "detour_length": 5.0,
+	"solid_margin": 1.0, "faded_alpha": 0.2, "phase_time": 0.4,
+	"enrage_after": 60.0, "enrage_speed": 2.0,
+	"retreats": 3, "lurk_step": [3.0, 6.0], "lurk_leash": 12.0,
+	"roam_time": 20.0, "roam_leg": 8.0,
+}
+
 ## The water monsters' shared rules (docs/aquatic-design.md):
 ##   dive_time / surface_time .. seconds of diving and of coming up (untargetable)
 ##   sink_time ....... a corpse on deep water sinks (fades) over this and is gone
@@ -2390,6 +2442,7 @@ const WAVE_MIX := {
 	"gargoyle": {"from_wave": 10, "share": 0.06, "growth": 0.01, "max_share": 0.15},
 	"necromancer": {"from_wave": 13, "share": 0.04, "growth": 0.005, "max_share": 0.08},
 	"vampire": {"from_wave": 13, "share": 0.05, "growth": 0.01, "max_share": 0.12},
+	"ghost": {"from_wave": 12, "share": 0.03, "growth": 0.005, "max_share": 0.06, "max_count": 1},
 	"spider_mother": {"from_wave": 9, "share": 0.04, "growth": 0.005, "max_share": 0.08, "max_count": 2, "max_count_every": 5},
 	"crab": {"from_wave": 6, "share": 0.08, "growth": 0.01, "max_share": 0.15, "needs": "water"},
 	"siren": {"from_wave": 8, "share": 0.06, "growth": 0.005, "max_share": 0.1, "needs": "water"},

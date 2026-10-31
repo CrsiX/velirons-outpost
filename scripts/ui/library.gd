@@ -290,6 +290,14 @@ static func _enemies() -> Array[Dictionary]:
 			f.append("Flies its own way, over open land and water, never over forest or mountains. Lands to eat: on the ground melee reaches it")
 			f.append("A meal takes %s s; after each one the corpse is gone with a %d %% chance. Each meal: +%d %% HP and damage, at most %d meals" % [_n(vc["eat_time"]), roundi(100.0 * float(vc["vanish_chance"])), roundi(100.0 * float(vc["grow"])), int(vc["max_meals"])])
 			f.append("Fights only for itself and its corpse; shot at by a tower it flies off for %s s. With nothing left to eat it leaves the map" % _n(vc["flee_time"]))
+		if kind == "ghost":
+			var gc := Config.GHOST
+			f.append("Hunts one villager of the village, picked when it appears: it follows the road for %d %% of the way, then flies straight over land, forest, water and walls to them" % roundi(100.0 * float(gc["road_share"])))
+			f.append("Faded (no one can hit it, it can't hit, villagers don't see it) unless lit by a light stone or a High Priest's aura, or close to its target (within %s tiles of reach); then it is solid and the villager runs" % _n(float(Config.SUMMON["attack_range"]) + float(gc["solid_margin"])))
+			f.append("A solid ghost inside the walls counts as a breach. A miner is driven out of his mine when it stands next to it")
+			f.append("Floats, never walks. When its target runs home and hides it lurks faded, strolling about, until they come out again; after %d such escapes it gives up" % int(gc["retreats"]))
+			f.append("After %s s of hunting it moves %sx as fast. Its target gone (dead, retired or given up), it roams faded and vanishes after %s s: no gold" % [_n(gc["enrage_after"]), _n(gc["enrage_speed"]), _n(gc["roam_time"])])
+			f.append("Lit and hurt, it fights back at whoever hurt it that it can reach, never at towers")
 		if e.has("lays"):
 			var egg: Dictionary = Config.ENEMIES[e["lays"]]
 			f.append("Lays %d-%d eggs as she walks, the first time within %s tiles of a manned tower or barracks, then every %s s, %d clutches at most; each has %s HP and hatches into a %s after %s s" % [e["clutch"][0], e["clutch"][1], _n(e["lay_near"]), _n(e["lay_every"]), e["max_clutches"], _n(egg["hp"]), str(Config.ENEMIES[egg["hatch_into"]]["name"]).to_lower(), _n(egg["hatch_time"])])
@@ -531,7 +539,7 @@ static func _buildings() -> Array[Dictionary]:
 		f.append(_hp_fact(kind))
 		match kind:
 			"hut":
-				f.append("Looks like its village: a timber cabin (stone), a flat-roofed sandstone house (sandstone), a dark stone house (basalt), a fisher's hut on stilts (limestone), a turf-roofed blackhouse (granite) or a tent (wood)")
+				f.append("Looks like its village: a timber cabin (stone), a flat-roofed sandstone house (sandstone), a dark stone house (basalt), a fisher's hut on stilts (limestone), a turf-roofed blackhouse (granite), an igloo (ice) or a tent (wood)")
 			"tower":
 				f.append_array(_tower_facts("tower"))
 			"farm":
@@ -586,7 +594,7 @@ static func _hp_fact(kind: String) -> String:
 
 
 ## What walls, gates and wall towers are made of (Config.PIECE_MATERIALS): "Stone,
-## sandstone, basalt, limestone or granite, all alike; wood (a palisade): 60 % of their HP, costs and build times".
+## sandstone, basalt, limestone, granite or ice, all alike; wood (a palisade): 60 % of their HP, costs and build times".
 static func _material_fact() -> String:
 	var alike := PackedStringArray()
 	var other := PackedStringArray()

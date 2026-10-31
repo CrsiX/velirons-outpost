@@ -437,6 +437,8 @@ func _pick_enemy() -> Enemy:
 	var out_far := grid_pos.distance_to(centre) > Config.HERO["leash"]
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
+		if e.faded or not e.hurt_by(str(Config.HERO["category"])):
+			continue  # (a ghost: faded, or her sword can't hurt it)
 		if e.flies() or not e.melee_ok(grid_pos):
 			continue  # (flyers: out of her sword's reach, she only hits back; under water or out at sea: none)
 		if barred.has_area() and barred.has_point(e.current_tile()):

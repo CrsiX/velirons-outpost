@@ -1,11 +1,11 @@
 # Veliron's Outpost: enemies (design)
 
 Status: **built; describes the current code**. Tested by tests/enemy_bot.gd (thief, gargoyle,
-necromancer, vampire, slimes, spiders, the wrathwood, vultures, wolves and riders),
+necromancer, vampire, slimes, spiders, the wrathwood, vultures, ghosts, wolves and riders),
 tests/rat_bot.gd (rats) and tests/sim_bot.gd (waves, raids, corpses).
 Scope: every enemy kind, how waves are put together and escalate, difficulty, damage
 categories, flyers, corpses and raids. **Every number lives in `scripts/core/config.gd`**
-(`ENEMIES`, `WAVE_MIX`, `RAT_PACKS`, `WRATHWOOD`, `VULTURES`, `MOUNTED`, ...); this doc keeps
+(`ENEMIES`, `WAVE_MIX`, `RAT_PACKS`, `WRATHWOOD`, `VULTURES`, `GHOST`, `MOUNTED`, ...); this doc keeps
 the reasoning and points at the symbols.
 
 ## 2. Wave flow
@@ -80,10 +80,12 @@ the reasoning and points at the symbols.
 - **Holy** (docs/acolyte-design.md §3): the undead and the vampire line take more, the
   goblinoids a little less; anything a necromancer raised, and anything undead (`Enemy.undead`:
   a raised spider mother's eggs and spiderlings), takes another multiplier (`raised_holy`).
-- **Unholy** (`"unholy": true`): skeleton, necromancer, vampire; raised and undead enemies
+- **Unholy** (`"unholy": true`): skeleton, necromancer, vampire, ghost; raised and undead enemies
   count too (`Enemy.is_unholy`). Only the Inquisitor's targeting uses it.
 - Other resistances are per-kind data (vampire vs magic, the wrathwood vs projectiles, ...);
-  see `ENEMIES.*.resist`.
+  see `ENEMIES.*.resist`. A factor of 0 means immune, and units whose only category it is
+  can't target that enemy at all (`MilitaryUnit.can_face`, `Enemy.hurt_by`; the ghost, §15f),
+  so towers and barracks don't waste shots or sorties on it.
 
 ## 5. Flyers
 
@@ -480,6 +482,58 @@ it) and `FleeBehavior` (the undead horse).
   replicator.
 - Library: wolf, goblin raider, Legion cavalry and the horse.
 
+## 15f. Ghost (a haunting)
+
+A spirit that comes for one villager, not for the village. It is unseen and untouchable until
+something reveals it or it closes in on its victim, so the answer is detection (light stones, a
+High Priest) and the right damage (holy, magic, fire), not more arrows. Numbers: `Config.GHOST`
+(the haunt) and `ENEMIES.ghost` (the body, a goblin's for now); code: `GhostBehavior` (extends
+`EnemyBehavior`), `Pathing.ghost_path`. Art `unit_ghost`.
+
+- **Damage:** melee and projectile do nothing (`resist` 0), so archers, crossbowmen, shield
+  bearers and their branches, earth elementals, thornlings and the hero's sword can't target it
+  (§4). Fire, magic and pure hurt it; holy most (its holy factor is final: `raised_holy` isn't
+  added on top). The Inquisitor's holy melee and a fire elemental's blow count by their category.
+- **Faded or solid** (`Enemy.faded` / `set_faded`): faded is the default. Faded it can't be
+  targeted or hurt (shots in flight fizzle, splash skips it), can't attack, villagers don't run
+  from it (`Enemy.scary()`), no warning light marks it, and it is drawn see-through
+  (`faded_alpha`). It turns solid when:
+  - **revealed** (`GhostBehavior._revealed`): in a working light stone's light
+    (`LIGHTSTONE_SIGHT`) or in any High Priest's aura (`Combat.in_holy_aura`, docs/acolyte-design.md
+    §6), any village's; towers and their lanterns reveal nothing. Revealed wins: it is solid
+    wherever it is; or
+  - **hunting** within its target's reach (melee range plus `solid_margin`). So it can always
+    strike, and the player can always answer it there with the right units.
+- **Target:** at spawn one living villager of its village at random (not the hero), never told to
+  the player, never swapped. It ignores huts, walls, gates and wall towers.
+- **Journey** (`Mode`): it follows its road for `road_share` of it (so it comes from the
+  expected side), then flies (`ghost_path`: like the vultures' `sky_path`, but through
+  buildings) towards where the target is now, re-planning as they move, with now and then a
+  detour for flavour. It floats (no ground slows it) but is no flyer (`flies()` false: §5 doesn't
+  apply, its damage table decides). It hovers (`"hover"`: bobbing over a shadow, no walking sway).
+- **A miner as target:** standing by the mine, it drives him out (`Miner.drive_out`): he flees
+  home, unassigned, so the ghost can find him. A mine is no hiding place.
+- **Hunt:** within reach it strikes; the villager flees from a solid ghost like from any enemy.
+  After `enrage_after` of hunting (road and search) its speed rises by `enrage_speed` for good,
+  so a hunt can't stall.
+- **Lurking:** when the hunted villager got home while fleeing, that is an escape
+  (`GhostBehavior.retreats`); it fades and lurks (`LURK`): strolls a few tiles at a time near its
+  target (`lurk_step`, `lurk_leash`) until they come out, then hunts again. After `retreats` escapes
+  it gives up, so a ghost can't keep a villager locked in for ever.
+- **Target gone** (dead, retired, given up): it fades and roams (`ROAM`) for `roam_time`, then
+  vanishes (`Enemy.vanish`: no gold, no corpse). Revealed and hurt meanwhile (or while
+  hunting), it hits back at whoever hurt it if it can reach them, never a tower.
+- **Breach:** a solid ghost inside the walls counts as a breach (`Siege.breached`: villagers in
+  there are exposed); a faded one doesn't. It never damages buildings or burns a hut.
+- **Waves:** a late `WAVE_MIX` kind, at most one per village and wave (`max_count`). It counts for
+  the wave, which ends only once it is killed or has vanished. Not in the tutorial or the title
+  backdrop; scenarios only when their own waves list it.
+- **Killed** (only while solid): `gold_on_kill`; no corpse, so nothing for gatherers,
+  necromancers or vultures. Counted under "Others" in the statistics.
+- Co-op: the replicator sends `faded`; clients draw the opacity. Nothing of it is saved (a wave
+  isn't).
+- Library: its own entry; the Damage tab shows its immunities from Config.
+
 ## 16. Monster-camp guards
 
 - Every far treasure (and half of the middle ones) has a camp (`CAMP_CHANCE`,
@@ -528,7 +582,7 @@ their own (`Enemy.set_identity`). Numbers and the rest: docs/scenarios-4-6-desig
 
 ## 17. Open ideas / not built
 
-- **Invisible enemies:** none exist yet. `Combat.in_holy_aura(game, grid_pos)` is the hook: a
-  High Priest's aura is meant to reveal them (docs/acolyte-design.md §6).
+- **More invisible enemies:** the ghost (§15f) is the first. A new one should reveal through
+  the same rule (`GhostBehavior._revealed`: light stones and `Combat.in_holy_aura`).
 - **Flying allied units:** none yet. The vampire's comments note that a bat would be theirs to
   fight.

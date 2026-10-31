@@ -228,7 +228,7 @@ func on_evade() -> void:
 		var ids: Array[int] = []
 		for node in w.get_tree().get_nodes_in_group("enemies"):
 			var e := node as Enemy
-			if not e.dead and e.spec().get("scares", true) and e.grid_pos.distance_to(w.grid_pos) < Config.EVADE_RADIUS + 1.0:
+			if not e.dead and e.scary() and e.grid_pos.distance_to(w.grid_pos) < Config.EVADE_RADIUS + 1.0:
 				ids.append(e.get_instance_id())
 		_blocked_sites[obj] = {"ids": ids, "until": w.game.clock + float(Config.EXPLORE["site_retry"])}
 		w.village.events.debug("the hero leaves %s for now (monsters)" % obj.label())

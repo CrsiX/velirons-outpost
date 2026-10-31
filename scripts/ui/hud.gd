@@ -774,13 +774,19 @@ func _game_key(event: InputEventKey) -> bool:
 		KEY_U:
 			hotkey_upgrade()
 		KEY_Q:
-			hotkey_repair()
+			if event.shift_pressed:
+				hotkey_repair_all()
+			else:
+				hotkey_repair()
 		KEY_V:
 			toggle_people(not _people_panel.visible)
 		KEY_N:
 			next_idle_workplace()
 		KEY_X:
-			toggle_hero_panel(not _hero_panel.visible)
+			if event.shift_pressed:
+				hotkey_hero_level_up()
+			else:
+				toggle_hero_panel(not _hero_panel.visible)
 		KEY_PERIOD:
 			hotkey_call_wave()
 		KEY_TAB:
@@ -829,6 +835,17 @@ func go_to_village() -> void:
 
 ## P / B / E / G / Y / R: the hero switches to that mode now (like her panel's
 ## mode buttons; a toast says so, since the panel may be closed).
+## Shift+X: the hero's next level at once when she has the XP for it (like the
+## *Level up* button in her panel); otherwise nothing happens.
+func hotkey_hero_level_up() -> void:
+	var h: Hero = game.hero
+	if h == null or h.village != game.player_village or not h.can_level_up():
+		return
+	if _do("hero_level_up")["ok"]:
+		toast("Hero: level %d" % (h.level + 1))
+		_refresh_hero()
+
+
 func hotkey_hero_mode(mode: int) -> void:
 	if game.hero == null:
 		return
@@ -879,6 +896,36 @@ func hotkey_repair() -> void:
 	var r := _do("rebuild_hut" if b is Hut and (b as Hut).ruined else "repair", {"building": b.nid})
 	if r["ok"]:
 		_refresh_selected()
+
+
+## Shift+Q: Q for every damaged building and destroyed hut of the village, one
+## `repair` / `rebuild_hut` command each, nearest to the village centre first (so
+## the build queue's age favours the nearest), until the building material runs out.
+func hotkey_repair_all() -> void:
+	var v := game.player_village
+	var centre := Vector2(v.center)
+	var jobs: Array[Building] = []
+	for b in v.buildings():
+		var h := b as Hut
+		if h != null:
+			if h.ruined and h.complete:
+				jobs.append(b)
+		elif not b is Warehouse and b.can_repair():
+			jobs.append(b)
+	if jobs.is_empty():
+		return
+	jobs.sort_custom(func(a: Building, b: Building) -> bool: return Vector2(a.tile).distance_to(centre) < Vector2(b.tile).distance_to(centre))
+	var n := 0
+	for b in jobs:
+		var r := game.command("rebuild_hut" if b is Hut else "repair", {"building": b.nid})
+		if not r["ok"]:
+			if n == 0:
+				toast(r["error"], UiTheme.BAD)  # (a scenario's lock, or no material)
+				return
+			break
+		n += 1
+	toast("Repairing %d" % n + (" (%d left: not enough material)" % (jobs.size() - n) if n < jobs.size() else ""))
+	_refresh_selected()
 
 
 func _refresh_selected() -> void:
@@ -2687,28 +2734,30 @@ func _build_upgrade_dialogs() -> void:
 ## Keys that need the game's view (or open a panel): they close the map first.
 const MAP_CLOSING_KEYS: Array[Key] = [KEY_Z, KEY_U, KEY_Q, KEY_N, KEY_TAB, KEY_V, KEY_X]
 const KEYS_HELP: Array[Array] = [
-	["Space", "Pause, and back to the speed before"],
+	["Space", "Pause/resume game"],
 	["1 / 2 / 3", "Speed 1x / 2x / 4x"],
 	["WASD, arrows", "Move the view"],
-	["+ / -, wheel", "Zoom"],
-	["H", "View to the hero (held: follow her)"],
+	["+ / -, mouse wheel", "Zoom"],
+	["H", "View to the hero (hold to follow)"],
 	["Z", "View to the village centre"],
 	["Tab / Shift+Tab", "Next / previous unit on a post"],
-	["N", "Next farm, camp or mine without its worker"],
-	["P B E G Y R", "Hero: Defend, Build, Explore, Gather, Train, Rest"],
+	["N", "Next production building without its worker"],
 	["U", "Upgrade the selected unit or building"],
-	["R", "Withdraw the selected unit (else: hero rests)"],
+	["R", "Withdraw the selected unit (otherwise: hero rests)"],
 	["Q", "Repair the selected building"],
-	["V", "Villager list"],
+	["Shift+Q", "Repair all damaged buildings"],
+	["P / B / E / G / Y / R", "Hero: Defend (P), Build (B), Explore (E), Gather (G), Train (T), Rest (R)"],
 	["X", "Hero panel"],
+	["Shift+X", "Hero: level up now"],
+	["V", "Villager list"],
 	["T", "Statistics"],
-	["M", "Map: the whole map at a glance"],
+	["M", "Map"],
 	[".", "Call the next wave now"],
-	["Esc", "Close the newest popup, or the settings"],
-	["F11", "Full screen"],
-	["F1", "This list"],
+	["Esc", "Close the newest popup/dialog, or open settings"],
+	["F1", "Shortcut help"],
 	["F2", "Screenshot"],
-	["F3", "Log level: Debug, Info, Important, None"],
+	["F3", "Change log level"],
+	["F11", "Full screen"],
 ]
 var _keys_panel: PanelContainer
 

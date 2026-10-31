@@ -240,7 +240,7 @@ func in_danger(site: Building) -> bool:
 	var r: float = Config.BUILD_QUEUE["danger_radius"]
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or not e.spec().get("scares", true) or e.grid_pos.distance_to(Vector2(stand)) > r:
+		if e.dead or not e.scary() or e.grid_pos.distance_to(Vector2(stand)) > r:
 			continue
 		if game.fog.is_watched_by(village.id, e.current_tile()):
 			return true

@@ -36,14 +36,14 @@ func info_lines(unit: MilitaryUnit) -> Array[String]:
 
 
 ## Enemies within `radius` tiles of the post that can be hit (not under
-## water), closest to their gate first; low-priority ones (spider eggs) last;
+## water; and, given the `unit` that would go for them, only those its damage hurts), closest to their gate first; low-priority ones (spider eggs) last;
 ## where the scenario says so, an octopus's arm holding one of ours first of all.
-static func enemies_near(post: Node, radius: float) -> Array[Enemy]:
+static func enemies_near(post: Node, radius: float, unit: MilitaryUnit = null) -> Array[Enemy]:
 	var out: Array[Enemy] = []
 	var c: Vector2 = post.act_center()
 	for node in post.get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.targetable() and e.grid_pos.distance_to(c) <= radius:
+		if e.targetable() and e.grid_pos.distance_to(c) <= radius and (unit == null or unit.can_face(e)):
 			out.append(e)
 	var arms_first: bool = post.game.scenario != null and post.game.scenario.spec.arms_first
 	out.sort_custom(func(a: Enemy, b: Enemy) -> bool:

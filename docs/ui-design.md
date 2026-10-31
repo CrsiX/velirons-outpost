@@ -341,6 +341,10 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
     Support has none, being co-op only.
   - Keys that act on a selection (upgrade, repair, withdraw) mirror the panel buttons and toast why
     they refuse.
+  - Shift turns a key into its bulk or "at once" form: Shift+Q repairs every damaged building and
+    destroyed hut (`Hud.hotkey_repair_all`: the same commands as Q, nearest the village centre
+    first so the build queue's age favours the nearest, until the material runs out), Shift+X
+    levels the hero up when she has the XP (her panel's *Level up*).
   - Keys that find things (Tab through posted units, N for a workplace without its worker, H for the
     hero, Z for the village) move the view as well as selecting, because finding is the point. Tab
     order is clockwise round the village from the north so it is predictable.

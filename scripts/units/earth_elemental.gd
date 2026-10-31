@@ -114,6 +114,8 @@ func _regen(delta: float) -> void:
 ## flames: a fire elemental isn't held off by a siren's water), no flyer for
 ## an earth elemental.
 func _can_hit(e: Enemy) -> bool:
+	if e.faded or not e.hurt_by(str(Config.SUMMONS[summon]["category"])):
+		return false  # (a faded ghost; a ghost takes no melee damage)
 	if e.flies() and not flies():
 		return false  # (an earth elemental can't reach a flyer; a fire elemental flies too)
 	return e.melee_ok(grid_pos, flies())

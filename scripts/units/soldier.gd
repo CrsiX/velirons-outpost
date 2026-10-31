@@ -216,6 +216,8 @@ func _nearest_foe() -> Enemy:
 		var e := node as Enemy
 		if not e.targetable() or e.grid_pos.distance_to(home) > reach:
 			continue
+		if not unit.can_face(e):
+			continue  # (a ghost takes no melee or projectile damage)
 		if e.flies() and not flyers:
 			continue  # (out of a blade's reach: it only gets hit back, see counter_strike)
 		if unit.role() == "melee" and not e.melee_ok(grid_pos):

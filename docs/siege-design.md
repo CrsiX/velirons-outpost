@@ -38,7 +38,7 @@ Every wall, gate and wall tower is made of one material (`Building.made_of`, fro
 village layout; `Config.PIECE_MATERIALS`). Materials are mostly about identity: a Highlands
 village should look like a Highlands village.
 
-- Stone, sandstone, basalt, limestone and granite are alike in play. Wood is the one with a
+- Stone, sandstone, basalt, limestone, granite and ice are alike in play. Wood is the one with a
   gameplay meaning: an improvised palisade for forward outposts, cheaper and weaker by one
   factor that scales HP, price, upgrade costs and build / repair / upgrade times together
   (`PIECE_MATERIAL_SCALED`, `Config.material_cost`), so it stays internally consistent
@@ -49,9 +49,9 @@ village should look like a Highlands village.
   gives a village's huts its material, the editor can paint each. A scenario's special
   homes (`Hut.look`) keep their own art.
 - **Where it comes from:** the generator gives a village one material by map type
-  (`PIECE_MATERIAL_BY_MAP_TYPE`), never mixed. Wood and mixed villages come only from map
-  files (docs/map-editor-design.md §4); older files get their map type's material. Watchtowers
-  have none.
+  (`PIECE_MATERIAL_BY_MAP_TYPE`), never mixed. Ice (no map type of its own yet), wood and mixed
+  villages come only from map files (docs/map-editor-design.md §4); older files get their map
+  type's material. Watchtowers have none.
 
 ## 3. Devastation
 
@@ -153,7 +153,8 @@ is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
   their `raid_chance` first).
 - **While any enemy is inside** (`Siege.breached(village)`), villagers walking in there are
   exposed; at home they stay safe. A breach is therefore a real escalation, not just a
-  cosmetic one.
+  cosmetic one. A faded ghost inside doesn't count, a solid one does
+  (docs/enemies-design.md §15f): what can't be seen can't be run from.
 - **Remaining distance** (`Enemy.remaining()`, what archers use to find the enemy closest to
   the gate): for a sieging enemy, whole tiles to the village's walls.
 - **Spatial magic** throws a sieging enemy back up the field, away from the huts.

@@ -20,7 +20,7 @@ func tick(post: Node, unit: MilitaryUnit, delta: float) -> void:
 	if summons.size() >= roundi(unit.stat("max_summons")):
 		return
 	var sight := maxf(post.act_range(), post.sight_radius())
-	var threats := enemies_near(post, sight)
+	var threats := enemies_near(post, sight, unit)
 	if threats.is_empty():
 		return
 	_timer = unit.stat("interval")

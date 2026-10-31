@@ -56,8 +56,25 @@ func spawn_dummy(kind: String, at: Vector2, hp_scale: float) -> Enemy:
 
 func clear_enemies() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
-		kill(e)
+		if e.behavior is GhostBehavior:
+			e.vanish()  # (a faded ghost takes no damage)
+		else:
+			kill(e)
 	await frames(2)
+
+
+## A ghost (still, roaming, it hunts no one) is put at `at`: is it revealed
+## (solid and targetable) half a second later?
+func ghost_revealed(at: Vector2) -> bool:
+	var e := spawn_dummy("ghost", at, 1000.0)
+	var gb := e.behavior as GhostBehavior
+	gb._picked = true
+	gb.mode = GhostBehavior.Mode.ROAM
+	gb._roam_left = 1000.0
+	await wait(0.5)
+	var lit := not e.faded and e.targetable()
+	e.vanish()
+	return lit
 
 
 ## A finished building of `kind` near `near`.
@@ -680,7 +697,7 @@ func _test_holy() -> void:
 	for k in want:
 		factors_ok = factors_ok and is_equal_approx(float(Config.ENEMIES[k].get("resist", {}).get("holy", 1.0)), want[k])
 	check(factors_ok, "holy factors per enemy kind as designed")
-	check(Config.ENEMIES.keys().filter(func(k: String) -> bool: return Config.ENEMIES[k].get("unholy", false)) == ["skeleton", "necromancer", "vampire"], "skeletons, necromancers and vampires are unholy")
+	check(Config.ENEMIES.keys().filter(func(k: String) -> bool: return Config.ENEMIES[k].get("unholy", false)) == ["skeleton", "necromancer", "vampire", "ghost"], "skeletons, necromancers, vampires and ghosts are unholy")
 	check(Config.LOCKED.get("acolyte", "") == "chapel" and Config.UNLOCK_SITES["chapel"]["wave"] == 6 and Config.UNLOCK_SITES["chapel"]["distance"].map(func(v) -> int: return int(v)) == [16, 24], "the acolyte is unlocked at the ruined chapel, from wave 6, 16-24 tiles out")
 	check(Config.MILITARY["acolyte"]["cost"] == {"gold": 50} and Config.MILITARY["acolyte"]["range"] < Config.MILITARY["archer"]["range"], "acolyte: 50 gold, shorter field range than the archer")
 	check(absf(Config.unit_stat("acolyte", "hp", 0) - Config.unit_stat("archer", "hp", 0)) < 0.01 and _dps("acolyte", 9) <= _dps("archer", 9) and _dps("acolyte", 9) > 0.7 * _dps("archer", 9), "acolyte: archer HP, a little less DPS")
@@ -771,6 +788,9 @@ func _test_holy() -> void:
 	pu.level = Config.MAX_UNIT_LEVEL - 1
 	await frames(1)
 	check(is_equal_approx(Combat.holy_bonus(game, edge), 0.2), "+20 %% at level 10")
+	var lit_in := await ghost_revealed(edge)
+	var lit_out := await ghost_revealed(out)
+	check(lit_in and not lit_out, "a High Priest on a tower reveals a ghost as far as the tower reaches, not beyond")
 	# A second, weaker priest next to it: the stronger aura counts, they don't stack.
 	var t2: Tower = await build("tower", pt.tile + Vector2i(1, 1))
 	game.economy.add("gold", 2000)
@@ -819,6 +839,7 @@ func _test_holy() -> void:
 	await frames(1)
 	var reach := pu.field_range()
 	check(is_equal_approx(Combat.holy_bonus(game, barracks.act_center()), 0.2) and Combat.holy_bonus(game, barracks.act_center() + Vector2(reach + 0.3, 0.0)) == 0.0, "on its bench its aura works too, within its own %.1f tiles" % reach)
+	check(await ghost_revealed(barracks.act_center()), "and it reveals a ghost by the barracks")
 	# Units downed on a bench in it come back faster (x3 at level 10).
 	var x := Config.unit_stat("high_priest", "revive", pu.level)
 	check(is_equal_approx(x, 3.0) and is_equal_approx(Config.unit_stat("high_priest", "revive", 0), 1.25), "revive speed-up: x1.25 at level 1, x3 at level 10")
@@ -842,6 +863,12 @@ func _test_holy() -> void:
 	var sortie := await wait_until(func() -> bool: return pu.out and is_instance_valid(pu.walker), 20.0)
 	await frames(1)
 	check(sortie and Combat.holy_bonus(game, pu.walker.grid_pos) > 0.0, "out on a sortie it is (its own %.1f tiles)" % Config.MILITARY["high_priest"]["range"])
+	if sortie:
+		var reach: float = Config.MILITARY["high_priest"]["range"]
+		var at: Vector2 = pu.walker.grid_pos
+		var near_ok := await ghost_revealed(at + Vector2(reach * 0.4, 0.0))
+		var far_ok := not await ghost_revealed(at + Vector2(reach + 2.5, 0.0))
+		check(near_ok and far_ok, "out on a sortie he reveals a ghost within his own %.1f tiles, not beyond" % reach)
 	if sortie:
 		var bh := bg.hp
 		pu.walker._strike_cd = 0.0

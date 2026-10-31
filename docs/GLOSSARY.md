@@ -28,6 +28,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Dive**: water monsters going under on deep water, untargetable. `aquatic-design.md`
 - **Wave**: a batch of enemies; the next one comes a fixed time after the last enemy is gone. **Wild** enemies (camp guards, wrathwood) count for no wave.
 - **Wrathwood**: a tree that wakes up when a forester chops it. **Vulture**: carrion birds drawn by corpses left lying. **Fallen**: the campaign's corpses on the battlefield. `enemies-design.md`
+- **Ghost**: a spirit hunting one villager, immune to melee and projectiles. **Faded / solid**: unseen and untouchable, or targetable; **revealed**: made solid by a light stone or a High Priest's aura. **Lurk**: waiting faded while its target hides at home. `enemies-design.md`
 
 ## World
 - **Fog of war**: unexplored (black), explored (darkened), under surveillance (clear). Enemies are only visible when watched.

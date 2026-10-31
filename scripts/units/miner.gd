@@ -82,6 +82,19 @@ func resume_work() -> void:
 		_go_home()
 
 
+## A ghost stands by the mine (GhostBehavior): he leaves it and runs home. He
+## is unassigned from then on.
+func drive_out(by: Enemy) -> void:
+	if state != State.WORKING:
+		return
+	village.events.info("%s fled the mine from %s" % [label().capitalize(), by.label()])
+	_release_jobs()
+	state = State.RETURNING
+	visible = true
+	village.population.changed.emit()
+	_evade()
+
+
 ## Safe inside the mine.
 func wants_to_evade() -> bool:
 	return state != State.WORKING and state != State.IDLE

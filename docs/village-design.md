@@ -248,7 +248,8 @@ three are `Resident`s who stay home), the **miner** is locked until anyone walks
     gathering is a race against the clock and the next wave.
 - **Miner** (docs/world-design.md): walks to the nearest free mine their village has found and
   stays inside, safe (no fleeing); one miner per mine, the first to arrive; still lives in a hut
-  and dies with it. Income is `MINE_GOLD_RATE`.
+  and dies with it. Income is `MINE_GOLD_RATE`. Safe from everything but a ghost hunting him: it
+  drives him out (`Miner.drive_out`), he runs home unassigned (docs/enemies-design.md §15f).
 - **Spatial Archmage:** a level 10 spatial mage becomes one (`ARCHMAGE_COST`, needs a free hut;
   docs/military-design.md §7). Decoration for now.
 - **Code:** `Unit` → `Civilian` (evasion, HP, home); one class per role in scripts/units/; the

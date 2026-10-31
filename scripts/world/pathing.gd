@@ -38,6 +38,8 @@ var water_astar := AStarGrid2D.new()
 var _wood: AStarGrid2D = null
 ## The vultures' sky (sky_path): built on first use, kept up by set_solid.
 var _sky: AStarGrid2D = null
+## The ghosts' grid (ghost_path), made on first use.
+var _ghost: AStarGrid2D = null
 
 
 func _init(p_map: MapData) -> void:
@@ -221,6 +223,55 @@ func _sky_open_near(t: Vector2i, near: Vector2) -> Vector2i:
 		for dx in range(-1, 2):
 			var n := t + Vector2i(dx, dy)
 			if sky_open(n) and Vector2(n).distance_squared_to(near) < best_d:
+				best_d = Vector2(n).distance_squared_to(near)
+				best = n
+	return best
+
+
+## Can a ghost drift over `t` (docs/enemies-design.md §15f)? Everything a
+## vulture can fly over, and every building (walls, gates, huts): never mountains,
+## lava or solid map objects.
+func ghost_open(t: Vector2i) -> bool:
+	return map.in_bounds(t) and (sky_open(t) or map.building_at(t) != null)
+
+
+func _ghost_grid() -> AStarGrid2D:
+	if _ghost == null:
+		_ghost = AStarGrid2D.new()
+		_ghost.region = Rect2i(0, 0, map.size, map.size)
+		_ghost.cell_size = Vector2.ONE
+		_ghost.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+		_ghost.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+		_ghost.default_estimate_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+		_ghost.update()
+		for y in map.size:
+			for x in map.size:
+				_ghost.set_point_solid(Vector2i(x, y), not ghost_open(Vector2i(x, y)))
+	return _ghost
+
+
+## A ghost's flight from `from` to `to` (near-straight, no roads, through
+## buildings; from and to moved to the nearest open tile next to them). Empty
+## when there's no way.
+func ghost_path(from: Vector2i, to: Vector2i) -> PackedVector2Array:
+	var g := _ghost_grid()
+	from = _ghost_open_near(from, Vector2(to))
+	to = _ghost_open_near(to, Vector2(from))
+	if from == Vector2i(-1, -1) or to == Vector2i(-1, -1):
+		return PackedVector2Array()
+	return g.get_point_path(from, to, false)
+
+
+## `t` if open to a ghost, else its open neighbour nearest `near`, else (-1, -1).
+func _ghost_open_near(t: Vector2i, near: Vector2) -> Vector2i:
+	if ghost_open(t):
+		return t
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var n := t + Vector2i(dx, dy)
+			if ghost_open(n) and Vector2(n).distance_squared_to(near) < best_d:
 				best_d = Vector2(n).distance_squared_to(near)
 				best = n
 	return best

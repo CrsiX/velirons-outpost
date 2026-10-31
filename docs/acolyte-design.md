@@ -101,8 +101,9 @@ The factors are data on each enemy, not here. The reasoning:
     clock is golden with a pale rim while an aura speeds it up.
   - **Necromancers:** raising takes longer (`necro_slow`) when the necromancer or the corpse is
     inside an aura. The spell still works: it slows, never shuts the necromancer off.
-  - **Invisible enemies** (none yet): `Combat.in_holy_aura(game, grid_pos)` is the hook; enemies
-    inside an aura will be revealed once they exist.
+  - **Invisible enemies:** a ghost (docs/enemies-design.md §15f) inside an aura
+    (`Combat.in_holy_aura`, on a tower, a bench or a sortie) is revealed: solid and targetable.
+    Detection is the priest's second answer to the undead, next to holy damage.
 
 ## 7. Ruined chapel (unlock site)
 

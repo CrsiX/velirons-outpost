@@ -102,7 +102,7 @@ func enemy_nearby() -> bool:
 func _enemy_within(r: float) -> bool:
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var g := node as Enemy
-		if not g.dead and g.spec().get("scares", true) and g.grid_pos.distance_to(grid_pos) < r:
+		if not g.dead and g.scary() and g.grid_pos.distance_to(grid_pos) < r:
 			return true
 	return false
 
@@ -148,7 +148,7 @@ func _away_tile() -> Vector2i:
 	var sum := Vector2.ZERO
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var g := node as Enemy
-		if not g.dead and g.spec().get("scares", true) and g.grid_pos.distance_to(grid_pos) < 3.0 * float(Config.FLEE["away_distance"]):
+		if not g.dead and g.scary() and g.grid_pos.distance_to(grid_pos) < 3.0 * float(Config.FLEE["away_distance"]):
 			foes.append(g.grid_pos)
 			if g.grid_pos.distance_to(grid_pos) < Config.EVADE_RADIUS + 1.0:
 				sum += (g.grid_pos - grid_pos).normalized()

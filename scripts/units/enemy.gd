@@ -30,6 +30,7 @@ const BEHAVIORS := {
 	"vulture": preload("res://scripts/units/enemies/vulture_behavior.gd"),
 	"mounted": preload("res://scripts/units/enemies/mounted_behavior.gd"),
 	"flee": preload("res://scripts/units/enemies/flee_behavior.gd"),
+	"ghost": preload("res://scripts/units/enemies/ghost_behavior.gd"),
 }
 ## How many tiles farther a low_priority enemy (a spider egg) counts for
 ## whoever picks a target: anything else in reach comes first.
@@ -106,6 +107,10 @@ var _shadow: Polygon2D
 var color := ""
 var _sack: Sprite2D
 var dive := Dive.UP
+## A ghost out of sight (docs/enemies-design.md §15f): untargetable, harmless,
+## and no villager runs from it. GhostBehavior sets it.
+var faded := false
+var _fade_tween: Tween
 var _dive_t := 0.0
 var _splash_in := 0.0
 ## What a behavior shows besides the sprite (co-op clients get it too):
@@ -192,7 +197,7 @@ func setup(p_game: Game, route: Array[Vector2i], p_hp_scale: float, p_kind: Stri
 	behavior = BEHAVIORS[spec()["behavior"]].new()
 	if spec().has("mount"):
 		give_mount(str(spec()["mount"]), float(spec()["mount_hp"]))
-	if flies():
+	if flies() or hovers():
 		_take_off()
 	if habitat() == "water" and game.world and game.world.pathing:
 		body = game.world.pathing.body_of(current_tile())
@@ -356,7 +361,32 @@ func must_be_under() -> bool:
 ## The one test every targeting site uses: alive and up (not diving, down or
 ## surfacing).
 func targetable() -> bool:
-	return not dead and dive == Dive.UP and not retreating and not spared
+	return not dead and dive == Dive.UP and not retreating and not spared and not faded
+
+
+## Does a hit of `category` (Config.DAMAGE_CATEGORIES) hurt it at all? A ghost
+## takes none of a melee or projectile hit: whoever deals only that can't go for it.
+func hurt_by(category: String) -> bool:
+	return float(spec().get("resist", {}).get(category, 1.0)) > 0.0
+
+
+## Villagers run from it? (Not a kind that "scares" nobody, nor a faded ghost.)
+func scary() -> bool:
+	return spec().get("scares", true) and not faded
+
+
+## A ghost turns faded or solid (the look takes GHOST.phase_time).
+func set_faded(on: bool) -> void:
+	if faded == on:
+		return
+	faded = on
+	if _fade_tween:
+		_fade_tween.kill()
+	if dead:
+		return
+	var to: float = float(Config.GHOST["faded_alpha"]) if on else 1.0
+	_fade_tween = create_tween()
+	_fade_tween.tween_property(self, "modulate:a", to, float(Config.GHOST["phase_time"]))
 
 
 ## Down (or on its way down or up): ripples instead of the monster.
@@ -521,8 +551,8 @@ func pop_in() -> void:
 
 
 func _animate(delta: float) -> void:
-	if _wades():
-		return  # (see _wade: no walking sway in the water)
+	if _wades() or hovers():
+		return  # (see _wade: no walking sway in the water; a ghost floats instead)
 	if not is_jelly():
 		super._animate(delta)
 		if charge_ready and mount != "":
@@ -763,7 +793,7 @@ func _land() -> void:
 func _walk_factor() -> float:
 	if _root_left > 0.0 or _halt_left > 0.0:
 		return 0.0  # (held by roots, or a halberdier halted its mount)
-	return 1.0 if flies() or habitat() != "land" else super._walk_factor()
+	return 1.0 if flies() or habitat() != "land" or spec().get("ethereal", false) else super._walk_factor()
 
 
 ## A thief with stolen gold: it shows a coin sack.
@@ -953,6 +983,8 @@ func _process(delta: float) -> void:
 		return
 	if flies():
 		_fly(delta)
+	elif hovers():
+		_hover(delta)
 	if channel_to != Vector2.INF or submerged() or not fx.is_empty():
 		queue_redraw()
 	if _wades():
@@ -1197,7 +1229,7 @@ func _update_visibility() -> void:
 ## behaviors may react to it. `category` (Config.DAMAGE_CATEGORIES) is scaled
 ## by the kind's "resist" table (a vampire takes less from magic).
 func take_damage(amount: float, source: Node = null, category: String = "pure") -> void:
-	if dead or spared:
+	if dead or spared or faded:
 		return
 	if mount != "":
 		_hurt_mount(amount, source, category)
@@ -1282,6 +1314,20 @@ func _fly(delta: float) -> void:
 	sprite.offset = _fly_base + Vector2(side, (-16.0 - 4.0 * sin(_fly_t * (5.0 if bat else 3.2))) * 2.0)
 	if _shadow:  # (a vampire gets its shadow a moment after it starts to change)
 		_shadow.scale = Vector2.ONE * (1.0 - 0.12 * sin(_fly_t * 3.2))  # smaller while higher
+
+
+## Floats instead of walking (a ghost): bobs gently over its shadow, moving or not.
+func hovers() -> bool:
+	return spec().get("hover", false)
+
+
+func _hover(delta: float) -> void:
+	_fly_t += delta
+	var bob := sin(_fly_t * 2.4)
+	# (offset is in texture pixels: the sprite is drawn at half size)
+	sprite.offset = _fly_base + Vector2(0.0, (-7.0 - 3.0 * bob) * 2.0)
+	if _shadow:
+		_shadow.scale = Vector2.ONE * (1.0 - 0.1 * bob)  # smaller while higher
 
 
 func _draw() -> void:
