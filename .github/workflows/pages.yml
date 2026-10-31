@@ -63,7 +63,7 @@ jobs:
       - name: Export Web
         run: |
           mkdir -p build/web
-          ~/godot --headless --export-release "Web" build/web/index.html
+          ~/godot --headless --export-debug "Web" build/web/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
