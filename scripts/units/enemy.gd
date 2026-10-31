@@ -129,6 +129,8 @@ var _passing: Building = null
 var _siege_cd := 0.0
 var _siege_scan := 0.0
 var _stuck := 0.0
+## When it last stopped breaking in (game.clock; -INF: never), for the log.
+var _siege_left_at := -INF
 ## Seconds an intact gate has held it ("entry": "slip").
 var _slip := 0.0
 ## The hut it got to: Game.on_enemy_reached_gate burns this one.
@@ -1046,6 +1048,8 @@ func _process(delta: float) -> void:
 		if entry() == "siege" and _start_siege_at_end():
 			_update_visibility()
 			return
+		if entry() == "siege":
+			_log_unbroken_entry()
 		_get_in()
 		return
 	_update_visibility()
@@ -1103,8 +1107,63 @@ func _start_siege_at_end() -> bool:
 	return true
 
 
+## Its road ended and it couldn't break in from there, so it gets in without
+## breaking anything (the rule from before walls had HP). Logged loudly with
+## the reason, to find out when this happens.
+func _log_unbroken_entry() -> void:
+	var v := target_village
+	if not is_instance_valid(v):
+		return
+	var why := "its road ended outside the village"
+	if game.map.village_at(current_tile()) >= 0:
+		why = "it couldn't break in (%s)" % _no_siege_reason()
+	v.events.important("%s got in without breaking in: %s" % [label().capitalize(), why])
+	v.events.debug(_unbroken_entry_details())
+
+
+## Everything needed to find out from the game log file why the road-end
+## fallback ran (debug detail of _log_unbroken_entry).
+func _unbroken_entry_details() -> String:
+	var v := target_village
+	var here := current_tile()
+	var at_vid := game.map.village_at(here)
+	var parts: Array[String] = []
+	parts.append("enemy %s #%d wave %d, hp %.1f/%.1f, behavior %s" % [kind, uid, wave, hp, max_hp, behavior.get_script().resource_path.get_file()])
+	parts.append("raised %s, undead %s, from_lair %s, wild %s, named '%s'" % [raised, undead, from_lair, wild(), given_name])
+	parts.append("mount '%s' (ride_in %s), airborne %s, habitat %s, retreating %s, errand %s" % [mount, ride_in, airborne, habitat(), retreating, errand != null])
+	parts.append("tile %s, path %d points (index %d) from %s to %s" % [here, path.size(), path_index, path[0] if path.size() > 0 else Vector2.INF, path[path.size() - 1] if path.size() > 0 else Vector2.INF])
+	parts.append("sieging %s, left a siege %s, raid_hut %s" % [sieging, ("%.1f s ago" % (game.clock - _siege_left_at)) if _siege_left_at > -INF else "never", raid_hut.label() if is_instance_valid(raid_hut) else "none"])
+	parts.append("target village #%d %s rect %s fallen %s; tile in village #%d" % [v.id, v.village_name, v.rect, v.fallen, at_vid])
+	parts.append("in siege zone %s, field value %d, best way %d" % [game.siege.in_zone(v, here), game.siege.value(v, here, false), game.siege.best_way(v, here, false)])
+	var b = game.map.building_at(here)
+	parts.append("on tile: %s" % (("%s (complete %s, devastated %s, hp %.0f)" % [b.label(), b.complete, b.devastated, b.hp]) if b is Building else "nothing"))
+	parts.append("village huts intact %d, clock %.1f" % [v.intact_huts().size(), game.clock])
+	return "Got in without breaking in, details: " + "; ".join(parts)
+
+
+## Why _may_siege() is false (for the log).
+func _no_siege_reason() -> String:
+	if airborne:
+		return "airborne"
+	if habitat() == "water":
+		return "in the water"
+	if retreating:
+		return "retreating"
+	if mount != "" and not ride_in:
+		return "mounted"
+	if not is_instance_valid(target_village) or target_village.fallen:
+		return "no target village"
+	if wild():
+		return "wild"
+	if errand != null:
+		return "held by an errand"
+	return "unknown"
+
+
 ## Leaves the siege (a new target village, or a vampire turning into a bat).
 func leave_siege() -> void:
+	if sieging:
+		_siege_left_at = game.clock
 	sieging = false
 	breach = null
 	_passing = null
