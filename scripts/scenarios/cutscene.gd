@@ -18,6 +18,8 @@ extends CanvasLayer
 ##                                                            stays on it while it moves (until
 ##                                                            the next camera step or the end);
 ##                                                            goes on at once
+##   {"say": ..., "text": ..., "italic": true}               the whole line slanted (the
+##                                                            mission narrator)
 ##   {"wait": s}
 ##   {"fade": "in" | "out", "time": s}                       to and from black
 ##   {"title": "...", "sub": "...", "time": s}               a title card (a tap goes on)
@@ -37,6 +39,8 @@ signal tapped
 
 ## Seconds per character as a line appears.
 const TYPE_SPEED := 0.022
+## How far an italic line leans (the glyphs' shear).
+const ITALIC_SLANT := 0.25
 const BAR := 0.09  # the black bars' share of the screen height
 
 var game: Game
@@ -236,9 +240,9 @@ func _play_steps() -> void:
 			_skip_to = -1
 			_fader.color.a = 0.0  # (skipped past a fade in)
 		if s.has("choices"):
-			await _choose(str(s.get("say", "")), str(s.get("text", "")), s["choices"])
+			await _choose(str(s.get("say", "")), str(s.get("text", "")), s["choices"], bool(s.get("italic", false)))
 		elif s.has("say"):
-			await _say(str(s["say"]), str(s["text"]))
+			await _say(str(s["say"]), str(s["text"]), bool(s.get("italic", false)))
 		elif s.has("follow"):
 			var n = (s["follow"] as Callable).call()
 			_follow = n if n is Node2D and is_instance_valid(n) else null
@@ -273,16 +277,24 @@ func _play_steps() -> void:
 				left -= 0.1
 
 
-func _say(who: String, t: String) -> void:
-	_show_line(who, t)
+func _say(who: String, t: String, italic := false) -> void:
+	_show_line(who, t, italic)
 	_tap_wait = true
 	await tapped
 	_tap_wait = false
 	line = ""
 
 
+## The dialogue font slanted (the theme has no italic face).
+func _italic_font() -> Font:
+	var f := FontVariation.new()
+	f.base_font = _text.get_theme_font("font", "Label")
+	f.variation_transform = Transform2D(Vector2(1, 0), Vector2(ITALIC_SLANT, 1), Vector2.ZERO)
+	return f
+
+
 ## The box with `who`'s portrait and name and line `t`, typing out.
-func _show_line(who: String, t: String) -> void:
+func _show_line(who: String, t: String, italic := false) -> void:
 	var sp: Dictionary = speakers.get(who, {})
 	_box.visible = true
 	var narrator := sp.is_empty()
@@ -293,6 +305,10 @@ func _show_line(who: String, t: String) -> void:
 	_name.text = str(sp.get("name", ""))
 	_name.add_theme_color_override("font_color", sp.get("color", UiTheme.GOLD))
 	_text.text = t
+	if italic:
+		_text.add_theme_font_override("font", _italic_font())
+	else:
+		_text.remove_theme_font_override("font")
 	_text.add_theme_color_override("font_color", UiTheme.MUTED if narrator else UiTheme.TEXT)
 	_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if narrator else HORIZONTAL_ALIGNMENT_LEFT
 	line = t
@@ -304,8 +320,8 @@ func _show_line(who: String, t: String) -> void:
 
 
 ## A line with a button per choice; waits for one (Skip doesn't pass it).
-func _choose(who: String, t: String, list: Array) -> void:
-	_show_line(who, t)
+func _choose(who: String, t: String, list: Array, italic := false) -> void:
+	_show_line(who, t, italic)
 	_typing = null
 	_text.visible_ratio = 1.0
 	_more.visible = false

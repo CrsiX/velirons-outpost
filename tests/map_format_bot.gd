@@ -314,7 +314,7 @@ func _generated_material(m: MapData, map_type: String) -> void:
 	check(m.village_layout.all(func(p: Dictionary) -> bool: return p["material"] == want), "%s: every piece, huts too, is %s" % [map_type, want])
 
 
-## Mixed materials come back from a file; a file without them (format 4) is stone.
+## Mixed materials come back from a file; a file without them (format 4) gets its map type's.
 func _materials(m: MapData) -> void:
 	var mixed := m.copy()
 	var k := 0
@@ -330,8 +330,12 @@ func _materials(m: MapData) -> void:
 	d["format_version"] = 4
 	for p in d["villages"][0]["pieces"]:
 		p.erase("material")
+	d["map_type"] = "temperate"
 	var old: MapData = MapJson.read(JSON.stringify(d))["map"]
-	check(old != null and old.village_layout.all(func(p: Dictionary) -> bool: return p["material"] == "stone"), "a format 4 file (no materials) reads as all stone")
+	check(old != null and old.village_layout.all(func(p: Dictionary) -> bool: return p["material"] == "stone"), "a format 4 temperate file (no materials) reads as all stone")
+	d["map_type"] = "desert"
+	var dry: MapData = MapJson.read(JSON.stringify(d))["map"]
+	check(dry != null and dry.village_layout.all(func(p: Dictionary) -> bool: return p["material"] == "sandstone"), "a format 4 desert file (no materials) reads as all sandstone, the map type's")
 
 
 ## A village of wood: 60 % of the HP, costs and times, its own art; a sandstone piece among it.

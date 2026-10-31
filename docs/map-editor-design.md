@@ -401,7 +401,8 @@ from `config.gd`).
 - missing optional keys, with their defaults: `author`, `description`,
   `origin`, `legend`, `village_links` (`[]`), `volcanoes` (`[]`),
   `crossings` (`[]`), `beach` and `decor` layers (all `.`), `flip` (`false`),
-  a piece's `material` (`stone`: every older file), `size` (1);
+  a piece's `material` (every older file: its map type's, as the
+  generator gives it: `PIECE_MATERIAL_BY_MAP_TYPE`, else `stone`), `size` (1);
 - numbers written as floats when they are whole (`37.0`);
 - lists in any order;
 - palette letters in any order and unused palette entries.

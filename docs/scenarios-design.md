@@ -804,7 +804,7 @@ The game has none of this yet, except where noted:
 
 - **In the engine, with dialogue** (`Cutscene`, `cutscene.gd`): the game runs on at 1x behind black bars, the HUD hidden and the map's input off;
   the camera moves between spots; people speak in a box at the bottom (portrait, name in their colour, the line typed out); the narrator's lines
-  have no portrait and are centred. A tap, click, Space or Enter shows the whole line, then the next; *Skip* (top right) or Esc ends it.
+  have no portrait and are centred; a `say` step with `"italic": true` slants its whole line (the mission narrator: what to do, not the story). A tap, click, Space or Enter shows the whole line, then the next; *Skip* (top right) or Esc ends it.
 - A scenario writes a cutscene as a list of steps: `say` (speaker id, text), `camera` (a world position, or a Callable giving it when the step plays; zoom, time), `follow` (a Callable giving a node:
   the camera glides to it and stays on it while it moves, until the next camera step or the end), `wait`, `fade` (in / out),
   `title` (a title card), `do` (a scripted action: a cart on the road, dusk), `until` (wait for a condition), and a **choice**: a `say` step with

@@ -84,7 +84,8 @@ keep their own art.
 - **Where it comes from:** the generator gives a village one material for all its pieces,
   by map type (`PIECE_MATERIAL_BY_MAP_TYPE`: Volcanic basalt, Desert sandstone, Coast
   limestone, Highlands granite, else stone), never mixed, huts included. Wood (forward outposts) and mixed villages come only
-  from map files (the editor: docs/map-editor-design.md §4). Watchtowers have no material.
+  from map files (the editor: docs/map-editor-design.md §4); a file without materials (format 4,
+  as the older campaign maps) gets its map type's the same way. Watchtowers have no material.
 
 ## 3. Devastation
 

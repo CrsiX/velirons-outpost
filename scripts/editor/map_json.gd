@@ -636,7 +636,8 @@ class _Reader:
 				if not (flip is bool):
 					err(pw + ".flip", "must be true or false")
 					continue
-				var mat = p.get("material", "stone")
+				# None given (format 4): the map type's, as the generator would.
+				var mat = p.get("material", Config.PIECE_MATERIAL_BY_MAP_TYPE.get(m.map_type, "stone"))
 				if not Config.PIECE_MATERIALS.has(mat):
 					err(pw + ".material", "must be one of %s" % ", ".join(Config.PIECE_MATERIAL_ORDER))
 					continue
