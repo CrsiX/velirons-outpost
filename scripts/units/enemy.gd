@@ -130,6 +130,8 @@ var _siege_scan := 0.0
 ## A lurker (lurker()) roaming outside walls it can't break (Config.LURK,
 ## docs/enemies-design.md §7a), and the seconds it has lurked in all.
 var lurking := false
+## The last barrier it broke while breaking in (its label; for the log).
+var _broke_through := ""
 var lurked := 0.0
 var _lurk_rest := 0.0
 ## Gave up (Waves: only enemies that can't get in are left): it walks back the
@@ -702,6 +704,7 @@ func dismount(source: Node = null, slain := true) -> void:
 	# finds its road again (a retreat, an errand or a siege lead it themselves).
 	if errand == null and not retreating and not leaving and not sieging and not game.is_client and is_instance_valid(target_village):
 		back_to_road()
+		target_village.events.debug("%s goes back to its road on foot" % label())
 	queue_redraw()
 	behavior.on_dismount(self, slain)
 
@@ -1141,20 +1144,35 @@ func _process(delta: float) -> void:
 				vanish()
 			_update_visibility()
 			return
-		_get_in()
+		_get_in("its road ended (entry '%s')" % entry())
 		return
 	_update_visibility()
 
 
 ## Through: it burns a hut (raid_hut, or one at random), eats food or steals
-## (Game.on_enemy_reached_gate), and is gone.
-func _get_in() -> void:
+## (Game.on_enemy_reached_gate), and is gone. `how` says which way it came
+## (for the log).
+func _get_in(how: String) -> void:
+	_log_get_in(how)
 	dead = true
 	remove_from_group("enemies")
 	reached_gate.emit(self)
 	var tw := create_tween()
 	tw.tween_property(self, "modulate:a", 0.0, 0.25)
 	tw.tween_callback(queue_free)
+
+
+## Debug detail of how it got in: where, which way, what it broke last, the
+## hut it got to and whether its village had a way in without breaking
+## anything (if not, and it broke nothing, something let it through).
+func _log_get_in(how: String) -> void:
+	var v := target_village
+	if not is_instance_valid(v):
+		return
+	var open := game.siege.open_way(v)
+	v.events.debug("%s gets in at %s: %s; sieging %s, lurking %s, mount '%s', last broke %s, to %s; village open way %s, in village #%d" % [
+		label(), current_tile(), how, sieging, lurking, mount, _broke_through if _broke_through != "" else "nothing",
+		raid_hut.label() if is_instance_valid(raid_hut) else "no hut", open, game.map.village_at(current_tile())])
 
 
 # --- at the village (docs/siege-design.md §5) -------------------------------------------------
@@ -1194,6 +1212,8 @@ func _start_siege_at_end() -> bool:
 	if not _may_siege():
 		return false
 	sieging = true
+	if is_instance_valid(target_village):
+		target_village.events.debug("%s's road ended at %s (in village #%d): it breaks in from there" % [label(), current_tile(), vid])
 	return true
 
 
@@ -1283,6 +1303,8 @@ func _siege_tick(delta: float) -> bool:
 	if is_instance_valid(breach) and breach.complete and not breach.devastated:
 		_at_barrier(v)
 		return true
+	if is_instance_valid(breach) and breach.devastated:
+		_broke_through = "%s at %s" % [breach.label(), breach.tile]
 	breach = null
 	if path_index < path.size():
 		step_path(delta)
@@ -1291,7 +1313,7 @@ func _siege_tick(delta: float) -> bool:
 	var hut := game.siege.hut_at(v, here)
 	if hut != null:
 		raid_hut = hut
-		_get_in()
+		_get_in("by the siege field" + (" (flying)" if air else ""))
 		return true
 	if not air:
 		var under := game.siege.barrier_at(v, here)
@@ -1380,7 +1402,7 @@ func _lurk_tick(v: Village, delta: float) -> bool:
 		var hut := game.siege.hut_at(v, here)
 		if hut != null:
 			raid_hut = hut
-			_get_in()
+			_get_in("a lurker through a breach")
 			return true
 		if game.siege.open_value(v, here) >= Siege.BLOCKED:
 			return _to_field(v, game.siege.open_entry(v, here), delta)

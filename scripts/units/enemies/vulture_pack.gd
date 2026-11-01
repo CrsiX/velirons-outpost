@@ -73,6 +73,9 @@ func think(delta: float) -> void:
 					mode = Mode.SEARCH
 					_search_left = float(vc["search_time"])
 					_scan = 0.0
+					_note("vultures find no corpse and search (%s)")
+				else:
+					_note("vultures go for " + target.label() + " (%s)")
 		Mode.SEARCH:
 			_search_left -= delta
 			_scan -= delta
@@ -81,6 +84,7 @@ func think(delta: float) -> void:
 				target = nearest(middle())
 				if target != null:
 					mode = Mode.SEEK
+					_note("vultures spot " + target.label() + " (%s)")
 					return
 			if _search_left <= 0.0:
 				mode = Mode.LEAVE
@@ -90,6 +94,17 @@ func think(delta: float) -> void:
 					var v := birds[0].target_village
 					if is_instance_valid(v):
 						v.events.debug("vultures find nothing more to eat and leave (%s)" % ", ".join(birds.map(func(e: Enemy) -> String: return e.label())))
+
+
+## A debug line about the pack (`fmt` takes its birds' names), for the
+## first bird's village.
+func _note(fmt: String) -> void:
+	var birds := alive()
+	if birds.is_empty() or game.is_client:
+		return
+	var v := birds[0].target_village
+	if is_instance_valid(v):
+		v.events.debug(fmt % ", ".join(birds.map(func(e: Enemy) -> String: return e.label())))
 
 
 ## The edible corpse nearest `p`, or null.

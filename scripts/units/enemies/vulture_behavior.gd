@@ -57,6 +57,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 				enemy._set_moving(false)
 			return true
 		state = State.FLY
+		note(enemy, "%s stops chasing %s" % [enemy.label(), enemy.game.who(_foe_hit)])
 		_foe_hit = null
 	if state == State.EAT:
 		_eat(enemy, delta)

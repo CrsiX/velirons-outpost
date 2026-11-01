@@ -46,6 +46,7 @@ func _bolt(enemy: Enemy) -> void:
 	if p.size() > 1:
 		p[0] = enemy.grid_pos
 		enemy.follow(p)
+		note(enemy, "%s bolts to %s (%.0f of ours about it there)" % [enemy.label(), best, best_k])
 
 
 ## How many of our people (villagers outside, the hero, soldiers, summons)

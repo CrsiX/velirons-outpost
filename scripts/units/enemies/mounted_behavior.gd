@@ -137,6 +137,8 @@ func _choose(enemy: Enemy, m: Dictionary) -> void:
 	_prey = null
 	_lead = _nearest_lead(enemy) if enemy.spec().get("escort", enemy.kind.begins_with("legion_")) else null
 	if _lead != null:
+		if state != State.ESCORT:
+			note(enemy, "%s keeps with %s" % [enemy.label(), _lead.label()])
 		_set_state(enemy, State.ESCORT)
 		return
 	if _at_village(enemy):
@@ -418,6 +420,7 @@ func _gate(enemy: Enemy, delta: float) -> bool:
 
 ## Back to its road and on to the village (after a hunt or an escort).
 func _to_road(enemy: Enemy) -> void:
+	note(enemy, "%s rides back to its road" % enemy.label())
 	_set_state(enemy, State.ROAD)
 	enemy.back_to_road()
 

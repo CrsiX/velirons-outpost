@@ -9,6 +9,18 @@ static func _sheltered(node) -> bool:
 	return node is Civilian and not (node is Hero) and not (node as Civilian).is_exposed()
 
 
+## A debug line about what `enemy` does now (a change of its behavior's
+## state), for its village's log (every village's without one). Not on a
+## co-op client: the host logs it.
+static func note(enemy: Enemy, text: String) -> void:
+	if enemy.game.is_client:
+		return
+	if is_instance_valid(enemy.target_village):
+		enemy.target_village.events.debug(text)
+	else:
+		enemy.game.log_all(EventLog.Level.DEBUG, text)
+
+
 ## Not part of any wave, and never goes for a village by road (camp guards,
 ## wrathwoods): the wave's checks, warning lights and the timeline skip it.
 func wild() -> bool:

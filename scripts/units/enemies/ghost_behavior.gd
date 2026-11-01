@@ -52,7 +52,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 		_lit = _revealed(enemy)
 	if mode != Mode.ROAM:
 		if _target_gone():
-			_lose_target(enemy)
+			_lose_target(enemy, _gone_why())
 		else:
 			_track_retreats(enemy)
 	if mode == Mode.ROAD or mode == Mode.SEARCH:
@@ -78,6 +78,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 			if enemy.walk_own(delta) or share >= float(gc["road_share"]):
 				mode = Mode.SEARCH
 				_goal = Vector2.INF
+				note(enemy, "%s leaves the road and flies to %s at %s" % [enemy.label(), target.label(), target.current_tile()])
 		Mode.SEARCH:
 			_search(enemy, delta, reach)
 		Mode.LURK:
@@ -100,10 +101,19 @@ func _pick(enemy: Enemy) -> void:
 			if not civ.dead:
 				pool.append(civ)
 	if pool.is_empty():
-		_lose_target(enemy)
+		_lose_target(enemy, "nobody lives in the village")
 		return
 	target = pool[randi() % pool.size()]
 	enemy.target_village.events.debug("%s hunts %s" % [enemy.label(), target.label()])
+
+
+## Why its target is gone (for the log).
+func _gone_why() -> String:
+	if target == null or not is_instance_valid(target):
+		return "its target is gone"
+	if target.dead:
+		return "%s died" % target.label()
+	return "%s no longer lives in the village" % target.label()
 
 
 ## Dead, retired (out of the village's people), or freed.
@@ -123,25 +133,27 @@ func _track_retreats(enemy: Enemy) -> void:
 			retreats += 1
 			enemy.target_village.events.debug("%s escaped %s (%d)" % [target.label(), enemy.label(), retreats])
 			if retreats >= int(Config.GHOST["retreats"]):
-				_lose_target(enemy)
+				_lose_target(enemy, "%s got away %d times" % [target.label(), retreats])
 				return
 		if mode == Mode.SEARCH:
 			mode = Mode.LURK
 			_lurk_to = Vector2.INF
 			_detour = Vector2.INF
+			note(enemy, "%s is home safe: %s lurks until they come out" % [target.label(), enemy.label()])
 	elif mode == Mode.LURK:
 		mode = Mode.SEARCH
 		_goal = Vector2.INF
+		note(enemy, "%s came out: %s hunts them again" % [target.label(), enemy.label()])
 
 
-## No one left to hunt: it fades and roams for roam_time s, then vanishes.
-func _lose_target(enemy: Enemy) -> void:
+## No one left to hunt (`why`): it fades and roams for roam_time s, then vanishes.
+func _lose_target(enemy: Enemy, why: String) -> void:
 	target = null
 	mode = Mode.ROAM
 	_roam_left = float(Config.GHOST["roam_time"])
 	_goal = Vector2.INF
 	_detour = Vector2.INF
-	enemy.target_village.events.debug("%s has no one left to haunt" % enemy.label())
+	note(enemy, "%s has no one left to haunt (%s): it roams, then fades away" % [enemy.label(), why])
 
 
 ## Lit by a working light stone, or in a High Priest's aura (any village's).

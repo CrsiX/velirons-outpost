@@ -22,6 +22,8 @@ var _scan := 0.0
 var _ally_scan := 0.0
 ## A fighter of the village is near: it stands and waits (see tick).
 var _held := false
+## The corpse it went for last time it lurked (for the log: only changes are told).
+var _lurk_corpse_id := 0
 
 
 func tick(enemy: Enemy, delta: float) -> bool:
@@ -47,7 +49,10 @@ func tick(enemy: Enemy, delta: float) -> bool:
 	_ally_scan -= delta
 	if _ally_scan <= 0.0:
 		_ally_scan = 0.3
-		_held = _fighter_near(enemy, float(enemy.spec()["raise_range"]))
+		var held := _fighter_near(enemy, float(enemy.spec()["raise_range"]))
+		if held != _held:
+			note(enemy, ("%s stands and waits: a fighter of ours is near" if held else "%s walks on: no fighter near") % enemy.label())
+		_held = held
 	if _cool > 0.0:
 		return _held
 	_scan -= delta
@@ -71,7 +76,7 @@ func on_death(enemy: Enemy) -> void:
 
 ## Lurking: the nearest corpse it may raise within the leash.
 func lurk_goal(enemy: Enemy) -> Vector2:
-	var best := Vector2.INF
+	var best: Corpse = null
 	var best_d := INF
 	for c in enemy.game.corpses.corpses:
 		if not _raisable(enemy, c) or not enemy.in_lurk_range(enemy.target_village, Vector2i(c.grid_pos.round())):
@@ -79,8 +84,15 @@ func lurk_goal(enemy: Enemy) -> Vector2:
 		var d := c.grid_pos.distance_to(enemy.grid_pos)
 		if d < best_d:
 			best_d = d
-			best = c.grid_pos
-	return best
+			best = c
+	var id := best.get_instance_id() if best != null else 0
+	if id != _lurk_corpse_id:
+		_lurk_corpse_id = id
+		if best != null:
+			note(enemy, "%s, lurking, walks to %s (%s) at %s" % [enemy.label(), best.label(), best.kind, Vector2i(best.grid_pos.round())])
+		else:
+			note(enemy, "%s, lurking, has no corpse to go for and roams" % enemy.label())
+	return best.grid_pos if best != null else Vector2.INF
 
 
 func _corpse_ok(enemy: Enemy) -> bool:

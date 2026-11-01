@@ -88,8 +88,11 @@ func _tick_dive(enemy: Enemy, delta: float) -> void:
 	if _near_song and not _march:
 		if enemy.dive == Enemy.Dive.DOWN or enemy.dive == Enemy.Dive.DIVING:
 			enemy.surface()
+			if enemy.dive == Enemy.Dive.SURFACING:
+				note(enemy, "%s comes up to sing: one of ours is in reach of her song" % enemy.label())
 	elif enemy.dive == Enemy.Dive.UP and (_march or not _near_song):
-		enemy.dive_down()
+		if enemy.dive_down():
+			note(enemy, "%s goes under (%s)" % [enemy.label(), "on her way to the gate" if _march else "nobody in reach of her song"])
 
 
 ## Pulls every mobile one of ours whose strongest song is hers towards her.

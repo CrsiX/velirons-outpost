@@ -24,6 +24,8 @@ var _lay := 0.0
 var _alarm_cd := 0.0
 var _alarm_scan := 0.0
 var _hurt := false
+## She waited by a clutch last frame (to log when she moves on).
+var _was_waiting := false
 
 
 func tick(enemy: Enemy, delta: float) -> bool:
@@ -36,7 +38,11 @@ func tick(enemy: Enemy, delta: float) -> bool:
 	_alarm_scan -= delta
 	var fighting := super.tick(enemy, delta)
 	if waiting():
+		_was_waiting = true
 		return true  # (by her clutch, fighting or not)
+	if _was_waiting:
+		_was_waiting = false
+		note(enemy, "%s's clutch has hatched or is gone: she moves on" % enemy.label())
 	clutch.clear()
 	if clutches >= int(spec["max_clutches"]):
 		return fighting  # (laid out)
@@ -50,14 +56,17 @@ func tick(enemy: Enemy, delta: float) -> bool:
 			_lay = float(spec["lay_every"])
 			clutches += 1
 			clutch = enemy.game.waves.lay_eggs(enemy)
-			enemy.target_village.events.debug("%s stops to lay eggs and guard them" % enemy.label())
+			note(enemy, "%s stops to lay eggs and guard them (clutch %d of %d)" % [enemy.label(), clutches, int(spec["max_clutches"])])
 			return true
 		if not started and post_near(enemy, float(spec["lay_near"])):
 			started = true
+			note(enemy, "%s is near a manned post and starts laying as she walks" % enemy.label())
 	if started and _lay <= 0.0:
 		_lay = float(spec["lay_every"])
 		clutches += 1
 		enemy.game.waves.lay_eggs(enemy)
+		if clutches >= int(spec["max_clutches"]):
+			note(enemy, "%s has laid all her clutches and fights on" % enemy.label())
 	return fighting
 
 

@@ -28,6 +28,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 	var centre := Vector2(camp.tile) if is_instance_valid(camp) else home
 	if _scan_timer <= 0.0:
 		_scan_timer = 0.25
+		var before := _foe.get_instance_id() if is_instance_valid(_foe) else 0
 		_foe = null
 		var best := INF
 		for node in enemy.get_tree().get_nodes_in_group("melee_defenders") + enemy.get_tree().get_nodes_in_group("villagers"):
@@ -37,6 +38,12 @@ func tick(enemy: Enemy, delta: float) -> bool:
 			if d < best:
 				best = d
 				_foe = node
+		var now := _foe.get_instance_id() if _foe != null else 0
+		if now != before:
+			if _foe != null:
+				note(enemy, "%s at its camp goes for %s" % [enemy.label(), enemy.game.who(_foe)])
+			elif before != 0:
+				note(enemy, "%s has no one near its camp and goes back to the fire" % enemy.label())
 	if is_instance_valid(_foe) and not _foe.dead:
 		var d: float = _foe.grid_pos.distance_to(enemy.grid_pos)
 		enemy.face(_foe.grid_pos)

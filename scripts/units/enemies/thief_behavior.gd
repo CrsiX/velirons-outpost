@@ -35,6 +35,7 @@ func on_path_end(enemy: Enemy) -> bool:
 	else:
 		enemy.set_loot(enemy.game.thief_steals(enemy))
 	escaping = true
+	note(enemy, "%s runs back the way it came with %d gold" % [enemy.label(), enemy.loot_gold])
 	var back := enemy.path.duplicate()
 	back.reverse()
 	back[0] = enemy.grid_pos
@@ -74,3 +75,4 @@ func _route_to_store(enemy: Enemy) -> void:
 	way.append_array(across.slice(1))
 	enemy.path = way
 	store = w
+	note(enemy, "%s goes for %s instead of the gate" % [enemy.label(), w.label()])

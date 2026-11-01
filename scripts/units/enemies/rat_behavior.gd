@@ -35,6 +35,7 @@ var _rng := RandomNumberGenerator.new()
 func tick(enemy: Enemy, delta: float) -> bool:
 	me = enemy
 	if enemy.game.waves.leftovers_leave:
+		note(enemy, "%s leaves with the wave's leftovers" % enemy.label())
 		_leave_farm()
 		enemy.vanish()
 		return true
@@ -48,11 +49,12 @@ func tick(enemy: Enemy, delta: float) -> bool:
 			return _chase(enemy, delta)
 		State.TO_FARM:
 			if not _farm_ok():
-				_to_road(enemy)
+				_to_road(enemy, "its farm is gone")
 				return false
 			if enemy.walk_own(delta):
 				state = State.ON_FARM
 				farm.add_rat(enemy)
+				enemy.game.log_for(farm, EventLog.Level.DEBUG, "%s gets to %s and eats" % [enemy.label(), farm.label()])
 				_idle = 0.0
 				_nibble = _rng.randf_range(0.6, 1.6)
 			return true
@@ -72,6 +74,7 @@ func _think(enemy: Enemy) -> void:
 		foe = victim
 		state = State.CHASE
 		_repath = 0.0
+		enemy.game.log_for(victim, EventLog.Level.DEBUG, "%s goes for %s" % [enemy.label(), enemy.game.who(victim)])
 		return
 	if state == State.ROAD:
 		var f := _nearest_farm(enemy, float(enemy.spec()["farm_search"]), ignored)
@@ -81,7 +84,7 @@ func _think(enemy: Enemy) -> void:
 
 func _on_farm(enemy: Enemy, delta: float) -> bool:
 	if not _farm_ok():
-		_to_road(enemy)
+		_to_road(enemy, "its farm is gone")
 		return false
 	_idle += delta
 	if _idle >= float(enemy.spec()["vanish_after"]):
@@ -98,7 +101,7 @@ func _on_farm(enemy: Enemy, delta: float) -> bool:
 		if farm.barren(float(enemy.spec()["give_up_after"])) and _rng.randf() < float(enemy.spec()["give_up_chance"]):
 			enemy.game.log_for(farm, EventLog.Level.DEBUG, "%s finds nothing left on %s and moves on" % [enemy.label(), farm.label()])
 			ignored[farm] = true
-			_to_road(enemy)
+			_to_road(enemy, "nothing left to eat")
 			return false
 	if _nibble > 0.0:
 		# Eating the crops: a quick bob and a wiggle of the head.
@@ -121,6 +124,7 @@ func _chase(enemy: Enemy, delta: float) -> bool:
 	var reach := float(enemy.spec()["bite_range"])
 	var lost: bool = not is_instance_valid(foe) or foe.dead or _sheltered(foe) or foe.grid_pos.distance_to(enemy.grid_pos) > reach * 1.6
 	if lost:
+		note(enemy, "%s lets %s be" % [enemy.label(), enemy.game.who(foe)])
 		foe = null
 		if _farm_ok() and not ignored.has(farm):
 			_go_farm(enemy, farm)
@@ -129,7 +133,7 @@ func _chase(enemy: Enemy, delta: float) -> bool:
 		if f:
 			_go_farm(enemy, f)
 			return true
-		_to_road(enemy)
+		_to_road(enemy, "no farm near")
 		return false
 	var d: float = foe.grid_pos.distance_to(enemy.grid_pos)
 	if d <= Config.SUMMON["attack_range"]:
@@ -207,9 +211,11 @@ func _leave_farm() -> void:
 	farm = null
 
 
-## Back to the road and on towards its village's gates.
-func _to_road(enemy: Enemy) -> void:
+## Back to the road and on towards its village's gates (`why`: for the log).
+func _to_road(enemy: Enemy, why := "") -> void:
 	_leave_farm()
+	if state != State.ROAD and why != "":
+		note(enemy, "%s goes back to the road (%s)" % [enemy.label(), why])
 	state = State.ROAD
 	enemy.sprite.position.y = 0.0
 	enemy.sprite.rotation = 0.0
