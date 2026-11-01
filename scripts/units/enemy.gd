@@ -697,13 +697,35 @@ func dismount(source: Node = null, slain := true) -> void:
 	else:
 		set_walk_speed(stat("speed") * randf_range(0.92, 1.08) * (float(spec().get("retreat_speed", 1.0)) if retreating else 1.0))
 		_refresh_art()
+	# Riding, its path was wherever it rode (a hunt, the ring round the
+	# village): on foot that path's end would count as its road's end, so it
+	# finds its road again (a retreat, an errand or a siege lead it themselves).
+	if errand == null and not retreating and not leaving and not sieging and not game.is_client and is_instance_valid(target_village):
+		back_to_road()
 	queue_redraw()
 	behavior.on_dismount(self, slain)
 
 
+## Back to the nearest road and along it to its target village, from where it
+## stands (after a rider's hunt, or when it gets off its mount).
+func back_to_road() -> void:
+	var pathing := game.world.pathing
+	var road := pathing.nearest_road(current_tile())
+	var v := target_village
+	var field := v.id if v and game.villages.size() > 1 and pathing.enemy_distance(road, v.id) < Pathing.UNREACHABLE else -1
+	var route := pathing.enemy_route(road, RandomNumberGenerator.new(), field)
+	var pts := pathing.find_path(current_tile(), road)
+	if pts.is_empty():
+		pts = PackedVector2Array([grid_pos])
+	pts[0] = grid_pos
+	for t in route.slice(1):
+		pts.append(Vector2(t))
+	follow(pts)
+
+
 ## Turns into `new_kind` where it stands (a raider's goblin): a new number,
-## its HP (the same share of it), speed, behavior and look; its wave, road
-## and target stay.
+## its HP (the same share of it), speed, behavior and look; its wave and
+## target stay (Enemy.dismount puts it back on its road).
 func _become(new_kind: String) -> void:
 	var share := hp / max_hp if max_hp > 0.0 else 1.0
 	var old := label()

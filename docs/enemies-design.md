@@ -559,7 +559,10 @@ it) and `FleeBehavior` (the undead horse).
   - **Dismount** (`Enemy.dismount`): the mount falls (its kill gold to whoever killed it, a kill
     of the mounted kind, a corpse of the animal, a puff of dust), and a kind with `"rider"` turns
     into that kind in place (new number, HP, speed, behavior and look; it keeps its wave and
-    target). A captain or commander just goes on on foot (`on_dismount`).
+    target). A captain or commander just goes on on foot (`on_dismount`). Either way it goes
+    back to its road (`Enemy.back_to_road`, unless a retreat, an errand or a siege leads it):
+    riding, its path was wherever it rode, and on foot the end of that path would count as
+    the end of its road, a way in without breaking in.
 - **Riding** (`MountedBehavior`, while mounted):
   - It runs to its village by road but never hits a gate, wall or wall tower: near the walls it
     **circles** the village (`approach`, `ring`). Its ways never cross an intact barrier

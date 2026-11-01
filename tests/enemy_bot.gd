@@ -1411,7 +1411,13 @@ func _test_riders() -> void:
 	mh = r2.mount_hp
 	Combat.hit(game, hb, r2, 4.0, null, r2.hit_point())
 	check(is_equal_approx(mh - r2.mount_hp, 4.0 * float(Config.MILITARY["halberdier"]["vs_mounted"])) and r2._halt_left > 0.0 and not r2.charge_ready, "a halberdier does x%s to a mount, halts it and breaks its charge" % str(Config.MILITARY["halberdier"]["vs_mounted"]))
+	# Riding off its road (a hunt): on foot it goes back to its road, so the
+	# end of where it rode never counts as reaching the village.
+	var chase_end := at + Vector2(2.0, 2.0)
+	r2.follow(PackedVector2Array([at, chase_end]))
 	r2.dismount(null, true)
+	var foot_end: Vector2 = r2.path[r2.path.size() - 1] if not r2.path.is_empty() else chase_end
+	check(foot_end.distance_to(chase_end) > 0.5 and game.world.pathing.enemy_distance(Vector2i(foot_end.round()), -1) == 0, "unhorsed off its road, the goblin heads back along its road to the village (path ends at %s)" % str(foot_end))
 	var h0 := r2.hp
 	Combat.hit(game, hb, r2, 4.0, null, r2.hit_point())
 	check(is_equal_approx(h0 - r2.hp, 4.0 * float(en["goblin"]["resist"].get("melee", 1.0))), "but only x1 to the goblin on foot")

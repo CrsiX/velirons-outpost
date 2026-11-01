@@ -419,16 +419,5 @@ func _gate(enemy: Enemy, delta: float) -> bool:
 ## Back to its road and on to the village (after a hunt or an escort).
 func _to_road(enemy: Enemy) -> void:
 	_set_state(enemy, State.ROAD)
-	var pathing := enemy.game.world.pathing
-	var road := pathing.nearest_road(enemy.current_tile())
-	var v := enemy.target_village
-	var field := v.id if v and enemy.game.villages.size() > 1 and pathing.enemy_distance(road, v.id) < Pathing.UNREACHABLE else -1
-	var route := pathing.enemy_route(road, RandomNumberGenerator.new(), field)
-	var pts := pathing.find_path(enemy.current_tile(), road)
-	if pts.is_empty():
-		pts = PackedVector2Array([enemy.grid_pos])
-	pts[0] = enemy.grid_pos
-	for t in route.slice(1):
-		pts.append(Vector2(t))
-	enemy.follow(pts)
+	enemy.back_to_road()
 
