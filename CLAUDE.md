@@ -46,7 +46,7 @@ Each bot is a scene: `gd --headless --path . --fixed-fps 60 res://tests/<bot>.ts
 
 Bots: `sim_bot` (single player end to end), `military_bot`, `rat_bot`, `hud_bot`, `enemy_bot`, `aqua_bot`, `siege_bot`, `world_bot`, `tutorial_bot`, `scenario_bot` (`-- --only=N` for one scenario), `library_bot`, `stats_bot`, `save_bot`, `title_bot`, `build_bot`, `coop_bot`, `mapgen_bot`, `map_format_bot`, `editor_bot`, and the two-process net test `tests/run_net_test.sh <gd>`. `tests/run_all.sh` runs every bot in sequence. Lint: `tests/lint.sh`. Art: `python3 tools/gen_art.py`. Balancing bot: balance-sweep skill.
 
-**Baseline:** all bots pass and lint is clean. CI allows no failures, so a fix that breaks a bot is fixed in the same change. The one local exception is title_bot's frame-time check (too tight for this slow sandbox; it passes with `CI` set). Anything else failing is new.
+**Baseline:** all bots pass and lint is clean. CI allows no failures, so a fix that breaks a bot is fixed in the same change. The one local exception is title_bot's build-frames check (machine-dependent; skipped with `CI` set). Anything else failing is new.
 
 ## Code layout (by directory; look inside for the rest)
 
