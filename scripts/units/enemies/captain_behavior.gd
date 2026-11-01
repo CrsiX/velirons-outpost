@@ -36,13 +36,13 @@ func _fall_back(enemy: Enemy) -> void:
 	var v := enemy.target_village
 	if v:
 		v.events.info("%s falls back" % enemy.label().capitalize())
-	enemy.follow(_way_back(enemy))
+	enemy.follow(way_back(enemy))
 
 
 ## From where it is to the road it came by (walking: over bridges and land,
 ## never across deep water, e.g. off scenario 9's island), and back along it
 ## to its start.
-static func _way_back(enemy: Enemy) -> PackedVector2Array:
+static func way_back(enemy: Enemy) -> PackedVector2Array:
 	var pathing := enemy.game.world.pathing
 	var route := pathing.enemy_route(enemy.home_tile, RandomNumberGenerator.new())
 	var here := pathing.nearest_road(enemy.current_tile())

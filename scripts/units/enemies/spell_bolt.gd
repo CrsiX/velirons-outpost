@@ -53,7 +53,7 @@ func _process(delta: float) -> void:
 func _hit() -> void:
 	var source: Node = witch if is_instance_valid(witch) else null
 	if at_building:
-		(target as Building).take_damage(damage, source)
+		(target as Building).take_damage(damage, source, "magical")
 	elif target is Tower:
 		var t := target as Tower
 		if t.garrison:

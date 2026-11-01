@@ -48,4 +48,4 @@ func tick(enemy: Enemy, delta: float) -> bool:
 
 ## One blow at `foe` (a vampire drains from it, see VampireBehavior).
 func _hit(enemy: Enemy, foe: Node) -> void:
-	foe.take_damage(enemy.stat("damage"), enemy, enemy.attack_category())
+	enemy.blow(foe, enemy.stat("damage"))

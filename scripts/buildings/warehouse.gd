@@ -38,7 +38,7 @@ func plunder(g: Enemy) -> void:
 		return
 	village.events.important("%s plundered %s" % [g.label().capitalize(), label()])
 	village.toast("The %s is being plundered!" % display_name().to_lower(), Color("ff7a6a"))
-	take_damage(float(Config.WAREHOUSE["raid_damage"]), g)
+	take_damage(float(Config.WAREHOUSE["raid_damage"]), g)  # (a raid, not a blow: pure)
 
 
 func can_tear_down() -> bool:

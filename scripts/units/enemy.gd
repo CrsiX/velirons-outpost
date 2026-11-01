@@ -31,6 +31,7 @@ const BEHAVIORS := {
 	"mounted": preload("res://scripts/units/enemies/mounted_behavior.gd"),
 	"flee": preload("res://scripts/units/enemies/flee_behavior.gd"),
 	"ghost": preload("res://scripts/units/enemies/ghost_behavior.gd"),
+	"snake": preload("res://scripts/units/enemies/snake_behavior.gd"),
 }
 ## How many tiles farther a low_priority enemy (a spider egg) counts for
 ## whoever picks a target: anything else in reach comes first.
@@ -124,11 +125,19 @@ var body := -1
 ## tile along the siege field (Siege), hitting the barrier in its way.
 var sieging := false
 var breach: Building = null
-## A barrier it couldn't hurt and walks through after SIEGE.stuck_slip.
-var _passing: Building = null
 var _siege_cd := 0.0
 var _siege_scan := 0.0
-var _stuck := 0.0
+## A lurker (lurker()) roaming outside walls it can't break (Config.LURK,
+## docs/enemies-design.md §7a), and the seconds it has lurked in all.
+var lurking := false
+var lurked := 0.0
+var _lurk_rest := 0.0
+## Gave up (Waves: only enemies that can't get in are left): it walks back the
+## way it came and vanishes at the map edge, and can be killed on the way.
+var leaving := false
+## Slithering (slithers()): tiles moved, and where it was last frame.
+var _slither_dist := 0.0
+var _slither_from := Vector2.INF
 ## When it last stopped breaking in (game.clock; -INF: never), for the log.
 var _siege_left_at := -INF
 ## Seconds an intact gate has held it ("entry": "slip").
@@ -299,6 +308,15 @@ func attack_category() -> String:
 	return spec().get("attack_category", "melee")
 
 
+## One blow of its at `foe` (one of ours, not a building) for `amount`: a hit
+## of its attack_category, or for a poisoner a dose (Poison.give).
+func blow(foe: Node, amount: float) -> void:
+	if attack_category() == "poison":
+		Poison.give(foe, amount, self)
+	else:
+		foe.take_damage(amount, self, attack_category())
+
+
 ## Flies (gargoyles; a vampire in bat form): keeps to the roads, but no
 ## ground slows it, and only ranged attacks and other flyers can go for it.
 func flies() -> bool:
@@ -369,7 +387,20 @@ func targetable() -> bool:
 ## Does a hit of `category` (Config.DAMAGE_CATEGORIES) hurt it at all? A ghost
 ## takes none of a melee or projectile hit: whoever deals only that can't go for it.
 func hurt_by(category: String) -> bool:
-	return float(spec().get("resist", {}).get(category, 1.0)) > 0.0
+	return damage_factor(category) > 0.0
+
+
+## What it takes of a hit of `category`: its kind's "resist", and for the
+## raised and undead the necromancer's raised_holy and raised_poison on top.
+func damage_factor(category: String) -> float:
+	var f := float(spec().get("resist", {}).get(category, 1.0))
+	if raised or undead:
+		var n: Dictionary = Config.ENEMIES["necromancer"]
+		if category == "holy":
+			f *= float(n["raised_holy"])
+		elif category == "poison":
+			f *= float(n["raised_poison"])
+	return f
 
 
 ## Villagers run from it? (Not a kind that "scares" nobody, nor a faded ghost.)
@@ -555,6 +586,9 @@ func pop_in() -> void:
 func _animate(delta: float) -> void:
 	if _wades() or hovers():
 		return  # (see _wade: no walking sway in the water; a ghost floats instead)
+	if slithers():
+		_slither()
+		return
 	if not is_jelly():
 		super._animate(delta)
 		if charge_ready and mount != "":
@@ -569,6 +603,35 @@ func _set_moving(v: bool) -> void:
 	super._set_moving(v)
 	if not v and is_jelly():
 		sprite.scale = Vector2(0.5, 0.5)
+	if not v and slithers():
+		_slither_from = Vector2.INF
+		_show_art(unit_art())  # (coiled)
+
+
+## Slithers (a snake: its kind's "slither" frames) instead of walking.
+func slithers() -> bool:
+	return spec().has("slither")
+
+
+## The next slither frame: one every slither_step tiles it moved, so it never
+## slides on the spot (slowed, rooted) and every speed looks right.
+func _slither() -> void:
+	if _slither_from != Vector2.INF:
+		_slither_dist += grid_pos.distance_to(_slither_from)
+	_slither_from = grid_pos
+	var f := int(_slither_dist / float(spec()["slither_step"])) % int(spec()["slither"])
+	_show_art("unit_%s_slither_%d" % [art_base(), f])
+
+
+## Shows the sprite `art` (unless it already does), keeping its facing and scale.
+func _show_art(art: String) -> void:
+	if sprite.texture == Art.tex(art):
+		return
+	var flip := sprite.flip_h
+	var sc := sprite.scale
+	Art.apply(sprite, art)
+	sprite.flip_h = flip
+	sprite.scale = sc
 
 
 ## The art it shows now: its own, or the bat's; a rider its kind doesn't
@@ -1036,6 +1099,9 @@ func _process(delta: float) -> void:
 		if dead:
 			return
 	elif step_path(delta):
+		if leaving:
+			vanish()
+			return
 		if _held_at_gate(delta):
 			_set_moving(false)
 			_update_visibility()
@@ -1045,11 +1111,14 @@ func _process(delta: float) -> void:
 			return  # (a scenario's errand took care of it)
 		if behavior.on_path_end(self):
 			return  # (a thief turning back, or escaping)
-		if entry() == "siege" and _start_siege_at_end():
+		if entry() == "siege":
+			# A held wall loses no hut (docs/enemies-design.md §7a): from the end
+			# of its road it breaks in, lurks, or (it can't) gives up.
+			if not _start_siege_at_end():
+				_log_unbroken_entry()
+				vanish()
 			_update_visibility()
 			return
-		if entry() == "siege":
-			_log_unbroken_entry()
 		_get_in()
 		return
 	_update_visibility()
@@ -1075,7 +1144,7 @@ func entry() -> String:
 
 ## May break into its village by the siege field now?
 func _may_siege() -> bool:
-	return entry() == "siege" and habitat() != "water" and not airborne and not retreating and (mount == "" or ride_in) and not game.is_client \
+	return entry() == "siege" and habitat() != "water" and not airborne and not retreating and not leaving and (mount == "" or ride_in) and not game.is_client \
 		and is_instance_valid(target_village) and not target_village.fallen and not wild() \
 		and not (errand != null and errand.has_method("holds") and errand.holds(self))
 
@@ -1094,12 +1163,11 @@ func _held_at_gate(delta: float) -> bool:
 
 
 ## The road ended (it never got near enough to switch, e.g. raised at the
-## gate): break in from here, if it is at a village. Returns whether it does.
+## gate, or the road ends short of the village): break in (or lurk) from
+## here: at the village it stands in, else at its target. Returns whether it does.
 func _start_siege_at_end() -> bool:
 	var vid := game.map.village_at(current_tile())
-	if vid < 0 or vid >= game.villages.size() or airborne or habitat() == "water":
-		return false
-	if not is_instance_valid(target_village) or target_village.id != vid:
+	if vid >= 0 and vid < game.villages.size() and (not is_instance_valid(target_village) or target_village.id != vid):
 		target_village = game.villages[vid]
 	if not _may_siege():
 		return false
@@ -1107,22 +1175,19 @@ func _start_siege_at_end() -> bool:
 	return true
 
 
-## Its road ended and it couldn't break in from there, so it gets in without
-## breaking anything (the rule from before walls had HP). Logged loudly with
-## the reason, to find out when this happens.
+## Its road ended and it couldn't break in or lurk from there: it gives up
+## (vanish) rather than get in without a breach. Logged loudly with the
+## reason, as this shouldn't happen.
 func _log_unbroken_entry() -> void:
 	var v := target_village
 	if not is_instance_valid(v):
 		return
-	var why := "its road ended outside the village"
-	if game.map.village_at(current_tile()) >= 0:
-		why = "it couldn't break in (%s)" % _no_siege_reason()
-	v.events.important("%s got in without breaking in: %s" % [label().capitalize(), why])
+	v.events.important("%s couldn't get at the village and leaves: %s" % [label().capitalize(), _no_siege_reason()])
 	v.events.debug(_unbroken_entry_details())
 
 
-## Everything needed to find out from the game log file why the road-end
-## fallback ran (debug detail of _log_unbroken_entry).
+## Everything needed to find out from the game log file why its road ended
+## where it couldn't go on (debug detail of _log_unbroken_entry).
 func _unbroken_entry_details() -> String:
 	var v := target_village
 	var here := current_tile()
@@ -1138,7 +1203,7 @@ func _unbroken_entry_details() -> String:
 	var b = game.map.building_at(here)
 	parts.append("on tile: %s" % (("%s (complete %s, devastated %s, hp %.0f)" % [b.label(), b.complete, b.devastated, b.hp]) if b is Building else "nothing"))
 	parts.append("village huts intact %d, clock %.1f" % [v.intact_huts().size(), game.clock])
-	return "Got in without breaking in, details: " + "; ".join(parts)
+	return "Couldn't get at the village, details: " + "; ".join(parts)
 
 
 ## Why _may_siege() is false (for the log).
@@ -1157,6 +1222,8 @@ func _no_siege_reason() -> String:
 		return "wild"
 	if errand != null:
 		return "held by an errand"
+	if leaving:
+		return "leaving"
 	return "unknown"
 
 
@@ -1166,8 +1233,7 @@ func leave_siege() -> void:
 		_siege_left_at = game.clock
 	sieging = false
 	breach = null
-	_passing = null
-	_stuck = 0.0
+	lurking = false
 
 
 ## Breaking in: returns true while the siege moves (or holds) it this frame.
@@ -1186,12 +1252,14 @@ func _siege_tick(delta: float) -> bool:
 		leave_siege()
 		return false
 	var air := flies()
+	if lurker():
+		return _lurk_tick(v, delta)
 	_siege_cd -= delta
 	_siege_scan -= delta
 	if air:
 		breach = null
-	if is_instance_valid(breach) and breach.complete and not breach.devastated and breach != _passing:
-		_at_barrier(v, delta)
+	if is_instance_valid(breach) and breach.complete and not breach.devastated:
+		_at_barrier(v)
 		return true
 	breach = null
 	if path_index < path.size():
@@ -1205,17 +1273,18 @@ func _siege_tick(delta: float) -> bool:
 		return true
 	if not air:
 		var under := game.siege.barrier_at(v, here)
-		if under != null and under != _passing:
+		if under != null:
 			breach = under  # (standing on it: a gate it walked onto)
 			return true
-	var n := game.siege.next_step(v, here, air, _passing)
+	if game.siege.value(v, here, air) >= Siege.BLOCKED:
+		return _to_field(v, game.siege.field_entry(v, here, air), delta)  # (its road ended short of the village)
+	var n := game.siege.next_step(v, here, air)
 	if n == here:
 		_set_moving(false)  # (no way in from here: wait)
 		return true
 	var b := game.siege.barrier_at(v, n) if not air else null
-	if b != null and b != _passing:
+	if b != null:
 		breach = b
-		_stuck = 0.0
 		face(Vector2(n))
 		return true
 	follow(PackedVector2Array([grid_pos, Vector2(n) + _jitter]))
@@ -1223,9 +1292,25 @@ func _siege_tick(delta: float) -> bool:
 	return true
 
 
-## In front of a barrier: hits it (EnemyBehavior.siege_attack), now and then
-## checks for a clearly cheaper way, and slips past one it can't hurt.
-func _at_barrier(v: Village, delta: float) -> void:
+## Walks from outside its village's field to `to`, the field tile nearest it
+## (from where the field leads on). Without one it waits.
+func _to_field(_v: Village, to: Vector2i, delta: float) -> bool:
+	if to.x < 0:
+		_set_moving(false)
+		return true
+	var p := find_way(current_tile(), to)
+	if p.size() < 2:
+		_set_moving(false)
+		return true
+	p[0] = grid_pos
+	follow(p)
+	step_path(delta)
+	return true
+
+
+## In front of a barrier: hits it (EnemyBehavior.siege_attack) and now and
+## then checks for a clearly cheaper way.
+func _at_barrier(v: Village) -> void:
 	_set_moving(false)
 	face(Vector2(breach.tile))
 	if _siege_scan <= 0.0:
@@ -1241,13 +1326,129 @@ func _at_barrier(v: Village, delta: float) -> void:
 	var cd := behavior.siege_attack(self, breach)
 	if cd > 0.0:
 		_siege_cd = cd
-		_stuck = 0.0
+
+
+# --- lurking (docs/enemies-design.md §7a) ---------------------------------------------------
+
+## Can't break anything and goes on foot: a lurker (Config.LURK).
+func lurker() -> bool:
+	return lurker_kind(spec()) and not flies()
+
+
+## A kind (its ENEMIES entry) that lurks: breaks in by the siege field but
+## can't hurt a barrier, and isn't a flyer or a fleeing raised horse.
+static func lurker_kind(sp: Dictionary) -> bool:
+	return str(sp.get("entry", "siege")) == "siege" and float(sp.get("siege", 0.0)) <= 0.0 \
+		and not sp.get("flying", false) and str(sp.get("behavior", "")) != "flee"
+
+
+## A lurker at its village: in through a breach if there is one (the open
+## field: no intact barrier on the way), else it roams outside the walls.
+func _lurk_tick(v: Village, delta: float) -> bool:
+	var here := current_tile()
+	if game.siege.open_way(v):
+		if lurking:
+			lurking = false
+			path = PackedVector2Array()
+			path_index = 0
+			v.events.debug("%s goes in through the breach" % label())
+		if path_index < path.size():
+			step_path(delta)
+			return true
+		var hut := game.siege.hut_at(v, here)
+		if hut != null:
+			raid_hut = hut
+			_get_in()
+			return true
+		if game.siege.open_value(v, here) >= Siege.BLOCKED:
+			return _to_field(v, game.siege.open_entry(v, here), delta)
+		var n := game.siege.open_next_step(v, here)
+		if n == here:
+			_set_moving(false)
+			return true
+		follow(PackedVector2Array([grid_pos, Vector2(n) + _jitter]))
+		step_path(delta)
+		return true
+	if not lurking:
+		lurking = true
+		path = PackedVector2Array()
+		path_index = 0
+		_lurk_rest = 0.0
+		v.events.debug("%s can't break in and lurks outside the walls" % label())
+	lurked += delta
+	if path_index < path.size():
+		step_path(delta)
+		return true
+	_set_moving(false)
+	_lurk_rest -= delta
+	if _lurk_rest > 0.0:
+		return true
+	var rest: Array = Config.LURK["rest"]
+	_lurk_rest = randf_range(float(rest[0]), float(rest[1]))
+	var goal := behavior.lurk_goal(self)
+	var to := Vector2i(goal.round()) if goal != Vector2.INF and in_lurk_range(v, Vector2i(goal.round())) else _roam_tile(v)
+	if to != here:
+		var p := find_way(here, to)
+		if p.size() >= 2:
+			p[0] = grid_pos
+			follow(p)
+	return true
+
+
+## May a lurker of `v` be on `t`? Outside its walls, within the leash.
+func in_lurk_range(v: Village, t: Vector2i) -> bool:
+	if v.rect.has_point(t) or not game.world.pathing.is_walkable(t):
+		return false
+	return Hero.rect_distance(v.rect, Vector2(t)) <= float(Config.SIEGE["approach"]) + float(Config.LURK["leash"])
+
+
+## Somewhere to roam to: a stretch away, outside `v`'s walls within the
+## leash; shy kinds ("lurk_shy") out of the reach of manned towers.
+func _roam_tile(v: Village) -> Vector2i:
+	var here := current_tile()
+	var stretch: Array = Config.LURK["stretch"]
+	var shy := bool(spec().get("lurk_shy", false))
+	var fallback := here
+	for i in 16:
+		var d := Vector2.from_angle(randf() * TAU) * randf_range(float(stretch[0]), float(stretch[1]))
+		var t := Vector2i((grid_pos + d).round())
+		if not in_lurk_range(v, t):
+			continue
+		if shy and tower_reach(Vector2(t)):
+			if fallback == here:
+				fallback = t
+			continue
+		return t
+	return fallback
+
+
+## Is `at` within reach (plus LURK tower_margin) of a manned tower of any village?
+func tower_reach(at: Vector2) -> bool:
+	var margin := float(Config.LURK["tower_margin"])
+	for b in game.world.towers():
+		var t := b as Tower
+		if t and t.garrison != null and t.garrison.state == MilitaryUnit.State.STATIONED and t.garrison.fights() \
+				and Vector2(t.tile).distance_to(at) <= t.range_tiles() + margin:
+			return true
+	return false
+
+
+## Gives up (Waves: only enemies that can't get in are left of the wave):
+## walks back the way it came and vanishes at the map edge, no loot. It can
+## still be killed on the way.
+func give_up() -> void:
+	if leaving or dead:
 		return
-	_stuck += delta
-	if _stuck >= float(Config.SIEGE["stuck_slip"]):
-		v.events.debug("%s slips past %s" % [label(), breach.label()])
-		_passing = breach
-		breach = null
+	leave_siege()
+	leaving = true
+	breach = null
+	if is_instance_valid(target_village):
+		target_village.events.info("%s gives up and leaves" % label().capitalize())
+	var back := CaptainBehavior.way_back(self)
+	if back.size() < 2:
+		vanish()
+		return
+	follow(back)
 
 
 ## Spatial magic on an enemy breaking in: thrown back up the field, tile by
@@ -1293,11 +1494,9 @@ func take_damage(amount: float, source: Node = null, category: String = "pure") 
 	if mount != "":
 		_hurt_mount(amount, source, category)
 		return
-	amount *= float(spec().get("resist", {}).get(category, 1.0))
+	amount *= damage_factor(category)
 	if category != "pure":
 		amount *= guard()  # (a commander's soldiers)
-	if (raised or undead) and category == "holy":
-		amount *= float(Config.ENEMIES["necromancer"]["raised_holy"])  # (the undead it raised)
 	hp -= amount
 	hurt_at = game.clock
 	behavior.on_hurt(self)

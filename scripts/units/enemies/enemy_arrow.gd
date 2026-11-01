@@ -48,7 +48,7 @@ func _process(delta: float) -> void:
 	var source: Node = archer if is_instance_valid(archer) else null
 	if is_instance_valid(target):
 		if target is Building:
-			(target as Building).take_damage(damage, source)
+			(target as Building).take_damage(damage, source, "projectile")
 		elif not target.dead:
 			target.take_damage(damage, source, "projectile")
 	queue_free()

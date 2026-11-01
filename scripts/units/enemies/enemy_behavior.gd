@@ -28,7 +28,7 @@ static func cleave(enemy: Enemy, foe: Node) -> void:
 	for node in tree.get_nodes_in_group("melee_defenders") + tree.get_nodes_in_group("villagers"):
 		if node == foe or node.dead or _sheltered(node) or (node.grid_pos as Vector2).distance_to(at) > r:
 			continue
-		node.take_damage(enemy.stat("damage") * share, enemy, enemy.attack_category())
+		enemy.blow(node, enemy.stat("damage") * share)
 
 
 ## Called every frame. Return true to hold the enemy in place this frame
@@ -45,8 +45,15 @@ func siege_attack(enemy: Enemy, b: Building) -> float:
 	if dmg <= 0.0:
 		return 0.0
 	enemy.swing(Vector2(b.tile))
-	b.take_damage(dmg, enemy)
+	b.take_damage(dmg, enemy, enemy.attack_category())
 	return enemy.stat("attack_cooldown") / enemy.haste()
+
+
+## Lurking outside walls it can't break (Enemy.lurker, Config.LURK): where it
+## wants to go next (grid position; Vector2.INF: anywhere, it roams). Only a
+## goal within the leash counts (Enemy.in_lurk_range).
+func lurk_goal(_enemy: Enemy) -> Vector2:
+	return Vector2.INF
 
 
 ## Called when the enemy is hurt by `source` (a Tower, or a melee defender).

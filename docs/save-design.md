@@ -65,7 +65,10 @@ stored. What may still be there, and is saved:
 - corpses (with their age);
 - every unit of the players wherever it is and whatever it does: villagers,
   marching or travelling units, units out of barracks against camp guards,
-  earth elementals, caravans, the hero (also downed, also carrying loot).
+  earth elementals, caravans, the hero (also downed, also carrying loot);
+- a poison dose still running on the hero, a villager or an elemental after its
+  poisoner died (docs/enemies-design.md §4a): it outlasts the wave, so it is
+  kept (a soldier's ends when it takes its post again).
 
 Debug-spawned enemies aren't saved.
 

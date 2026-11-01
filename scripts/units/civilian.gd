@@ -328,9 +328,10 @@ func inside_walls() -> bool:
 
 
 ## Hurt by an enemy (a blow, a bite, a spell): at 0 HP the villager dies.
-## Villagers never fight back; they flee (see _evade).
-func take_damage(amount: float, source = null, _category: String = "pure") -> void:
-	if not is_exposed():  # (nor if dead)
+## Villagers never fight back; they flee (see _evade). Poison already in them
+## goes on at home too (Poison).
+func take_damage(amount: float, source = null, category: String = "pure") -> void:
+	if dead or (category != "poison" and not is_exposed()):
 		return
 	hp -= amount
 	queue_redraw()
@@ -338,8 +339,11 @@ func take_damage(amount: float, source = null, _category: String = "pure") -> vo
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
 	if hp <= 0.0:
 		hp = 0.0
-		village.population.kill(self, "from the attack of %s" % game.who(source), "enemies")
-	elif not evading and wants_to_evade():
+		var why := "from the attack of %s" % game.who(source)
+		if category == "poison":
+			why = "of %s's poison" % game.who(source) if is_instance_valid(source) else "of poison"
+		village.population.kill(self, why, "enemies")
+	elif not evading and is_exposed() and wants_to_evade():
 		_evade()
 
 

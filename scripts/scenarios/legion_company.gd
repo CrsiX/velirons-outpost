@@ -292,7 +292,7 @@ func _take(from: String, sack: Treasure) -> void:
 	leader.add_child(_relic_spr)
 	leader.float_text("The relic!", Color("ff7a6a"))
 	relic_taken.emit(from)
-	leader.follow(CaptainBehavior._way_back(leader))
+	leader.follow(CaptainBehavior.way_back(leader))
 
 
 func _escape() -> void:

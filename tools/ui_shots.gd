@@ -142,6 +142,8 @@ func _run() -> void:
 		await _crown()
 	if only in ["", "spiders"]:
 		await _spiders()
+	if only in ["", "snakes"]:
+		await _snakes()
 	if only in ["", "undead_spiders"]:
 		await _undead_spiders()
 	if only in ["", "wrathwood"]:
@@ -1590,6 +1592,178 @@ func _spiders() -> void:
 	g.hud.library.close()
 	g.queue_free()
 	await _frames(3)
+
+
+# --- snakes, poison, lurking (docs/enemies-design.md §4a, §7a, §15g) -----------------------
+
+## A snake slithering and coiled, poison bubbles on a villager, the siege=0
+## kinds lurking outside held walls, a snake in through a breach, and the
+## library's snake, families, defence classes. Prints what it sees.
+func _snakes() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	g.disable_fog = true
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	g.events.shown_level = EventLog.Level.DEBUG
+	var v := g.player_village
+	var h := g.hero  # (out of the way: he'd fight everything)
+	h.process_mode = Node.PROCESS_MODE_DISABLED
+	h.remove_from_group("melee_defenders")
+	h.visible = false
+	for t in g.world.towers():
+		if t.garrison:
+			g.army.unstation(t.garrison)
+	var gate: Vector2i = v.gates[0]
+	var path: Array[Vector2i] = [gate]
+	var seen := {gate: true}
+	for i in 12:
+		for n in MapData.neighbors4(path.back()):
+			if g.map.is_road(n) and not seen.has(n) and not g.map.in_village(n):
+				seen[n] = true
+				path.append(n)
+				break
+	var far := path[mini(9, path.size() - 1)]
+	var spawn := func(kind: String, at: Vector2, hp_scale: float) -> Enemy:
+		g.waves._spawn({"kind": kind, "spawn": g.map.edge_spawns[0], "hp_scale": hp_scale, "village": v})
+		var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+		e.set_grid_pos(at)
+		var route := g.world.pathing.enemy_route(Vector2i(at.round()), RandomNumberGenerator.new(), -1)
+		var pts := PackedVector2Array([at])
+		for t in route:
+			pts.append(Vector2(t))
+		e.follow(pts)
+		return e
+	var clear := func() -> void:
+		for node in get_tree().get_nodes_in_group("enemies"):
+			(node as Enemy).vanish()
+	# A snake on the road beside a goblin (for size), slithering in.
+	var s: Enemy = spawn.call("snake", Vector2(far), 50.0)
+	var gob: Enemy = spawn.call("goblin", Vector2(far) + Vector2(0.9, -0.7), 50.0)
+	gob.speed = 0.0
+	g.camera.focus(Iso.to_world(s.grid_pos))
+	g.camera.zoom = Vector2(2.2, 2.2)
+	await _frames(14)
+	g.camera.focus(Iso.to_world(s.grid_pos))
+	await _frames(2)
+	await shot("snake_slither_a")
+	await _frames(7)
+	g.camera.focus(Iso.to_world(s.grid_pos))
+	await _frames(2)
+	await shot("snake_slither_b")
+	s.speed = 0.0
+	s.path = PackedVector2Array()
+	s._set_moving(false)
+	await _frames(10)
+	await shot("snake_coiled")
+	clear.call()
+	await _frames(10)
+	# Poison bubbles on a villager (the snake's dose on her).
+	var vil: Node2D = null
+	for node in get_tree().get_nodes_in_group("villagers"):
+		if node is Civilian and (node as Civilian).visible:
+			vil = node
+			break
+	if vil != null:
+		var bite: Enemy = spawn.call("snake", vil.grid_pos + Vector2(0.8, 0.3), 50.0)
+		bite.speed = 0.0
+		bite.process_mode = Node.PROCESS_MODE_DISABLED
+		vil.process_mode = Node.PROCESS_MODE_DISABLED  # (stays put; the bubbles draw on their own child)
+		Poison.give(vil, 3.0, bite)
+		Poison.of(vil).process_mode = Node.PROCESS_MODE_ALWAYS
+		g.camera.focus(Iso.to_world(vil.grid_pos))
+		g.camera.zoom = Vector2(2.2, 2.2)
+		await _frames(30)
+		print("villager poisoned: %s" % (Poison.of(vil) != null))
+		await shot("snake_poisoned_villager")
+		bite.process_mode = Node.PROCESS_MODE_INHERIT
+		vil.process_mode = Node.PROCESS_MODE_INHERIT
+		clear.call()
+		await _frames(10)
+	# The siege=0 kinds before held walls: a snake, a spider mother, a
+	# necromancer with a corpse to raise. They lurk; nothing gets in.
+	var huts_before := v.huts().filter(func(b: Building) -> bool: return not (b as Hut).ruined).size()
+	g.corpses.spawn("goblin", 1, Vector2(path[mini(6, path.size() - 1)]) + Vector2(0.5, 0.5))
+	var lurkers: Array[Enemy] = []
+	for k: String in ["snake", "snake", "spider_mother", "necromancer"]:
+		lurkers.append(spawn.call(k, Vector2(path[mini(4, path.size() - 1)]) + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 50.0))
+	g.camera.focus(Iso.tile_to_world(gate))
+	g.camera.zoom = Vector2(1.2, 1.2)
+	Engine.time_scale = 3.0
+	for i in 3:
+		await _game_wait(12.0)
+		var states: Array[String] = []
+		for e in lurkers:
+			if is_instance_valid(e):
+				states.append("%s lurking=%s at %s" % [e.kind, e.lurking, str(e.current_tile())])
+		print("t=%d: %s" % [(i + 1) * 12, ", ".join(states)])
+		g.camera.focus(Iso.tile_to_world(gate))
+		await _frames(2)
+		await shot("snake_lurk_%d" % i)
+	Engine.time_scale = 1.0
+	var huts_after := v.huts().filter(func(b: Building) -> bool: return not (b as Hut).ruined).size()
+	print("huts intact: %d before, %d after the lurk" % [huts_before, huts_after])
+	print("gate: hp %.0f devastated %s" % [g.map.building_at(gate).hp if g.map.building_at(gate) else -1.0, g.map.building_at(gate).devastated if g.map.building_at(gate) else false])
+	clear.call()
+	await _frames(10)
+	# A breach: the gate devastated, a snake goes in for one villager.
+	var gb: Building = g.map.building_at(gate)
+	if gb != null:
+		gb.take_damage(1e9, null)
+	var sn: Enemy = spawn.call("snake", Vector2(path[mini(3, path.size() - 1)]), 1.0)
+	Engine.time_scale = 3.0
+	var waited := 0.0
+	while is_instance_valid(sn) and waited < 60.0:
+		await _game_wait(0.5)
+		waited += 0.5
+		if is_instance_valid(sn):
+			g.camera.focus(Iso.to_world(sn.grid_pos))
+	Engine.time_scale = 1.0
+	print("snake after breach: gone=%s after %.1f s; huts %d" % [not is_instance_valid(sn), waited, v.huts().filter(func(b: Building) -> bool: return not (b as Hut).ruined).size()])
+	await _frames(10)
+	await shot("snake_after_breach")
+	# Killed: its corpse (food).
+	var dead: Enemy = spawn.call("snake", Vector2(far), 1.0)
+	dead.speed = 0.0
+	await _frames(5)
+	dead.take_damage(1e9, null)
+	await _frames(20)
+	g.camera.focus(Iso.to_world(Vector2(far)))
+	g.camera.zoom = Vector2(2.2, 2.2)
+	await _frames(10)
+	await shot("snake_corpse")
+	clear.call()
+	# The library: the snake under Beasts, the defence classes, a building's defence.
+	g.hud.open_library("enemies")
+	await _frames(10)
+	await _scroll_to(g.hud.library, "Snake")
+	await shot("snake_library_enemy")
+	g.hud.library.show_tab("damage")
+	await _frames(10)
+	await shot("snake_library_damage")
+	await _scroll_to(g.hud.library, "Stone defence")
+	await shot("snake_library_defences")
+	g.hud.library.show_tab("buildings")
+	await _frames(10)
+	await _scroll_to(g.hud.library, "Barracks")
+	await shot("snake_library_barracks")
+	g.hud.library.close()
+	g.queue_free()
+	await _frames(3)
+
+
+## Scrolls the library's list to the entry named `name` (or says it isn't there).
+func _scroll_to(lib: Library, name: String) -> void:
+	for c in lib._list.get_children():
+		if str(c.get_meta("entry_name", "")) == name:
+			await _frames(3)
+			lib._scroll.scroll_vertical = int((c as Control).position.y)
+			await _frames(3)
+			return
+	print("library: no entry %s (shown: %s)" % [name, ", ".join(lib.shown_names())])
 
 
 ## Waits `seconds` of game time (the frame delta already counts the time scale).

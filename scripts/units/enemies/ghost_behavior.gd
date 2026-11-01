@@ -177,7 +177,7 @@ func _strike(enemy: Enemy, foe: Node) -> void:
 		return
 	_attack_timer = enemy.stat("attack_cooldown") / enemy.haste()
 	enemy.swing(foe.grid_pos)
-	foe.take_damage(enemy.stat("damage"), enemy, enemy.attack_category())
+	enemy.blow(foe, enemy.stat("damage"))
 
 
 ## Flying to its target; a miner inside his mine is driven out by the ghost

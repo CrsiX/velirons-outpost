@@ -901,7 +901,7 @@ func _maul(g: Enemy, v: Village) -> void:
 	v.population.kill(hut.resident, "when %s got into their hut" % g.label(), "enemies")
 	if v.is_local():
 		Sfx.play("raid")
-	v.toast("A wolf got into the village and killed a villager!", Color("ff7a6a"))
+	v.toast("A %s got into the village and killed a villager!" % str(g.spec()["name"]).to_lower(), Color("ff7a6a"))
 	_check_defeat()
 
 

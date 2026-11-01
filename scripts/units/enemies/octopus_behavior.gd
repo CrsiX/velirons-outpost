@@ -138,7 +138,7 @@ func _tick_arms(enemy: Enemy, delta: float) -> void:
 				_set_tip(a, spot.move_toward(enemy.grid_pos, 0.35 * clampf(float(a["hit"]) / enemy.stat("smash_cooldown"), 0.0, 1.0)))
 				if float(a["hit"]) <= 0.0:
 					a["hit"] = enemy.stat("smash_cooldown")
-					(b as Building).take_damage(enemy.stat("arm_smash"), enemy)
+					(b as Building).take_damage(enemy.stat("arm_smash"), enemy, "melee")
 			Arm.HOLD:
 				if not up:
 					_retract(a, enemy.stat("arm_cooldown") * 0.5)  # (under a bridge: it lets go)

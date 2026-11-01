@@ -1817,16 +1817,16 @@ func _s9_rescued() -> void:
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if (e as Enemy).kind == "octopus_arm":
 				kill(e, h)
-	var first = p.held_by
+	var first_id: int = p.held_by.get_instance_id()  # (an id: the arm is freed once cut)
 	cut_arms.call()
-	check(await wait_until(func() -> bool: return not is_instance_valid(p.held_by) or p.held_by != first, 3.0) and not sc.mark.has("rescued") and not p.dead,
+	check(await wait_until(func() -> bool: return not is_instance_valid(p.held_by) or p.held_by.get_instance_id() != first_id, 3.0) and not sc.mark.has("rescued") and not p.dead,
 		"its arm cut: he is free, not saved yet")
 	# Its other arms are free at once (no cooldown): one of them catches him again,
 	# by itself (the bug: it dragged him straight under).
 	for a in ob.arms:
 		if a["state"] == OctopusBehavior.Arm.IDLE:
 			a["cd"] = 0.0
-	check(await wait_until(func() -> bool: return is_instance_valid(p.held_by) and p.held_by != first, 5.0)
+	check(await wait_until(func() -> bool: return is_instance_valid(p.held_by) and p.held_by.get_instance_id() != first_id, 5.0)
 		and ob.hold_left(p) > _s9().RESCUE_HOLD - 2.0, "an arm catches him again on its own: a new %d s (%.0f s)" % [int(_s9().RESCUE_HOLD), ob.hold_left(p)])
 	await wait(3.0)
 	check(not p.dead and is_instance_valid(p.held_by) and game.map.get_terrain(p.current_tile()) == MapData.Terrain.SHALLOW and int(sc.mark.get("catches", 1)) == 2,

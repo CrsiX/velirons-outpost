@@ -45,7 +45,10 @@ func _run() -> void:
 	await _test_flyer()
 	await _test_slip()
 	await _test_witch()
+	_test_defense()
 	await _test_no_siege()
+	await _test_road_end()
+	await _test_lurkers_leave()
 	await _test_exposed()
 	_test_hero_targets()
 	await _test_push()
@@ -564,7 +567,33 @@ func _test_witch() -> void:
 	reset_village()
 
 
+## Defence classes (docs/siege-design.md §2b): stone and wood take half from
+## projectiles, wood more from fire, no building anything from poison.
+func _test_defense() -> void:
+	var g := gate()
+	var w := walls_beside(g.tile)[0]
+	check(g.defense() == "stone_defense" and game.player_village.intact_huts()[0].defense() == "civilian", "a stone gate is stone defence, a hut civilian")
+	var hp0 := g.hp
+	g.take_damage(10.0, null, "projectile")
+	check(is_equal_approx(g.hp, hp0 - 5.0), "a stone gate takes half from arrows (%.1f)" % (hp0 - g.hp))
+	g.take_damage(10.0, null, "poison")
+	check(is_equal_approx(g.hp, hp0 - 5.0), "poison does nothing to it")
+	w.made_of = "wood"
+	var whp := w.hp
+	w.take_damage(10.0, null, "fire")
+	check(w.defense() == "wood_defense" and is_equal_approx(w.hp, whp - 15.0), "a wooden wall takes x1.5 from fire (%.1f)" % (whp - w.hp))
+	w.made_of = "stone"
+	var huts := intact()
+	var hut: Hut = game.player_village.intact_huts()[0]
+	hut.take_damage(50.0, null, "poison")
+	check(hut.is_intact() and intact() == huts, "a poison blow doesn't burn a hut")
+	reset_village()
+
+
+## A necromancer can't hurt the walls: it lurks outside them (never through
+## a held wall), and goes in once a wall is broken (docs/enemies-design.md §7a).
 func _test_no_siege() -> void:
+	var v := game.player_village
 	var g := gate()
 	var huts := intact()
 	for c in game.corpses.corpses.duplicate():
@@ -572,12 +601,57 @@ func _test_no_siege() -> void:
 	var ne := spawn("necromancer", Vector2(road_out(6)))
 	ne.max_hp = 1e6
 	ne.hp = 1e6
-	var waiting := await wait_until(func() -> bool: return ne.breach == g, 90.0)
-	await wait(5.0)
-	check(waiting and not ne.dead and g.hp == g.max_hp() and intact() == huts, "a necromancer can't hurt the gate: it waits in front of it")
-	var gone := await wait_until(func() -> bool: return ne.dead, float(Config.SIEGE["stuck_slip"]) + 30.0)
-	check(gone and intact() == huts - 1 and g.hp == g.max_hp(), "after a while it slips past and burns a hut (no stalled wave)")
+	var lurks := await wait_until(func() -> bool: return ne.lurking, 90.0)
+	var spots := {}
+	var outside := true
+	var leash := float(Config.SIEGE["approach"]) + float(Config.LURK["leash"]) + 1.0
+	var t := 0.0
+	while t < 40.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		spots[ne.current_tile()] = true
+		outside = outside and not v.rect.has_point(ne.current_tile()) and Hero.rect_distance(v.rect, ne.grid_pos) <= leash
+	check(lurks and not ne.dead and g.hp == g.max_hp() and intact() == huts, "a necromancer can't hurt the gate: it lurks, and no hut is lost")
+	check(outside and spots.size() >= 4, "it roams outside the walls within the leash (%d tiles)" % spots.size())
+	walls_beside(g.tile)[0].take_damage(1e6)
+	var gone := await wait_until(func() -> bool: return ne.dead, 60.0)
+	check(gone and intact() == huts - 1, "a wall broken: it goes in through the breach and burns a hut")
 	reset_village()
+
+
+## An enemy whose road ends short of the village goes on from there: it
+## breaks in by the field and never burns a hut through intact walls.
+func _test_road_end() -> void:
+	var g := gate()
+	var huts := intact()
+	var at := Vector2(road_out(9))
+	var gob := spawn("goblin", at)
+	gob.follow(PackedVector2Array([at, at + Vector2(0.01, 0)]))  # (its road ends here)
+	gob.max_hp = 1e6
+	gob.hp = 1e6
+	var hitting := await wait_until(func() -> bool: return gob.breach != null or g.hp < g.max_hp(), 60.0)
+	check(hitting and not gob.dead and intact() == huts, "its road ended outside the village: it walks on and breaks in, no hut burned")
+	await clear_enemies()
+	reset_village()
+
+
+## Once only enemies that can't get in are left (and have lurked a while),
+## they give up and walk away; the wave can end.
+func _test_lurkers_leave() -> void:
+	var huts := intact()
+	game.waves.wave = 3
+	game.waves.countdown = 0.0
+	game.waves.hold = false
+	var ne := spawn("necromancer", Vector2(road_out(6)))
+	var left := await wait_until(func() -> bool: return ne.leaving, float(Config.LURK["min_time"]) + float(Config.LURK["linger"]) + 60.0)
+	check(left and intact() == huts, "a lone lurker gives up and leaves; no hut lost")
+	var gone := await wait_until(when_gone(ne, func(x: Object) -> bool: return x.dead), 120.0)
+	check(gone and not game.waves.in_progress(), "it vanishes at the map edge and the wave ends")
+	await clear_enemies()
+	game.waves.countdown = 99999.0
+	game.waves.hold = true
+	game.waves.leftovers_leave = false
+	game.waves.leftover_deadline = -1.0
 
 
 func _test_exposed() -> void:

@@ -211,9 +211,9 @@ func _hit(enemy: Enemy, n: Node, spec: Dictionary) -> void:
 	_attack = enemy.stat("attack_cooldown")
 	enemy.swing(_where(n))
 	if n is Building:
-		(n as Building).take_damage(enemy.stat("damage") * float(spec["siege"]), enemy)
+		(n as Building).take_damage(enemy.stat("damage") * float(spec["siege"]), enemy, enemy.attack_category())
 	else:
-		n.take_damage(enemy.stat("damage"), enemy, enemy.attack_category())
+		enemy.blow(n, enemy.stat("damage"))
 
 
 ## Can it hit `n` (alive, standing, not sheltered)?

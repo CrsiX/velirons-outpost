@@ -9094,6 +9094,154 @@ def corpse_wolf():
     a.save("corpse_wolf")
 
 
+# ---------------------------------------------------------------- snake (docs/enemies-design.md §15g)
+
+SNAKE, SNAKE_D, SNAKE_L, SNAKE_BELLY, SNAKE_MARK = "#6f7d3c", "#4a5527", "#8e9c55", "#cfc58e", "#33391b"
+SNAKE_FRAMES = 6  # the slither cycle (Config.ENEMIES.snake "slither")
+SNAKE_LEN = 46.0  # body length, tail to snout, in pixels
+
+
+def _snake_width(s):
+    """Body thickness at s (0 tail .. 1 head): a thin tail, thickest a little
+    behind the middle, a narrower neck and a broader head."""
+    if s < 0.55:
+        return 1.2 + 4.6 * math.sin(s / 0.55 * math.pi / 2)
+    if s < 0.9:
+        return 5.8 - 2.2 * (s - 0.55) / 0.35
+    return 3.6 + 1.6 * math.sin((s - 0.9) / 0.1 * math.pi / 2)
+
+
+def _snake_tube(a, pts, widths, markings=True):
+    """A tube along `pts` (screen points, tail first) with `widths`: outline,
+    body, a lighter back, and dark saddle marks."""
+    n = len(pts)
+    for i in range(n - 1):  # the outline under everything
+        a.line([pts[i], pts[i + 1]], INK, widths[i] + 2.2)
+    for i in range(n - 1):
+        a.line([pts[i], pts[i + 1]], SNAKE, widths[i])
+    for i in range(n - 1):  # the belly shows a little at the lower edge
+        off = widths[i] * 0.28
+        a.line([(pts[i][0], pts[i][1] + off), (pts[i + 1][0], pts[i + 1][1] + off)], SNAKE_BELLY, widths[i] * 0.3, opacity=0.8)
+    for i in range(n - 1):  # light along the back
+        off = widths[i] * 0.22
+        a.line([(pts[i][0], pts[i][1] - off), (pts[i + 1][0], pts[i + 1][1] - off)], SNAKE_L, widths[i] * 0.28, opacity=0.75)
+    if markings:
+        for i in range(3, n - 4, 3):
+            w = widths[i]
+            a.ellipse(pts[i][0], pts[i][1] - w * 0.05, w * 0.42, w * 0.3, SNAKE_MARK, opacity=0.85)
+
+
+def _snake_head(a, x, y, angle, tongue):
+    """The head with its neck end at (x, y), pointing along `angle` (radians,
+    screen): a rounded spade, wide at the jaws and narrowing to the snout, a
+    yellow eye, and the forked tongue when `tongue`."""
+    c, s = math.cos(angle), math.sin(angle)
+
+    def at(u, v):  # u along the head, v across it
+        return (x + u * c - v * s, y + u * s + v * c)
+    if tongue:
+        tip = at(11.5, 0.3)
+        a.line([at(7.5, 0.3), tip], "#c0303a", 0.9)
+        a.line([tip, at(13.5, -1.2)], "#c0303a", 0.7)
+        a.line([tip, at(13.5, 1.8)], "#c0303a", 0.7)
+    outline = []
+    for k in range(13):  # round from the throat over the snout and back
+        t = -math.pi / 2 + math.pi * k / 12
+        u = 2.0 + 6.0 * math.cos(t)
+        v = 3.4 * math.sin(t) * (1.0 - 0.3 * max(0.0, math.cos(t)))
+        outline.append(at(u, v))
+    outline.append(at(-1.0, 2.6))
+    outline.append(at(-1.0, -2.6))
+    a.poly(outline, SNAKE, INK, 1.1)
+    a.poly([at(0, -2.2), at(4.5, -2.4), at(7.4, -0.7), at(1, -0.3)], SNAKE_L, stroke=None, opacity=0.55)
+    a.line([at(1.0, 1.4), at(7.2, 0.6)], SNAKE_D, 0.7)  # the mouth
+    a.ellipse(*at(3.6, -1.5), 1.25, 1.05, "#f2d040", INK, 0.5)
+    a.ellipse(*at(3.9, -1.5), 0.35, 0.8, INK)
+    a.ellipse(*at(7.2, -0.6), 0.35, 0.35, INK)  # nostril
+
+
+def snake_slither(frame):
+    """One frame of the slither: the body lies on the ground along an S-curve
+    (projected onto the iso ground: the sideways sway is halved on screen),
+    and the wave runs back along the body while the head goes almost straight
+    on; each frame shifts it by 1/SNAKE_FRAMES of a wavelength. Facing right."""
+    a = Art()
+    a.shadow(25, 4.5, cx=-2, cy=1, opacity=0.3)
+    phase = 2 * math.pi * frame / SNAKE_FRAMES
+    wavelength = 0.62  # of the body length
+    pts, widths = [], []
+    n = 28
+    for i in range(n + 1):
+        s = i / n
+        env = 0.35 + 0.65 * math.sin(min(s / 0.75, 1.0) * math.pi) if s < 0.75 else 0.35 * (1 - (s - 0.75) / 0.25) + 0.08
+        lateral = 7.5 * env * math.sin(2 * math.pi * s / wavelength + phase)
+        x = -SNAKE_LEN / 2 + SNAKE_LEN * s - 4
+        lift = -2.5 * max(0.0, (s - 0.85) / 0.15)  # the neck lifts the head a little
+        pts.append((x, -3 + lateral * 0.5 + lift))
+        widths.append(_snake_width(s))
+    _snake_tube(a, pts[:-2], widths[:-2])
+    hx, hy = pts[-1]
+    px, py = pts[-4]
+    _snake_head(a, hx, hy, math.atan2(hy - py, hx - px) * 0.5, frame in (1, 4))
+    a.save("unit_snake_slither_%d" % frame, fixed=(-34, -16, 34, 8))
+
+
+def snake():
+    """The base image: coiled, its head raised over the coils, ready to strike.
+    At rest, striking, and in the library."""
+    a = Art()
+    a.shadow(15, 6, cy=1, opacity=0.35)
+    turns = 1.7
+
+    def at(t):  # a spiral from the outer coil (the tail end) inwards and up
+        ang = math.pi * 0.15 + t * 2 * math.pi * turns
+        r = 13.0 - 7.0 * t
+        return (r * math.cos(ang), -3.5 + r * math.sin(ang) * 0.5 - 7.5 * t), math.sin(ang) > 0.0
+
+    m = 60
+    pts, front, widths = [], [], []
+    for i in range(m + 1):
+        t = i / m
+        p, f = at(t)
+        pts.append(p)
+        front.append(f)
+        widths.append(1.4 + 4.4 * math.sin(min(t / 0.4, 1.0) * math.pi / 2))
+    # Runs of the coil: the far halves first, then the near ones, outer before
+    # inner (the inner coils lie on top), each as one tube so it has no seams.
+    runs = []
+    start = 0
+    for i in range(1, m + 1):
+        if front[i] != front[start] or i == m:
+            runs.append((front[start], start, i))
+            start = i
+    for is_front in (False, True):
+        for f, i0, i1 in runs:
+            if f == is_front:
+                _snake_tube(a, pts[i0:i1 + 1], widths[i0:i1 + 1], markings=is_front)
+    # the neck rises out of the middle in a gentle S, the head forward
+    neck = [pts[-1], (-2.5, -15.0), (-2.0, -19.5), (1.0, -23.0), (5.0, -24.2)]
+    _snake_tube(a, neck, [5.0, 4.5, 4.0, 3.7, 3.6], markings=False)
+    _snake_head(a, 5.5, -24.3, -0.06, True)
+    a.save("unit_snake", fixed=(-20, -32, 22, 6))
+
+
+def corpse_snake():
+    a = Art()
+    a.ellipse(0, 0, 24, 5, "#000", opacity=0.28)
+    a.ellipse(1, 1, 16, 3.5, "#2a2a14", opacity=0.45)  # dark stain
+    pts, widths = [], []
+    n = 22
+    for i in range(n + 1):
+        s = i / n
+        pts.append((-22 + 42 * s, 1 + 3.2 * math.sin(s * math.pi * 1.3) * 0.5))
+        widths.append(_snake_width(s) * 0.9)
+    _snake_tube(a, pts[:-2], widths[:-2])
+    hx, hy = pts[-1]
+    a.poly([(hx - 3, hy - 3.2), (hx + 6, hy - 1), (hx + 6, hy + 1.2), (hx - 3, hy + 3.2)], SNAKE_D, INK, 1.0)  # the head on its side
+    a.line([(hx + 0.5, hy - 1.6), (hx + 2.5, hy - 0.4)], INK, 0.8)  # a closed eye
+    a.save("corpse_snake")
+
+
 def _horse_body(a, coat, coat_d, mane, cloth=None, trim=None):
     """A horse, side view, facing right, hooves at y=0, the saddle at about
     y=-40. `cloth`: a long caparison over it (the Legion's), `trim` its hem."""
@@ -9387,6 +9535,10 @@ def main():
     campaign_icon()
     wolf()
     corpse_wolf()
+    snake()
+    for i in range(SNAKE_FRAMES):
+        snake_slither(i)
+    corpse_snake()
     horse()
     corpse_horse()
     riders()  # (after the riders' own sprites: it seats them)

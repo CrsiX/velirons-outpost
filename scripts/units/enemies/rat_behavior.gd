@@ -12,7 +12,7 @@ extends EnemyBehavior
 ##              `give_up_check` s) and walk on to the next farm or the gate;
 ##   CHASE    - biting a villager or unit within `bite_range` (very little
 ##              damage); when it's gone or away, back to the farm or the road.
-## Leftover rats all vanish once the wave says so (Waves.rats_leave). A rat
+## Leftover rats all vanish once the wave says so (Waves.leftovers_leave). A rat
 ## that gets through a gate eats some of the village's food (Game).
 
 enum State { ROAD, TO_FARM, ON_FARM, CHASE }
@@ -34,7 +34,7 @@ var _rng := RandomNumberGenerator.new()
 
 func tick(enemy: Enemy, delta: float) -> bool:
 	me = enemy
-	if enemy.game.waves.rats_leave:
+	if enemy.game.waves.leftovers_leave:
 		_leave_farm()
 		enemy.vanish()
 		return true
@@ -137,7 +137,7 @@ func _chase(enemy: Enemy, delta: float) -> bool:
 		if _bite <= 0.0:
 			_bite = float(enemy.spec()["attack_cooldown"])
 			enemy.swing(foe.grid_pos)
-			foe.take_damage(enemy.stat("damage"), enemy, enemy.attack_category())
+			enemy.blow(foe, enemy.stat("damage"))
 		return true
 	_repath -= delta
 	if _repath <= 0.0:

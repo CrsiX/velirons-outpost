@@ -75,7 +75,24 @@ func _pages() -> void:
 	var lair := _facts("places", "Monster lair")
 	check(("wave %d" % Config.LAIR_FROM_WAVE) in lair and "Crypt" in lair, "lairs: their wave and kinds\n%s" % lair)
 	# The Damage page: an entry per category, who deals it and who resists it, all from Config.
-	check(Config.DAMAGE_CATEGORIES.all(func(c: String) -> bool: return Config.DAMAGE_INFO.has(c)) and _names("damage").size() == Config.DAMAGE_CATEGORIES.size(), "damage: an entry for every category (Config.DAMAGE_INFO)")
+	check(Config.DAMAGE_CATEGORIES.all(func(c: String) -> bool: return Config.DAMAGE_INFO.has(c)) and _names("damage").size() == Config.DAMAGE_CATEGORIES.size() + Config.DEFENSE_CLASSES.size(), "damage: an entry for every category (Config.DAMAGE_INFO) and every defence class")
+	var poison := _facts("damage", "Poison")
+	check("spider mother" in poison and "snake" in poison and "Skeleton x0" in poison and "Slime x0" in poison and "take x0 of it" in poison, "poison: the spider mother and the snake; the undead, slimes and the raised immune\n%s" % poison)
+	var wood := _facts("damage", "Wood defence")
+	check("fire x1.5" in wood and "projectile x0.5" in wood and "poison x0" in wood and "barracks" in wood and "wood" in wood, "wood defence: its factors, the barracks and wooden pieces\n%s" % wood)
+	check("Defence: stone defence" in _facts("buildings", "Light Stone") and "Defence: civilian" in _facts("buildings", "Village Hut"), "buildings name their defence class")
+	var snake := _facts("enemies", "Snake")
+	check("Beasts:" in snake and "Poisons:" in snake and "lurks outside" in snake and "kills a villager" in snake, "snake: a beast, poisons, lurks, mauls\n%s" % snake)
+	# Enemies come family by family.
+	var fams: Array = []
+	for e in Library.entries("enemies"):
+		var kind: String = Config.ENEMIES.keys().filter(func(k: String) -> bool: return Config.ENEMIES[k].get("library_name", Config.ENEMIES[k]["name"]) == e["name"])[0]
+		var fam: String = Config.ENEMIES[kind]["family"]
+		if fams.is_empty() or fams[-1] != fam:
+			fams.append(fam)
+	check(fams == Config.ENEMY_FAMILY_ORDER, "enemies are listed family by family %s" % str(fams))
+	check(Config.ENEMIES.values().all(func(e: Dictionary) -> bool: return Config.ENEMY_FAMILIES.has(e.get("family", ""))), "every enemy kind has a family")
+	check(Config.BUILDINGS.values().all(func(b: Dictionary) -> bool: return Config.DEFENSE_CLASSES.has(b.get("defense", ""))), "every building kind has a defence class")
 	var fire := _facts("damage", "Fire")
 	check("fire mage" in fire and "fire elementals" in fire and "Wrathwood x2" in fire and "Crab x0.5" in fire and "Vampire x0.67" in fire, "fire: the fire mage and fire elementals; the wrathwood x2, water monsters and the vampire less\n%s" % fire)
 	var proj := _facts("damage", "Projectile")

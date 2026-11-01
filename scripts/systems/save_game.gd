@@ -11,7 +11,7 @@ extends RefCounted
 ## length (u32) and the body (var_to_bytes, zstd). Plain values only: entities
 ## refer to each other by nid, villages by index, map objects by index.
 
-const FORMAT := 4
+const FORMAT := 5
 const MAGIC := "VOSV"
 const EXT := "vsave"
 const AUTO_PREFIX := "auto-"
@@ -340,7 +340,7 @@ static func _building_state(bd: Building) -> Dictionary:
 
 static func _civilian_state(c: Civilian) -> Dictionary:
 	var d := {"r": c.role, "v": c.village.id, "u": c.uid, "n": c.nid, "hut": c.hut.nid if is_instance_valid(c.hut) else 0,
-		"hp": c.hp, "home": c.at_home, "pos": c.grid_pos}
+		"hp": c.hp, "home": c.at_home, "pos": c.grid_pos, "po": Poison.capture(c)}
 	if c is Farmer:
 		var fa := c as Farmer
 		d["farm"] = fa.farm.nid if is_instance_valid(fa.farm) else 0
@@ -366,7 +366,7 @@ static func _gather_state(job: GatherJob) -> Dictionary:
 static func _hero_state(h: Hero) -> Dictionary:
 	var ex := h.jobs[Hero.Mode.EXPLORE] as HeroExploreJob
 	var carry: Dictionary = ex.carrying.duplicate() if ex.task == HeroExploreJob.Task.CARRYING else {}
-	return {"n": h.nid, "mode": int(h.mode), "xp": h.xp, "lvl": h.level, "hp": h.hp, "dead": h.dead, "pos": h.grid_pos,
+	return {"n": h.nid, "mode": int(h.mode), "xp": h.xp, "lvl": h.level, "hp": h.hp, "dead": h.dead, "pos": h.grid_pos, "po": Poison.capture(h),
 		"home": h.at_home, "sup": h.support_target.id if h.support_target else -1,
 		"camp": h.camp_target.index if is_instance_valid(h.camp_target) else -1,
 		"cry": [h.cry_bonus, h.cry_until], "gather": _gather_state(h.jobs[Hero.Mode.GATHER] as GatherJob),
@@ -393,7 +393,7 @@ static func _elementals(game: Game) -> Array:
 			for e in (u.behavior as SummonerBehavior).summons:
 				if is_instance_valid(e) and not e.dead:
 					out.append({"by": u.nid, "n": e.nid, "u": e.uid, "sm": e.summon, "hp": e.hp, "mhp": e.max_hp, "dmg": e.damage,
-						"home": e.home, "pos": e.grid_pos, "cry": [e.cry_bonus, e.cry_until]})
+						"home": e.home, "pos": e.grid_pos, "cry": [e.cry_bonus, e.cry_until], "po": Poison.capture(e)})
 	return out
 
 
@@ -589,6 +589,7 @@ static func _restore_civilian(game: Game, d: Dictionary, field: Array[Civilian])
 	game.world.objects.add_child(civ)
 	v.population.civilians.append(civ)
 	civ.hp = clampf(float(d["hp"]), 1.0, civ.max_hp)
+	Poison.restore(civ, d["po"])
 	var pos: Vector2 = d["pos"]
 	var home := bool(d["home"])
 	if civ is Farmer:
@@ -661,6 +662,7 @@ static func _restore_hero(game: Game, h: Hero, d: Dictionary, field: Array[Civil
 		h.visible = false
 		return
 	h.hp = clampf(float(d["hp"]), 1.0, h.max_hp)
+	Poison.restore(h, d["po"])
 	h.set_grid_pos(d["pos"])
 	h._set_home(bool(d["home"]))
 	_apply_gather(h.jobs[Hero.Mode.GATHER] as GatherJob, d["gather"])
@@ -743,6 +745,7 @@ static func _restore_elemental(game: Game, d: Dictionary) -> void:
 	e.setup(game, d["home"], Vector2i(pos.round()), float(d["mhp"]), float(d["dmg"]), str(d["sm"]))
 	e.set_grid_pos(pos)
 	e.hp = clampf(float(d["hp"]), 1.0, e.max_hp)
+	Poison.restore(e, d["po"])
 	e.cry_bonus = float(d["cry"][0])
 	e.cry_until = float(d["cry"][1])
 	e.uid = int(d["u"])

@@ -8,7 +8,10 @@ extends Node
 ## tower STEP plus STEP per SIEGE.hp_per_step of its HP. So enemies take the
 ## cheapest way in: the weakest barrier, or round to a broken one. Moving is
 ## 4-connected, so a broken corner tower leads nowhere while both walls next
-## to it stand. Flyers have a field of their own in which nothing blocks.
+## to it stand. Flyers have a field of their own in which nothing blocks, and
+## a third ("open") counts every intact barrier as a wall nobody passes: what
+## can't break anything goes in only where that one leads (lurkers,
+## docs/enemies-design.md §7a).
 ## Also tracks which villages have an enemy inside their walls (breached),
 ## and counts the damage done to buildings.
 
@@ -18,8 +21,9 @@ const BLOCKED := Pathing.UNREACHABLE
 const BARRIERS: Array[String] = ["gate", "wall", "wall_tower"]
 
 var game: Game
-## Per village id: {"area": Rect2i, "enter": [ground, air] PackedInt32Array,
-## "value": [ground, air] PackedInt32Array, "stale": bool, "urgent": bool,
+## Per village id: {"area": Rect2i, "enter": [ground, air, open] PackedInt32Array,
+## "value": [ground, air, open] PackedInt32Array, "open_way": bool (the open
+## field reaches a tile outside the village's walls), "stale": bool, "urgent": bool,
 ## "at": game clock when built, "version": the pathing's version then}.
 var _fields: Dictionary = {}
 ## Village ids with an enemy inside their walls now.
@@ -113,14 +117,11 @@ func way_cost(v: Village, n: Vector2i, air: bool) -> int:
 
 
 ## The best neighbour to step to from `from` (`from` itself: none).
-## `passing`: a barrier this enemy goes through as if it were open.
-func next_step(v: Village, from: Vector2i, air: bool, passing: Building = null) -> Vector2i:
+func next_step(v: Village, from: Vector2i, air: bool) -> Vector2i:
 	var best := from
 	var best_c := BLOCKED
 	for n in MapData.neighbors4(from):
 		var c := way_cost(v, n, air)
-		if passing != null and barrier_at(v, n) == passing:
-			c = STEP + value(v, n, air)
 		if c < best_c:
 			best_c = c
 			best = n
@@ -132,6 +133,69 @@ func best_way(v: Village, from: Vector2i, air: bool) -> int:
 	var best := BLOCKED
 	for n in MapData.neighbors4(from):
 		best = mini(best, way_cost(v, n, air))
+	return best
+
+
+## A way into `v` without breaking anything: a breach (or no walls at all).
+func open_way(v: Village) -> bool:
+	return bool(_field(v)["open_way"])
+
+
+## Open-field cost from `t` to the nearest intact hut (BLOCKED: no way
+## without breaking something, or outside the field).
+func open_value(v: Village, t: Vector2i) -> int:
+	var f := _field(v)
+	var area: Rect2i = f["area"]
+	if not area.has_point(t):
+		return BLOCKED
+	return (f["value"][2] as PackedInt32Array)[_idx(area, t)]
+
+
+## The best neighbour to step to from `from` in the open field (`from` itself: none).
+func open_next_step(v: Village, from: Vector2i) -> Vector2i:
+	var f := _field(v)
+	var area: Rect2i = f["area"]
+	var best := from
+	var best_c := BLOCKED
+	for n in MapData.neighbors4(from):
+		if not area.has_point(n):
+			continue
+		var i := _idx(area, n)
+		var e: int = (f["enter"][2] as PackedInt32Array)[i]
+		var val: int = (f["value"][2] as PackedInt32Array)[i]
+		if e < BLOCKED and val < BLOCKED and e + val < best_c:
+			best_c = e + val
+			best = n
+	return best
+
+
+## The tile outside `v`'s walls nearest `from` from which the open field
+## leads in (Vector2i(-1, -1): none).
+func open_entry(v: Village, from: Vector2i) -> Vector2i:
+	return _entry(v, from, 2)
+
+
+## The tile outside `v`'s walls nearest `from` from which the field leads in
+## (Vector2i(-1, -1): none), for one whose road ended short of the village.
+func field_entry(v: Village, from: Vector2i, air: bool) -> Vector2i:
+	return _entry(v, from, 1 if air else 0)
+
+
+func _entry(v: Village, from: Vector2i, layer: int) -> Vector2i:
+	var f := _field(v)
+	var area: Rect2i = f["area"]
+	var vals: PackedInt32Array = f["value"][layer]
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for y in range(area.position.y, area.end.y):
+		for x in range(area.position.x, area.end.x):
+			var t := Vector2i(x, y)
+			if v.rect.has_point(t) or vals[_idx(area, t)] >= BLOCKED:
+				continue
+			var d := Vector2(t).distance_squared_to(Vector2(from))
+			if d < best_d:
+				best_d = d
+				best = t
 	return best
 
 
@@ -179,18 +243,33 @@ func _build(v: Village, f: Dictionary) -> void:
 	var huts: Array[int] = []
 	var ground := PackedInt32Array()
 	var air := PackedInt32Array()
+	var open := PackedInt32Array()
 	ground.resize(n)
 	air.resize(n)
+	open.resize(n)
 	for y in range(area.position.y, area.end.y):
 		for x in range(area.position.x, area.end.x):
 			var t := Vector2i(x, y)
 			var i := _idx(area, t)
 			air[i] = STEP
 			ground[i] = _ground_cost(v, t)
+			open[i] = BLOCKED if barrier_at(v, t) != null else ground[i]
 			if hut_at(v, t) != null:
 				huts.append(i)
-	f["enter"] = [ground, air]
-	f["value"] = [_dijkstra(area, ground, huts), _dijkstra(area, air, huts)]
+	f["enter"] = [ground, air, open]
+	var open_value := _dijkstra(area, open, huts)
+	f["value"] = [_dijkstra(area, ground, huts), _dijkstra(area, air, huts), open_value]
+	f["open_way"] = _reaches_outside(v, area, open_value)
+
+
+## Does the field `values` reach any tile outside `v`'s walls?
+func _reaches_outside(v: Village, area: Rect2i, values: PackedInt32Array) -> bool:
+	for y in range(area.position.y, area.end.y):
+		for x in range(area.position.x, area.end.x):
+			var t := Vector2i(x, y)
+			if not v.rect.has_point(t) and values[_idx(area, t)] < BLOCKED:
+				return true
+	return false
 
 
 func _ground_cost(v: Village, t: Vector2i) -> int:

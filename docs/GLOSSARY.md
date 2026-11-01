@@ -17,16 +17,16 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Starvation / hunger**: villagers die one by one while food is out; military units slow down and take more damage.
 
 ## Combat
-- **Damage category**: melee, projectile, magical, fire, holy or pure (poison planned); enemies resist or are weak to categories. `enemies-design.md`
-- **Poison** (planned): a damage category dealt as a decaying dose over time; buildings, the undead and aberrations are immune. `enemies-design.md` §4a
-- **Enemy family** (planned): The Horde, Beasts, Undead, Aquatic, Humans, Aberrations; a description of what may come, never a number. `enemies-design.md` §4b
-- **Defence class** (planned): stone defence, wood defence or civilian; how a building takes each damage category. `siege-design.md` §2b
+- **Damage category**: melee, projectile, magical, fire, holy, poison or pure; enemies resist or are weak to categories. `enemies-design.md`
+- **Poison**: a damage category dealt as a decaying dose over time; buildings, the undead and aberrations are immune. `enemies-design.md` §4a
+- **Enemy family**: The Horde, Beasts, Undead, Aquatic, Humans, Aberrations; a description of what may come, never a number. `enemies-design.md` §4b
+- **Defence class**: stone defence, wood defence or civilian; how a building takes each damage category. `siege-design.md` §2b
 - **Specialisation (branch)**: a base unit turns into a specialised kind from a minimum level and starts again at level 1. `military-design.md`
 - **Summon / elemental**: units a summoner creates (earth, fire, thornlings); they crumble with their summoner.
 - **Aura**: a High Priest's buff, strongest counts, no stacking. **War cry**: the Warrior's haste shout.
 - **Holy / unholy**: the acolyte line's damage; skeletons, necromancers, vampires and anything raised or undead count as unholy. `acolyte-design.md`
 - **Raised**: an enemy a necromancer brings back; it drains away and is undead.
-- **Held wall / lurking** (planned): no ground enemy burns a hut while the walls stand; enemies that can't break in roam outside (lurk) until a breach, or leave. `enemies-design.md` §7a
+- **Held wall / lurking / leftovers**: no ground enemy burns a hut while the walls stand; enemies that can't break in roam outside (lurk) until a breach, or leave. `enemies-design.md` §7a
 - **Siege field**: the cost field enemies near a village follow to its cheapest way in. **Breached**: an enemy is inside. **Slip**: rats and thieves get through gates unharmed after a delay. `siege-design.md`
 - **Mount / rider / charge / circling**: mounted enemies' rules (hits land on the mount first; they circle the village instead of breaking barriers until a breach). `enemies-design.md`
 - **Dive**: water monsters going under on deep water, untargetable. `aquatic-design.md`

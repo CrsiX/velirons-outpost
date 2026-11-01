@@ -11,6 +11,9 @@ extends EnemyBehavior
 ## Healing Mage or High Priest, who can't hurt it, doesn't count), it
 ## doesn't walk on: it stays and waits for its next raise. In a High
 ## Priest's aura (it or the corpse) the spell takes necro_slow x as long.
+## At walls it can't break it lurks (Enemy.lurker) and goes for corpses within
+## the leash; it never raises one inside the walls of a village without a
+## breach (docs/enemies-design.md §7a).
 
 var corpse: Corpse = null
 var _channel := 0.0
@@ -66,6 +69,20 @@ func on_death(enemy: Enemy) -> void:
 	_stop(enemy)
 
 
+## Lurking: the nearest corpse it may raise within the leash.
+func lurk_goal(enemy: Enemy) -> Vector2:
+	var best := Vector2.INF
+	var best_d := INF
+	for c in enemy.game.corpses.corpses:
+		if not _raisable(enemy, c) or not enemy.in_lurk_range(enemy.target_village, Vector2i(c.grid_pos.round())):
+			continue
+		var d := c.grid_pos.distance_to(enemy.grid_pos)
+		if d < best_d:
+			best_d = d
+			best = c.grid_pos
+	return best
+
+
 func _corpse_ok(enemy: Enemy) -> bool:
 	return is_instance_valid(corpse) and enemy.game.corpses.corpses.has(corpse) and corpse.claimed_by == null and corpse.raising_by == enemy
 
@@ -85,10 +102,19 @@ static func _find(enemy: Enemy) -> Corpse:
 	var best: Corpse = null
 	var best_d := float(enemy.spec()["raise_range"])
 	for c in enemy.game.corpses.corpses:
-		if not c.revivable or c.claimed_by != null or (c.raising_by != null and is_instance_valid(c.raising_by)):
+		if not _raisable(enemy, c):
 			continue
 		var d := c.grid_pos.distance_to(enemy.grid_pos)
 		if d <= best_d:
 			best_d = d
 			best = c
 	return best
+
+
+## May it raise `c`? Revivable, nobody else at it, and not inside the walls
+## of a village without a breach (what rose there would be in unbroken).
+static func _raisable(enemy: Enemy, c: Corpse) -> bool:
+	if not c.revivable or c.claimed_by != null or (c.raising_by != null and is_instance_valid(c.raising_by)):
+		return false
+	var vid := enemy.game.map.village_at(Vector2i(c.grid_pos.round()))
+	return vid < 0 or vid >= enemy.game.villages.size() or enemy.game.siege.open_way(enemy.game.villages[vid])

@@ -54,7 +54,7 @@ func on_hurt(enemy: Enemy) -> void:
 	enemy.modulate.a = 0.75
 	if enemy.target_village:
 		enemy.target_village.events.important("%s is beaten and falls back" % enemy.label().capitalize())
-	enemy.follow(CaptainBehavior._way_back(enemy))
+	enemy.follow(CaptainBehavior.way_back(enemy))
 	enemy.queue_redraw()
 
 

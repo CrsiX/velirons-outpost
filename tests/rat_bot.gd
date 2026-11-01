@@ -199,16 +199,16 @@ func _test_farm() -> void:
 	check(is_instance_valid(kept) and not kept.dead, "one that is attacked stays")
 	check(game.economy.amount("gold") == gold0, "vanishing rats give no gold")
 	await clear_enemies()
-	# Leftover rats once the rest of the wave is gone: all gone within RAT_WAVE_LINGER.
+	# Leftover rats once the rest of the wave is gone: all gone within LURK.linger.
 	game.waves.wave = 3
 	game.waves.countdown = 0.0
 	var r2 := spawn("rat", Vector2(road))
-	var linger := await wait_until(func() -> bool: return game.waves.rat_deadline > 0.0, 5.0)
-	var cleared := await wait_until(when_gone(r2, func(x: Object) -> bool: return x.dead), Config.RAT_WAVE_LINGER + 5.0)
-	check(linger and cleared and not game.waves.in_progress(), "rats alone at the end of a wave vanish within %.0f s and the wave ends" % Config.RAT_WAVE_LINGER)
+	var linger := await wait_until(func() -> bool: return game.waves.leftover_deadline > 0.0, 5.0)
+	var cleared := await wait_until(when_gone(r2, func(x: Object) -> bool: return x.dead), float(Config.LURK["linger"]) + 5.0)
+	check(linger and cleared and not game.waves.in_progress(), "rats alone at the end of a wave vanish within %.0f s and the wave ends" % float(Config.LURK["linger"]))
 	await wait(0.5)
 	game.waves.countdown = 99999.0
-	game.waves.rats_leave = false
+	game.waves.leftovers_leave = false
 
 
 # --- the gate --------------------------------------------------------------------------------

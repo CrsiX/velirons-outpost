@@ -45,11 +45,13 @@ var _queue: Array[Dictionary] = []
 var _spawn_timer := 0.0
 var _alive := 0
 var _rng := RandomNumberGenerator.new()
-## Rats left over once the rest of the wave is gone get RAT_WAVE_LINGER
-## seconds; then `rats_leave` is set and they all vanish (RatBehavior).
-var rat_deadline := -1.0
-var rats_leave := false
-var _rat_scan := 0.0
+## Leftovers (docs/enemies-design.md §7a): once all that is left of the wave
+## can't get in (rats, lurkers that have lurked LURK min_time), they get
+## LURK linger seconds; then `leftovers_leave` is set: rats vanish
+## (RatBehavior), lurkers give up and walk away (Enemy.give_up).
+var leftover_deadline := -1.0
+var leftovers_leave := false
+var _leftover_scan := 0.0
 ## Per village id: Aqua.eligibility (worked out at the first wave).
 var _aqua: Dictionary = {}
 ## Water kinds (and kinds with a "first" line) whose first one was logged
@@ -134,8 +136,8 @@ func start_now() -> void:
 
 
 func _start_wave() -> void:
-	rat_deadline = -1.0
-	rats_leave = false
+	leftover_deadline = -1.0
+	leftovers_leave = false
 	_water_only = 0.0
 	_water_warned = false
 	_water_idle = 0.0
@@ -404,7 +406,7 @@ func _process(delta: float) -> void:
 		if countdown <= 0.0:
 			_start_wave()
 		return
-	_check_rats(delta)
+	_check_leftovers(delta)
 	_check_water(delta)
 	if _queue.is_empty():
 		return
@@ -488,35 +490,43 @@ func _water_left() -> Array[Enemy]:
 	return out
 
 
-## Once no enemy but rats is left (and only rats are still to come), the rats
-## get RAT_WAVE_LINGER seconds; then they all vanish.
-func _check_rats(delta: float) -> void:
-	if rats_leave:
+## Once no enemy is left but those that can't get in (rats, and lurkers that
+## have lurked LURK min_time; only those still to come), they get LURK linger
+## seconds; then they leave: rats vanish, lurkers give up (Enemy.give_up).
+func _check_leftovers(delta: float) -> void:
+	if leftovers_leave:
 		return
-	if rat_deadline >= 0.0:
-		rat_deadline -= delta
-		if rat_deadline <= 0.0:
-			rats_leave = true
+	if leftover_deadline >= 0.0:
+		leftover_deadline -= delta
+		if leftover_deadline <= 0.0:
+			leftovers_leave = true
+			for node in get_tree().get_nodes_in_group("enemies"):
+				var e := node as Enemy
+				if not e.dead and not e.wild() and e.lurker() and not _uncounted.has(e):
+					e.give_up()
 		return
-	_rat_scan -= delta
-	if _rat_scan > 0.0 or _alive <= 0:
+	_leftover_scan -= delta
+	if _leftover_scan > 0.0 or _alive <= 0:
 		return
-	_rat_scan = 0.5
-	if _queue.any(func(sp: Dictionary) -> bool: return sp.get("kind", "") != "rat"):
+	_leftover_scan = 0.5
+	if _queue.any(func(sp: Dictionary) -> bool: return not _leftover_kind(str(sp.get("kind", "")))):
 		return
-	var others := false
-	var rats := false
+	var any := false
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.dead or e.wild():
+		if e.dead or e.wild() or e.behavior is ArmBehavior or _uncounted.has(e):
 			continue
-		if e.kind == "rat":
-			rats = true
+		if e.leaving or e.kind == "rat" or (e.lurker() and e.lurking and e.lurked >= float(Config.LURK["min_time"])):
+			any = true
 		else:
-			others = true
-			break
-	if rats and not others:
-		rat_deadline = Config.RAT_WAVE_LINGER
+			return
+	if any:
+		leftover_deadline = float(Config.LURK["linger"])
+
+
+## A kind that can't get into a held village: rats, and lurkers (Enemy.lurker).
+static func _leftover_kind(kind: String) -> bool:
+	return kind == "rat" or (Config.ENEMIES.has(kind) and Enemy.lurker_kind(Config.ENEMIES[kind]))
 
 
 func _spawn(spec: Dictionary) -> Enemy:
@@ -848,8 +858,8 @@ func _enemy_gone(g: Enemy = null) -> void:
 		return
 	_alive -= 1
 	if not in_progress() and wave > 0:
-		rat_deadline = -1.0
-		rats_leave = false
+		leftover_deadline = -1.0
+		leftovers_leave = false
 		countdown = buffer if last_wave <= 0 or wave < last_wave else -1.0
 		game.log_all(EventLog.Level.INFO, "Wave %d is over" % wave)
 		wave_finished.emit(wave)

@@ -52,7 +52,7 @@ func tick(enemy: Enemy, delta: float) -> bool:
 				dmg = enemy.stat("spell_damage")
 			enemy.swing(_foe.grid_pos)
 			cleave(enemy, _foe)
-			_foe.take_damage(dmg, enemy, enemy.attack_category())
+			enemy.blow(_foe, dmg)
 		return true
 	# Nobody around: back to its spot by the fire.
 	if enemy.grid_pos.distance_to(home) > 0.05:

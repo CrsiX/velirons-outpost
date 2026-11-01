@@ -318,7 +318,7 @@ func _strike(enemy: Enemy, foe: Node) -> void:
 			Combat.burst(enemy.game, "dust", enemy.position, 0.6)
 		enemy.spend_charge()
 	cleave(enemy, foe)
-	foe.take_damage(dmg, enemy, enemy.attack_category())
+	enemy.blow(foe, dmg)
 
 
 ## Does `foe` break a rider's charge (a halberdier, MILITARY "breaks_charge")?

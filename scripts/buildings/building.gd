@@ -241,9 +241,19 @@ func can_be_hurt() -> bool:
 	return complete and not devastated and village != null and not game.backdrop and not game.is_client
 
 
-## Damage from an enemy (`source`); every category counts the same. At 0 HP
-## the building is devastated (Construction.on_devastated).
-func take_damage(amount: float, source: Node = null) -> void:
+## Its defence class (Config.DEFENSE_CLASSES): walls, gates and wall towers
+## by their material, everything else by its kind.
+func defense() -> String:
+	if Config.PIECE_MATERIAL_SCALED.has(kind):
+		return str(Config.PIECE_MATERIALS[made_of]["defense"])
+	return str(Config.BUILDINGS.get(kind, {}).get("defense", "civilian"))
+
+
+## Damage from an enemy (`source`), scaled by its defence class for the
+## blow's `category` (docs/siege-design.md §2b). At 0 HP the building is
+## devastated (Construction.on_devastated).
+func take_damage(amount: float, source: Node = null, category: String = "pure") -> void:
+	amount *= Config.defense_factor(defense(), category)
 	if amount <= 0.0 or not can_be_hurt():
 		return
 	var before := hp

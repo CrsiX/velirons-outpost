@@ -46,6 +46,8 @@ func _run() -> void:
 	await _test_vultures()
 	await _test_riders()
 	await _test_ghosts()
+	await _test_poison()
+	await _test_snake()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -1836,3 +1838,128 @@ func _test_ghosts() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
 		(e as Enemy).vanish()
 	await frames(3)
+
+
+# --- poison (docs/enemies-design.md §4a) ----------------------------------------------------
+
+func _test_poison() -> void:
+	print("-- poison")
+	await clear_enemies()
+	var v := game.player_village
+	check("poison" in Config.DAMAGE_CATEGORIES and Config.DAMAGE_INFO.has("poison"), "poison is a damage category")
+	var sm: Dictionary = Config.ENEMIES["spider_mother"]
+	check(sm["attack_category"] == "poison" and float(sm["siege"]) == 0.0 and Enemy.lurker_kind(sm), "the spider mother bites with poison and can't break walls: she lurks")
+	var at := Vector2(road_out(14))
+	var m := spawn("spider_mother", at + Vector2(0, 3))
+	m.set_process(false)  # (only the source of the doses here)
+	var p := Poison.params(sm)
+	var el := _elemental("earth", at, 1000.0)
+	el.set_process(false)
+	Poison.give(el, 10.0, m)
+	var dose := Poison.of(el)
+	check(dose != null and is_equal_approx(el.hp, 990.0) and is_equal_approx(dose.dose, 10.0 * float(p["decay"])), "a dose: its first tick at once, the next %s x smaller" % _n(p["decay"]))
+	var running := Poison.total(dose.dose, dose.decay, dose.cutoff)
+	Poison.give(el, 1.0, m)
+	check(Poison.of(el) == dose and is_equal_approx(Poison.total(dose.dose, dose.decay, dose.cutoff), running), "a weaker dose doesn't replace it")
+	var hp1 := el.hp
+	await wait(float(p["interval"]) + 0.3)
+	check(el.hp < hp1 and el.hp > hp1 - 10.0, "a tick later it hurts again, less (%.2f)" % (hp1 - el.hp))
+	var all := Poison.total(10.0, float(p["decay"]), float(p["cutoff"]))
+	var ended := await wait_until(func() -> bool: return Poison.of(el) == null, 40.0)
+	check(ended and absf((1000.0 - el.hp) - all) < 0.01, "it wears off below its cut-off, having dealt its total (%.2f of %.2f)" % [1000.0 - el.hp, all])
+	el.queue_free()
+	# Who can't be poisoned: the undead, the raised, the unnatural.
+	var sk := spawn("skeleton", at + Vector2(1, 0))
+	var sl := spawn("slime3", at + Vector2(2, 0))
+	var gob := spawn("goblin", at + Vector2(3, 0))
+	var raised := spawn("goblin", at + Vector2(4, 0))
+	raised.raised = true
+	for e in [sk, sl, gob, raised]:
+		Poison.give(e, 5.0, m)
+	check(Poison.of(sk) == null and Poison.of(sl) == null and Poison.of(raised) == null and Poison.of(gob) != null, "skeletons, slimes and the raised can't be poisoned; a goblin can")
+	await clear_enemies()
+	# Poison already in a villager goes on at home.
+	var f := stand_villager("farmer", at + Vector2(-1, 0))
+	f.hp = f.max_hp
+	Poison.give(f, 2.0, null)
+	f.at_home = true
+	f.visible = false
+	var hp_home := f.hp
+	await wait(Config.POISON["interval"] + 0.3)
+	check(f.hp < hp_home, "a poisoned villager who got home still takes the ticks")
+	f.at_home = false
+	f.visible = true
+	f.hp = f.max_hp
+	f.set_process(true)
+	for c in f.get_children():
+		if c is Poison:
+			c.queue_free()
+	# Her bite poisons; she lurks at the walls and burns no hut through them.
+	var huts := v.intact_huts().size()
+	var gate_b := game.map.building_at(v.gates[0]) as Building
+	var mother := spawn("spider_mother", Vector2(road_out(5)), 1.0, true)
+	mother.max_hp = 1e6
+	mother.hp = 1e6
+	var lurks := await wait_until(func() -> bool: return mother.lurking, 60.0)
+	await wait(10.0)
+	check(lurks and gate_b.hp == gate_b.max_hp() and v.intact_huts().size() == huts, "at the walls she lurks: the gate takes nothing, no hut burns")
+	var target := _elemental("earth", mother.grid_pos + Vector2(0.4, 0), 1000.0)
+	var bitten := await wait_until(func() -> bool: return Poison.of(target) != null, 10.0)
+	check(bitten, "her bite poisons whoever it hits")
+	target.queue_free()
+	await clear_enemies()
+	await clear_corpses()
+
+
+static func _n(x) -> String:
+	return Library._n(float(x))
+
+
+# --- snake (docs/enemies-design.md §15g) ----------------------------------------------------
+
+func _test_snake() -> void:
+	print("-- snake")
+	await clear_enemies()
+	await clear_corpses()
+	var v := game.player_village
+	var sn: Dictionary = Config.ENEMIES["snake"]
+	var s3: Dictionary = Config.ENEMIES["slime3"]
+	check(sn["family"] == "beasts" and sn["attack_category"] == "poison" and float(sn["siege"]) == 0.0 and sn["raid"] == "maul" and Enemy.lurker_kind(sn), "a snake: a beast, poison only, breaks nothing (lurks), mauls")
+	check(sn["hp"] == s3["hp"] and sn["speed"] == s3["speed"] and sn["gold_on_kill"] == s3["gold_on_kill"] and int(sn["food_on_collect"]) > 0 and sn.get("corpse", true), "about a big slime's strength and kill gold; a corpse with food")
+	check(int(Config.WAVE_MIX["snake"]["from_wave"]) > int(Config.WAVE_MIX["slime3"]["from_wave"]), "it comes after the slimes")
+	var frames_ok := ResourceLoader.exists("res://art/unit_snake.svg") and ResourceLoader.exists("res://art/corpse_snake.svg")
+	for i in int(sn["slither"]):
+		frames_ok = frames_ok and ResourceLoader.exists("res://art/unit_snake_slither_%d.svg" % i)
+	check(frames_ok, "art: coiled, %d slither frames, corpse" % int(sn["slither"]))
+	# It slithers: frames by distance moved, coiled when it stops.
+	var huts := v.intact_huts().size()
+	var s := spawn("snake", Vector2(road_out(10)), 1.0, true)
+	s.max_hp = 1e6
+	s.hp = 1e6
+	var seen := {}
+	for i in 90:
+		await get_tree().process_frame
+		if s.moving:
+			seen[s.sprite.texture] = true
+	check(seen.size() >= 3 and not seen.has(Art.tex("unit_snake")), "moving, it shows its slither frames (%d seen)" % seen.size())
+	# At the walls it lurks and goes for whoever is outside.
+	var lurks := await wait_until(func() -> bool: return s.lurking, 90.0)
+	check(lurks and v.intact_huts().size() == huts, "at intact walls it lurks; no hut lost")
+	var still := await wait_until(func() -> bool: return not s.moving, 20.0)
+	check(still and s.sprite.texture == Art.tex("unit_snake"), "standing, it is coiled")
+	var prey := stand_villager("forester", s.grid_pos + Vector2(2.5, 0))
+	if not s.in_lurk_range(v, prey.current_tile()):
+		prey.set_grid_pos(s.grid_pos + Vector2(1.0, 0))
+	var bit := await wait_until(func() -> bool: return Poison.of(prey) != null or prey.dead, 30.0)
+	check(bit, "it goes for a villager outside and poisons them")
+	prey.set_process(true)
+	# Through a breach it kills a villager in their hut and is gone; no hut burns.
+	var people := v.population.civilians.size()
+	var w := game.map.building_at(v.gates[0]) as Building
+	w.take_damage(1e6)
+	var gone := await wait_until(func() -> bool: return s.dead, 90.0)
+	check(gone and v.intact_huts().size() == huts and v.population.civilians.size() <= people - 1, "through the breach it kills a villager and burns no hut")
+	_mend_walls(v)
+	await clear_enemies()
+	await clear_corpses()
+

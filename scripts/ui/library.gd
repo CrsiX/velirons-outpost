@@ -241,7 +241,7 @@ static func tab_note(key: String) -> String:
 		"units":
 			return "Values go from level 1 to level %d. On a tower a unit shoots as far as the tower reaches." % Config.MAX_UNIT_LEVEL
 		"damage":
-			return "Every hit is one kind of damage. Some enemies take more or less of a kind (x the damage); buildings take every kind the same."
+			return "Every hit is one kind of damage. Some enemies take more or less of a kind (x the damage); buildings take it by their defence class (at the end)."
 	return ""
 
 
@@ -265,92 +265,112 @@ static func entries(key: String) -> Array[Dictionary]:
 	return []
 
 
+## Every enemy kind with an entry, family by family (Config.ENEMY_FAMILY_ORDER).
 static func _enemies() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for kind: String in Config.ENEMIES:
-		var e: Dictionary = Config.ENEMIES[kind]
-		if not e.get("library", true):
-			continue  # (the smaller slimes: part of the slime's entry)
-		var f := PackedStringArray()
-		var from := _enemy_from_wave(kind)
-		if from > 0:
-			f.append("In the waves from wave %d%s" % [from, " (in packs)" if kind == "rat" or e.has("pack") else ""])
-		f.append("HP %s · speed %s tiles/s" % [_n(Config.enemy_stat(kind, "hp")), _n(Config.enemy_stat(kind, "speed"))])
-		f.append_array(_mounted_facts(kind))
-		if kind == Wrathwoods.KIND:
-			var lt := Config.WRATHWOOD
-			var ch: Dictionary = lt["chance"]
-			f.append("Never in a wave: from wave %d, a tree may wake up when a forester starts on it (oaks %s %%, pines %s %%; %s %% more for every tree the village has felled, at most %s %%)" % [int(lt["from_wave"]), _n(float(ch["tree_oak"]) * 100.0), _n(float(ch["tree_pine_0"]) * 100.0), _n(float(lt["remember"]) * 100.0), _n(float(lt["max_chance"]) * 100.0)])
-			f.append("Walks through forest. Chases its forester, smashes his camp, then guards its old spot (attacks within %s tiles)" % _n(e["territory"]))
-			f.append("Heals %s %% of its HP per second near trees; now and then its roots hold everyone close by in place for %s s" % [_n(float(e["regrow"]) * 100.0), _n(e["grip_time"])])
-			f.append("Blows on buildings x%s" % _n(e["siege"]))
-		if kind == "vulture":
-			var vc := Config.VULTURES
-			f.append("From wave %d, for the corpses left lying at a wave's start: a pack of %d-%d for every %d corpses, at most %d packs (on top of the wave)" % [int(vc["from_wave"]), int(vc["pack"][0]), int(vc["pack"][1]), int(vc["per_corpses"]), int(vc["max_packs"])])
-			f.append("Flies its own way, over open land and water, never over forest or mountains. Lands to eat: on the ground melee reaches it")
-			f.append("A meal takes %s s; after each one the corpse is gone with a %d %% chance. Each meal: +%d %% HP and damage, at most %d meals" % [_n(vc["eat_time"]), roundi(100.0 * float(vc["vanish_chance"])), roundi(100.0 * float(vc["grow"])), int(vc["max_meals"])])
-			f.append("Fights only for itself and its corpse; shot at by a tower it flies off for %s s. With nothing left to eat it leaves the map" % _n(vc["flee_time"]))
-		if kind == "ghost":
-			var gc := Config.GHOST
-			f.append("Hunts one villager of the village, picked when it appears: it follows the road for %d %% of the way, then flies straight over land, forest, water and walls to them" % roundi(100.0 * float(gc["road_share"])))
-			f.append("Faded (no one can hit it, it can't hit, villagers don't see it) unless lit by a light stone or a High Priest's aura, or close to its target (within %s tiles of reach); then it is solid and the villager runs" % _n(float(Config.SUMMON["attack_range"]) + float(gc["solid_margin"])))
-			f.append("A solid ghost inside the walls counts as a breach. A miner is driven out of his mine when it stands next to it")
-			f.append("Floats, never walks. When its target runs home and hides it lurks faded, strolling about, until they come out again; after %d such escapes it gives up" % int(gc["retreats"]))
-			f.append("After %s s of hunting it moves %sx as fast. Its target gone (dead, retired or given up), it roams faded and vanishes after %s s: no gold" % [_n(gc["enrage_after"]), _n(gc["enrage_speed"]), _n(gc["roam_time"])])
-			f.append("Lit and hurt, it fights back at whoever hurt it that it can reach, never at towers")
-		if e.has("lays"):
-			var egg: Dictionary = Config.ENEMIES[e["lays"]]
-			f.append("Lays %d-%d eggs as she walks, the first time within %s tiles of a manned tower or barracks, then every %s s, %d clutches at most; each has %s HP and hatches into a %s after %s s" % [e["clutch"][0], e["clutch"][1], _n(e["lay_near"]), _n(e["lay_every"]), e["max_clutches"], _n(egg["hp"]), str(Config.ENEMIES[egg["hatch_into"]]["name"]).to_lower(), _n(egg["hatch_time"])])
-			f.append("Threatened (a fighter of ours within %s tiles, a tower, or a hit) while fewer than %d of her young are around her, she stops, lays a clutch and waits for it to hatch" % [_n(e["alarm_range"]), int(e["guard_count"])])
-			f.append("Raised by a necromancer she lays undead eggs at once: unholy, and holy damage hurts them twice as much")
-		if e.get("habitat", "land") == "land" and Config.WAVE_MIX.get(kind, {}).has("max_count"):
-			f.append(_max_count_text(kind))
-		if kind == "spiderling":
-			f.append("Hatches from a spider mother's eggs; hatched from undead eggs it is undead (unholy, x2 holy damage)")
-		if e.get("raid_chance", 1.0) <= 0.0:
-			f.append("Breaks gates and walls, but burns no huts")
-		if e.has("split_into"):
-			f.append("Slain, it splits into %d smaller slimes, and each of those into %d more" % [e["split_count"], Config.ENEMIES[e["split_into"]]["split_count"]])
-		if float(e["damage"]) > 0.0:
-			f.append("Hits for %s every %s s" % [_n(Config.enemy_stat(kind, "damage")), _n(e["attack_cooldown"])])
-		else:
-			f.append("Doesn't fight in close combat")
-		if e.has("attack_category"):
-			f.append("Does %s damage" % e["attack_category"])
-		if e.get("flying", false):
-			f.append("Flies: only ranged attacks and fire elementals reach it")
-		for cat: String in e.get("resist", {}):
-			f.append("Takes %s x %s damage" % [_n(e["resist"][cat]), cat])
-		if e.get("unholy", false):
-			f.append("Unholy: the inquisitor hunts it")
-		f.append_array(_water_facts(kind))
-		if e.get("campaign", false):
-			f.append("The Dread Legion: people, bound to Rhodri. Only in the campaign")
-		if e.has("retreat_below"):
-			f.append("Never killed: below %d %% of its HP it falls back and leaves" % roundi(100.0 * float(e["retreat_below"])))
-		var loot := "Killed: %d gold" % Config.enemy_stat_int(kind, "gold_on_kill")
-		if e.has("mount"):
-			loot = "Its %s slain: %d gold and a corpse (%s)" % [str(Config.ENEMIES[e["mount"]]["name"]).to_lower(), Config.enemy_stat_int(kind, "gold_on_kill"), _corpse_text(str(e["mount"]))]
-		elif e.get("corpse", true):
-			var c := PackedStringArray()
-			for res in ["gold", "food", "materials"]:
-				var v := Config.enemy_stat_int(kind, res + "_on_collect") if e.has(res + "_on_collect") else 0
-				if v > 0:
-					c.append("%d %s" % [v, "building material" if res == "materials" else res])
-			loot += "; its corpse, brought home: %s" % (", ".join(c) if not c.is_empty() else "nothing")
-		elif e.get("release", false):
-			loot += "; released, it leaves no corpse"
-		else:
-			loot += "; leaves no corpse"
-		f.append(loot)
-		var lairs := PackedStringArray()
-		for art: String in Config.LAIR_THEMES:
-			if kind in Config.LAIR_THEMES[art]["kinds"]:
-				lairs.append(str(Config.LAIR_THEMES[art]["name"]))
-		if not lairs.is_empty():
-			f.append("Comes out of monster lairs: %s" % ", ".join(lairs))
-		out.append({"name": e.get("library_name", e["name"]), "art": "unit_" + str(e["art"]), "text": e.get("desc", ""), "facts": f})
+	for fam in Config.ENEMY_FAMILY_ORDER:
+		for kind: String in Config.ENEMIES:
+			var e: Dictionary = Config.ENEMIES[kind]
+			if e.get("library", true) and e["family"] == fam:  # (not the smaller slimes: part of the slime's entry)
+				out.append(_enemy(kind))
 	return out
+
+
+static func _enemy(kind: String) -> Dictionary:
+	var e: Dictionary = Config.ENEMIES[kind]
+	var fam: Dictionary = Config.ENEMY_FAMILIES[e["family"]]
+	var f := PackedStringArray(["%s: %s" % [fam["name"], fam["text"]]])
+	var from := _enemy_from_wave(kind)
+	if from > 0:
+		f.append("In the waves from wave %d%s" % [from, " (in packs)" if kind == "rat" or e.has("pack") else ""])
+	f.append("HP %s · speed %s tiles/s" % [_n(Config.enemy_stat(kind, "hp")), _n(Config.enemy_stat(kind, "speed"))])
+	f.append_array(_mounted_facts(kind))
+	if kind == Wrathwoods.KIND:
+		var lt := Config.WRATHWOOD
+		var ch: Dictionary = lt["chance"]
+		f.append("Never in a wave: from wave %d, a tree may wake up when a forester starts on it (oaks %s %%, pines %s %%; %s %% more for every tree the village has felled, at most %s %%)" % [int(lt["from_wave"]), _n(float(ch["tree_oak"]) * 100.0), _n(float(ch["tree_pine_0"]) * 100.0), _n(float(lt["remember"]) * 100.0), _n(float(lt["max_chance"]) * 100.0)])
+		f.append("Walks through forest. Chases its forester, smashes his camp, then guards its old spot (attacks within %s tiles)" % _n(e["territory"]))
+		f.append("Heals %s %% of its HP per second near trees; now and then its roots hold everyone close by in place for %s s" % [_n(float(e["regrow"]) * 100.0), _n(e["grip_time"])])
+		f.append("Blows on buildings x%s" % _n(e["siege"]))
+	if kind == "vulture":
+		var vc := Config.VULTURES
+		f.append("From wave %d, for the corpses left lying at a wave's start: a pack of %d-%d for every %d corpses, at most %d packs (on top of the wave)" % [int(vc["from_wave"]), int(vc["pack"][0]), int(vc["pack"][1]), int(vc["per_corpses"]), int(vc["max_packs"])])
+		f.append("Flies its own way, over open land and water, never over forest or mountains. Lands to eat: on the ground melee reaches it")
+		f.append("A meal takes %s s; after each one the corpse is gone with a %d %% chance. Each meal: +%d %% HP and damage, at most %d meals" % [_n(vc["eat_time"]), roundi(100.0 * float(vc["vanish_chance"])), roundi(100.0 * float(vc["grow"])), int(vc["max_meals"])])
+		f.append("Fights only for itself and its corpse; shot at by a tower it flies off for %s s. With nothing left to eat it leaves the map" % _n(vc["flee_time"]))
+	if kind == "ghost":
+		var gc := Config.GHOST
+		f.append("Hunts one villager of the village, picked when it appears: it follows the road for %d %% of the way, then flies straight over land, forest, water and walls to them" % roundi(100.0 * float(gc["road_share"])))
+		f.append("Faded (no one can hit it, it can't hit, villagers don't see it) unless lit by a light stone or a High Priest's aura, or close to its target (within %s tiles of reach); then it is solid and the villager runs" % _n(float(Config.SUMMON["attack_range"]) + float(gc["solid_margin"])))
+		f.append("A solid ghost inside the walls counts as a breach. A miner is driven out of his mine when it stands next to it")
+		f.append("Floats, never walks. When its target runs home and hides it lurks faded, strolling about, until they come out again; after %d such escapes it gives up" % int(gc["retreats"]))
+		f.append("After %s s of hunting it moves %sx as fast. Its target gone (dead, retired or given up), it roams faded and vanishes after %s s: no gold" % [_n(gc["enrage_after"]), _n(gc["enrage_speed"]), _n(gc["roam_time"])])
+		f.append("Lit and hurt, it fights back at whoever hurt it that it can reach, never at towers")
+	if e.has("lays"):
+		var egg: Dictionary = Config.ENEMIES[e["lays"]]
+		f.append("Lays %d-%d eggs as she walks, the first time within %s tiles of a manned tower or barracks, then every %s s, %d clutches at most; each has %s HP and hatches into a %s after %s s" % [e["clutch"][0], e["clutch"][1], _n(e["lay_near"]), _n(e["lay_every"]), e["max_clutches"], _n(egg["hp"]), str(Config.ENEMIES[egg["hatch_into"]]["name"]).to_lower(), _n(egg["hatch_time"])])
+		f.append("Threatened (a fighter of ours within %s tiles, a tower, or a hit) while fewer than %d of her young are around her, she stops, lays a clutch and waits for it to hatch" % [_n(e["alarm_range"]), int(e["guard_count"])])
+		f.append("Raised by a necromancer she lays undead eggs at once: unholy, and holy damage hurts them twice as much")
+	if e.get("habitat", "land") == "land" and Config.WAVE_MIX.get(kind, {}).has("max_count"):
+		f.append(_max_count_text(kind))
+	if kind == "spiderling":
+		f.append("Hatches from a spider mother's eggs; hatched from undead eggs it is undead (unholy, x2 holy damage)")
+	if e.get("raid_chance", 1.0) <= 0.0:
+		f.append("Breaks gates and walls, but burns no huts")
+	if e.has("split_into"):
+		f.append("Slain, it splits into %d smaller slimes, and each of those into %d more" % [e["split_count"], Config.ENEMIES[e["split_into"]]["split_count"]])
+	if float(e["damage"]) > 0.0:
+		f.append("Hits for %s every %s s" % [_n(Config.enemy_stat(kind, "damage")), _n(e["attack_cooldown"])])
+	else:
+		f.append("Doesn't fight in close combat")
+	if e.get("attack_category", "") == "poison":
+		f.append(_poison_fact(kind))
+	elif e.has("attack_category"):
+		f.append("Does %s damage" % e["attack_category"])
+	if Enemy.lurker_kind(e):
+		f.append("Can't break walls or gates: at a village it lurks outside them%s until there is a breach, then goes in" % (", out of the towers' reach," if e.get("lurk_shy", false) else ""))
+	if e.get("flying", false):
+		f.append("Flies: only ranged attacks and fire elementals reach it")
+	for cat: String in e.get("resist", {}):
+		f.append("Takes %s x %s damage" % [_n(e["resist"][cat]), cat])
+	if e.get("unholy", false):
+		f.append("Unholy: the inquisitor hunts it")
+	f.append_array(_water_facts(kind))
+	if e.get("campaign", false):
+		f.append("The Dread Legion: people, bound to Rhodri. Only in the campaign")
+	if e.has("retreat_below"):
+		f.append("Never killed: below %d %% of its HP it falls back and leaves" % roundi(100.0 * float(e["retreat_below"])))
+	var loot := "Killed: %d gold" % Config.enemy_stat_int(kind, "gold_on_kill")
+	if e.has("mount"):
+		loot = "Its %s slain: %d gold and a corpse (%s)" % [str(Config.ENEMIES[e["mount"]]["name"]).to_lower(), Config.enemy_stat_int(kind, "gold_on_kill"), _corpse_text(str(e["mount"]))]
+	elif e.get("corpse", true):
+		var c := PackedStringArray()
+		for res in ["gold", "food", "materials"]:
+			var v := Config.enemy_stat_int(kind, res + "_on_collect") if e.has(res + "_on_collect") else 0
+			if v > 0:
+				c.append("%d %s" % [v, "building material" if res == "materials" else res])
+		loot += "; its corpse, brought home: %s" % (", ".join(c) if not c.is_empty() else "nothing")
+	elif e.get("release", false):
+		loot += "; released, it leaves no corpse"
+	else:
+		loot += "; leaves no corpse"
+	f.append(loot)
+	var lairs := PackedStringArray()
+	for art: String in Config.LAIR_THEMES:
+		if kind in Config.LAIR_THEMES[art]["kinds"]:
+			lairs.append(str(Config.LAIR_THEMES[art]["name"]))
+	if not lairs.is_empty():
+		f.append("Comes out of monster lairs: %s" % ", ".join(lairs))
+	return {"name": e.get("library_name", e["name"]), "art": "unit_" + str(e["art"]), "text": e.get("desc", ""), "facts": f}
+
+
+## A poisoner's dose (Config.POISON, its "poison"): "Poisons: 11 at once, then
+## x0.65 every 1.4 s while 0.5 or more (about 30 in all)".
+static func _poison_fact(kind: String) -> String:
+	var p := Poison.params(Config.ENEMIES[kind])
+	var first := Config.enemy_stat(kind, "damage")
+	var all := Poison.total(first, float(p["decay"]), float(p["cutoff"]))
+	return "Poisons: %s at once, then x%s every %s s while %s or more (about %s in all); the undead, slimes and gargoyles can't be poisoned, nor can buildings" % [_n(first), _n(p["decay"]), _n(p["interval"]), _n(p["cutoff"]), _n(roundf(all))]
 
 
 ## What a water monster does (docs/aquatic-design.md), from Config.
@@ -415,7 +435,7 @@ static func _mounted_facts(kind: String) -> PackedStringArray:
 		f.append("After %s s at the village without a fight it gets off at a gate and breaks in on foot" % _n(m["circle_time"]))
 		f.append("Charges: after riding %s tiles without a fight its next blow does x%s (not on a halberdier, who also halts its mount)" % [_n(m["charge_distance"]), _n(m["charge_x"])])
 	if str(e.get("raid", "")) == "maul":
-		f.append("Through a gate it kills a villager in their hut (the hut stands), and is gone")
+		f.append("Once in, it kills a villager in their hut and is gone; it burns no hut")
 	if e.has("mount") or kind == "wolf":
 		f.append("A halberdier does x%s damage to a mount" % _n(Config.MILITARY["halberdier"]["vs_mounted"]))
 	if str(e["behavior"]) == "flee":
@@ -537,6 +557,7 @@ static func _buildings() -> Array[Dictionary]:
 		else:
 			f.append("Cost: %s · built in %s s · %dx%d" % [Config.cost_text(b["cost"]), _n(b["build_time"]), b["size"], b["size"]])
 		f.append(_hp_fact(kind))
+		f.append("Defence: %s" % str(Config.DEFENSE_CLASSES[b["defense"]]["name"]).to_lower())
 		match kind:
 			"hut":
 				f.append("Looks like its village: a timber cabin (stone), a flat-roofed sandstone house (sandstone), a dark stone house (basalt), a fisher's hut on stilts (limestone), a turf-roofed blackhouse (granite), an igloo (ice) or a tent (wood)")
@@ -788,11 +809,43 @@ static func _damage() -> Array[Dictionary]:
 			f.append("Hurts less: " + ", ".join(less))
 		if cat == "holy":
 			f.append("Whatever a necromancer raised, and undead spiders, take x%s more on top" % _n(Config.ENEMIES["necromancer"]["raised_holy"]))
+		if cat == "poison":
+			f.append("Whatever a necromancer raised, and undead spiders, take x%s of it" % _n(Config.ENEMIES["necromancer"]["raised_poison"]))
 		if cat == "pure":
 			f.append("Nothing resists it")
 		elif more.is_empty() and less.is_empty() and cat != "holy":
 			f.append("Every enemy takes it in full")
 		out.append({"name": info["name"], "art": info["art"], "text": info["text"], "facts": f})
+	out.append_array(_defenses())
+	return out
+
+
+## The defence classes (Config.DEFENSE_CLASSES): what each building takes of
+## each damage category, and which buildings are in it.
+static func _defenses() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for d in Config.DEFENSE_ORDER:
+		var c: Dictionary = Config.DEFENSE_CLASSES[d]
+		var takes := PackedStringArray()
+		for cat in Config.DAMAGE_CATEGORIES:
+			var k := Config.defense_factor(d, cat)
+			if not is_equal_approx(k, 1.0):
+				takes.append("%s x%s" % [str(Config.DAMAGE_INFO[cat]["name"]).to_lower(), _n(k)])
+		var names := PackedStringArray()
+		for kind: String in Config.BUILDINGS:
+			if Config.BUILDINGS[kind]["defense"] == d:
+				names.append(str(Config.BUILDINGS[kind]["name"]).to_lower())
+		var mats := PackedStringArray()
+		for m in Config.PIECE_MATERIAL_ORDER:
+			if Config.PIECE_MATERIALS[m]["defense"] == d:
+				mats.append(str(Config.PIECE_MATERIALS[m]["name"]).to_lower())
+		var f := PackedStringArray(["Takes %s; everything else in full" % ", ".join(takes)])
+		if not mats.is_empty():
+			f.append("Walls, gates and wall towers of %s" % ", ".join(mats))
+		if not names.is_empty():
+			f.append("Buildings: %s" % ", ".join(names))
+		f.append("Multiplies an enemy's own strength against buildings")
+		out.append({"name": c["name"], "art": c["art"], "text": c["text"], "facts": f})
 	return out
 
 

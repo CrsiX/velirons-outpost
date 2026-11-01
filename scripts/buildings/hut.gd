@@ -41,8 +41,10 @@ func sight_radius() -> float:
 	return Config.HUT_SIGHT if is_intact() else Config.BUILDING_SIGHT
 
 
-## 1 HP: any blow burns it (docs/siege-design.md).
-func take_damage(amount: float, source: Node = null) -> void:
+## 1 HP: any blow that hurts it after its defence class (a poison one
+## doesn't) burns it (docs/siege-design.md §2b).
+func take_damage(amount: float, source: Node = null, category: String = "pure") -> void:
+	amount *= Config.defense_factor(defense(), category)
 	if amount > 0.0 and is_intact() and can_be_hurt():
 		destroy(game.who(source) if source else "")
 

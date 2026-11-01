@@ -344,7 +344,7 @@ func _describe(n: Node) -> Array:
 
 
 func _unit_state(u: Unit) -> Dictionary:
-	return {"p": u.grid_pos.snapped(Vector2(0.01, 0.01)), "fx": u.sprite.flip_h, "vis": u.visible, "rot": snappedf(u.sprite.rotation, 0.05)}
+	return {"p": u.grid_pos.snapped(Vector2(0.01, 0.01)), "fx": u.sprite.flip_h, "vis": u.visible, "rot": snappedf(u.sprite.rotation, 0.05), "po": Poison.of(u) != null}
 
 
 # --- client -------------------------------------------------------------------------------
@@ -586,6 +586,7 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		u.sprite.flip_h = st["fx"]
 		u.sprite.rotation = st.get("rot", 0.0)
 		u.visible = st["vis"]
+		Poison.show_on(u, st.get("po", false))
 	if o is Civilian:
 		var c := o as Civilian
 		c.at_home = st.get("h", c.at_home)

@@ -725,42 +725,43 @@ const LIGHTSTONE_SIGHT := 5.5  # light stones watch this far, entirely passively
 const BUILDING_SIGHT := 3.0  # every other finished building
 const TOWER_SIGHT_BONUS := 1.5  # manned towers see this far beyond their range
 
-## Buildings the player can order. "size" is the square footprint in tiles.
+## Buildings the player can order. "size" is the square footprint in tiles;
+## "defense" its defence class (DEFENSE_CLASSES).
 const BUILDINGS := {
 	"tower": {
-		"name": "Watchtower", "cost": {"materials": 30}, "build_time": 8.0, "size": 1, "art": "watchtower",
+		"name": "Watchtower", "cost": {"materials": 30}, "build_time": 8.0, "size": 1, "art": "watchtower", "defense": "stone_defense",
 		"desc": "Built in the wilderness by a builder. Station an archer on it.",
 	},
 	"farm": {
-		"name": "Farm", "cost": {"materials": 50}, "build_time": 12.0, "size": 3, "art": "farm_field",
+		"name": "Farm", "cost": {"materials": 50}, "build_time": 12.0, "size": 3, "art": "farm_field", "defense": "civilian",
 		"desc": "3x3, outside the walls. Produces food while a farmer works it.",
 	},
 	"hut": {
 		# (Never built new: a ruined hut is rebuilt for REPAIR_SHARE of this, i.e. 40.)
-		"name": "Village Hut", "cost": {"materials": 80}, "build_time": 10.0, "size": 1, "art": "hut",
+		"name": "Village Hut", "cost": {"materials": 80}, "build_time": 10.0, "size": 1, "art": "hut", "defense": "civilian",
 		"desc": "Houses one civilian. Can only be rebuilt on a ruined lot.",
 	},
 	"camp": {
-		"name": "Worker Camp", "cost": {"materials": 25}, "build_time": 6.0, "size": 1, "art": "worker_camp",
+		"name": "Worker Camp", "cost": {"materials": 25}, "build_time": 6.0, "size": 1, "art": "worker_camp", "defense": "civilian",
 		"desc": "Base for one forester, who cuts nearby trees for building material.",
 	},
 	"barracks": {
-		"name": "Barracks", "cost": {"materials": 20, "gold": 30}, "build_time": 16.0, "size": 2, "art": "barracks",
+		"name": "Barracks", "cost": {"materials": 20, "gold": 30}, "build_time": 16.0, "size": 2, "art": "barracks", "defense": "wood_defense",
 		"desc": "2x2. Units wait on its benches (1 per level, up to 3) and turn out when enemies come near. Upgrade for more benches and range.",
 	},
 	"training": {
-		"name": "Training Grounds", "cost": {"materials": 40, "gold": 40}, "build_time": 14.0, "size": 2, "art": "training_grounds",
+		"name": "Training Grounds", "cost": {"materials": 40, "gold": 40}, "build_time": 14.0, "size": 2, "art": "training_grounds", "defense": "wood_defense",
 		"desc": "2x2. Station a military unit here; the hero (in Train mode) passes on her XP to level it up for free.",
 	},
 	"lightstone": {
-		"name": "Light Stone", "cost": {"materials": 20}, "build_time": 10.0, "size": 1, "art": "light_stone",
+		"name": "Light Stone", "cost": {"materials": 20}, "build_time": 10.0, "size": 1, "art": "light_stone", "defense": "stone_defense",
 		"desc": "Rune pillar that lights up the land around it. Needs no one to man it.",
 	},
 	# The merchant's trade stall (docs/scenarios-design.md §7.4): only in the
 	# campaign's scenarios that allow it ("campaign": never in a normal game).
 	# Its level is its stage (STALL_LEVELS); the merchant works it.
 	"stall": {
-		"name": "Trade Stall", "cost": {"materials": 30}, "build_time": 12.0, "size": 2, "art": "stall",
+		"name": "Trade Stall", "cost": {"materials": 30}, "build_time": 12.0, "size": 2, "art": "stall", "defense": "civilian",
 		"campaign": true,
 		"desc": "2x2. The merchant's stall: while he tends it, gold buys building material and food from his stock. Rats eat his goods.",
 	},
@@ -768,21 +769,21 @@ const BUILDINGS := {
 	# scenario, never placed by the player. Enemies breaking in go for it as
 	# for a hut and plunder it (WAREHOUSE).
 	"warehouse": {
-		"name": "Guild Warehouse", "cost": {"materials": 80}, "build_time": 20.0, "size": 2, "art": "warehouse",
+		"name": "Guild Warehouse", "cost": {"materials": 80}, "build_time": 20.0, "size": 2, "art": "warehouse", "defense": "civilian",
 		"campaign": true,
 		"desc": "2x2. The guild's stock. Enemies that break in go for it as for a hut and plunder it.",
 	},
 	# The battlefield's graveyard by the chapel (scenario 6); prebuilt by the
 	# scenario. Gatherers carry the fallen (Corpse.fallen) here to be buried.
 	"graveyard": {
-		"name": "Graveyard", "cost": {"materials": 40}, "build_time": 16.0, "size": 3, "art": "graveyard",
+		"name": "Graveyard", "cost": {"materials": 40}, "build_time": 16.0, "size": 3, "art": "graveyard", "defense": "civilian",
 		"campaign": true,
 		"desc": "3x3. Gatherers carry the fallen of the battlefield here and bury them, so no necromancer can raise them again.",
 	},
 	# The druids' grove by their stone circle (scenario 7): barracks whose
 	# benches only druids sit on; prebuilt by the scenario at level 3.
 	"grove": {
-		"name": "Druids' Grove", "cost": {"materials": 40}, "build_time": 16.0, "size": 2, "art": "grove",
+		"name": "Druids' Grove", "cost": {"materials": 40}, "build_time": 16.0, "size": 2, "art": "grove", "defense": "wood_defense",
 		"campaign": true,
 		"desc": "2x2. The druids' own barracks by their stone circle. They turn out for enemies near it, but take no orders.",
 	},
@@ -790,7 +791,7 @@ const BUILDINGS := {
 	# its place inside the walls ("inside": a prebuilt one may stand there).
 	# The priests keep the First King's Hand there once it is home (Church).
 	"church": {
-		"name": "Church", "cost": {"materials": 120}, "build_time": 30.0, "size": 3, "art": "church",
+		"name": "Church", "cost": {"materials": 120}, "build_time": 30.0, "size": 3, "art": "church", "defense": "civilian",
 		"campaign": true, "inside": true,
 		"desc": "3x3, inside the walls. The priests' church, where they keep the First King's Hand once it is home.",
 	},
@@ -876,13 +877,13 @@ const PIECE_LEVELS := {
 ## snow, icicles, igloos for huts) has no map type: only hand-made maps have it. Wood is an improvised
 ## palisade with tents for forward outposts: only hand-made maps have it.
 const PIECE_MATERIALS := {
-	"stone": {"name": "Stone", "art": "", "factor": 1.0},
-	"sandstone": {"name": "Sandstone", "art": "sandstone_", "factor": 1.0},
-	"basalt": {"name": "Basalt", "art": "basalt_", "factor": 1.0},
-	"limestone": {"name": "Limestone", "art": "limestone_", "factor": 1.0},
-	"granite": {"name": "Granite", "art": "granite_", "factor": 1.0},
-	"ice": {"name": "Ice", "art": "ice_", "factor": 1.0},
-	"wood": {"name": "Wood", "art": "wood_", "factor": 0.6},
+	"stone": {"name": "Stone", "art": "", "factor": 1.0, "defense": "stone_defense"},
+	"sandstone": {"name": "Sandstone", "art": "sandstone_", "factor": 1.0, "defense": "stone_defense"},
+	"basalt": {"name": "Basalt", "art": "basalt_", "factor": 1.0, "defense": "stone_defense"},
+	"limestone": {"name": "Limestone", "art": "limestone_", "factor": 1.0, "defense": "stone_defense"},
+	"granite": {"name": "Granite", "art": "granite_", "factor": 1.0, "defense": "stone_defense"},
+	"ice": {"name": "Ice", "art": "ice_", "factor": 1.0, "defense": "stone_defense"},
+	"wood": {"name": "Wood", "art": "wood_", "factor": 0.6, "defense": "wood_defense"},
 }
 const PIECE_MATERIAL_ORDER: Array[String] = ["stone", "sandstone", "basalt", "limestone", "granite", "ice", "wood"]
 ## The pieces whose HP, costs and times the material's factor scales.
@@ -919,8 +920,25 @@ const SIEGE := {
 	"rescan": 0.5,  # s between an enemy's second thoughts at a barrier
 	"rebuild_interval": 0.4,  # s: a stale field is rebuilt at most this often
 	"slip_time": 4.0,  # s an intact gate holds a rat or thief ("entry": "slip")
-	"stuck_slip": 45.0,  # s before an enemy that can't hurt a barrier slips past it
 	"slow_cost": 20,  # field cost of a step on shallow water or swamp (ground: 10)
+}
+## Lurkers (docs/enemies-design.md §7a): kinds on foot that can't break
+## anything ("siege" 0: necromancer, siren, spider mother, snake). At a
+## village with no breach they roam outside its walls, never further from
+## them than SIEGE.approach + leash tiles, a stretch of `stretch` tiles at a
+## time with a rest of `rest` s between, each kind going for what it wants
+## (EnemyBehavior.lurk_goal); kinds with "lurk_shy" keep tower_margin tiles
+## beyond the reach of manned towers. A breach and they go in. Once only
+## enemies that can't get in are left of a wave (lurkers, rats) and every
+## lurker has lurked min_time s, after `linger` s they leave: rats vanish,
+## lurkers walk back the way they came and vanish at the map edge, no loot.
+const LURK := {
+	"leash": 4.0,
+	"stretch": [2.0, 5.0],
+	"rest": [1.0, 3.0],
+	"tower_margin": 1.0,
+	"min_time": 20.0,
+	"linger": 30.0,
 }
 
 const CIVILIANS := {
@@ -1380,7 +1398,8 @@ const ATTACKS := {
 ## and fire elementals are fire, a category of its own (a wrathwood takes
 ## x2, water monsters x0.5). Every hit has exactly one category.
 ## "pure" (a raised enemy's drain, a flame burning itself up) is never scaled.
-const DAMAGE_CATEGORIES: Array[String] = ["melee", "projectile", "magical", "fire", "holy", "pure"]
+## "poison" comes as a dose over time (POISON, Poison): every tick is a poison hit.
+const DAMAGE_CATEGORIES: Array[String] = ["melee", "projectile", "magical", "fire", "holy", "poison", "pure"]
 ## The library's Damage page (Library._damage), one entry per category: its
 ## name, picture and a short text. Who deals it and who resists it are read
 ## from ATTACKS, SUMMONS, HERO and ENEMIES, so only a new category needs a line here.
@@ -1390,8 +1409,34 @@ const DAMAGE_INFO := {
 	"magical": {"name": "Magical", "art": "unit_apprentice", "text": "Spells: arcane orbs, frost and warp, a witch's bolt, a leviathan's water."},
 	"fire": {"name": "Fire", "art": "unit_fire_mage", "text": "Fireballs and living flame. Wood burns well; what lives in the water hardly at all."},
 	"holy": {"name": "Holy", "art": "unit_acolyte", "text": "The light of the acolyte line. It sears the undead."},
+	"poison": {"name": "Poison", "art": "unit_spider_mother", "text": "A dose that hurts again and again, a little less each time, until it wears off. No building takes it; the undead and the unnatural have no blood to poison."},
 	"pure": {"name": "Pure", "art": "unit_necromancer", "text": "Nothing makes it stronger or weaker: a raised enemy draining away, a fire elemental burning itself up."},
 }
+## A poison dose (docs/enemies-design.md §4a; Poison): the first tick is the
+## blow's damage, at once; every `interval` s the next, `decay` x the one
+## before, until a tick would be below `cutoff` HP. The poisoner's own
+## "poison" entry overrides any of these. A new dose replaces the running one
+## only if it deals more in total than what that one has left.
+const POISON := {"decay": 0.7, "interval": 1.0, "cutoff": 0.5}
+
+## How buildings take each damage category (docs/siege-design.md §2b): one
+## class per building ("defense" in BUILDINGS; walls, gates and wall towers by
+## their material, PIECE_MATERIALS "defense"). "factors": damage taken by
+## category (missing: x1). It multiplies an enemy's "siege" factor.
+const DEFENSE_CLASSES := {
+	"stone_defense": {"name": "Stone defence", "art": "wall_2", "text": "Stone walls, gates and towers, light stones. Arrows hardly scratch them.",
+		"factors": {"poison": 0.0, "projectile": 0.5}},
+	"wood_defense": {"name": "Wood defence", "art": "barracks", "text": "Palisades, barracks and training grounds. Arrows hardly scratch them, but wood burns.",
+		"factors": {"poison": 0.0, "projectile": 0.5, "fire": 1.5}},
+	"civilian": {"name": "Civilian", "art": "hut", "text": "Every other building. Only poison does nothing to it.",
+		"factors": {"poison": 0.0}},
+}
+const DEFENSE_ORDER: Array[String] = ["stone_defense", "wood_defense", "civilian"]
+
+
+## The factor on damage of `category` to a building of defence class `defense`.
+static func defense_factor(defense: String, category: String) -> float:
+	return float(DEFENSE_CLASSES[defense]["factors"].get(category, 1.0))
 
 ## Summoned elementals: "hp" and "damage" multiply the summoner's summon_hp
 ## and summon_damage; "speed" is in tiles per second; "category": what their
@@ -1658,16 +1703,31 @@ const CAMERA_KEY_ZOOM := 1.12
 ## by an intact gate, then through it; docs/siege-design.md §5.1; "none":
 ## never moves, see "spider_egg"),
 ## siege (damage factor against walls, gates and wall towers; 0 or missing:
-## it can't hurt them, waits, and slips past after SIEGE.stuck_slip).
+## it can't hurt them and lurks outside until a breach, see LURK),
+## family (ENEMY_FAMILIES: what the player is told to expect; never a number),
+## poison (a poisoner's dose: "decay", "interval", "cutoff"; see POISON).
 ## Any enemy that gets into the village burns the nearest intact hut, on every
 ## difficulty (the villager living there, if any, dies with it). Except
 ## rats (they eat food), thieves (they steal gold), vampire bats (they turn
-## back at the gate), and kinds with a raid_chance roll for it.
+## back at the gate), kinds with a raid (maul), and kinds with a raid_chance roll for it.
+## A held wall loses no hut to ground enemies (docs/enemies-design.md §7a):
+## only through a breach does anything on foot get in to burn one.
+## Enemy families (docs/enemies-design.md §4b): a description of what may come,
+## for the library and scenario texts. Nothing in the simulation reads them.
+const ENEMY_FAMILIES := {
+	"horde": {"name": "The Horde", "text": "Thinking monsters in warbands: numbers, wolves to ride, raids on the huts."},
+	"beasts": {"name": "Beasts", "text": "Packs, speed, poison, flyers, and things that come off the road."},
+	"undead": {"name": "Undead", "text": "Holy light hurts them, poison doesn't; corpses left lying rise again."},
+	"aquatic": {"name": "Aquatic", "text": "They come by water and dive; fire does little to them."},
+	"humans": {"name": "Humans", "text": "Thieves, witches and soldiers: tricks, ranged attacks and commanders."},
+	"aberrations": {"name": "Aberrations", "text": "Unnatural things: slimes that split, stone that flies. No blood to poison."},
+}
+const ENEMY_FAMILY_ORDER: Array[String] = ["horde", "beasts", "undead", "aquatic", "humans", "aberrations"]
 ## The pastel colours a slime can roll (equal chances), see "slime3".
 const SLIME_COLORS: Array[String] = ["red", "blue", "yellow", "green", "pink"]
 const ENEMIES := {
 	"goblin": {
-		"name": "Goblin", "art": "goblin", "behavior": "melee",
+		"name": "Goblin", "art": "goblin", "behavior": "melee", "family": "horde",
 		"siege": 1.0,
 		"desc": "The most common foe: walks the road to a gate and fights whatever blocks its way.",
 		"hp": 20.0, "speed": 1.1,
@@ -1677,17 +1737,17 @@ const ENEMIES := {
 	},
 	# Same as goblins, but bones give no food.
 	"skeleton": {
-		"name": "Skeleton", "art": "skeleton", "behavior": "melee",
+		"name": "Skeleton", "art": "skeleton", "behavior": "melee", "family": "undead",
 		"siege": 1.0,
 		"desc": "A goblin's strength in bones. Its corpse gives gold, but no food.",
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 0,
-		"resist": {"holy": 1.25}, "unholy": true,
+		"resist": {"poison": 0.0, "holy": 1.25}, "unholy": true,
 	},
 	# Slower and much tougher; hits hard. Gold only on kill, lots of food as a corpse.
 	"orc": {
-		"name": "Orc", "art": "orc", "behavior": "melee",
+		"name": "Orc", "art": "orc", "behavior": "melee", "family": "horde",
 		"siege": 1.0,
 		"desc": "Slow and very tough, and it hits hard. A good meal as a corpse.",
 		"hp": 55.0, "speed": 0.8,
@@ -1703,7 +1763,7 @@ const ENEMIES := {
 	# necromancer. At the gate a big slime burns a hut like any enemy; the
 	# smaller ones only with `raid_chance`, else they just melt away.
 	"slime3": {
-		"name": "Big slime", "art": "slime3", "behavior": "melee", "corpse": false, "level": 3,
+		"name": "Big slime", "art": "slime3", "behavior": "melee", "corpse": false, "level": 3, "family": "aberrations",
 		"siege": 1.0,
 		"desc": "Slain, it splits into two smaller slimes, and each of those into two more.",
 		"library_name": "Slime",
@@ -1711,32 +1771,35 @@ const ENEMIES := {
 		"damage": 11.0, "attack_cooldown": 1.2,
 		"gold_on_kill": 3, "gold_on_collect": 0, "food_on_collect": 0,
 		"split_into": "slime2", "split_count": 2,
+		"resist": {"poison": 0.0},
 		"colors": SLIME_COLORS, "hp_bar_y": -33.0,
 	},
 	"slime2": {
-		"name": "Slime", "art": "slime2", "behavior": "melee", "corpse": false, "level": 2, "raid_chance": 0.25, "library": false,
+		"name": "Slime", "art": "slime2", "behavior": "melee", "corpse": false, "level": 2, "raid_chance": 0.25, "library": false, "family": "aberrations",
 		"siege": 1.0,
 		"desc": "Half of a big slime. Slain, it splits into two small slimes. In the village, it burns a hut only half of the time.",
 		"hp": 20.0, "speed": 1.1,
 		"damage": 5.5, "attack_cooldown": 1.2,
 		"gold_on_kill": 2, "gold_on_collect": 0, "food_on_collect": 0,
 		"split_into": "slime1", "split_count": 2,
+		"resist": {"poison": 0.0},
 		"colors": SLIME_COLORS, "hp_bar_y": -25.0,
 	},
 	"slime1": {
-		"name": "Small slime", "art": "slime1", "behavior": "melee", "corpse": false, "level": 1, "raid_chance": 0.1, "library": false,
+		"name": "Small slime", "art": "slime1", "behavior": "melee", "corpse": false, "level": 1, "raid_chance": 0.1, "library": false, "family": "aberrations",
 		"siege": 1.0,
 		"desc": "The smallest and quickest slime. It just dies. In the village, it burns a hut only a quarter of the time.",
 		"hp": 10.0, "speed": 1.4,
 		"damage": 2.75, "attack_cooldown": 1.2,
 		"gold_on_kill": 1, "gold_on_collect": 0, "food_on_collect": 0,
+		"resist": {"poison": 0.0},
 		"colors": SLIME_COLORS, "hp_bar_y": -19.0,
 	},
 	# Fragile spell-caster: no melee. Stops at manned towers in range and
 	# enchants their unit (it stops shooting/summoning for a while). Spells hurt
 	# earth elementals. Whoever attacks her becomes her first target.
 	"witch": {
-		"name": "Witch", "art": "witch", "behavior": "witch", "attack_category": "magical",
+		"name": "Witch", "art": "witch", "behavior": "witch", "attack_category": "magical", "family": "humans",
 		"siege": 1.0,
 		"desc": "No close combat: she stops at manned towers in range and bewitches their unit, which then stops shooting for a moment.",
 		"hp": 12.0, "speed": 1.0,
@@ -1760,9 +1823,9 @@ const ENEMIES := {
 	# eats max(gate_eat, gate_eat_share x the village's food) and is gone. A rat
 	# on a farm vanishes after vanish_after seconds without being attacked (no
 	# corpse, no gold); left over when the rest of the wave is gone, they all
-	# vanish within RAT_WAVE_LINGER seconds. Killed: a little gold, no corpse.
+	# vanish within LURK.linger seconds. Killed: a little gold, no corpse.
 	"rat": {
-		"name": "Rat", "art": "rat", "behavior": "rat", "corpse": false,
+		"name": "Rat", "art": "rat", "behavior": "rat", "corpse": false, "family": "beasts",
 		"entry": "slip",
 		"desc": "Comes in fast packs and goes for the farms, eating their food. Rats that get through a gate eat from the stores.",
 		"hp": 7.0, "speed": 2.4,
@@ -1780,7 +1843,7 @@ const ENEMIES := {
 	# the gold), never more than there is, and runs back to where it came
 	# from. Killed with the loot, its corpse holds the stolen gold as well.
 	"thief": {
-		"name": "Thief", "art": "thief", "behavior": "thief",
+		"name": "Thief", "art": "thief", "behavior": "thief", "family": "humans",
 		"entry": "slip",
 		"desc": "Quick on its feet. At a gate it burns nothing: it steals gold and runs back. Kill it to get the gold back.",
 		"hp": 20.0, "speed": 1.5,
@@ -1795,13 +1858,13 @@ const ENEMIES := {
 	# units (the hero, shield bearers, earth elementals) only hit back when it
 	# hits them and their own blow is ready (a counter-strike).
 	"gargoyle": {
-		"name": "Gargoyle", "art": "gargoyle", "behavior": "melee", "flying": true,
+		"name": "Gargoyle", "art": "gargoyle", "behavior": "melee", "flying": true, "family": "aberrations",
 		"siege": 1.0,
 		"desc": "Flies along the roads: only ranged attacks and fire elementals can go for it.",
 		"hp": 40.0, "speed": 0.8,
 		"damage": 7.0, "attack_cooldown": 1.2,
 		"gold_on_kill": 8, "gold_on_collect": 0, "food_on_collect": 4,
-		"resist": {"holy": 0.75},
+		"resist": {"poison": 0.0, "holy": 0.75},
 	},
 	# No attack: it raises the dead. When a corpse of another enemy lies within
 	# raise_range it stops and channels on it for cast_time seconds; then the
@@ -1811,15 +1874,16 @@ const ENEMIES := {
 	# its kind's kill gold (rounded down); decayed, nothing. A raised enemy's
 	# corpse, and a necromancer's own, can never be raised.
 	"necromancer": {
-		"name": "Necromancer", "art": "necromancer", "behavior": "necromancer", "revivable": false,
+		"name": "Necromancer", "art": "necromancer", "behavior": "necromancer", "revivable": false, "family": "undead",
 		"siege": 0.0,
 		"desc": "No attack: it stops by the corpses of other enemies and raises them again for a while.",
 		"hp": 20.0, "speed": 0.95,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 25, "gold_on_collect": 0, "food_on_collect": 0,
 		"cast_time": 5.0, "raise_range": 3.0, "raise_hp": 0.5, "raise_decay": 20.0, "raise_gold": 0.5,
-		"resist": {"holy": 1.5}, "unholy": true,  # holy damage hurts it more
+		"resist": {"poison": 0.0, "holy": 1.5}, "unholy": true,  # holy damage hurts it more
 		"raised_holy": 2.0,  # what it raises takes 2 x holy damage (on top of its kind's own factor)
+		"raised_poison": 0.0,  # and no poison: the undead have no blood
 	},
 	# Slower than a goblin, twice its HP, a goblin's blows. Takes resist x the
 	# damage of a category (magic: 0.67). Of the HP it really takes from
@@ -1833,13 +1897,13 @@ const ENEMIES := {
 	# village again as a vampire. (Flying allied units, if they ever come,
 	# would be the bat's to fight.)
 	"vampire": {
-		"name": "Vampire", "art": "vampire", "behavior": "vampire",
+		"name": "Vampire", "art": "vampire", "behavior": "vampire", "family": "undead",
 		"siege": 1.0,
 		"desc": "Drains life with its bites. Almost beaten, it turns into a bat once and flies away to heal.",
 		"hp": 40.0, "speed": 0.9,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 6, "gold_on_collect": 8, "food_on_collect": 0,
-		"resist": {"magical": 0.67, "fire": 0.67, "holy": 1.5}, "unholy": true,
+		"resist": {"poison": 0.0, "magical": 0.67, "fire": 0.67, "holy": 1.5}, "unholy": true,
 		"drain": 0.67,
 		"bat_below": 0.33, "bat_time": 10.0, "bat_speed": 1.8, "bat_gate_heal": 0.33,
 	},
@@ -1860,13 +1924,18 @@ const ENEMIES := {
 	# necromancer she lays too, at once when she rises and then every
 	# lay_every s (she drains away in the necromancer's raise_decay):
 	# those eggs and their spiderlings are undead (unholy, raised_holy x holy
-	# damage), but they don't drain away. Laying takes no time.
+	# damage), but they don't drain away. Laying takes no time. Every bite is
+	# poison, so she can't break walls (siege 0): at intact walls she lurks
+	# (LURK), laying as she roams, until her young or anyone else make a breach.
 	"spider_mother": {
-		"name": "Spider mother", "art": "spider_mother", "behavior": "spider_mother",
-		"siege": 1.0,
-		"desc": "A huge, slow spider. Now and then she lays a clutch of eggs; threatened while few of her young are around her, she stops and lays more, and waits for them to hatch.",
+		"name": "Spider mother", "art": "spider_mother", "behavior": "spider_mother", "family": "beasts",
+		"siege": 0.0, "attack_category": "poison",
+		"desc": "A huge, slow spider with a poisoned bite. Now and then she lays a clutch of eggs; threatened while few of her young are around her, she stops and lays more, and waits for them to hatch. She can't break walls: she waits outside for a breach.",
 		"hp": 90.0, "speed": 0.6,
-		"damage": 9.0, "attack_cooldown": 1.3,
+		# Her bite is a dose (POISON): its first tick hurts as her old blow did,
+		# and with an interval longer than her cooldown no tick falls between
+		# two bites, so a fight with her costs what it did; the rest lingers.
+		"damage": 9.0, "attack_cooldown": 1.3, "poison": {"decay": 0.6, "interval": 1.5},
 		"gold_on_kill": 10, "gold_on_collect": 8, "food_on_collect": 0,
 		"resist": {"holy": 0.75},
 		"hp_bar_y": -50.0,
@@ -1881,7 +1950,7 @@ const ENEMIES := {
 	# (low_priority). Villagers don't run from eggs (scares false), only from
 	# what hatches. It counts for the wave; hatching or killed, no corpse.
 	"spider_egg": {
-		"name": "Spider egg", "art": "spider_egg", "behavior": "egg", "corpse": false, "library": false,
+		"name": "Spider egg", "art": "spider_egg", "behavior": "egg", "corpse": false, "library": false, "family": "beasts",
 		"entry": "none", "fixed_hp": true, "low_priority": true, "scares": false,
 		"desc": "A spider mother's egg. Smash it before it hatches.",
 		"hp": 1.0, "speed": 0.0,
@@ -1895,7 +1964,7 @@ const ENEMIES := {
 	# a goblin and breaks walls and gates, but burns no huts (raid_chance 0:
 	# inside the walls it scuttles off).
 	"spiderling": {
-		"name": "Spiderling", "art": "spiderling", "behavior": "melee", "corpse": false, "raid_chance": 0.0, "gone": "scuttled off",
+		"name": "Spiderling", "art": "spiderling", "behavior": "melee", "corpse": false, "raid_chance": 0.0, "gone": "scuttled off", "family": "beasts",
 		"siege": 1.0,
 		"desc": "Hatched from a spider mother's eggs. Weak and quick; it gnaws at gates and walls, but burns no huts.",
 		"hp": 8.0, "speed": 1.8,
@@ -1924,7 +1993,7 @@ const ENEMIES := {
 	# (still looking like its tree; it can be hit). Its corpse is a log of
 	# living wood: materials_on_collect building material, nothing else.
 	"wrathwood": {
-		"name": "Wrathwood", "art": "wrathwood", "behavior": "wrathwood", "revivable": false,
+		"name": "Wrathwood", "art": "wrathwood", "behavior": "wrathwood", "revivable": false, "family": "beasts",
 		"entry": "none", "siege": 3.0,
 		"desc": "A tree that woke up under a forester's axe. It goes after him, then smashes his camp, and guards its old spot for good. Fire hurts it twice as much; arrows barely scratch it.",
 		"hp": 220.0, "speed": 0.45,
@@ -1944,7 +2013,7 @@ const ENEMIES := {
 	# for itself and its corpse; hurt by a tower it flees. Never at a gate.
 	# Each meal makes it stronger (VULTURES grow / max_meals).
 	"vulture": {
-		"name": "Vulture", "art": "vulture", "behavior": "vulture", "flying": true, "own_way": true,
+		"name": "Vulture", "art": "vulture", "behavior": "vulture", "flying": true, "own_way": true, "family": "beasts",
 		"landed_art": "vulture_landed", "entry": "none", "siege": 0.0,
 		"desc": "Carrion birds that come for the dead left on the field. Every corpse they eat is loot lost, and each meal makes them stronger. They leave once nothing is left to eat.",
 		"hp": 18.0, "speed": 1.6,
@@ -1959,14 +2028,14 @@ const ENEMIES := {
 	# villagers) unless a light stone or a High Priest reveals it or it closes in on
 	# its target. No corpse. It never breaks in: GhostBehavior moves it itself.
 	"ghost": {
-		"name": "Ghost", "art": "ghost", "behavior": "ghost", "entry": "none", "siege": 0.0,
+		"name": "Ghost", "art": "ghost", "behavior": "ghost", "entry": "none", "siege": 0.0, "family": "undead",
 		"ethereal": true, "hover": true, "no_warning": true, "corpse": false, "revivable": false, "unholy": true,
 		"first": "A ghost is abroad: it has come for one of our people.",
 		"desc": "A restless spirit that hunts a single villager. Unseen unless lit by a light stone or a High Priest, and no blade or arrow can hurt it.",
 		"hp": 20.0, "speed": 1.1,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 0, "food_on_collect": 0,
-		"resist": {"melee": 0.0, "projectile": 0.0, "fire": 0.75, "holy": 2.0},
+		"resist": {"poison": 0.0, "melee": 0.0, "projectile": 0.0, "fire": 0.75, "holy": 2.0},
 	},
 	# --- water monsters (docs/aquatic-design.md; the shared rules are in AQUA) ---
 	# Every kind has a "habitat": "land" (the default), "amphibian" (roads and
@@ -1979,7 +2048,7 @@ const ENEMIES := {
 	# A goblin that can swim: submerged while on deep water, surfaced
 	# everywhere else (never by choice). Fights like a goblin.
 	"crab": {
-		"name": "Crab", "art": "crab", "behavior": "melee",
+		"name": "Crab", "art": "crab", "behavior": "melee", "family": "aquatic",
 		"siege": 1.0,
 		"desc": "A goblin that swims: it comes up rivers and lakes, out of sight under deep water, and climbs out onto the roads.",
 		"hp": 20.0, "speed": 1.1,
@@ -2002,7 +2071,7 @@ const ENEMIES := {
 	# least move_on tiles after each dive. With nobody to blast it still comes
 	# up every idle_surface s at the deep tile nearest the village.
 	"leviathan": {
-		"name": "Leviathan", "art": "leviathan", "behavior": "leviathan", "attack_category": "magical", "revivable": false,
+		"name": "Leviathan", "art": "leviathan", "behavior": "leviathan", "attack_category": "magical", "revivable": false, "family": "aquatic",
 		"desc": "A sea serpent of the deep. It surfaces near the shore and blasts whoever is out there with a column of water, then dives and moves on.",
 		"hp": 220.0, "speed": 1.3,
 		"damage": 0.0, "attack_cooldown": 1.0,
@@ -2031,7 +2100,7 @@ const ENEMIES := {
 	# dives for dive_time s after losing dive_loss of her max HP within
 	# dive_window s.
 	"siren": {
-		"name": "Siren", "art": "siren", "behavior": "siren",
+		"name": "Siren", "art": "siren", "behavior": "siren", "family": "aquatic",
 		"siege": 0.0,
 		"desc": "She sings from the water: our people are drawn towards her and fight slower. Melee can't reach her in the water, unless a High Priest blesses them.",
 		"hp": 24.0, "speed": 0.9,
@@ -2059,7 +2128,7 @@ const ENEMIES := {
 	# (arms let go) for dive_time s after losing dive_loss of its max HP
 	# within dive_window s, then can't dive again for dive_lockout s.
 	"octopus": {
-		"name": "Gigantic octopus", "art": "octopus", "behavior": "octopus", "revivable": false,
+		"name": "Gigantic octopus", "art": "octopus", "behavior": "octopus", "revivable": false, "family": "aquatic",
 		"desc": "Rare and huge. Its eight arms grab people near the shore and drag them into the deep. Cut an arm to free whoever it holds.",
 		"hp": 1200.0, "speed": 0.5,
 		"damage": 0.0, "attack_cooldown": 1.0,
@@ -2078,13 +2147,31 @@ const ENEMIES := {
 	# One of the octopus's arms while it reaches or holds: a target like any
 	# enemy, but not a wave member (no gold, no corpse, not counted).
 	"octopus_arm": {
-		"name": "Tentacle", "art": "octopus_arm", "behavior": "arm", "corpse": false, "library": false,
+		"name": "Tentacle", "art": "octopus_arm", "behavior": "arm", "corpse": false, "library": false, "family": "aquatic",
 		"desc": "An arm of the gigantic octopus.",
 		"hp": 30.0, "speed": 0.0,
 		"damage": 0.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 0, "gold_on_collect": 0, "food_on_collect": 0,
 		"resist": {"fire": 0.5},
 		"habitat": "water", "hp_bar_y": -30.0,
+	},
+	# A snake (docs/enemies-design.md §15g): about a big slime's strength, but
+	# only poison (its own dose: "poison"), so it can't break anything (siege 0):
+	# at a village with no breach it lurks outside the walls (LURK), out of the
+	# towers' reach ("lurk_shy"), and goes for anyone of ours outside within
+	# hunt_radius tiles. Through a breach it kills a villager in their hut
+	# ("raid": "maul") and is gone; it never burns a hut. It slithers: frames
+	# unit_<art>_slither_<n> (n < "slither"), one every slither_step tiles moved
+	# (Enemy._slither); coiled (unit_<art>) when it stands.
+	"snake": {
+		"name": "Snake", "art": "snake", "behavior": "snake", "family": "beasts",
+		"siege": 0.0, "attack_category": "poison", "raid": "maul", "lurk_shy": true,
+		"desc": "Poisons whoever it bites. It can't break walls: it lurks outside them, out of the towers' reach, and goes for anyone working outside. Through a breach it kills a villager in their hut.",
+		"hp": 40.0, "speed": 0.8,
+		"damage": 11.0, "attack_cooldown": 1.2, "poison": {"decay": 0.65, "interval": 1.4},
+		"gold_on_kill": 3, "gold_on_collect": 0, "food_on_collect": 4,
+		"hunt_radius": 6.0, "slither": 6, "slither_step": 0.12, "hp_bar_y": -36.0,
+		"first": "A snake! It can't break the walls; it lurks outside them and poisons whoever works out there.",
 	},
 	# --- wolves and riders (docs/enemies-design.md §15e; MOUNTED) ---
 	# An animal (holy x1) that hunts in packs of pack[0]..pack[1] (Waves
@@ -2093,7 +2180,7 @@ const ENEMIES := {
 	# it got to (or of the nearest lived-in one), leaves the hut standing and
 	# is gone. Its corpse is also a fallen raider's mount's. Raised: an undead wolf.
 	"wolf": {
-		"name": "Wolf", "plural": "Wolves", "art": "wolf", "behavior": "melee",
+		"name": "Wolf", "plural": "Wolves", "art": "wolf", "behavior": "melee", "family": "beasts",
 		"siege": 0.5, "raid": "maul",
 		"desc": "Hunts in packs. Through a gate it kills a villager in their hut and is gone.",
 		"hp": 13.0, "speed": 1.4,
@@ -2112,7 +2199,7 @@ const ENEMIES := {
 	# speed is the mounted speed, siege its blows on walls while mounted,
 	# gold_on_kill is paid when the mount falls (the rider pays its own).
 	"goblin_raider": {
-		"name": "Goblin Raider", "art": "goblin_raider", "behavior": "mounted", "corpse": false,
+		"name": "Goblin Raider", "art": "goblin_raider", "behavior": "mounted", "corpse": false, "family": "horde",
 		"siege": 0.3,
 		"desc": "A goblin on a wolf: fast, it rides round the village and runs down anyone outside. When the wolf falls, the goblin fights on.",
 		"hp": 20.0, "speed": 1.6,
@@ -2127,7 +2214,7 @@ const ENEMIES := {
 	# to the quietest spot within flee_search tiles (again every flee_every s)
 	# and dies of the drain; an unraised one vanishes after flee_time s.
 	"horse": {
-		"name": "Horse", "plural": "Horses", "art": "horse", "behavior": "flee",
+		"name": "Horse", "plural": "Horses", "art": "horse", "behavior": "flee", "family": "beasts",
 		"siege": 0.0, "scares": false,
 		"desc": "A Legion rider's mount. Its corpse feeds a village; raised by a necromancer it bolts as an undead horse and soon falls apart.",
 		"hp": 45.0, "speed": 1.5,
@@ -2141,7 +2228,7 @@ const ENEMIES := {
 	# ("campaign": never in the normal waves). A fallen one is released
 	# ("release": the pale colour fades, a breath goes out) and leaves no corpse.
 	"legion_footman": {
-		"name": "Legion Footman", "art": "legion_footman", "behavior": "melee", "corpse": false,
+		"name": "Legion Footman", "art": "legion_footman", "behavior": "melee", "corpse": false, "family": "humans",
 		"siege": 1.0, "campaign": true, "release": true,
 		"desc": "A soldier of the Dread Legion, bound to Rhodri: pale, silent, and marching in step. A person, not a monster.",
 		"hp": 38.0, "speed": 0.95,
@@ -2153,7 +2240,7 @@ const ENEMIES := {
 	# falls back (CaptainBehavior): untargetable, retreat_speed x as fast, back
 	# the way it came and off the map. ("Commanding abilities": open.)
 	"legion_captain": {
-		"name": "Legion Captain", "art": "legion_captain", "behavior": "captain", "corpse": false,
+		"name": "Legion Captain", "art": "legion_captain", "behavior": "captain", "corpse": false, "family": "humans",
 		"siege": 1.0, "campaign": true, "release": true,
 		"desc": "Leads the Dread Legion's soldiers: plumed helm, a captain's cloak. It falls back when beaten instead of falling.",
 		"hp": 140.0, "speed": 0.95,
@@ -2167,7 +2254,7 @@ const ENEMIES := {
 	# never a tower's unit. Its arrows are projectiles. At a barrier it shoots
 	# that (damage x siege). LegionArcherBehavior.
 	"legion_archer": {
-		"name": "Legion Archer", "art": "legion_archer", "behavior": "legion_archer", "corpse": false,
+		"name": "Legion Archer", "art": "legion_archer", "behavior": "legion_archer", "corpse": false, "family": "humans",
 		"siege": 0.6, "campaign": true, "release": true, "attack_category": "projectile",
 		"desc": "A bowman of the Dread Legion. It stops to shoot whoever of ours is out in the open, from a little less than a watchtower's range.",
 		"hp": 26.0, "speed": 0.95,
@@ -2178,7 +2265,7 @@ const ENEMIES := {
 	# A Legion guardsman behind a tower shield: slow and tough, and arrows and
 	# bolts (projectile damage) do half to it. Breaks gates and walls well.
 	"legion_guard": {
-		"name": "Legion Guardsman", "art": "legion_guard", "behavior": "melee", "corpse": false,
+		"name": "Legion Guardsman", "art": "legion_guard", "behavior": "melee", "corpse": false, "family": "humans",
 		"siege": 1.5, "campaign": true, "release": true,
 		"desc": "A Legion soldier behind a tall tower shield. Slow, tough, and arrows and bolts do only half to it.",
 		"hp": 70.0, "speed": 0.75,
@@ -2190,7 +2277,7 @@ const ENEMIES := {
 	# within banner_radius of its banner (itself too) strikes and shoots
 	# 1 + banner_haste times as fast (Enemy.haste; several banners: one counts).
 	"legion_banner": {
-		"name": "Legion Banner-bearer", "art": "legion_banner", "behavior": "melee", "corpse": false,
+		"name": "Legion Banner-bearer", "art": "legion_banner", "behavior": "melee", "corpse": false, "family": "humans",
 		"siege": 0.5, "campaign": true, "release": true,
 		"desc": "Carries the Legion's pale banner. Legion soldiers near it strike and shoot faster: kill it first.",
 		"hp": 45.0, "speed": 0.9,
@@ -2202,7 +2289,7 @@ const ENEMIES := {
 	# a boss. Each blow also hits every other one of ours within cleave_radius
 	# of its target for cleave x the damage (MeleeBehavior, CampBehavior).
 	"legion_champion": {
-		"name": "Court Champion", "art": "legion_champion", "behavior": "melee", "corpse": false,
+		"name": "Court Champion", "art": "legion_champion", "behavior": "melee", "corpse": false, "family": "humans",
 		"siege": 2.0, "campaign": true, "release": true,
 		"desc": "The Pale Court's champion in pale plate, with a greatsword whose blows cleave through everyone around its target.",
 		"hp": 520.0, "speed": 0.8,
@@ -2222,7 +2309,7 @@ const ENEMIES := {
 	# it came (faster by retreat_speed) and is gone.
 	# The marshal: scenario 10's Halvard; can be killed.
 	"legion_marshal": {
-		"name": "Legion Marshal", "art": "legion_marshal", "behavior": "commander", "corpse": false,
+		"name": "Legion Marshal", "art": "legion_marshal", "behavior": "commander", "corpse": false, "family": "humans",
 		"siege": 2.0, "campaign": true, "release": true,
 		"desc": "The Dread Legion's marshal: he leads its soldiers in the field. Those near him strike faster and take less harm, and while he lives fresh soldiers keep coming down the roads.",
 		"hp": 760.0, "speed": 0.8,
@@ -2236,7 +2323,7 @@ const ENEMIES := {
 	# The king (scenario 11's Rhodri): a commander whose blows cleave, downed
 	# at 0 HP instead of killed.
 	"legion_king": {
-		"name": "The Crowned King", "art": "legion_king", "behavior": "commander", "corpse": false,
+		"name": "The Crowned King", "art": "legion_king", "behavior": "commander", "corpse": false, "family": "humans",
 		"siege": 2.0, "campaign": true, "release": false,
 		"desc": "Rhodri on the field, the reworked crown on his head. His blows cleave, his soldiers fight harder near him, and he is not so easily killed.",
 		"hp": 1000.0, "speed": 0.85,
@@ -2252,7 +2339,7 @@ const ENEMIES := {
 	# keeps with the soldiers on foot and rides down our melee fighters. When
 	# its horse falls it is a footman.
 	"legion_cavalry": {
-		"name": "Legion Cavalry", "art": "legion_cavalry", "behavior": "mounted", "corpse": false,
+		"name": "Legion Cavalry", "art": "legion_cavalry", "behavior": "mounted", "corpse": false, "family": "humans",
 		"siege": 0.3, "campaign": true, "release": true,
 		"desc": "A Legion soldier on a pale horse. It rides with the column and runs down our fighters; unhorsed, it fights on as a footman.",
 		"hp": 38.0, "speed": 1.5,
@@ -2395,7 +2482,6 @@ const AQUA_FIRST := {
 ## `packs` of them (more every `more_every` waves), `size` rats each, spawned
 ## `gap` seconds apart (a little space between them).
 const RAT_PACKS := {"from_wave": 3, "chance": 0.6, "packs": [1, 2], "more_every": 5, "size": [4, 7], "gap": 0.25}
-const RAT_WAVE_LINGER := 30.0
 ## Barracks also guard their village's farms against rats: within this x their
 ## range (level 3: 12 tiles), when no other enemy is in their normal range.
 ## Units out for a farm stay within FARM_DEFENSE_LEASH of it.
@@ -2438,6 +2524,7 @@ const WAVE_MIX := {
 	"slime3": {"from_wave": 4, "share": 0.06, "growth": 0.02, "max_share": 0.15},
 	"witch": {"from_wave": 5, "share": 0.10, "growth": 0.02, "max_share": 0.2},
 	"wolf": {"from_wave": 5, "share": 0.06, "growth": 0.02, "max_share": 0.15},
+	"snake": {"from_wave": 6, "share": 0.05, "growth": 0.01, "max_share": 0.12},
 	"goblin_raider": {"from_wave": 7, "share": 0.05, "growth": 0.015, "max_share": 0.125},
 	"thief": {"from_wave": 7, "share": 0.08, "growth": 0.01, "max_share": 0.15},
 	"gargoyle": {"from_wave": 10, "share": 0.06, "growth": 0.01, "max_share": 0.15},
