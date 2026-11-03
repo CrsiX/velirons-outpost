@@ -1,0 +1,83 @@
+name: Stripped template
+description: >
+  One Godot export template with the engine cuts in build_conf/, in
+  build/stripped/templates under the name the editor looks for. Restored from
+  the cache when the Godot tag, build_conf/ and the build script are unchanged;
+  otherwise built from source (.github/scripts/build-stripped-template.sh, an hour or two)
+  and cached. One cache per template, so a new or failed one rebuilds alone.
+
+inputs:
+  platform:
+    description: linux, windows, android or web
+    required: true
+  kind:
+    description: debug or release
+    required: true
+  godot-tag:
+    description: The Godot source tag to build
+    required: true
+
+outputs:
+  cache-hit:
+    description: "'true' when the template came from the cache"
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Cache the ${{ inputs.platform }} ${{ inputs.kind }} template
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: build/stripped/templates
+        key: stripped-${{ inputs.platform }}-${{ inputs.kind }}-${{ inputs.godot-tag }}-${{ hashFiles('build_conf/**', '.github/scripts/build-stripped-template.sh') }}
+
+    # --- only when it has to be built ------------------------------------------
+    - name: Install build tools
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential pkg-config
+        if [ "${{ inputs.platform }}" = linux ]; then
+          sudo apt-get install -y libx11-dev libxcursor-dev libxinerama-dev libgl1-mesa-dev \
+            libglu1-mesa-dev libasound2-dev libpulse-dev libudev-dev libxi-dev libxrandr-dev libwayland-dev
+        fi
+        pip install scons
+
+    - name: MinGW-w64 with posix threads
+      if: steps.cache.outputs.cache-hit != 'true' && inputs.platform == 'windows'
+      shell: bash
+      run: |
+        sudo apt-get install -y mingw-w64
+        sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+
+    - name: Set up the JDK
+      if: steps.cache.outputs.cache-hit != 'true' && inputs.platform == 'android'
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: "17"
+
+    # The version Godot's own web builds use for this tag.
+    - name: Set up Emscripten
+      if: steps.cache.outputs.cache-hit != 'true' && inputs.platform == 'web'
+      uses: emscripten-core/setup-emsdk@v16
+      with:
+        version: 4.0.11
+
+    - name: Build the ${{ inputs.platform }} ${{ inputs.kind }} template
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        GODOT_SRC: ${{ runner.temp }}/godot-src
+        GODOT_TAG: ${{ inputs.godot-tag }}
+        TEMPLATES: build/stripped/templates
+      run: |
+        [ "${{ inputs.platform }}" = android ] && export ANDROID_HOME=$ANDROID_SDK_ROOT
+        .github/scripts/build-stripped-template.sh ${{ inputs.platform }} template_${{ inputs.kind }}
+
+    - name: The template
+      shell: bash
+      run: ls -l build/stripped/templates

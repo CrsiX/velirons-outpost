@@ -1,0 +1,38 @@
+name: Stock Godot
+description: >
+  Godot's own editor in ~/godot (and its stock export templates), from the
+  cache that bots.yml and balance.yml share, downloaded on a miss.
+
+inputs:
+  godot-version:
+    description: The Godot release, e.g. 4.7
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Cache Godot
+      id: cache-godot
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/godot
+          ~/.local/share/godot/export_templates
+        key: godot-${{ inputs.godot-version }}
+
+    - name: Download Godot & export templates
+      if: steps.cache-godot.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        GODOT_VERSION: ${{ inputs.godot-version }}
+      run: |
+        BASE=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+        wget -q $BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+        wget -q $BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+        unzip -q Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+        mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot
+        TPL=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+        mkdir -p $TPL
+        unzip -q Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+        mv templates/* $TPL/
+        rm -rf templates Godot_v${GODOT_VERSION}-stable_*

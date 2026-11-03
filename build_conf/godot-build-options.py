@@ -1,5 +1,6 @@
 # SCons profile for the Godot export templates we compile ourselves (the F-Droid
-# APK; tools/test-stripped.sh on Linux): turns off the engine parts the game
+# APK, every CI export and the bots on main and pull requests:
+# .github/scripts/build-stripped-template.sh, .github/workflows/build.yml): turns off the engine parts the game
 # never uses, for a smaller binary. For templates only, never the editor build
 # (the editor imports the SVG art and needs its importers). Pass it as
 # profile=<path to this file>; compilation_profile.gdbuild beside it goes in as
@@ -13,6 +14,8 @@
 #
 # A script that uses a class removed here fails at runtime, not at build time:
 # after using a new engine class or module, check it is not switched off here.
+# The stripped bots in CI catch what a bot reaches. Changing this file (or
+# compilation_profile.gdbuild) makes CI rebuild every template: hours.
 
 # 2D only, no physics bodies (pathing is AStarGrid2D), no navigation servers.
 disable_3d = "yes"

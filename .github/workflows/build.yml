@@ -1,8 +1,19 @@
 name: Build
 
-# Desktop and mobile builds. The Web build lives in pages.yml, which exports it
-# and deploys it straight to GitHub Pages; the platforms that have to be
-# downloaded instead are built here.
+# The builds players get, on the stripped engine: Godot built from source with
+# the engine cuts in build_conf/ (smaller files), one export template per job
+# (.github/actions/stripped-template: from the cache, or built and cached).
+#
+#   bots      - the Linux debug template runs every bot (bots.yml, engine
+#               "stripped"); a failure fails the run but holds up no build
+#   export    - Linux, Windows and Web release, Android debug (releases come
+#               through F-Droid): one artifact each, velirons-outpost-<name>
+#   pages     - the Web debug build (it has the Debug page), deployed to
+#               GitHub Pages on a push to main, without waiting for the bots
+#
+# Other branches run the bots on Godot's stock engine instead (tests.yml).
+# The weekly schedule only touches the six template caches: GitHub drops a
+# cache nobody used for a week, and building one again takes hours.
 
 on:
   push:
@@ -10,80 +21,93 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * 1"
 
 permissions:
   contents: read
 
 env:
-  GODOT_VERSION: "4.7"
+  GODOT_VERSION: "4.7"        # the stock editor that exports (cache shared with bots.yml)
+  GODOT_TAG: "4.7.2-stable"   # the Godot source the templates are built from, as in fdroid.yaml
 
 jobs:
-  build:
-    name: ${{ matrix.name }}
+  # The template the bots run on; handed to bots.yml as an artifact.
+  bots-template:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/stripped-template
+        with:
+          platform: linux
+          kind: debug
+          godot-tag: ${{ env.GODOT_TAG }}
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'schedule'
+        with:
+          name: template-linux-debug
+          path: build/stripped/templates/linux_debug.x86_64
+          if-no-files-found: error
+          retention-days: 3
+
+  bots:
+    needs: bots-template
+    if: github.event_name != 'schedule'
+    uses: ./.github/workflows/bots.yml
+    with:
+      engine: stripped
+
+  export:
+    name: export ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240 # (most of it only when the template has to be built)
     strategy:
       fail-fast: false # a broken platform should not hide the state of the others
       matrix:
         include:
-          - name: linux
-            preset: Linux
-            out: build/linux/velirons-outpost.x86_64
-          - name: windows
-            preset: Windows Desktop
-            out: build/windows/velirons-outpost.exe
-          - name: android
-            preset: Android
-            out: build/android/velirons-outpost.apk
-
+          - {name: linux, platform: linux, kind: release, out: build/linux/velirons-outpost.x86_64}
+          - {name: windows, platform: windows, kind: release, out: build/windows/velirons-outpost.exe}
+          - {name: android, platform: android, kind: debug, out: build/android/velirons-outpost.apk}
+          - {name: web, platform: web, kind: release, out: build/web/index.html}
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: true
           fetch-depth: 0 # the whole history and the tags: the stamp names the latest tag
 
-      # The same cache key as pages.yml, on purpose: Godot and its templates are
-      # a gigabyte, and one download should serve every job of both workflows.
-      - name: Cache Godot
-        id: cache-godot
-        uses: actions/cache@v4
+      - uses: ./.github/actions/stripped-template
         with:
-          path: |
-            ~/godot
-            ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}
+          platform: ${{ matrix.platform }}
+          kind: ${{ matrix.kind }}
+          godot-tag: ${{ env.GODOT_TAG }}
 
-      - name: Download Godot & export templates
-        if: steps.cache-godot.outputs.cache-hit != 'true'
-        run: |
-          BASE=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
-          wget -q $BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
-          wget -q $BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
-          unzip -q Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
-          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot
-          TPL=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          mkdir -p $TPL
-          unzip -q Godot_v${GODOT_VERSION}-stable_export_templates.tpz
-          mv templates/* $TPL/
+      - uses: ./.github/actions/stock-godot
+        if: github.event_name != 'schedule'
+        with:
+          godot-version: ${{ env.GODOT_VERSION }}
 
       # --- Android only ----------------------------------------------------
       # The preset sets gradle_build/use_gradle_build=false, so Godot packs the
-      # prebuilt template APK and needs neither Gradle nor the NDK. It does need
-      # the SDK's zipalign and apksigner, and a JDK to run apksigner with.
-
+      # template APK and needs neither Gradle nor the NDK. It does need the
+      # SDK's zipalign and apksigner, a JDK to run apksigner with, and a debug
+      # keystore (nothing here has made one yet).
       - name: Set up the JDK
-        if: matrix.name == 'android'
+        if: github.event_name != 'schedule' && matrix.platform == 'android'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Point Godot at the Android SDK
-        if: matrix.name == 'android'
+      - name: Point Godot at the Android SDK and a debug key
+        if: github.event_name != 'schedule' && matrix.platform == 'android'
         run: |
           # These two are editor settings with no command-line switch, so write
           # the file the editor would have written. Godot fills in every other
-          # setting from its defaults.
+          # setting from its defaults. 4.x has shipped under both of these names
+          # for this file, and an unread copy costs nothing.
           mkdir -p ~/.config/godot
           cat > ~/.config/godot/editor_settings-4.tres <<EOF
           [gd_resource type="EditorSettings" format=3]
@@ -92,21 +116,7 @@ jobs:
           export/android/android_sdk_path = "${ANDROID_SDK_ROOT}"
           export/android/java_sdk_path = "${JAVA_HOME}"
           EOF
-          # 4.x has shipped under both of these names for this file, and an
-          # unread copy costs nothing.
-          cp ~/.config/godot/editor_settings-4.tres \
-             ~/.config/godot/editor_settings-${GODOT_VERSION}.tres
-          cat ~/.config/godot/editor_settings-4.tres
-
-      - name: Android signing keys
-        if: matrix.name == 'android'
-        env:
-          RELEASE_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          RELEASE_USER: ${{ secrets.ANDROID_KEYSTORE_USER }}
-          RELEASE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: |
-          # package/signed=true, so an unsigned APK is not on the table, and
-          # without the editor here nothing has created a debug keystore yet.
+          cp ~/.config/godot/editor_settings-4.tres ~/.config/godot/editor_settings-${GODOT_VERSION}.tres
           mkdir -p ~/.android
           keytool -keyalg RSA -genkeypair -alias androiddebugkey \
             -keypass android -keystore ~/.android/debug.keystore \
@@ -117,52 +127,68 @@ jobs:
             echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey"
             echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android"
           } >> "$GITHUB_ENV"
-          # A real release APK only if the three secrets are set. Without them
-          # the job still hands back an installable debug APK instead of going
-          # red, which is what a fork or a first run wants.
-          if [ -n "$RELEASE_KEYSTORE" ]; then
-            echo "$RELEASE_KEYSTORE" | base64 -d > ~/.android/release.keystore
-            {
-              echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$HOME/.android/release.keystore"
-              echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=$RELEASE_USER"
-              echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$RELEASE_PASSWORD"
-              echo "SIGNED_RELEASE=1"
-            } >> "$GITHUB_ENV"
-          else
-            echo "::warning title=Unsigned Android build::No ANDROID_KEYSTORE_BASE64 secret, exporting a debug APK."
-          fi
       # ---------------------------------------------------------------------
 
-      # The commit and the latest tag, for the title screen and the game log
-      # (BuildInfo). Fails the build when git can't say.
-      - name: Stamp the version
-        run: tools/stamp_version.sh
-
-      - name: Import assets
-        run: ~/godot --headless --import
-
-      - name: Export ${{ matrix.preset }}
-        env:
-          PRESET: ${{ matrix.preset }}
-          OUT: ${{ matrix.out }}
-          PLATFORM: ${{ matrix.name }}
-        run: |
-          mkdir -p "$(dirname "$OUT")"
-          mode=--export-release
-          if [ "$PLATFORM" = android ] && [ -z "$SIGNED_RELEASE" ]; then
-            mode=--export-debug # a debug keystore cannot sign a release build
-          fi
-          ~/godot --headless $mode "$PRESET" "$OUT"
-          # Godot's exporter has been known to warn its way to exit code 0, so
-          # take the file itself as the proof.
-          test -s "$OUT"
-          ls -lh "$(dirname "$OUT")"
+      # Stamps the version (BuildInfo), exports with the stripped template, and
+      # checks the file is there: Godot's exporter has been known to warn its
+      # way to exit code 0.
+      - name: Export ${{ matrix.name }} (${{ matrix.kind }})
+        if: github.event_name != 'schedule'
+        run: GODOT=$HOME/godot .github/scripts/export-stripped.sh ${{ matrix.platform }} ${{ matrix.kind }} ${{ matrix.out }}
 
       - uses: actions/upload-artifact@v4
+        if: github.event_name != 'schedule'
         with:
           name: velirons-outpost-${{ matrix.name }}
-          # The desktop presets have binary_format/embed_pck=false, so the .pck
-          # beside the binary (and Windows' console wrapper) is part of the
-          # build, not a leftover: upload the whole directory.
+          # Windows' console wrapper (and the web build's other files) are part
+          # of the build: upload the whole directory.
           path: build/${{ matrix.name }}/
           if-no-files-found: error
+
+  # The Web debug build for GitHub Pages: built on every run (a pull request
+  # finds out whether it exports), deployed only from main.
+  pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - uses: ./.github/actions/stripped-template
+        with:
+          platform: web
+          kind: debug
+          godot-tag: ${{ env.GODOT_TAG }}
+
+      - uses: ./.github/actions/stock-godot
+        if: github.event_name != 'schedule'
+        with:
+          godot-version: ${{ env.GODOT_VERSION }}
+
+      - name: Export Web (debug)
+        if: github.event_name != 'schedule'
+        run: GODOT=$HOME/godot .github/scripts/export-stripped.sh web debug build/pages/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'schedule'
+        with:
+          path: build/pages
+
+  deploy:
+    needs: pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

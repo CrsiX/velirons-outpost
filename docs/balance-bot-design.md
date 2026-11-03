@@ -148,8 +148,8 @@ look like "no effect"). Once a change is good, make it in config.gd for real.
 
 ## 8. In GitHub CI
 
-- **Smoke test** (`bots.yml`, job `balance-smoke`, on every push and pull request, and before the
-  Pages deploy): a handful of short games that must reach a low wave count, some fixed, some on a
+- **Smoke test** (`bots.yml`, job `balance-smoke`, on every push and pull request, on the
+  stripped engine where the other bots use it): a handful of short games that must reach a low wave count, some fixed, some on a
   random seed and map (the seed is printed so a failure can be rerun). Unlike the other bots, a
   failed game fails the job. It catches the bot or a profile breaking against the game's code,
   and an early game that stopped working at all. Hard difficulty is left out: the bot often dies

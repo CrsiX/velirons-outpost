@@ -1,8 +1,12 @@
 name: Test bots
 
-# Nothing starts this on its own: tests.yml runs it off a push or a pull
-# request, pages.yml runs it before it deploys. Both bring their own
-# concurrency group, so this one has none -- it would cancel across them.
+# Nothing starts this on its own: tests.yml runs it on the stock engine for a
+# push to a branch other than main, build.yml on the stripped engine (the
+# engine cuts in build_conf/, what the exports ship) for main, pull requests
+# and tags. With engine "stripped" the caller has uploaded the Linux debug
+# template as the artifact template-linux-debug; the game runs on it from a
+# freshly exported pack (.github/scripts/run_stripped_bots.sh). Both callers bring their
+# own concurrency, so this one has none.
 on:
   workflow_call:
     inputs:
@@ -14,6 +18,10 @@ on:
         description: "Which bots to run, space separated; empty for all of them"
         type: string
         default: ""
+      engine:
+        description: "stock (Godot's own build) or stripped (needs the artifact template-linux-debug)"
+        type: string
+        default: stock
   workflow_dispatch:
     inputs:
       mapgen_seeds:
@@ -33,8 +41,9 @@ env:
 
 jobs:
   # Fetches Godot once so the bots below only have to restore it. The cache key
-  # is the one pages.yml and build.yml use, so all three share one copy -- which
+  # is the one build.yml and balance.yml use, so they share one copy -- which
   # is why the export templates are in it too, even though no bot needs them.
+  # (The stripped engine runs the game, but the stock editor exports its pack.)
   setup:
     runs-on: ubuntu-latest
     steps:
@@ -60,6 +69,50 @@ jobs:
           unzip -q Godot_v${GODOT_VERSION}-stable_export_templates.tpz
           mv templates/* $TPL/
 
+  # Stripped engine only: the game as a pack, exported by the stock editor,
+  # beside the stripped Linux debug template the caller built. Every job
+  # below runs the bots on these two (artifact stripped-linux).
+  pack:
+    if: inputs.engine == 'stripped'
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Restore Godot
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+          fail-on-cache-miss: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: template-linux-debug
+          path: build/stripped/templates
+
+      - name: Export the pack
+        run: |
+          ~/godot --headless --import 2>&1 | tail -5
+          ~/godot --headless --export-pack "Linux" build/stripped/game.pck
+          test -s build/stripped/game.pck
+          cp build/stripped/templates/linux_debug.x86_64 build/stripped/godot.template_debug
+          ls -lh build/stripped
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stripped-linux
+          path: |
+            build/stripped/game.pck
+            build/stripped/godot.template_debug
+          if-no-files-found: error
+          retention-days: 3
+
   # gdlint over every GDScript file (tests/lint.sh, rules in .gdlintrc). It
   # needs no Godot, so it starts at once; a finding fails the run like a bot.
   lint:
@@ -83,7 +136,8 @@ jobs:
   # per map, so the numbers are the generator's real first-try hit rate rather
   # than what Config.MAP_TRIES hides. GEN_PROFILE makes it time its own stages.
   mapgen:
-    needs: setup
+    needs: [setup, pack]
+    if: ${{ !cancelled() && needs.setup.result == 'success' && needs.pack.result != 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -92,6 +146,7 @@ jobs:
           lfs: true
 
       - name: Restore Godot
+        if: inputs.engine != 'stripped'
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -101,7 +156,15 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Import assets
+        if: inputs.engine != 'stripped'
         run: ~/godot --headless --import 2>&1 | tail -5
+
+      - name: Fetch the stripped engine and the pack
+        if: inputs.engine == 'stripped'
+        uses: actions/download-artifact@v4
+        with:
+          name: stripped-linux
+          path: build/stripped
 
       - name: Generate maps
         env:
@@ -111,7 +174,12 @@ jobs:
           MAPGEN_BUDGET_MS: "1500000"
           TIMEOUT: "2100"
           CI: "true"  # (the bots skip their machine-dependent timing checks)
-        run: GODOT=~/godot tests/run_all.sh mapgen
+        run: |
+          if [ "${{ inputs.engine }}" = stripped ]; then
+            .github/scripts/run_stripped_bots.sh mapgen
+          else
+            GODOT=~/godot tests/run_all.sh mapgen
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -124,7 +192,8 @@ jobs:
   # back as its own artifact even when the bot fails. A failed check fails the
   # job, and with it the run: no bot failures are allowed.
   bots:
-    needs: setup
+    needs: [setup, pack]
+    if: ${{ !cancelled() && needs.setup.result == 'success' && needs.pack.result != 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -137,6 +206,7 @@ jobs:
           lfs: true
 
       - name: Restore Godot
+        if: inputs.engine != 'stripped'
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -146,7 +216,15 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Import assets
+        if: inputs.engine != 'stripped'
         run: ~/godot --headless --import 2>&1 | tail -5
+
+      - name: Fetch the stripped engine and the pack
+        if: inputs.engine == 'stripped'
+        uses: actions/download-artifact@v4
+        with:
+          name: stripped-linux
+          path: build/stripped
 
       - name: Run the ${{ matrix.bot }} bot
         if: ${{ inputs.bots == '' || contains(format(' {0} ', inputs.bots), format(' {0} ', matrix.bot)) }}
@@ -155,7 +233,12 @@ jobs:
           TIMEOUT: "2700"
           CI: "true"  # (the bots skip their machine-dependent timing checks)
           RETRY: sim  # (flaky: a failed run gets a second one, which decides)
-        run: GODOT=~/godot tests/run_all.sh ${{ matrix.bot }}
+        run: |
+          if [ "${{ inputs.engine }}" = stripped ]; then
+            .github/scripts/run_stripped_bots.sh ${{ matrix.bot }}
+          else
+            GODOT=~/godot tests/run_all.sh ${{ matrix.bot }}
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -172,7 +255,8 @@ jobs:
   # --map / --seeds to see it again). No hard games: the bot dies before wave 5
   # in about a fifth of them, so there it would only test the dice. Like the bots above, a failure fails the run.
   balance-smoke:
-    needs: setup
+    needs: [setup, pack]
+    if: ${{ !cancelled() && needs.setup.result == 'success' && needs.pack.result != 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -190,6 +274,7 @@ jobs:
           lfs: true
 
       - name: Restore Godot
+        if: inputs.engine != 'stripped'
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -199,7 +284,15 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Import assets
+        if: inputs.engine != 'stripped'
         run: ~/godot --headless --import 2>&1 | tail -5
+
+      - name: Fetch the stripped engine and the pack
+        if: inputs.engine == 'stripped'
+        uses: actions/download-artifact@v4
+        with:
+          name: stripped-linux
+          path: build/stripped
 
       - name: Play five waves (${{ matrix.name }})
         if: ${{ inputs.bots == '' || contains(format(' {0} ', inputs.bots), ' balance ') }}
@@ -208,7 +301,12 @@ jobs:
           if [ "$SEED" = random ]; then SEED=$(( (RANDOM * 32768 + RANDOM) % 90000 + 1000 )); fi
           echo "map=${{ matrix.map }} seed=$SEED difficulty=${{ matrix.difficulty }} policy=${{ matrix.policy }}" | tee -a "$GITHUB_STEP_SUMMARY"
           mkdir -p logs
-          ~/godot --headless --fixed-fps 60 res://tools/balance_bot.tscn -- \
+          godot=(~/godot)
+          if [ "${{ inputs.engine }}" = stripped ]; then
+            chmod +x build/stripped/godot.template_debug
+            godot=(build/stripped/godot.template_debug --main-pack build/stripped/game.pck)
+          fi
+          "${godot[@]}" --headless --fixed-fps 60 res://tools/balance_bot.tscn -- \
             --map=${{ matrix.map }} --seeds=$SEED --difficulty=${{ matrix.difficulty }} --policy=${{ matrix.policy }} \
             --max-waves=5 --require-waves=5 --no-detail --out=logs/balance-smoke-${{ matrix.name }}.jsonl 2>&1 | tee logs/balance-smoke-${{ matrix.name }}.log
           exit ${PIPESTATUS[0]}

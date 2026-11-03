@@ -14,6 +14,7 @@ A dark-fantasy isometric village-defense game in Godot 4.7 (GL Compatibility ren
 ## Standing rules from the user
 
 - Never modify anything in `exports/` (build outputs). Don't touch `README.md`.
+- Never commit: the user commits themselves. Leave changes in the working tree and say what is ready.
 - New player units: ask the user how each one is unlocked before building it. Work out a plan before adding new units.
 - Every tunable goes into `config.gd` (see above), never hard-coded in scripts.
 - Hand-edited scenario maps are never regenerated; see `.claude/rules/scenarios-and-maps.md` (and the edit-handmade-map skill).
@@ -68,7 +69,7 @@ data/maps/    built-in map files; data/title_maps/ baked backdrop maps
 tests/        the bots, run_all.sh, lint.sh, run_net_test.sh
 docs/         design docs and the glossary
 scenes/       main.tscn, title.tscn
-.github/workflows/  CI: tests, bots (lint + one job per bot), balance (manual), build, pages
+.github/      CI
 ```
 
 ## Cross-cutting facts
