@@ -12,7 +12,7 @@ with mouse and keyboard or touch.
 ![Banner](banner.png)
 
 The last outpost of the kingdom of Veliron is a small village surrounded
-by walls. It sits in the middle of a procedurally generated 75x75 map
+by walls. It sits in the middle of a procedurally generated map
 of different biomes like forests, meadows, heath, steppe, swamps and
 terrain features such as lakes, rivers, coastlines and mountains.
 Continuous waves of monsters roam around that attack the village and
@@ -34,6 +34,9 @@ internal project structure is quite messy and the code reeks of gen AI.
   the map during the game to unlock new units 
 * Continuous, never-ending waves of different kinds of monsters with
   increasing strength
+* 11 hand-crafted scenarios that follow the hero Brenna Hale on her hardships
+  after the prince seizes the throne, which explain the backstory of
+  the Kingdom of Veliron
 * Many different military units with branched upgrades after reaching level 3:
   archers, shield bearers, summoners, mages, acolytes and their specialized
   variants
@@ -53,7 +56,6 @@ internal project structure is quite messy and the code reeks of gen AI.
 * Hard-coded mid-bosses every 25 waves with many special abilities to keep
   things spicy
 * Actually usable relics and perhaps more exploration in late-game
-* Scenarios
 * Some end-the-game win-condition
 
 ## Tests & Tools
@@ -65,3 +67,5 @@ Notably, the `net_bot` needs two processes because it simulates LAN play.
 
 There is a simulation script in `tools/balance` that simulates entire game
 playthroughs used for balancing.
+
+Use the helpers `tools/export.sh` and `tools/release.sh`, respectively.
