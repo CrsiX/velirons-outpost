@@ -72,11 +72,11 @@ func _init() -> void:
 ## are restored), and the barracks' logbook.
 const PAGES: Array[String] = [
 	"Third week of the thaw. Quiet on the line. Goblins in the far hills, but they know better than to come within bowshot of a manned tower. Mended the brazier.",
-	"Orders came today: half the garrison to march for the capital. Nobody says for whom. The tower next along has its lamp out tonight. Without it the road between us is blind.",
-	"The captain rode the line today, tower to tower, from the sea cliffs to the mountains. She counted heads at every hearth and asked who could be spared. She wrote every name down, and didn't say what for.",
+	"Orders came today: half the garrison to march for the capital. Nobody says who we are marching against. The tower next along has its lamp out tonight. Without it the road between us is blind.",
+	"The captain rode the line today, tower to tower, from the sea cliffs to the mountains. She counted heads at every hearth and asked who could be spared. She wrote every name down and didn't say what for.",
 	"Down to four men, too few to walk the road at night. So we set rune stones along it, between the towers: their glow shows us the stretch no tower can see. A tower alone sees its own bit of road; a lit road between them is what makes them a line.",
-	"Goblins tried the road by the river bridge last night. The stones showed them to us a long way off, and the two towers shot them down between them before they ever reached the bridge. Neither tower could have done it alone.",
-	"Last page. They called the rest of us in, and the rune stones have gone dark behind us. If anyone reads this: the Wardline was never the towers. It was the light between them, and the people who kept it burning.",
+	"Goblins tried the road by the river bridge last night. The stones showed them to us a long way off, and the two towers shot them down before they ever reached the bridge. Neither tower could have done it alone.",
+	"We are leaving. They called the rest of us in, and the rune stones are going dark behind us. If anyone reads this: the Wardline was never the towers. It was the light between them, and the people who kept it burning.",
 ]
 ## What Brenna and Pell say once a page is closed (by its number, from 1).
 const TALKS := {
@@ -86,7 +86,7 @@ const TALKS := {
 		{"say": "pell", "text": "Then there's a long way still to go."},
 	],
 	4: [
-		{"say": "brenna", "text": "Four men to a tower, and they still held. Rune stones and stubbornness."},
+		{"say": "brenna", "text": "Only four men for the line it, and they still held. Rune stones and stubbornness."},
 		{"say": "pell", "text": "My guild's carters will want to meet whoever thought of the stones. A lit road is a road a cart can take at dusk."},
 		{"say": "brenna", "text": "Then we light it all the way. West and east."},
 	],
@@ -110,9 +110,9 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"say": "brenna", "text": "A Wardline tower. A whole chain of them ran along the border road, west and east, each in sight of the next."},
 		{"say": "pell", "text": "Six of them on this stretch alone, the old maps say. And the barracks at the east end, where the garrison slept."},
 		{"say": "pell", "text": "The crown paid for them, and the knights manned them, and the wilderness stayed out of the farms. Then the war came and called the knights home."},
-		{"say": "brenna", "text": "I served on the line, before. We kept a lamp burning every night. You could see the next tower's lamp from ours."},
+		{"say": "brenna", "text": "I served on the line before. We kept a lamp burning every night. You could see the next tower's lamp from ours."},
 		{"say": "pell", "text": "Then you know what it takes. Rebuild them, man them, and light the road between them, and my guild's caravans can pass."},
-		{"say": "", "text": "Pell must not die. The waves keep coming until the line is restored and lit."},
+		{"say": "", "text": "Pell must not die. The waves keep coming until the line is restored and lit.", "italic": true},
 	]
 
 
@@ -127,11 +127,11 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"camera": mid, "zoom": 1.0, "time": 2.5},
 		{"say": "", "text": "The road is open. Down it, between the lit stones, comes the first guild caravan in a year."},
 		{"say": "pell", "text": "Look at that. Flour, timber, salt. And letters."},
-		{"say": "pell", "text": "From the border town, Brenna. The guild's store there is under pressure: the rival guilds want it, and they're not asking politely."},
+		{"say": "pell", "text": "From the coast town, Brenna. The guild's store there is under pressure: the rival guilds want it, and they're not asking politely."},
 		{"say": "pell", "text": "I have to go. And I'd rather not go alone."},
 		{"say": "brenna", "text": "The village has its towers now, and Father has his timber. I'm coming with you."},
 		{"do": func() -> void: r.dusk(3.0)},
-		{"say": "", "text": "From here on, Brenna leaves her home behind. Out there, nobody can bring her back if she falls."},
+		{"say": "", "text": "From here on, Brenna leaves her home behind. Out there, nobody can bring her back if she falls.", "italic": true},
 		{"fade": "out", "time": 1.5},
 	]
 
@@ -195,7 +195,7 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 		{"title": "Specialise",
 			"text": "Your archers have reached level 3: they can specialise now. Tap one and pick a branch: a Crossbowman for heavy bolts, or a Swiftbowman for a hail of arrows.",
 			"done": func() -> bool: return g.army.units.any(func(u: MilitaryUnit) -> bool: return Config.MILITARY[u.kind].has("branch_of")),
-			"point": func() -> Dictionary: return {"units": g.army.stationed().filter(func(u: MilitaryUnit) -> bool: return u.kind == "archer" and is_instance_valid(u.post) and u.post.unit_rect(u).has_area())}},
+			"point": func() -> Dictionary: return {"units": g.army.stationed().filter(func(u: MilitaryUnit) -> bool: return u.kind == "archer" and u.level + 1 >= Config.BRANCH_MIN_LEVEL and is_instance_valid(u.post) and u.post.unit_rect(u).has_area())}},
 		{"title": "Training grounds",
 			"text": "Training grounds let Brenna pass her XP on to a unit: free levels instead of gold. Build them and station a unit there.",
 			"done": func() -> bool: return g.army.units.any(func(u: MilitaryUnit) -> bool: return u.post is TrainingGrounds and u.state == MilitaryUnit.State.STATIONED),
@@ -244,7 +244,8 @@ func objectives(r: ScenarioRunner) -> Array[Dictionary]:
 		{"id": "barracks", "text": "Restore and man the old barracks",
 			"done": func() -> bool: return _manned(r, "barracks") >= _sites(r, "barracks").size(),
 			"detail": func() -> String: return "%d / %d" % [_manned(r, "barracks"), _sites(r, "barracks").size()]},
-		{"id": "lit", "text": "Light the road between them",
+		{"id": "lit", "text": "Light the road between them and the village",
+			"shown": func() -> bool: return _dark_between_manned(r),
 			"done": func() -> bool: return _dark_road(r).is_empty(),
 			"detail": func() -> String: return "%d %%" % roundi(100.0 * (1.0 - float(_dark_road(r).size()) / maxf(1.0, float(_line(r).size()))))},
 	]
@@ -300,6 +301,31 @@ func _line(r: ScenarioRunner) -> Array[Vector2i]:
 				out.append(t)
 	r.mark["line"] = out
 	return out
+
+
+## Each ruin site's road to the village, by its tile (computed once).
+func _site_road(r: ScenarioRunner, s: Dictionary) -> Array[Vector2i]:
+	var roads: Dictionary = r.mark.get_or_add("site_roads", {})
+	if not roads.has(s["tile"]):
+		roads[s["tile"]] = r.road_to_village(s["tile"])
+	return roads[s["tile"]]
+
+
+## Is any road of the line between two manned posts of the line dark? (The
+## light objective appears then: before, there is nothing between to light.)
+func _dark_between_manned(r: ScenarioRunner) -> bool:
+	var manned := r.ruin_sites.filter(func(s: Dictionary) -> bool:
+		var b := r.restored(s)
+		return b is MilitaryPost and not (b as MilitaryPost).units().is_empty())
+	var line := _line(r)
+	for i in manned.size():
+		var a := _site_road(r, manned[i])
+		for j in range(i + 1, manned.size()):
+			var b := _site_road(r, manned[j])
+			for t in a + b:  # (the stretch between them: on one's road to the village, not both)
+				if line.has(t) and a.has(t) != b.has(t) and not r.lit(t):
+					return true
+	return false
 
 
 ## A monster camp the village has found, not yet cleared.

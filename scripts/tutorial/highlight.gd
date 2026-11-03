@@ -4,7 +4,9 @@ extends Control
 ## outline around a HUD control and / or a pulsing diamond on map tiles or
 ## an outline around units' figures on their posts, with a bobbing arrow at it. A tile off the map's part of the screen (off screen,
 ## or under the top bar or the open dock: Hud.map_rect) gets only an arrow at
-## that area's edge, pointing its way. Draws over the HUD, takes no input.
+## that area's edge, pointing its way. Takes no input. The outline around a
+## HUD control draws over the HUD; the marks on the map draw under all of it
+## (cards, panels, popups), on a layer of their own (Hud.add_map_layer).
 
 const GOLD := Color("ffd76a")
 const ARROW := 22.0  # px, arrow head length
@@ -32,7 +34,27 @@ func _init(p_game: Game) -> void:
 	_map_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map_layer.clip_contents = true
 	_map_layer.draw.connect(_draw_tiles)
-	add_child(_map_layer)
+	visibility_changed.connect(_on_visibility_changed)
+
+
+func _enter_tree() -> void:
+	if _map_layer.get_parent() == null:
+		game.hud.add_map_layer(_map_layer)
+
+
+## Its map layer goes with it (the HUD may be going too: no remove_child).
+func _exit_tree() -> void:
+	if is_instance_valid(_map_layer):
+		_map_layer.queue_free()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(_map_layer) and not _map_layer.is_inside_tree():
+		_map_layer.free()  # (never added)
+
+
+func _on_visibility_changed() -> void:
+	_map_layer.visible = is_visible_in_tree()
 
 
 func point_at(control: Control, p_clip: Rect2, p_tiles: Array[Vector2i], p_units: Array[MilitaryUnit] = []) -> void:
@@ -67,7 +89,7 @@ func unit_screen_rects() -> Array[Rect2]:
 func _process(delta: float) -> void:
 	_t += delta
 	var area := game.hud.map_rect()
-	_map_layer.position = area.position - get_global_rect().position
+	_map_layer.global_position = area.position
 	_map_layer.size = area.size
 	queue_redraw()
 	_map_layer.queue_redraw()

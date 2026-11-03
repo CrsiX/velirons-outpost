@@ -570,7 +570,17 @@ func _scenario_2() -> void:
 	check(await wait_until(func() -> bool: return sc.claimed(site), 400.0), "Brenna claims the broken watchtower")
 	check(await wait_until(func() -> bool: return sc.step == 2, 5.0), "the restore card")
 	var ruin = sc.on_site(site)
-	check(cmd("restore_ruin", {"ruin": ruin.nid})["ok"], "it is restored")
+	game.select(ruin)
+	await frames(1)
+	var restore_btns := game.hud._info_actions.get_children().filter(func(c: Node) -> bool: return c is Button)
+	check(restore_btns.size() == 1 and str(ruin.info()["actions"][0]["label"]).begins_with("Restore"), "its panel has its one button: Restore")
+	if restore_btns.size() == 1:
+		(restore_btns[0] as Button).pressed.emit()  # (the HUD's own button: the ruin is freed under it)
+	else:
+		cmd("restore_ruin", {"ruin": ruin.nid})
+	check(game.selected != ruin and not game.hud._info_panel.visible, "its panel is gone with it: no Restore button left to press again")
+	await frames(2)
+	check(sc.on_site(site) is Building and not (sc.on_site(site) is MapObject), "it is being restored")
 	await wait(3.0)
 	check(sc.step == 2 and sc.card.lesson_title() == "Pell's goods" and sc.highlight.tiles.is_empty(), "the trade card waits for wave 2 and the goods; nothing is marked (%s)" % sc.card.lesson_title())
 	var guard := Timer.new()
@@ -677,6 +687,12 @@ func _scenario_3() -> void:
 	check(v.buildings().any(func(b: Building) -> bool: return b is Barracks and not (b as Barracks).units().is_empty()), "barracks with a shield bearer")
 	var archer: MilitaryUnit = game.army.units.filter(func(u: MilitaryUnit) -> bool: return u.kind == "archer" and u.level == 2)[0]
 	check(archer.upgrade_options().any(func(o: Dictionary) -> bool: return o["to"] == "crossbowman"), "level 3 archers can specialise")
+	var spec_card: Dictionary = sc.steps.filter(func(s: Dictionary) -> bool: return s["title"] == "Specialise")[0]
+	var marked: Array = (spec_card["point"] as Callable).call().get("units", [])
+	var young := game.army.stationed().filter(func(u: MilitaryUnit) -> bool: return u.kind == "archer" and u.level + 1 < Config.BRANCH_MIN_LEVEL)
+	check(not marked.is_empty() and not young.is_empty() and marked.all(func(u: MilitaryUnit) -> bool: return u.level + 1 >= Config.BRANCH_MIN_LEVEL), "the specialise card marks only archers that can specialise (%d marked, %d too young)" % [marked.size(), young.size()])
+	var marks: Control = sc.highlight._map_layer
+	check(marks.get_parent() == sc.card.get_parent() and marks.get_index() < sc.card.get_index() and marks.get_index() < game.hud._topbar.get_index(), "the marks on the map draw under the card and the HUD")
 	check(game.hero.level == 3 and game.allows_building("training") and not game.allows_building("stall"), "Brenna at level 4; training grounds allowed")
 	check(game.waves.last_wave == 0 and not game.waves.call_locked, "the waves don't stop by themselves")
 	var w9 := sc.next_wave(9)
@@ -686,6 +702,7 @@ func _scenario_3() -> void:
 	check(sc.card.lesson_title() == "Claim the ruins", "the first card: claim the ruins")
 	check(not sc.spec._dark_road(sc).is_empty(), "the road out to the ruins is dark")
 	check(sc.spec._known_dark_road(sc).is_empty(), "no tower restored yet: no road to light (the light card would wait)")
+	check(not sc._goal_shown.has("lit") and not sc.card._rows["lit"]["tick"].get_parent().visible, "no posts manned: the light objective isn't shown yet")
 	var camps := game.world.map_objects.filter(func(o: MapObject) -> bool: return o is MonsterCamp and not (o is MonsterLair) and not (o as MonsterCamp).cleared)
 	check(not camps.is_empty(), "monster camps by the road")
 	if not camps.is_empty():
@@ -783,6 +800,7 @@ func _scenario_3() -> void:
 		cmd("recruit_unit", {"kind": "shield_bearer" if post is Barracks else "archer"})
 		cmd("station_unit", {"unit": game.army.reserve()[0].nid, "post": post.nid})
 	check(await wait_until(func() -> bool: return sc._goal_state.get("towers", false) and sc._goal_state.get("barracks", false), 300.0), "every restored post is manned (%s)" % str(sc._goal_state))
+	check(await wait_until(func() -> bool: return sc._goal_shown.has("lit") and sc.card._rows["lit"]["tick"].get_parent().visible, 5.0) and sc.spec._dark_between_manned(sc), "dark road between manned posts: the light objective shows")
 
 	print("-- scenario 3: the light card")
 	check(sc.spec._known_dark_road(sc).all(func(tt: Vector2i) -> bool: return game.map.is_explored(tt)), "the light card counts only road the village has explored")

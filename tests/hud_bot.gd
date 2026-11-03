@@ -157,6 +157,18 @@ func _test_picking() -> void:
 	check(game.selected == tower and game.selected_unit == null, "a second tap there selects its tower")
 	game.deselect()
 	game.army.unstation(a)
+	# A selected map object taken off the map (a sack picked up) is no longer selected.
+	var objs: Array = w.map_objects.filter(func(o: MapObject) -> bool: return o.visible)
+	check(not objs.is_empty(), "the map has a map object to select")
+	if objs.is_empty():
+		return
+	var obj: MapObject = objs[0]
+	var obj_at := obj.position
+	game.select(obj)
+	w.remove_map_object(obj)
+	check(game.selected == null and not game.hud._info_panel.visible, "a selected map object that is removed is deselected")
+	await _tap_at(obj_at)  # (no freed selection behind the tap)
+	game.deselect()
 
 
 func _test_hero_bar() -> void:

@@ -84,17 +84,17 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 			p.position = Iso.to_world(Vector2(-0.6, 0.9))
 			(cart[0] as Node2D).add_child(p)},
 		{"title": "The Old Friend", "sub": "Scenario 2", "time": 3.0},
-		{"say": "", "text": "A few weeks later. The huts stand again, the walls hold, and the south road has been quiet."},
+		{"say": "", "text": "Two days later. The huts stand again, the walls hold, and the south road has been quiet."},
 		{"fade": "in", "time": 1.2},
 		{"say": "pell", "text": "There. The last stone of that wall, carried by a merchant. My back will never forgive you, Brenna."},
-		{"say": "brenna", "text": "You did more than your share, Pell. We wouldn't be done without you."},
+		{"say": "brenna", "text": "You did more than your share, Pell. We wouldn't be done without you this quickly."},
 		{"say": "pell", "text": "Then may a humble trader finally have a place for his wares? My cart has stood by this gate since the night I came, and goods don't sell themselves from under a tarp."},
 		{"say": "brenna", "text": "You'll have your stall. Somewhere by the road, where people pass."},
 		{"say": "pell", "text": "Where people pass. Out here. Ha! Then I'll send word down the road, and the goods will follow."},
-		{"say": "pell", "text": "One more thing. I went looking for you in the capital, you know. Nobody there had seen you."},
-		{"say": "brenna", "text": "I wasn't at the capital. That's all there is to tell. For now."},
-		{"say": "pell", "text": "Then I won't ask. Show me where my stall goes."},
-		{"say": "", "text": "Pell must not die, and his stall must not be lost. Place it: once it stands, the first wave will not be far behind."},
+		{"say": "pell", "text": "One more thing. Where have you been? The capital is in uproar, so I went looking for you, you know. Nobody there had seen you. I thought you might have been killed in the battles."},
+		{"say": "brenna", "text": "I wasn't at the capital. That's all there is to tell, for now."},
+		{"say": "pell", "text": "Okay. Then I won't ask. Show me where my stall goes."},
+		{"say": "", "text": "Pell must not die, and his stall must not be lost. Place it by the road. Once it stands, the first wave will not be far behind.", "italic": true},
 		{"do": func() -> void:
 			if is_instance_valid(cart[0]):
 				(cart[0] as Node).queue_free()},
@@ -106,12 +106,12 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 	return [
 		{"do": func() -> void: r.dusk(3.0)},
 		{"camera": at + Vector2(0, -40), "zoom": 1.15, "time": 2.0},
-		{"say": "", "text": "The last of them lie in the road. By the stall, Pell counts what the rats left him."},
+		{"say": "", "text": "The last of the horde lies on the road. By the stall, Pell counts what the rats left him."},
 		{"say": "pell", "text": "You know why I really came, Brenna. The guild needs the road to the border town open again."},
 		{"say": "pell", "text": "It's cut where the Wardline's towers used to stand. Nobody mans them now, so nobody gets through."},
 		{"say": "brenna", "text": "The Wardline. I stood on it once."},
 		{"say": "pell", "text": "Help me restore it, and my guild can send caravans. Food, timber, news. This place wouldn't be the end of the world any more."},
-		{"say": "brenna", "text": "Then we start in the morning."},
+		{"say": "brenna", "text": "I agree. Let's start in the morning."},
 		{"fade": "out", "time": 1.5},
 	]
 
@@ -139,7 +139,7 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 				{"camera": r.at(road[road.size() - 5]) if road.size() > 4 else r.at(r.game.player_village.center), "zoom": 1.1, "time": 2.0},
 				{"wait": 3.0},
 				{"say": "scout", "text": "Good day. A trade stall, out here? Whose colours does your merchant fly?"},
-				{"say": "pell", "text": "The Silver Thread's. Same as ever."},
+				{"say": "pell", "text": "The Silver Thread's."},
 				{"say": "scout", "text": "The Silver Thread. The Leftovers, out here. And who supplies you, this far from anywhere?"},
 				{"say": "brenna", "text": "Nobody you need to know. Buy something, or walk on."},
 				{"say": "scout", "text": "Another time, perhaps."},
@@ -157,7 +157,7 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 		5:
 			r.play_scene([
 				{"camera": r.at(r.game.player_village.center), "zoom": 1.1, "time": 1.0},
-				{"say": "brenna", "text": "That stranger. You said rival guild. Since when does the guild have rivals?"},
+				{"say": "brenna", "text": "That stranger. You said he was from a rival guild. Since when does the guild have rivals?"},
 				{"say": "pell", "text": "Since the war. Every master had to pick an heir. Most did, and the guild broke into pieces. Each piece made its own alliances: with Fiona's court, with Rhodri's army, with each other."},
 				{"say": "pell", "text": "A few of us stayed neutral. No side, no alliances, no friends at court. We're the Silver Thread Merchant Guild now: the one thread that still runs through the whole kingdom."},
 				{"say": "pell", "text": "The others call us the Leftovers. What was left once everyone worth having had chosen. Smaller every season."},

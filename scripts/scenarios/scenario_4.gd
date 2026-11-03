@@ -96,7 +96,7 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"say": "brenna", "text": "Then it won't fall. How long do you need?"},
 		{"say": "wenna", "text": "Nine days, if the weather holds. Nine nights of whatever comes up the roads and out of the sea."},
 		{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.0, "time": 2.0},
-		{"say": "", "text": "Brenna is far from home: if she falls here, nobody can bring her back. Pell and Wenna must not die, and the warehouse must not fall."},
+		{"say": "", "text": "Brenna is far from home: if she falls here, nobody can bring her back. Pell and Wenna must not die, and the warehouse must not fall.", "italic": true},
 	]
 
 

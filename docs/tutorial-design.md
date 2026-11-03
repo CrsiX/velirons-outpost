@@ -78,7 +78,10 @@ Non-goals:
   here"). An arrow points at it when it can't be seen: off screen, or under
   the top bar or the open sidebar / bottom sheet (those count as solid UI;
   folded, what they'd cover is map again). The diamond is clipped to the map
-  area, never drawn over the bars. The dock turns to the tab a step needs;
+  area, never drawn over the bars, and the marks on the map (diamond, unit
+  outlines, arrows) sit under the whole HUD, cards and panels included: they
+  belong to the map. Only the outline around a HUD control is drawn over
+  the HUD. The dock turns to the tab a step needs;
   folded, the outline is on its open button first, because that is the
   first thing to tap.
 - When a step is done: a tick and "Well done!" on the card, a chime, and a

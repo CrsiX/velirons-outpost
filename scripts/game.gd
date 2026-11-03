@@ -339,7 +339,8 @@ func _process(delta: float) -> void:
 ## The info panel of the selection, again (it changes as the game goes on).
 func _refresh_info() -> void:
 	if selected_unit != null:
-		if selected_unit.state == MilitaryUnit.State.STATIONED and is_instance_valid(selected_unit.post):
+		if is_instance_valid(selected_unit) and selected_unit.state == MilitaryUnit.State.STATIONED \
+				and is_instance_valid(selected_unit.post):
 			hud.show_info(unit_info(selected_unit))
 		else:
 			deselect()  # it left its post
@@ -353,10 +354,10 @@ func _refresh_info() -> void:
 ## What hides the selection (a unit: its post) is drawn see-through.
 func _show_through() -> void:
 	_through_timer = float(Config.PICK["see_through_refresh"])
-	var target: Building = selected
-	if selected_unit != null and is_instance_valid(selected_unit.post):
+	var target: Building = selected if is_instance_valid(selected) else null
+	if is_instance_valid(selected_unit) and is_instance_valid(selected_unit.post):
 		target = selected_unit.post
-	world.show_through(target if is_instance_valid(target) else null)
+	world.show_through(target)
 
 
 # --- modes ------------------------------------------------------------------------
@@ -463,8 +464,12 @@ func _tap_select(world_pos: Vector2) -> void:
 ## selection, or the front-most when the selection isn't there; null after
 ## the last one.
 func _next_pick(stack: Array) -> Object:
-	var cur: Object = selected_unit if selected_unit != null else selected
-	var i := stack.find(cur) if is_instance_valid(cur) else -1
+	var cur: Object = null  # (a freed selection isn't cleared until _refresh_info)
+	if is_instance_valid(selected_unit):
+		cur = selected_unit
+	elif is_instance_valid(selected):
+		cur = selected
+	var i := stack.find(cur) if cur != null else -1
 	return stack[i + 1] if i + 1 < stack.size() else null
 
 

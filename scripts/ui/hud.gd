@@ -3596,6 +3596,12 @@ func add_layer(c: Control, on_top: bool) -> void:
 	_root.move_child(c, _pause_gray.get_index() if on_top else _upgrade_panel.get_index())
 
 
+## Adds `c` under everything else in the HUD: it draws on the map.
+func add_map_layer(c: Control) -> void:
+	_root.add_child(c)
+	_root.move_child(c, 0)
+
+
 # --- refresh ---------------------------------------------------------------------------------
 
 func _queue_refresh() -> void:

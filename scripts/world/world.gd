@@ -244,6 +244,7 @@ func remove_map_object(o: MapObject) -> void:
 			map.buildings.erase(t)
 			pathing.set_solid(t, false)
 	game.unregister(o.nid)
+	_unselect(o)
 	o.queue_free()
 
 
@@ -412,7 +413,14 @@ func remove_building(b: Building) -> void:
 	_village_dist_dirty = true
 	if game.siege:
 		game.siege.tiles_changed(b.tiles())
+	_unselect(b)
 	b.queue_free()
+
+
+## A building or map object about to be freed stops being the selection.
+func _unselect(b: Building) -> void:
+	if game.selected == b:
+		game.deselect()
 
 
 ## Re-syncs pathing after a building changes state (e.g. a tower is finished).
