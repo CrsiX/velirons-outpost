@@ -34,6 +34,13 @@ things get built and who mans the towers, and the village works on its own.
 <li>Different map types to choose from: Temperate, Highlands, Coast, Desert and Volcanic, with a seed to replay a map</li>
 </ul>
 
+<h2><b>Find out more about Veliron</b></h2>
+<ul>
+<li>A campaign map that follows the hero Brenna Hale through her hardships after the prince seizes the throne</li>
+<li>11 hand-crafted scenarios to play through</li>
+<li>Cutscenes and objectives that guide you through the lore behind the game</li>
+</ul>
+
 <h2><b>Play together</b></h2>
 <ul>
 <li>LAN co-op for up to 8 players, each with their own village on one shared map</li>
@@ -43,9 +50,12 @@ things get built and who mans the towers, and the village works on its own.
 <h2><b>Roadmap</b></h2>
 <ul>
 <li>Marketplaces</li>
-<li>More enemy units or mid-bosses</li>
-<li>Scripted scenarios, story and campaign</li>
+<li>Legendary equipments</li>
+<li>More enemy units and more interesting mechanics</li>
+<li>Improvements to the campaign</li>
+<li>Improvements to the UX, especially on mobile</li>
+<li>Better world generation</li>
 </ul>
 
-<h2><b>Anti-features</b></h2>
+<h2><b>Potential anti-features</b></h2>
 Networking: only used for LAN co-op play. The game functions fully offline.

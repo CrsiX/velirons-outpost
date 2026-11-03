@@ -46,6 +46,9 @@ extends Node
 ## (`--only=picking`) picking on the map in scenario 9's harbour village: taps
 ## through the church to the gate and wall behind it, the church see-through
 ## (it prints how long picking and measuring take on this renderer).
+## (`--only=store`, not in the full run) the store pictures at 2400x1080 (a
+## 20:9 phone): the title, a hurt village being rebuilt, a big battle, the map
+## editor and a calm village by a lake.
 ##
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
@@ -138,6 +141,8 @@ func _run() -> void:
 		await _court()
 	if only == "abbey":
 		await _abbey()
+	if only == "store":
+		await _store()
 	if only in ["", "crown"]:
 		await _crown()
 	if only in ["", "spiders"]:
@@ -2336,5 +2341,313 @@ func _ghosts() -> void:
 		if not is_instance_valid(e) or e.dead:
 			break
 	print("gone: %s" % str(not is_instance_valid(e) or e.dead))
+	g.queue_free()
+	await _frames(3)
+
+
+# --- store pictures (--only=store) ----------------------------------------------------
+
+const STORE_SIZE := Vector2i(2400, 1080)
+
+
+func _store() -> void:
+	await _size(STORE_SIZE)
+	await _store_title()
+	await _store_rebuild()
+	await _store_battle()
+	await _store_editor()
+	await _store_calm()
+	await _landscape()
+
+
+func _store_title() -> void:
+	var t: TitleScreen = load("res://scenes/title.tscn").instantiate()
+	add_child(t)
+	await _frames(90)
+	await shot("store_title")
+	t.queue_free()
+	await _frames(3)
+
+
+## A game with the waves held and the map seen, for staging.
+func _store_game(map_seed: int) -> Game:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = map_seed
+	add_child(g)
+	await _frames(60)
+	g.waves.countdown = 74.0  # (held there: a believable clock on the bar)
+	g.waves.hold = true
+	g.fog.reveal_all()
+	for k in Config.LOCKED:
+		g.unlocks[k] = true
+	g.economy.add("gold", 50000)
+	g.economy.add("materials", 5000)
+	return g
+
+
+## Before a picture: believable stock on the bar, the dock folded or open.
+func _store_tidy(g: Game, gold: float, materials: float, dock: bool) -> void:
+	g.economy.set_amounts({"gold": gold, "materials": materials})
+	g.hud.set_dock_open(dock)
+	await _frames(5)
+
+
+## Runs the game fast for `frames` frames, or until `done` returns true.
+func _store_fast(frames: int, speed: float, done: Callable = Callable()) -> void:
+	Engine.time_scale = speed
+	for i in frames:
+		await get_tree().process_frame
+		if done.is_valid() and done.call():
+			break
+	Engine.time_scale = 1.0
+
+
+## The road from a gate outwards, `steps` tiles of it.
+func _store_road_out(g: Game, gate: Vector2i, steps: int) -> Array[Vector2i]:
+	var road: Array[Vector2i] = []
+	var at := gate
+	var seen := {at: true}
+	for i in steps:
+		var next := at
+		for n in MapData.neighbors4(at):
+			if g.map.is_road(n) and not seen.has(n) and not g.map.in_village(n):
+				next = n
+				break
+		if next == at:
+			break
+		seen[next] = true
+		road.append(next)
+		at = next
+	return road
+
+
+## A hurt village: a wall broken, two huts burnt, a builder rebuilding one,
+## corpses lying about.
+func _store_rebuild() -> void:
+	var g := await _store_game(4242)
+	var v := g.player_village
+	var huts: Array[Building] = v.huts()
+	huts.sort_custom(func(a: Building, b: Building) -> bool: return (a.tile - v.center).length_squared() < (b.tile - v.center).length_squared())
+	var burnt: Array[Hut] = []
+	for b in huts:
+		if burnt.size() < 2 and not (b as Hut).ruined:
+			burnt.append(b as Hut)
+	for h in burnt:
+		h.destroy("goblin")
+	var walls: Array[Building] = []
+	walls.assign(v.buildings().filter(func(b: Building) -> bool: return b.kind == "wall"))
+	walls.sort_custom(func(a: Building, b: Building) -> bool: return (a.tile - burnt[0].tile).length_squared() < (b.tile - burnt[0].tile).length_squared())
+	var broken: Building = walls[0]
+	broken.take_damage(1e6)
+	(walls[1] as Building).take_damage(broken.max_hp() * 0.5)
+	g.command("rebuild_hut", {"building": burnt[0].nid})
+	await _store_fast(1500, 6.0, func() -> bool: return burnt[0].progress > 0.25 * burnt[0].build_time)
+	var kinds: Array[String] = ["goblin", "orc", "goblin", "wolf", "goblin"]
+	for i in kinds.size():
+		var off := Vector2(randf_range(-1.6, 1.6), randf_range(-1.6, 1.6))
+		var out_dir := Vector2(broken.tile - v.center).normalized()
+		g.corpses.spawn(kinds[i], 1, Vector2(broken.tile) + out_dir * (1.6 + 0.5 * i) + off * 0.5)
+	await _store_tidy(g, 340, 85, false)
+	g.camera.focus((Iso.tile_to_world(burnt[0].tile) + Iso.tile_to_world(broken.tile) * 2.0) / 3.0)
+	g.camera.zoom = Vector2(1.4, 1.4)
+	await _frames(15)
+	await shot("store_rebuild")
+	g.queue_free()
+	await _frames(3)
+
+
+## A unit of `kind`: recruited as its base kind and upgraded until it can
+## branch into `kind` (or as far as it goes when it can't).
+func _store_unit(g: Game, base: String, kind: String) -> MilitaryUnit:
+	var u := g.army.recruit(base)
+	for i in 6:
+		if kind != base and g.army.upgrade_error(u, kind) == "":
+			g.army.upgrade(u, kind)
+			break
+		if not g.army.upgrade(u):
+			break
+	return u
+
+
+## A massive battle at a gate: every tower manned, two barracks of melee units
+## out on the road, every sort of monster coming in at all kinds of health,
+## walls and defenders hurt, and the hero fighting spiderlings with their
+## mother behind them.
+func _store_battle() -> void:
+	var g := await _store_game(777)
+	var v := g.player_village
+	var gate: Vector2i = v.gates[0]
+	var road: Array[Vector2i] = []
+	for gt in v.gates:
+		var r := _store_road_out(g, gt, 16)
+		if r.size() > road.size():
+			road = r
+			gate = gt
+	if road.size() < 10:
+		printerr("store battle: no road out of the village")
+		g.queue_free()
+		await _frames(3)
+		return
+	var posts: Array[MilitaryPost] = []
+	for b in v.buildings():
+		if b.kind == "wall_tower":
+			posts.append(b as MilitaryPost)
+	for i: int in [3, 7]:
+		var t := g.construction.place("tower", _free_spot_in(g, "tower", road[i] + Vector2i(2, 1)))
+		t.progress = t.build_time
+		g.construction.complete(t)
+		posts.append(t as MilitaryPost)
+	var ranged := [["archer", "crossbowman"], ["apprentice", "fire_mage"], ["archer", "swiftbowman"], ["apprentice", "ice_mage"]]
+	for i in posts.size():
+		var pick: Array = ranged[i % ranged.size()]
+		g.army.station(_store_unit(g, pick[0], pick[1]), posts[i])
+	var melee: Array[String] = ["warrior", "halberdier", "berserker", "shield_bearer"]
+	var fighters: Array[MilitaryUnit] = []
+	var spots: Array[Vector2i] = [gate + Vector2i((Vector2(v.center - gate) / 3.0).round()), road[1] + Vector2i(-2, 0)]
+	for near in spots:
+		var bar := g.construction.place("barracks", _free_spot_in(g, "barracks", near)) as Barracks
+		bar.finish()
+		for k in 2:
+			bar.upgrading = true
+			bar.finish_upgrade()
+		for i in bar.capacity():
+			var u := _store_unit(g, "shield_bearer", melee[(i + fighters.size()) % melee.size()])
+			g.army.station(u, bar)
+			fighters.append(u)
+	var hero := v.hero
+	hero.set_mode(Hero.Mode.REST)  # (home until his scene: the vanguard would strike him down)
+	await _store_fast(1200, 8.0, func() -> bool: return posts.all(func(p: MilitaryPost) -> bool: return p.garrison != null))
+	v.events.entries.clear()  # (the setup's "trained as" lines)
+	v.events.changed.emit()
+	# The vanguard, to draw the melee units out onto the road.
+	var spawn := func(kind: String, at: Vector2i, strength: int) -> Enemy:
+		var e := g.waves.spawn_at(kind, at, v, strength)
+		e.set_grid_pos(Vector2(at) + Vector2(randf_range(-0.45, 0.45), randf_range(-0.45, 0.45)))
+		return e
+	for i in 6:
+		spawn.call(["goblin", "orc", "skeleton"][i % 3], road[2 + i % 3], 3)
+	await _store_fast(160, 2.0)
+	# The main host, all along the road.
+	var host: Array[String] = ["goblin", "orc", "goblin_raider", "skeleton", "goblin", "witch", "orc", "vampire",
+		"gargoyle", "goblin", "necromancer", "wolf", "siren", "orc", "goblin_raider", "skeleton", "vampire",
+		"goblin", "wolf", "orc", "skeleton", "goblin", "gargoyle", "goblin", "vampire", "orc"]
+	var foes: Array[Enemy] = []
+	for i in host.size():
+		foes.append(spawn.call(host[i], road[mini(2 + floori(i / 3.0), road.size() - 1)], 4))
+	# The hero beside the road, at grips with spiderlings; their mother behind.
+	var lair := road[mini(10, road.size() - 1)]
+	for d: Vector2i in [Vector2i(2, 0), Vector2i(0, 2), Vector2i(-2, 0), Vector2i(0, -2)]:
+		var ok := true
+		for t: Vector2i in [lair + d, lair + d + d / 2, lair + d * 3 / 2]:
+			ok = ok and g.map.is_passable(t) and not g.map.is_road(t)
+		if ok:
+			lair = lair + d
+			break
+	var mother: Enemy = spawn.call("spider_mother", lair + Vector2i(1, 1), 3)
+	mother.speed = 0.0
+	for i in 5:
+		foes.append(spawn.call("spiderling", lair + Vector2i(i % 3 - 1, -1 + floori(i / 3.0)), 2))
+	hero.set_mode(Hero.Mode.DEFEND)
+	hero.hp = hero.max_hp
+	hero.set_grid_pos(Vector2(lair) + Vector2(-0.8, -0.8))
+	await _store_fast(50, 1.0)
+	# Everyone at a different point of the fight.
+	for e in foes:
+		if is_instance_valid(e) and not e.dead:
+			e.hp = e.max_hp * randf_range(0.25, 1.0)
+	for k in fighters.size():
+		if k % 3 != 2:
+			fighters[k].hp = fighters[k].max_hp() * randf_range(0.35, 0.8)
+	hero.hp = hero.max_hp * 0.65
+	var walls: Array[Building] = []
+	walls.assign(v.buildings().filter(func(b: Building) -> bool: return b.kind in ["wall", "gate", "wall_tower"]))
+	walls.sort_custom(func(x: Building, y: Building) -> bool: return (x.tile - gate).length_squared() < (y.tile - gate).length_squared())
+	for k in mini(5, walls.size()):
+		walls[k].take_damage(walls[k].max_hp() * [0.55, 0.3, 0.7, 0.2, 0.45][k])
+	await _store_tidy(g, 1260, 140, false)
+	g.camera.focus(Iso.tile_to_world(road[4]))
+	g.camera.zoom = Vector2(1.05, 1.05)
+	await _frames(8)
+	await shot("store_battle")
+	await _store_fast(40, 1.0)
+	await shot("store_battle_later")
+	g.camera.focus(Iso.tile_to_world(lair))
+	g.camera.zoom = Vector2(1.4, 1.4)
+	await _frames(5)
+	await shot("store_battle_hero")
+	g.queue_free()
+	await _frames(3)
+
+
+func _store_editor() -> void:
+	_sample_map()
+	var ed: MapEditor = load("res://scenes/map_editor.tscn").instantiate()
+	add_child(ed)
+	await _frames(10)
+	var r := MapLibrary.load_file(MapLibrary.user_dir().path_join("shot-map.json"))
+	ed.set_map(r["map"], MapLibrary.user_dir().path_join("shot-map.json"), false)
+	ed.camera.zoom = Vector2(0.55, 0.55)
+	ed.view_tile(ed.map.villages[0]["center"])
+	ed.ui.set_tool("terrain")
+	await _frames(10)
+	await shot("store_editor")
+	ed.toggle_view()
+	ed.camera.zoom = Vector2(0.35, 0.35)
+	await _frames(10)
+	await shot("store_editor_plan")
+	ed.queue_free()
+	await _frames(3)
+
+
+## Where the nearest lake (deep water) is from the village centre, or the
+## centre itself when there is none within `radius`.
+func _store_lake(g: Game, radius: int) -> Vector2i:
+	var c := g.player_village.center
+	var best := c
+	var best_d := INF
+	for dy in range(-radius, radius + 1):
+		for dx in range(-radius, radius + 1):
+			var t := c + Vector2i(dx, dy)
+			var d := Vector2(dx, dy).length()
+			if d < best_d and g.map.is_deep(t):
+				best = t
+				best_d = d
+	return best
+
+
+## A calm village by a lake: fields worked, trees felled, no monsters.
+func _store_calm() -> void:
+	var g: Game = null
+	var lake := Vector2i.ZERO
+	for s in [4242, 777, 1234, 31, 2026, 88, 5150, 909]:
+		g = await _store_game(s)
+		lake = _store_lake(g, 22)
+		var d := Vector2(lake - g.player_village.center).length()
+		print("store calm: seed %d, lake %.1f tiles away" % [s, d])
+		if d >= 8.0:
+			break
+		g.queue_free()
+		await _frames(3)
+		g = null
+	if g == null:
+		printerr("store calm: no village near a lake")
+		return
+	var v := g.player_village
+	var between := v.center + Vector2i((Vector2(lake - v.center) * 0.66).round())
+	for k in 2:
+		var f := g.construction.place("farm", _free_spot_in(g, "farm", between + Vector2i(k * 3, -k * 2)))
+		f.progress = f.build_time
+		g.construction.complete(f)
+	for role in ["farmer", "farmer", "forester", "forester", "gatherer"]:
+		v.population.spawn(role)
+	await _store_fast(900, 6.0)
+	await _store_tidy(g, 410, 120, true)
+	g.camera.focus(Iso.tile_to_world(v.center + (lake - v.center) / 2))
+	g.camera.zoom = Vector2(1.1, 1.1)
+	await _frames(15)
+	await shot("store_calm")
+	await _store_fast(300, 6.0)
+	await _frames(10)
+	await shot("store_calm_later")
 	g.queue_free()
 	await _frames(3)
