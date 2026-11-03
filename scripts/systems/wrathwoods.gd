@@ -79,7 +79,7 @@ func wake(t: Vector2i, v: Village, f: Forester = null) -> Enemy:
 	(e.behavior as WrathwoodBehavior).start(e, t, art, f, f.camp if f and is_instance_valid(f.camp) else null)
 	_register(e)
 	v.events.add(EventLog.Level.IMPORTANT, "%s woke up as a wrathwood!%s" % [what.capitalize(), " It is after %s." % f.label() if f else ""])
-	Sfx.play("hit")
+	v.sound("hit")
 	return e
 
 
@@ -123,7 +123,7 @@ func _on_killed(e: Enemy) -> void:
 		v = e.target_village
 	v.economy.add("gold", gold, "kills")
 	game.world.float_text("+%d {gold}" % gold, e.position + Vector2(0, -60), Color("c9a24a"))
-	Sfx.play("coin")
+	v.sound("coin")
 	var c := game.corpses.spawn(KIND, e.wave, e.grid_pos)
 	c.hp_scale = e.hp_scale
 	var own := e.target_village

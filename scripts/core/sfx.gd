@@ -2,6 +2,9 @@ extends Node
 ## Autoload "Sfx": tiny procedurally synthesized sound effects, so the game ships
 ## without audio files. Call Sfx.play("shoot").
 
+## A sound was played on this device (tests listen to what a player hears).
+signal played(sound_name: String)
+
 const RATE := 22050
 const VOICES := 10
 
@@ -46,6 +49,16 @@ func _ready() -> void:
 		var env := minf(t * 12.0, 1.0) * clampf((1.1 - t) * 5.0, 0.0, 1.0)
 		var ph := fmod(f * t, 1.0)
 		return (ph * 2.0 - 1.0) * 0.35 * env)
+	_streams["fallen"] = _synth(2.0, func(t: float) -> float:  # (another co-op village has fallen: a tolling bell)
+		var f := 110.0
+		var bell := sin(TAU * f * t) + 0.6 * sin(TAU * 2.76 * f * t) * exp(-t * 3.0) + 0.3 * sin(TAU * 5.4 * f * t) * exp(-t * 6.0)
+		return bell * 0.3 * minf(t * 200.0, 1.0) * exp(-t * 1.6))
+	_streams["joined"] = _synth(0.4, func(t: float) -> float:  # (a co-op player is back)
+		var f := 523.0 if t < 0.15 else 784.0
+		return sin(TAU * f * t) * 0.3 * exp(-fmod(t, 0.15) * 8.0))
+	_streams["left"] = _synth(0.4, func(t: float) -> float:  # (a co-op player dropped out)
+		var f := 784.0 if t < 0.15 else 523.0
+		return sin(TAU * f * t) * 0.3 * exp(-fmod(t, 0.15) * 8.0))
 	_streams["chime"] = _synth(0.7, func(t: float) -> float:  # (a tutorial step done)
 		var f := 784.0 if t < 0.14 else 1175.0
 		var k := t if t < 0.14 else t - 0.14
@@ -68,6 +81,7 @@ func play(sound: String, pitch_jitter: float = 0.08) -> void:
 	p.stream = _streams[sound]
 	p.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
 	p.play()
+	played.emit(sound)
 
 
 func _synth(duration: float, gen: Callable) -> AudioStreamWAV:

@@ -120,6 +120,9 @@ func _test_villages() -> void:
 	await frames(3)
 	var hud := game.hud
 	var vs := game.villages
+	# What the player at this device hears (docs/multiplayer-design.md §6, Sounds).
+	var heard: Array[String] = []
+	Sfx.played.connect(func(s: String) -> void: heard.append(s))
 	game.waves.countdown = 99999.0
 	game.waves.hold = true
 	Engine.time_scale = 4.0
@@ -143,8 +146,14 @@ func _test_villages() -> void:
 	_play_as(vs[1])
 	await frames(3)
 	check(hud._gold_label.text == "777" and not labels[1].visible and labels[0].visible, "playing village 1: the HUD shows its resources, and the labels follow")
+	heard.clear()
 	var r := game.command("recruit_unit", {"kind": "archer"})
 	check(r["ok"] and vs[1].army.units.size() == 1 and vs[0].army.units.is_empty(), "commands act for the current village")
+	check(heard.has("recruit"), "the player hears their own village's recruit %s" % str(heard))
+	heard.clear()
+	vs[2].sound("recruit")
+	vs[0].sound("build")
+	check(heard.is_empty(), "but not other villages' sounds %s" % str(heard))
 	var foreign_tower: Tower = vs[0].buildings().filter(func(b: Building) -> bool: return b is Tower)[0]
 	var r2 := game.command("station_unit", {"unit": vs[1].army.units[0].nid, "post": foreign_tower.nid})
 	check(not r2["ok"] and r2["error"] == "That isn't your tower", "a village can't station units on another village's tower")
@@ -154,6 +163,7 @@ func _test_villages() -> void:
 	# Waves: one share per village plus the extra.
 	var ws := Config.wave_size(1)
 	var want := 3 * ws + roundi(ws * Config.WAVE_EXTRA_PER_PLAYER * 3)
+	heard.clear()
 	check(game.command("call_wave")["ok"] and game.waves._queue.size() == want, "a wave for 3 villages is 3 shares + the extra: %d enemies (one village's wave: %d)" % [game.waves._queue.size(), ws])
 	var per_village := {}
 	for q in game.waves._queue:
@@ -164,6 +174,7 @@ func _test_villages() -> void:
 			per_village["bad"] = true
 	check(per_village.get(0, 0) == ws and per_village.get(1, 0) == ws and per_village.get(2, 0) == ws and per_village.get(-1, 0) == want - 3 * ws and not per_village.has("bad"), "each village's share spawns on its own home edge (%s)" % str(per_village))
 	check(logged_all("Wave 1 begins"), "every village's log hears about the wave")
+	check(heard.has("horn"), "everyone hears the horn when a wave begins %s" % str(heard))
 	# Let them all spawn, frozen in place.
 	await wait_until(func() -> bool: return game.waves._queue.is_empty(), 60.0)
 	await frames(2)
@@ -182,22 +193,28 @@ func _test_villages() -> void:
 	archer1.state = MilitaryUnit.State.STATIONED
 	var g0 := vs[0].economy.amount("gold")
 	var g1 := vs[1].economy.amount("gold")
+	heard.clear()
 	enemies[0].take_damage(1e9, t1)
 	check(vs[1].economy.amount("gold") > g1 and vs[0].economy.amount("gold") == g0, "gold for a kill goes to the killer's village")
+	check(not heard.has("coin"), "another village's kill gold makes no sound here %s" % str(heard))
 	# A raid hits the village it attacked, nobody else.
 	var huts_before := vs.map(func(v: Village) -> int: return v.intact_huts().size())
 	var raider := _enemies().filter(func(e: Enemy) -> bool: return e.target_village == vs[1])[0] as Enemy
+	heard.clear()
 	game.on_enemy_reached_gate(raider)
+	check(not heard.has("raid"), "another village's raid makes no sound here %s" % str(heard))
 	var huts_after := vs.map(func(v: Village) -> int: return v.intact_huts().size())
 	check(huts_after[1] == huts_before[1] - 1 and huts_after[0] == huts_before[0] and huts_after[2] == huts_before[2], "a raid burns a hut of the village it attacked only")
 
 	# A village falls: its enemies turn to the nearest standing one.
 	var v2 := vs[2]
 	var bound_for_2 := _enemies().filter(func(e: Enemy) -> bool: return e.target_village == v2)
+	heard.clear()
 	for c in v2.population.civilians.duplicate():
 		v2.population.kill(c, "in a test")
 	await frames(2)
 	check(v2.fallen and not game.game_over, "a village without villagers has fallen, the game goes on")
+	check(heard.count("fallen") == 1 and not heard.has("death"), "the others hear it fall (a bell), not its villagers dying %s" % str(heard))
 	check(vs[0].events.entries.any(func(e: Dictionary) -> bool: return e["text"] == "%s has fallen" % v2.village_name and e["level"] == EventLog.Level.IMPORTANT), "everyone hears that %s has fallen" % v2.village_name)
 	check(labels[2].text.ends_with("(fallen)"), "its label shows it has fallen")
 	var turned := not bound_for_2.is_empty()
@@ -225,11 +242,13 @@ func _test_villages() -> void:
 	check(late.target_village == v2, "and its wave comes for it again")
 
 	# Lost only when every village has fallen.
+	heard.clear()
 	for v in [vs[0], vs[1]]:
 		for c in v.population.civilians.duplicate():
 			v.population.kill(c, "in a test")
 	await frames(2)
 	check(vs[0].fallen and vs[1].fallen and not v2.fallen and not game.game_over, "two villages down, one standing: not lost yet")
+	check(heard.count("fallen") == 1 and heard.has("death"), "our own village falling has no bell for us (only %s's has); our villagers' deaths sound %s" % [vs[1].village_name, str(heard)])
 	for c in v2.population.civilians.duplicate():
 		v2.population.kill(c, "in a test")
 	await frames(2)

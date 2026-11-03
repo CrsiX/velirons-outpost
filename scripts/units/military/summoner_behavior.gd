@@ -39,7 +39,7 @@ func tick(post: Node, unit: MilitaryUnit, delta: float) -> void:
 	post.game.world.objects.add_child(e)
 	summons.append(e)
 	post.recoil()
-	Sfx.play("recruit", 0.2)
+	post.village.sound("recruit", 0.2)
 
 
 ## Drops dead or freed elementals. The lambda parameter is deliberately

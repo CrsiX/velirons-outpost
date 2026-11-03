@@ -109,7 +109,7 @@ func recruit(role: String) -> Civilian:
 	if recruit_error(role) != "":
 		return null
 	village.economy.spend(Config.CIVILIANS[role]["cost"], "villagers")
-	Sfx.play("recruit")
+	village.sound("recruit")
 	var civ := spawn(role)
 	if civ:
 		game.stats.count(village, "recruit." + role)
@@ -157,7 +157,7 @@ func kill(civ: Civilian, reason: String = "of unknown causes", cause: String = "
 	if is_instance_valid(civ.hut) and civ.hut.resident == civ:
 		civ.hut.resident = null
 	civ.kill()
-	Sfx.play("death")
+	village.sound("death")
 	civilian_died.emit(civ, reason, cause)
 	civilian_lost.emit(civ)
 	changed.emit()

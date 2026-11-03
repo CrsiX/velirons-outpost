@@ -215,6 +215,7 @@ func _on_peer_disconnected(id: int) -> void:
 		players[id]["online"] = false
 		if game:
 			game.log_all(EventLog.Level.INFO, "%s left the game" % players[id]["name"])
+			game.sound_all("left", 0.0, village_of_peer(id))
 	else:
 		players.erase(id)
 		_broadcast_lobby()
@@ -299,6 +300,7 @@ func _hello(proto: int, p_name: String, color: int) -> void:
 		p["loaded"] = false
 		players[id] = p
 		game.log_all(EventLog.Level.INFO, "%s is back" % p["name"])
+		game.sound_all("joined", 0.0, village_of_peer(id))
 		_send_start(id)
 		return
 	var c := _free_color(clampi(color, 0, Config.VILLAGE_COLORS.size() - 1))

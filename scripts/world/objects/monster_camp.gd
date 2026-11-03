@@ -105,7 +105,9 @@ func _on_killed(e: Enemy) -> void:
 		cleared = true
 		_on_cleared(v)
 		refresh()
-		Sfx.play("build")
+		var hears := v if v else (game.villages[0] if game.villages.size() == 1 else null)
+		if hears:
+			hears.sound("build")
 
 
 func _on_cleared(v: Village) -> void:

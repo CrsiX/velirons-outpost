@@ -356,7 +356,7 @@ func _try_grip(enemy: Enemy, spec: Dictionary) -> bool:
 	for n in caught:
 		_held[n] = float(spec["grip_time"])
 		names.append(n.label())
-	Sfx.play("hit")
+	enemy.target_village.sound("hit")
 	enemy.target_village.events.debug("%s's roots hold %s" % [enemy.label(), ", ".join(names)])
 	return true
 

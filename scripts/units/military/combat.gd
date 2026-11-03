@@ -19,7 +19,7 @@ static func attack(game: Game, unit: MilitaryUnit, from: Vector2, target: Enemy,
 	var dmg := unit.stat("damage") if unit.has_stat("damage") else 0.0
 	if is_instance_valid(source) and source.has_method("act_center"):
 		dmg *= 1.0 + holy_bonus(game, source.act_center())
-	Sfx.play(a.get("sound", "shoot"), 0.15)
+	unit.village.sound(a.get("sound", "shoot"), 0.15)
 	if a["projectile"] == "":  # a melee strike lands at once
 		hit(game, unit, target, dmg, source, target.hit_point())
 		return
@@ -216,7 +216,7 @@ static func haste(game: Game, holder: Object, pos := Vector2.INF) -> float:
 ## A warrior's war cry at `center` (grid): every ally within `radius` tiles,
 ## of any village (units out on a sortie, tower units by their tower's tile,
 ## summons, heroes) is hasted by `bonus` for `duration` s. Returns how many.
-static func war_cry(game: Game, center: Vector2, radius: float, bonus: float, duration: float) -> int:
+static func war_cry(game: Game, village: Village, center: Vector2, radius: float, bonus: float, duration: float) -> int:
 	var holders: Array[Object] = []
 	for b in game.world.towers():
 		var t := b as Tower
@@ -238,7 +238,7 @@ static func war_cry(game: Game, center: Vector2, radius: float, bonus: float, du
 	for h in holders:
 		_hasten(game, h, bonus, duration)
 	burst(game, "war_cry", Iso.to_world(center), radius)
-	Sfx.play("recruit", 0.15)
+	village.sound("recruit", 0.15)
 	return holders.size()
 
 

@@ -502,7 +502,7 @@ func _strike(foe: Enemy) -> void:
 	var lunge := (Iso.to_world(foe.grid_pos) - position).normalized() * 6.0
 	tw.tween_property(sprite, "position", lunge, 0.08)
 	tw.tween_property(sprite, "position", Vector2.ZERO, 0.12)
-	Sfx.play("hit", 0.25)
+	village.sound("hit", 0.25)
 
 
 # --- levels -------------------------------------------------------------------------------------
@@ -529,7 +529,7 @@ func level_up() -> bool:
 	village.events.info("The hero reached level %d: %d HP, %d damage" % [level + 1, int(max_hp), int(Config.hero_stat("damage", level))])
 	float_text("Level %d!" % (level + 1), UiTheme.GOLD)
 	play_level_up_fx()
-	Sfx.play("build")
+	village.sound("build")
 	queue_redraw()
 	changed.emit()
 	return true
@@ -745,7 +745,7 @@ func _downed(source = null) -> void:
 	remove_from_group("melee_defenders")
 	visible = false
 	path = PackedVector2Array()
-	Sfx.play("death")
+	village.sound("death")
 	changed.emit()
 	downed.emit()
 

@@ -264,6 +264,15 @@ with.
   The hut state is public because it is the one thing a helper needs: who is
   about to fall.
 
+**Sounds** follow the same idea: a player hears only what their own village
+does (its shots, builds, recruits, deaths, coins, raids), on their own device
+(`Village.sound`; the host sends a client's sounds with its snapshot). Hearing
+another village's arrows would only confuse. A few sounds are for everyone
+(`Game.sound_all`): the horn at the start of a wave (the waves are shared); a
+village falling, for every player but its own (they get the defeat itself);
+and a player dropping out or coming back, for everyone else. The host leaving
+needs no sound: the session ends for everyone.
+
 ## 7. Sending help
 
 The tax for anything sent to another village depends on the number of
@@ -355,6 +364,11 @@ units and heroes arrive whole.
   `DISCOVERY_PORT`); tests pass their own with `--port=N`.
 - **Android** needs the INTERNET permission. Some Wi-Fi networks drop
   broadcasts, hence "join by address".
+- **The host's addresses.** So the host can tell others what to type into
+  "join by address", the lobby shows the host this device's local network
+  addresses (`LanDiscovery.local_addresses`), with the port only when it isn't
+  the usual one. Only interfaces useful for other devices on the same LAN are
+  shown.
 - **Later expansion, the web:** browsers can't do UDP or broadcasts. A web
   version needs a server (a WebSocket relay or dedicated host, or WebRTC with a
   signaling server). To keep that possible without touching game code:

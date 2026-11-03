@@ -24,7 +24,8 @@ func launch(p_witch: Enemy, p_target: Node) -> void:
 	global_position = p_witch.hit_point() + Vector2(8, -6)
 	_sprite = Art.sprite("spell_bolt")
 	add_child(_sprite)
-	Sfx.play("hit", 0.4)
+	if p_witch.target_village:
+		p_witch.target_village.sound("hit", 0.4)
 
 
 func _aim() -> Vector2:

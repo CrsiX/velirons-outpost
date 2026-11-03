@@ -201,7 +201,7 @@ func _strike(foe: Enemy) -> void:
 	var lunge := (Iso.to_world(foe.grid_pos) - position).normalized() * 5.0
 	tw.tween_property(sprite, "position", lunge, 0.08)
 	tw.tween_property(sprite, "position", Vector2.ZERO, 0.12)
-	Sfx.play("hit", 0.25)
+	village.sound("hit", 0.25)
 
 
 func take_damage(amount: float, source = null, _category: String = "pure") -> void:
@@ -234,7 +234,7 @@ func _explode() -> void:
 			e.take_damage(dmg, self, str(sm["category"]))
 			hit += 1
 	Combat.burst(game, "explosion", Iso.to_world(grid_pos) + Vector2(0, -16), r)
-	Sfx.play("hit", 0.25)
+	village.sound("hit", 0.25)
 	village.events.debug("%s explodes, hitting %d" % [label(), hit])
 
 

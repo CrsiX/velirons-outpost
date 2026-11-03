@@ -259,7 +259,7 @@ func _war_cry(delta: float) -> void:
 	if _cry_cd > 0.0:
 		return
 	_cry_cd = float(unit.spec()["cry_interval"])
-	Combat.war_cry(game, grid_pos, float(unit.spec()["cry_radius"]), unit.stat("cry"), unit.stat("cry_time"))
+	Combat.war_cry(game, village, grid_pos, float(unit.spec()["cry_radius"]), unit.stat("cry"), unit.stat("cry_time"))
 	village.events.debug("%s shouts a war cry" % label())
 	recoil()
 

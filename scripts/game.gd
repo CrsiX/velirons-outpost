@@ -874,8 +874,7 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 		hut = null if intact.is_empty() else intact.pick_random() as Hut
 	if hut != null:
 		hut.destroy(g.label())
-	if v.is_local():
-		Sfx.play("raid")
+	v.sound("raid")
 	v.toast("Enemies broke into the village!", Color("ff7a6a"))
 	v.population.changed.emit()
 	_check_defeat()
@@ -899,8 +898,7 @@ func _maul(g: Enemy, v: Village) -> void:
 		v.events.info("%s got into the village and found nobody" % g.label().capitalize())
 		return
 	v.population.kill(hut.resident, "when %s got into their hut" % g.label(), "enemies")
-	if v.is_local():
-		Sfx.play("raid")
+	v.sound("raid")
 	v.toast("A %s got into the village and killed a villager!" % str(g.spec()["name"]).to_lower(), Color("ff7a6a"))
 	_check_defeat()
 
@@ -918,6 +916,7 @@ func _check_defeat() -> void:
 		if villages.size() > 1:
 			if v.fallen:
 				log_all(EventLog.Level.IMPORTANT, "%s has fallen" % v.village_name)
+				sound_all("fallen", 0.0, v)
 				_reroute_from(v)
 			else:
 				log_all(EventLog.Level.INFO, "%s stands again" % v.village_name)
@@ -1190,6 +1189,16 @@ func _reroute_from(v: Village) -> void:
 		var nv := nearest_standing_village(e.current_tile())
 		if nv:
 			e.retarget(nv, rng)
+
+
+## A sound for every player (co-op: on each device), but not for `except`'s
+## player. Everything else a village does sounds for its own player only
+## (Village.sound; docs/multiplayer-design.md §6, Sounds).
+func sound_all(sound_name: String, pitch_jitter: float = 0.08, except: Village = null) -> void:
+	if player_village != except:
+		Sfx.play(sound_name, pitch_jitter)
+	if replicator and replicator.hosting:
+		replicator.sound_all(sound_name, pitch_jitter, except.id if except else -1)
 
 
 ## Logs to every village (waves, enemies: things everyone may hear about).

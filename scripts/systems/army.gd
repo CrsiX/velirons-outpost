@@ -58,7 +58,7 @@ func recruit(kind: String) -> MilitaryUnit:
 	units.append(u)
 	game.stats.count(village, "units_recruited")
 	village.events.debug("recruit %s for %s" % [u.label(), Config.cost_text(Config.MILITARY[kind]["cost"])])
-	Sfx.play("recruit")
+	village.sound("recruit")
 	changed.emit()
 	return u
 
@@ -115,7 +115,7 @@ func station(unit: MilitaryUnit, post: MilitaryPost) -> bool:
 	var s := _spawn_walker(unit, village.center)
 	s.walk_to(post.work_tile())
 	_reserve_slot(unit, post)
-	Sfx.play("place")
+	village.sound("place")
 	changed.emit()
 	return true
 
@@ -148,7 +148,7 @@ func transfer(unit: MilitaryUnit, post: MilitaryPost) -> bool:
 	var s := _body(unit, start)
 	s.walk_to(post.work_tile())
 	_reserve_slot(unit, post)
-	Sfx.play("place")
+	village.sound("place")
 	changed.emit()
 	return true
 
@@ -195,7 +195,7 @@ func swap(a: MilitaryUnit, b: MilitaryUnit) -> bool:
 	_body(b, start_b).walk_to(pa.work_tile())
 	_reserve_at(a, pb, sb)
 	_reserve_at(b, pa, sa)
-	Sfx.play("place")
+	village.sound("place")
 	changed.emit()
 	return true
 
@@ -253,7 +253,7 @@ func send(unit: MilitaryUnit, target: Village) -> bool:
 	unit.travel_to = target
 	game.stats.count(village, "units_sent")
 	village.events.debug("send %s to %s" % [unit.label(), target.village_name])
-	Sfx.play("place")
+	village.sound("place")
 	changed.emit()
 	return true
 
@@ -375,7 +375,7 @@ func down(unit: MilitaryUnit, source = null) -> void:
 	unit.state = MilitaryUnit.State.DOWNED
 	if at_bench:
 		unit.post.refresh()
-	Sfx.play("death", 0.2)
+	village.sound("death", 0.2)
 	changed.emit()
 
 
@@ -415,7 +415,7 @@ func train(unit: MilitaryUnit, amount: int) -> int:
 		village.events.info("%s fully trained to level %d%s" % [unit.label(), unit.level + 1, " at %s" % unit.post.label() if unit.post else ""])
 		if unit.post:
 			game.world.float_text("%s level %d!" % [unit.display_name(), unit.level + 1], unit.post.position + Vector2(0, -90), UiTheme.GOLD)
-		Sfx.play("build")
+		village.sound("build")
 		changed.emit()
 	return used
 
@@ -455,7 +455,7 @@ func upgrade(unit: MilitaryUnit, to: String = "") -> bool:
 		if is_instance_valid(unit.post) and unit.state in [MilitaryUnit.State.STATIONED, MilitaryUnit.State.MARCHING] and not unit.fits(unit.post.post_kind()):
 			village.events.info("The %s can't serve on the %s: back to the reserve" % [unit.display_name().to_lower(), unit.post.display_name().to_lower()])
 			unstation(unit)
-	Sfx.play("build")
+	village.sound("build")
 	changed.emit()
 	return true
 
@@ -507,7 +507,7 @@ func promote_archmage(unit: MilitaryUnit) -> Civilian:
 	var civ := village.population.spawn("spatial_archmage")
 	village.events.info("%s has become the Spatial Archmage" % unit.label().capitalize())
 	game.world.float_text("The Spatial Archmage!", Iso.tile_to_world(village.center) + Vector2(0, -60), Color("c9a8ff"))
-	Sfx.play("build")
+	village.sound("build")
 	changed.emit()
 	return civ
 

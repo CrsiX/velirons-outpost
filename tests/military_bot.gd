@@ -967,13 +967,13 @@ func _test_shield_branches() -> void:
 	var hero_home := hero.grid_pos
 	var spot := tt.act_center() + Vector2(2.0, 0.0)
 	hero.set_grid_pos(spot + Vector2(0.0, 0.5))
-	var n := Combat.war_cry(game, spot, float(Config.MILITARY["warrior"]["cry_radius"]), 0.4, 4.0)
+	var n := Combat.war_cry(game, game.player_village, spot, float(Config.MILITARY["warrior"]["cry_radius"]), 0.4, 4.0)
 	check(n >= 2 and Combat.haste(game, tu) > 1.0 and Combat.haste(game, hero) > 1.0, "a war cry reaches the unit on a tower 2 tiles away and the hero (%d hasted)" % n)
 	var mark := tt._unit_sprite.get_node("CryMark") as CanvasItem
 	check(await wait_until(func() -> bool: return mark.visible, 1.0), "the tower's unit shows the war cry's chevrons")
 	tu.cry_until = -1.0
 	hero.cry_until = -1.0
-	Combat.war_cry(game, tt.act_center() + Vector2(3.0, 0.0), float(Config.MILITARY["warrior"]["cry_radius"]), 0.4, 4.0)
+	Combat.war_cry(game, game.player_village, tt.act_center() + Vector2(3.0, 0.0), float(Config.MILITARY["warrior"]["cry_radius"]), 0.4, 4.0)
 	check(is_equal_approx(Combat.haste(game, tu), 1.0), "not from 3 tiles away")
 	check(await wait_until(func() -> bool: return not mark.visible, 1.0), "the chevrons go when the haste is over")
 	hero.set_grid_pos(hero_home)

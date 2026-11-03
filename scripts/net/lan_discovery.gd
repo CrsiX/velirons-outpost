@@ -12,6 +12,11 @@ signal games_changed
 const ANNOUNCE_INTERVAL := 1.0
 const HOST_TIMEOUT := 3.0
 
+## Interface name prefixes whose addresses no other device nearby can reach:
+## Android's mobile data (a carrier address), container and VM bridges
+## (Docker, LXC/LXD, libvirt, VirtualBox, VMware) and VPN tunnels.
+const NOT_LAN: Array[String] = ["rmnet", "docker", "br-", "veth", "lxcbr", "lxdbr", "virbr", "vboxnet", "vmnet", "tun", "tap", "wg", "tailscale", "zt"]
+
 var _announce: PacketPeerUDP
 var _listen: PacketPeerUDP
 var _payload: Callable  # host: returns the announcement Dictionary
@@ -59,6 +64,36 @@ func stop_listening() -> void:
 
 func is_listening() -> bool:
 	return _listen != null
+
+
+## The addresses other devices on the local network can reach this one at,
+## shown to the host in the lobby (docs/multiplayer-design.md §8.2).
+static func local_addresses() -> PackedStringArray:
+	return lan_addresses(IP.get_local_interfaces())
+
+
+## The private IPv4 addresses of `interfaces` (as `IP.get_local_interfaces()`
+## gives them), in interface order. Loopback, link-local, IPv6 and the
+## interfaces in NOT_LAN are left out.
+static func lan_addresses(interfaces: Array) -> PackedStringArray:
+	var out := PackedStringArray()
+	for i: Dictionary in interfaces:
+		var iname := str(i.get("name", ""))
+		if NOT_LAN.any(func(prefix: String) -> bool: return iname.begins_with(prefix)):
+			continue
+		for a: String in i.get("addresses", []):
+			if is_lan_address(a) and not out.has(a):
+				out.append(a)
+	return out
+
+
+## A private-range IPv4 address (10/8, 172.16/12, 192.168/16).
+static func is_lan_address(a: String) -> bool:
+	if not a.is_valid_ip_address() or a.contains(":"):
+		return false
+	var p := a.split(".")
+	var b := int(p[1])
+	return p[0] == "10" or (p[0] == "172" and b >= 16 and b <= 31) or (p[0] == "192" and b == 168)
 
 
 ## Games heard recently, sorted by name.

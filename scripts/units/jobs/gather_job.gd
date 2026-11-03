@@ -271,7 +271,7 @@ func _deliver() -> void:
 	w.village.events.debug("%s brings %d corpse%s home: %s" % [w.label(), carried.size(), "" if carried.size() == 1 else "s", ", ".join(said) if not said.is_empty() else "nothing"])
 	if not parts.is_empty():
 		w.float_text("  ".join(parts), Color("c9a24a"))
-	Sfx.play("coin")
+	w.village.sound("coin")
 	carried.clear()
 	_sack.visible = false
 

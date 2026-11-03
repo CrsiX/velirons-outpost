@@ -114,8 +114,7 @@ func _announce(n: int, again: bool) -> void:
 		line = "Something stirs %sin a %s somewhere to the %s... %s will come out of it with every wave." % ["again " if again else "", what, way, sends]
 	v.events.important(line)
 	v.toast("A monster lair has %s!" % ("woken up again" if again else "woken up"), Color("e06a5a"))
-	if v.is_local():
-		Sfx.play("raid", 0.0)
+	v.sound("raid", 0.0)
 
 
 ## The village whose slice it's in.

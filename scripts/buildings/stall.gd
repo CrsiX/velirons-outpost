@@ -98,7 +98,7 @@ func buy(good: String) -> int:
 	sold += 1
 	game.stats.count(village, "trade")
 	village.events.debug("buy %d %s at %s for %d gold" % [amount, good, label(), int(lot["gold"])])
-	Sfx.play("coin")
+	village.sound("coin")
 	return amount
 
 

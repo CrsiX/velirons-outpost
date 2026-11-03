@@ -677,10 +677,31 @@ func _test_title_ui() -> void:
 		var side := m.players_pane.get_global_rect().end.x <= m.settings_pane.get_global_rect().position.x + 0.5
 		var stacked := m.players_pane.get_global_rect().end.y <= m.settings_pane.get_global_rect().position.y + 0.5
 		check(off.is_empty() and (stacked if sz.y > sz.x else side) and m.settings_pane.is_ancestor_of(m.start_button) and m.settings_pane.is_ancestor_of(m.map_button) and m.players_pane.is_ancestor_of(m.players_box), "%dx%d: lobby with the players on the %s, settings and Start / Leave on the %s, all on screen %s" % [sz.x, sz.y, "top" if sz.y > sz.x else "left", "bottom" if sz.y > sz.x else "right", str(off)])
+		check(m.address_label.visible and m.address_label.text == MultiplayerMenu.host_address_text(LanDiscovery.local_addresses()), "%dx%d: the host sees where others can join (%s)" % [sz.x, sz.y, m.address_label.text])
 		Net.leave()
 		m.refresh()
 		t.show_page(t._main_page)
 		await frames(2)
+	# The host's addresses (docs/multiplayer-design.md §8.2): private IPv4 only,
+	# no loopback, link-local, IPv6, mobile data, container bridges or VPNs.
+	var ifaces := [
+		{"name": "lo", "addresses": ["127.0.0.1", "0:0:0:0:0:0:0:1"]},
+		{"name": "rmnet_data0", "addresses": ["10.44.1.7", "100.71.3.2"]},
+		{"name": "wlan0", "addresses": ["192.168.1.20", "fe80:0:0:0:1:2:3:4", "169.254.3.3"]},
+		{"name": "eth0", "addresses": ["172.20.0.5", "172.32.0.1", "10.0.0.9", "192.168.1.20"]},
+		{"name": "docker0", "addresses": ["172.17.0.1"]},
+		{"name": "br-3f2a9c", "addresses": ["172.18.0.1"]},
+		{"name": "lxcbr0", "addresses": ["10.0.3.1"]},
+		{"name": "wg0", "addresses": ["10.8.0.2"]},
+	]
+	var found := LanDiscovery.lan_addresses(ifaces)
+	check(found == PackedStringArray(["192.168.1.20", "172.20.0.5", "10.0.0.9"]), "the lobby shows the host's local network addresses only %s" % str(found))
+	var port_was := Net.game_port
+	Net.game_port = Net.GAME_PORT + 5
+	check(MultiplayerMenu.host_address_text(PackedStringArray(["192.168.1.20"])) == "Others can join at 192.168.1.20:%d" % Net.game_port, "with an unusual port the address names it")
+	Net.game_port = Net.GAME_PORT
+	check(MultiplayerMenu.host_address_text(PackedStringArray(["192.168.1.20", "10.0.0.9"])) == "Others can join at 192.168.1.20 or 10.0.0.9", "the usual port isn't shown")
+	Net.game_port = port_was
 	Settings.map_seed = 0
 	Settings.map_type = "temperate"
 	t.queue_free()

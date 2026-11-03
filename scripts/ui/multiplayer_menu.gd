@@ -13,6 +13,8 @@ extends VBoxContainer
 ##               saved co-op game (Saved game...): exactly as many players as
 ##               it has villages, each on one of them, assigned by the host
 ##               (docs/save-design.md §6).
+##               Under the players the host sees the addresses others
+##               can join at.
 ##               In portrait the panes are stacked.
 
 signal back_pressed
@@ -41,6 +43,8 @@ var seed_edit: LineEdit
 var leave_button: Button
 var apply_button: Button
 var lobby_status: Label
+## Host: "Others can join at ..." (this device's local network addresses).
+var address_label: Label
 var _join_page: VBoxContainer
 var _color := 0
 ## The title screen's map picker (Custom...).
@@ -173,6 +177,9 @@ func _build_lobby() -> void:
 	players_box = VBoxContainer.new()
 	players_box.add_theme_constant_override("separation", 4)
 	players_pane.add_child(players_box)
+	# Under the players, where others can join (the right pane has no room).
+	address_label = _panel_label("", 16, UiTheme.MUTED)
+	players_pane.add_child(address_label)
 	preview = MapPreview.new()
 	preview.custom_minimum_size = Vector2(220, 220)
 	preview.visible = false
@@ -399,6 +406,9 @@ func refresh() -> void:
 		preview.queue_redraw()
 	if Net.is_host() and not seed_edit.has_focus():
 		seed_edit.text = str(Net.map_seed) if Net.map_seed != 0 else ""
+	address_label.visible = in_lobby and Net.is_host()
+	if address_label.visible:
+		address_label.text = host_address_text(LanDiscovery.local_addresses())
 	start_button.visible = Net.is_host()
 	start_button.disabled = not Net.can_start()
 	start_button.text = "Start" if Net.can_start() else "Start (waiting for everyone to be ready)"
@@ -407,6 +417,18 @@ func refresh() -> void:
 	if not mine.is_empty():
 		_color = int(mine["color"])
 	_refresh_swatches()
+
+
+## The host's line under the players: where others can join (with the port when it
+## isn't the usual one), or that this device isn't on a network.
+static func host_address_text(addresses: PackedStringArray) -> String:
+	if addresses.is_empty():
+		return "Not connected to a network: only players on this device can join"
+	var port := "" if Net.game_port == Net.GAME_PORT else ":%d" % Net.game_port
+	var shown := PackedStringArray()
+	for a in addresses:
+		shown.append(a + port)
+	return "Others can join at " + " or ".join(shown)
 
 
 func _refresh_swatches() -> void:

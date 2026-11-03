@@ -147,10 +147,13 @@ func _host() -> void:
 	game.world.remove_tree(_tree_near(game.map, v1.center))  # (as a forester does: the client should see it gone)
 	v1.hero.max_hp = 5000.0
 	v1.hero.hp = 5000.0
+	var heard: Array[String] = []
+	Sfx.played.connect(func(sn: String) -> void: heard.append(sn))
 	var ordered := await wait_until(func() -> bool: return v1.hero.camp_target == camp, 60.0)
 	check(ordered, "the client's order: its hero sets off to attack the camp")
 	var recruited := await wait_until(func() -> bool: return v1.army.units.size() >= 1)
 	check(recruited and v1.army.units[0].original_owner == v1 and v0.army.units.is_empty(), "the client's command recruits an archer in its own village")
+	check(not heard.has("recruit"), "we don't hear the client's recruit (docs/multiplayer-design.md §6, Sounds) %s" % str(heard))
 	var caravan := await wait_until(func() -> bool: return v0.events.entries.any(func(e: Dictionary) -> bool: return str(e["text"]).begins_with("Caravan from %s arrived" % CLIENT_NAME)), 120.0)
 	check(caravan, "the client's caravan arrives at the host's village")
 	check(game.speed_index == 0, "the client couldn't change the speed")
@@ -409,8 +412,12 @@ func _client() -> void:
 	var props: Dictionary = game.world._props
 	var wrong := props.keys().filter(func(t: Vector2i) -> bool: return props[t].visible != (game.fog.map.explored[game.map.index(t)] == 1))
 	check(wrong.is_empty(), "trees show exactly on our explored tiles (%d wrong of %d)" % [wrong.size(), props.size()])
+	var heard: Array[String] = []
+	Sfx.played.connect(func(sn: String) -> void: heard.append(sn))
 	game.command("recruit_unit", {"kind": "archer"})
 	var got := await wait_until(func() -> bool: return mine.army.units.size() == 1)
+	var rang := await wait_until(func() -> bool: return heard.has("recruit"), 10.0)
+	check(rang, "the host sends us our own village's sounds: the recruit %s" % str(heard))
 	check(got and is_equal_approx(mine.economy.amount("gold"), Config.START_RESOURCES["gold"] - Config.MILITARY["archer"]["cost"]["gold"]), "a command goes to the host; the new archer and the gold come back")
 	var refused := []
 	Net.command_refused.connect(func(t: String, e: String) -> void: refused.append([t, e]))

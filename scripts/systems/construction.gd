@@ -114,7 +114,7 @@ func restore_ruin(ruin: RuinedTower, cost: Dictionary) -> Building:
 	b.start_repair(cost)
 	enqueue(b)
 	village.events.info("A builder will restore the %s (%s)" % [what, Config.cost_text(cost)])
-	Sfx.play("place")
+	village.sound("place")
 	changed.emit()
 	return b
 
@@ -135,7 +135,7 @@ func place(kind: String, tile: Vector2i) -> Building:
 	var b := _new_building(kind, tile, false)
 	enqueue(b)
 	village.events.debug("place %s at %s for %s" % [b.label(), str(tile), Config.cost_text(Config.BUILDINGS[kind]["cost"])])
-	Sfx.play("place")
+	village.sound("place")
 	changed.emit()
 	return b
 
@@ -147,7 +147,7 @@ func order_rebuild(hut: Hut) -> bool:
 	hut.start_rebuild()
 	enqueue(hut)
 	village.events.debug("order rebuilding %s" % hut.label())
-	Sfx.play("place")
+	village.sound("place")
 	changed.emit()
 	return true
 
@@ -292,7 +292,7 @@ func order_upgrade(tower: Building) -> bool:
 	village.events.debug("order upgrade of %s to level %d for %s" % [tower.label(), tower.level + 1, Config.cost_text(tower.upgrade_cost())])
 	tower.start_upgrade()
 	enqueue(tower)
-	Sfx.play("place")
+	village.sound("place")
 	changed.emit()
 	return true
 
@@ -308,7 +308,7 @@ func order_repair(b: Building) -> bool:
 	village.events.debug("order repair of %s for %s" % [b.label(), Config.cost_text(cost)])
 	b.start_repair(cost)
 	enqueue(b)
-	Sfx.play("place")
+	village.sound("place")
 	changed.emit()
 	return true
 
@@ -357,7 +357,7 @@ func order_tear_down(b: Building) -> bool:
 	if b is Farm:
 		(b as Farm).rats.clear()
 	enqueue(b)
-	Sfx.play("place")
+	village.sound("place")
 	changed.emit()
 	return true
 
@@ -384,7 +384,7 @@ func _torn_down(b: Building) -> void:
 	if village.is_local() and game.selected == b:
 		game.deselect()
 	game.world.remove_building(b)
-	Sfx.play("build")
+	village.sound("build")
 	changed.emit()
 
 
@@ -402,13 +402,13 @@ func complete(site: Building) -> void:
 		village.events.info("%s repaired" % site.label().capitalize())
 		if was_down and site is Workplace:
 			village.population.assign_worker(site, true)  # an idle farmer / forester takes it
-		Sfx.play("build")
+		village.sound("build")
 		changed.emit()
 		return
 	if site.complete and site.upgrading:
 		site.finish_upgrade()
 		village.events.info("%s upgraded to level %d" % [site.label(), site.level])
-		Sfx.play("build")
+		village.sound("build")
 		changed.emit()
 		return
 	site.finish()
@@ -417,7 +417,7 @@ func complete(site: Building) -> void:
 	village.events.info("%s %s" % [site.label(), "rebuilt" if site is Hut else "finished"])
 	if site is Workplace:
 		village.population.assign_worker(site, true)  # an idle farmer / forester takes it
-	Sfx.play("build")
+	village.sound("build")
 	changed.emit()
 
 

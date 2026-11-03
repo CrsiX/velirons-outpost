@@ -167,7 +167,7 @@ func _start_wave() -> void:
 	_queue.assign(vultures)
 	_spawn_timer = 0.5
 	game.log_all(EventLog.Level.INFO, "Wave %d begins: %d enemies" % [n, _queue.size()])
-	Sfx.play("horn", 0.0)
+	game.sound_all("horn", 0.0)
 	wave_started.emit(wave)
 	changed.emit()
 
@@ -794,7 +794,7 @@ func _pay_kill(g: Enemy, v: Village, gold: int, what: String) -> void:
 	v.events.debug("%s (by %s, +%d gold)" % [what, game.who(g.killer), gold])
 	if gold > 0:
 		game.world.float_text("+%d {gold}" % gold, g.position + Vector2(0, -50), Color("c9a24a"))
-		Sfx.play("coin")
+		v.sound("coin")
 
 
 ## `g`'s mount (`animal`) was slain (Enemy.dismount; docs/enemies-design.md

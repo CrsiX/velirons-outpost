@@ -27,7 +27,7 @@ const CARAVAN_SCRIPT := preload("res://scripts/units/caravan.gd")
 var game: Game
 var hosting := false
 var _timer := 0.0
-## Host, per peer id: {"known": {nid: state}, "ev": [], "to": [], "ft": [], "fx": [],
+## Host, per peer id: {"known": {nid: state}, "ev": [], "to": [], "ft": [], "fx": [], "sn": [],
 ## "ex": PackedInt32Array, "full": bool, "vd": last village data}
 var _peers: Dictionary = {}
 ## Host: every tree felled since the game began (map indices). A client that
@@ -53,7 +53,7 @@ func setup(p_game: Game, p_hosting: bool) -> void:
 
 ## A client just (re)loaded the level: send it everything next time.
 func reset_peer(id: int) -> void:
-	_peers[id] = {"known": {}, "ev": [], "to": [], "ft": [], "fx": [], "ex": PackedInt32Array(), "full": true, "vd": {}, "tf": _felled.duplicate(), "tw": PackedInt32Array()}
+	_peers[id] = {"known": {}, "ev": [], "to": [], "ft": [], "fx": [], "sn": [], "ex": PackedInt32Array(), "full": true, "vd": {}, "tf": _felled.duplicate(), "tw": PackedInt32Array()}
 
 
 func _peers_of(vid: int) -> Array[int]:
@@ -102,6 +102,20 @@ func _on_tree_felled(t: Vector2i) -> void:
 func toast(vid: int, text: String, col: Color) -> void:
 	for id in _peers_of(vid):
 		_peers[id]["to"].append([text, col])
+
+
+## A sound for village `vid`'s player (Village.sound on the host).
+func sound(vid: int, sound_name: String, pitch_jitter: float) -> void:
+	for id in _peers_of(vid):
+		_peers[id]["sn"].append([sound_name, pitch_jitter])
+
+
+## A sound for every player but village `except_vid`'s (-1: everyone; Game.sound_all).
+func sound_all(sound_name: String, pitch_jitter: float, except_vid: int) -> void:
+	for id in _peers:
+		var v := Net.village_of_peer(id)
+		if v and v.id != except_vid:
+			_peers[id]["sn"].append([sound_name, pitch_jitter])
 
 
 ## A floating text at world position `pos`, for every player who watches it.
@@ -208,7 +222,7 @@ func _snapshot_for(id: int, all: Array) -> Dictionary:
 	if vd != p["vd"]:
 		out["vd"] = vd
 		p["vd"] = vd
-	for k in ["ev", "to", "ft", "fx"]:
+	for k in ["ev", "to", "ft", "fx", "sn"]:
 		if not p[k].is_empty():
 			out[k] = p[k]
 			p[k] = []
@@ -400,6 +414,8 @@ func _apply(d: Dictionary) -> void:
 		game.hud.toast(t[0], t[1])
 	for f in d.get("ft", []):
 		game.world.float_text(f[0], f[1], f[2])
+	for s in d.get("sn", []):
+		Sfx.play(s[0], s[1])
 	for f in d.get("fx", []):
 		match f[0]:
 			"shot":

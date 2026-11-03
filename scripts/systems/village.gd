@@ -123,6 +123,15 @@ func is_local() -> bool:
 	return self == game.player_village
 
 
+## A sound for this village's player only (co-op host: sent to theirs).
+## Game-wide sounds go through Game.sound_all.
+func sound(sound_name: String, pitch_jitter: float = 0.08) -> void:
+	if is_local():
+		Sfx.play(sound_name, pitch_jitter)
+	elif game.replicator and game.replicator.hosting:
+		game.replicator.sound(id, sound_name, pitch_jitter)
+
+
 ## A HUD toast for this village's player (co-op host: sent to theirs).
 func toast(text: String, col: Color = UiTheme.TEXT) -> void:
 	if is_local() and game.hud:

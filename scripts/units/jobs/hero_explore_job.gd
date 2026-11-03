@@ -190,7 +190,7 @@ func _pay() -> void:
 	var what := Treasure.pay(w.village, r)
 	if what != "":
 		w.float_text(what, UiTheme.GOLD)
-		Sfx.play("coin")
+		w.village.sound("coin")
 	(w as Hero).changed.emit()
 
 
