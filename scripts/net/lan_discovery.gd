@@ -2,8 +2,9 @@ class_name LanDiscovery
 extends Node
 ## Finding games on the local network (docs/multiplayer-design.md §8.2).
 ## A host announces itself once a second by UDP broadcast (and to 127.0.0.1,
-## so a game on the same machine is found too); clients listen and list every
-## host heard in the last HOST_TIMEOUT seconds. Keyed by address and port.
+## so a game on the same machine is found too): its lobby, or its running game
+## while a player is missing (to rejoin). Clients listen and list every host
+## heard in the last HOST_TIMEOUT seconds. Keyed by address and port.
 ## This is the LAN implementation of "finding games"; a lobby-server finder can
 ## offer the same `games()` / `games_changed` later (web version).
 
@@ -19,9 +20,10 @@ const NOT_LAN: Array[String] = ["rmnet", "docker", "br-", "veth", "lxcbr", "lxdb
 
 var _announce: PacketPeerUDP
 var _listen: PacketPeerUDP
-var _payload: Callable  # host: returns the announcement Dictionary
+var _payload: Callable  # host: returns the announcement Dictionary ({}: say nothing now)
 var _timer := 0.0
-## "ip:port" -> {"address", "port", "name", "players", "max", "difficulty", "proto", "seen"}
+## "ip:port" -> {"address", "port", "name", "players", "max", "difficulty", "proto", "seen",
+## "running", "missing" (names who can rejoin), "wave"}
 var _games: Dictionary = {}
 
 
@@ -111,10 +113,12 @@ func _process(delta: float) -> void:
 		_timer -= delta / maxf(Engine.time_scale, 0.001)
 		if _timer <= 0.0:
 			_timer = ANNOUNCE_INTERVAL
-			var bytes := JSON.stringify(_payload.call()).to_utf8_buffer()
-			for addr in ["255.255.255.255", "127.0.0.1"]:
-				_announce.set_dest_address(addr, Net.discovery_port)
-				_announce.put_packet(bytes)
+			var payload: Dictionary = _payload.call()
+			if not payload.is_empty():
+				var bytes := JSON.stringify(payload).to_utf8_buffer()
+				for addr in ["255.255.255.255", "127.0.0.1"]:
+					_announce.set_dest_address(addr, Net.discovery_port)
+					_announce.put_packet(bytes)
 	if _listen:
 		var changed := false
 		while _listen.get_available_packet_count() > 0:
@@ -128,8 +132,14 @@ func _process(delta: float) -> void:
 				"address": ip, "port": int(d.get("port", Net.game_port)), "name": str(d.get("name", "?")),
 				"players": int(d.get("players", 0)), "max": int(d.get("max", Config.MAX_PLAYERS)),
 				"difficulty": str(d.get("difficulty", "")), "proto": int(d.get("proto", 0)), "seen": t,
+				"running": bool(d.get("running", false)), "wave": int(d.get("wave", 0)), "missing": [],
 			}
-			if not _games.has(key) or _games[key]["players"] != g["players"] or _games[key]["name"] != g["name"]:
+			var missing = d.get("missing", [])
+			if missing is Array:
+				for n in missing:
+					g["missing"].append(str(n))
+			var old: Dictionary = _games.get(key, {})
+			if old.is_empty() or ["players", "name", "running", "wave", "missing"].any(func(k: String) -> bool: return old[k] != g[k]):
 				changed = true
 			_games[key] = g
 		for key in _games.keys():

@@ -53,7 +53,8 @@ the rules unchanged.
 The multiplayer screen asks for a **village name** and **colour** (both
 required, remembered between sessions, colour changeable in the lobby), then
 offers **Host game**, a list of **games on your network** (from LAN
-discovery, §8.2), and **Join by address** as a fallback for networks that
+discovery, §8.2: lobbies, and running games a player dropped out of, for them
+to rejoin), and **Join by address** as a fallback for networks that
 filter broadcasts. A full game, or one of another version, can't be picked.
 The accepted name characters and the colour palette are in the code
 (`VILLAGE_COLORS`); the palette is chosen to stay distinct on light and grey
@@ -360,7 +361,15 @@ units and heroes arrive whole.
   the game starts. **Clients** on the multiplayer screen listen and list the
   hosts heard recently. The payload carries a game id, the protocol version
   (so incompatible games are marked), the host's name, player count and cap,
-  difficulty and the game port. Ports are in `Net` (`GAME_PORT`,
+  difficulty and the game port.
+- **A running game** goes on announcing itself, at the same interval, only
+  while a player is missing (dropped out, left): the payload then says it is
+  running, which wave it is in and who is missing, so they can find it again
+  without knowing the address. While everyone is in, and once the game is
+  over, it says nothing. The list shows it as running, with the wave and
+  "rejoin as" the missing names; it can only be picked with one of those
+  names in the village name box, since that is how the host lets a player back
+  in (§8.6). Ports are in `Net` (`GAME_PORT`,
   `DISCOVERY_PORT`); tests pass their own with `--port=N`.
 - **Android** needs the INTERNET permission. Some Wi-Fi networks drop
   broadcasts, hence "join by address".
@@ -424,7 +433,8 @@ dock, log level, panels) never go to the host.
 ### 8.6 Connections
 
 - **No late joining:** the player list is fixed at *Start*. A running game
-  stops announcing itself and refuses new players.
+  refuses new players; it is announced only to let a missing player back in
+  (§8.2).
 - **Client drops or leaves:** the village keeps existing and simulating,
   enemies still come. The same player can **rejoin** by joining with the same
   village name and gets the village back: the host sends the setup and map

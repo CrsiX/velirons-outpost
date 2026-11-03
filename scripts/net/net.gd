@@ -172,12 +172,35 @@ func leave() -> void:
 	lobby_changed.emit()
 
 
+## What the host announces on the network (docs/multiplayer-design.md §8.2):
+## the lobby; a running game only while a player is missing, so they can find
+## it again and rejoin ("running", the wave, who is missing); nothing ({})
+## while everyone is in or once the game is over.
 func _announcement() -> Dictionary:
-	return {
+	var a := {
 		"game": GAME_ID, "proto": PROTOCOL, "name": players[1]["name"] if players.has(1) else "?",
 		"players": players.size(), "max": max_players(), "port": game_port,
 		"difficulty": Settings.NAMES[difficulty],
 	}
+	if in_game:
+		var missing := missing_players()
+		if missing.is_empty() or (game != null and game.game_over):
+			return {}
+		a["running"] = true
+		a["missing"] = missing
+		a["wave"] = game.waves.wave if game != null else 0
+		a["players"] = players.size() - missing.size()
+	return a
+
+
+## Host, in a running game: the names of the players who dropped out.
+func missing_players() -> Array[String]:
+	var out: Array[String] = []
+	for id in players:
+		if not players[id]["online"]:
+			out.append(str(players[id]["name"]))
+	out.sort()
+	return out
 
 
 func _patient(id: int) -> void:
@@ -546,8 +569,7 @@ func start_game() -> bool:
 		return false
 	if not resume.is_empty():
 		return _start_resumed()
-	in_game = true
-	discovery.stop_announcing()
+	in_game = true  # (still announced while a player is missing: _announcement)
 	var ids := players.keys()
 	ids.sort()
 	var villages: Array = []
@@ -576,7 +598,6 @@ func _start_resumed() -> bool:
 		_tell(1, str(r["error"]))
 		return false
 	in_game = true
-	discovery.stop_announcing()
 	resume_body = r["body"]
 	var saved: Array = resume["villages"]
 	var villages: Array = []

@@ -117,6 +117,7 @@ func _host() -> void:
 	var game := Net.game
 	var v0 := game.villages[0]
 	var v1 := game.villages[1]
+	check(Net._announcement().is_empty(), "while everyone is in, the running game isn't announced")
 	check(game.villages.size() == 2 and v0.village_name == HOST_NAME and v1.village_name == CLIENT_NAME and not game.is_client, "two villages, named after the players")
 	# (a tile 3 beyond the client's walls, on the far side from the host's village)
 	var dir := Vector2(v1.center - v0.center).normalized()
@@ -165,6 +166,18 @@ func _host() -> void:
 	game.command("set_speed", {"index": 0})
 	var left := await wait_until(func() -> bool: return not Net.players.has(cid) or not Net.players[cid]["online"])
 	check(left and v0.events.entries.any(func(e: Dictionary) -> bool: return e["text"] == "%s left the game" % CLIENT_NAME), "when the client leaves, its village stays and everyone is told")
+	# Now it is announced again, as running, for the missing player to rejoin
+	# (we hear ourselves through 127.0.0.1; docs/multiplayer-design.md §8.2).
+	check(Net.discovery.start_listening() == "", "the host listens for games too")
+	var ours := {}
+	var heard_run := await wait_until(func() -> bool:
+		for g in Net.discovery.games():
+			if g["name"] == HOST_NAME and g["running"]:
+				ours.merge(g)
+				return true
+		return false, 10.0)
+	check(heard_run and ours["missing"] == [CLIENT_NAME] and ours["wave"] == game.waves.wave and ours["players"] == 1, "with a player missing the running game announces itself: running, wave %d, missing %s" % [int(ours.get("wave", -1)), str(ours.get("missing", []))])
+	Net.discovery.stop_listening()
 
 
 ## The map file the custom session plays: three villages on a 100x100 map.

@@ -694,6 +694,18 @@ func _test_title_ui() -> void:
 		{"name": "lxcbr0", "addresses": ["10.0.3.1"]},
 		{"name": "wg0", "addresses": ["10.8.0.2"]},
 	]
+	# Games on the network: a running game only for a missing player (§8.2).
+	var mm: MultiplayerMenu = t.mp_menu
+	var running := {"name": "Ada", "players": 2, "max": 3, "difficulty": "Normal", "proto": Net.PROTOCOL, "running": true, "wave": 4, "missing": ["Bob"]}
+	mm.name_edit.text = "bob "
+	var gb := mm.game_button(running)
+	check(not gb.disabled and gb.text == "Ada   running, wave 4   rejoin as Bob", "a running game someone left: listed with its wave, open to them (%s)" % gb.text)
+	mm.name_edit.text = "Eve"
+	check(mm.game_button(running).disabled, "but not to anyone else")
+	check(mm.game_button(running.merged({"wave": 0}, true)).text.contains("running, before wave 1"), "before the first wave it says so")
+	var lobby_g := {"name": "Ada", "players": 3, "max": 3, "difficulty": "Normal", "proto": Net.PROTOCOL}
+	check(mm.game_button(lobby_g).disabled and not mm.game_button(lobby_g.merged({"players": 2}, true)).disabled, "a lobby is open until it is full")
+	mm.name_edit.text = Settings.player_name
 	var found := LanDiscovery.lan_addresses(ifaces)
 	check(found == PackedStringArray(["192.168.1.20", "172.20.0.5", "10.0.0.9"]), "the lobby shows the host's local network addresses only %s" % str(found))
 	var port_was := Net.game_port

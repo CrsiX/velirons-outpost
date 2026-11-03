@@ -2,7 +2,8 @@ class_name MultiplayerMenu
 extends VBoxContainer
 ## The title screen's Multiplayer pages (docs/multiplayer-design.md §3):
 ##   join page - your village name and colour, Host game, games found on the
-##               local network, join by address, Back;
+##               local network (lobbies, and running games someone dropped out
+##               of: rejoin under your village name), join by address, Back;
 ##   lobby     - two panes: on the left everyone's village (name in its colour,
 ##               ready or not); on the right your name and colour (changeable
 ##               until you're ready), the game's settings (the host picks the
@@ -112,7 +113,8 @@ func _identity_rows(parent: Control) -> void:
 	ne.add_theme_font_size_override("font_size", 20)
 	ne.text_changed.connect(func(t: String) -> void:
 		Settings.player_name = t.strip_edges()
-		Settings.save_player())
+		Settings.save_player()
+		_refresh_games())  # (a running game opens up to a missing player's name)
 	parent.add_child(ne)
 	name_edit = ne
 	var row := HBoxContainer.new()
@@ -419,6 +421,24 @@ func refresh() -> void:
 	_refresh_swatches()
 
 
+## A game in the "Games on your network" list. A lobby can be joined until
+## it is full; a running game (a player dropped out) only by a missing player,
+## under their village name (Net.join_decision).
+func game_button(g: Dictionary) -> Button:
+	var b := _btn("%s   %d/%d   %s" % [g["name"], g["players"], g["max"], g["difficulty"]], 48)
+	b.disabled = g["players"] >= g["max"]
+	if g.get("running", false):
+		var missing: Array = g.get("missing", [])
+		b.text = "%s   running, %s   rejoin as %s" % [g["name"], SaveGame.wave_text(int(g.get("wave", 0))).to_lower(), " or ".join(PackedStringArray(missing))]
+		var me := name_edit.text.strip_edges().to_lower()
+		b.disabled = not missing.any(func(n: String) -> bool: return n.to_lower() == me)
+		b.tooltip_text = "This game has started. Only a player who left it can come back, under their village name."
+	if g["proto"] != Net.PROTOCOL:
+		b.disabled = true
+		b.text += "   (other version)"
+	return b
+
+
 ## The host's line under the players: where others can join (with the port when it
 ## isn't the usual one), or that this device isn't on a network.
 static func host_address_text(addresses: PackedStringArray) -> String:
@@ -459,10 +479,7 @@ func _refresh_games() -> void:
 		if seen.has(key):
 			continue  # (the same game heard via loopback and the network)
 		seen[key] = true
-		var b := _btn("%s   %d/%d   %s" % [g["name"], g["players"], g["max"], g["difficulty"]], 48)
-		b.disabled = g["proto"] != Net.PROTOCOL or g["players"] >= g["max"]
-		if g["proto"] != Net.PROTOCOL:
-			b.text += "   (other version)"
+		var b := game_button(g)
 		var addr := "%s:%d" % [g["address"], g["port"]]
 		b.pressed.connect(func() -> void: join(addr))
 		games_box.add_child(b)

@@ -10,7 +10,8 @@ extends Node
 ##     3x3, which everybody sees),
 ##   - their village: economy, army, and everyone's standing / fallen,
 ##   - the wave, the game speed, game over,
-##   - their log lines, toasts, floating texts and arrows they can see,
+##   - their log lines, toasts and sounds (their own village's, and the few
+##     everyone hears: Game.sound_all), floating texts and arrows they can see,
 ##     newly explored tiles and warning lights,
 ##   - trees felled since the game began (to everyone: the map is shared).
 ## Only changes since the last snapshot are sent.
