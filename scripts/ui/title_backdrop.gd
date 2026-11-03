@@ -56,7 +56,9 @@ func _ready() -> void:
 	modulate = Color.BLACK
 	_viewport = SubViewport.new()
 	_viewport.name = "Viewport"
-	_viewport.disable_3d = true
+	# Templates built without 3D, as for F-Droid, don't have the property at all.
+	if &"disable_3d" in _viewport:
+		_viewport.set(&"disable_3d", true)
 	_viewport.gui_disable_input = true
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport.size_2d_override_stretch = true
