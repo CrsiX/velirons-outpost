@@ -65,7 +65,7 @@ func _init() -> void:
 		"brenna": {"name": "Brenna", "portrait": "portrait_brenna", "color": Color("e0b46a")},
 		"pell": {"name": "Pell", "portrait": "portrait_pell", "color": Color("e8c890")},
 		"einar": {"name": "Einar", "portrait": "portrait_einar", "color": Color("a8c878")},
-		"scout": {"name": "A stranger", "color": Color("a8b0b8")},
+		"scout": {"name": "Some stranger", "color": Color("a8b0b8")},
 	}
 
 

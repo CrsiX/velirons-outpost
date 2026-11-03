@@ -285,11 +285,13 @@ func _say(who: String, t: String, italic := false) -> void:
 	line = ""
 
 
-## The dialogue font slanted (the theme has no italic face).
+## The dialogue font slanted (the theme has no italic face). The slant goes in
+## the x axis's y: the text server reads the matrix transposed, and putting it in
+## the y axis's x shears the glyphs up and down the baseline instead.
 func _italic_font() -> Font:
 	var f := FontVariation.new()
 	f.base_font = _text.get_theme_font("font", "Label")
-	f.variation_transform = Transform2D(Vector2(1, 0), Vector2(ITALIC_SLANT, 1), Vector2.ZERO)
+	f.variation_transform = Transform2D(Vector2(1, ITALIC_SLANT), Vector2(0, 1), Vector2.ZERO)
 	return f
 
 

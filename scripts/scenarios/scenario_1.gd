@@ -94,7 +94,7 @@ func arrival(r: ScenarioRunner) -> Array[Dictionary]:
 		{"say": "einar", "text": "We lost the walls and half the village. There's just the three of us left: me, the builder and the farmer. No one left to defend us. I fear the worst."},
 		{"say": "brenna", "text": "I will protect you! And we'll rebuild the village, so that nobody else dies here, Father. Not one."},
 		{"say": "einar", "text": "That's my girl. The builder will follow your lead, and I'll keep the timber coming."},
-		{"say": "", "text": "No villager may die in this scenario. Keep them safe."},
+		{"say": "", "text": "No villager may die in this scenario. Keep them safe.", "italic": true},
 	]
 
 
@@ -120,7 +120,7 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 				c.add_child(glow)
 				r.move_actor(c, cart_path, 14.0)
 				cart[0] = c},
-		{"say": "", "text": "Evening falls over the mended walls. Out on the road, a lantern swings.", "italic": true},
+		{"say": "", "text": "Evening falls over the mended walls. Out on the road, a lantern swings."},
 		{"camera": stop + Vector2(0, -40), "zoom": 1.2, "time": 3.0},
 		{"say": "einar", "text": "A cart, at this hour? Alone, on that road?"},
 		{"say": "brenna", "text": "That lantern... I know that lantern. Pell! Pell Dunmore!"},
