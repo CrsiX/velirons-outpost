@@ -121,6 +121,32 @@ func _watch(c: Cutscene, pick := 0) -> Array[String]:
 	return said
 
 
+## Scenario 4: the rival's offer, refused. The envoy walks back out along the
+## road before Wenna speaks, and is gone once the scene is over.
+func _refuse_offer(c: Cutscene) -> void:
+	await frames(2)
+	var envoy: Array = sc._scene_actors.duplicate()  # (untyped: freed at the scene's end)
+	check(envoy.size() == 1, "(the envoy on the road: %d figures)" % envoy.size())
+	var stood := Vector2.INF
+	var walked := -1.0
+	var t := 0.0
+	while is_instance_valid(c) and c.running and t < 90.0:
+		if c.choosing():
+			stood = (envoy[0] as Node2D).position if not envoy.is_empty() and is_instance_valid(envoy[0]) else Vector2.INF
+			c.choose(1)
+		elif c.line != "":
+			var s: Dictionary = c.steps[c.index]
+			if str(s["say"]) == "wenna" and walked < 0.0 and stood != Vector2.INF and is_instance_valid(envoy[0]):
+				walked = (envoy[0] as Node2D).position.distance_to(stood)
+			c.advance()
+			c.advance()
+		await frames(1)
+		t += get_process_delta_time()
+	check(walked > 0.0, "refused: the envoy walks off along the road before Wenna speaks (%.0f px)" % walked)
+	await frames(2)
+	check(envoy.all(func(n: Variant) -> bool: return not is_instance_valid(n)), "and he is gone once the scene is over")
+
+
 func _at_card(i: int, timeout: float) -> bool:
 	return await wait_until(func() -> bool: return sc.step == i and sc._next_in < 0.0, timeout)
 
@@ -900,7 +926,7 @@ func _scenario_4() -> void:
 				water_d = minf(water_d, Vector2(x, y).distance_to(Vector2(w.tile)))
 	check(water_d <= 8.0, "on the harbour side, by the water (%.1f tiles)" % water_d)
 	check(w != null and not w.can_tear_down() and not game.allows_building("warehouse"), "it can't be torn down or built")
-	check(game.hero.level == 4 and not sc.spec.hero_revives, "Brenna at level 5; she can't be brought back")
+	check(game.hero.level == sc.spec.hero_level - 1 and not sc.spec.hero_revives, "Brenna at the scenario's level (%d); she can't be brought back" % sc.spec.hero_level)
 	check(game.waves.scripted.size() == 9 and game.waves.last_wave == 9, "nine scripted waves")
 	await wait(1.0)
 	check(sc.cutscene != null, "the intro plays")
@@ -982,7 +1008,7 @@ func _scenario_4() -> void:
 		if sc.cutscene != null:
 			if sc.cutscene.steps.any(func(st: Dictionary) -> bool: return st.has("choices")):
 				offered = true
-				await _watch(sc.cutscene, 1)
+				await _refuse_offer(sc.cutscene)
 				Engine.time_scale = 4.0
 			else:
 				await _skip_scene()

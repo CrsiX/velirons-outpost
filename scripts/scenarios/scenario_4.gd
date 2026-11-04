@@ -25,7 +25,7 @@ func _init() -> void:
 	difficulty = "easy"
 	enemy_scale = {"hp": 0.9, "damage": 0.9, "spell_damage": 0.9}
 	resources = {"gold": 200, "food": 170, "materials": 200}
-	civilians = ["builder", "builder", "farmer", "farmer", "forester", "gatherer", "merchant", "guildmaster"]
+	civilians = ["builder", "builder", "farmer", "forester", "gatherer", "merchant", "guildmaster"]
 	names = {"merchant": "Pell", "guildmaster": "Wenna"}
 	homes = {"Wenna": {"art": "guild_house", "name": "Guild House"}}
 	buildings = ["farm", "camp"]
@@ -40,7 +40,7 @@ func _init() -> void:
 		{"kind": "lightstone", "tile": Vector2i(12, 19)},
 	]
 	hero_name = "Brenna"
-	hero_level = 5
+	hero_level = 4
 
 	units = ["archer", "shield_bearer"]
 	build = ["tower", "farm", "camp", "lightstone", "barracks", "training"]
@@ -61,8 +61,8 @@ func _init() -> void:
 		{"kinds": {"goblin": 14, "orc": 5, "crab": 6, "thief": 7, "slime3": 2}, "spawns": 3},
 		{"kinds": {"goblin": 16, "orc": 5, "thief": 8, "crab": 5}, "rat_packs": [6, 6], "spawns": 3},
 		{"kinds": {"goblin": 15, "orc": 6, "thief": 16, "crab": 6, "siren": 1}, "spawns": 3},
-		{"kinds": {"goblin": 16, "orc": 6, "thief": 18, "crab": 6, "slime3": 3}, "rat_packs": [6, 6], "spawns": 3},
-		{"kinds": {"goblin": 20, "orc": 8, "thief": 22, "crab": 8}, "rat_packs": [6, 6, 5], "spawns": 3},
+		{"kinds": {"goblin": 16, "orc": 6, "thief": 24, "crab": 6, "slime3": 3}, "rat_packs": [6, 6], "spawns": 3},
+		{"kinds": {"goblin": 20, "orc": 9, "thief": 48, "crab": 9, "slime3": 2}, "rat_packs": [6, 8, 5], "spawns": 3},
 	]
 	amphibians_from_water = true
 	first_wave_waits = true
@@ -99,7 +99,8 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"say": "pell", "text": "My old guild house. I kept the books there once, before the guild broke apart."},
 		{"say": "wenna", "text": "Pell Dunmore. You took your time. And you brought a knight."},
 		{"say": "pell", "text": "Brenna, this is Wenna, master of the Silver Thread Merchant Guild. And Wenna, this is Brenna Hale, the best friend I have."},
-		{"say": "wenna", "text": "The convoy will be loaded in the warehouse by the harbour. Everything we own is in it. If the warehouse falls, the guild falls with it."},
+		{"say": "wenna", "text": "Welcome, then. We need every hand we can get."},
+		{"say": "wenna", "text": "The convoy will be loaded in the warehouse by the harbour. Everything we own goes in it. If the warehouse falls, the guild falls with it."},
 		{"say": "brenna", "text": "Then it won't fall. How long do you need?"},
 		{"say": "wenna", "text": "Nine days, if the weather holds. Nine nights of whatever comes up the roads and out of the sea."},
 		{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.0, "time": 2.0},
@@ -170,7 +171,12 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 					]},
 				{"say": "brenna", "text": "Keep your gold. And tell your masters the warehouse has a guard now."},
 				{"say": "rival", "text": "Pity. You'll find the roads less friendly from tonight."},
-				{"do": func() -> void: _cleanup(who)},
+				{"do": func() -> void:  # (he walks back out the way he came; the scene's end takes him away)
+					if is_instance_valid(who[0]):
+						var back := road.slice(0, road.size() - 3)
+						back.reverse()
+						r.move_actor(who[0], back, 5.0)},
+				{"wait": 1.0},
 				{"say": "wenna", "text": "Thank you. He's offered the same to every guard I had. Most of them took it."},
 			])
 		6:

@@ -40,7 +40,7 @@ func _init() -> void:
 		{"kind": "barracks", "offset": Vector2i(1, 1)},
 	]
 	hero_name = "Brenna"
-	hero_level = 7
+	hero_level = 5
 
 	units = ["archer", "shield_bearer"]
 	build = ["tower", "farm", "camp", "lightstone", "barracks", "training"]

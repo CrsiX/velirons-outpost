@@ -37,7 +37,7 @@ func _init() -> void:
 		{"kind": "tower", "ruin": 0, "units": [{"kind": "archer", "level": 2}]},
 	]
 	hero_name = "Brenna"
-	hero_level = 4
+	hero_level = 3
 
 	# Specialising is open now (from unit level 3), and the training grounds.
 	units = ["archer", "shield_bearer"]
