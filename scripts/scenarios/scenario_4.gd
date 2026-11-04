@@ -87,7 +87,7 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"fade": "out", "time": 0.01},
 		{"camera": store + Vector2(0, -40), "zoom": 1.0, "time": 0.01},
 		{"title": "The Split", "sub": "Scenario 4", "time": 3.0},
-		{"say": "", "text": "The guild town on the coast. Half its harbour lies behind a rival guild's chains; the other half is all the Silver Thread Guild has left."},
+		{"say": "", "text": "The guild town on the coast. A rival guild wants its harbour and sends thieves by night and enforcers by day. The store here is all the Silver Thread Guild has left."},
 		{"fade": "in", "time": 1.2},
 		{"say": "pell", "text": "My old guild house. I kept the books there once, before the guild broke apart."},
 		{"say": "wenna", "text": "Pell Dunmore. You took your time. And you brought a knight."},
