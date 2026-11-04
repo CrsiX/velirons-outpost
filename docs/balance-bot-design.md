@@ -1,8 +1,9 @@
 # Veliron's Outpost: the balancing bot (design)
 
 Status: **built**. Code: `tools/balance_bot.gd` (runner), `tools/balance/balance_player.gd`
-(the player), `tools/balance/balance_recorder.gd` (the record), `tools/balance/{sweep,variant,report}.py`.
-Tunables: `Config.BALANCE_BOT` and `Config.BALANCE_PROFILES` (every key documented there).
+(the player and its parts, §3), `balance_ledger.gd` and `balance_recorder.gd` (the record),
+`tools/balance/{sweep,variant,report}.py`. Tunables: `Config.BALANCE_BOT`, `BALANCE_ECONOMY`,
+`BALANCE_HERO` and `BALANCE_PROFILES` (every key documented there).
 
 ## 1. Purpose
 
@@ -45,29 +46,47 @@ What matters for design:
 (`refusals`) to show where the bot got stuck. It is "a decent average player, not an optimal
 one": compare runs with each other, not with a human.
 
-**Priorities** (the order of a round, `balance_player.gd`): cheats a profile asks for, hero, repairs
-and restoring, recruiting, farms and camps, military buildings, units onto posts, tower upgrades,
-unit upgrades, gold into material (essentials only), calling the wave. The reasoning:
+**Three parts** (`BalancePart` subclasses), split by what a policy may change:
 
-- **Repairs come first,** and while something waits for material nothing else spends any:
-  a village that builds new things on top of a broken wall isn't playing like a player who wants
-  to survive. Gold buys material only for these and for a missing farm (`_want_critical`);
-  everything else waits for the foresters, so gold goes to the army, as it does for a player.
-- **Economy first.** Before wave 1 the profile's camps (and their foresters) come before any new
-  post; later one more camp whenever the foresters bring in less than the profile wants
-  (`material_rate`). Food: a farm schedule by wave, more while upkeep outgrows the farms. A farm
-  without its farmer gets one before any other recruit; a full village retires its explorer, else
-  a second gatherer, to make room.
+- `BalanceEconomy` (repairs, the farm, villagers, farms and camps, gold into material) and
+  `BalanceHero` are **the same for every policy** (`BALANCE_ECONOMY`, `BALANCE_HERO`). A policy
+  is a playing style of the army; if each profile also ran its own economy, a survival difference
+  could come from either, and comparing policies would say nothing about units.
+- `BalanceMilitary` (defence buildings, units, upgrades, calling waves) **is the policy**
+  (a `BALANCE_PROFILES` entry).
+
+The parts talk only through the player's public fields (what waits for material, whether a farm
+is missing or unworked), and a round runs them in priority order, so the earlier ones get the
+resources first: cheats -> economy (walls and gates, the farm, huts, other repairs) -> hero ->
+economy (villagers, farms, camps) -> military -> gold into material -> calling the wave. The
+reasoning:
+
+- **Repairs come first,** walls and gates before anything, and while something waits for
+  material nothing else spends any: a village that builds new things on top of a broken wall
+  isn't playing like a player who wants to survive. Gold buys material only for these and for the
+  farm; everything else waits for the foresters, so gold goes to the army, as it does for a player.
+- **A working farm comes next:** one that stands *and* has its farmer. A village without food
+  loses its army to hunger, which says nothing about the waves. A devastated farm is repaired
+  rather than replaced; with no spot for one the bot keeps looking for a while before giving up
+  (`farm_patience`). Idle farmers and foresters are sent to vacant workplaces.
+- **Economy by schedule.** Farms and camps by wave, one more camp while the foresters bring in
+  too little, more farms while upkeep outgrows what the farms really make (`farm_efficiency`:
+  farmers walk, so nominal rates overstate it). A full village retires its explorer, else a
+  second gatherer, to make room.
 - **Where it builds.** Towers and barracks go where they cover road near a gate that no post of
   their own sort covers yet. With `barracks_support` the two cooperate (a barracks where towers
   shoot over its fighting ground, towers over a barracks upgraded first), because that is how a
   good player uses them; switched off, each covers the road alone, to measure the difference.
-  Farms go on meadow and by water, away from roads (rats), camps by trees. While no farm stands it
-  comes before everything. It never builds a new post while two stand empty.
-- **The hero** explores for a profile-set number of waves (only while no enemy is near the walls
-  during one), then trains the unit at the grounds (which then swaps into the field), and defends
-  during waves. Below a share of her HP she rests until she has recovered, because being downed
-  loses all her XP.
+  Farms go on meadow and by water, away from roads (rats), camps by trees. No defence building
+  goes up while no farm stands, and no new post while two stand empty.
+- **The hero** explores in the early waves (during one only while no enemy is near the walls),
+  defends during waves, and between waves gathers corpses or rests when there is nothing else to
+  do. Below a share of her HP she rests until recovered, earlier while she holds a lot of XP,
+  because being downed loses it all. She levels herself at once until a set level, then banks XP
+  for training.
+- **Training grounds:** a unit is sent there only when her XP covers whole levels of it (a unit
+  she can't take through a level gains nothing visible), the weakest first. Its post is held free
+  meanwhile, and afterwards it goes back (else to a free post, else in place of a weaker unit).
 - **Units:** each post class takes the profile's kinds in turn, and the turn moves on only once one
   is bought (else the cheaper kind would always win while gold is short); unit upgrades leave the
   gold of the unit an empty post waits for.
@@ -79,8 +98,8 @@ the bot's survival numbers are therefore a floor for a good player, comparable a
 
 **Profiles** (`BALANCE_PROFILES`, the `policy` of a case) are playing styles: `balanced` (the
 default player), `archers`, `swift`, `melee`, `mages`, `holy`. Some unlock their units by cheat.
-A profile lists villager targets, building counts by wave, tower levels, units per post class,
-the specialisation per kind and the hero's orders. Several profiles exist because a change that
+A profile lists only the military: building counts by wave, tower levels, units per post class
+and the specialisation per kind. Several profiles exist because a change that
 helps one style can break another; balance is judged across them.
 
 ## 4. The record
@@ -101,6 +120,11 @@ One JSON line per run. The schema is whatever `balance_recorder.gd` writes (it c
 - **A timeline** sampled at a fixed interval (economy, army, hero), for charts of growth.
 - **The bot's own actions and refusals**, the gold that went into the army by what it bought,
   and the last important log events (what killed the village).
+- **The ledger** (`BalanceLedger`, only looks): a row per farm, camp and defence building (when it
+  was placed and finished, time working, devastated, without its worker or with empty slots, what
+  it brought home, a tower's kills) and what the hero spent her time on. Stats say how the village
+  did; the ledger says which of the bot's decisions paid off, so a weak policy can be told apart
+  from a weak bot.
 
 Notes on definitions that would otherwise mislead:
 - Raised dead are tallied as `raised_<kind>`. Camp guards are not recorded. A wrathwood (never part
@@ -128,6 +152,10 @@ tool. What to read, and its traps:
 4. **Breaking point:** fatal waves, causes, who got through.
 5. **Money and food:** earned / spent by source; the army's gold by what it bought; food earned,
    eaten by villagers and army, and the time spent hungry (docs/village-design.md §2a).
+   **Casters:** what witches and necromancers achieved (towers kept from acting, raises, raised
+   dead at the gate, spells lost), from game counters, because their threat isn't in their HP.
+   **Buildings** and **the hero** come from the ledger: output and idle time per kind, the
+   hero's time per mode and XP by source.
 
 ## 6. Testing a balance change without touching the config
 

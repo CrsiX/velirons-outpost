@@ -197,7 +197,8 @@ mode makes her stronger and Explore, Gather and Build are not a sacrifice. The w
   once, so nothing is paid twice.
 - Corpse XP is paid on pick-up, not at home; loot XP when the looting is done and not for
   picking up dropped loot again.
-- **Shrines:** looting a shrine pays a bigger XP lump when she gets home.
+- **Shrines:** looting a shrine pays a bigger XP lump when she gets home, or instead heals every
+  unit and her fully (`TREASURES.shrine`).
 - Training earns nothing. No other unit ever gains XP.
 - Debug builds: *+1000 XP* in the Debug dialog (command `_debug` "xp").
 

@@ -274,6 +274,8 @@ func _record(c: Dictionary, game: Game, player: BalancePlayer, rec: BalanceRecor
 		"refusals": player.refusals,
 		"army_gold": player.army_gold,
 		"early_calls": player.early_calls,
+		"buildings": player.ledger.buildings(),
+		"hero": player.ledger.hero(),
 		"important_log": important.slice(maxi(important.size() - 12, 0)),
 	}
 	if not _args.has("no-detail"):
@@ -314,7 +316,7 @@ func _config_hash() -> String:
 		"scalars": [Config.WAVE_HP_GROWTH, Config.FIRST_WAVE_DELAY, Config.WAVE_BUFFER, Config.FARM_RATE, Config.FOOD_UPKEEP,
 			Config.MINE_GOLD_RATE, Config.CIVILIAN_HP, Config.UNIT_REGEN, Config.TREE_CHOP_TIME, Config.MATERIALS_TRADE,
 			Config.EARLY_CALL_GOLD_PER_SECOND, Config.WAVE_MIX_CAP, Config.TEARDOWN_REFUND],
-		"bot": [Config.BALANCE_BOT, Config.BALANCE_PROFILES],
+		"bot": [Config.BALANCE_BOT, Config.BALANCE_ECONOMY, Config.BALANCE_HERO, Config.BALANCE_PROFILES],
 	}
 	return "%08x" % absi(var_to_str(all).hash())
 

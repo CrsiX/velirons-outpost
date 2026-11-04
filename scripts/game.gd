@@ -854,6 +854,8 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 	# Only a villager who happens to live in that hut dies; nobody else is killed.
 	var v: Village = g.target_village if is_instance_valid(g.target_village) else player_village
 	stats.count(v, "gate")
+	if g.raised:
+		stats.count(v, "necro.raised_gate")
 	if g.kind == "rat":
 		# Rats burn nothing: they eat food and are gone.
 		var spec: Dictionary = g.spec()
@@ -878,6 +880,7 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 		var intact := v.intact_huts()
 		hut = null if intact.is_empty() else intact.pick_random() as Hut
 	if hut != null:
+		stats.count(v, "burned_by." + g.kind)
 		hut.destroy(g.label())
 	v.sound("raid")
 	v.toast("Enemies broke into the village!", Color("ff7a6a"))
