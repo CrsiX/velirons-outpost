@@ -233,6 +233,11 @@ def mountain(i):
 
 # ------------------------------------------------------------------ trees
 
+# Pine greens, lowest tier to the top (lit, shaded): the pines use every other
+# step, the spruce (tree_pine_2) all five.
+PINE_GREENS = [("#1f3a28", "#162c1e"), ("#223e2c", "#183020"), ("#244330", "#193322"), ("#274833", "#1b3625"), ("#2a4c36", "#1d3827")]
+
+
 def tree_pine(i):
     rng = random.Random(30 + i)
     s = 1.0 + 0.12 * i
@@ -240,8 +245,7 @@ def tree_pine(i):
     a.shadow(28 * s, 13 * s)
     a.poly([(-3, 0), (3, 0), (3, -16), (-3, -16)], WOOD_D)
     tiers = [(-12, 30, -52), (-34, 25, -72), (-54, 18, -94)]
-    greens = [("#1f3a28", "#162c1e"), ("#244330", "#193322"), ("#2a4c36", "#1d3827")]
-    for (base, hw, apex), (gl, gr) in zip(tiers, greens):
+    for (base, hw, apex), (gl, gr) in zip(tiers, PINE_GREENS[::2]):
         base, hw, apex = base * s, hw * s, apex * s
         a.poly([(-hw, base), (0, apex), (hw, base), (0, base + 5)], gl)
         a.poly([(0, apex), (hw, base), (0, base + 5)], gr, stroke=None)
@@ -338,14 +342,13 @@ def tree_oak(i):
 
 
 def tree_spruce():
-    """The third pine (tree_pine_2): a slim, dark blue-green spruce whose five
+    """The third pine (tree_pine_2): a slim, dark spruce in the pines' greens whose five
     tiers droop at their tips."""
     a = Art()
     a.shadow(24, 11)
     a.poly([(-3, 0), (3, 0), (3, -14), (-3, -14)], WOOD_D)
     tiers = [(-10, 28, -40), (-28, 24, -58), (-46, 20, -76), (-64, 15, -94), (-82, 9, -110)]
-    greens = [("#1c3832", "#122822"), ("#203d36", "#152c26"), ("#24433b", "#18302a"), ("#284940", "#1b342d"), ("#2c4e44", "#1e3830")]
-    for (base, hw, apex), (gl, gr) in zip(tiers, greens):
+    for (base, hw, apex), (gl, gr) in zip(tiers, PINE_GREENS):
         h = base - apex
         lt = [(0, apex), (-hw * 0.42, apex + h * 0.6), (-hw, base + 4), (-hw * 0.62, base - 1), (-hw * 0.3, base + 2), (0, base + 4)]
         rt = [(0, apex), (hw * 0.42, apex + h * 0.6), (hw, base + 4), (hw * 0.62, base - 1), (hw * 0.3, base + 2), (0, base + 4)]
@@ -353,7 +356,7 @@ def tree_spruce():
         a.poly(rt, gr, stroke=None)
         a.line(lt[1:][::-1] + rt[1:], INK, 1.0, opacity=0.6)
         a.line([lt[2], lt[1], (0, apex), rt[1], rt[2]], INK, 1.4)
-    a.line([(-5, -60), (-2, -84)], "#3c6656", 1.4, opacity=0.7)
+    a.line([(-5, -60), (-2, -84)], "#3a6448", 1.4, opacity=0.7)
     a.save("tree_pine_2")
 
 
