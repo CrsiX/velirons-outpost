@@ -719,7 +719,7 @@ func _scenario_3() -> void:
 	check(not marked.is_empty() and not young.is_empty() and marked.all(func(u: MilitaryUnit) -> bool: return u.level + 1 >= Config.BRANCH_MIN_LEVEL), "the specialise card marks only archers that can specialise (%d marked, %d too young)" % [marked.size(), young.size()])
 	var marks: Control = sc.highlight._map_layer
 	check(marks.get_parent() == sc.card.get_parent() and marks.get_index() < sc.card.get_index() and marks.get_index() < game.hud._topbar.get_index(), "the marks on the map draw under the card and the HUD")
-	check(game.hero.level == 3 and game.allows_building("training") and not game.allows_building("stall"), "Brenna at level 4; training grounds allowed")
+	check(game.hero.level == sc.spec.hero_level - 1 and game.allows_building("training") and not game.allows_building("stall"), "Brenna at the scenario's level (%d); training grounds allowed" % sc.spec.hero_level)
 	check(game.waves.last_wave == 0 and not game.waves.call_locked, "the waves don't stop by themselves")
 	var w9 := sc.next_wave(9)
 	check(int(w9["kinds"]["goblin"]) == 11 and int(w9["kinds"]["thief"]) == 5, "past the list the last wave comes again, growing (%s)" % str(w9["kinds"]))
@@ -1083,7 +1083,7 @@ func _scenario_5() -> void:
 	check(["oak", "pine"].has(game.map.zone(Vector2i(c.x, 8))) and ["meadow", "steppe"].has(game.map.zone(Vector2i(c.x + 6, game.map.size - 8))), "forest to the north, meadow and steppe to the south")
 	check(v.construction.placement_error("tower", c + Vector2i(3, 0), true) == "", "buildings may go inside the fort")
 	check(game.population.retire_error(game.population.civilians[0]) != "", "Pell can't retire")
-	check(game.hero.level == 6 and not sc.spec.hero_revives, "Brenna at level 7, no revive")
+	check(game.hero.level == sc.spec.hero_level - 1 and not sc.spec.hero_revives, "Brenna at the scenario's level (%d), no revive" % sc.spec.hero_level)
 	var lairs := sc.lairs()
 	check(lairs.size() == 1 and (lairs[0] as MonsterLair).tile.y < c.y and not (lairs[0] as MonsterLair).awake and (lairs[0] as MonsterLair).wake_wave == 6,
 		"a lair in the northern forest, asleep until wave 6")
@@ -2338,9 +2338,14 @@ func _scenario_10() -> void:
 				check(is_equal_approx(cv.progress, p0), "and doesn't move")
 				if is_instance_valid(stop):
 					kill(stop)
+				# (a wave enemy that came near meanwhile would hold it too: clear the road of those as well)
+				for e in game.get_tree().get_nodes_in_group("enemies"):
+					var en := e as Enemy
+					if is_instance_valid(en) and not en.dead and not en.wild() and en.grid_pos.distance_to(cv.grid_pos()) <= ScenarioCaravan.GO + 1.0:
+						kill(en)
 				spare = spared
 				await wait(1.0)
-				check(not cv.halted and cv.progress > p0, "the road clear, it goes on")
+				check(not cv.halted and cv.progress > p0, "the road clear, it goes on (halted %s, %.2f -> %.2f)" % [cv.halted, p0, cv.progress])
 		if game.waves.can_call():
 			cmd("call_wave")
 		await wait(0.5)
