@@ -17,7 +17,7 @@ In all three, Brenna is away from home: **no revive** (`hero_revives` false), so
 - **Water monsters out of the sea only** (`amphibians_from_water`): the first crabs and one siren, so the harbour is a front. They need a water body and water spawns (`aquatic-design.md`).
 - **The rival master's offer is a choice and taking the gold loses.** It tests the player, and Brenna's loyalty is the story.
 - **Hints:** the warehouse (tap it), guarding the harbour with a manned tower, the warehouse plundered, Brenna hurt (no revive: send her to rest).
-- Map: `data/maps/guildtown.json`, a Coast map with the village on a sea inlet, started by `tools/make_scenario_map.gd -- 4` and hand-edited in the map editor since.
+- Map: `data/maps/guildtown.json`, a Coast map with the village on a sea inlet, started by `tools/make_scenario_map.gd -- 4` and hand-edited in the map editor since: the guild's city quay (city zone, timber piers into the harbour) north-west of the walls, where the warehouse stands (`_spot_by_water` puts it on the free land nearest the water).
 
 **What it added to the engine, and why.**
 - **`Warehouse`** (campaign-only, prebuilt) with the thieves' special behaviour (`ThiefBehavior`): they take their road to where it passes nearest, cross over, plunder and run back. Tunables in `Config.WAREHOUSE`.

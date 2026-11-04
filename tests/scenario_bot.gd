@@ -970,7 +970,7 @@ func _scenario_4() -> void:
 		for e: Enemy in get_tree().get_nodes_in_group("enemies"):
 			if e.kind == "crab" and game.map.is_water(e.home_tile):
 				crab_water = true
-			if e.kind in ["crab", "siren"] and not game.map.is_water(e.home_tile) and not from_edge.has(e.label()):
+			if e.kind in ["crab", "siren"] and not (e.behavior is CampBehavior) and not game.map.is_water(e.home_tile) and not from_edge.has(e.label()):  # (a camp's guards come from no edge)
 				from_edge.append(e.label())
 		if sc.journal != null and sc.journal.visible:
 			coins = coins or sc.journal.title() == "Foreign coins"

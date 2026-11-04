@@ -22,7 +22,7 @@ Outline and reasoning: `docs/scenarios-design.md` (index of the campaign docs; t
 - The scenarios' maps: `homecoming.json` for 1 and 2, `wardline.json` for 3 and 10, `guildtown.json` for 4, `old_fort.json` for 5, `battlefield.json` for 6, `refuge.json` for 7, `pale_court.json` for 8, `drowned_abbey.json` for 9, `capital.json` for 11. Some are laid out by tools (`citadel_map.gd`, `abbey_map.gd`, `make_scenario_map.gd`), not generated.
 
 ## Hand-edited maps (important)
-The user edits scenario maps in the map editor. **Never regenerate those** (`tools/make_scenario_map.gd -- <n> --force`), and change them only by small, targeted edits to the file, never by rerunning the tool. Hand-edited so far: `homecoming.json`, `old_fort.json`, `drowned_abbey.json`, `wardline.json`. The edit-handmade-map skill has the checklist of code tied to each. In short:
+The user edits scenario maps in the map editor. **Never regenerate those** (`tools/make_scenario_map.gd -- <n> --force`), and change them only by small, targeted edits to the file, never by rerunning the tool. Hand-edited so far: `homecoming.json`, `guildtown.json`, `old_fort.json`, `drowned_abbey.json`, `wardline.json`. The edit-handmade-map skill has the checklist of code tied to each. In short:
 - `wardline.json` holds `homecoming.json` tile for tile as its inner area: an edit to one needs the same edit in the other.
 - Code that depends on specific tiles (tents, roads' map-edge ends, church and quay tiles, spawns, the number and place of ruins, prebuilt offsets from the village centre) must be rechecked when the user edits a map; scenario_bot has layout checks that name what is assumed.
 
