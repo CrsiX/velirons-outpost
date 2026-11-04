@@ -138,6 +138,11 @@ func sight_radius() -> float:
 	return r
 
 
+## A manned tower explores everything it watches, so nothing it sees is black.
+func explore_radius() -> float:
+	return sight_radius() if complete and not devastated and garrison != null else 0.0
+
+
 func set_slot(i: int, unit: MilitaryUnit) -> void:
 	if garrison != null and unit != garrison:
 		garrison.behavior.on_leave(self, garrison)

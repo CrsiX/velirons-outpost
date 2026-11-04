@@ -59,6 +59,16 @@ func act_center() -> Vector2:
 	return Vector2(tile) + Vector2(0.5, 0.5)
 
 
+## With a unit on its benches it explores its turn-out area (it watches only
+## as a building; the units watch for themselves when they turn out).
+func explore_radius() -> float:
+	return activation_range() if working() and not units().is_empty() else 0.0
+
+
+func explore_center() -> Vector2:
+	return act_center()
+
+
 ## Tiles from grid point `p` to the nearest point of the yard (0 inside).
 func yard_distance(p: Vector2) -> float:
 	var lo := Vector2(tile) - Vector2(0.5, 0.5)

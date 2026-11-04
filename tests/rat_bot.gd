@@ -564,6 +564,59 @@ func around(c: Vector2i, r: float) -> Array[Vector2i]:
 	return out
 
 
+## Buildings only watch; a manned tower explores all it watches, a light stone
+## what it lights, a manned barracks its turn-out area (not watching it).
+func _test_building_fog() -> void:
+	var v := game.player_village
+	var vid := v.id
+	v.economy.add("gold", 200.0)
+	var tower := built("tower") as Tower
+	var grounds := built("training")  # (no worker walks out from it, unlike a camp)
+	var stone := built("lightstone")
+	var barracks := built("barracks") as Barracks
+	barracks.level = barracks.max_level()  # (its turn-out area reaches past its building sight)
+	barracks.refresh()
+	check(tower.explore_radius() == 0.0 and grounds.explore_radius() == 0.0 and barracks.explore_radius() == 0.0, "an empty tower, the training grounds and an empty barracks explore nothing (they only watch)")
+	var a := game.army.recruit("archer")
+	var s := game.army.recruit("shield_bearer")
+	check(a != null and s != null, "(an archer and a shield bearer recruited)")
+	game.army.station(a, tower)
+	game.army.station(s, barracks)
+	await wait_until(func() -> bool: return tower.garrison == a and barracks.slots[0] == s, 60.0)
+	await wait_until(func() -> bool: return a.walker == null and s.walker == null, 10.0)
+	var tpatch := around(tower.tile, tower.sight_radius())
+	var bpatch: Array[Vector2i] = []
+	bpatch.assign(around(barracks.tile, barracks.activation_range() + 1.0).filter(func(t: Vector2i) -> bool: return Vector2(t).distance_to(barracks.act_center()) <= barracks.activation_range()))
+	var spatch := around(stone.tile, Config.LIGHTSTONE_SIGHT)
+	unexplore(tpatch)
+	unexplore(bpatch)
+	unexplore(spatch)
+	await wait(0.6)
+	var known := func(t: Vector2i) -> bool: return game.fog.is_explored_by(vid, t)
+	check(tower.sight_radius() > Config.BUILDING_SIGHT and tpatch.all(known), "a manned tower explores all it watches (%.1f tiles)" % tower.sight_radius())
+	check(spatch.all(known), "a light stone explores what it lights")
+	check(bpatch.all(known), "a manned barracks explores its turn-out area")
+	var far := bpatch.filter(func(t: Vector2i) -> bool: return Vector2(t).distance_to(barracks.sight_center()) > barracks.sight_radius() + 0.5)
+	var bad := far.filter(func(t: Vector2i) -> bool: return game.fog.is_watched_by(vid, t) and not _watched_by_other(t, barracks))
+	check(not far.is_empty() and bad.is_empty(), "it doesn't watch that area beyond its own building sight (%d of %d tiles watched)" % [bad.size(), far.size()])
+	game.army.eject(tower)
+	game.army.eject(barracks)
+	await wait_until(func() -> bool: return a.state == MilitaryUnit.State.RESERVE and s.state == MilitaryUnit.State.RESERVE, 60.0)
+	for b: Building in [tower, grounds, stone, barracks]:
+		game.world.remove_building(b)
+	await frames(2)
+	game.army.units.erase(a)
+	game.army.units.erase(s)
+
+
+## Whether an observer other than `but` watches tile `t`.
+func _watched_by_other(t: Vector2i, but: Node) -> bool:
+	for node in get_tree().get_nodes_in_group("observers"):
+		if node != but and FogLayer.observer_village(node) == game.player_village.id and node.sight_radius() > 0.0 and Vector2(t).distance_to(node.sight_center()) <= node.sight_radius():
+			return true
+	return false
+
+
 func _test_fog() -> void:
 	var v := game.player_village
 	var vid := v.id
@@ -601,6 +654,7 @@ func _test_fog() -> void:
 	check(patch2.all(func(t: Vector2i) -> bool: return game.fog.is_explored_by(vid, t)), "a villager outside uncovers the fog around it too")
 	ga.set_process(true)
 	ga.arrive_home()
+	await _test_building_fog()
 	game.fog.disabled = true
 	# Unexplored forest next to open land: the explorer goes to its edge and looks in.
 	game.fog.reveal_all()

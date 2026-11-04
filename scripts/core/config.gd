@@ -721,9 +721,9 @@ const UNIT_SIGHT := 4.0  # villagers and soldiers outside the walls
 const UNIT_REVEAL := 1.8
 const HUT_SIGHT := 4.0  # every intact hut
 const GATE_SIGHT := 3.0  # every gate, manned or not
-const LIGHTSTONE_SIGHT := 5.5  # light stones watch this far, entirely passively
+const LIGHTSTONE_SIGHT := 5.0  # light stones watch this far, entirely passively
 const BUILDING_SIGHT := 3.0  # every other finished building
-const TOWER_SIGHT_BONUS := 1.5  # manned towers see this far beyond their range
+const TOWER_SIGHT_BONUS := 0.7  # manned towers see this far beyond their range
 
 ## Buildings the player can order. "size" is the square footprint in tiles;
 ## "defense" its defence class (DEFENSE_CLASSES).

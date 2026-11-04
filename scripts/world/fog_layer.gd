@@ -4,7 +4,9 @@ extends Node2D
 ##   unexplored          -> black (terrain unknown)
 ##   explored            -> darkened; terrain known, enemies hidden
 ##   under surveillance  -> clear; enemies visible
-## Explorers explore; units outside the village and manned towers ("observers")
+## Units outside the village explore close around them (explorers wider);
+## manned towers, light stones and manned barracks explore too
+## (Building.explore_radius). Observers (group "observers": units, buildings)
 ## put explored tiles under surveillance.
 ##
 ## Every village has its own fog (co-op: players only see what their own
@@ -38,8 +40,8 @@ var _texture: ImageTexture
 var _pixels := PackedByteArray()
 var _watch_timer := 0.0
 var _explored_dirty := true
-## Units outside explore around them (Config.UNIT_REVEAL). Off on co-op
-## clients: the host explores and tells them.
+## Units outside explore around them (Config.UNIT_REVEAL), and some buildings
+## (Building.explore_radius). Off on co-op clients: the host explores and tells them.
 var units_explore := true
 
 
@@ -163,6 +165,10 @@ func update_surveillance() -> void:
 			var vid := observer_village(node)
 			if vid < 0 or vid >= n:
 				continue
+			if units_explore and node is Building:
+				var er: float = (node as Building).explore_radius()
+				if er > 0.0:
+					reveal((node as Building).explore_center(), er, vid)
 			var radius: float = node.sight_radius()
 			if radius <= 0.0:
 				continue

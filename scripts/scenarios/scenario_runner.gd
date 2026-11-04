@@ -155,7 +155,9 @@ func _prebuild() -> void:
 	for p in spec.prebuilt:
 		var kind := str(p["kind"])
 		var b: Building = null
-		if kind == "wall_tower":
+		if kind == "wall_tower" and p.has("tile"):
+			b = _wall_tower_at(p["tile"])
+		elif kind == "wall_tower":
 			b = _wall_tower_by(road_spots(int(p.get("road", 0))))
 		elif p.has("ruin"):
 			b = _restore_ruin(kind, int(p["ruin"]))
@@ -292,6 +294,15 @@ func _wall_tower_by(rs: RoadSpots) -> Building:
 		if best == null or Vector2(b.tile).distance_to(gate) < Vector2(best.tile).distance_to(gate):
 			best = b
 	return best
+
+
+## The village's corner tower on `tile`; null (with a warning) if there is none.
+func _wall_tower_at(tile: Vector2i) -> Building:
+	for b in pieces("wall_tower"):
+		if b.tile == tile:
+			return b
+	push_warning("scenario %d: no corner tower at %s" % [spec.number, str(tile)])
+	return null
 
 
 ## The prebuilt posts' units, on their posts (no walking there, no gold).

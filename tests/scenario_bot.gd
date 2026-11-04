@@ -946,7 +946,11 @@ func _scenario_4() -> void:
 
 	print("-- scenario 4: guarding the harbour")
 	var spot := find_spot("tower", w.tile)
+	check(game.waves.hold, "(wave 1 still waits)")
 	check(cmd("place_building", {"kind": "tower", "tile": spot})["ok"], "a watchtower by the warehouse")
+	var after: float = (sc.spec.get_script() as GDScript).get_script_constant_map()["FIRST_WAVE_AFTER"]
+	check(await wait_until(func() -> bool: return not game.waves.hold, 2.0) and game.waves.countdown > after - 2.0 and game.waves.countdown <= after, "placing it starts wave 1's countdown (%.0f s)" % game.waves.countdown)
+	game.waves.hold = true  # (the bot calls it itself, once the tower is manned)
 	cmd("recruit_unit", {"kind": "archer"})
 	Engine.time_scale = 4.0
 	var tower: Tower = sc.towers().filter(func(t: Tower) -> bool: return t.tile == spot)[0]

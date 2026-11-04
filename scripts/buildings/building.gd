@@ -173,6 +173,17 @@ func sight_center() -> Vector2:
 	return Vector2(tile)
 
 
+## How far around explore_center() the building explores the fog (turns black
+## into known land) besides watching: nothing, except a manned tower, a working
+## light stone and a manned barracks (docs/village-design.md §9).
+func explore_radius() -> float:
+	return 0.0
+
+
+func explore_center() -> Vector2:
+	return sight_center()
+
+
 ## Finished, standing and not being torn down: the building does its job.
 func working() -> bool:
 	return complete and not tearing_down and not devastated

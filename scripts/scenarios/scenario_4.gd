@@ -6,7 +6,7 @@ extends Scenario
 ## loaded (nine waves). Crabs come out of the sea (only the sea), at most one
 ## siren; thieves in numbers, and they go for the warehouse (the Wilderness
 ## goes for the huts); more of them once the foreign coins are found (after
-## wave 6). Before wave 4 a rival guild's master offers Brenna gold to
+## wave 6). Before wave 4 a rival guild's envoy offers Brenna gold to
 ## leave (a choice: taking it loses the scenario); after wave 6 a captured
 ## Renegade carries coins of three foreign mints. Brenna can't be brought
 ## back here; Pell and Wenna must not die.
@@ -15,7 +15,7 @@ extends Scenario
 func _init() -> void:
 	number = 4
 	title = "The Split"
-	blurb = "The Silver Thread Guild's last market town is under pressure. Hold it, and its harbour warehouse, until the convoy is loaded and away."
+	blurb = "The Silver Thread Merchant Guild's last market town is under pressure. Hold it, and its harbour warehouse, until the convoy is loaded and away."
 	map_path = "res://data/maps/guildtown.json"
 	place = "guild_town"
 	portrait = "portrait_wenna"
@@ -33,8 +33,11 @@ func _init() -> void:
 		{"kind": "warehouse", "near_water": true},
 		{"kind": "stall", "road": 0, "at": [3, 7], "level": 3},
 		{"kind": "barracks", "road": 0, "at": [7, 11], "units": [{"kind": "shield_bearer", "level": 3}]},
-		{"kind": "tower", "road": 1, "at": [3, 6], "units": [{"kind": "archer", "level": 3}]},
-		{"kind": "tower", "road": 2, "at": [3, 6], "units": [{"kind": "archer", "level": 2}]},
+		# No watchtowers: the archers stand on the corner towers by the south
+		# gate (south-east) and the north gate (north-east).
+		{"kind": "wall_tower", "tile": Vector2i(39, 39), "units": [{"kind": "archer", "level": 3}]},
+		{"kind": "wall_tower", "tile": Vector2i(39, 35), "units": [{"kind": "archer", "level": 2}]},
+		{"kind": "lightstone", "tile": Vector2i(12, 19)},
 	]
 	hero_name = "Brenna"
 	hero_level = 5
@@ -70,9 +73,13 @@ func _init() -> void:
 		"brenna": {"name": "Brenna", "portrait": "portrait_brenna", "color": Color("e0b46a")},
 		"pell": {"name": "Pell", "portrait": "portrait_pell", "color": Color("e8c890")},
 		"wenna": {"name": "Wenna", "portrait": "portrait_wenna", "color": Color("9ab8e0")},
-		"rival": {"name": "A rival master", "portrait": "portrait_rival", "color": Color("d0a0c0")},
+		"rival": {"name": "A rival guild's envoy", "portrait": "portrait_rival", "color": Color("d0a0c0")},
 	}
 
+
+## Wave 1's countdown (s), started the moment the player places a watchtower by
+## the warehouse (it may still be called sooner).
+const FIRST_WAVE_AFTER := 60.0
 
 ## What the captured Renegade carried (after wave 6).
 const COINS := "Taken from a captured Renegade:\n\nA purse of coins from three mints. A crowned head of Karmere. The sun-and-scales of the Republic of Lyrenne. The burning eye of the Holy Dominion of Aurelith.\n\nNo Renegade on this coast earns coin like that. Somebody beyond the border is paying for trouble in Veliron, and paying well."
@@ -85,14 +92,14 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 	var store: Vector2 = r.at(_warehouse(r).tile) if _warehouse(r) else r.at(c)
 	return [
 		{"fade": "out", "time": 0.01},
-		{"camera": store + Vector2(0, -40), "zoom": 1.0, "time": 0.01},
+		{"camera": store, "zoom": 1.0, "time": 0.01},
 		{"title": "The Split", "sub": "Scenario 4", "time": 3.0},
-		{"say": "", "text": "The guild town on the coast. A rival guild wants its harbour and sends thieves by night and enforcers by day. The store here is all the Silver Thread Guild has left."},
+		{"say": "", "text": "The guild town on the coast. A rival guild wants its harbour and sends thieves by night and enforcers by day. The warehouse here is all the Silver Thread Guild has left."},
 		{"fade": "in", "time": 1.2},
 		{"say": "pell", "text": "My old guild house. I kept the books there once, before the guild broke apart."},
 		{"say": "wenna", "text": "Pell Dunmore. You took your time. And you brought a knight."},
-		{"say": "pell", "text": "Wenna, master of the Silver Thread Merchant Guild. Brenna Hale, the best friend I have."},
-		{"say": "wenna", "text": "The convoy is loading in the warehouse by the harbour. Everything we own is in it. If the warehouse falls, the guild falls with it."},
+		{"say": "pell", "text": "Brenna, this is Wenna, master of the Silver Thread Merchant Guild. And Wenna, this is Brenna Hale, the best friend I have."},
+		{"say": "wenna", "text": "The convoy will be loaded in the warehouse by the harbour. Everything we own is in it. If the warehouse falls, the guild falls with it."},
 		{"say": "brenna", "text": "Then it won't fall. How long do you need?"},
 		{"say": "wenna", "text": "Nine days, if the weather holds. Nine nights of whatever comes up the roads and out of the sea."},
 		{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.0, "time": 2.0},
@@ -115,12 +122,14 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"say": "wenna", "text": "The guild owes you, Brenna Hale. I don't say that often."},
 		{"do": func() -> void: r.dusk(3.0)},
 		{"camera": r.at(r.game.player_village.center) + Vector2(0, -40), "zoom": 1.15, "time": 2.0},
-		{"say": "", "text": "That night, by a candle in the guild house, Pell reads the ledger they took from the Renegades' leader."},
+		{"say": "", "text": "That night, by a candle in the guild house, Pell reads the ledger they found sewn into the captured thief's coat."},
 		{"say": "pell", "text": "Payments. Month after month, to a quartermaster of Rhodri's army. From three sources: Karmere, Lyrenne, Aurelith."},
-		{"say": "brenna", "text": "All three? They're rivals. They'd never work together."},
+		{"say": "brenna", "text": "All three? They're rival powers. They'd never work together."},
 		{"say": "pell", "text": "Then maybe one of them wants it to look that way. Either way, someone bought him."},
 		{"say": "brenna", "text": "Rhodri's army left my company in the pass with no relief. I always told myself it was the war."},
 		{"say": "brenna", "text": "I'm going back to the fort, Pell. I want to know why we were left behind."},
+		{"say": "pell", "text": "And you think you'll find answers there? You left it a while ago."},
+		{"say": "brenna", "text": "I know, but I have no better lead. I'll ride at first light."},
 		{"fade": "out", "time": 1.5},
 	]
 
@@ -137,6 +146,7 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 				{"say": "wenna", "text": "Every master had to choose. Most picked an heir: the old masters in the capital went for Rhodri and his army's contracts, the church towns for Fiona."},
 				{"say": "wenna", "text": "A few of us tried to stay out of it. Trade with whoever pays, carry what's needed. That's the Silver Thread now: the ones who wouldn't choose. The Leftovers, the others call us."},
 				{"say": "pell", "text": "And the others don't forgive us for it."},
+				{"say": "wenna", "text": "That, and they want the strategic position of this town."}
 			])
 		3:
 			var road := r.road_in(c, 14)
@@ -149,9 +159,9 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 						r.move_actor(who[0], road.slice(0, road.size() - 3), 5.0)},
 				{"camera": r.at(road[road.size() - 4]) + Vector2(0, -40) if road.size() > 4 else r.at(c), "zoom": 1.1, "time": 2.0},
 				{"wait": 2.5},
-				{"say": "rival", "text": "Brenna Hale. A knight, guarding a storehouse for a guild that doesn't exist any more. What a waste."},
-				{"say": "rival", "text": "My masters pay better than Wenna ever could. A purse of gold, and you ride home tonight. The town can fend for itself."},
-				{"say": "brenna", "text": "And the warehouse?",
+				{"say": "rival", "text": "Brenna Hale. A knight, guarding a warehouse for a guild that doesn't exist any more. What a waste."},
+				{"say": "rival", "text": "My masters pay better than Wenna ever could. A purse of gold and you ride home tonight. The town can fend for itself."},
+				{"say": "brenna", "text": "You think I can be bought that easily?",
 					"choices": [
 						{"text": "Take the gold and leave", "do": func() -> void:
 							_cleanup(who)
@@ -168,12 +178,26 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 			r.journal.closed.connect(func() -> void:
 				r.play_scene([
 					{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.1, "time": 1.0},
-					{"say": "pell", "text": "The gatherers caught one of the thieves alive. That purse was all he had on him."},
-					{"say": "wenna", "text": "Three mints, and none of them ours. They pay Renegades to choke the last free market on the coast."},
+					{"say": "pell", "text": "The gatherers caught one of the thieves alive. That purse was in his pocket."},
+					{"say": "wenna", "text": "Three mints, and none of them ours. Someone is paying Renegades to choke the last free market on the coast."},
 					{"say": "brenna", "text": "Or someone wants us to think so. Keep the purse, Wenna. I'd like to know where it leads."},
-					{"say": "wenna", "text": "Whoever it is, they know we've seen it now. They'll send more. Twice as many thieves, if I know paymasters."},
+					{"say": "wenna", "text": "Whoever it is, they know we've seen through it now. They'll send more. Twice as many thieves, or more, if I know paymasters."},
 					{"do": func() -> void: r.game.events.info("The paymasters send more thieves: watch the warehouse")},
 				]), CONNECT_ONE_SHOT)
+
+
+## Every quarter second: wave 1's countdown once a watchtower by the warehouse
+## is placed (not during a cutscene: it holds the waves and restores them).
+func on_poll(r: ScenarioRunner) -> void:
+	var g := r.game
+	if r.mark.has("tower_placed") or r.cutscene != null:
+		return
+	if g.waves.wave > 0:
+		r.mark["tower_placed"] = g.clock  # (wave 1 called first: nothing to start)
+	elif r.towers().any(func(t: Tower) -> bool: return _near_store(r, t)):
+		r.mark["tower_placed"] = g.clock
+		r.release_waves(FIRST_WAVE_AFTER)
+		g.events.info("A watchtower by the harbour: the first wave is coming")
 
 
 func on_wave_started(r: ScenarioRunner, n: int) -> void:
@@ -202,7 +226,7 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 					return r.place_point("tower", [])
 				return r.unit_point("archer", ts)},
 		{"title": "Call the first wave",
-			"text": "When you are ready, call the first wave. Brenna fights too, but here she can't be brought back: keep her out of the worst of it.",
+			"text": "The first wave is on its way; call it sooner when you are ready. Brenna fights too, but here she can't be brought back: keep her out of the worst of it.",
 			"done": func() -> bool: return g.waves.wave >= 1,
 			"point": func() -> Dictionary: return {"hud": ["call"]}},
 	]
@@ -213,7 +237,7 @@ func hints(r: ScenarioRunner) -> Array[Dictionary]:
 	return [
 		{"id": "crabs",
 			"when": func() -> bool: return r.enemy_about("crab"),
-			"text": "Crabs out of the sea! They swim and dive: under deep water nothing can hit them. Catch them when they come ashore."},
+			"text": "Crabs out of the sea! They swim and dive: in deep water nothing can hit them. Catch them when they come ashore."},
 		{"id": "siren",
 			"when": func() -> bool: return r.enemy_about("siren"),
 			"text": "A siren! Her song pulls our people towards the water and slows every unit. Only ranged attacks reach her in the water."},
@@ -225,7 +249,7 @@ func hints(r: ScenarioRunner) -> Array[Dictionary]:
 			"text": "Brenna is badly hurt, and here nobody can bring her back. Send her home to rest (her panel: Rest) until she has healed."},
 		{"id": "thieves",
 			"when": func() -> bool: return g.waves.wave >= 1 and r.enemy_about("thief"),
-			"text": "Thieves on every road, and they're after the warehouse: each one that gets there plunders it and runs off with gold. Kill them on the way back to get the gold."},
+			"text": "Thieves on every road, and they're after the warehouse: each one that gets there plunders it and runs off with gold. Catch them on their way back to secure the gold."},
 	]
 
 

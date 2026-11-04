@@ -357,6 +357,15 @@ little beyond its range, so a unit is never shot at from the dark.
 - Every unit of ours outside also **explores** the fog close around it (`UNIT_REVEAL`): villagers,
   the hero, soldiers, summons and caravans, so the map opens up wherever the player's people go.
 - Explorers reveal a wider radius (`EXPLORER_REVEAL`).
+- Most buildings only **watch**: a farm, camp or hut never turns black land into known land. Three
+  explore as well (`Building.explore_radius`), because their job is to look out: a **manned
+  tower** explores all it watches (its range plus `TOWER_SIGHT_BONUS`), so its archer never shoots
+  into black land nobody can see; a **working light stone** explores what it lights; a **barracks
+  with a unit on its benches** explores its turn-out area (`BARRACKS_LEVELS` range), so the player
+  sees the land the turn-out covers. It doesn't watch that area (only as a building); the units
+  watch for themselves once they turn out.
+- Placing needs explored land, so a manned tower opens room for the next one further out; that is
+  accepted.
 - Only explorers and the hero in Explore mode *go looking* for fog.
 
 ## 10. Warnings

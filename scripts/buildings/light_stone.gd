@@ -64,6 +64,11 @@ func sight_radius() -> float:
 	return Config.LIGHTSTONE_SIGHT if complete else 0.0
 
 
+## A working light stone explores what it lights.
+func explore_radius() -> float:
+	return Config.LIGHTSTONE_SIGHT if working() else 0.0
+
+
 func info() -> Dictionary:
 	var d := super.info()
 	if working():

@@ -15,6 +15,7 @@ In all three, Brenna is away from home: **no revive** (`hero_revives` false), so
 - **The warehouse is not repairable or tear-down-able.** Plundered goods are gone, so it is a depleting stake, not a building to patch.
 - **The coin clue has a price.** Once the foreign coins are found the paymasters send more thieves: the reward for the clue is a harder fight, as the story says.
 - **Water monsters out of the sea only** (`amphibians_from_water`): the first crabs and one siren, so the harbour is a front. They need a water body and water spawns (`aquatic-design.md`).
+- **Wave 1 waits for the harbour watch.** Placing a watchtower by the warehouse (what the "Guard the harbour" card asks) starts wave 1's countdown (`FIRST_WAVE_AFTER` in `scenario_4.gd`); before that it waits, and the player may call it sooner either way. The count runs from the placing, not from the finished tower.
 - **The rival master's offer is a choice and taking the gold loses.** It tests the player, and Brenna's loyalty is the story.
 - **Hints:** the warehouse (tap it), guarding the harbour with a manned tower, the warehouse plundered, Brenna hurt (no revive: send her to rest).
 - Map: `data/maps/guildtown.json`, a Coast map with the village on a sea inlet, started by `tools/make_scenario_map.gd -- 4` and hand-edited in the map editor since: the guild's city quay (city zone, timber piers into the harbour) north-west of the walls, where the warehouse stands (`_spot_by_water` puts it on the free land nearest the water).

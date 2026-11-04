@@ -55,7 +55,8 @@ var pieces_hp := 1.0
 var piece_levels := {}
 ## Posts and buildings that stand finished at the start, manned:
 ## {"kind": a Config.BUILDINGS key, or "wall_tower" (the corner tower nearest
-## that road's gate), "road": which road (0: the one nearest the village by
+## that road's gate, or the one on "tile": a gate lies halfway between two
+## corners, so the nearest is a tie), "road": which road (0: the one nearest the village by
 ## road, 1: the next, ...), "at": [lo, hi] road tiles before its gate (or
 ## "tile": a fixed tile, or "near_water": true, the free spot by the walls
 ## nearest the water, or "near_site": an unlock site's kind, the free spot
