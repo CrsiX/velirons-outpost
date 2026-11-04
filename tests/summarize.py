@@ -5,7 +5,9 @@
 
 <log dir> is searched for *.log files (one per bot, named after it) and for the
 results.tsv that tests/run_all.sh writes, so it works both on one machine and on
-a pile of artifacts downloaded from a CI matrix.
+a pile of artifacts downloaded from a CI matrix. A bot that passed only on its
+second run (status "flaky") counts as passed, with a warning and what its first
+run (<bot>.first.txt) failed with.
 
 Every failed check is traced back to the check() call that printed it, by
 matching the fixed parts of its format string against the message, and is shown
@@ -52,14 +54,14 @@ DIGITS_RE = re.compile(r"[0-9]+(?:[.,][0-9]+)?")
 # --- reading the logs -----------------------------------------------------------------------
 
 
-def find_logs(root):
-	"""Every *.log under `root`, newest wins if a name turns up twice."""
+def find_logs(root, suffix=".log"):
+	"""Every *<suffix> under `root`, newest wins if a name turns up twice."""
 	out = {}
 	for dirpath, _dirnames, filenames in os.walk(root):
 		for name in sorted(filenames):
-			if name.endswith(".log"):
+			if name.endswith(suffix):
 				path = os.path.join(dirpath, name)
-				bot = name[: -len(".log")]
+				bot = name[: -len(suffix)]
 				if bot not in out or os.path.getmtime(path) > os.path.getmtime(out[bot]):
 					out[bot] = path
 	return out
@@ -348,6 +350,7 @@ def pct(values, q):
 
 def build(log_dir, source_dir):
 	logs = find_logs(log_dir)
+	first_runs = find_logs(log_dir, ".first.txt")
 	results = read_results(log_dir)
 	bots = []
 	maps, whys, faults, stages = [], [], [], []
@@ -357,6 +360,14 @@ def build(log_dir, source_dir):
 		status = row.get("status")
 		if not status:
 			status = "failed" if parsed["failures"] or parsed["errors"] else "ok"
+		first = None
+		if status == "flaky" and name in first_runs:
+			parsed_first = parse_log(first_runs[name])
+			first = {
+				"failures": locate(parsed_first["failures"], source_dir, name),
+				"errors": parsed_first["errors"],
+				"log": os.path.relpath(first_runs[name], log_dir),
+			}
 		bots.append(
 			{
 				"name": name,
@@ -369,6 +380,7 @@ def build(log_dir, source_dir):
 				"errors": parsed["errors"],
 				"warnings": [{"text": t, "count": n} for t, n in parsed["warnings"].most_common(10)],
 				"log": os.path.relpath(logs[name], log_dir) if name in logs else "",
+				"first_run": first,
 			}
 		)
 		maps += parsed["maps"]
@@ -380,7 +392,8 @@ def build(log_dir, source_dir):
 		"bots": bots,
 		"totals": {
 			"bots": len(bots),
-			"passed": sum(1 for b in bots if b["status"] == "ok"),
+			"passed": sum(1 for b in bots if b["status"] in ("ok", "flaky")),
+			"flaky": sum(1 for b in bots if b["status"] == "flaky"),
 			"checks": sum(b["checks"] for b in bots),
 			"failures": sum(len(b["failures"]) for b in bots),
 			"errors": sum(len(b["errors"]) for b in bots),
@@ -408,6 +421,28 @@ def table(header, rows):
 	return out
 
 
+def failure_lines(b):
+	"""Markdown bullets for the failed checks and engine errors in `b`."""
+	out = []
+	for f in b["failures"]:
+		where = f.get("source", "")
+		section = f.get("section", "")
+		tail = ""
+		if where:
+			more = " (or %d other line)" % f["others"] if f.get("others") == 1 else (
+				" (or %d other lines)" % f["others"] if f.get("others") else ""
+			)
+			tail = "  \n  `%s`%s%s" % (where, more, " -- *%s*" % section if section else "")
+		out.append("- %s%s" % (f["message"], tail))
+	for e in b["errors"]:
+		out.append("- **%s** %s" % (e["kind"], e["message"]))
+		if e["at"]:
+			out.append("  \n  `%s`" % e["at"])
+		for frame in e["frames"]:
+			out.append("  - `%s`" % frame)
+	return out
+
+
 def markdown(report):
 	t = report["totals"]
 	out = []
@@ -418,6 +453,12 @@ def markdown(report):
 		":%s: **%d of %d bots passed** -- %d checks, %d failed, %d engine errors, %s."
 		% (mark, t["passed"], t["bots"], t["checks"], t["failures"], t["errors"], took(t["seconds"]))
 	)
+	if t["flaky"]:
+		out.append("")
+		out.append(
+			":warning: **%d passed only on the second try** (flaky): %s -- see *Flaky* below."
+			% (t["flaky"], ", ".join(b["name"] for b in report["bots"] if b["status"] == "flaky"))
+		)
 	out.append("")
 	out.append("## Bots")
 	out.append("")
@@ -426,9 +467,12 @@ def markdown(report):
 		[
 			[
 				b["name"],
-				{"ok": ":white_check_mark: ok", "failed": ":x: failed", "timeout": ":hourglass: timeout"}.get(
-					b["status"], b["status"]
-				),
+				{
+					"ok": ":white_check_mark: ok",
+					"flaky": ":warning: flaky (passed 2nd try)",
+					"failed": ":x: failed",
+					"timeout": ":hourglass: timeout",
+				}.get(b["status"], b["status"]),
 				b["checks"],
 				len(b["failures"]),
 				len(b["errors"]),
@@ -444,22 +488,7 @@ def markdown(report):
 	for b in broken:
 		out.append("### %s" % b["name"])
 		out.append("")
-		for f in b["failures"]:
-			where = f.get("source", "")
-			section = f.get("section", "")
-			tail = ""
-			if where:
-				more = " (or %d other line)" % f["others"] if f.get("others") == 1 else (
-					" (or %d other lines)" % f["others"] if f.get("others") else ""
-				)
-				tail = "  \n  `%s`%s%s" % (where, more, " -- *%s*" % section if section else "")
-			out.append("- %s%s" % (f["message"], tail))
-		for e in b["errors"]:
-			out.append("- **%s** %s" % (e["kind"], e["message"]))
-			if e["at"]:
-				out.append("  \n  `%s`" % e["at"])
-			for frame in e["frames"]:
-				out.append("  - `%s`" % frame)
+		out += failure_lines(b)
 		if b["warnings"]:
 			out.append("")
 			out.append(
@@ -471,6 +500,22 @@ def markdown(report):
 				out.append("- %dx %s" % (w["count"], w["text"]))
 			out.append("")
 			out.append("</details>")
+		out.append("")
+
+	flaky = [b for b in report["bots"] if b["status"] == "flaky"]
+	if flaky:
+		out += ["", "## Flaky", "", "These failed their first run and passed the second. What the first run failed with:", ""]
+	for b in flaky:
+		first = b.get("first_run")
+		out.append("### %s" % b["name"])
+		out.append("")
+		if not first:
+			out.append("- (the first run's log was not found)")
+		else:
+			out.append("First run's log: `%s`" % first["log"])
+			out.append("")
+			lines = failure_lines(first)
+			out += lines or ["- (no failed check or engine error in it: a crash or a timeout; see the log)"]
 		out.append("")
 
 	mg = report.get("mapgen")

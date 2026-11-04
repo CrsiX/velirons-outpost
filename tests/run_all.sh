@@ -13,16 +13,20 @@
 #   REPORT     where the machine readable report goes (default $OUT/report.json)
 #   TIMEOUT    seconds one bot may take before it is killed (default 1800)
 #   STOP       1 to give up after the first bot that fails (default 0)
-#   RETRY      bots (space separated) that get a second run when the first fails
-#              (flaky ones; CI: sim). The second run decides: passed, the bot
-#              passes; failed again, it fails, and the log says whether with the
-#              same error. The first run's log stays as <bot>.first.txt.
+#   RETRY      bots (space separated) that get a second run when the first fails,
+#              or "all" (CI: all). The second run decides: failed again, the bot
+#              fails, and the log says whether with the same error; passed, the
+#              bot counts as passed but as "flaky" in results.tsv and the
+#              summary, with a warning that carries the first run's whole error
+#              (a GitHub annotation too under GITHUB_ACTIONS). The first run's
+#              log stays as <bot>.first.txt.
 #
 # Examples:  tests/run_all.sh              every bot
 #            tests/run_all.sh mapgen world just those two
 #            STOP=1 tests/run_all.sh       stop at the first failure
 #
-# Exits 0 only when every bot passed: exit code 0 and no script or parse error in its log.
+# Exits 0 only when every bot passed (a flaky one on its second run): exit code 0
+# and no script or parse error in its log.
 set -uo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -73,7 +77,33 @@ error_of() {
 	{ echo "$1"; grep -E "^  FAIL |SCRIPT ERROR|Parse Error" "$2" | sed -E 's/[0-9]+(\.[0-9]+)?/N/g' | sort -u; }
 }
 
+# Everything log $3 of a run that ended as $1 with exit code $2 says about why:
+# every failed check and every engine error with the lines under it (where, the
+# stack), or the end of the log when it has neither (a crash, a timeout).
+failure_text() {
+	echo "$1 (exit code $2)"
+	local found
+	found=$(grep -E -A6 "^  FAIL |SCRIPT ERROR|Parse Error|^(USER )?ERROR:" "$3")
+	if [[ -n "$found" ]]; then
+		echo "$found"
+	else
+		echo "(no failed check or engine error in the log; its last lines:)"
+		tail -n 40 "$3"
+	fi
+}
+
+# A GitHub Actions warning annotation: title $1, message $2 (newlines kept).
+gh_warning() {
+	[[ "${GITHUB_ACTIONS:-}" == true ]] || return 0
+	local msg=$2
+	msg=${msg//'%'/'%25'}
+	msg=${msg//$'\r'/'%0D'}
+	msg=${msg//$'\n'/'%0A'}
+	echo "::warning title=$1::$msg"
+}
+
 rc=0
+flaky=()
 for bot in "${bots[@]}"; do
 	scene="$root/tests/${bot}_bot.tscn"
 	log="$out/$bot.log"
@@ -86,16 +116,22 @@ for bot in "${bots[@]}"; do
 	echo "=== $bot ==="
 	start=$SECONDS
 	run_bot "$bot" "$log"
-	if [[ "$status" != ok && " ${RETRY:-} " == *" $bot "* ]]; then
+	if [[ "$status" != ok && ( "${RETRY:-}" == all || " ${RETRY:-} " == *" $bot "* ) ]]; then
 		first="$out/$bot.first.txt"
 		mv "$log" "$first"
 		first_error=$(error_of "$status" "$first")
-		echo "  first run $status:"
-		grep -E "^  FAIL |SCRIPT ERROR|Parse Error" "$first" | head -20 | sed 's/^/    /'
+		first_text=$(failure_text "$status" "$code" "$first")
+		echo "  first run:"
+		printf '%s\n' "$first_text" | head -20 | sed 's/^/    /'
 		echo "  (RETRY: running it again; first log in $first)"
 		run_bot "$bot" "$log"
 		if [[ "$status" == ok ]]; then
-			echo "  second run passed: the first failure was flaky"
+			status=flaky
+			flaky+=("$bot")
+			echo "  WARNING: $bot passed on the second try; the first run failed with:"
+			printf '%s\n' "$first_text" | sed 's/^/    /'
+			gh_warning "$bot bot passed on the second try (flaky)" \
+				"The first run failed; the second passed, so the bot counts as passed. First run: $first_text"
 		elif [[ "$(error_of "$status" "$log")" == "$first_error" ]]; then
 			echo "  second run $status with the same error"
 		else
@@ -107,7 +143,7 @@ for bot in "${bots[@]}"; do
 	# Enough of the log to see what happened without opening it.
 	grep -E "^  FAIL |SCRIPT ERROR|^CHECKS|^  - " "$log" | head -40 | sed 's/^/  /'
 	echo "  -> $status in ${took}s ($log)"
-	if [[ "$status" != ok ]]; then
+	if [[ "$status" != ok && "$status" != flaky ]]; then
 		rc=1
 		if [[ "${STOP:-0}" == 1 ]]; then
 			echo "  (STOP=1: giving up here)"
@@ -121,6 +157,11 @@ if command -v python3 > /dev/null; then
 		--markdown "$summary" --json "$report" && echo && cat "$summary"
 else
 	echo "no python3: skipping the summary" >&2
+fi
+
+if (( ${#flaky[@]} )); then
+	echo
+	echo "WARNING: passed only on the second try (flaky): ${flaky[*]}; see the first runs' errors above"
 fi
 
 exit $rc

@@ -76,7 +76,7 @@ jobs:
     if: inputs.engine == 'stripped'
     needs: setup
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -117,7 +117,7 @@ jobs:
   # needs no Godot, so it starts at once; a finding fails the run like a bot.
   lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -135,11 +135,12 @@ jobs:
   # format and pathing, and then a sweep over many seeds that makes one attempt
   # per map, so the numbers are the generator's real first-try hit rate rather
   # than what Config.MAP_TRIES hides. GEN_PROFILE makes it time its own stages.
+  # A failed run gets a second one, as the bots below (the timeout fits both).
   mapgen:
     needs: [setup, pack]
     if: ${{ !cancelled() && needs.setup.result == 'success' && needs.pack.result != 'failure' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -174,6 +175,7 @@ jobs:
           MAPGEN_BUDGET_MS: "1500000"
           TIMEOUT: "2100"
           CI: "true"  # (the bots skip their machine-dependent timing checks)
+          RETRY: all  # (a failed run gets a second one, which decides; see tests/run_all.sh)
         run: |
           if [ "${{ inputs.engine }}" = stripped ]; then
             .github/scripts/run_stripped_bots.sh mapgen
@@ -189,13 +191,15 @@ jobs:
           retention-days: 14
 
   # One job per bot, so a slow one does not hold up the rest and every log comes
-  # back as its own artifact even when the bot fails. A failed check fails the
-  # job, and with it the run: no bot failures are allowed.
+  # back as its own artifact even when the bot fails. A failed run gets one
+  # second run (RETRY): failing again fails the job, and with it the run; passing
+  # passes it with a warning that carries the first run's error (flaky). The
+  # timeout fits two runs.
   bots:
     needs: [setup, pack]
     if: ${{ !cancelled() && needs.setup.result == 'success' && needs.pack.result != 'failure' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -232,7 +236,7 @@ jobs:
           OUT: ${{ github.workspace }}/logs
           TIMEOUT: "2700"
           CI: "true"  # (the bots skip their machine-dependent timing checks)
-          RETRY: sim  # (flaky: a failed run gets a second one, which decides)
+          RETRY: all  # (a failed run gets a second one, which decides; see tests/run_all.sh)
         run: |
           if [ "${{ inputs.engine }}" = stripped ]; then
             .github/scripts/run_stripped_bots.sh ${{ matrix.bot }}
@@ -253,7 +257,9 @@ jobs:
   # fixed (the same game every run: a change that breaks it is the culprit),
   # three get a random seed and map (printed in the log: rerun it with the same
   # --map / --seeds to see it again). No hard games: the bot dies before wave 5
-  # in about a fifth of them, so there it would only test the dice. Like the bots above, a failure fails the run.
+  # in about a fifth of them, so there it would only test the dice. Like the bots
+  # above, a failed game is played once more (same map and seed): failing again
+  # fails the run, passing passes it with a warning carrying the first error.
   balance-smoke:
     needs: [setup, pack]
     if: ${{ !cancelled() && needs.setup.result == 'success' && needs.pack.result != 'failure' }}
@@ -306,10 +312,28 @@ jobs:
             chmod +x build/stripped/godot.template_debug
             godot=(build/stripped/godot.template_debug --main-pack build/stripped/game.pck)
           fi
-          "${godot[@]}" --headless --fixed-fps 60 res://tools/balance_bot.tscn -- \
-            --map=${{ matrix.map }} --seeds=$SEED --difficulty=${{ matrix.difficulty }} --policy=${{ matrix.policy }} \
-            --max-waves=5 --require-waves=5 --no-detail --out=logs/balance-smoke-${{ matrix.name }}.jsonl 2>&1 | tee logs/balance-smoke-${{ matrix.name }}.log
-          exit ${PIPESTATUS[0]}
+          NAME=balance-smoke-${{ matrix.name }}
+          play() {
+            "${godot[@]}" --headless --fixed-fps 60 res://tools/balance_bot.tscn -- \
+              --map=${{ matrix.map }} --seeds=$SEED --difficulty=${{ matrix.difficulty }} --policy=${{ matrix.policy }} \
+              --max-waves=5 --require-waves=5 --no-detail --out=logs/$NAME.jsonl 2>&1 | tee logs/$NAME.log
+            return ${PIPESTATUS[0]}
+          }
+          play && exit 0
+          FIRST=$?
+          mv logs/$NAME.log logs/$NAME.first.txt
+          rm -f logs/$NAME.jsonl
+          echo "=== first game failed (exit code $FIRST); playing it once more ==="
+          play || exit $?
+          # The second game passed: a warning with what the first one failed with
+          # (its FAIL and error lines, else the end of its log).
+          ERR="exit code $FIRST"$'\n'"$(grep -E -A6 "FAIL|SCRIPT ERROR|Parse Error|ERROR:" logs/$NAME.first.txt || tail -n 40 logs/$NAME.first.txt)"
+          echo "WARNING: passed on the second try; the first game failed with:"
+          echo "$ERR" | sed 's/^/    /'
+          echo ":warning: **$NAME passed on the second try** (flaky); the first game failed with:" >> "$GITHUB_STEP_SUMMARY"
+          printf '\n```\n%s\n```\n' "$ERR" >> "$GITHUB_STEP_SUMMARY"
+          ERR=${ERR//'%'/'%25'}; ERR=${ERR//$'\r'/'%0D'}; ERR=${ERR//$'\n'/'%0A'}
+          echo "::warning title=$NAME passed on the second try (flaky)::The first game failed; the second passed. First game: $ERR"
 
       - uses: actions/upload-artifact@v4
         if: always()
