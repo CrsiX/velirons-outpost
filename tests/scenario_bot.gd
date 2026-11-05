@@ -1064,8 +1064,12 @@ func _scenario_5() -> void:
 	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Old Fort", "scenario 5 runs on the old fort's map")
 	check(game.map.is_mountain(c + Vector2i(-4, 0)) and game.map.is_mountain(c + Vector2i(4, 0)) and game.map.is_mountain(Vector2i(4, c.y)) and game.map.is_mountain(Vector2i(game.map.size - 5, c.y)),
 		"the fort fills a pass through a range across the map")
-	check(sc.pieces("gate").size() == 2 and sc.pieces("wall_tower").size() == 4 and sc.pieces("wall").size() == 8 and sc.pieces("gate").all(func(b: Building) -> bool: return absi(b.tile.x - c.x) <= 1),
-		"two walls across the pass, a gate in each and a tower at each end")
+	var towers: Array = sc.pieces("wall_tower").map(func(b: Building) -> Vector2i: return b.tile)
+	var north_gate: Array = sc.pieces("gate").filter(func(b: Building) -> bool: return b.tile.y < c.y)
+	check(sc.pieces("gate").size() == 2 and towers.size() == 5 and sc.pieces("wall").size() == 7 and sc.pieces("gate").all(func(b: Building) -> bool: return absi(b.tile.x - c.x) <= 1)
+		and towers.filter(func(t: Vector2i) -> bool: return t.y < c.y).size() == 3 and north_gate.size() == 1
+		and towers.has((north_gate[0] as Building).tile + Vector2i.LEFT) and towers.has((north_gate[0] as Building).tile + Vector2i.RIGHT),
+		"two walls across the pass, a gate in each; five towers, three in the north wall, one each side of its gate")
 	check(sc.pieces("gate").all(func(b: Building) -> bool: return b.level == 2 and b.hp == b.max_hp()), "both gates at level 2")
 	check(v.buildings().all(func(b: Building) -> bool: return not b.devastated) and v.intact_huts().size() == 4 and v.huts().size() == 4, "everything stands whole, 4 huts")
 	check(game.population.count() == 1 and game.population.civilians[0] is Merchant and game.population.civilians[0].given_name == "Pell", "only Pell lives there")
@@ -1094,7 +1098,39 @@ func _scenario_5() -> void:
 	var tent := sc.spec.SIGMUND_TENT as Vector2i
 	check(tent.y > c.y and game.world.pathing.is_walkable(tent) and not game.fog.is_explored_by(v.id, tent) and not (sc.mark["sigmund actor"] as Node2D).visible, "Sigmund's tent in the south, hidden")
 	check(game.waves.hold and not game.waves.can_call(), "wave 1 waits for Sigmund, and can't be called")
-	check(game.waves.scripted.size() == 10, "ten waves")
+	check(game.waves.scripted.size() == 12, "twelve waves")
+	var shares: Array[Dictionary] = sc.spec.SPAWN_SHARES
+	var named: Array = []
+	for g in shares:
+		named.append_array(g["spawns"])
+	named.sort_custom(MapData.row_order)
+	check(named == Array(game.map.edge_spawns), "the spawn shares name every spawn of the map once (%s)" % str(named))
+	check((shares[0]["spawns"] as Array).all(func(t: Vector2i) -> bool: return t.y < c.y) and (shares[1]["spawns"] as Array).all(func(t: Vector2i) -> bool: return t.y > c.y), "75% north of the fort, 25% south")
+	var tally := [0, 0]  # first group, second (from the edge, no rats: rat packs pick a group by chance)
+	for i in 12:
+		for spec: Dictionary in game.waves._scripted_wave(game.waves.scripted[i], i + 1, 1.0):
+			if spec["kind"] != "rat" and not spec.has("lair"):
+				tally[0 if (shares[0]["spawns"] as Array).has(spec["spawn"]) else 1] += 1
+	check(absf(float(tally[0]) / float(tally[0] + tally[1]) - 0.75) < 0.03, "three in four come from the northern spawns (%d : %d)" % tally)
+	var base: Dictionary = game.waves.scripted[10]["kinds"]
+	var more := func(w: int, k: String) -> int: return int(sc.next_wave(w)["kinds"].get(k, 0)) - int(base.get(k, 0))
+	var steps: Array[Dictionary] = sc.spec.EXTRA_STEPS
+	var unknown: Array[String] = []
+	for wd: Dictionary in (sc.spec.waves as Array) + steps.map(func(st: Dictionary) -> Dictionary: return {"kinds": st}):
+		for k: String in wd["kinds"]:
+			if not Config.ENEMIES.has(k) and not unknown.has(k):
+				unknown.append(k)
+	check(unknown.is_empty(), "every kind in the waves and EXTRA_STEPS is an enemy (unknown: %s)" % str(unknown))
+	var piled := {}  # (what EXTRA_STEPS adds up to so far)
+	var right := true
+	for w in range(13, 13 + steps.size() + 1):  # (one round, and the first step again)
+		var step: Dictionary = steps[(w - 13) % steps.size()]
+		for k: String in step:
+			piled[k] = int(piled.get(k, 0)) + int(step[k])
+		for k: String in piled:
+			right = right and more.call(w, k) == int(piled[k])
+	check(right, "past wave 12: wave 11, with EXTRA_STEPS piling up, round and round (wave %d: %s)" % [13 + steps.size(), str(sc.next_wave(13 + steps.size())["kinds"])])
+	check(sc.next_wave(13).get("spawn_shares", []) == sc.spec.SPAWN_SHARES and game.waves.last_wave == 0, "they keep coming from the north, with no last wave")
 	await wait(1.0)
 	var said := await _watch(sc.cutscene)
 	check(said.has("pell") and said.has("brenna"), "the intro: Brenna and Pell (%s)" % str(said))
@@ -1179,7 +1215,7 @@ func _scenario_5() -> void:
 	get_tree().node_added.connect(seen)
 	var scenes := 0
 	var t := 0.0
-	while not game.waves.all_done() and not game.game_over and t < 1500.0:
+	while not sc.mark.has("held") and not game.game_over and t < 1500.0:
 		for e: Enemy in get_tree().get_nodes_in_group("enemies"):
 			legion = legion or e.kind == "legion_footman"
 			if e.given_name != "":
@@ -1199,7 +1235,7 @@ func _scenario_5() -> void:
 		await wait(0.5)
 		t += 0.5
 	get_tree().node_added.disconnect(seen)
-	check(not game.game_over and game.waves.all_done(), "ten waves held%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
+	check(not game.game_over and sc.mark.has("held") and game.waves.wave == 12, "twelve waves held, the evidence found: no more come%s" % (" (game over: %s)" % game.hud._overlay_sub.text if game.game_over else ""))
 	check(scenes >= 5, "Sigmund tells it between the waves (%d scenes)" % scenes)
 	check(legion and captains.has("Lysa") and captains.has("Torben"), "the last wave: the Legion, with Lysa and Torben (%s)" % str(captains.keys()))
 	check(gargoyles[0] == 3, "and the old gate's three gargoyles (%d)" % gargoyles[0])

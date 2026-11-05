@@ -29,7 +29,8 @@ var call_locked := false
 ## [{"kinds": {kind: count}, "spawn": tile}] (all from that road tile), or
 ## without "spawn": spread over "spawns" edge spawns (default: as many as a
 ## normal wave n uses), with "rat_packs": [sizes] (a pack from one spawn each);
-## "lairs": true adds the awake lairs as spawn points (each sending its kinds).
+## "lairs": true adds the awake lairs as spawn points (each sending its kinds);
+## "spawn_shares": how the wave is split between groups of spawns (_split_shares).
 var scripted: Array[Dictionary] = []
 ## Seconds from a wave's end to the next one (a scenario may set its own).
 var buffer := Config.WAVE_BUFFER
@@ -261,16 +262,27 @@ func _scripted_wave(sw: Dictionary, n: int, hp_scale: float) -> Array:
 		return out
 	var points: Array = game.map.edge_spawns.duplicate()
 	points.shuffle()
-	points = points.slice(0, clampi(int(sw.get("spawns", Config.wave_spawn_points(n))), 1, maxi(points.size(), 1)))
+	var count := clampi(int(sw.get("spawns", Config.wave_spawn_points(n))), 1, maxi(points.size(), 1))
 	var kinds: Array[String] = []
 	for kind in sw.get("kinds", {}):
 		for i in int(sw["kinds"][kind]):
 			kinds.append(kind)
 	kinds.shuffle()
+	var lairs: Array = game.world.awake_lairs() if sw.get("lairs", false) else []
+	var groups: Array = sw.get("spawn_shares", [])
+	var used := _split_shares(out, kinds, points, lairs, count, groups, hp_scale, target) if not groups.is_empty() else []
+	if not used.is_empty():
+		_theme_lairs(out, n)
+		_pack_up(out, hp_scale, target)
+		for size in sw.get("rat_packs", []):
+			var tiles: Array = _pick_share(used)
+			_insert_pack(out, tiles[_rng.randi() % tiles.size()], int(size), hp_scale, target)
+		_water_spawns(out, target)
+		return out
+	points = points.slice(0, count)
 	var pool: Array = []  # (untyped: edge tiles and lairs)
 	pool.append_array(points)
-	if sw.get("lairs", false):
-		pool.append_array(game.world.awake_lairs())
+	pool.append_array(lairs)
 	for i in kinds.size():
 		out.append(_spec(kinds[i], pool[i % pool.size()], hp_scale, target))
 	_theme_lairs(out, n)
@@ -279,6 +291,66 @@ func _scripted_wave(sw: Dictionary, n: int, hp_scale: float) -> Array:
 		_insert_pack(out, points[_rng.randi() % points.size()], int(size), hp_scale, target)
 	_water_spawns(out, target)
 	return out
+
+
+## A scripted wave's "spawn_shares" ([{"spawns": [edge spawn tiles],
+## "share": weight}]): the wave's enemies from the edge are split between the
+## groups by their shares (weights, normalised), and each group's spread over
+## its own spawns (as many as its share of the wave's "spawns", at least one);
+## rat packs pick a group by the same odds. Awake lairs send their usual part
+## of the wave on top. Tiles that are no edge spawn of this map are ignored.
+## Returns the groups used, [[tiles, share]]; empty (nothing added) if none
+## of the groups has a spawn on this map.
+func _split_shares(out: Array, kinds: Array[String], points: Array, lairs: Array, count: int, groups: Array, hp_scale: float, target: Village) -> Array:
+	var used: Array = []
+	var total := 0.0
+	for g: Dictionary in groups:
+		var tiles: Array = points.filter(func(t: Vector2i) -> bool: return (g["spawns"] as Array).has(t))
+		if not tiles.is_empty() and float(g["share"]) > 0.0:
+			used.append([tiles, float(g["share"])])
+			total += float(g["share"])
+	if used.is_empty():
+		return []
+	for u: Array in used:
+		u[1] = float(u[1]) / total
+		u[0] = (u[0] as Array).slice(0, clampi(roundi(count * float(u[1])), 1, (u[0] as Array).size()))
+	# Who sends whom: the lairs their usual part, the rest by share (largest remainder).
+	var from: Array[int] = []  # (index into used; -1: a lair)
+	var n_lair := roundi(kinds.size() * lairs.size() / float(count + lairs.size())) if not lairs.is_empty() else 0
+	for i in n_lair:
+		from.append(-1)
+	var rest := kinds.size() - n_lair
+	var counts: Array[int] = []
+	var left := rest
+	for u: Array in used:
+		counts.append(floori(rest * float(u[1])))
+		left -= counts[-1]
+	var order := range(used.size())
+	order.sort_custom(func(x: int, y: int) -> bool: return fposmod(rest * float(used[x][1]), 1.0) > fposmod(rest * float(used[y][1]), 1.0))
+	for i in left:
+		counts[order[i % order.size()]] += 1
+	for gi in used.size():
+		for i in counts[gi]:
+			from.append(gi)
+	from.shuffle()
+	var next: Array[int] = []
+	next.resize(used.size() + 1)
+	for i in kinds.size():
+		var pool: Array = lairs if from[i] < 0 else used[from[i]][0]
+		var k := used.size() if from[i] < 0 else from[i]
+		out.append(_spec(kinds[i], pool[next[k] % pool.size()], hp_scale, target))
+		next[k] += 1
+	return used
+
+
+## A group of `used` (_split_shares), picked by its share; its spawn tiles.
+func _pick_share(used: Array) -> Array:
+	var r := _rng.randf()
+	for u: Array in used:
+		r -= float(u[1])
+		if r < 0.0:
+			return u[0]
+	return used[-1][0]
 
 
 ## Kinds that come in packs (ENEMIES "pack": the wolf, docs/enemies-design.md

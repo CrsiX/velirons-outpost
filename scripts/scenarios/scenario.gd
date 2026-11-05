@@ -139,10 +139,16 @@ var first_wave_call := true
 ## last one again, with `more_each_wave` ({kind: count}) more per wave, and
 ## `rotate_count` more per wave picked from `rotate_kinds` in turn (round
 ## robin, on from where the wave before stopped: every kind comes up).
+## `repeat_steps` ([{kind: count}]): the k-th wave past the list adds steps
+## 0..k-1 (cycling through the list) on top, so each wave keeps the extras of
+## the ones before. `repeat_base`: the listed wave (1-based) that repeats
+## instead of the last (0: the last).
 var repeat_last := false
 var more_each_wave := {}
 var rotate_kinds: Array[String] = []
 var rotate_count := 0
+var repeat_steps: Array[Dictionary] = []
+var repeat_base := 0
 ## Seconds between a wave's end and the next (the countdown).
 var wave_gap := 30.0
 ## Amphibians (crabs, sirens) come out of the water only, never from the map edge.

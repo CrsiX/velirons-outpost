@@ -1009,11 +1009,18 @@ func _on_wave_finished(n: int) -> void:
 
 ## Wave `n` past the scenario's list (repeat_last): the last one, with
 ## `more_each_wave` more of its kinds for every wave past it, and
-## `rotate_count` more for every wave past it from `rotate_kinds` in turn.
+## `rotate_count` more for every wave past it from `rotate_kinds` in turn,
+## and the `repeat_steps` so far (wave `repeat_base` instead of the last).
 func next_wave(n: int) -> Dictionary:
-	var w: Dictionary = spec.waves[-1].duplicate(true)
+	var base: Dictionary = spec.waves[spec.repeat_base - 1] if spec.repeat_base > 0 else spec.waves[-1]
+	var w: Dictionary = base.duplicate(true)
 	var past := n - spec.waves.size()
 	var kinds: Dictionary = w.get("kinds", {})
+	if not spec.repeat_steps.is_empty():
+		for i in past:
+			var step: Dictionary = spec.repeat_steps[i % spec.repeat_steps.size()]
+			for k: String in step:
+				kinds[k] = int(kinds.get(k, 0)) + int(step[k])
 	for k in spec.more_each_wave:
 		kinds[k] = int(kinds.get(k, 0)) + int(spec.more_each_wave[k]) * past
 	if not spec.rotate_kinds.is_empty():

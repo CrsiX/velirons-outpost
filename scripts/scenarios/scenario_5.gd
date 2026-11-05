@@ -7,7 +7,7 @@ extends Scenario
 ## the night her company was given to the crown's ritual. Three pieces of
 ## evidence lie on both sides of the range (treasures, the two in the northern
 ## wilderness guarded by camps): the order, the roll of the fallen, a foreign
-## seal. Ten waves from both sides; witches and gargoyles join, and in the
+## seal. Twelve waves from both sides; witches and gargoyles join, and in the
 ## last one the first Dread Legion patrol comes down the pass, led by Brenna's
 ## old captain Lysa and her comrade Torben (captains: they fall back, they
 ## don't fall), while the gargoyles above the pass come alive. Brenna can't be
@@ -49,21 +49,32 @@ func _init() -> void:
 	must_live = ["Pell"]
 
 	# Wilderness and Renegades, then the first Arcane: witches from wave 3,
-	# gargoyles from wave 6, from both sides of the range. Wave 10 brings the
-	# Legion (on_wave_started adds it, down the pass, with its captains, and
-	# the gargoyles above the pass).
+	# wolves from wave 5, snakes and gargoyles from wave 6, goblin raiders
+	# from wave 8, from both sides of the range. The last wave
+	# brings the Legion (on_wave_started adds it, down the pass, with its
+	# captains, and the gargoyles above the pass).
 	waves = [
 		{"kinds": {"goblin": 6}, "rat_packs": [4], "spawns": 2, "lairs": true},
 		{"kinds": {"goblin": 6, "orc": 1, "thief": 2}, "spawns": 3, "lairs": true},
 		{"kinds": {"goblin": 6, "orc": 2, "witch": 1}, "spawns": 3, "lairs": true},
 		{"kinds": {"goblin": 6, "orc": 2, "witch": 1, "thief": 2}, "rat_packs": [5], "spawns": 3, "lairs": true},
-		{"kinds": {"goblin": 7, "orc": 2, "witch": 2, "slime3": 1}, "spawns": 4, "lairs": true},
-		{"kinds": {"goblin": 7, "orc": 3, "witch": 1, "gargoyle": 1, "thief": 2}, "rat_packs": [5], "spawns": 4, "lairs": true},
-		{"kinds": {"goblin": 8, "orc": 3, "witch": 2, "gargoyle": 1}, "spawns": 4, "lairs": true},
-		{"kinds": {"goblin": 8, "orc": 3, "witch": 2, "gargoyle": 2, "thief": 3}, "rat_packs": [6], "spawns": 4, "lairs": true},
-		{"kinds": {"goblin": 9, "orc": 4, "witch": 2, "gargoyle": 2, "slime3": 2}, "rat_packs": [6], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 7, "orc": 2, "witch": 2, "slime3": 1, "wolf": 1}, "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 7, "orc": 3, "witch": 1, "gargoyle": 1, "thief": 2, "snake": 1}, "rat_packs": [5], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 8, "orc": 3, "witch": 2, "gargoyle": 1, "wolf": 3}, "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 8, "orc": 3, "witch": 2, "gargoyle": 2, "thief": 3, "snake": 2, "goblin_raider": 1}, "rat_packs": [6], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 9, "orc": 4, "witch": 2, "gargoyle": 2, "slime3": 2, "wolf": 3, "goblin_raider": 1}, "rat_packs": [6], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 9, "orc": 4, "witch": 3, "gargoyle": 2, "thief": 3, "snake": 2, "goblin_raider": 2}, "rat_packs": [6], "spawns": 4, "lairs": true},
+		{"kinds": {"goblin": 10, "orc": 4, "witch": 3, "gargoyle": 3, "slime3": 2, "wolf": 4, "snake": 2, "goblin_raider": 2}, "rat_packs": [7], "spawns": 4, "lairs": true},
 		{"kinds": {"goblin": 6, "orc": 2}, "spawns": 2, "lairs": true},
 	]
+	# Three in four come down from the north, over the range.
+	for w in waves:
+		w["spawn_shares"] = SPAWN_SHARES
+	# Past wave 12, while evidence is still missing, the waves go on: wave 11
+	# again (the Legion comes once), with EXTRA_STEPS piling up.
+	repeat_last = true
+	repeat_base = waves.size() - 1
+	repeat_steps = EXTRA_STEPS
 	# The hollow tree in the northern forest (the map's only lair) wakes at
 	# wave 6, or as soon as it is found (on_poll), and sends its theme with
 	# every wave from then on; cleared, it stays cleared.
@@ -88,13 +99,27 @@ const SIGMUND_TENT := Vector2i(24, 54)
 
 ## The Legion patrol of the last wave (down the pass), and the gargoyles that
 ## come alive on the rocks above the pass.
-const LEGION := {"legion_footman": 8}
+const LEGION := {"legion_footman": 8, "legion_banner": 1}
 ## They ride (docs/enemies-design.md §15e): their horses' HP.
 const CAPTAINS: Array[Dictionary] = [
 	{"name": "Lysa", "art": "legion_captain_lysa", "mount": "horse", "mount_hp": 60.0},
 	{"name": "Torben", "art": "legion_captain", "mount": "horse", "mount_hp": 60.0},
 ]
 const GATE_GARGOYLES := 3
+## What each wave past the list adds on top of the one before (wave 13 the
+## first step, 14 the second, ...; after the last step, the first again).
+const EXTRA_STEPS: Array[Dictionary] = [
+	{"goblin": 1, "wolf": 1, "snake": 1},
+	{"spider_mother": 1, "orc": 1, "slime3": 1},
+	{"goblin_raider": 1, "witch": 1, "goblin": 1},
+]
+## How each wave is split between the map's spawns (tiles of the spawns in
+## old_fort.json; an edit to those there needs one here): 75% from the three
+## roads north of the range, 25% from the three in the south.
+const SPAWN_SHARES: Array[Dictionary] = [
+	{"spawns": [Vector2i(30, 0), Vector2i(0, 17), Vector2i(74, 20)], "share": 0.75},
+	{"spawns": [Vector2i(74, 54), Vector2i(0, 60), Vector2i(31, 74)], "share": 0.25},
+]
 ## The wave the lair wakes at, unless it is found before.
 const LAIR_WAVE := 6
 ## Seconds from Sigmund found to wave 1.
@@ -134,7 +159,7 @@ func intro(r: ScenarioRunner) -> Array[Dictionary]:
 		{"say": "brenna", "text": "I do. The roll says they died here. I want to know who wrote it, and why. Whatever was left behind lies out in the hills, on both sides of the pass."},
 		{"camera": r.at(c) + Vector2(0, -40), "zoom": 1.1, "time": 2.0},
 		{"say": "pell", "text": "Then I'll set up the wagon outside the south gate. If anyone still comes up this road, they'll want something to eat."},
-		{"say": "", "text": "Find the three pieces of evidence, north and south of the mountains, and hold the fort for ten waves. The fort holds four people: Pell and three more. Brenna can't be brought back here, and Pell must not die."},
+		{"say": "", "text": "Find the pieces of evidence north and south of the mountains, and hold the fort for twelve waves. The fort holds four civilians: Pell and three more. Brenna can't be brought back here, and Pell must not die.", "italic": true},
 	]
 
 
@@ -167,8 +192,11 @@ func outro(r: ScenarioRunner) -> Array[Dictionary]:
 	]
 
 
-## Sigmund tells it, a piece after each of the first waves.
+## Sigmund tells it, a piece after each of the first waves. After the last
+## listed wave the fort is held (more come only while evidence is missing).
 func on_wave_finished(r: ScenarioRunner, n: int) -> void:
+	if n >= waves.size():
+		r.mark["held"] = true
 	var c := r.game.player_village.center
 	var lines: Array[Dictionary] = []
 	match n:
@@ -207,7 +235,7 @@ func on_wave_finished(r: ScenarioRunner, n: int) -> void:
 
 
 
-## Wave 10: the Legion comes down the pass, and the gargoyles above it wake.
+## The last wave: the Legion comes down the pass, and the gargoyles above it wake.
 func on_wave_started(r: ScenarioRunner, n: int) -> void:
 	if n != waves.size():
 		return
@@ -306,7 +334,7 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 	var g := r.game
 	return [
 		{"title": "An empty fort",
-			"text": "The fort holds four people: Pell has a hut, three are free. Recruit who you need in the Village tab, a builder to mend, a farmer (there is no farm yet: the meadows lie south). Choose well: there is no room for more.",
+			"text": "The fort holds four civilians: Pell has a hut, three are free. Recruit who you need in the Village tab, a builder to mend, a farmer (there is no farm yet: the meadows lie south). Choose well: there is no room for more.",
 			"done": func() -> bool: return g.population.count() >= 2,
 			"point": func() -> Dictionary: return {"hud": ["tab:village", "dock"], "tab": "village"}},
 		{"title": "Man the fort",
@@ -355,8 +383,8 @@ func objectives(r: ScenarioRunner) -> Array[Dictionary]:
 			"shown": func() -> bool: return r.mark.has("sigmund found"),
 			"done": func() -> bool: return r.mark.has("sigmund in")},
 		{"id": "waves", "text": "Hold the fort for %d waves" % waves.size(),
-			"done": func() -> bool: return g.waves.all_done(),
-			"detail": func() -> String: return "%d / %d" % [g.waves.wave - (1 if g.waves.in_progress() else 0), waves.size()]},
+			"done": func() -> bool: return r.mark.has("held"),
+			"detail": func() -> String: return "%d / %d" % [mini(g.waves.wave - (1 if g.waves.in_progress() else 0), waves.size()), waves.size()]},
 	]
 
 
