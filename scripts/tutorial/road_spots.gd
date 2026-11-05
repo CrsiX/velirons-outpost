@@ -83,6 +83,18 @@ func near_village(kind: String, taken: Array[Vector2i]) -> Vector2i:
 	return best
 
 
+## A spot a card asks the player to build on is explored for the player's
+## village (spots are picked ignoring fog, and the scouts may not have been
+## there yet: a mark must never sit on land that can't be built on). Only
+## places to build: other marks (a crypt, a clue) keep their fog.
+static func reveal(p_game: Game, tiles: Array) -> void:
+	var t: Array[Vector2i] = []
+	for x: Vector2i in tiles:
+		if p_game.map.in_bounds(x):
+			t.append(x)
+	p_game.fog.explore_tiles(t, p_game.player_village.id)
+
+
 ## The spot to mark for `kind`: `picked` while it's still free, else the
 ## nearest free spot to it (kept while it stays free, so the mark doesn't
 ## wander), else `picked` all the same.

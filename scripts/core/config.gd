@@ -1160,31 +1160,47 @@ const GATHERER_REST := 3.0
 ## A corpse is "safe" when no living enemy is this close to it.
 const CORPSE_SAFE_RADIUS := 6.0
 const CORPSE_LIFETIME := 240.0  # seconds before an uncollected corpse rots away
-## An explorer abandons its local frontier when that target is this much farther
-## from the village than the closest unexplored tile to the village.
+## The leash on a scout (ExploreJob, docs/village-design.md): the village's
+## nearest fog worth a trip (a fog tile with at least EXPLORE.home_min_share
+## of the scout's view still fog) is d steps from the village; fog more than
+## d x EXPLORER_WANDER_FACTOR + EXPLORER_WANDER_SLACK steps out is past the
+## leash.
 const EXPLORER_WANDER_FACTOR := 3.0
 const EXPLORER_WANDER_SLACK := 8
 const EXPLORER_CLAIM_RADIUS := 7.0
 const EXPLORER_CLAIM_PENALTY := 30
-## How a scout (explorer, the hero exploring; ExploreJob, docs/world-design.md)
-## picks where to go: every walkable tile within "search_steps" of it scores
-## the fog it would uncover there (unexplored tiles in a square of its sight
-## radius) / (steps + "dist_offset"), x (1 + "momentum" x cos(the angle off its
-## heading)), x "claim_factor" near another scout's target (EXPLORER_CLAIM_RADIUS),
-## x (hero) up to 1 + "site_near_bonus" near a site she had to flee from
-## (within "site_near_radius"). The best is its target; it walks there and picks
-## again on arriving, or once the target has lost all but "replan_share" of the
-## fog it was picked for (looked at every "think_every" seconds). Nothing
-## within reach: the fog nearest the village. The hero, fled from monsters at a
-## site (claim, loot), sets it aside and looks again after "site_retry"
-## seconds: back to it once the monsters she fled from are dead or gone from it.
+## How a scout (explorer, the hero exploring; ExploreJob, docs/village-design.md)
+## picks where to go: every walkable tile it can walk to within "search_reach"
+## tiles (a diagonal step counts √2) scores the fog it would uncover there
+## (unexplored tiles within its sight radius) / (walk + "dist_offset"),
+## x (1 + "momentum" x cos(the angle off its heading)), x "claim_factor" near
+## another scout's target (EXPLORER_CLAIM_RADIUS), / (1 + "leash_pull" x the
+## steps it lies past the leash), x (hero) up to 1 + "site_near_bonus" near a
+## site she had to flee from (within "site_near_radius"). The best is its
+## target; it walks there and picks again on arriving, or once the target has
+## lost all but "replan_share" of the fog it was picked for (looked at every
+## "think_every" seconds). Nothing within reach, or the best more than
+## "leash_hard" steps past the leash: the village's nearest fog. The hero, fled
+## from monsters at a site (claim, loot), sets it aside and looks again after
+## "site_retry" seconds: back to it once the monsters she fled from are dead or
+## gone from it.
+## A scout's way there (Pathing.scout_path) prefers fog: a step onto
+## explored land costs "explored_cost", one onto its own trail this trip
+## (every tile within "trail_radius" of where it walked) "trail_cost", a step
+## into fog 1.
 const EXPLORE := {
-	"search_steps": 40,
+	"search_reach": 40.0,
 	"dist_offset": 3.0,
 	"momentum": 0.6,
 	"claim_factor": 0.3,
 	"replan_share": 0.3,
 	"think_every": 0.5,
+	"home_min_share": 0.4,
+	"leash_pull": 0.25,
+	"leash_hard": 12,
+	"explored_cost": 1.5,
+	"trail_cost": 4.0,
+	"trail_radius": 1,
 	"site_retry": 15.0,
 	"site_near_radius": 12.0,
 	"site_near_bonus": 2.0,

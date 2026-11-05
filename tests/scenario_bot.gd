@@ -575,7 +575,8 @@ func _scenario_2() -> void:
 	var road_t := sc.road_to_village(stall.tile)
 	var near: Vector2i = road_t[0] if not road_t.is_empty() else stall.tile
 	game.population.unassign_worker(stall)  # (Pell goes home: a rat would go for him first)
-	check(await wait_until(func() -> bool: return pell.at_home, 60.0) and not stall.is_open(), "Pell away: the stall is closed")
+	cmd("hero_mode", {"mode": Hero.Mode.REST})  # (so does Brenna, who hunts rats and whom a rat would go for)
+	check(await wait_until(func() -> bool: return pell.at_home and game.hero.at_home, 60.0) and not stall.is_open(), "Pell away: the stall is closed")
 	stall.stored = 30.0
 	var rat := game.waves.spawn_at("rat", near, v, 1)
 	rat.max_hp = 1e6  # (the watchtower by the road shoots it, but this one lives)
@@ -586,6 +587,7 @@ func _scenario_2() -> void:
 	check(stall.stored < before, "and eats its goods (%.1f -> %.1f)" % [before, stall.stored])
 	if is_instance_valid(rat):
 		kill(rat)
+	cmd("hero_mode", {"mode": Hero.Mode.EXPLORE})
 	game.population.assign_worker(stall)
 	check(await wait_until(func() -> bool: return stall.is_open(), 60.0), "Pell back at his stall")
 	stall.stored = 0.0

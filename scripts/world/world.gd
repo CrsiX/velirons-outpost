@@ -48,6 +48,7 @@ var ground_top: GroundLayer
 ## Walking distance from each village centre (id -> field), rebuilt when dirty.
 var _village_dist: Dictionary = {}
 var _village_dist_dirty := true
+var _village_order: Dictionary = {}  # village id -> village_order
 ## Name labels floating over the villages (co-op), id -> Label.
 var _village_labels: Dictionary = {}
 
@@ -456,10 +457,22 @@ func village_distance(v: Village = null) -> PackedInt32Array:
 		v = game.player_village
 	if _village_dist_dirty:
 		_village_dist.clear()
+		_village_order.clear()
 		_village_dist_dirty = false
 	if not _village_dist.has(v.id):
-		_village_dist[v.id] = pathing.distance_field(v.center)
+		var order := PackedInt32Array()
+		_village_dist[v.id] = pathing.distance_field(v.center, order)
+		_village_order[v.id] = order
 	return _village_dist[v.id]
+
+
+## The tiles a village's centre can walk to, nearest first (cached with
+## village_distance).
+func village_order(v: Village = null) -> PackedInt32Array:
+	if v == null:
+		v = game.player_village
+	village_distance(v)
+	return _village_order[v.id]
 
 
 ## Co-op: every village's name floats over its centre in its colour. The

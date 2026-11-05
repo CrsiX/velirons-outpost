@@ -10,6 +10,7 @@ extends RefCounted
 ## docs/aquatic-design.md §3).
 
 const UNREACHABLE := 1 << 30
+const SQRT2 := 1.4142135
 
 var map: MapData
 var astar := AStarGrid2D.new()
@@ -308,65 +309,20 @@ func wood_open(t: Vector2i) -> bool:
 	return map.in_bounds(t) and (is_walkable(t) or (map.is_forest(t) and map.building_at(t) == null))
 
 
-## Breadth-first step counts from `from` over walkable tiles (8-neighbourhood;
-## diagonal steps only when both side tiles are walkable). Works on tile
-## indices and the cached walkability: it runs often (explorers, villagers).
-## Steps from `from` to every walkable tile within `max_steps` (8 ways, a
-## diagonal only past two open sides, as units walk), UNREACHABLE elsewhere;
-## tiles marked in `danger` (if given) aren't walked through. The tiles
-## reached, in order, go into `reached`.
-func steps_within(from: Vector2i, max_steps: int, reached: PackedInt32Array, danger := PackedByteArray()) -> PackedInt32Array:
+## Steps from `from` to every tile (breadth first; 8 ways, a diagonal only
+## past two open sides, as units walk), UNREACHABLE where it can't walk. The
+## tiles reached go into `order`, nearest first. Works on tile indices and the
+## cached walkability: it runs often (villagers, the village's distances).
+func distance_field(from: Vector2i, order := PackedInt32Array()) -> PackedInt32Array:
 	var n := map.size
 	var dist := PackedInt32Array()
 	dist.resize(n * n)
 	dist.fill(UNREACHABLE)
+	order.resize(0)
 	from = nearest_walkable(from)
 	if not map.in_bounds(from):
 		return dist
-	reached.resize(n * n)
-	var start := from.y * n + from.x
-	dist[start] = 0
-	reached[0] = start
-	var head := 0
-	var tail := 1
-	var walk := _walk
-	var avoid := not danger.is_empty()
-	var dx := [-1, 1, 0, 0, -1, 1, -1, 1]
-	var dy := [0, 0, -1, 1, -1, -1, 1, 1]
-	while head < tail:
-		var i := reached[head]
-		head += 1
-		var d := dist[i]
-		if d >= max_steps:
-			continue
-		var x := i % n
-		var y := i / n
-		for k in 8:
-			var nx: int = x + dx[k]
-			var ny: int = y + dy[k]
-			if nx < 0 or ny < 0 or nx >= n or ny >= n:
-				continue
-			var j := ny * n + nx
-			if dist[j] != UNREACHABLE or walk[j] == 0 or (avoid and danger[j] == 1):
-				continue
-			if k >= 4 and (walk[y * n + nx] == 0 or walk[ny * n + x] == 0):
-				continue  # (no cutting a corner)
-			dist[j] = d + 1
-			reached[tail] = j
-			tail += 1
-	reached.resize(tail)
-	return dist
-
-
-func distance_field(from: Vector2i) -> PackedInt32Array:
-	var n := map.size
-	var dist := PackedInt32Array()
-	dist.resize(n * n)
-	dist.fill(UNREACHABLE)
-	from = nearest_walkable(from)
-	if not map.in_bounds(from):
-		return dist
-	var queue := PackedInt32Array()
+	var queue := order
 	queue.resize(n * n)
 	var start := from.y * n + from.x
 	dist[start] = 0
@@ -418,7 +374,134 @@ func distance_field(from: Vector2i) -> PackedInt32Array:
 			dist[i + n + 1] = d
 			queue[tail] = i + n + 1
 			tail += 1
+	queue.resize(tail)
 	return dist
+
+
+## Walking distance from `from` to every walkable tile within `max_dist`: a
+## straight step 1, a diagonal one √2 (8 ways, a diagonal only past two open
+## sides, as units walk), INF elsewhere; tiles marked in `danger` (if given)
+## aren't walked through. The tiles reached go into `reached`, nearest first.
+## (Scouts score targets with it: step counts would make diagonals look cheap.)
+func octile_within(from: Vector2i, max_dist: float, reached: PackedInt32Array, danger := PackedByteArray()) -> PackedFloat32Array:
+	var n := map.size
+	var dist := PackedFloat32Array()
+	dist.resize(n * n)
+	dist.fill(INF)
+	reached.resize(0)
+	from = nearest_walkable(from)
+	if not map.in_bounds(from):
+		return dist
+	var start := from.y * n + from.x
+	dist[start] = 0.0
+	var heap := _Heap.new()
+	heap.push(0.0, start)
+	var walk := _walk
+	var avoid := not danger.is_empty()
+	var dx := [-1, 1, 0, 0, -1, 1, -1, 1]
+	var dy := [0, 0, -1, 1, -1, -1, 1, 1]
+	while not heap.is_empty():
+		var i := heap.pop()
+		var d := heap.top
+		if d > dist[i]:
+			continue  # (an old entry)
+		reached.append(i)
+		var x := i % n
+		var y := i / n
+		for k in 8:
+			var nx: int = x + dx[k]
+			var ny: int = y + dy[k]
+			if nx < 0 or ny < 0 or nx >= n or ny >= n:
+				continue
+			var j := ny * n + nx
+			if walk[j] == 0 or (avoid and danger[j] == 1):
+				continue
+			if k >= 4 and (walk[y * n + nx] == 0 or walk[ny * n + x] == 0):
+				continue  # (no cutting a corner)
+			var nd := d + (SQRT2 if k >= 4 else 1.0)
+			if nd <= max_dist and nd < dist[j]:
+				dist[j] = nd
+				heap.push(nd, j)
+	return dist
+
+
+## A scout's way from `from` to `to` (docs/village-design.md, Explorer): like
+## find_path, but a step onto land its village has explored costs
+## `explored_cost`, one onto its own trail (`trail`: 1 per tile) `trail_cost`,
+## fog 1 (times the slow-ground weight), so it goes back through fog rather
+## than the way it came. Never into `bar` (as find_path_outside: the hero
+## shut out). Grid-space waypoints; empty if unreachable.
+func scout_path(from: Vector2i, to: Vector2i, explored: PackedByteArray, trail: PackedByteArray, explored_cost: float, trail_cost: float, bar := Rect2i()) -> PackedVector2Array:
+	var n := map.size
+	from = nearest_walkable(from)
+	if not map.in_bounds(from) or not is_walkable(to):
+		return PackedVector2Array()
+	var walk := _walk
+	if bar.has_area() and not bar.has_point(from):
+		if bar.has_point(to):
+			return PackedVector2Array()
+		walk = _walk.duplicate()
+		for y in range(maxi(0, bar.position.y), mini(n, bar.end.y)):
+			for x in range(maxi(0, bar.position.x), mini(n, bar.end.x)):
+				walk[y * n + x] = 0
+	var start := from.y * n + from.x
+	var goal := to.y * n + to.x
+	var g := PackedFloat32Array()
+	g.resize(n * n)
+	g.fill(INF)
+	var came := PackedInt32Array()
+	came.resize(n * n)
+	came.fill(-1)
+	g[start] = 0.0
+	var heap := _Heap.new()
+	heap.push(_octile(from, to), start)
+	var has_trail := trail.size() == n * n
+	var dx := [-1, 1, 0, 0, -1, 1, -1, 1]
+	var dy := [0, 0, -1, 1, -1, -1, 1, 1]
+	while not heap.is_empty():
+		var i := heap.pop()
+		if i == goal:
+			break
+		var x := i % n
+		var y := i / n
+		if heap.top > g[i] + _octile(Vector2i(x, y), to) + 0.001:
+			continue  # (an old entry)
+		for k in 8:
+			var nx: int = x + dx[k]
+			var ny: int = y + dy[k]
+			if nx < 0 or ny < 0 or nx >= n or ny >= n:
+				continue
+			var j := ny * n + nx
+			if walk[j] == 0:
+				continue
+			if k >= 4 and (walk[y * n + nx] == 0 or walk[ny * n + x] == 0):
+				continue  # (no cutting a corner)
+			var c := 1.0
+			if has_trail and trail[j] == 1:
+				c = trail_cost
+			elif explored[j] == 1:
+				c = explored_cost
+			var ng := g[i] + (SQRT2 if k >= 4 else 1.0) * c * astar.get_point_weight_scale(Vector2i(nx, ny))
+			if ng < g[j]:
+				g[j] = ng
+				came[j] = i
+				heap.push(ng + _octile(Vector2i(nx, ny), to), j)
+	if g[goal] == INF:
+		return PackedVector2Array()
+	var out := PackedVector2Array()
+	var at := goal
+	while at != -1:
+		out.append(Vector2(at % n, at / n))
+		at = came[at]
+	out.reverse()
+	return out
+
+
+## Octile distance (straight steps 1, diagonals √2) with no obstacles.
+static func _octile(a: Vector2i, b: Vector2i) -> float:
+	var ax := absi(a.x - b.x)
+	var ay := absi(a.y - b.y)
+	return maxi(ax, ay) + (SQRT2 - 1.0) * mini(ax, ay)
 
 
 ## The nearest fog to explore from `from`: [the unexplored tile, where to
@@ -760,3 +843,54 @@ func stand_near(t: Vector2i, from: Vector2) -> Vector2i:
 				best_d = d
 				best = nb
 	return best
+
+
+## A binary min-heap of tile indices by a float key (octile_within, scout_path).
+class _Heap:
+	var keys := PackedFloat32Array()
+	var vals := PackedInt32Array()
+	## The key of the last value popped.
+	var top := 0.0
+
+	func is_empty() -> bool:
+		return vals.is_empty()
+
+	func push(k: float, v: int) -> void:
+		keys.append(k)
+		vals.append(v)
+		var i := keys.size() - 1
+		while i > 0:
+			var p := (i - 1) >> 1
+			if keys[p] <= k:
+				break
+			keys[i] = keys[p]
+			vals[i] = vals[p]
+			i = p
+		keys[i] = k
+		vals[i] = v
+
+	func pop() -> int:
+		var out := vals[0]
+		top = keys[0]
+		var last := keys.size() - 1
+		var k := keys[last]
+		var v := vals[last]
+		keys.resize(last)
+		vals.resize(last)
+		if last == 0:
+			return out
+		var i := 0
+		while true:
+			var c := 2 * i + 1
+			if c >= last:
+				break
+			if c + 1 < last and keys[c + 1] < keys[c]:
+				c += 1
+			if keys[c] >= k:
+				break
+			keys[i] = keys[c]
+			vals[i] = vals[c]
+			i = c
+		keys[i] = k
+		vals[i] = v
+		return out

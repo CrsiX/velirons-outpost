@@ -278,7 +278,12 @@ func _set_home(v: bool) -> void:
 
 ## Leave the village towards `target`. Returns false when there's no way there.
 func head_out(target: Vector2i) -> bool:
-	var p := find_way(home_spot() if at_home else current_tile(), target)  # (from home: that is where they come out)
+	return head_out_on(find_way(home_spot() if at_home else current_tile(), target))  # (from home: that is where they come out)
+
+
+## head_out along a way already found (from home_spot() when at home, else
+## from where it stands). False when it is empty.
+func head_out_on(p: PackedVector2Array) -> bool:
 	if p.is_empty():
 		return false
 	if at_home:

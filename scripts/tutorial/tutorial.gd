@@ -190,8 +190,10 @@ func _build_steps() -> void:
 	]
 
 
-## Placing a `kind`: its Build entry (until placing), and the marked spot.
+## Placing a `kind`: its Build entry (until placing), and the marked spot
+## (explored, RoadSpots.reveal).
 func _place_point(kind: String, tiles: Array) -> Dictionary:
+	RoadSpots.reveal(game, tiles)
 	var placing := game.mode == Game.Mode.BUILD and game.build_kind == kind
 	return {"hud": [] if placing else ["build:" + kind, "tab:build", "dock"], "tab": "build", "tiles": tiles}
 

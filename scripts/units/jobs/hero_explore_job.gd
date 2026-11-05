@@ -97,6 +97,11 @@ func _pick_task() -> bool:
 
 ## A site she fled from, while the monsters she fled from are still at it
 ## (looked at again every Config.EXPLORE.site_retry seconds).
+## Her ways keep out of the area she is shut out of.
+func _bar() -> Rect2i:
+	return (w as Hero).barred
+
+
 func site_blocked(o: MapObject) -> bool:
 	if not _blocked_sites.has(o):
 		return false

@@ -6,8 +6,13 @@ extends CivilianJob
 ##   sweeps lie a sight width apart;
 ## - sticks to that target until it gets there or the fog round it is mostly
 ##   gone (not as soon as the target tile itself is seen);
-## - finishes the fog within reach first; only then (or when that is much
-##   farther from the village than the village's nearest fog) it goes there;
+## - finishes the fog within reach first, but on a leash: fog much farther
+##   from the village than the village's nearest fog worth a trip scores
+##   less the farther past it lies, so it turns and sweeps back through fog;
+##   it goes straight for the village's fog only with nothing within reach
+##   or far past the leash;
+## - walks there through fog rather than over explored land or the way it
+##   came this trip (`_trail`, Pathing.scout_path);
 ## - avoids fog another explorer is already heading for;
 ## - keeps away from monster camp guards (it would only flee from them, again
 ##   and again): fog by them waits until the camp is cleared, and so does fog
@@ -32,6 +37,10 @@ var _last_pick := Vector2.INF
 ## way there]; it waits while any of them lives (Config.EXPLORER_BLOCKED_RADIUS
 ## around the tile).
 var _blocked: Array = []
+## 1 per tile on or by the way it walked since it left home (not saved: a
+## loaded game starts a fresh one).
+var _trail := PackedByteArray()
+var _trail_at := Vector2i(-1, -1)
 
 
 func _init(p_reveal: float = Config.EXPLORER_REVEAL) -> void:
@@ -56,6 +65,7 @@ func tick(delta: float) -> void:
 					w.on_action("explore")
 					w.game.stats.credit(w.village, "explorers", w.label(), fresh)
 			var arrived := w.step_path(delta)
+			_mark_trail()
 			_think_timer -= delta
 			# There, or the fog round the target is mostly seen already: the next one.
 			if arrived or (_think_timer <= 0.0 and _spent()):
@@ -64,7 +74,9 @@ func tick(delta: float) -> void:
 				if not _pick_target():
 					_go_home_idle()
 		State.RETURNING:
-			if w.step_path(delta):
+			var home := w.step_path(delta)
+			_mark_trail()
+			if home:
 				w.arrive_home()
 				state = State.RESTING
 				w.rest_timer = 5.0
@@ -102,7 +114,59 @@ func exploring_target() -> Vector2i:
 func _go_home_idle() -> void:
 	target = Vector2i(-1, -1)
 	state = State.RETURNING
-	w.head_home()
+	if w.at_home:
+		w.head_home()
+		return
+	var p := _route(w.current_tile(), w.home_spot())
+	if p.is_empty():
+		w.head_home()
+	else:
+		w.follow(p)
+
+
+## Override: an area its ways keep out of (the hero shut out, Hero.barred).
+func _bar() -> Rect2i:
+	return Rect2i()
+
+
+## Sets off for `t` (from home or from here) by a scout route. False if
+## there is no way.
+func _walk_to(t: Vector2i) -> bool:
+	var from := w.home_spot() if w.at_home else w.current_tile()
+	if w.at_home:
+		_trail.fill(0)  # (a new trip)
+	var p := _route(from, t)
+	if p.is_empty():
+		p = w.find_way(from, t)
+	return w.head_out_on(p)
+
+
+func _route(from: Vector2i, to: Vector2i) -> PackedVector2Array:
+	var q: Dictionary = Config.EXPLORE
+	var map := w.game.map
+	if _trail.size() != map.size * map.size:
+		_trail.resize(map.size * map.size)
+		_trail.fill(0)
+	return w.game.world.pathing.scout_path(from, to, w.game.fog.explored_of[w.village.id], _trail, float(q["explored_cost"]), float(q["trail_cost"]), _bar())
+
+
+## Marks the tiles round where it stands as its trail.
+func _mark_trail() -> void:
+	if w.at_home:
+		return
+	var t := w.current_tile()
+	if t == _trail_at:
+		return
+	_trail_at = t
+	var map := w.game.map
+	var n := map.size
+	if _trail.size() != n * n:
+		_trail.resize(n * n)
+		_trail.fill(0)
+	var r := int(Config.EXPLORE["trail_radius"])
+	for y in range(maxi(0, t.y - r), mini(n, t.y + r + 1)):
+		for x in range(maxi(0, t.x - r), mini(n, t.x + r + 1)):
+			_trail[y * n + x] = 1
 
 
 ## Chooses the next target and starts walking. False if none is reachable.
@@ -110,7 +174,7 @@ func _pick_target() -> bool:
 	var chosen := choose_target(w.current_tile() if not w.at_home else w.village.center)
 	if chosen == Vector2i(-1, -1):
 		return false
-	if not w.head_out(stand):
+	if not _walk_to(stand):
 		return false
 	if chosen != target:
 		w.village.events.debug("%s heads for the fog at %s" % [w.label(), str(chosen)])
@@ -169,7 +233,13 @@ func choose_target(from: Vector2i) -> Vector2i:
 		if other != w and other.exploring_target() != Vector2i(-1, -1):
 			claims.append(other.exploring_target())
 	var danger := _with_blocked(_camp_danger())
-	var local := _best_within(from, explored, claims, danger)
+	# The village's fog: [target, stand, steps from the village].
+	var home := _village_fog(explored, claims, danger, from_village)
+	var has_home: bool = home[0] != Vector2i(-1, -1)
+	var limit := INF
+	if has_home:
+		limit = float(home[2]) * Config.EXPLORER_WANDER_FACTOR + Config.EXPLORER_WANDER_SLACK
+	var local := _best_within(from, explored, claims, danger, from_village, limit)
 	var best_local: Vector2i = local[0]
 	var best_local_stand: Vector2i = local[1]
 	if best_local == Vector2i(-1, -1):
@@ -179,61 +249,68 @@ func choose_target(from: Vector2i) -> Vector2i:
 			return Vector2i(-1, -1)
 		best_local = near[0]
 		best_local_stand = near[1]
-	# The nearest fog from the village (its walking distances are cached).
-	var best_home := Vector2i(-1, -1)
-	var best_home_stand := Vector2i(-1, -1)
-	var best_home_score := Pathing.UNREACHABLE
-	for i in explored.size():
-		if explored[i] == 1 or (not danger.is_empty() and danger[i] == 1):
-			continue
-		var t := Vector2i(i % map.size, i / map.size)
-		var d := from_village[i]
-		var at := t
-		if d >= Pathing.UNREACHABLE:
-			# Can't walk there: seen from the nearest walkable tile next to it.
-			for dy in range(-1, 2):
-				for dx in range(-1, 2):
-					var nx := t.x + dx
-					var ny := t.y + dy
-					if nx < 0 or ny < 0 or nx >= map.size or ny >= map.size:
-						continue
-					var nd := from_village[ny * map.size + nx]
-					if nd < Pathing.UNREACHABLE and nd + 1 < d:
-						d = nd + 1
-						at = Vector2i(nx, ny)
-		if d >= best_home_score:
-			continue
-		var penalty := 0
-		for c in claims:
-			if Vector2(c).distance_to(Vector2(t)) < Config.EXPLORER_CLAIM_RADIUS:
-				penalty = Config.EXPLORER_CLAIM_PENALTY
-				break
-		if d + penalty < best_home_score:
-			best_home_score = d + penalty
-			best_home = t
-			best_home_stand = at
-	# Don't wander off while much closer unexplored ground is still waiting.
+	# Far past the leash (the leash only bends the way back otherwise): the
+	# village's fog.
 	var local_from_village := from_village[map.index(best_local_stand)]
-	if best_home != Vector2i(-1, -1) and local_from_village > best_home_score * Config.EXPLORER_WANDER_FACTOR + Config.EXPLORER_WANDER_SLACK:
-		stand = best_home_stand
-		return best_home
+	if has_home and local_from_village < Pathing.UNREACHABLE and local_from_village > limit + int(Config.EXPLORE["leash_hard"]):
+		stand = home[1]
+		return home[0]
 	stand = best_local_stand
 	return best_local
 
 
-## The best tile within Config.EXPLORE.search_steps of `from` (see Config.EXPLORE):
+## The fog nearest the village worth a trip (see Config.EXPLORER_WANDER_FACTOR):
+## [target, stand, steps from the village], or the nearest fog of all when no
+## fog tile has enough fog in view; [(-1, -1), (-1, -1), 0] when none is left.
+## Fog near another scout's target counts EXPLORER_CLAIM_PENALTY steps farther.
+func _village_fog(explored: PackedByteArray, claims: Array[Vector2i], danger: PackedByteArray, from_village: PackedInt32Array) -> Array:
+	var map := w.game.map
+	var n := map.size
+	var sight := _sight()
+	var need := ceili(sight.size() * float(Config.EXPLORE["home_min_share"]))
+	var best := -1
+	var best_score := Pathing.UNREACHABLE
+	for i in w.game.world.village_order(w.village):
+		var d := from_village[i]
+		if d >= best_score:
+			break  # (nearest first: nothing nearer is left)
+		if explored[i] == 1 or (not danger.is_empty() and danger[i] == 1):
+			continue
+		var t := Vector2i(i % n, i / n)
+		if _gain_in(t, explored, sight) < need:
+			continue
+		var score := d
+		for c in claims:
+			if Vector2(c).distance_to(Vector2(t)) < Config.EXPLORER_CLAIM_RADIUS:
+				score += Config.EXPLORER_CLAIM_PENALTY
+				break
+		if score < best_score:
+			best_score = score
+			best = i
+	if best >= 0:
+		var b := Vector2i(best % n, best / n)
+		return [b, b, from_village[best]]
+	var near := w.game.world.pathing.nearest_frontier(w.village.center, explored, claims, Config.EXPLORER_CLAIM_RADIUS, Config.EXPLORER_CLAIM_PENALTY, danger)
+	if near.is_empty():
+		return [Vector2i(-1, -1), Vector2i(-1, -1), 0]
+	return [near[0], near[1], from_village[map.index(near[1])]]
+
+
+## The best tile within Config.EXPLORE.search_reach of `from` (see Config.EXPLORE),
+## past `limit` steps from the village less the farther past:
 ## [target, stand] (the same walkable tile), or [(-1, -1), (-1, -1)].
-func _best_within(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], danger: PackedByteArray) -> Array[Vector2i]:
+func _best_within(from: Vector2i, explored: PackedByteArray, claims: Array[Vector2i], danger: PackedByteArray, from_village: PackedInt32Array, limit: float) -> Array[Vector2i]:
 	var map := w.game.map
 	var n := map.size
 	var q: Dictionary = Config.EXPLORE
 	var reached := PackedInt32Array()
-	var dist := w.game.world.pathing.steps_within(from, int(q["search_steps"]), reached, danger)
+	var dist := w.game.world.pathing.octile_within(from, float(q["search_reach"]), reached, danger)
 	var sight := _sight()
 	var heading := Vector2.ZERO
 	if _last_pick != Vector2.INF and w.grid_pos.distance_to(_last_pick) > 0.5 and not w.at_home:
 		heading = (w.grid_pos - _last_pick).normalized()
 	var here := Vector2(from)
+	var pull := float(q["leash_pull"])
 	var best := -1
 	var best_score := 0.0
 	for i in reached:
@@ -241,13 +318,16 @@ func _best_within(from: Vector2i, explored: PackedByteArray, claims: Array[Vecto
 		var fog := _gain_in(t, explored, sight)
 		if fog <= 0:
 			continue
-		var score := float(fog) / (float(dist[i]) + float(q["dist_offset"]))
+		var score := float(fog) / (dist[i] + float(q["dist_offset"]))
 		if heading != Vector2.ZERO and t != from:
 			score *= 1.0 + float(q["momentum"]) * heading.dot((Vector2(t) - here).normalized())
 		for c in claims:
 			if Vector2(c).distance_to(Vector2(t)) < Config.EXPLORER_CLAIM_RADIUS:
 				score *= float(q["claim_factor"])
 				break
+		var vd := from_village[i]
+		if vd < Pathing.UNREACHABLE and float(vd) > limit:
+			score /= 1.0 + pull * (float(vd) - limit)
 		score *= _bias(t)
 		if score > best_score:
 			best_score = score

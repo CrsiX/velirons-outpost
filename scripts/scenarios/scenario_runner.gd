@@ -1295,8 +1295,10 @@ func first_tiles(list: Array) -> Array[Vector2i]:
 	return (list[0] as Building).tiles() if not list.is_empty() else [] as Array[Vector2i]
 
 
-## Placing a `kind`: its Build entry (until placing), and the marked tiles.
+## Placing a `kind`: its Build entry (until placing), and the marked tiles
+## (explored, RoadSpots.reveal).
 func place_point(kind: String, tiles: Array) -> Dictionary:
+	RoadSpots.reveal(game, tiles)
 	var placing := game.mode == Game.Mode.BUILD and game.build_kind == kind
 	return {"hud": [] if placing else ["build:" + kind, "tab:build", "dock"], "tab": "build", "tiles": tiles}
 
