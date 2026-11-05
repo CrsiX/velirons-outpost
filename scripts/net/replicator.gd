@@ -329,7 +329,7 @@ func _describe(n: Node) -> Array:
 		vid = v.id
 	if n is Hero:
 		var h := n as Hero
-		return [h.nid, "h", {"v": vid}, _unit_state(h).merged({"m": h.mode, "xp": h.xp, "lv": h.level, "hp": snappedf(h.hp, 0.5), "mhp": h.max_hp, "d": h.dead, "st": h.support_target.id if h.support_target else -1, "s": h.status_text()}), h.current_tile(), vid, false]
+		return [h.nid, "h", {"v": vid}, _unit_state(h).merged({"h": h.at_home, "m": h.mode, "xp": h.xp, "lv": h.level, "hp": snappedf(h.hp, 0.5), "mhp": h.max_hp, "d": h.dead, "st": h.support_target.id if h.support_target else -1, "s": h.status_text()}), h.current_tile(), vid, false]
 	if n is Civilian:
 		var c := n as Civilian
 		if c.dead:
@@ -602,7 +602,8 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		u.net_move(st["p"], first)
 		u.sprite.flip_h = st["fx"]
 		u.sprite.rotation = st.get("rot", 0.0)
-		u.visible = st["vis"]
+		if not (u is Enemy):  # (the host's "vis" is its own fog's; an enemy follows ours: Enemy._process)
+			u.visible = st["vis"]
 		Poison.show_on(u, st.get("po", false))
 	if o is Civilian:
 		var c := o as Civilian

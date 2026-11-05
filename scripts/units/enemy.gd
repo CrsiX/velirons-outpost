@@ -1068,7 +1068,7 @@ func swing(grid_target: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	if dead:
-		if shell and not game.is_client:
+		if shell:
 			_update_visibility()  # (a shell is seen like any enemy)
 		return
 	if flies():
@@ -1087,6 +1087,7 @@ func _process(delta: float) -> void:
 			_dive_t += delta
 			_show_dive()
 		net_follow(delta)  # the host simulates; we just follow
+		_update_visibility()  # (by our own village's fog, not the host's)
 		return
 	if spec().has("submerges"):
 		_tick_dive(delta)

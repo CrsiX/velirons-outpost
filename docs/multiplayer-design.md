@@ -416,7 +416,11 @@ dock, log level, panels) never go to the host.
     (shared, as the map is shared), public game state (villages standing /
     fallen, wave and countdown, speed, pause, game over), and that player's own
     log lines, toasts and effects.
-- Clients don't simulate: units glide to their new positions.
+- Clients don't simulate: units glide to their new positions. Surveillance is
+  the exception: a client works out what its own village watches from its own
+  observers (so whatever drives a unit's sight, such as the hero being out,
+  must be replicated), and an enemy is shown by that, never by whether the
+  host's own player sees it.
 - **Ids:** every entity gets a host-assigned network id. The per-kind labels
   from the event log ("archer 5") stay the readable names.
 
