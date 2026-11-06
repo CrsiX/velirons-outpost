@@ -262,7 +262,9 @@ func _on_wave_finished(n: int) -> void:
 	for v in game.villages:
 		if v.fallen:
 			continue
-		count(v, "waves")
+		# The wave's number, not a count of these signals: "waves survived"
+		# is always the last wave that ended with the village standing.
+		set_max(v, "waves", float(n))
 		if took >= 0.0 and (not has_value(v.id, "fastest_wave") or took < value(v.id, "fastest_wave")):
 			villages[v.id]["c"]["fastest_wave"] = took
 			villages[v.id]["c"]["fastest_wave_n"] = float(n)
