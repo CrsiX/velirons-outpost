@@ -137,7 +137,7 @@ Each enemy kind has an `"entry"`:
 - **Flyers** (`"flying"`) keep to the roads until close, then fly over to the nearest hut.
   A vampire bat still turns back at a gate (docs/enemies-design.md).
 - **Water-bound monsters** never come ashore and don't break in.
-- **A held wall loses no hut to ground enemies** (docs/enemies-design.md §7a).
+- **A held wall loses no hut to ground enemies** (docs/enemies-design.md §9).
   Whatever gets in without a breach (rats, thieves, a ghost) burns nothing; a gate is never
   open to enemies; only flyers (the gargoyle) burn a hut over intact walls.
 
@@ -179,7 +179,7 @@ is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
     clearly cheaper (`SIEGE.switch_margin`), so it doesn't run back and forth.
 - **Enemies that can't hurt a barrier** (`siege` 0: necromancer, siren, spider mother, snake)
   lurk outside the walls until a breach, and leave once only those who can't get in are left
-  (docs/enemies-design.md §7a, `Config.LURK`): a held wall really holds, and a wave can't stall
+  (docs/enemies-design.md §9, `Config.LURK`): a held wall really holds, and a wave can't stall
   at a gate nobody guards. They follow the "open" layer of the field, in which intact
   barriers block (`Siege.open_way`, `open_next_step`).
 - **A road that ends short of the village:** the enemy starts its siege (or lurks) from there,
@@ -191,7 +191,7 @@ is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
 - **While any enemy is inside** (`Siege.breached(village)`), villagers walking in there are
   exposed; at home they stay safe. A breach is therefore a real escalation, not just a
   cosmetic one. A faded ghost inside doesn't count, a solid one does
-  (docs/enemies-design.md §15f): what can't be seen can't be run from.
+  (docs/enemies-design.md §10.13): what can't be seen can't be run from.
 - **Remaining distance** (`Enemy.remaining()`, what archers use to find the enemy closest to
   the gate): for a sieging enemy, whole tiles to the village's walls.
 - **Spatial magic** throws a sieging enemy back up the field, away from the huts.
@@ -202,7 +202,7 @@ is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
 
 Per kind, `"entry"` and `"siege"` in `Config.ENEMIES` decide: walking melee kinds break in;
 the witch casts at barriers; necromancer, siren, spider mother and snake lurk until a breach,
-then go in (docs/enemies-design.md §7a); gargoyles fly over; rats and thieves slip; leviathan
+then go in (docs/enemies-design.md §9); gargoyles fly over; rats and thieves slip; leviathan
 and octopus stay in the water. Raised enemies keep their kind's values.
 
 ### 5.5 Other buildings

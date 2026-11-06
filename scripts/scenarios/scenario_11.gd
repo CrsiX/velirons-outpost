@@ -93,7 +93,7 @@ const CARAVAN := {"food": 70, "materials": 30}
 ## Rhodri and Lothar: HP scales; the court that comes out with them.
 const RHODRI_HP := 1.0
 ## Rhodri rides out, and fights on on foot once his horse falls
-## (docs/enemies-design.md §15e): its HP.
+## (docs/enemies-design.md §10.12): its HP.
 const RHODRI_HORSE_HP := 350.0
 const LOTHAR_HP := 0.8
 const COURT := {"legion_guard": 3, "legion_banner": 1}

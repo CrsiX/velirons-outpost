@@ -248,7 +248,7 @@ func _single() -> void:
 	builder.job.state = BuildJob.State.RESTING
 	builder.set_grid_pos(Vector2(barracks.work_tile()))
 	builder._set_home(false)
-	# A wrathwood out wandering, hurt, after the forester (docs/enemies-design.md §15c).
+	# A wrathwood out wandering, hurt, after the forester (docs/enemies-design.md §10.10).
 	var lt_tile := Vector2i(-1, -1)
 	for t: Vector2i in game.map.props:
 		if w.is_tree(t) and not trees.has(t) and Vector2(t).distance_to(Vector2(c)) < 16.0:

@@ -13,7 +13,7 @@ extends EnemyBehavior
 ## Priest's aura (it or the corpse) the spell takes necro_slow x as long.
 ## At walls it can't break it lurks (Enemy.lurker) and goes for corpses within
 ## the leash; it never raises one inside the walls of a village without a
-## breach (docs/enemies-design.md §7a).
+## breach (docs/enemies-design.md §9).
 
 var corpse: Corpse = null
 var _channel := 0.0

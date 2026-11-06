@@ -963,7 +963,7 @@ const SIEGE := {
 	"slip_time": 4.0,  # s an intact gate holds a rat or thief ("entry": "slip")
 	"slow_cost": 20,  # field cost of a step on shallow water or swamp (ground: 10)
 }
-## Lurkers (docs/enemies-design.md §7a): kinds on foot that can't break
+## Lurkers (docs/enemies-design.md §9): kinds on foot that can't break
 ## anything ("siege" 0: necromancer, siren, spider mother, snake). At a
 ## village with no breach they roam outside its walls, never further from
 ## them than SIEGE.approach + leash tiles, a stretch of `stretch` tiles at a
@@ -1230,7 +1230,7 @@ const EXPLORER_BLOCKED_RADIUS := 4.0
 ## "high_priest"), "range" on a melee unit (its reach, else UNIT_MELEE_RANGE),
 ## "hits_flyers" (a melee unit that can go for flyers), "vs_mounted" (its
 ## damage factor against a mount, never the rider: docs/enemies-design.md
-## §15e) and "breaks_charge" (a charge on it gives no bonus; its blow halts a
+## §10.12) and "breaks_charge" (a charge on it gives no bonus; its blow halts a
 ## mount for MOUNTED halt_time s and spends its charge), the war cry (see
 ## "warrior") and rage and lifesteal (see "berserker").
 const MAX_UNIT_LEVEL := 10
@@ -1469,7 +1469,7 @@ const DAMAGE_INFO := {
 	"poison": {"name": "Poison", "art": "unit_spider_mother", "text": "A dose that hurts again and again, a little less each time, until it wears off. No building takes it; the undead and the unnatural have no blood to poison."},
 	"pure": {"name": "Pure", "art": "unit_necromancer", "text": "Nothing makes it stronger or weaker: a raised enemy draining away, a fire elemental burning itself up."},
 }
-## A poison dose (docs/enemies-design.md §4a; Poison): the first tick is the
+## A poison dose (docs/enemies-design.md §4; Poison): the first tick is the
 ## blow's damage, at once; every `interval` s the next, `decay` x the one
 ## before, until a tick would be below `cutoff` HP. The poisoner's own
 ## "poison" entry overrides any of these. A new dose replaces the running one
@@ -1767,9 +1767,9 @@ const CAMERA_KEY_ZOOM := 1.12
 ## difficulty (the villager living there, if any, dies with it). Except
 ## rats (they eat food), thieves (they steal gold), vampire bats (they turn
 ## back at the gate), kinds with a raid (maul), and kinds with a raid_chance roll for it.
-## A held wall loses no hut to ground enemies (docs/enemies-design.md §7a):
+## A held wall loses no hut to ground enemies (docs/enemies-design.md §9):
 ## only through a breach does anything on foot get in to burn one.
-## Enemy families (docs/enemies-design.md §4b): a description of what may come,
+## Enemy families (docs/enemies-design.md §5): a description of what may come,
 ## for the library and scenario texts. Nothing in the simulation reads them.
 const ENEMY_FAMILIES := {
 	"horde": {"name": "The Horde", "text": "Thinking monsters in warbands: numbers, wolves to ride, raids on the huts."},
@@ -1964,7 +1964,7 @@ const ENEMIES := {
 		"drain": 0.67,
 		"bat_below": 0.33, "bat_time": 10.0, "bat_speed": 1.8, "bat_gate_heal": 0.33,
 	},
-	# --- spiders (Wilderness; docs/enemies-design.md §15b) ---
+	# --- spiders (Wilderness; docs/enemies-design.md §10.9) ---
 	# A huge, slow spider that fights like an orc and lays eggs (`lays`, a kind
 	# of its own): a clutch of clutch[0]..clutch[1] eggs around her
 	# (lay_spread tiles) as she walks, without stopping: the first once she is
@@ -2030,7 +2030,7 @@ const ENEMIES := {
 		"resist": {"holy": 0.75},
 		"hp_bar_y": -20.0,
 	},
-	# --- the wrathwood (Wilderness; docs/enemies-design.md §15c) ---
+	# --- the wrathwood (Wilderness; docs/enemies-design.md §10.10) ---
 	# Never in a wave: a tree a forester starts on may wake up as one
 	# (WRATHWOOD). It walks over forest too (Pathing.wood_path), never takes
 	# a road or breaks into a village (entry "none"). After its forester
@@ -2063,7 +2063,7 @@ const ENEMIES := {
 		"wander_time": 20.0, "wander_radius": 3.0, "territory": 4.0, "leash": 6.0,
 		"grip_every": 8.0, "grip_radius": 1.6, "grip_cast": 0.6, "grip_time": 2.0,
 	},
-	# Carrion birds (Wilderness, animals; docs/enemies-design.md §15d): in packs
+	# Carrion birds (Wilderness, animals; docs/enemies-design.md §10.11): in packs
 	# for the corpses left lying (VULTURES: how many, eating, leaving). It flies
 	# its own way (`own_way`: no road; Pathing.sky_path) and lands to eat
 	# (`landed_art` while on the ground: melee can hit it then). It fights only
@@ -2212,7 +2212,7 @@ const ENEMIES := {
 		"resist": {"fire": 0.5},
 		"habitat": "water", "hp_bar_y": -30.0,
 	},
-	# A snake (docs/enemies-design.md §15g): about a big slime's strength, but
+	# A snake (docs/enemies-design.md §10.14): about a big slime's strength, but
 	# only poison (its own dose: "poison"), so it can't break anything (siege 0):
 	# at a village with no breach it lurks outside the walls (LURK), out of the
 	# towers' reach ("lurk_shy"), and goes for anyone of ours outside within
@@ -2230,7 +2230,7 @@ const ENEMIES := {
 		"hunt_radius": 6.0, "slither": 6, "slither_step": 0.12, "hp_bar_y": -36.0,
 		"first": "A snake! It can't break the walls; it lurks outside them and poisons whoever works out there.",
 	},
-	# --- wolves and riders (docs/enemies-design.md §15e; MOUNTED) ---
+	# --- wolves and riders (docs/enemies-design.md §10.12; MOUNTED) ---
 	# An animal (holy x1) that hunts in packs of pack[0]..pack[1] (Waves
 	# groups a wave's wolves, from one spawn, pack_gap s apart). It breaks
 	# gates weakly. Through ("raid": "maul") it kills the villager of the hut
@@ -2406,7 +2406,7 @@ const ENEMIES := {
 		"hp_bar_y": -62.0,
 	},
 }
-## Mounted enemies (docs/enemies-design.md §15e; Enemy.mount, MountedBehavior):
+## Mounted enemies (docs/enemies-design.md §10.12; Enemy.mount, MountedBehavior):
 ##   approach ......... tiles from its village's walls at which a rider stops
 ##                      following the road and starts circling the village
 ##   ring ............. tiles outside the walls it circles at
@@ -2428,7 +2428,7 @@ const MOUNTED := {
 	"charge_distance": 3.0, "charge_x": 2.0, "halt_time": 0.5,
 	"mounts": {"horse": {"hp": 60.0, "speed": 1.5}},
 }
-## When a tree wakes up as a wrathwood (docs/enemies-design.md §15c;
+## When a tree wakes up as a wrathwood (docs/enemies-design.md §10.10;
 ## Wrathwoods). Rolled once per tree, at a forester's first blow on it:
 ##   chance ........ by tree kind (a prop in TREE_CHOP_TIME); missing or 0: never
 ##   remember ...... added for every tree that village's foresters felled so far
@@ -2446,7 +2446,7 @@ const WRATHWOOD := {
 	"quiet_waves": 3,
 }
 
-## Vulture packs (docs/enemies-design.md §15d; Waves._vulture_packs,
+## Vulture packs (docs/enemies-design.md §10.11; Waves._vulture_packs,
 ## VulturePack, VultureBehavior). At a wave's start, after its mix:
 ##   from_wave ...... none before this wave (a scenario may set its own:
 ##                    Scenario.vultures_from_wave)
@@ -2477,7 +2477,7 @@ const VULTURES := {
 	"chase": 6.0, "flee_time": 8.0, "flee_margin": 1.0,
 }
 
-## Ghosts (docs/enemies-design.md §15f; GhostBehavior, Pathing.ghost_path). At its
+## Ghosts (docs/enemies-design.md §10.13; GhostBehavior, Pathing.ghost_path). At its
 ## spawn a ghost picks one living villager of its village and hunts it:
 ##   road_share ..... it follows its road until it has covered this share of it,
 ##                    then flies (ghost_path: over everything but mountains, lava

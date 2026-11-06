@@ -130,7 +130,7 @@ var game_log: GameLog
 var stats: Stats
 ## Enemies breaking into villages (docs/siege-design.md).
 var siege: Siege
-## Trees waking up as wrathwoods (docs/enemies-design.md §15c).
+## Trees waking up as wrathwoods (docs/enemies-design.md §10.10).
 var wrathwoods: Wrathwoods
 
 
@@ -888,7 +888,7 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 	_check_defeat()
 
 
-## A wolf got in ("raid": "maul"; docs/enemies-design.md §15e): it kills the
+## A wolf got in ("raid": "maul"; docs/enemies-design.md §10.12): it kills the
 ## villager living in the hut it got to (or in the lived-in intact hut
 ## nearest it); the hut stands. Then it is gone.
 func _maul(g: Enemy, v: Village) -> void:

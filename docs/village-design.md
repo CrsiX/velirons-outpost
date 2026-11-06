@@ -221,17 +221,28 @@ three are `Resident`s who stay home), the **miner** is locked until anyone walks
   delivers it at home (`Forester._deliver`).
 - **Explorer** (`ExploreJob`, shared with the hero's Explore mode; tunables `Config.EXPLORE`):
   - **Where to go** (`ExploreJob._best_within`): every walkable tile within reach scores the fog it
-    would uncover from there per step walked, with a bonus for keeping the heading
+    would uncover from there per tile walked, with a bonus for keeping the heading
     (`momentum`) and a penalty near another scout's target. A tile whose whole view is fog
     scores highest, so targets lie about a sight radius into the fog and sweeps are a sight
-    width apart: no overlap, no gaps.
+    width apart: no overlap, no gaps. Walking distance counts a diagonal step as √2
+    (`Pathing.octile_within`): counted as 1, diagonal targets looked cheaper and the scout
+    walked straight 45° rays out from the village.
   - **Sticks to its target:** it picks again only on arriving, or once the target has lost most
     of the fog it was picked for (looked at every `think_every`), not as soon as the target tile
     itself is seen. This stops dithering.
-  - **Finishes the fog within reach first:** with nothing within reach it takes the nearest fog;
-    it turns back to the fog nearest the village only when its local target is much farther
-    from the village than that (`EXPLORER_WANDER_FACTOR`, `EXPLORER_WANDER_SLACK`), so it doesn't
-    leave patches behind it.
+  - **Finishes the fog within reach first, on a soft leash:** the leash is a multiple of how far
+    the village's nearest fog worth a trip lies (`EXPLORER_WANDER_FACTOR`, `EXPLORER_WANDER_SLACK`;
+    "worth a trip": enough of the view still fog, `home_min_share`, so a few stray fog tiles
+    by the village don't pin it short). Fog past the leash scores less the farther past it lies
+    (`leash_pull`), so at the leash the scout turns sideways and back through fog: it sweeps
+    rings round the village that widen as the land nearer home gets explored. It goes
+    straight for the village's fog only with nothing within reach or when the best is far
+    past the leash (`leash_hard`). A hard leash (turn back as soon as the best fog lies past
+    it) sent it home along the ray it had walked out on, revealing nothing.
+  - **Doesn't come back the way it went:** its route (`Pathing.scout_path`) costs more over explored land
+    (`explored_cost`) and much more over its own trail this trip (`trail_cost`, tiles by where
+    it walked), so a long way back detours through fog when that isn't much longer. The trail
+    is cleared when it sets out from home and isn't saved.
   - Avoids fog another explorer is heading for (`EXPLORER_CLAIM_RADIUS`).
   - Keeps away from monster camp guards: fog by a camp waits until the camp is cleared. When it
     flees from guards on its way to some fog, it sets that fog aside while they live
@@ -249,7 +260,7 @@ three are `Resident`s who stay home), the **miner** is locked until anyone walks
 - **Miner** (docs/world-design.md): walks to the nearest free mine their village has found and
   stays inside, safe (no fleeing); one miner per mine, the first to arrive; still lives in a hut
   and dies with it. Income is `MINE_GOLD_RATE`. Safe from everything but a ghost hunting him: it
-  drives him out (`Miner.drive_out`), he runs home unassigned (docs/enemies-design.md §15f).
+  drives him out (`Miner.drive_out`), he runs home unassigned (docs/enemies-design.md §10.13).
 - **Spatial Archmage:** a level 10 spatial mage becomes one (`ARCHMAGE_COST`, needs a free hut;
   docs/military-design.md §7). Decoration for now.
 - **Code:** `Unit` → `Civilian` (evasion, HP, home); one class per role in scripts/units/; the

@@ -175,6 +175,10 @@ this order and are worded as they are:
   tile set in `Config.TUTORIAL` overrides the pick.
   - If something gets built on a spot before its step, the step marks the nearest free spot
     nearby instead, and if there's none, the original anyway.
+  - Spots are picked ignoring fog, so a step that asks the player to build on one explores its
+    tiles (`RoadSpots.reveal`): where the scouts happen to have been never decides whether the
+    marked spot can be built on. Only spots to build on: other marks (a crypt, a clue) keep
+    their fog.
   - The forester's camp has a fixed tile, west of the village in plain view, where no wall or
     tower hides it on screen.
 

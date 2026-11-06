@@ -46,7 +46,7 @@ var _queue: Array[Dictionary] = []
 var _spawn_timer := 0.0
 var _alive := 0
 var _rng := RandomNumberGenerator.new()
-## Leftovers (docs/enemies-design.md §7a): once all that is left of the wave
+## Leftovers (docs/enemies-design.md §9): once all that is left of the wave
 ## can't get in (rats, lurkers that have lurked LURK min_time), they get
 ## LURK linger seconds; then `leftovers_leave` is set: rats vanish
 ## (RatBehavior), lurkers give up and walk away (Enemy.give_up).
@@ -173,7 +173,7 @@ func _start_wave() -> void:
 	changed.emit()
 
 
-## Vulture packs for wave `n` (docs/enemies-design.md §15d), on top of the
+## Vulture packs for wave `n` (docs/enemies-design.md §10.11), on top of the
 ## wave's mix: per village, one pack per VULTURES per_corpses edible corpses
 ## lying nearest it (at most max_packs), each pack with a target corpse of
 ## its own (while there are enough) and coming from the map's edge nearest it
@@ -354,7 +354,7 @@ func _pick_share(used: Array) -> Array:
 
 
 ## Kinds that come in packs (ENEMIES "pack": the wolf, docs/enemies-design.md
-## §15e): a share's ones (not a lair's) are taken out of `out` and put back
+## §10.12): a share's ones (not a lair's) are taken out of `out` and put back
 ## as packs of pack[0]..pack[1] (a lone one gets a second), each from the
 ## spawn point of one of them.
 func _pack_up(out: Array, hp_scale: float, target: Village) -> void:
@@ -873,7 +873,7 @@ func _pay_kill(g: Enemy, v: Village, gold: int, what: String) -> void:
 
 
 ## `g`'s mount (`animal`) was slain (Enemy.dismount; docs/enemies-design.md
-## §15e): a kill of `g`'s kind, its kill gold (a raised one's: none), and the
+## §10.12): a kill of `g`'s kind, its kill gold (a raised one's: none), and the
 ## animal's corpse where it fell.
 func mount_fell(g: Enemy, animal: String) -> void:
 	game.stats.on_kill(g)

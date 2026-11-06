@@ -1,6 +1,6 @@
 class_name WrathwoodBehavior
 extends EnemyBehavior
-## A wrathwood (Config.ENEMIES["wrathwood"], docs/enemies-design.md §15c),
+## A wrathwood (Config.ENEMIES["wrathwood"], docs/enemies-design.md §10.10),
 ## woken by Wrathwoods out of a tree a forester started on. It walks its own
 ## way over ground and forest (Pathing.wood_path), never a road:
 ## WAKING (still its tree, shuddering) -> CHASE (the forester, until he is

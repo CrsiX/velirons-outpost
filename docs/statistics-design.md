@@ -57,7 +57,9 @@ why:
 - Kills, by kind and by whom (towers, barracks units, summons, the hero), so
   the player sees what the defence really rests on.
 - Enemies that got in, huts burned, waves survived, the biggest and the
-  fastest wave: the pressure the village was under.
+  fastest wave: the pressure the village was under. Waves survived is the
+  number of the last wave that ended with the village standing (not a count
+  of wave ends), so it matches the defeat screen's "held out for".
 - Units recruited, levels bought, specialised, trained, times downed: how
   the army was built and what it cost.
 

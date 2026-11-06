@@ -1478,7 +1478,7 @@ func _crown() -> void:
 	await _frames(3)
 
 
-# --- the spider mother (docs/enemies-design.md §15b) ----------------------------------------
+# --- the spider mother (docs/enemies-design.md §10.9) ----------------------------------------
 
 func _spiders() -> void:
 	var g: Game = load("res://scenes/main.tscn").instantiate()
@@ -1599,7 +1599,7 @@ func _spiders() -> void:
 	await _frames(3)
 
 
-# --- snakes, poison, lurking (docs/enemies-design.md §4a, §7a, §15g) -----------------------
+# --- snakes, poison, lurking (docs/enemies-design.md §4, §9, §10.14) -----------------------
 
 ## A snake slithering and coiled, poison bubbles on a villager, the siege=0
 ## kinds lurking outside held walls, a snake in through a breach, and the
@@ -1913,7 +1913,7 @@ func _undead_spiders() -> void:
 	await _frames(3)
 
 
-# --- the wrathwood (docs/enemies-design.md §15c) --------------------------------------------
+# --- the wrathwood (docs/enemies-design.md §10.10) --------------------------------------------
 
 func _wrathwood() -> void:
 	var g: Game = load("res://scenes/main.tscn").instantiate()
@@ -1991,7 +1991,7 @@ func _wrathwood() -> void:
 	await _frames(3)
 
 
-## Vultures (docs/enemies-design.md §15d): a pack flying in to the corpses by
+## Vultures (docs/enemies-design.md §10.11): a pack flying in to the corpses by
 ## the road, landing and eating, one grown on its meals beside a hungry one,
 ## then searching once the corpses are gone. Prints what it sees.
 func _vultures() -> void:
@@ -2065,7 +2065,7 @@ func _vultures() -> void:
 	await _frames(3)
 
 
-## Wolves and riders (docs/enemies-design.md §15e). Prints what it sees.
+## Wolves and riders (docs/enemies-design.md §10.12). Prints what it sees.
 func _riders() -> void:
 	var g: Game = load("res://scenes/main.tscn").instantiate()
 	g.map_seed = 4242
@@ -2247,7 +2247,7 @@ func _riders() -> void:
 	await _frames(3)
 
 
-## A ghost (docs/enemies-design.md §15f). Prints what it sees.
+## A ghost (docs/enemies-design.md §10.13). Prints what it sees.
 func _ghosts() -> void:
 	var g: Game = load("res://scenes/main.tscn").instantiate()
 	g.map_seed = 4242

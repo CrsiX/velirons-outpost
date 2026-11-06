@@ -1,6 +1,6 @@
 class_name Poison
 extends Node2D
-## A poison dose on a unit (docs/enemies-design.md §4a; numbers: Config.POISON,
+## A poison dose on a unit (docs/enemies-design.md §4; numbers: Config.POISON,
 ## overridden by the poisoner's own "poison" entry): a tick at once, then one
 ## every `interval` s, each `decay` x the one before, until a tick would be
 ## below `cutoff`. Every tick is a poison hit on the unit it sits on (its

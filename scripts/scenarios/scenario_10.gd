@@ -108,7 +108,7 @@ const CARAVAN := {"gold": 80, "food": 60, "materials": 100}
 const MAGES: Array[Dictionary] = [{"kind": "fire_mage", "level": 5}, {"kind": "ice_mage", "level": 5}, {"kind": "healing_mage", "level": 5}]
 ## Halvard's HP scale, and the soldiers marching with him.
 const HALVARD_HP := 1.0
-## Torben, Lysa and Halvard ride (docs/enemies-design.md §15e): their horses' HP.
+## Torben, Lysa and Halvard ride (docs/enemies-design.md §10.12): their horses' HP.
 const CAPTAIN_HORSE_HP := 70.0
 const HALVARD_HORSE_HP := 250.0
 const HALVARD_GUARD := {"legion_guard": 2, "legion_banner": 1}

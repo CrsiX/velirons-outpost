@@ -2,7 +2,7 @@
 
 Part of the scenario design; index in scenarios-design.md. Numbers, waves, texts and tile coordinates live in `scripts/scenarios/scenario_10.gd` and `scenario_11.gd`. Cutscene dialogue is not copied here.
 
-Both scenarios are the Dread Legion's: Rhodri's bound soldiers (`story-design.md`) come in force, every other monster category joins them, and the hero cannot be revived. Riders: `enemies-design.md` §15e has the rules. The campaign reason for the cavalry is only that the Legion is an army with horse; each scenario shows a hint that halberdiers are the answer.
+Both scenarios are the Dread Legion's: Rhodri's bound soldiers (`story-design.md`) come in force, every other monster category joins them, and the hero cannot be revived. Riders: `enemies-design.md` §10.12 has the rules. The campaign reason for the cavalry is only that the Legion is an army with horse; each scenario shows a hint that halberdiers are the answer.
 
 ## Scenario 10: The Last Wardline
 

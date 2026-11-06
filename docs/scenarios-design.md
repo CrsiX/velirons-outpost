@@ -15,7 +15,7 @@ open. The story it tells is in `story-design.md` (read that first: names, places
 | Scenarios 7 to 9 (The Exile, The Pale Court, The Drowned Abbey) | `scenarios-7-9-design.md` |
 | Scenarios 10 and 11 (The Last Wardline, The Crown) | `scenarios-10-11-design.md` |
 | The scenario system, cutscenes, and why the engine needed what it got | `scenario-system-design.md` |
-| Riders (mounts, cavalry, captains on horses) | `enemies-design.md` §15e |
+| Riders (mounts, cavalry, captains on horses) | `enemies-design.md` §10.12 |
 | Story, characters, monster categories, trade | `story-design.md` |
 | The standalone tutorial | `tutorial-design.md` |
 
@@ -28,7 +28,7 @@ open. The story it tells is in `story-design.md` (read that first: names, places
 | §3.7 to §3.9, §7.10 (grove, graveyard, residents), §7.12 to §7.15, §9a | `scenarios-7-9-design.md` |
 | §3.10, §3.11, §7.16 (caravans, commanders), §7.17, §7.18 | `scenarios-10-11-design.md` |
 | §6, §7.1, §7.2, and a bare "§7" about the system | `scenario-system-design.md` |
-| §7.19 | `enemies-design.md` §15e |
+| §7.19 | `enemies-design.md` §10.12 |
 
 ## 1. Structure
 

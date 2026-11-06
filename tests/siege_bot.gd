@@ -591,7 +591,7 @@ func _test_defense() -> void:
 
 
 ## A necromancer can't hurt the walls: it lurks outside them (never through
-## a held wall), and goes in once a wall is broken (docs/enemies-design.md §7a).
+## a held wall), and goes in once a wall is broken (docs/enemies-design.md §9).
 func _test_no_siege() -> void:
 	var v := game.player_village
 	var g := gate()

@@ -108,7 +108,7 @@ tests/military_bot.gd checks both rules for every specialisation (`_spec_rule_br
 
 Damage categories (`ATTACKS` "category"): arrows and bolts are *projectile*, orbs, frost and warp
 are *magical*, fireballs (and their splash) and fire elementals' blows are *fire* (a category of
-its own: docs/enemies-design.md §4), the acolyte line is *holy*, the shield bearer's line strikes
+its own: docs/enemies-design.md §3), the acolyte line is *holy*, the shield bearer's line strikes
 *melee*. The library's Damage tab is built from this data.
 
 **Own range.** Used out in the field (barracks sorties). It never grows with upgrades and is
@@ -195,7 +195,7 @@ branch price. Their level 1 is above the shield bearer's level 3 (the rule in §
 - Goes for gargoyles and vampire bats like any other enemy, with no bonus; barracks with a
   halberdier turn out for flyers. It is the melee answer to flyers.
 - Reach longer than the usual melee reach (`range`).
-- Against mounted enemies (docs/enemies-design.md §15e) its blows do extra to the mount, never to
+- Against mounted enemies (docs/enemies-design.md §10.12) its blows do extra to the mount, never to
   the rider once on foot (`Combat.hit`). It breaks charges (`breaks_charge`): a rider's charge on
   it gives no bonus, and each of its blows on a mounted enemy halts the mount briefly
   (`MOUNTED.halt_time`) and spends its charge. Spear against cavalry.
@@ -357,5 +357,5 @@ art is in docs/acolyte-design.md.
 | D19 | Shield bearer branches | Warrior, Berserker, Halberdier; like every branch, barracks only (§3a) |
 | D20 | War cry | Attack speed (every interval, also casting, summoning, healing) up for a short time, repeated on a sortie, short radius, also tower units; strict refresh, no stacking |
 | D21 | Berserker | Rage and lifesteal below half HP; the high ceiling is wanted |
-| D22 | Halberdier | Reaches flyers, no bonus there; longer reach; extra to mounts and breaks charges (the riders, docs/enemies-design.md §15e) |
+| D22 | Halberdier | Reaches flyers, no bonus there; longer reach; extra to mounts and breaks charges (the riders, docs/enemies-design.md §10.12) |
 | D23 | DPS of the damage dealers | Berserker (at full HP) and halberdier match the archer's top-level DPS |

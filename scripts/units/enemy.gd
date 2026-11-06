@@ -108,7 +108,7 @@ var _shadow: Polygon2D
 var color := ""
 var _sack: Sprite2D
 var dive := Dive.UP
-## A ghost out of sight (docs/enemies-design.md §15f): untargetable, harmless,
+## A ghost out of sight (docs/enemies-design.md §10.13): untargetable, harmless,
 ## and no villager runs from it. GhostBehavior sets it.
 var faded := false
 var _fade_tween: Tween
@@ -128,7 +128,7 @@ var breach: Building = null
 var _siege_cd := 0.0
 var _siege_scan := 0.0
 ## A lurker (lurker()) roaming outside walls it can't break (Config.LURK,
-## docs/enemies-design.md §7a), and the seconds it has lurked in all.
+## docs/enemies-design.md §9), and the seconds it has lurked in all.
 var lurking := false
 ## The last barrier it broke while breaking in (its label; for the log).
 var _broke_through := ""
@@ -166,7 +166,7 @@ var hurt_at := -INF
 var _haste := 1.0
 var _guard := 1.0
 var _haste_at := -INF
-## Riding (docs/enemies-design.md §15e): the animal it rides ("wolf",
+## Riding (docs/enemies-design.md §10.12): the animal it rides ("wolf",
 ## "horse": an ENEMIES kind; "" on foot) and the mount's HP. While the mount
 ## lives every hit lands on it (take_damage), none on the rider.
 var mount := ""
@@ -647,7 +647,7 @@ func art_base() -> String:
 	return base + "_mounted" if mount != "" and not spec().has("mount") else base
 
 
-# --- riding (docs/enemies-design.md §15e) ---------------------------------------------------
+# --- riding (docs/enemies-design.md §10.12) ---------------------------------------------------
 
 ## On a mount: `animal` (an ENEMIES kind) with `base_hp` HP, scaled like its
 ## own HP (wave, difficulty). A kind that doesn't ride by itself (a captain
@@ -1138,7 +1138,7 @@ func _process(delta: float) -> void:
 		if behavior.on_path_end(self):
 			return  # (a thief turning back, or escaping)
 		if entry() == "siege":
-			# A held wall loses no hut (docs/enemies-design.md §7a): from the end
+			# A held wall loses no hut (docs/enemies-design.md §9): from the end
 			# of its road it breaks in, lurks, or (it can't) gives up.
 			if not _start_siege_at_end():
 				_log_unbroken_entry()
@@ -1373,7 +1373,7 @@ func _at_barrier(v: Village) -> void:
 		_siege_cd = cd
 
 
-# --- lurking (docs/enemies-design.md §7a) ---------------------------------------------------
+# --- lurking (docs/enemies-design.md §9) ---------------------------------------------------
 
 ## Can't break anything and goes on foot: a lurker (Config.LURK).
 func lurker() -> bool:

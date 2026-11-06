@@ -61,13 +61,13 @@ be in a save. This is the whole point: no enemy AI state ever needs to be
 stored. What may still be there, and is saved:
 
 - monster-camp and lair guards (their lost HP doesn't heal, so it is kept);
-- wrathwoods (docs/enemies-design.md §15c: never part of a wave);
+- wrathwoods (docs/enemies-design.md §10.10: never part of a wave);
 - corpses (with their age);
 - every unit of the players wherever it is and whatever it does: villagers,
   marching or travelling units, units out of barracks against camp guards,
   earth elementals, caravans, the hero (also downed, also carrying loot);
 - a poison dose still running on the hero, a villager or an elemental after its
-  poisoner died (docs/enemies-design.md §4a): it outlasts the wave, so it is
+  poisoner died (docs/enemies-design.md §4): it outlasts the wave, so it is
   kept (a soldier's ends when it takes its post again).
 
 Debug-spawned enemies aren't saved.

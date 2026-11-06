@@ -1,6 +1,6 @@
 class_name VulturePack
 extends RefCounted
-## A pack of vultures (docs/enemies-design.md §15d; Config.VULTURES): the
+## A pack of vultures (docs/enemies-design.md §10.11; Config.VULTURES): the
 ## corpse it is after and what it does together. SEEK: its birds fly to its
 ## target and eat it; gone, the pack takes the edible corpse nearest to it.
 ## None left: SEARCH for search_time s, then LEAVE for the map edge nearest

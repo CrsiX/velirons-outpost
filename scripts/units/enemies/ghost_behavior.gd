@@ -1,6 +1,6 @@
 class_name GhostBehavior
 extends EnemyBehavior
-## A ghost (docs/enemies-design.md §15f; Config.GHOST): it picks one living
+## A ghost (docs/enemies-design.md §10.13; Config.GHOST): it picks one living
 ## villager of its village and hunts them, not the village. It follows its
 ## road for road_share of it, then flies (Pathing.ghost_path) to where its
 ## target is. Faded (untargetable, harmless, unseen by villagers) unless

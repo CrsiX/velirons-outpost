@@ -11,7 +11,7 @@ extends Node
 ## to it stand. Flyers have a field of their own in which nothing blocks, and
 ## a third ("open") counts every intact barrier as a wall nobody passes: what
 ## can't break anything goes in only where that one leads (lurkers,
-## docs/enemies-design.md §7a).
+## docs/enemies-design.md §9).
 ## Also tracks which villages have an enemy inside their walls (breached),
 ## and counts the damage done to buildings.
 

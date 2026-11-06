@@ -45,7 +45,7 @@ next to it; ranged units use their range. Submerged mobs are never targets.
 
 ### 2.1b Fire
 
-Water monsters resist *fire* (`resist` "fire", docs/enemies-design.md §4): it is the sea's own
+Water monsters resist *fire* (`resist` "fire", docs/enemies-design.md §3): it is the sea's own
 element against the player's explosive answer, so fire mages are a weaker counter here.
 
 ### 2.2 Corpses *(decided)*
@@ -130,7 +130,7 @@ when it reaches her, resists magic and fire.
   keep her out of the towers' reach and the wave going for good. At a gate she raids a hut like
   any other mob *(decided)*. She can't break walls (`siege` 0), so at intact walls
   she lurks, singing at whoever is in reach, and goes in only through a breach, or leaves
-  (docs/enemies-design.md §7a).
+  (docs/enemies-design.md §9).
 - **Diving.** Submerged while travelling in deep water; surfaces when one of ours is within her
   song; dives briefly when she loses a share of her HP quickly.
 - Ranged units are slowed by the song but can kill her: she is frail.

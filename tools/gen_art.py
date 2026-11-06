@@ -6161,7 +6161,7 @@ def rat():
     a.save("unit_rat")
 
 
-# ---------------------------------------------------------------- spiders (docs/enemies-design.md §15b)
+# ---------------------------------------------------------------- spiders (docs/enemies-design.md §10.9)
 
 def _spider_leg(a, hip, knee, foot, color, sw):
     a.line([hip, knee, foot], INK, sw + 1.6)
@@ -9043,7 +9043,7 @@ def write_manifest():
         f.write("\n".join(lines) + "\n")
 
 
-# ---------------------------------------------------------------- wolves and riders (docs/enemies-design.md §15e)
+# ---------------------------------------------------------------- wolves and riders (docs/enemies-design.md §10.12)
 
 WOLF_FUR, WOLF_FUR_D, WOLF_FUR_L = "#5e5954", "#45413d", "#7a756e"
 
@@ -9097,7 +9097,7 @@ def corpse_wolf():
     a.save("corpse_wolf")
 
 
-# ---------------------------------------------------------------- snake (docs/enemies-design.md §15g)
+# ---------------------------------------------------------------- snake (docs/enemies-design.md §10.14)
 
 SNAKE, SNAKE_D, SNAKE_L, SNAKE_BELLY, SNAKE_MARK = "#6f7d3c", "#4a5527", "#8e9c55", "#cfc58e", "#33391b"
 SNAKE_FRAMES = 6  # the slither cycle (Config.ENEMIES.snake "slither")

@@ -771,7 +771,7 @@ func _test_slimes() -> void:
 
 
 
-# --- spiders (docs/enemies-design.md §15b) -----------------------------------------------------------
+# --- spiders (docs/enemies-design.md §10.9) -----------------------------------------------------------
 
 func _of_kind(kind: String) -> Array[Enemy]:
 	var out: Array[Enemy] = []
@@ -994,7 +994,7 @@ func _test_spiders() -> void:
 	check("Lays 4-6 eggs" in facts and "from wave 9" in facts, "her entry tells of the eggs and her wave")
 
 
-# --- the wrathwood (docs/enemies-design.md §15c) ---------------------------------------------------
+# --- the wrathwood (docs/enemies-design.md §10.10) ---------------------------------------------------
 
 ## Trees near `f`'s camp that can wake (a chance above 0), nobody has chopped
 ## yet and he can stand next to, nearest first.
@@ -1198,7 +1198,7 @@ func _test_wrathwood() -> void:
 	game.waves.wave = wave0
 
 
-# --- vultures (docs/enemies-design.md §15d) ---------------------------------------------------
+# --- vultures (docs/enemies-design.md §10.11) ---------------------------------------------------
 
 func _test_vultures() -> void:
 	await clear_enemies()
@@ -1323,7 +1323,7 @@ func _test_vultures() -> void:
 	await clear_corpses()
 
 
-# --- wolves and riders (docs/enemies-design.md §15e) ------------------------------------------------
+# --- wolves and riders (docs/enemies-design.md §10.12) ------------------------------------------------
 
 ## Every gate, wall and wall tower of `v` whole again.
 func _mend_walls(v: Village) -> void:
@@ -1578,7 +1578,7 @@ func _test_riders() -> void:
 	await clear_corpses()
 
 
-# --- ghosts (docs/enemies-design.md §15f) --------------------------------------------------------
+# --- ghosts (docs/enemies-design.md §10.13) --------------------------------------------------------
 
 ## A ghost spawned the way a wave does. `target`: the villager it hunts (it flies
 ## straight at them); none: it roams. `still`: it doesn't move.
@@ -1846,7 +1846,7 @@ func _test_ghosts() -> void:
 	await frames(3)
 
 
-# --- poison (docs/enemies-design.md §4a) ----------------------------------------------------
+# --- poison (docs/enemies-design.md §4) ----------------------------------------------------
 
 func _test_poison() -> void:
 	print("-- poison")
@@ -1921,7 +1921,7 @@ static func _n(x) -> String:
 	return Library._n(float(x))
 
 
-# --- snake (docs/enemies-design.md §15g) ----------------------------------------------------
+# --- snake (docs/enemies-design.md §10.14) ----------------------------------------------------
 
 func _test_snake() -> void:
 	print("-- snake")

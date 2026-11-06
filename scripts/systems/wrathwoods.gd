@@ -1,6 +1,6 @@
 class_name Wrathwoods
 extends Node
-## Trees that wake up as wrathwoods (docs/enemies-design.md §15c;
+## Trees that wake up as wrathwoods (docs/enemies-design.md §10.10;
 ## Config.WRATHWOOD): the roll at a forester's first blow on a tree, "the
 ## forest remembers" (each village's felled trees), waking one, its kill (gold,
 ## a log of living wood), and what a save keeps of them. The fight itself is

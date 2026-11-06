@@ -419,7 +419,7 @@ static func _max_count_text(kind: String) -> String:
 	return t
 
 
-## A rider's, a wolf's and the undead horse's lines (docs/enemies-design.md §15e).
+## A rider's, a wolf's and the undead horse's lines (docs/enemies-design.md §10.12).
 static func _mounted_facts(kind: String) -> PackedStringArray:
 	var e: Dictionary = Config.ENEMIES[kind]
 	var m := Config.MOUNTED

@@ -1,6 +1,6 @@
 class_name MountedBehavior
 extends MeleeBehavior
-## A rider while its mount lives (Enemy.mount; docs/enemies-design.md §15e;
+## A rider while its mount lives (Enemy.mount; docs/enemies-design.md §10.12;
 ## numbers: Config.MOUNTED):
 ##   ROAD   - runs its road to the village (the Enemy walks it);
 ##   CIRCLE - within `approach` tiles of its village's walls it rides round the

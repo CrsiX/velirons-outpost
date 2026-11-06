@@ -9,7 +9,7 @@ categories, flyers, corpses and raids. **Every number lives in `scripts/core/con
 (`ENEMIES`, `WAVE_MIX`, `RAT_PACKS`, `WRATHWOOD`, `VULTURES`, `GHOST`, `MOUNTED`, ...); this doc keeps
 the reasoning and points at the symbols.
 
-## 2. Wave flow
+## 1. Wave flow
 
 - **Timing:** a generous delay before wave 1 (`FIRST_WAVE_DELAY`) so the player can set up; later
   waves start a buffer (`WAVE_BUFFER`) after the last enemy of the previous one is gone (killed,
@@ -46,7 +46,7 @@ the reasoning and points at the symbols.
   are attacked at once. A fallen village's enemies turn to the nearest standing one
   (`Enemy.retarget`).
 - **Leftovers:** once only enemies that can't get in are left (rats, and lurkers that have
-  lurked a while, §7a; and only such are still to come), they leave after `LURK.linger`
+  lurked a while, §9; and only such are still to come), they leave after `LURK.linger`
   (`Waves._check_leftovers`, `leftovers_leave`): otherwise a rat idling on an empty farm or a
   necromancer at a held wall would stall the wave.
 - **Warning lights** (Easy and Normal only): in the first `WARNING_LIGHT_WAVES` waves a soft red
@@ -55,7 +55,7 @@ the reasoning and points at the symbols.
 - **Scripted waves** (`Waves.scripted`, the tutorial and scenarios) are used up before the
   normal rules.
 
-## 3. Difficulty
+## 2. Difficulty
 
 - `Config.DIFFICULTY_MULTIPLIERS` (per value, else its `"all"`). Hard's speed multiplier is
   deliberately milder than its others: speed and HP together decide how long an enemy stays in
@@ -68,10 +68,10 @@ the reasoning and points at the symbols.
   `bat_gate_heal`.
 - Each enemy also rolls a small spread on its speed so a group doesn't march in lockstep.
 
-## 4. Damage categories and resistances
+## 3. Damage categories and resistances
 
 - Every hit has exactly one category (`DAMAGE_CATEGORIES`): `melee`, `projectile`, `magical`,
-  `fire`, `holy`, `poison` (§4a), `pure` (a raised enemy's drain; never scaled). Enemy blows
+  `fire`, `holy`, `poison` (§4), `pure` (a raised enemy's drain; never scaled). Enemy blows
   are `melee` except a kind's `attack_category` (the witch: `magical`); every blow on one of
   ours goes through `Enemy.blow`, which makes a poisoner's blow a dose.
 - `resist` maps a category to a factor on the damage taken (`Enemy.damage_factor`); missing is ×1.
@@ -87,11 +87,11 @@ the reasoning and points at the symbols.
   count too (`Enemy.is_unholy`). Only the Inquisitor's targeting uses it.
 - Other resistances are per-kind data (vampire vs magic, the wrathwood vs projectiles, ...);
   see `ENEMIES.*.resist`. A factor of 0 means immune, and units whose only category it is
-  can't target that enemy at all (`MilitaryUnit.can_face`, `Enemy.hurt_by`; the ghost, §15f),
+  can't target that enemy at all (`MilitaryUnit.can_face`, `Enemy.hurt_by`; the ghost, §10.13),
   so towers and barracks don't waste shots or sorties on it.
 - Buildings take categories too, by their defence class (docs/siege-design.md §2b).
 
-## 4a. Poison
+## 4. Poison
 
 A category that works as damage over time (`Poison`, a node on the poisoned unit). It is the threat to *people*: it
 burns no hut and breaks no wall (docs/siege-design.md §2b), so a poisoner is answered with
@@ -106,7 +106,7 @@ soldiers and healing, not with stone.
   lives, and the hit counts for statistics like any other.
 - **Data:** the first tick is the attacker's damage (so difficulty scales it like any blow);
   decay, tick interval and cut-off are `Config.POISON`, which a poisoner's own `"poison"`
-  entry overrides, and are never scaled (rates and timings, §3). The spider mother's interval
+  entry overrides, and are never scaled (rates and timings, §2). The spider mother's interval
   is longer than her cooldown, so no tick falls between two bites: a fight with her costs
   what it did before her bite was poison, and the rest lingers after it.
 - **No stacking.** A new dose replaces the running one only if it would deal more in total
@@ -122,13 +122,13 @@ soldiers and healing, not with stone.
 - **Seen:** green bubbles rise over a poisoned unit or enemy. Co-op clients see them (the
   unit's replicated state); a running dose is saved with the hero, villagers and elementals
   (a soldier's ends when it takes its post again).
-- **Who deals it:** the spider mother (§15b) and the snake (§15g).
+- **Who deals it:** the spider mother (§10.9) and the snake (§10.14).
 
-## 4b. Enemy families
+## 5. Enemy families
 
 Every enemy kind belongs to one family. A family is a **description only**: it answers "what
 may attack me?" for the player ("lots of undead around" → expect skeletons, vampires,
-necromancers, ...). It never sets a number: resists stay per kind (§4), so a family can't
+necromancers, ...). It never sets a number: resists stay per kind (§3), so a family can't
 become a second source of truth with exceptions for the vampire or the necromancer.
 
 | Family | Kinds |
@@ -148,12 +148,12 @@ become a second source of truth with exceptions for the vampire or the necromanc
   enemies by family and names it on each enemy's page, and a scenario's text may refer to a
   family. A new kind needs a family.
 
-## 5. Flyers
+## 6. Flyers
 
 - A flyer is a kind with `"flying": true` (the gargoyle) or a vampire in bat form
   (`Enemy.airborne`); `Enemy.flies()` covers both.
 - It keeps to the roads (so the player's defence layout still matters) but no ground slows it.
-  Vultures fly their own way (§15d), and one that has landed to eat (`Enemy.landed`) is no
+  Vultures fly their own way (§10.11), and one that has landed to eat (`Enemy.landed`) is no
   flyer.
 - It is drawn bobbing with beating wings (`unit_<art>_flap`) over a shadow.
 - Only ranged attacks (towers, archers, mages, with their slows and pushes) and fire elementals
@@ -163,7 +163,7 @@ become a second source of truth with exceptions for the vampire or the necromanc
 - When a flyer hits a ground melee unit whose blow is ready, that unit strikes back
   (`counter_strike`), so melee isn't helpless, only unable to hunt.
 
-## 6. Corpses
+## 7. Corpses
 
 - Killing an enemy pays `gold_on_kill` at once to the killer's village (else the village it
   attacked), and leaves a corpse unless its kind has `"corpse": false` (rats, slimes, eggs,
@@ -174,28 +174,28 @@ become a second source of truth with exceptions for the vampire or the necromanc
   holds the gold it stole (`extra_gold`).
 - Corpses rot after `CORPSE_LIFETIME`; all corpses of wave N and older go once wave N+1 is
   finished, so loot not collected is lost. In the tutorial they don't rot.
-- Necromancers can raise corpses (§14), except one marked `"revivable": false`.
-- Corpses left lying at a wave's start draw vultures (§15d).
+- Necromancers can raise corpses (§10.7), except one marked `"revivable": false`.
+- Corpses left lying at a wave's start draw vultures (§10.11).
 
-## 7. At the village (raids)
+## 8. At the village (raids)
 
 - Walls, gates and wall towers hold enemies back (docs/siege-design.md §5). Each kind's
   `"entry"` says how it gets in:
   - `"siege"` (default): near the village it leaves its road and follows the siege field to the
     cheapest way in, hitting the barrier in its way (`damage` × `siege`; a witch casts at it).
     Kinds with `siege` 0 (necromancer, siren, spider mother, snake) can't break anything:
-    they lurk until a breach (§7a).
+    they lurk until a breach (§9).
   - `"slip"` (rats, thieves): an intact gate holds them `SIEGE.slip_time`, then they get
     through unharmed: they are sneaks, not breakers.
   - Flyers fly over walls and gates to the nearest hut.
 - Inside, an enemy walks to the nearest intact hut and burns it (huts have 1 HP), on every
   difficulty. Only the villager living there dies; empty huts cost no lives.
 - A campaign scenario's guild warehouse (scenario 4) is no target for breaking in: only thieves
-  go for it (§11).
+  go for it (§10.4).
 - Exceptions, each explained under its kind: small slimes roll `raid_chance` and else melt away
   (`"gone"`: the log's word for it; spiderlings never raid, they scuttle off); rats eat food
-  (§10); thieves steal gold and run (§11); a vampire bat heals at a gate and turns back (§15);
-  wolves maul a villager (§15e).
+  (§10.3); thieves steal gold and run (§10.4); a vampire bat heals at a gate and turns back (§10.8);
+  wolves maul a villager (§10.12).
 - Then the defeat check runs: a village falls with no villagers or no intact huts. While an
   enemy is inside a village's walls, villagers walking in there are exposed.
 - Enemies are only visible on watched tiles.
@@ -204,7 +204,7 @@ become a second source of truth with exceptions for the vampire or the necromanc
   Important with its reason and the full state at Debug (`Enemy._log_unbroken_entry`): it
   never burns a hut it didn't reach (that was the rule from before walls had HP).
 
-## 7a. A held wall, lurking and leaving
+## 9. A held wall, lurking and leaving
 
 **The rule: a held wall loses no hut to ground enemies.** As long as no wall, gate or wall
 tower is broken, no enemy on foot burns a hut. Holding the wall must be a full answer: the
@@ -212,9 +212,9 @@ kinds that can't break anything once slipped through intact walls after a wait, 
 player held could still cost a hut and a life.
 
 - **Flyers are the deliberate exception:** the gargoyle flies over and burns a hut; it exists
-  so ranged units are needed (§5). A vampire bat still turns back at a gate.
+  so ranged units are needed (§6). A vampire bat still turns back at a gate.
 - **What gets in without a breach burns nothing:** rats eat food, thieves steal gold, a ghost
-  hunts its villager (§15f). A gate is never open: an intact gate is a barrier like a wall,
+  hunts its villager (§10.13). A gate is never open: an intact gate is a barrier like a wall,
   for every enemy (villagers pass through it; enemies don't).
 - **Raised enemies:** a necromancer can't raise a corpse inside the walls of a village that
   has no breach (no broken wall, gate or wall tower), since what it raised would be inside
@@ -235,8 +235,8 @@ front of a gate is dull and gives the player nothing to answer, so a lurker keep
 - **Busy, by kind** (`EnemyBehavior.lurk_goal`: where its roaming goes; none: anywhere):
   - *necromancer:* corpses within the leash, also away from the walls; it walks there, raises,
     and roams on;
-  - *spider mother:* her clutches go on (timed and alarmed, §15b), wherever she roams;
-  - *snake:* goes for anyone of ours outside and keeps out of reach of manned towers (§15g);
+  - *spider mother:* her clutches go on (timed and alarmed, §10.9), wherever she roams;
+  - *snake:* goes for anyone of ours outside and keeps out of reach of manned towers (§10.14);
   - *siren:* sings at units in reach of her song, as on her way (docs/aquatic-design.md §6).
 - **The village stays its goal:** the moment a breach opens a way in, it stops lurking and goes
   in along the open layer, and raids as its kind does (the snake mauls, the others burn a hut).
@@ -245,11 +245,15 @@ front of a gate is dull and gives the player nothing to answer, so a lurker keep
   still has its moment), they turn round: they walk back along their road and vanish at the
   map edge, with no loot and no corpse (`Enemy.give_up`, `leaving`). On the way they can still
   be killed for their kill gold. Logged at Info ("The necromancer gives up and leaves"). The
-  wave can then end. Rats leave by the same rule and timer (they vanish, §2).
+  wave can then end. Rats leave by the same rule and timer (they vanish, §1).
 - They count for the wave while they lurk; the leaving rule bounds how long they hold it up.
-- The ghost (§15f) and the vultures (§15d) keep their own rules; they don't lurk.
+- The ghost (§10.13) and the vultures (§10.11) keep their own rules; they don't lurk.
 
-## 8. Melee kinds: goblin, skeleton, orc
+## 10. Enemy kinds
+
+Every enemy kind in its own section; one sharing a behaviour with others is grouped with them.
+
+### 10.1 Melee kinds: goblin, skeleton, orc
 
 - `MeleeBehavior`: walks the road; when a melee defender (the hero, a soldier outside, an
   elemental) or an exposed villager is within `SUMMON.attack_range`, it stops, lunges and hits
@@ -261,7 +265,7 @@ front of a gate is dull and gives the player nothing to answer, so a lurker keep
 - A level-1 earth elemental is as strong as a Normal goblin, and as fast, by design: the
   summoner's baseline is "one goblin per elemental" (`SUMMONS.earth`).
 
-## 9. Witch
+### 10.2 Witch
 
 - No melee. She walks until a target is within `spell_range`, then stands and casts a whirling
   bolt every `spell_cooldown`. The range equals a level-1 watchtower's, so a tower can always
@@ -277,9 +281,9 @@ front of a gate is dull and gives the player nothing to answer, so a lurker keep
   tower that can't reach her.
 - At a camp (no melee damage), a witch guard hits with her `spell_damage`.
 
-## 10. Rat
+### 10.3 Rat
 
-- Packs (§2) from `RAT_PACKS`, not part of `WAVE_MIX`. Frail, fast, and their HP grows with the
+- Packs (§1) from `RAT_PACKS`, not part of `WAVE_MIX`. Frail, fast, and their HP grows with the
   waves like anything's. They threaten food, not the walls, which asks for a different defence:
   barracks and the hero near the farms.
 - `RatBehavior` states: ROAD, TO_FARM, ON_FARM, CHASE.
@@ -297,7 +301,7 @@ front of a gate is dull and gives the player nothing to answer, so a lurker keep
   gate; barracks go for farms within `BARRACKS_FARM_RANGE_FACTOR` × their range when nothing
   else is in range, staying within `FARM_DEFENSE_LEASH` of the farm.
 
-## 11. Thief
+### 10.4 Thief
 
 - Fights like a goblin on the way (`ThiefBehavior` extends `MeleeBehavior`), quicker.
 - At a gate it burns nothing. It steals a random amount scaled by the wave, but at least a
@@ -309,13 +313,13 @@ front of a gate is dull and gives the player nothing to answer, so a lurker keep
   its road to where it passes nearest, then across (never through the walls), plunders it
   (`WAREHOUSE.raid_damage`), steals as at a gate and runs back.
 
-## 12. Gargoyle
+### 10.5 Gargoyle
 
-Grey stone, the first flyer (§5). It fights in melee like the melee kinds (`MeleeBehavior`) but
+Grey stone, the first flyer (§6). It fights in melee like the melee kinds (`MeleeBehavior`) but
 only ranged attacks and fire elementals can go for it; ground melee units only counter-strike.
 Tough and slow, pays food from its corpse.
 
-## 13. Slimes
+### 10.6 Slimes
 
 - Only the big slime is in `WAVE_MIX`. Slain, a slime splits into `split_count` of `split_into`
   (side by side, popping out of it), which walk on along its road, count for the wave and keep
@@ -328,7 +332,7 @@ Tough and slow, pays food from its corpse.
   which its halves keep. It squashes and stretches as it moves.
 - One library entry ("Slime"); the smaller sizes have `"library": false`.
 
-## 14. Necromancer
+### 10.7 Necromancer
 
 - No attack. When a corpse of another kind lies within `raise_range`, and no gatherer or other
   necromancer has it, it stops and channels on it (a green beam) for `cast_time`. The corpse
@@ -347,12 +351,12 @@ Tough and slow, pays food from its corpse.
 - A raised enemy killed pays a share of its kind's kill gold (`raise_gold`); one that decayed
   pays nothing; neither leaves a corpse. The first raise per village and game is logged at
   Info, later ones at Debug. Its own corpse yields nothing and can't be raised.
-- It takes extra holy damage, and what it raised takes more again (§4).
-- At intact walls it lurks (§7a): it roams within the leash and goes for corpses, also away
+- It takes extra holy damage, and what it raised takes more again (§3).
+- At intact walls it lurks (§9): it roams within the leash and goes for corpses, also away
   from the walls (`lurk_goal`). It can't raise a corpse inside the walls of a village without
   a breach.
 
-## 15. Vampire
+### 10.8 Vampire
 
 - Fights like a goblin (`VampireBehavior` extends `MeleeBehavior`), tougher, resists magic and
   fire: so it is a target for physical and holy damage.
@@ -360,14 +364,14 @@ Tough and slow, pays food from its corpse.
   summons), it gets `drain` back, never above its max.
 - **Bat:** once, the moment its HP would drop below `bat_below` (even to 0: it is never killed
   in one blow), it keeps that share and turns into a bat in a puff of smoke for `bat_time`.
-  The bat flies (§5) at `bat_speed` and doesn't bite. A raised vampire turns too, and drain
+  The bat flies (§6) at `bat_speed` and doesn't bite. A raised vampire turns too, and drain
   down there also triggers it. It exists so the vampire can't be simply burst down by melee.
 - A bat that reaches a gate does no harm: it gains `bat_gate_heal` and flies back the way it
   came. Landed, the vampire takes the road to the village again; only on its feet does it break
   in.
 - A necromancer can raise it once.
 
-## 15b. Spider mother, spider eggs, spiderlings (Wilderness)
+### 10.9 Spider mother, spider eggs, spiderlings (Wilderness)
 
 - **Spider mother:** from `WAVE_MIX` (capped per wave and village, one more every few waves:
   `max_count`, `max_count_every`, `Config.wave_max_count`) and out of hollow-tree lairs
@@ -394,8 +398,8 @@ Tough and slow, pays food from its corpse.
     lays a clutch at once and then every `lay_every`, but her eggs are **undead** (`Enemy.undead`,
     pale like the raised): unholy and extra holy damage, and so are the spiderlings out of them.
     Undead ones don't drain away (only the raised do).
-  - *Poison* (§4a): every bite of hers is a dose, with no exceptions. Since poison does
-    nothing to buildings, she has `siege` 0: at intact walls she lurks (§7a), laying as she
+  - *Poison* (§4): every bite of hers is a dose, with no exceptions. Since poison does
+    nothing to buildings, she has `siege` 0: at intact walls she lurks (§9), laying as she
     roams, and comes in through a breach her spiderlings (or anyone) make. She shelters behind
     her brood. Inside she burns a hut like any enemy (a raid destroys the hut directly; it isn't
     a blow). Spiderlings stay melee.
@@ -422,7 +426,7 @@ Tough and slow, pays food from its corpse.
 - Library: one entry for the mother (with the eggs) and one for the spiderling; eggs have
   `"library": false`.
 
-## 15c. Wrathwood (Wilderness, very rare)
+### 10.10 Wrathwood (Wilderness, very rare)
 
 A tree that wakes up under a forester's axe and goes after him: a rare, memorable event that
 punishes clear-cutting rather than a wave kind. It never comes with a wave: it is woken on the
@@ -483,7 +487,7 @@ buildings; weak to fire, strong against projectiles (a tree), so it asks for fir
   its foresters felled and `calm_until`.
 - Library: one entry.
 
-## 15d. Vultures (Wilderness, animals)
+### 10.11 Vultures (Wilderness, animals)
 
 Carrion birds drawn by the dead the last wave left lying. They come for the corpses, not the
 village: every corpse they eat is loot the player loses, and they leave when there is nothing
@@ -504,7 +508,7 @@ damage from projectiles and fire (frail birds).
   It comes from the open map edge tile nearest its target from which it can fly there.
 - **Flight** (`Pathing.sky_path`): near-straight lines over every tile a ground unit can walk
   plus deep water and forest; never over mountains, lava, buildings or solid map objects. No
-  ground slows it. A flyer (§5) in the air.
+  ground slows it. A flyer (§6) in the air.
 - **The pack:** every bird flies to the pack's target. When the target is gone (eaten, gathered,
   raised, rotted) the pack picks the edible corpse nearest to it. None left: **search** for
   `search_time`, spreading out; a fresh corpse ends the search. Still none: the pack **leaves**
@@ -533,7 +537,7 @@ damage from projectiles and fire (frail birds).
   growth (`Enemy.fed`) through the replicator.
 - Library: its own entry.
 
-## 15e. Wolves and riders (mounted enemies)
+### 10.12 Wolves and riders (mounted enemies)
 
 Wolves hunt in packs; goblin raiders ride them. The Dread Legion has cavalry (campaign only),
 and its captains and commanders ride into battle too. A mount is a second HP pool: it has to
@@ -603,7 +607,7 @@ it) and `FleeBehavior` (the undead horse).
   replicator.
 - Library: wolf, goblin raider, Legion cavalry and the horse.
 
-## 15f. Ghost (a haunting)
+### 10.13 Ghost (a haunting)
 
 A spirit that comes for one villager, not for the village. It is unseen and untouchable until
 something reveals it or it closes in on its victim, so the answer is detection (light stones, a
@@ -613,7 +617,7 @@ High Priest) and the right damage (holy, magic, fire), not more arrows. Numbers:
 
 - **Damage:** melee and projectile do nothing (`resist` 0), so archers, crossbowmen, shield
   bearers and their branches, earth elementals, thornlings and the hero's sword can't target it
-  (§4). Fire, magic and pure hurt it; holy most (its holy factor is final: `raised_holy` isn't
+  (§3). Fire, magic and pure hurt it; holy most (its holy factor is final: `raised_holy` isn't
   added on top). The Inquisitor's holy melee and a fire elemental's blow count by their category.
 - **Faded or solid** (`Enemy.faded` / `set_faded`): faded is the default. Faded it can't be
   targeted or hurt (shots in flight fizzle, splash skips it), can't attack, villagers don't run
@@ -630,7 +634,7 @@ High Priest) and the right damage (holy, magic, fire), not more arrows. Numbers:
 - **Journey** (`Mode`): it follows its road for `road_share` of it (so it comes from the
   expected side), then flies (`ghost_path`: like the vultures' `sky_path`, but through
   buildings) towards where the target is now, re-planning as they move, with now and then a
-  detour for flavour. It floats (no ground slows it) but is no flyer (`flies()` false: §5 doesn't
+  detour for flavour. It floats (no ground slows it) but is no flyer (`flies()` false: §6 doesn't
   apply, its damage table decides). It hovers (`"hover"`: bobbing over a shadow, no walking sway).
 - **A miner as target:** standing by the mine, it drives him out (`Miner.drive_out`): he flees
   home, unassigned, so the ghost can find him. A mine is no hiding place.
@@ -655,28 +659,28 @@ High Priest) and the right damage (holy, magic, fire), not more arrows. Numbers:
   isn't).
 - Library: its own entry; the Damage tab shows its immunities from Config.
 
-## 15g. Snake
+### 10.14 Snake
 
-A Beast (§4b) that threatens the work outside the walls, where the spider mother threatens the
+A Beast (§5) that threatens the work outside the walls, where the spider mother threatens the
 edge of the defences. It joins the waves after the slimes (`WAVE_MIX`).
 
 - **Stats** (`ENEMIES.snake`) about a big slime's (`slime3`): HP, slow speed, and a first
   poison tick about the big slime's blow. Kill gold like the big slime; a corpse worth food (gatherers, necromancers
   and vultures can use it).
-- **Only poison** (§4a), with its own decay, tick interval and cut-off, apart from the spider
+- **Only poison** (§4), with its own decay, tick interval and cut-off, apart from the spider
   mother's, so the two are balanced separately. So `siege` 0: it never hits walls, gates or
   buildings.
 - **On its way** it strikes anyone of ours within reach, like a melee kind.
-- **At the village it lurks** (§7a): it roams outside the walls, keeps out of reach of manned
+- **At the village it lurks** (§9): it roams outside the walls, keeps out of reach of manned
   towers (`"lurk_shy"`, `LURK.tower_margin`), and goes for whoever is outside within
   `hunt_radius` (`SnakeBehavior.lurk_goal`): foresters, gatherers, farmers, a sortie, the hero.
   Villagers fear it. Towers can't solve it alone; it asks for soldiers or the hero outside,
   or for keeping the work inside for a while.
 - **Only a breach lets it in**, like every lurker: someone else must break a wall or gate.
-- **Inside it mauls** like the wolf (`"raid": "maul"`, §15e): it kills one villager in their hut
+- **Inside it mauls** like the wolf (`"raid": "maul"`, §10.12): it kills one villager in their hut
   and is gone, with no loot and no corpse. It never burns a hut, so it keeps the held-wall rule
-  (§7a).
-- **Leaving:** like every lurker (§7a).
+  (§9).
+- **Leaving:** like every lurker (§9).
 - **Look:** a natural slither, no walking sway:
   - a coiled base image, head raised: at rest, striking, and in the library;
   - a slither cycle (`"slither"` frames, `unit_snake_slither_<n>`): one tapered body drawn along an S-curve whose wave
@@ -691,32 +695,14 @@ edge of the defences. It joins the waves after the slimes (`WAVE_MIX`).
 - Library: its own entry; enemy_bot checks its lurking, that it gets in only through a breach,
   its maul and its poison.
 
-## 16. Monster-camp guards
-
-- Every far treasure (and half of the middle ones) has a camp (`CAMP_CHANCE`,
-  docs/world-objects-design.md §9.3) with `CAMP_MONSTERS` by treasure tier: a richer treasure, a harder
-  camp.
-- They have extra HP (`CAMP_HP_SCALE`), fixed (not wave-scaled), and use `CampBehavior` instead
-  of their kind's behavior.
-- They never walk a road. They attack any defender or exposed villager near the camp
-  (`CAMP_AGGRO`), never follow farther than `CAMP_LEASH`, and walk back when nobody is left.
-- Hurt guards don't heal (so wearing a camp down by towers works). Kill gold is paid only when
-  the killer belongs to a village; they leave no corpse.
-- Towers and barracks fight guards in their range without any order (build next to a camp and it
-  fights). Only the hero needs the order (the camp's panel: *Attack with the hero*), so she
-  doesn't wander into camps by herself. Guards also fight whoever walks close. Explorers avoid
-  them.
-- Lair guards (`LAIR_THEMES.guards`) work the same way, with the waking wave's HP scale.
-- Wave counts ignore guards (filter `CampBehavior`).
-
-## 16b. Water monsters
+### 10.15 Water monsters
 
 The crab, the siren, the leviathan and the gigantic octopus live in water: their habitats,
 diving (untargetable while under), melee reach on deep water, sinking corpses, the siren's song
 and the octopus's arms, and when they join a village's waves (`WAVE_MIX` `"needs": "water"`,
 `"max_count"`, `"chance"`; `Aqua.eligibility`) are all in docs/aquatic-design.md.
 
-## 16c. The Dread Legion (campaign only)
+### 10.16 The Dread Legion (campaign only)
 
 Rhodri's bound soldiers (docs/story-design.md §5): `legion_footman` and `legion_captain`, with
 `"campaign": true` (never in `WAVE_MIX`: only where a scenario sends them). A fallen one is
@@ -737,9 +723,27 @@ their own (`Enemy.set_identity`). Numbers and the rest: docs/scenarios-4-6-desig
 - A camp of Legion soldiers only is a *Legion camp* (its own look). A scenario can set a lair's
   guards, kinds and waking wave and keep it cleared (`Scenario.lairs`).
 
-## 17. Open ideas / not built
+## 11. Monster-camp guards
 
-- **More invisible enemies:** the ghost (§15f) is the first. A new one should reveal through
+- Every far treasure (and half of the middle ones) has a camp (`CAMP_CHANCE`,
+  docs/world-objects-design.md §9.3) with `CAMP_MONSTERS` by treasure tier: a richer treasure, a harder
+  camp.
+- They have extra HP (`CAMP_HP_SCALE`), fixed (not wave-scaled), and use `CampBehavior` instead
+  of their kind's behavior.
+- They never walk a road. They attack any defender or exposed villager near the camp
+  (`CAMP_AGGRO`), never follow farther than `CAMP_LEASH`, and walk back when nobody is left.
+- Hurt guards don't heal (so wearing a camp down by towers works). Kill gold is paid only when
+  the killer belongs to a village; they leave no corpse.
+- Towers and barracks fight guards in their range without any order (build next to a camp and it
+  fights). Only the hero needs the order (the camp's panel: *Attack with the hero*), so she
+  doesn't wander into camps by herself. Guards also fight whoever walks close. Explorers avoid
+  them.
+- Lair guards (`LAIR_THEMES.guards`) work the same way, with the waking wave's HP scale.
+- Wave counts ignore guards (filter `CampBehavior`).
+
+## 12. Open ideas / not built
+
+- **More invisible enemies:** the ghost (§10.13) is the first. A new one should reveal through
   the same rule (`GhostBehavior._revealed`: light stones and `Combat.in_holy_aura`).
 - **Flying allied units:** none yet. The vampire's comments note that a bat would be theirs to
   fight.

@@ -1,6 +1,6 @@
 class_name SnakeBehavior
 extends MeleeBehavior
-## The snake (Config.ENEMIES["snake"]; docs/enemies-design.md §15g): bites
+## The snake (Config.ENEMIES["snake"]; docs/enemies-design.md §10.14): bites
 ## like a melee kind, but its bite is a poison dose (Enemy.blow). It can't
 ## break anything, so at a village without a breach it lurks (Enemy.lurker):
 ## out of the towers' reach ("lurk_shy") it goes for the nearest of ours

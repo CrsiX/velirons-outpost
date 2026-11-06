@@ -145,7 +145,7 @@ const GUARD_LEASH := 6.0
 ## this far round the pier.
 const LEVIATHAN_HP := 5.0
 const LEVIATHAN_POWER := 1.0
-## Lysa rides (docs/enemies-design.md §15e): her horse's HP.
+## Lysa rides (docs/enemies-design.md §10.12): her horse's HP.
 const LYSA_HORSE_HP := 70.0
 const CRYPT_LEASH := 7.0
 const PIER_LEASH := 5.0

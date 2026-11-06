@@ -1,6 +1,6 @@
 class_name FleeBehavior
 extends EnemyBehavior
-## The undead horse (Config.ENEMIES["horse"]; docs/enemies-design.md §15e): it
+## The undead horse (Config.ENEMIES["horse"]; docs/enemies-design.md §10.12): it
 ## never fights. It bolts to the spot within flee_search tiles with the fewest
 ## of our people and towers around (looking again every flee_every s) and
 ## dies of the raised drain. Unraised (a debug one) it vanishes after flee_time s.

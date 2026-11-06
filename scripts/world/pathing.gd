@@ -34,7 +34,7 @@ var amphibian_dist := PackedInt32Array()
 var amphibian_fields: Array[PackedInt32Array] = []
 ## Deep water only (water-bound monsters).
 var water_astar := AStarGrid2D.new()
-## Walkable ground and forest (wrathwoods; docs/enemies-design.md §15c):
+## Walkable ground and forest (wrathwoods; docs/enemies-design.md §10.10):
 ## made the first time one asks (wood_path), then kept in step by set_solid.
 var _wood: AStarGrid2D = null
 ## The vultures' sky (sky_path): built on first use, kept up by set_solid.
@@ -181,7 +181,7 @@ func _wood_open_near(t: Vector2i, near: Vector2) -> Vector2i:
 	return best
 
 
-## Can a vulture fly over `t` (docs/enemies-design.md §15d)? Any tile a
+## Can a vulture fly over `t` (docs/enemies-design.md §10.11)? Any tile a
 ## ground unit can walk on, deep water and forest; never mountains, lava,
 ## buildings or solid map objects.
 func sky_open(t: Vector2i) -> bool:
@@ -229,7 +229,7 @@ func _sky_open_near(t: Vector2i, near: Vector2) -> Vector2i:
 	return best
 
 
-## Can a ghost drift over `t` (docs/enemies-design.md §15f)? Everything a
+## Can a ghost drift over `t` (docs/enemies-design.md §10.13)? Everything a
 ## vulture can fly over, and every building (walls, gates, huts): never mountains,
 ## lava or solid map objects.
 func ghost_open(t: Vector2i) -> bool:

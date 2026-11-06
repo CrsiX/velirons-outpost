@@ -1,6 +1,6 @@
 class_name VultureBehavior
 extends MeleeBehavior
-## A vulture (docs/enemies-design.md §15d; Config.VULTURES): flies its own
+## A vulture (docs/enemies-design.md §10.11; Config.VULTURES): flies its own
 ## way (Pathing.sky_path) to its pack's corpse (VulturePack), lands and eats
 ## it for eat_time s (a ground target meanwhile), and each finished meal makes
 ## it stronger (grow, at most max_meals) and may finish the corpse

@@ -43,7 +43,7 @@ static func hit(game: Game, unit: MilitaryUnit, t, dmg: float, source: Node, at:
 		center = e.grid_pos
 		var before := e.hp + e.mount_hp
 		var rider := e.mount != ""
-		if rider:  # (a halberdier's blow on a mount: docs/enemies-design.md §15e)
+		if rider:  # (a halberdier's blow on a mount: docs/enemies-design.md §10.12)
 			dmg *= float(unit.spec().get("vs_mounted", 1.0))
 		e.take_damage(dmg, source if is_instance_valid(source) else null, a.get("category", "pure"))
 		if unit.has_stat("lifesteal"):
