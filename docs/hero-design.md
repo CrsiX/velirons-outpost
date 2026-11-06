@@ -40,6 +40,17 @@ regeneration). The design points behind them:
 - `leash` bounds how far Defend chases, so she can't be lured across the map; `alert_radius`
   makes her react to the walls, not just the gates.
 
+## 2.1 Her look in a game of several villages
+
+- Alone, she wears a crimson cape and plume (`unit_hero`). With more than one village (co-op, or a
+  local multi-village test game) each hero wears her own village's colour instead
+  (`Hero.art_name`, art `unit_hero_c<i>` per `Config.VILLAGE_COLORS` entry): eight heroes on one
+  map are otherwise identical, and a player must find their own at a glance.
+- The plume takes the colour itself; the cape a darker shade of it, so it still reads as cloth
+  among the dark art (the UI colours are bright).
+- Every peer derives the art from the village's colour, which the lobby fixes for all of them, so
+  the same hero looks the same on every device without replicating anything new.
+
 ## 3. The top-bar button and the panel
 
 - **Top-bar button:** the hero icon and her XP. A health bar runs along its bottom (green, yellow,

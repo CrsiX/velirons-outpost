@@ -617,7 +617,7 @@ func awards() -> Array[Dictionary]:
 				hw_wave = int(w)
 				hw_v = vid
 	if hw_best > 0:
-		out.append({"title": "Hero's finest wave", "art": "unit_hero",
+		out.append({"title": "Hero's finest wave", "art": Hero.art_name(st.villages[hw_v]["color"], st.villages.size()),
 			"text": "Wave %d%s" % [hw_wave, _of(hw_v, coop)], "detail": "%d kills by the hero" % hw_best})
 	var cc_v := -1
 	var cc: Array = []

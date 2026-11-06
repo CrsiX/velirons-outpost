@@ -9,6 +9,7 @@ them at 0.5 scale. Run:  python3 tools/gen_art.py
 import math
 import os
 import random
+import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ART = os.path.join(ROOT, "art")
@@ -5718,11 +5719,36 @@ def corpse_skeleton():
     a.save("corpse_skeleton")
 
 
+def village_colors():
+    """Config.VILLAGE_COLORS, read from config.gd (the one place they are set)."""
+    with open(os.path.join(ROOT, "scripts", "core", "config.gd")) as f:
+        for line in f:
+            if line.startswith("const VILLAGE_COLORS"):
+                return ["#" + c for c in re.findall(r'Color\("([0-9a-fA-F]{6})"\)', line)]
+    raise SystemExit("gen_art: Config.VILLAGE_COLORS not found in config.gd")
+
+
+def shade(hex_color, f):
+    """`hex_color` with each channel scaled by `f` (below 1 darkens)."""
+    r, g, b = (int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
+    return "#%02x%02x%02x" % tuple(max(0, min(255, round(c * f))) for c in (r, g, b))
+
+
 def hero():
-    """Hero: steel helmet with a crimson plume, blue-steel armour, crimson cape, raised sword."""
+    """Hero: steel helmet with a plume, blue-steel armour, a cape, raised sword.
+    unit_hero has a crimson cape and plume; in a game of several villages each
+    hero wears her village's colour instead (unit_hero_c<i>, i an index into
+    Config.VILLAGE_COLORS): the plume in the colour itself, the cape a darker
+    shade of it so it reads as cloth among the dark art."""
+    hero_art("unit_hero", CRIMSON, CRIMSON)
+    for i, col in enumerate(village_colors()):
+        hero_art("unit_hero_c%d" % i, shade(col, 0.68), col)
+
+
+def hero_art(name, cape, plume):
     def extra(a, layer):
         if layer == "back":
-            a.poly([(-8, -27), (-4, -27), (-3, -4), (-11, -6)], CRIMSON, INK, 1.1)  # cape
+            a.poly([(-8, -27), (-4, -27), (-3, -4), (-11, -6)], cape, INK, 1.1)  # cape
         else:
             a.poly([(-6, -14), (6, -14), (5, -26), (-5, -26)], "#6a7a8e", INK, 1)  # breastplate
             a.line([(0, -26), (0, -15)], "#4a5666", 1.2)
@@ -5736,9 +5762,9 @@ def hero():
 
     def hat(a):
         a.raw('<path d="M-6.5,-32 Q-7,-41 0,-41 Q7,-41 6.5,-32 L4,-31 L4,-34 L-4,-34 L-4,-31 Z" fill="#9aa4b2" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-8, -42), (8, -30)])
-        a.raw('<path d="M-1,-41 Q-2,-50 6,-50 Q2,-46 3,-41 Z" fill="%s" stroke="%s" stroke-width="1"/>' % (CRIMSON, INK), [(-2, -51), (7, -40)])  # plume
+        a.raw('<path d="M-1,-41 Q-2,-50 6,-50 Q2,-46 3,-41 Z" fill="%s" stroke="%s" stroke-width="1"/>' % (plume, INK), [(-2, -51), (7, -40)])  # plume
         a.line([(0, -40), (0, -34)], "#6a7482", 1.2)
-    person("unit_hero", ("#3a4656", "#2c3644"), hat=hat, extra=extra)
+    person(name, ("#3a4656", "#2c3644"), hat=hat, extra=extra)
 
 
 def training_grounds():

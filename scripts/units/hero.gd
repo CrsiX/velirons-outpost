@@ -73,7 +73,7 @@ func setup_hero(p_game: Game, p_village: Village) -> void:
 	speed = spec["speed"]
 	max_hp = spec["hp"]
 	hp = max_hp
-	_init_sprite("unit_hero")
+	_init_sprite(art_name(village.color, game.villages.size()))
 	UnitFx.add_halo(sprite, game, func() -> Vector2: return grid_pos)
 	UnitFx.add_cry_mark(sprite, game, func() -> Object: return self)
 	set_grid_pos(Vector2(village.center))
@@ -421,6 +421,19 @@ func _walk_home() -> void:
 
 
 ## Distance from `p` (grid) to the nearest tile of `r` (0 inside).
+## The hero's art: crimson cape and plume (unit_hero) when she is the only
+## hero, else her village's colour (unit_hero_c<i>, i the colour's index in
+## Config.VILLAGE_COLORS), so each player tells their own apart and every peer
+## shows the same hero alike. A colour not in the list keeps the crimson.
+static func art_name(color: Color, village_count: int) -> String:
+	if village_count > 1:
+		for i in Config.VILLAGE_COLORS.size():
+			var c := Config.VILLAGE_COLORS[i]
+			if absf(c.r - color.r) + absf(c.g - color.g) + absf(c.b - color.b) < 0.02:
+				return "unit_hero_c%d" % i
+	return "unit_hero"
+
+
 static func rect_distance(r: Rect2i, p: Vector2) -> float:
 	var cx := clampf(p.x, r.position.x, r.end.x - 1)
 	var cy := clampf(p.y, r.position.y, r.end.y - 1)
