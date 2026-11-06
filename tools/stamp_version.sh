@@ -5,11 +5,15 @@
 # The file is never committed and exists only while a build is made:
 # tools/export.sh removes it again, CI throws the checkout away.
 #
+# Also writes its .uid with a fixed UID: a fresh one per build would make
+# every export differ (reproducible builds for F-Droid). Never change it.
+#
 # Fails (and writes nothing) when git can't say: a wrong stamp is worse than none.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 out=scripts/core/build_stamp.gd
+uid=uid://b3wvjfmuvnwyy
 commit=$(git rev-parse --short HEAD)
 changed=0
 git diff HEAD --quiet || changed=$?
@@ -37,4 +41,5 @@ const COMMIT := "$commit"
 const TAG := "$tag"
 STAMP
 mv "$tmp" "$out"
+echo "$uid" > "$out.uid"
 echo "stamped: commit $commit, tag ${tag:-none}"
