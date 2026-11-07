@@ -35,7 +35,9 @@ permissions:
   contents: read
 
 env:
-  GODOT_VERSION: "4.7"        # the stock editor that exports (cache shared with bots.yml)
+  # The stock editor that exports: the same release as GODOT_TAG, as fdroid.yaml
+  # exports with an editor built from that tag (not the cache bots.yml uses).
+  GODOT_VERSION: "4.7.2"
   GODOT_TAG: "4.7.2-stable"   # the Godot source the templates are built from, as in fdroid.yaml
 
 jobs:
@@ -103,16 +105,28 @@ jobs:
           godot-version: ${{ env.GODOT_VERSION }}
 
       # --- Android only ----------------------------------------------------
-      # The preset sets gradle_build/use_gradle_build=false, so Godot packs the
-      # template APK and needs neither Gradle nor the NDK. It does need the
-      # SDK's zipalign and apksigner, a JDK to run apksigner with, and a keystore:
-      # a fresh debug key for debug, the project's key (secrets) for release.
+      # Exported like fdroid.yaml does (the "F-Droid" preset, unsigned; see
+      # export-stripped.sh), then signed with the SDK's apksigner: a fresh
+      # debug key for debug, the project's key (secrets) for release. No
+      # Gradle or NDK here (gradle_build/use_gradle_build=false).
+      # The same OpenJDK as the template build and fdroid.yaml.
       - name: Set up the JDK
         if: env.EXPORT == 'true' && matrix.platform == 'android'
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-21-jdk-headless
+          echo "JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64" >> "$GITHUB_ENV"
+          echo "/usr/lib/jvm/java-21-openjdk-amd64/bin" >> "$GITHUB_PATH"
+
+      # fdroid.yaml's postbuild tools, reproducible-apk-tools at its srclib's tag.
+      - name: Reproducible-build tools
+        if: env.EXPORT == 'true' && matrix.platform == 'android'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y strip-nondeterminism
+          git clone -q --depth 1 --branch v0.3.0 \
+            https://github.com/obfusk/reproducible-apk-tools.git "$RUNNER_TEMP/reproducible-apk-tools"
+          echo "REPRO_APK_TOOLS=$RUNNER_TEMP/reproducible-apk-tools" >> "$GITHUB_ENV"
 
       - name: Point Godot at the Android SDK and a signing key
         if: env.EXPORT == 'true' && matrix.platform == 'android'
@@ -133,7 +147,7 @@ jobs:
           export/android/android_sdk_path = "${ANDROID_SDK_ROOT}"
           export/android/java_sdk_path = "${JAVA_HOME}"
           EOF
-          cp ~/.config/godot/editor_settings-4.tres ~/.config/godot/editor_settings-${GODOT_VERSION}.tres
+          cp ~/.config/godot/editor_settings-4.tres ~/.config/godot/editor_settings-$(echo "$GODOT_VERSION" | cut -d. -f1,2).tres
           mkdir -p ~/.android
           if [ "${{ matrix.kind }}" = release ]; then
             # The release key: always the same one, or players can't update.

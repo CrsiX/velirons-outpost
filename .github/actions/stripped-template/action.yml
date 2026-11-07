@@ -30,7 +30,8 @@ runs:
       uses: actions/cache@v4
       with:
         path: build/stripped/templates
-        key: stripped-${{ inputs.platform }}-${{ inputs.kind }}-${{ inputs.godot-tag }}-${{ hashFiles('build_conf/**', '.github/scripts/build-stripped-template.sh') }}
+        # Android's carries the JDK it was built with (its Java part depends on it).
+        key: stripped-${{ inputs.platform }}-${{ inputs.kind }}-${{ inputs.godot-tag }}${{ inputs.platform == 'android' && '-openjdk21' || '' }}-${{ hashFiles('build_conf/**', '.github/scripts/build-stripped-template.sh') }}
 
     # --- only when it has to be built ------------------------------------------
     - name: Install build tools
@@ -53,12 +54,17 @@ runs:
         sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
         sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
 
+    # The distribution's OpenJDK 21 at the path fdroid.yaml's JAVA_HOME names
+    # (not the runner's Temurin): the JDK shapes the template's classes.dex,
+    # and the APKs must match F-Droid's.
     - name: Set up the JDK
       if: steps.cache.outputs.cache-hit != 'true' && inputs.platform == 'android'
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: "17"
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y openjdk-21-jdk-headless
+        echo "JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64" >> "$GITHUB_ENV"
+        echo "/usr/lib/jvm/java-21-openjdk-amd64/bin" >> "$GITHUB_PATH"
 
     # The version Godot's own web builds use for this tag.
     - name: Set up Emscripten
