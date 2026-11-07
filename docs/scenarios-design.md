@@ -47,6 +47,13 @@ open. The story it tells is in `story-design.md` (read that first: names, places
   place. Home bookends the campaign: she rebuilds it, leaves, and defends it at the end.
 - **Pell's market** is present from scenario 2. At home it grows (peddler, stall, guild market); away it is his wagon, a smaller stall (the full
   market only in the guild's town of scenario 4).
+- *(Designed, not built:)* **marketplace, items and advancements are off in every scenario unless it switches them on**
+  (docs/market-design.md, items-design.md, advancements-design.md): the scenarios are balanced as they are. Pell's stall becomes the
+  campaign form of the marketplace (one building kind, Pell as its fixed trader, the level set by the scenario). **Equipment** is taught
+  around scenario 4 and is set per scenario (its offers and carriers in `scenario_<n>.gd`); nothing carries over by design. A scenario
+  may script a carry-over itself, as the sword rescued in scenario 9 will be an item the following scenarios hand over on purpose.
+- *(Designed, not built:)* the nine map files in `data/maps` need the 7×7 village and a town hall (docs/village-design.md §3.1); the
+  user reworks them by hand, they are never regenerated.
 - **Monsters arrive by category** (`story-design.md`), so the campaign also introduces the library's categories one after another: Wilderness
   (1, 2), with sea monsters (crabs in 4, octopus and leviathan in 9), Renegades (3, 4), Arcane (the siren in 4, witches and gargoyles in 5), the
   Dread Legion (first patrol in 5), Undead (6, with the first necromancers, an Evil kind) and Evil (vampires from 8). The Dread Legion is

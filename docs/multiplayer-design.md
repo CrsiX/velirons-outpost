@@ -114,7 +114,14 @@ map areas and for colour-blind players.
   farm and camp with their workers, builder, explorer, hero, resources).
 - **Standing**: at least one villager and one intact hut (the single-player
   defeat rule, applied per village). **Fallen** otherwise, logged at Important
-  for everyone.
+  for everyone. *(Designed, not built:)* standing becomes at least one villager
+  and a town hall that hasn't fallen (docs/village-design.md §3b). A hall's
+  last stand is announced to every other player at Important ("Town <name>
+  falls in x s"; the hall has already fallen when it starts), so they can send
+  their hero or units. A fallen village that gets a villager again while its
+  hall is devastated gets a last stand with a longer countdown (a `Config`
+  multiplier); if that one fails it stays fallen, with no new countdown, until
+  its hall is at full HP and it has a villager.
 - **Fallen villages:**
   - Their wave share keeps coming (§4.2), and enemies bound for a fallen
     village turn to the standing village nearest to where they are. This is
@@ -302,6 +309,19 @@ units and heroes arrive whole.
   recalled or redirected.
 - **If the receiver falls meanwhile,** the caravan still delivers.
 - **If no path exists** at the moment of sending, Send is refused.
+- *(Designed, not built:)* help caravans are drawn as a **covered wagon in the
+  sender's colour**, so they can't be mistaken for trade caravans, which can be
+  attacked. Help stays immune; trade is a different thing with different rules.
+
+### 7.1a Trade between villages *(designed, not built)*
+
+Separate from help: the marketplace's **order book** (docs/market-design.md).
+A purchase at one village's marketplace is filled from other players' goods
+for sale first; the seller's trader packs it and a trade caravan walks village
+to village, paid on arrival. Between players there is **no tax**: gold changes
+hands, none is made, so there is nothing to brake. Without a marketplace a
+player can only send help (§7.1). A posted demand ("Village 2 wants to buy 300
+food") is an Info log line for every player, for now; that may change.
 
 ### 7.2 Military units
 

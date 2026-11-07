@@ -188,12 +188,38 @@ is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
   it never burns a hut it didn't reach.
 - **Inside:** it walks to the nearest intact hut, burns it and is gone (small slimes roll
   their `raid_chance` first).
+- *(Designed, not built:)* with the 7×7 village the field heads for the **village centre** (the
+  path crossing, docs/village-design.md §3.1). Inside, an enemy whose raid is "burn" picks its
+  target by a **coin flip**, which spreads a breach over several targets at once:
+  - **Targets:** huts, the town hall, and buildings standing inside the walls (watchtower, light
+    stone, camp). Never wall pieces from the inside.
+  - **The roll:** whenever it needs a target it takes the **nearest intact hut** and the
+    **nearest other target** and flips between them (the weight is a `Config` value, starting
+    even). With only one kind left there is no roll. It keeps its target until that is burnt or
+    devastated.
+  - **Burning a hut** ends its raid: it is gone, as now (whoever lives there dies). **The enemy
+    whose blow devastates the town hall** is gone too, and the last stand starts
+    (docs/village-design.md §3b). **Devastating any other building** is no raid: it rolls again
+    and goes on. A watchtower must not be a sponge that sends attackers home; a devastated one
+    sends its unit to the reserve (§3).
+  - **Order with `raid_chance`:** `raid_chance` comes first and decides *whether* it raids, once,
+    on getting in (a small slime that fails melts away at once; a spiderling never raids). Only
+    a raider flips the coin, each time it needs a target; `raid_chance` is never rolled again.
+  - **Not for the special raiders:** rats (food), thieves (gold, trade caravans), wolves and
+    snakes (one villager in a hut) and ghosts (their one villager) keep their own rules.
+  - **Randomness:** today `Game.raid_roll` uses the global `randf()`. Only the host rolls, so
+    co-op is fine; for reproducible bot runs the coin and `raid_roll` should share one seeded
+    source.
+  - **Balance:** breaches burn fewer huts than today, as part of a group spends itself on big HP
+    pools; the balance sweep after the layout change checks it.
 - **While any enemy is inside** (`Siege.breached(village)`), villagers walking in there are
   exposed; at home they stay safe. A breach is therefore a real escalation, not just a
   cosmetic one. A faded ghost inside doesn't count, a solid one does
   (docs/enemies-design.md §10.13): what can't be seen can't be run from.
 - **Remaining distance** (`Enemy.remaining()`, what archers use to find the enemy closest to
-  the gate): for a sieging enemy, whole tiles to the village's walls.
+  the gate): for a sieging enemy, whole tiles to the village's walls. *(Designed, not built:)*
+  it becomes the distance to the village centre, so an enemy inside comes before one at a gate
+  (docs/military-design.md).
 - **Spatial magic** throws a sieging enemy back up the field, away from the huts.
 - **Co-op:** each village has its own field; an enemy whose village falls turns to another
   and leaves its siege.
@@ -211,6 +237,20 @@ Farms, camps, light stones, barracks, training grounds and watchtowers can be de
 same way, but no enemy goes for them yet (thieves and the guild warehouse aside), except the
 octopus: an arm with nobody in reach smashes a building within reach. This is the hook for
 scenario tactics later.
+
+### 5.6 The town hall *(designed, not built)*
+
+- **HP and defence:** a `BUILDING_HP` entry per level (proposed `"town_hall"`), stone defence,
+  following the village's piece material like the walls (§2a, docs/village-design.md §3a).
+- **A raid target:** an enemy inside picks it by the coin flip (§5.3) as "the nearest other
+  target" and hits it like a wall; the enemy whose blow devastates it is gone, as after
+  burning a hut.
+- **At 0 HP** it is devastated like any building, and the village's last stand starts
+  (docs/village-design.md §3b): the repair has to bring it back to full HP before the
+  countdown ends.
+- **A future siege enemy** (a kind marked by dealing *more* damage to buildings) must avoid
+  the town hall as a target, so it can't wreck it in a few blows and turn the last stand into
+  an instant loss.
 
 ## 6. The hero
 

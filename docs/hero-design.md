@@ -12,6 +12,10 @@ docs/world-objects-design.md §9 for the special objects she claims and loots.
 
 - **Half villager, half soldier**, with a sword. One per village; she starts in its centre.
 - **Her post** (`Hero.home()`) is the village centre (in Support mode the supported village's).
+  *(Designed, not built:)* the centre becomes the path crossing of the 7×7 village; idle, she
+  stands there. Her **home** is the **town hall** two tiles away (docs/village-design.md §3a):
+  she rests there and swaps equipment there, only while idle at home; a devastated hall gives
+  no rest.
   A campaign scenario can give her another (`Hero.home_override`, scenario 7: her tent outside
   the walls until she is let in); everything below about "the centre" (standing guard, the leash,
   resting, healing, reviving) is then about her tent.
@@ -134,6 +138,9 @@ she can do and what is most valuable first:
 - Like a gatherer (the shared `GatherJob`) with a smaller load. She only goes for safe corpses on
   explored land and picks up dropped loot first. XP is paid when a corpse is picked up, while the
   gold and food are paid at home as for any gatherer. She runs from enemies like a villager.
+- *(Designed, not built:)* she also carries **salvage** (a robbed or destroyed trade caravan's
+  cargo) back to the marketplace like a gatherer, and earns extra XP for it (proposed
+  `HERO_XP_PER_ACTION` "salvage", docs/market-design.md).
 
 ### 4.5 Attack a camp (an order, not a mode)
 
@@ -211,6 +218,7 @@ mode makes her stronger and Explore, Gather and Build are not a sacrifice. The w
 - **Shrines:** looting a shrine pays a bigger XP lump when she gets home, or instead heals every
   unit and her fully (`TREASURES.shrine`).
 - Training earns nothing. No other unit ever gains XP.
+- *(Designed, not built:)* salvage brought back to the marketplace pays XP (§4.4).
 - Debug builds: *+1000 XP* in the Debug dialog (command `_debug` "xp").
 
 ## 7. Levels (`HERO_LEVELS`, `HERO_MAX_LEVEL`)
@@ -243,6 +251,13 @@ mode makes her stronger and Explore, Gather and Build are not a sacrifice. The w
   HP, in the same mode. The panel says which. Campaign scenarios can turn revival off
   (`hero_revives`: away from home downed is a defeat).
 - Commands that need her (attacking a camp) are refused while she is down.
+
+## 9a. Equipment *(designed, not built)*
+
+Four slots (weapon, armour, accessory, movement), each with a default item that is exactly
+today's hero; items change her by modifiers, never flat stats, so they stay worth having at
+every level. Items stay when she is downed. Only the hero wears equipment. Everything else:
+docs/items-design.md.
 
 ## 10. The tutorial
 

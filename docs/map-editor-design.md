@@ -239,11 +239,21 @@ Errors (block Play and the lobby), the things the game can't run without:
   mine whose `front` is a road tile linked to the network; a camp's
   treasure exists; nothing on a crater's neighbours;
 - village count within the size's slots.
+- *(designed, not built)* every village has exactly one **town hall**
+  (docs/village-design.md §3a). A map without one is **refused for play**
+  with a clear message. The editor still saves it, as it saves any
+  half-finished map, and its checks list the missing hall. The hall is a core
+  part of every village, placed by the generator or by hand here, never added
+  by the game when a file loads. The editor places and moves it like other village
+  pieces; the player in a game never can. Ownerless villages have it as a
+  ruin (§8.2). It needs a map format version bump (§6), and the built-in maps
+  in `data/maps` are reworked by hand for it.
 
 Warnings (never block), the things that may be deliberate:
 - a village with fewer than the generator's minimum of approaches (a single
   approach may be a deliberate feature);
-- a village whose layout isn't the standard one;
+- a village whose layout isn't the standard one; *(designed, not built: the standard one becomes
+  the 7×7 block with the town hall, docs/village-design.md §3.1)*
 - in co-op: a village with no road to another village;
 - `GenChecks`' zone fairness between slices; a slice without treasures; an
   unlock kind missing (it could never be unlocked); no camp in a slice; a far
@@ -389,6 +399,8 @@ keeps a half-finished map openable.
 A village of the map that no player plays is **ownerless**:
 - it is built (walls, gates, wall towers) but every hut is a ruin, and its
   ruins can't be rebuilt;
+- *(designed, not built)* its town hall is a ruin too, and no last stand runs
+  for it;
 - it has no owner: no villagers, hero, economy, army or fog of its own, no
   name label, nothing in the statistics;
 - its spawns send nothing, and no wave share or co-op extra is counted for it;

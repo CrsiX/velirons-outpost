@@ -29,7 +29,7 @@ A dark-fantasy isometric village-defense game in Godot 4.7 (GL Compatibility ren
 - `docs/GLOSSARY.md`: game terms (one line each; read when a term in code or docs is unfamiliar).
 - `.claude/rules/*.md`: area rules, loaded when you touch matching files: gdscript-gotchas, tests-and-bots, art, scenarios-and-maps, military, enemies, village-hero, ui, multiplayer-save, build.
 - `docs/*-design.md`: the reasoning behind each area. Keep the matching one up to date with a change:
-  - `enemies-design` (waves, difficulty, damage categories, every enemy kind), `hero-design`, `village-design` (resources, villagers, buildings, tear-down, warnings), `military-design` (units, barracks, specialising), `acolyte-design` (holy damage), `world-design` (map generator core and an index; split into `world-terrain-design` (zones, water, mountains), `world-roads-design`, `world-objects-design` (special objects, water monsters' spawns); section numbers are kept, so "world-design §9.4" resolves through the index), `multiplayer-design`, `tutorial-design`, `ui-design` (title, HUD, dock, placing, dialogs, camera, log), `statistics-design`, `map-editor-design` (editor, JSON map format, maps from files), `aquatic-design` (water monsters), `save-design`, `siege-design` (building HP, repairs, enemies breaking in), `balance-bot-design`.
+  - `enemies-design` (waves, difficulty, damage categories, every enemy kind), `hero-design`, `village-design` (resources, villagers, buildings, tear-down, warnings), `military-design` (units, barracks, specialising), `acolyte-design` (holy damage), `world-design` (map generator core and an index; split into `world-terrain-design` (zones, water, mountains), `world-roads-design`, `world-objects-design` (special objects, water monsters' spawns); section numbers are kept, so "world-design §9.4" resolves through the index), `multiplayer-design`, `tutorial-design`, `ui-design` (title, HUD, dock, placing, dialogs, camera, log), `statistics-design`, `map-editor-design` (editor, JSON map format, maps from files), `aquatic-design` (water monsters), `save-design`, `siege-design` (building HP, repairs, enemies breaking in), `balance-bot-design`, `market-design` (marketplace, trader, trade caravans, salvage, co-op order book), `items-design` (hero equipment and relics), `advancements-design` (research at the town hall). The last three, the town hall and the 7×7 village are designed, not built yet.
   - `story-design` (premise, characters, factions) and `scenarios-design` (campaign core and index, with a map from old section numbers to files; the scenarios themselves are in `scenarios-1-3-design`, `scenarios-4-6-design`, `scenarios-7-9-design`, `scenarios-10-11-design`, and how the scenario system is built in `scenario-system-design`).
 - Skills (procedures): run-bots, ui-screenshots, rebake-title-maps, edit-handmade-map, balance-sweep.
 
@@ -47,7 +47,7 @@ Each bot is a scene: `gd --headless --path . --fixed-fps 60 res://tests/<bot>.ts
 
 Bots: `sim_bot` (single player end to end), `military_bot`, `rat_bot`, `hud_bot`, `enemy_bot`, `aqua_bot`, `siege_bot`, `world_bot`, `tutorial_bot`, `scenario_bot` (`-- --only=N` for one scenario), `library_bot`, `stats_bot`, `save_bot`, `title_bot`, `build_bot`, `coop_bot`, `mapgen_bot`, `map_format_bot`, `editor_bot`, and the two-process net test `tests/run_net_test.sh <gd>`. `tests/run_all.sh` runs every bot in sequence. Lint: `tests/lint.sh`. Art: `python3 tools/gen_art.py`. Balancing bot: balance-sweep skill.
 
-**Baseline:** all bots pass and lint is clean. CI allows no failures, so a fix that breaks a bot is fixed in the same change. The one local exception is title_bot's build-frames check (machine-dependent; skipped with `CI` set). Anything else failing is new.
+**Baseline:** all bots pass and lint is clean. CI allows no failures, so a fix that breaks a bot is fixed in the same change. The one local exception is title_bot's build-frames check (machine-dependent; skipped with `CI` set). Anything else failing is new. Once the 7×7 layout / town hall is built: until the user has reworked the nine `data/maps` files by hand, bots that load them (scenario_bot and others using built-in maps) are expected to fail.
 
 ## Code layout (by directory; look inside for the rest)
 
@@ -76,7 +76,7 @@ scenes/       main.tscn, title.tscn
 
 - `game.gd` modes: `tutorial_mode`, `scenario`, `backdrop`, `networked`; a game can be `loaded`. A new game-wide rule may need to respect all of them.
 - Every player action is a command (`Commands`) so co-op clients work; the host simulates.
-- Difficulty scales enemy strength and loot only (`DIFFICULTY_SCALED`), never cooldowns or ranges.
+- Difficulty scales enemy strength and loot only (`DIFFICULTY_SCALED`), never cooldowns or ranges. The one stated exception (designed, not built): a town hall's last-stand countdown.
 - Game speed is `Engine.time_scale`; real-time code must not be scaled by it.
 - Save state: a field that must survive a load needs a `SaveGame.capture` / restore line; a layout change bumps `SaveGame.FORMAT`.
 - The game log file (`GameLog`) goes in `user://game_logs`, never a folder named `logs` (Godot's own). It isn't written on the web, in the tutorial, the title backdrop or for a co-op client.

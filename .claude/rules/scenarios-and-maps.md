@@ -31,3 +31,7 @@ The user edits scenario maps in the map editor. **Never regenerate those** (`too
 - *Play* tries the map; the settings then offer a way back to the editor.
 - A map file can be played in single player and co-op. `MapData.for_game` turns villages nobody plays into ownerless ruins.
 - In portrait the panels are a bottom sheet, like the game's dock.
+
+## The 7×7 village and the town hall (designed, not built)
+- The nine files in `data/maps` need the 7×7 village and a town hall per village (`docs/village-design.md` §3.1). The user reworks them **by hand**; never regenerate or convert them. Once the layout / town hall is built and until they are reworked, bots loading them (scenario_bot and others using built-in maps) are expected to fail.
+- Marketplace, items and advancements are off in a scenario unless it switches them on (`docs/scenarios-design.md`).

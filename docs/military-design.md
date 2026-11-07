@@ -278,6 +278,21 @@ branch price. Their level 1 is above the shield bearer's level 3 (the rule in §
 - A witch's spell bewitches a tower's unit: no shooting, summoning or healing for a while (a High
   Priest's aura keeps working).
 
+### 6a. Town hall posts and targeting *(designed, not built)*
+
+- **The town hall's posts** (docs/village-design.md §3a): from level 2 a tower post on the hall,
+  taking what every tower takes, with a level-3 watchtower's range and no upgrades of its own;
+  from level 3 one barracks bench on its front tile, sortieing with a level-1 barracks'
+  activation range.
+- **Default targeting** for every unit becomes **nearest the village centre** (the path crossing,
+  docs/village-design.md §3.1), replacing "closest to its gate" (`MilitaryBehavior.enemies_near`,
+  `Enemy.remaining`). An enemy that broke in is nearer the centre than one outside a gate, so a
+  breach comes first: what a defender would do. Spider eggs stay last, and scenario overrides
+  (an octopus's arm holding one of ours) stay above any rule. The change in balance is small and
+  is checked by the bots and a balance sweep.
+- **Better targeting** and **manual targeting** are an exclusive pair of advancements: one rule
+  per unit kind for every tower, or a switch per tower (docs/advancements-design.md).
+
 ## 7. Upgrading and the Spatial Archmage
 
 - **Upgrade dialog.** *Upgrade* opens a small dialog with one button per option, from the reserve

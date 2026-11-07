@@ -26,5 +26,5 @@ Design reasoning: `docs/village-design.md`, `docs/hero-design.md`, `docs/siege-d
 - **Hero evasion.** `wants_to_evade` is true only in Build, Explore and Gather, and never during an ordered camp attack: in Defend, Train and Rest she fights or stays instead of running. Keep a new mode's evasion decision going through it.
 - **Unit-unlock sites, ruined watchtowers, treasures, monster camps/lairs, mines** are map objects (`scripts/world/objects/`), hidden in the fog until found; the hero's Explore mode handles them in a fixed priority.
 - **Hunger and starvation** are driven by `Population.starving`; military units suffer a penalty, villagers starve in a fixed interval, named ones last.
-- **Defeat:** no civilians or no intact huts. In co-op a village falls and may stand again; the game is lost when all have fallen.
+- **Defeat:** no civilians or no intact huts. In co-op a village falls and may stand again; the game is lost when all have fallen. (Designed, not built: the town hall replaces the hut condition and brings the last stand; the 7×7 village, the trader, salvage and hero equipment are in `docs/village-design.md` §3.1–3b, `docs/market-design.md`, `docs/items-design.md`.)
 - Villagers living in huts: a hut caps the population; raids kill only the villager whose hut burns.

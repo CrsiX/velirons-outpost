@@ -248,6 +248,19 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   - Stationing a unit and dropping one onto a post take the front-most post there
     (`World.pick_post`), not whatever is in front of it.
 
+### 7.1 Panels for the new features *(designed, not built)*
+
+- **Hero panel:** her four slots (weapon, armour, accessory, movement); tapping a slot lists the
+  armoury's items for it. A swap is a command, allowed only while she is idle at the town hall and
+  it isn't devastated (docs/items-design.md).
+- **Town hall panel:** its level and upgrade, its posts, and research: the advancements, their
+  conditions and costs, the one under research; exclusive choices are marked clearly as final
+  before they are taken (docs/advancements-design.md).
+- **Marketplace panel:** buying from its stock, putting goods up for sale, caravans out, the
+  equipment and relic offers, and in co-op the order book (docs/market-design.md).
+- **Tower panel:** with the manual-targeting advancement, a targeting switch per tower (nearest
+  the village centre, weakest, strongest, fastest, support first).
+
 ## 8. Warnings
 
 - Both warnings are red text, centred under the top bar. They never catch taps.
@@ -259,6 +272,9 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   sits right under the no-builder warning when that shows. `Hud.food_warning_text()` picks a tip for
   what is missing (no farm, a farm but no farmer, unassigned workers); when every farm is worked, the
   warning stands alone, since there is nothing to advise.
+- *(Designed, not built:)* **Last stand:** shown for the whole of a town hall's last stand, a
+  countdown above the other warnings, saying when the repair can't be paid (docs/village-design.md
+  §3b).
 - Both count **game seconds** (4x runs them 4x as fast) and paused time doesn't count, so they match
   what the simulation is doing.
 

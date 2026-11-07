@@ -66,6 +66,9 @@ the reasoning and points at the symbols.
 - Nothing else is scaled: not cooldowns, ranges and timings (a longer cooldown would make Hard
   easier), nor shares and rates such as `drain`, `gate_eat`, `steal_share`, `bat_speed` or
   `bat_gate_heal`.
+- *(Designed, not built:)* the one stated exception is a town hall's last-stand countdown
+  (docs/village-design.md §3b): it isn't enemy strength, and it is named here so nobody reads
+  it as a precedent.
 - Each enemy also rolls a small spread on its speed so a group doesn't march in lockstep.
 
 ## 3. Damage categories and resistances
@@ -742,6 +745,21 @@ their own (`Enemy.set_identity`). Numbers and the rest: docs/scenarios-4-6-desig
 - Wave counts ignore guards (filter `CampBehavior`).
 
 ## 12. Open ideas / not built
+
+- **"Support" flag** *(designed, not built)*: a per-kind flag in `Config.ENEMIES`, hand-kept, for
+  the enemies that stand back and make the rest stronger or more dangerous. Manual targeting's
+  "support first" switch (docs/advancements-design.md) goes for them, then falls back to
+  "nearest the village centre". The list: witch, necromancer, spider mother, siren, Legion
+  banner-bearer, Legion marshal, the Crowned King. Not the legion captain (it buffs nobody), nor
+  vampire, octopus, snake, leviathan or wolf: dangerous, but they make nobody else stronger.
+- **Trade caravans** *(designed, not built, docs/market-design.md)*: enemies treat them like
+  civilians, except ghosts (which haunt villagers only) and wolves (which never hunt them). A
+  **thief** that gets one in reach robs it instead of heading for a gate: it takes the whole
+  cargo and runs for the edge, the empty cart going home unharmed; killed on the way, its corpse
+  leaves the cargo as salvage, as a thief's stolen gold does today (§10.4). Help caravans stay
+  immune (docs/multiplayer-design.md §7.1).
+- **A siege enemy** (later): a kind marked by dealing *more* damage to buildings must avoid the
+  town hall as a target, so it can't end a game in a few blows (docs/siege-design.md §5.6).
 
 - **More invisible enemies:** the ghost (§10.13) is the first. A new one should reveal through
   the same rule (`GhostBehavior._revealed`: light stones and `Combat.in_holy_aura`).

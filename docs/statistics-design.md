@@ -162,7 +162,12 @@ Rules worth knowing:
 ## 8. Later (not in this design)
 
 - Statistics saved after each game, with a "Best games" list on the title
-  screen.
+  screen. Statistics across games may come, but they **never change gameplay**:
+  no unlock, bonus or advancement may depend on them.
+- *(Designed, not built:)* **deeds**: some advancements need a deed done in the same game
+  (so many kills by one unit kind, half the map explored, a volcano found;
+  docs/advancements-design.md). They read this game's counters only, so the statistics
+  gain the counters deeds need, kept within one game like the rest.
 - Exporting a game's statistics (CSV) for players who like spreadsheets.
 
 ## 9. Decisions

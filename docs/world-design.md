@@ -100,6 +100,21 @@ crushed.
    goes on the slice's centre and the map counts as failed. The village is
    stamped in with a clearing ring; steppe, swamp and ash inside it become
    meadow. Single player uses the same rule round the map centre.
+   *(Designed, not built:)* the village becomes a 7×7 block with its **town
+   hall**, which the generator places as part of the village, a core part of
+   every map with no safety net when a file loads (docs/village-design.md
+   §3.1, §3a). The clearing ring and its meadow stamping go, and so does the
+   rule keeping water, mountains and lava away from the walls; the distances
+   from the sea and from volcanoes (`VILLAGE_SEA_DIST`, `VILLAGE_VOLCANO_DIST`)
+   stay, and no distance from the ocean is added (that belongs to the coast
+   map type). What a spot must still give: the 7×7 footprint on land that can
+   be built on; no water, mountain or lava directly in front of any gate
+   (forest is fine: a gate may face woods a forester will open up); at least
+   two gates with a road (world-roads-design.md §5.1), since one road would
+   make a village too easy to defend. The free tiles and paths inside are
+   grass. The starting farm and camp are placed on the finished map or left
+   out (docs/village-design.md §4), as now. The title maps need a rebake
+   after this change.
    **Coast inlets** (stage 6b, Coast maps only; world-objects-design.md §9.8)
    follow the villages and come before the roads, so the road network sees
    them as sea and routes around their deep water.

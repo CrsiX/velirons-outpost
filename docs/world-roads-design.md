@@ -37,7 +37,9 @@ cut off.
   already has a road counts a little worse, so roads spread over the gates
   without forbidding two on one. A gate with a road leading away is an
   **approach**; every village needs at least 2, so enemies never have exactly
-  one way in.
+  one way in. *(Designed, not built:)* with the 7×7 village this stays a hard
+  rule: at least two gates with a road; a gate facing forest with no road is
+  allowed.
 - Roads never pass through a village's walls.
 - Mines get a short spur, lairs a winding road (world-objects-design.md §9.6).
 

@@ -24,3 +24,4 @@ Design reasoning: `docs/military-design.md`, `docs/acolyte-design.md`, `docs/her
 - Buffs and auras follow the "strongest counts, no stacking" principle where the docs say so; keep new ones consistent (`Combat` helpers).
 - Military units eat wherever they are; `Scenario.army_upkeep` scales it. The hero and summons never eat.
 - Co-op: a sent unit joins the other village's army and can't be recalled.
+- **Targeting (designed, not built):** the default becomes nearest the village centre for every unit; better / manual targeting are exclusive advancements (`docs/military-design.md` §6a, `docs/advancements-design.md`).

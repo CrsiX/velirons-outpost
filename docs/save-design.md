@@ -211,6 +211,15 @@ Rules behind the table:
   villager's (loot is carried home); her other modes and a camp to clear
   decide from where she stands.
 - **Nothing of a running wave and no debug enemies.**
+- *(Designed, not built:)* the town hall, marketplace, items and advancements add state that
+  must survive a load, so their change bumps `SaveGame.FORMAT` once: the town hall (level, HP,
+  a running last stand and its seconds left, a failed co-op last stand), the marketplace (its
+  buying stock, the goods for sale, the trader's packing progress, the relic-offer timer, the
+  equipment offer), trade caravans in transit (cargo, direction, position: saves come between
+  waves, but a caravan may be on the road), salvage lying on the map, the hero's slots and the
+  armoury, the relics owned, the advancements researched and the one under research with its
+  progress, exclusive choices taken, every tower's manual-targeting setting, and the in-game
+  deed counters advancements check.
 
 ## 8. Files
 
