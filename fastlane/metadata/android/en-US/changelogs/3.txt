@@ -1,0 +1,3 @@
+- Using custom export mode to avoid random asset ordering from filters
+- Ignore fastlane for .pck export, strip tests and tools as well
+- Enforce stable UIDs and object IDs in scenes and bots
