@@ -1,0 +1,6 @@
+- Give co-op heroes each a different color based on village color
+- Fixed a few minor bugs in exploration, visuals and statistics
+- Relic effect "All units heal" includes the hero now
+- Improved scenario 3, 4 and 5
+- Improved build CI for reproducible builds, fixed flaky CI jobs
+- Track which enemy type destroyed a hut

@@ -92,7 +92,7 @@ Look at the changes (git diff HEAD), then commit, tag and push:
 
   git add $presets
   git commit -m "Release $tag"
-  git tag -a $tag -m "Release $tag"
+  git tag -s -a $tag -m "Release $tag"
   git push --follow-tags
 
 Once CI has made the release, attach the signed APK (the release key stays here):
