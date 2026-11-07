@@ -23,10 +23,12 @@
 # fdroid.yaml's postbuild: strip-nondeterminism (Godot dates every zip entry
 # with the export time) and reproducible-apk-tools' zipalign.py, with
 # SOURCE_DATE_EPOCH set to the commit's time as F-Droid's build server sets
-# it. Last, signed here with apksigner from the Android SDK (ANDROID_HOME or
-# ANDROID_SDK_ROOT, newest build-tools) and the keystore for the kind
-# exported: GODOT_ANDROID_KEYSTORE_DEBUG_* / _RELEASE_* (_PATH, _USER,
-# _PASSWORD), the same variables Godot reads.
+# it. A release APK stays unsigned: the release key never leaves the
+# developer's machine, who signs it there and attaches it to the GitHub
+# release (.claude/rules/build.md). A debug APK is signed here with
+# apksigner from the Android SDK (ANDROID_HOME or ANDROID_SDK_ROOT, newest
+# build-tools) and the debug keystore in GODOT_ANDROID_KEYSTORE_DEBUG_PATH,
+# _USER and _PASSWORD, the variables Godot reads.
 #
 # Android also needs: strip-nondeterminism (Debian/Ubuntu package) and
 # REPRO_APK_TOOLS, a checkout of reproducible-apk-tools at the tag
@@ -70,14 +72,15 @@ mkdir -p "$data/godot/export_templates/$version"
 cp "$templates"/* "$data/godot/export_templates/$version/"
 
 if [ "$platform" = android ]; then
-	kind_uc=$(echo "$kind" | tr a-z A-Z)
-	for v in PATH USER PASSWORD; do
-		var=GODOT_ANDROID_KEYSTORE_${kind_uc}_$v
-		[ -n "${!var:-}" ] || { echo "export-stripped: set $var" >&2; exit 1; }
-	done
-	sdk=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
-	apksigner=$(ls -d "$sdk"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)
-	[ -n "$apksigner" ] || { echo "export-stripped: no apksigner in the Android SDK (ANDROID_HOME)" >&2; exit 1; }
+	if [ "$kind" = debug ]; then
+		for v in PATH USER PASSWORD; do
+			var=GODOT_ANDROID_KEYSTORE_DEBUG_$v
+			[ -n "${!var:-}" ] || { echo "export-stripped: set $var" >&2; exit 1; }
+		done
+		sdk=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
+		apksigner=$(ls -d "$sdk"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)
+		[ -n "$apksigner" ] || { echo "export-stripped: no apksigner in the Android SDK (ANDROID_HOME)" >&2; exit 1; }
+	fi
 	command -v strip-nondeterminism >/dev/null || { echo "export-stripped: strip-nondeterminism not found" >&2; exit 1; }
 	[ -f "${REPRO_APK_TOOLS:-}/zipalign.py" ] || { echo "export-stripped: set REPRO_APK_TOOLS to a reproducible-apk-tools checkout" >&2; exit 1; }
 	export SOURCE_DATE_EPOCH
@@ -95,9 +98,6 @@ XDG_DATA_HOME=$data GODOT=$godot tools/export.sh "$preset" "$out" $mode
 test -s "$out"
 
 if [ "$platform" = android ]; then
-	ks=GODOT_ANDROID_KEYSTORE_${kind_uc}_PATH
-	alias=GODOT_ANDROID_KEYSTORE_${kind_uc}_USER
-	pass=GODOT_ANDROID_KEYSTORE_${kind_uc}_PASSWORD
 	# fdroid.yaml's postbuild, the same commands.
 	strip-nondeterminism -t zip "$out"
 	unaligned=$(dirname "$out")/unaligned-$(basename "$out")
@@ -105,11 +105,17 @@ if [ "$platform" = android ]; then
 	python3 "$REPRO_APK_TOOLS/zipalign.py" --page-size 16 --pad-like-apksigner \
 		--replace "$unaligned" "$out"
 	rm -f "$unaligned"
-	echo "== signing with $apksigner"
-	KS_PASS=${!pass} "$apksigner" sign --ks "${!ks}" --ks-key-alias "${!alias}" \
-		--ks-pass env:KS_PASS --key-pass env:KS_PASS --out "$final" "$out"
-	rm -f "$out" "$final.idsig"
-	"$apksigner" verify "$final"
+	if [ "$kind" = debug ]; then
+		echo "== signing with the debug key ($apksigner)"
+		KS_PASS=$GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD "$apksigner" sign \
+			--ks "$GODOT_ANDROID_KEYSTORE_DEBUG_PATH" --ks-key-alias "$GODOT_ANDROID_KEYSTORE_DEBUG_USER" \
+			--ks-pass env:KS_PASS --key-pass env:KS_PASS --out "$final" "$out"
+		rm -f "$out" "$final.idsig"
+		"$apksigner" verify "$final"
+	else
+		echo "== left unsigned: sign it with the release key on your own machine"
+		mv "$out" "$final"
+	fi
 	out=$final
 	test -s "$out"
 fi

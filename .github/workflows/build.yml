@@ -8,14 +8,15 @@ name: Build
 #               "stripped"); a failure fails the run but holds up no build
 #   export    - Linux, Windows and Web release, Android debug: one artifact
 #               each, velirons-outpost-<name>; on a tag also Android release
-#               (velirons-outpost-android-release), signed with the release
-#               key from the secrets ANDROID_RELEASE_KEYSTORE (base64),
-#               ANDROID_RELEASE_KEY_ALIAS and ANDROID_RELEASE_KEY_PASSWORD
+#               (velirons-outpost-android-release), unsigned: the release
+#               key stays on the developer's machine, who signs it and
+#               attaches it to the release by hand (no secrets here)
 #   pages     - the Web debug build (it has the Debug page), deployed to
 #               GitHub Pages on a push to main, without waiting for the bots
 #   release   - on a tag (v*): a GitHub release named after the tag's
 #               message (tag v0.1.0 "Release v0.1.0"), with the release
-#               builds only (.x86_64, .exe, .apk, the web build as a .zip);
+#               builds only (.x86_64, .exe, the web build as a .zip; the
+#               signed .apk is attached by hand afterwards);
 #               it waits for every export and for the bots to pass
 #
 # Other branches run the bots on Godot's stock engine instead (tests.yml).
@@ -46,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/stripped-template
         with:
@@ -54,7 +55,7 @@ jobs:
           kind: debug
           godot-tag: ${{ env.GODOT_TAG }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: github.event_name != 'schedule'
         with:
           name: template-linux-debug
@@ -85,10 +86,10 @@ jobs:
           - {name: android, platform: android, kind: debug, out: build/android/velirons-outpost.apk}
           # Exported only on a tag (for the release), but its template cache is
           # kept warm by every run like the others.
-          - {name: android-release, platform: android, kind: release, out: build/android-release/velirons-outpost.apk, tag-only: true}
+          - {name: android-release, platform: android, kind: release, out: build/android-release/velirons-outpost-unsigned.apk, tag-only: true}
           - {name: web, platform: web, kind: release, out: build/web/index.html}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           lfs: true
           fetch-depth: 0 # the whole history and the tags: the stamp names the latest tag
@@ -106,9 +107,9 @@ jobs:
 
       # --- Android only ----------------------------------------------------
       # Exported like fdroid.yaml does (the "F-Droid" preset, unsigned; see
-      # export-stripped.sh), then signed with the SDK's apksigner: a fresh
-      # debug key for debug, the project's key (secrets) for release. No
-      # Gradle or NDK here (gradle_build/use_gradle_build=false).
+      # export-stripped.sh). Debug is then signed with a fresh debug key;
+      # release stays unsigned (signed by hand, off GitHub). No Gradle or NDK
+      # here (gradle_build/use_gradle_build=false).
       # The same OpenJDK as the template build and fdroid.yaml.
       - name: Set up the JDK
         if: env.EXPORT == 'true' && matrix.platform == 'android'
@@ -128,12 +129,8 @@ jobs:
             https://github.com/obfusk/reproducible-apk-tools.git "$RUNNER_TEMP/reproducible-apk-tools"
           echo "REPRO_APK_TOOLS=$RUNNER_TEMP/reproducible-apk-tools" >> "$GITHUB_ENV"
 
-      - name: Point Godot at the Android SDK and a signing key
+      - name: Point Godot at the Android SDK (and a debug key)
         if: env.EXPORT == 'true' && matrix.platform == 'android'
-        env:
-          KEYSTORE: ${{ secrets.ANDROID_RELEASE_KEYSTORE }}
-          KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
         run: |
           # These two are editor settings with no command-line switch, so write
           # the file the editor would have written. Godot fills in every other
@@ -148,20 +145,8 @@ jobs:
           export/android/java_sdk_path = "${JAVA_HOME}"
           EOF
           cp ~/.config/godot/editor_settings-4.tres ~/.config/godot/editor_settings-$(echo "$GODOT_VERSION" | cut -d. -f1,2).tres
-          mkdir -p ~/.android
-          if [ "${{ matrix.kind }}" = release ]; then
-            # The release key: always the same one, or players can't update.
-            if [ -z "$KEYSTORE" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-              echo "::error::Android release export needs the secrets ANDROID_RELEASE_KEYSTORE (base64), ANDROID_RELEASE_KEY_ALIAS and ANDROID_RELEASE_KEY_PASSWORD"
-              exit 1
-            fi
-            echo "$KEYSTORE" | base64 -d > ~/.android/release.keystore
-            {
-              echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$HOME/.android/release.keystore"
-              echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=$KEY_ALIAS"
-              echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$KEY_PASSWORD"
-            } >> "$GITHUB_ENV"
-          else
+          if [ "${{ matrix.kind }}" = debug ]; then
+            mkdir -p ~/.android
             keytool -keyalg RSA -genkeypair -alias androiddebugkey \
               -keypass android -keystore ~/.android/debug.keystore \
               -storepass android -dname "CN=Android Debug,O=Android,C=US" \
@@ -181,7 +166,7 @@ jobs:
         if: env.EXPORT == 'true'
         run: GODOT=$HOME/godot .github/scripts/export-stripped.sh ${{ matrix.platform }} ${{ matrix.kind }} ${{ matrix.out }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: env.EXPORT == 'true'
         with:
           name: velirons-outpost-${{ matrix.name }}
@@ -204,7 +189,7 @@ jobs:
       TAG: ${{ github.ref_name }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # checkout leaves an annotated tag as a lightweight one: fetch it as it is.
       - name: Read the tag's message
@@ -217,7 +202,7 @@ jobs:
           fi
           echo "title=${title:-$TAG}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: velirons-outpost-*
           path: artifacts
@@ -228,7 +213,6 @@ jobs:
           a=artifacts/velirons-outpost
           cp "$a-linux/velirons-outpost.x86_64" "release/velirons-outpost-$TAG.x86_64"
           cp "$a-windows/velirons-outpost.exe" "release/velirons-outpost-$TAG.exe"
-          cp "$a-android-release/velirons-outpost.apk" "release/velirons-outpost-$TAG.apk"
           (cd "$a-web" && zip -r -9 "$GITHUB_WORKSPACE/release/velirons-outpost-$TAG-web.zip" .)
           ls -lh release
 
@@ -249,7 +233,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           lfs: true
           fetch-depth: 0
@@ -269,7 +253,7 @@ jobs:
         if: github.event_name != 'schedule'
         run: GODOT=$HOME/godot .github/scripts/export-stripped.sh web debug build/pages/index.html
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'schedule'
         with:
           path: build/pages
@@ -289,4 +273,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

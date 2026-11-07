@@ -95,6 +95,17 @@ Look at the changes (git diff HEAD), then commit, tag and push:
   git tag -a $tag -m "Release $tag"
   git push --follow-tags
 
+Once CI has made the release, attach the signed APK (the release key stays here):
+download the artifact velirons-outpost-android-release from the tag's run
+(Actions tab), unzip it, then
+
+  apksigner sign --ks <your keystore> --ks-key-alias <alias> \\
+    --out velirons-outpost-$tag.apk velirons-outpost-unsigned.apk
+  apksigner verify --print-certs velirons-outpost-$tag.apk
+
+and add velirons-outpost-$tag.apk to the $tag release (Edit, attach binaries).
+Keep that exact name: F-Droid's Binaries: URL fetches it. Do it soon after tagging.
+
 If you edit the changelog first, git add it again. To throw it all away instead:
 
   git checkout -- $presets && git rm -qf $changelog

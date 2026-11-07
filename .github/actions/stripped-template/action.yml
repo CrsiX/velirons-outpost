@@ -27,7 +27,7 @@ runs:
   steps:
     - name: Cache the ${{ inputs.platform }} ${{ inputs.kind }} template
       id: cache
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: build/stripped/templates
         # Android's carries the JDK it was built with (its Java part depends on it).

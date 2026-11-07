@@ -49,7 +49,7 @@ jobs:
     steps:
       - name: Cache Godot
         id: cache-godot
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/godot
@@ -78,12 +78,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           lfs: true
 
       - name: Restore Godot
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/godot
@@ -91,7 +91,7 @@ jobs:
           key: godot-${{ env.GODOT_VERSION }}
           fail-on-cache-miss: true
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: template-linux-debug
           path: build/stripped/templates
@@ -104,7 +104,7 @@ jobs:
           cp build/stripped/templates/linux_debug.x86_64 build/stripped/godot.template_debug
           ls -lh build/stripped
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: stripped-linux
           path: |
@@ -119,9 +119,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -142,13 +142,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           lfs: true
 
       - name: Restore Godot
         if: inputs.engine != 'stripped'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/godot
@@ -162,7 +162,7 @@ jobs:
 
       - name: Fetch the stripped engine and the pack
         if: inputs.engine == 'stripped'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: stripped-linux
           path: build/stripped
@@ -183,7 +183,7 @@ jobs:
             GODOT=~/godot tests/run_all.sh mapgen
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: logs-mapgen
@@ -205,13 +205,13 @@ jobs:
       matrix:
         bot: [build, library, stats, save, map_format, editor, world, title, coop, net, tutorial, scenario, military, enemy, aqua, siege, rat, hud, sim]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           lfs: true
 
       - name: Restore Godot
         if: inputs.engine != 'stripped'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/godot
@@ -225,7 +225,7 @@ jobs:
 
       - name: Fetch the stripped engine and the pack
         if: inputs.engine == 'stripped'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: stripped-linux
           path: build/stripped
@@ -244,7 +244,7 @@ jobs:
             GODOT=~/godot tests/run_all.sh ${{ matrix.bot }}
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: logs-${{ matrix.bot }}
@@ -275,13 +275,13 @@ jobs:
           - {name: random-mages, map: random, seed: random, difficulty: easy, policy: mages}
           - {name: random-holy, map: random, seed: random, difficulty: normal, policy: holy}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           lfs: true
 
       - name: Restore Godot
         if: inputs.engine != 'stripped'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/godot
@@ -295,7 +295,7 @@ jobs:
 
       - name: Fetch the stripped engine and the pack
         if: inputs.engine == 'stripped'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: stripped-linux
           path: build/stripped
@@ -335,7 +335,7 @@ jobs:
           ERR=${ERR//'%'/'%25'}; ERR=${ERR//$'\r'/'%0D'}; ERR=${ERR//$'\n'/'%0A'}
           echo "::warning title=$NAME passed on the second try (flaky)::The first game failed; the second passed. First game: $ERR"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: balance-smoke-${{ matrix.name }}
@@ -353,9 +353,9 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: logs
           pattern: logs-*
@@ -368,7 +368,7 @@ jobs:
           head -c 900000 summary.md >> "$GITHUB_STEP_SUMMARY"
           cat summary.md
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: summary

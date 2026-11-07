@@ -60,7 +60,7 @@ jobs:
     steps:
       - name: Cache Godot
         id: cache-godot
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/godot
@@ -89,12 +89,12 @@ jobs:
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           lfs: true
 
       - name: Restore Godot
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/godot
@@ -130,7 +130,7 @@ jobs:
             --rev=${{ github.sha }} --shard=${{ matrix.shard }}/${{ inputs.machines }} \
             --out="$GITHUB_WORKSPACE/out/runs-${{ matrix.shard }}.jsonl" 2>&1 | tee out/log-${{ matrix.shard }}.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: balance-runs-${{ matrix.shard }}
@@ -143,9 +143,9 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: runs
           pattern: balance-runs-*
@@ -157,7 +157,7 @@ jobs:
           python3 tools/balance/report.py runs.jsonl --out report > report.txt
           head -c 900000 report/report.md >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: balance-report
           path: |
