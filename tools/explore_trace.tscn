@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://4o0f4mnx7um1"]
 
 [ext_resource type="Script" path="res://tools/explore_trace.gd" id="1_trace"]
 
-[node name="ExploreTrace" type="Node"]
+[node name="ExploreTrace" type="Node" unique_id=162165433]
 script = ExtResource("1_trace")

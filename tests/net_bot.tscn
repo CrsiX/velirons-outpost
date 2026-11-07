@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://c8rf2d2av4xur"]
 
 [ext_resource type="Script" path="res://tests/net_bot.gd" id="1"]
 
-[node name="NetBot" type="Node"]
+[node name="NetBot" type="Node" unique_id=1093568629]
 script = ExtResource("1")

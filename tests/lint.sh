@@ -1,5 +1,6 @@
 #!/bin/bash
-# Runs gdlint over every GDScript file in the project.
+# Runs gdlint over every GDScript file in the project, and checks that every
+# scene, resource and script has its UID in git and every scene node an ID.
 #
 #   tests/lint.sh                     # all of scripts/, tests/ and tools/
 #   tests/lint.sh scripts/buildings   # only this path
@@ -40,3 +41,31 @@ fi
 
 echo "linting: ${paths[*]}"
 $GDLINT "${paths[@]}"
+rc=$?
+
+# Every scene, resource and script has a fixed UID in the repo, and every
+# scene node a unique_id: what lacks one gets a random one at each export, so
+# no two APKs would match (reproducible builds, .claude/rules/build.md).
+# Godot's editor writes them on save; a hand-written scene needs them (a UID
+# from ResourceUID.create_id(), any positive 31-bit number per node).
+missing=0
+while IFS= read -r f; do
+	if ! head -1 "$f" | grep -q ' uid="uid://'; then
+		echo "$f: no uid= in its header" >&2
+		missing=1
+	fi
+done < <(git ls-files '*.tscn' '*.tres')
+while IFS= read -r f; do
+	if grep -q '^\[node' "$f" && grep '^\[node' "$f" | grep -vq ' unique_id=[0-9]*\]$'; then
+		echo "$f: a [node] without unique_id" >&2
+		missing=1
+	fi
+done < <(git ls-files '*.tscn')
+while IFS= read -r f; do
+	if ! git ls-files --error-unmatch "$f.uid" >/dev/null 2>&1; then
+		echo "$f: its .uid file is not in git" >&2
+		missing=1
+	fi
+done < <(git ls-files '*.gd' '*.gdshader')
+[ "$missing" -eq 0 ] || rc=1
+exit $rc

@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://buw1qnqmqmiat"]
 
 [ext_resource type="Script" path="res://tests/rat_bot.gd" id="1_rat"]
 
-[node name="RatBot" type="Node"]
+[node name="RatBot" type="Node" unique_id=22172074]
 script = ExtResource("1_rat")

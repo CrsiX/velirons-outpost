@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=2 format=3 uid="uid://8vko7banr4sp"]
 
 [ext_resource type="Script" path="res://tools/bake_title_maps.gd" id="1"]
 
-[node name="BakeTitleMaps" type="Node"]
+[node name="BakeTitleMaps" type="Node" unique_id=239187998]
 script = ExtResource("1")

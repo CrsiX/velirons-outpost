@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://d0h16xyprasew"]
 
 [ext_resource type="Script" path="res://tests/editor_bot.gd" id="1_editor"]
 
-[node name="EditorBot" type="Node"]
+[node name="EditorBot" type="Node" unique_id=928893672]
 script = ExtResource("1_editor")

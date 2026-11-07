@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://mfh43qqje71e"]
 
 [ext_resource type="Script" path="res://tests/hud_bot.gd" id="1_hud"]
 
-[node name="HudBot" type="Node"]
+[node name="HudBot" type="Node" unique_id=1706190731]
 script = ExtResource("1_hud")

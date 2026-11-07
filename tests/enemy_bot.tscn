@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bbw3fuo7qncue"]
 
 [ext_resource type="Script" path="res://tests/enemy_bot.gd" id="1_enemy"]
 
-[node name="EnemyBot" type="Node"]
+[node name="EnemyBot" type="Node" unique_id=1042513694]
 script = ExtResource("1_enemy")

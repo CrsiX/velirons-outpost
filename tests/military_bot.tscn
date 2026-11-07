@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cyn8gy6niuab5"]
 
 [ext_resource type="Script" path="res://tests/military_bot.gd" id="1_mil"]
 
-[node name="MilitaryBot" type="Node"]
+[node name="MilitaryBot" type="Node" unique_id=167178232]
 script = ExtResource("1_mil")

@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://dnrr83kupooq6"]
 
 [ext_resource type="Script" path="res://tests/coop_bot.gd" id="1"]
 
-[node name="CoopBot" type="Node"]
+[node name="CoopBot" type="Node" unique_id=297887068]
 script = ExtResource("1")

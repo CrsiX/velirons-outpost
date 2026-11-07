@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://co6b4gyt16dl6"]
 
 [ext_resource type="Script" path="res://tests/sim_bot.gd" id="1_bot"]
 
-[node name="SimBot" type="Node"]
+[node name="SimBot" type="Node" unique_id=790633737]
 script = ExtResource("1_bot")

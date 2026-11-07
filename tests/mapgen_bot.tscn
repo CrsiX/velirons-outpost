@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://3cirpb5707r8"]
 
 [ext_resource type="Script" path="res://tests/mapgen_bot.gd" id="1_mapgen"]
 
-[node name="MapgenBot" type="Node"]
+[node name="MapgenBot" type="Node" unique_id=146082883]
 script = ExtResource("1_mapgen")

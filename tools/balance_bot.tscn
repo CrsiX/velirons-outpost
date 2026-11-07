@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://b88ivaxwvdbtd"]
 
 [ext_resource type="Script" path="res://tools/balance_bot.gd" id="1_bot"]
 
-[node name="BalanceBot" type="Node"]
+[node name="BalanceBot" type="Node" unique_id=687647502]
 script = ExtResource("1_bot")

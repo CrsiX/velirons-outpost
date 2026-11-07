@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://ckjlay2bf325t"]
 
 [ext_resource type="Script" path="res://tests/library_bot.gd" id="1_lib"]
 
-[node name="LibraryBot" type="Node"]
+[node name="LibraryBot" type="Node" unique_id=1648495846]
 script = ExtResource("1_lib")

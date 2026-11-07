@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://b2kavch35rv8p"]
 
 [ext_resource type="Script" path="res://scripts/editor/map_editor.gd" id="1_editor"]
 
-[node name="MapEditor" type="Node2D"]
+[node name="MapEditor" type="Node2D" unique_id=1121992086]
 script = ExtResource("1_editor")

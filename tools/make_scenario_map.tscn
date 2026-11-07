@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=2 format=3 uid="uid://dbndqi1hdtfyu"]
 
 [ext_resource type="Script" path="res://tools/make_scenario_map.gd" id="1"]
 
-[node name="MakeScenarioMap" type="Node"]
+[node name="MakeScenarioMap" type="Node" unique_id=196246601]
 script = ExtResource("1")

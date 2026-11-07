@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://xkmteco1n8dk"]
 
 [ext_resource type="Script" path="res://scripts/ui/title_screen.gd" id="1_title"]
 
-[node name="Title" type="Control"]
+[node name="Title" type="Control" unique_id=975637869]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0

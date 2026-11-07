@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://db3x26llglon"]
 
 [ext_resource type="Script" path="res://tests/siege_bot.gd" id="1_siege"]
 
-[node name="SiegeBot" type="Node"]
+[node name="SiegeBot" type="Node" unique_id=1855055541]
 script = ExtResource("1_siege")
