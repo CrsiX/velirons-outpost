@@ -282,8 +282,9 @@ branch price. Their level 1 is above the shield bearer's level 3 (the rule in §
 
 - **The town hall's posts** (docs/village-design.md §3a): from level 2 a tower post on the hall
   (`TownHall` is a `Tower`), taking what every tower takes, with a level-3 watchtower's range and
-  no upgrades of its own. *(Designed, not built:)* from level 3 one barracks bench on its front
-  tile, sortieing with a level-1 barracks' activation range.
+  no upgrades of its own. From level 3 one barracks bench on its front tile (`HallBench`, a
+  one-bench barracks that belongs to the hall), sortieing with a level-1 barracks' activation
+  range. A unit dropped on the hall takes the tower post if it can, else the bench.
 - **Default targeting** for every unit is **nearest the village centre** (the path crossing,
   docs/village-design.md §3.1; `MilitaryBehavior.enemies_near` by `Enemy.remaining`). An enemy
   that broke in is nearer the centre than one outside a gate, so a breach comes first: what a

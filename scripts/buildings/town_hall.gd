@@ -6,12 +6,45 @@ extends Tower
 ## "post_from" it holds a tower post on its centre (a Tower in all but its
 ## look and range). Devastated, the village's last stand starts
 ## (Village.last_stand, §3b): it must be repaired to full HP in time. It
-## follows the village's piece material like the walls.
+## follows the village's piece material like the walls. From level
+## "bench_from" its bench (HallBench, a one-bench barracks on its front tile)
+## takes a unit too.
+
+## Its bench (a post of its own for the army; made when the hall enters the world).
+var bench: HallBench
 
 
 func setup(p_game: Game, p_kind: String, p_tile: Vector2i, p_complete: bool) -> void:
 	size = int(Config.TOWN_HALL["size"])
 	super.setup(p_game, p_kind, p_tile, p_complete)
+
+
+## Its bench, on the front (bottom-right) tile. An ownerless hall has none.
+## A co-op client's gets its id from the host (Replicator), never its own.
+func _ready() -> void:
+	if bench != null or village == null:
+		return
+	bench = HallBench.new()
+	bench.hall = self
+	bench.village = village
+	if game.is_client:
+		bench.nid = -1
+	bench.setup(game, "hall_bench", tile + Vector2i(1, 1), true)
+	game.world.add_building(bench)
+
+
+## The bench on its front tile (from level "bench_from").
+func has_bench() -> bool:
+	return level >= int(Config.TOWN_HALL["bench_from"])
+
+
+## Where `unit` goes when dropped on the hall: its tower post if `ok` (an
+## error text from the army, "" when fine) allows it there, else its bench if
+## that does; else the hall (whose error then says why).
+func post_for(unit: MilitaryUnit, ok: Callable) -> MilitaryPost:
+	if str(ok.call(unit, self)) == "" or bench == null or str(ok.call(unit, bench)) != "":
+		return self
+	return bench
 
 
 func display_name() -> String:
@@ -41,6 +74,8 @@ func refresh() -> void:
 	if garrison and post:
 		UnitFx.show_unit(_unit_sprite, garrison.kind)
 		_unit_sprite.position = _unit_spot()
+	if bench:
+		bench.refresh()
 	queue_redraw()
 
 
@@ -125,7 +160,12 @@ func info() -> Dictionary:
 		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), _builder_crew_text().to_lower()])
 		add_cancel_action(lines, actions, "Cancel upgrade")
 	elif level < max_level() and not devastated and not repairing:
-		lines.append("Next level: {hp} %d%s" % [roundi(hp_at(level + 1)), ", a tower post on its roof" if level + 1 == int(Config.TOWN_HALL["post_from"]) else ""])
+		var adds := ""
+		if level + 1 == int(Config.TOWN_HALL["post_from"]):
+			adds = ", a tower post on its roof"
+		elif level + 1 == int(Config.TOWN_HALL["bench_from"]):
+			adds = ", a barracks bench by its door"
+		lines.append("Next level: {hp} %d%s" % [roundi(hp_at(level + 1)), adds])
 		actions.append({
 			"label": "Upgrade town hall (%s)" % Config.cost_icons(upgrade_cost()),
 			"disabled": not can_upgrade() or not village.economy.can_afford(upgrade_cost()),
@@ -147,7 +187,26 @@ func info() -> Dictionary:
 		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": incoming.nid})})
 	else:
 		lines.append("Unmanned. Drag a unit from the Army tab onto the town hall.")
+	if has_bench() and bench != null:
+		_bench_info(lines, actions)
 	return d
+
+
+## The bench's lines and actions in the hall's panel (as a barracks shows its benches).
+func _bench_info(lines: Array[String], actions: Array[Dictionary]) -> void:
+	lines.append("Bench: turns out for enemies within %.1f tiles." % bench.activation_range())
+	var u: MilitaryUnit = bench.slots[0]
+	var inc: MilitaryUnit = bench.incoming_slots[0]
+	if u:
+		lines.append("On the bench: %s, level %d: {hp} %d/%d, %s" % [u.display_name(), u.level + 1, ceili(u.hp), ceili(u.max_hp()), u.state_text()])
+		if u.is_available() and not u.upgrade_options().is_empty():
+			actions.append({"label": "Upgrade %s (bench)..." % u.display_name().to_lower(), "action": func() -> void: game.hud.open_upgrade(u)})
+		if u.is_available() and not u.fixed():
+			actions.append({"label": "Withdraw %s (bench)" % u.display_name().to_lower(), "action": func() -> void: game.command("withdraw_unit", {"unit": u.nid})})
+	elif inc:
+		lines.append("Bench: %s marching here." % inc.display_name())
+	else:
+		lines.append("Bench: free. Drag a unit that fights in barracks onto the town hall.")
 
 
 ## Its HP line and repair; devastated, it says what that costs the village,

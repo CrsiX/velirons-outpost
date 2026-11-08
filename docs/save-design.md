@@ -211,7 +211,8 @@ Rules behind the table:
   villager's (loot is carried home); her other modes and a camp to clear
   decide from where she stands.
 - **Nothing of a running wave and no debug enemies.**
-- The town hall is a village piece (its level and HP like any building's) and each village saves
+- The town hall is a village piece (its level and HP like any building's; its bench, `HallBench`,
+  isn't saved on its own: the hall's state holds its id, which its unit names as its post) and each village saves
   its last stand (seconds left, whether it is a second chance, a fallen hall, no more stands,
   emptied since it fell), and the raids' random generator goes on from where it was; format 6. *(Designed, not built:)* the marketplace, items and advancements add state that must
   survive a load, so their change bumps `SaveGame.FORMAT` once more: the marketplace (its

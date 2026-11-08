@@ -1481,7 +1481,7 @@ func _pick_raid_target(v: Village) -> Building:
 	var other_d := INF
 	var breaks := float(spec().get("siege", 0.0)) > 0.0
 	for b in v.buildings():
-		if not _raid_target_ok(v, b) or Siege.BARRIERS.has(b.kind) or b is Warehouse:
+		if not _raid_target_ok(v, b) or Siege.BARRIERS.has(b.kind) or b is Warehouse or b is HallBench:
 			continue
 		var d := Vector2(b.tile).distance_squared_to(grid_pos)
 		if b is Hut:

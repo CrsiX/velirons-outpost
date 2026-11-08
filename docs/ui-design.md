@@ -254,7 +254,7 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   armoury's items for it. A swap is a command, allowed only while she is idle at the town hall and
   it isn't devastated (docs/items-design.md).
 - **Town hall panel** (built: `TownHall.info`): its level and upgrade, the last stand's seconds
-  left, its tower post (unit, *Upgrade*, *Withdraw*). Not built: research (the advancements,
+  left, its tower post and its bench (unit, *Upgrade*, *Withdraw*). Not built: research (the advancements,
   their conditions and costs, the one under research; exclusive choices are marked clearly as
   final before they are taken, docs/advancements-design.md).
 - **Marketplace panel:** buying from its stock, putting goods up for sale, caravans out, the

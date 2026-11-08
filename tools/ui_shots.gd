@@ -853,6 +853,12 @@ func _town_hall() -> void:
 			ar.slot = 0
 			ar.state = MilitaryUnit.State.STATIONED
 			h.set_slot(0, ar)
+		if lvl == 3:  # and a shield bearer on its bench
+			var sb := g.army.recruit("shield_bearer")
+			sb.post = h.bench
+			sb.slot = 0
+			sb.state = MilitaryUnit.State.STATIONED
+			h.bench.set_slot(0, sb)
 		h.refresh()
 		await _frames(8)
 		await shot("hall_level_%d" % lvl)

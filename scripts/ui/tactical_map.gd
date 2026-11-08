@@ -475,7 +475,7 @@ func _draw_buildings() -> void:
 		var col := _building_color(b)
 		for t in b.tiles():
 			draw_colored_polygon(_tile_poly(t), col)
-		if not (b is StaticPiece):  # (walls and gates join up; everything else gets an edge)
+		if not (b is StaticPiece) and not b.tiles().is_empty():  # (walls and gates join up; everything else gets an edge; the hall's bench has none of its own)
 			draw_polyline(_footprint_outline(b), Color(col.darkened(0.6), 1.0), 1.0, true)
 		if b is MilitaryPost and b.working() and b.village != null:
 			_draw_slots(b as MilitaryPost)

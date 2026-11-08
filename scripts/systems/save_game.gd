@@ -294,6 +294,8 @@ static func capture(game: Game) -> Dictionary:
 	b["villages"] = vs
 	var buildings: Array = []
 	for bd in world.buildings:
+		if bd is HallBench:
+			continue  # (its hall carries it: "bn")
 		buildings.append(_building_state(bd))
 	b["buildings"] = buildings
 	var civs: Array = []
@@ -336,6 +338,8 @@ static func _building_state(bd: Building) -> Dictionary:
 		d["ru"] = (bd as Hut).ruined
 	if bd is Farm:
 		d["st"] = (bd as Farm).stored
+	if bd is TownHall and (bd as TownHall).bench != null:
+		d["bn"] = (bd as TownHall).bench.nid  # (its bench: the post its unit names)
 	return d
 
 
@@ -516,9 +520,13 @@ static func _restore_buildings(game: Game, list: Array) -> void:
 	# The village pieces stand already (World built them from the map): they
 	# take their saved ids; everything else is built anew.
 	var pieces := {}
+	var benches: Array[HallBench] = []
 	for bd in world.buildings:
 		if World.PIECE_SCRIPTS.has(bd.kind):
 			pieces["%s@%s" % [bd.kind, bd.tile]] = bd
+			game.unregister(bd.nid)
+		elif bd is HallBench:
+			benches.append(bd)  # (made with its hall: takes its saved id below)
 			game.unregister(bd.nid)
 	var matched := {}
 	for d: Dictionary in list:
@@ -544,9 +552,16 @@ static func _restore_buildings(game: Game, list: Array) -> void:
 			bd.setup(game, kind, d["t"], bool(d["c"]))
 			world.add_building(bd)
 		_apply_building(bd, d)
+		if bd is TownHall and (bd as TownHall).bench != null and d.has("bn"):
+			var be := (bd as TownHall).bench
+			be.nid = int(d["bn"])
+			game.register_as(be, be.nid)
 	for bd in pieces.values():
 		if not matched.has(bd):
 			bd.nid = game.register(bd)
+	for be in benches:
+		if game.entity(be.nid) != be:
+			be.nid = game.register(be)
 
 
 static func _apply_building(bd: Building, d: Dictionary) -> void:

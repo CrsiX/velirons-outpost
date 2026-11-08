@@ -159,7 +159,7 @@ func _process(delta: float) -> void:
 	# Every entity's state once, then each client's share of it.
 	var all: Array = []  # [nid, type, spawn, state, tile, owner vid, public]
 	for b in game.world.buildings:
-		if b.nid > 0 and is_instance_valid(b):
+		if b.nid > 0 and is_instance_valid(b) and not b is HallBench:  # (a hall's bench travels in its hall's state)
 			all.append([b.nid, "b", _building_spawn(b), _building_state(b), b.tile, b.village.id if b.village else -1, b is Hut or b is TownHall])
 	for n in get_tree().get_nodes_in_group("replicated"):
 		if n is Building or not is_instance_valid(n) or n.is_queued_for_deletion():
@@ -310,6 +310,12 @@ func _building_state(b: Building) -> Dictionary:
 			inc.append(b.incoming_slots[i].nid if b.incoming_slots[i] else 0)
 		st["sl"] = sl
 		st["in"] = inc
+	if b is TownHall and (b as TownHall).bench != null:
+		var be := (b as TownHall).bench
+		var bu: MilitaryUnit = be.slots[0]
+		st["bn"] = be.nid
+		st["bsl"] = [bu.nid, bu.kind, bu.level, snappedf(bu.train_xp, 1.0), bu.out, bu.is_downed()] if bu else []
+		st["bin"] = be.incoming_slots[0].nid if be.incoming_slots[0] else 0
 	if b is Hut:
 		st["r"] = b.ruined
 		st["res"] = game.id_of(b.resident)
@@ -701,6 +707,15 @@ func _apply_building(b: Building, st: Dictionary) -> void:
 		for i in b.slots.size():
 			b.slots[i] = _garrison_for(b, i, sl[i] if i < sl.size() else [])
 			b.incoming_slots[i] = game.entity(inc[i]) as MilitaryUnit if i < inc.size() else null
+	if b is TownHall and (b as TownHall).bench != null and st.has("bn"):
+		var be := (b as TownHall).bench
+		if be.nid != int(st["bn"]):
+			be.nid = int(st["bn"])
+			game.register_as(be, be.nid)  # (the host's id for it: units name it as their post)
+		be.fit_slots()
+		be.slots[0] = _garrison_for(be, 0, st.get("bsl", []))
+		be.incoming_slots[0] = game.entity(st.get("bin", 0)) as MilitaryUnit
+		be.refresh()
 	if b is Hut:
 		b.ruined = st.get("r", false)
 		b.resident = game.entity(st.get("res", 0)) as Civilian

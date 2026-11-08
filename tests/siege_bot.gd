@@ -805,9 +805,50 @@ func _test_hall_levels() -> void:
 	check(h.act_center() == mid and h.sight_center() == mid, "its post is the middle of the 2x2: ranges and targeting count from there")
 	check(is_zero_approx(h._unit_sprite.position.x) and h.position == Iso.to_world(mid) and h._unit_sprite.position.y < -150.0, "its unit is drawn centred over the middle, up on the tower (%s)" % str(h._unit_sprite.position))
 	game.army.unstation(ar)
+	await wait_until(func() -> bool: return h.garrison == null and h.incoming == null, 30.0)
+	await _test_hall_bench(h)
 	h.level = 1
 	h.hp = h.max_hp()
 	h.refresh()
+
+
+## Level 3: one barracks bench on the hall's front tile (HallBench). A unit
+## that fights only in barracks, dropped on the hall, goes there; it turns out
+## for enemies within a level-1 barracks' range of the front tile.
+func _test_hall_bench(h: TownHall) -> void:
+	var b := h.bench
+	check(b != null and not b.working() and not b.can_garrison() and game.post_for(game.army.recruit("shield_bearer"), h) == h, "below level 3 the bench is idle: nothing goes there")
+	game.economy.add("materials", 500)
+	game.command("upgrade_tower", {"building": h.nid})
+	await finish_work()
+	check(h.level == 3 and b.working() and b.capacity() == 1, "level 3: one bench")
+	check(b.tile == h.tile + Vector2i(1, 1) and b.act_center() == Vector2(h.tile + Vector2i(1, 1)), "on the front (bottom-right) tile, where its unit turns out from")
+	check(is_equal_approx(b.activation_range(), float(Config.BARRACKS_LEVELS[int(Config.TOWN_HALL["bench_range_level"]) - 1]["range"])), "with a level-%d barracks' range (%.1f)" % [int(Config.TOWN_HALL["bench_range_level"]), b.activation_range()])
+	check(b.tiles().is_empty() and game.map.building_at(b.tile) == h and not b.can_be_hurt(), "part of the hall: no tiles, no HP of its own")
+	var sb: MilitaryUnit = game.army.reserve().filter(func(u: MilitaryUnit) -> bool: return u.kind == "shield_bearer")[0]
+	var archer := game.army.recruit("archer")
+	check(game.post_for(sb, h) == b and game.post_for(archer, h) == h, "dropped on the hall: a shield bearer goes to the bench, an archer to the free tower post")
+	h.set_slot(0, archer)  # (the tower post taken: an archer, who fights in barracks too, goes to the bench)
+	check(game.post_for(game.army.recruit("archer"), h) == b, "with the tower post taken, an archer goes to the bench")
+	h.set_slot(0, null)
+	var r := game.command("station_unit", {"unit": sb.nid, "post": b.nid})
+	var seated := await wait_until(func() -> bool: return b.slots[0] == sb and sb.state == MilitaryUnit.State.STATIONED, 60.0)
+	check(r["ok"] and seated and b._bench_sprites[0].visible, "the shield bearer takes the bench")
+	var info := game.building_info(h)
+	check(str(info["lines"]).contains("On the bench: Shield Bearer") and info["actions"].any(func(x: Dictionary) -> bool: return str(x["label"]).contains("(bench)")), "the hall's panel shows the bench, its unit and what to do with it")
+	var body := SaveGame.capture(game)
+	var saved: Array = body["buildings"].filter(func(d: Dictionary) -> bool: return d["n"] == h.nid)
+	check(not body["buildings"].any(func(d: Dictionary) -> bool: return d["k"] == "hall_bench") and saved.size() == 1 and int(saved[0].get("bn", 0)) == b.nid, "a save holds the bench in its hall (its id), not on its own")
+	var near := Vector2(b.tile) + Vector2(0.0, -3.0)  # (just outside the top wall)
+	var gob := spawn_still("goblin", near)
+	gob.max_hp = 1e6
+	gob.hp = 1e6
+	var out := await wait_until(func() -> bool: return sb.out, 10.0)
+	check(out, "an enemy within its range: the bench's unit turns out")
+	await clear_enemies()
+	await wait_until(func() -> bool: return not sb.out, 30.0)
+	game.army.unstation(sb)
+	await wait_until(func() -> bool: return b.slots[0] == null and b.incoming_slots[0] == null, 30.0)
 
 
 ## Several builders on one site: their work adds up; a far builder joins only

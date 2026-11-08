@@ -202,21 +202,31 @@ builder's time (the *Upgrade* command towers use):
   (ranged, summoner, healer, support), with the range of a level-3 watchtower
   (`TOWER_RANGE.tower` plus the `TOWER_LEVELS` range bonus of `post_range_level`; the Hawk-eye
   relic adds as everywhere). It has no upgrades of its own: the hall's level is its level.
-- **Level 3:** more HP and a grander look so far. *(Designed, not built:)* it opens tier 2 and
-  adds one **barracks bench** on the front (bottom-right) tile. Its unit sorties with a level-1
-  barracks' activation range (`BARRACKS_LEVELS`): the last line of defence against a breach and
-  what stands just outside the gates. (Not built yet because one building with a tower post and
-  a bench needs posts of two kinds in one building, which the army code doesn't have.)
+- **Level 3:** opens tier 2 *(designed, not built)* and adds one **barracks bench** on the front
+  (bottom-right) tile (`bench_from`). Its unit sorties with the activation range of a barracks at
+  level `bench_range_level` (`BARRACKS_LEVELS`): the last line of defence against a breach and
+  what stands just outside the gates.
+  - **How it is built:** the bench is a post of its own for the army (`HallBench`, a one-bench
+    `Barracks`), so every sortie, revive, aura and upkeep rule of barracks applies unchanged. It
+    belongs to the hall otherwise: no tiles or HP of its own, never a raid target, no panel (the
+    hall's panel shows it), and the hall carries it in saves and co-op snapshots (its id). One
+    building with two kinds of post was the alternative; it would have meant teaching the army
+    code posts with mixed slots.
+  - **Putting a unit there:** dropped on the hall, a unit goes to the tower post if it can serve
+    there and the post is free, else to the bench (`TownHall.post_for`): barracks-only units always
+    land on the bench, an archer on the bench once the tower post is taken.
+  - Devastated, the hall sends the bench's unit to the reserve as well; it works again once the
+    hall is repaired.
 - What else levels 2 and 3 do is still open.
 
 **Look:** larger than a hut and not as plain: a long hall with a hip roof, arched lit windows, a
 gabled porch with a large front door (`tools/gen_art.py`, `town_hall`). It follows the village's
 piece material like the walls (docs/siege-design.md §2a); level 2 shows a tower with a clock rising
 well clear of the roof (so it doesn't read as the corner tower behind it), level 3 banners, gilding
-and a brazier on it.
+and a brazier on it, and the bench along its side wall on the front tile.
 
 **Devastated** (0 HP, docs/siege-design.md): the hero can't rest inside (she rests in the centre, at
-the slow rate) until it is repaired, its tower unit walks back to the reserve, and the last stand starts (§3b). *(Designed, not built:)*
+the slow rate) until it is repaired, its tower and bench units walk back to the reserve, and the last stand starts (§3b). *(Designed, not built:)*
 research pauses and the armoury is closed (no swaps). Relics keep working: losing all of them to
 one raid would be too harsh.
 

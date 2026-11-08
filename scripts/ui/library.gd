@@ -591,8 +591,12 @@ static func _buildings() -> Array[Dictionary]:
 	var hf := PackedStringArray([_hp_fact("town_hall"), _material_fact()])
 	var tl: Array = th["levels"]
 	for i in range(1, tl.size()):
-		hf.append("Level %d: %s%s" % [i + 1, Config.cost_text(tl[i]["cost"]),
-			", a tower post (range %s tiles)" % _n(Config.TOWER_RANGE["tower"] + Config.TOWER_LEVELS[int(th["post_range_level"]) - 1]["range_bonus"]) if i + 1 == int(th["post_from"]) else ""])
+		var adds := ""
+		if i + 1 == int(th["post_from"]):
+			adds = ", a tower post (range %s tiles)" % _n(Config.TOWER_RANGE["tower"] + Config.TOWER_LEVELS[int(th["post_range_level"]) - 1]["range_bonus"])
+		elif i + 1 == int(th["bench_from"]):
+			adds = ", a barracks bench by its door (turns out at %s tiles)" % _n(Config.BARRACKS_LEVELS[int(th["bench_range_level"]) - 1]["range"])
+		hf.append("Level %d: %s%s" % [i + 1, Config.cost_text(tl[i]["cost"]), adds])
 	var ls: Dictionary = th["last_stand"]
 	hf.append("Last stand: %s / %s / %s s (easy / normal / hard) to repair it once devastated, or the village falls" % [_n(ls["easy"]), _n(ls["normal"]), _n(ls["hard"])])
 	hf.append("Repairs count it as %s, a full repair takes a builder %s s" % [Config.cost_text(Config.PIECE_PRICES["town_hall"]["cost"]), _n(Config.PIECE_PRICES["town_hall"]["build_time"])])

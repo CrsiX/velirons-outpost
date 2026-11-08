@@ -9397,6 +9397,7 @@ HALL_BODY = (-0.86, 0.7, -0.8, 0.5)  # x0, x1, y0, y1 of the main block (grid, f
 HALL_H = 52  # its wall height
 HALL_RIDGE = 108  # the hip roof's ridge
 HALL_DECK = {2: 176, 3: 188}  # the tower post's platform height by level: well clear of the ridge
+HALL_BENCH = (0.86, 0.3)  # level 3's bench (grid, from the 2x2's middle), along the side wall on the front tile: HallBench.BENCH_SPOT seats its unit there
 HALL_TOWER_BACK = 0.12  # the tower stands this far back (both grid axes) from the 2x2's middle: drawn centred, a little behind
 
 
@@ -9522,6 +9523,15 @@ def town_hall(material, level=1, front=False):
         a.box(0.38, 0.5, -0.5, -0.38, ridge - 26, ridge + 8, pal["t"], pal["l"], pal["r"])
     # The porch: a gabled bay on the long face, its ridge across the hall, the big door in it.
     _hall_porch(a, pal, wood, level, h)
+    if level >= 3:  # the bench by the door (HallBench), with a shield hung on the post at its end
+        bx, by = HALL_BENCH
+        for gy in (by - 0.12, by + 0.12):  # legs
+            a.box(bx - 0.04, bx + 0.04, gy - 0.015, gy + 0.015, 0, 6, WOOD_D, WOOD_D, WOOD_D, sw=1.0)
+        a.box(bx - 0.05, bx + 0.05, by - 0.15, by + 0.15, 6, 9, WOOD_L, WOOD, WOOD_D)
+        a.box(bx - 0.015, bx + 0.015, by + 0.17, by + 0.2, 0, 26, WOOD, WOOD, WOOD_D, sw=1.0)  # a post at its front end
+        x, y = P(bx, by + 0.2, 18)
+        a.ellipse(x - 3, y, 5.5, 7, pal["accent"], INK, 1.1)
+        a.ellipse(x - 3, y, 1.8, 2.2, pal["metal"])
     if level >= 3:  # banners at the corners of the long face
         for u in (-0.76, 0.62):
             hanging_banner(a, ("left", y1), u - 0.07, u + 0.07, h - 6, h - 30, pal["accent"], pal["metal"])

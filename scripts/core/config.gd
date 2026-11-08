@@ -945,6 +945,8 @@ const PIECE_MATERIAL_SCALED: Array[String] = ["wall", "gate", "wall_tower", "tow
 ## by the map. "levels": upgrades like towers (index = level - 1). From level
 ## "post_from" it holds a tower post with a watchtower's range at level
 ## "post_range_level" (TOWER_RANGE.tower + that TOWER_LEVELS range_bonus).
+## From level "bench_from" one barracks bench on its front tile (HallBench),
+## turning out with the range of a barracks at level "bench_range_level".
 ## "last_stand": seconds to repair it to full HP once devastated, per difficulty
 ## (the one value difficulty scales besides enemy strength and loot);
 ## "retry_factor": that times this for a co-op village that gets a villager
@@ -954,6 +956,8 @@ const TOWN_HALL := {
 	"levels": [{}, {"cost": {"materials": 80}, "work_time": 20.0}, {"cost": {"materials": 140}, "work_time": 30.0}],
 	"post_from": 2,
 	"post_range_level": 3,
+	"bench_from": 3,
+	"bench_range_level": 1,
 	"last_stand": {"easy": 150.0, "normal": 110.0, "hard": 75.0},
 	"retry_factor": 1.5,
 }

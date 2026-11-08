@@ -501,11 +501,11 @@ func _on_tapped(world_pos: Vector2) -> void:
 			else:
 				_try_place(tile)
 		Mode.STATION:
-			var t := world.pick_post(world_pos)
+			var t := post_for(station_unit, world.pick_post(world_pos))
 			var r := command("station_unit", {"unit": id_of(station_unit), "post": id_of(t)})
 			if r["ok"]:
 				cancel_mode()
-				select(t)
+				select(_shown(t))
 				hud.toast("The %s is marching out" % station_unit_name(t), Color("c9a24a"))
 			else:
 				hud.toast(r["error"], Color("ff9a8a"))
@@ -619,7 +619,7 @@ func select_unit(unit: MilitaryUnit) -> void:
 	if p is Tower:
 		world.overlay.show_selection(p.tiles(), (p as Tower).act_center(), (p as Tower).range_tiles())
 	elif p is Barracks:
-		world.overlay.show_selection(p.tiles(), (p as Barracks).act_center(), (p as Barracks).activation_range())
+		world.overlay.show_selection(post_tiles(p), (p as Barracks).act_center(), (p as Barracks).activation_range())
 	else:
 		world.overlay.show_selection(p.tiles())
 	events.debug("select %s on %s" % [unit.label(), p.label()])
@@ -735,6 +735,7 @@ func drop_target(unit: MilitaryUnit, screen_pos: Vector2) -> MilitaryPost:
 	var p := world.pick_post(camera.screen_to_world(screen_pos)) as MilitaryPost
 	if p == null:
 		return null
+	p = post_for(unit, p) as MilitaryPost  # (the town hall: its tower post, else its bench)
 	return p if _drop_error(unit, p) == "" else null
 
 
@@ -768,6 +769,24 @@ func swap_partner(unit: MilitaryUnit, screen_pos: Vector2) -> MilitaryUnit:
 	return best
 
 
+## Where `unit` goes when put on `b`: `b` itself, or for the town hall its
+## tower post or its bench, whichever takes the unit (TownHall.post_for).
+func post_for(unit: MilitaryUnit, b: Building) -> Building:
+	if b is TownHall and unit != null:
+		return (b as TownHall).post_for(unit, _drop_error)
+	return b
+
+
+## What to select for post `b`: the hall for its bench (the bench has no panel of its own).
+static func _shown(b: Building) -> Building:
+	return (b as HallBench).hall if b is HallBench and is_instance_valid((b as HallBench).hall) else b
+
+
+## The tiles that show a post while dragging: its own (the hall's bench: the hall's).
+static func post_tiles(p: Building) -> Array[Vector2i]:
+	return (p as HallBench).hall.tiles() if p is HallBench and is_instance_valid((p as HallBench).hall) else p.tiles()
+
+
 ## Where a stationed unit's figure is, in world coordinates.
 func _figure_pos(unit: MilitaryUnit) -> Vector2:
 	var r := unit.post.unit_rect(unit)
@@ -783,14 +802,14 @@ func preview_drag(unit: MilitaryUnit, screen_pos: Vector2) -> void:
 	var targets: Array[Vector2i] = []
 	for p in world.military_posts():
 		if _drop_error(unit, p) == "" or (stationed and p.units().any(func(o: MilitaryUnit) -> bool: return army.swap_error(unit, o) == "")):
-			targets.append_array(p.tiles())
+			targets.append_array(post_tiles(p))
 	var hover: Array[Vector2i] = []
 	var partner := swap_partner(unit, screen_pos)
 	var t := drop_target(unit, screen_pos) if partner == null else null
 	if partner:
-		hover = partner.post.tiles()
+		hover = post_tiles(partner.post)
 	elif t:
-		hover = t.tiles()
+		hover = post_tiles(t)
 	var from := _figure_pos(unit) if stationed else Vector2.ZERO
 	var to := _figure_pos(partner) if partner else camera.screen_to_world(screen_pos)
 	world.overlay.show_drag(targets, hover, from, to, stationed, partner != null)
@@ -806,12 +825,12 @@ func end_drag_preview() -> void:
 
 ## Drop from the HUD's reserve card at a screen position (drag & drop).
 func drop_unit(unit: MilitaryUnit, screen_pos: Vector2) -> bool:
-	var t := world.pick_post(camera.screen_to_world(screen_pos))
+	var t := post_for(unit, world.pick_post(camera.screen_to_world(screen_pos)))
 	if army.station_error(unit, t as MilitaryPost) == "":
 		events.debug("drag %s from the reserve to %s" % [unit.label(), t.label()])
 	var r := command("station_unit", {"unit": unit.nid, "post": id_of(t)})
 	if r["ok"]:
-		select(t)
+		select(_shown(t))
 		hud.toast("The %s is marching out" % station_unit_name(t), Color("c9a24a"))
 		return true
 	hud.toast(r["error"], Color("ff9a8a"))

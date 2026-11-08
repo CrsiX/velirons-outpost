@@ -359,6 +359,8 @@ func on_devastated(b: Building, source: Node) -> void:
 		b.cancel_upgrade()
 	b.set_devastated(true)
 	village.army.eject(b)
+	if b is TownHall and (b as TownHall).bench != null:
+		village.army.eject((b as TownHall).bench)  # (its bench's unit too)
 	if b is Workplace:
 		village.population.free_workplace(b)
 	if b is Farm:
