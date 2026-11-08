@@ -685,7 +685,8 @@ static func _hero() -> Array[Dictionary]:
 	f.append("HP %s · sword damage %s (level 1 to %d)" % [_span(Config.hero_stat("hp", 0), Config.hero_stat("hp", top)), _span(Config.hero_stat("damage", 0), Config.hero_stat("damage", top)), Config.HERO_MAX_LEVEL])
 	f.append("A blow every %s s · speed %s tiles/s" % [_n(h["attack_cooldown"]), _n(h["speed"])])
 	f.append("Levels are bought with her own XP: %d XP for level 2, up to %d for level %d" % [Config.hero_level_cost(0), Config.hero_level_cost(top - 1), Config.HERO_MAX_LEVEL])
-	f.append("In the village centre she heals %s HP per second" % _n(h["rest_regen"]))
+	f.append("Idle in the village centre she heals %s HP per second" % _n(h["rest_regen"]))
+	f.append("Resting in the town hall (Rest mode): %s %% of her max HP per second, at least %s (not while it is devastated)" % [_n(float(h["hall_regen_share"]) * 100.0), _n(h["hall_regen_min"])])
 	f.append("Downed: she loses her unspent XP (never her levels) and is back when the wave is over")
 	out.append({"name": h["name"], "art": "unit_hero",
 		"text": "Your champion: she fights with a sword and can do a little of every villager's job. She eats nothing and needs no hut. Tap her in the top bar to give her orders.",

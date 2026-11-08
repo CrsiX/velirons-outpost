@@ -324,7 +324,7 @@ func _single() -> void:
 	check(for2 != null and for2.tree == trees[1] and for2.state == Forester.State.TO_TREE and not for2.evading and for2.camp != null,
 		"the forester at his tree goes on with that tree (state %d), not home first" % for2.state)
 	var bui2 := game.entity(ids["builder"]) as Builder
-	check(bui2 != null and bui2.job.state == BuildJob.State.TO_SITE and bui2.job.site != null and bui2.job.site.crew.has(bui2.get_instance_id()) and not bui2.evading,
+	check(bui2 != null and bui2.job.state == BuildJob.State.TO_SITE and bui2.job.site != null and bui2.job.site.builder_crew.has(bui2.get_instance_id()) and not bui2.evading,
 		"the builder out in the field walks from there to a site (state %d)" % bui2.job.state)
 	check(game.corpses.corpses.size() == 1 and game.corpses.corpses[0].kind == "orc", "the corpse lies there")
 	var living2 := game.entity(ids["living"]) as Enemy

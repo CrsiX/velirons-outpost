@@ -33,7 +33,7 @@ func _run() -> void:
 	_test_town_hall()
 	_test_inside()
 	await _test_hall_levels()
-	await _test_crew()
+	await _test_builder_crew()
 	await _test_last_stand()
 	await _test_repair()
 	await _test_devastated_tower()
@@ -346,7 +346,7 @@ func _test_huts_first() -> void:
 	var want: Array[Building] = [g, hut, corner, walls[0], corner2, hurt, tower, wt, farm]
 	var got: Array[Building] = []
 	for site in c.queue:
-		site.crew.clear()
+		site.builder_crew.clear()
 	var again := c.claim(game.hero)
 	c.release(again, game.hero, false)
 	check(again == g and c.claim(game.hero) == g, "the gate repair ordered last comes first, and again when picked anew (after fleeing)")
@@ -812,14 +812,14 @@ func _test_hall_levels() -> void:
 
 ## Several builders on one site: their work adds up; a far builder joins only
 ## when that saves more than its walk.
-func _test_crew() -> void:
+func _test_builder_crew() -> void:
 	var c := game.construction
 	await finish_work()
 	var second := game.population.recruit("builder")
 	var h := hall()
 	h.take_damage(h.max_hp() * 0.6)
 	c.order_repair(h)
-	var both := await wait_until(func() -> bool: return h.crew.size() >= 2, 30.0)
+	var both := await wait_until(func() -> bool: return h.builder_crew.size() >= 2, 30.0)
 	check(second != null and both, "two builders work on the hall's repair at once")
 	await finish_work()
 	check(h.hp == h.max_hp(), "repaired")
@@ -827,11 +827,11 @@ func _test_crew() -> void:
 	h.repairing = true
 	h.repair_time = 40.0
 	h.repair_progress = 0.0
-	h.crew[0] = 1.0
+	h.builder_crew[0] = 1.0
 	check(Construction.worth_joining(h, 3.0, 1.0) and not Construction.worth_joining(h, 30.0, 1.0), "a long job is worth a short walk, not a long one")
 	h.repair_progress = 37.0
 	check(not Construction.worth_joining(h, 2.0, 1.0), "the last seconds aren't worth a walk")
-	h.crew.clear()
+	h.builder_crew.clear()
 	h.repairing = false
 	game.population.retire(second)  # (the other tests count on one builder)
 
@@ -888,7 +888,7 @@ func _test_raid_targets() -> void:
 	check(again, "(repaired again)")
 	if not again:
 		var bs: Array = game.population.civilians.filter(func(x: Civilian) -> bool: return x is Builder)
-		print("    stand %.1f, repairing %s, crew %s, hp %.0f, queue %s, materials %d, builders %s" % [v.last_stand_left(), h.repairing, h.crew, h.hp,
+		print("    stand %.1f, repairing %s, builder_crew %s, hp %.0f, queue %s, materials %d, builders %s" % [v.last_stand_left(), h.repairing, h.builder_crew, h.hp,
 			game.construction.queue.map(func(x: Building) -> String: return x.label()), int(v.economy.amount("materials")),
 			bs.map(func(x: Builder) -> String: return "%s %s at %s" % [x.label(), x.status(), x.current_tile()])])
 	reset_village()

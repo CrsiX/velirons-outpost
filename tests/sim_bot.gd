@@ -1697,15 +1697,33 @@ func _test_hero(far: Vector2i) -> void:
 		rest_walk["last"] = hero.grid_pos
 		return hero.at_home, 60.0)
 	check(rested and rest_walk["ok"] and hero.jobs[Hero.Mode.EXPLORE].target == Vector2i(-1, -1), "Rest: the hero drops her job and walks back to the centre")
+	await frames(3)
+	check(hero.in_hall and not hero.visible and not hero.is_in_group("melee_defenders") and not hero.is_in_group("villagers"), "and goes into the town hall: out of sight and out of reach")
 	var near := spawn_dummy("goblin", Vector2(outside_gate(gate, 2)), 50.0, far)
 	await wait(2.0)
 	check(hero.target == null and hero.at_home and near.hp == near.max_hp, "Rest: she ignores enemies near the gate")
 	near.take_damage(1e9)
 	game.waves.countdown = 99999.0
+	hero.hp = 1.0
 	var hp_r := hero.hp
-	await wait(Config.HERO["rest_delay"] + 2.0)
-	check(hero.hp > hp_r and "resting" in hero.status(), "Rest: she heals in the centre (%s)" % hero.status())
+	await wait_until(func() -> bool: return hero._idle_time >= Config.HERO["rest_delay"] + 2.0, 30.0)
+	var rate := hero.hall_regen()
+	check(rate == maxf(hero.max_hp * float(Config.HERO["hall_regen_share"]), float(Config.HERO["hall_regen_min"])) and rate > float(Config.HERO["rest_regen"]), "in the hall she heals max(max HP x %s, %s) per second (%.1f), faster than in the centre" % [str(Config.HERO["hall_regen_share"]), str(Config.HERO["hall_regen_min"]), rate])
+	check(hero.hp > hp_r + float(Config.HERO["rest_regen"]) * 2.5 and "in the town hall" in hero.status(), "Rest: she heals there, fast (%s, +%.1f)" % [hero.status(), hero.hp - hp_r])
+	check(logged("the hero starts healing in the town hall", EventLog.Level.DEBUG), "the start of her healing in there is logged (Debug)")
+	# A devastated hall: out into the centre, the slow rate.
+	var hall := game.player_village.town_hall()
+	hall.devastated = true
+	await frames(3)
+	check(not hero.in_hall and hero.visible and hero.is_in_group("melee_defenders") and "in the centre" in hero.status(), "its hall devastated: she rests in the centre instead")
+	check(logged("the hero stops healing in the town hall: she left it", EventLog.Level.DEBUG), "and the end of her healing in there is logged, with why")
+	hall.devastated = false
+	await frames(3)
+	check(hero.in_hall, "(back in once it stands)")
+	hero.hp = hero.max_hp
 	hero.set_mode(Hero.Mode.DEFEND)
+	await frames(2)
+	check(not hero.in_hall and hero.visible and hero.is_in_group("melee_defenders") and hero.is_in_group("villagers"), "a new order brings her out into the centre")
 	check(home and hero.grid_pos.distance_to(Vector2(game.player_village.center)) < 0.2, "with no enemy about she returns to the centre")
 
 	# Downed: XP lost, no corpse, back at the end of the wave, same mode.

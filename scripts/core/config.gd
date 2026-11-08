@@ -1628,7 +1628,11 @@ const HERO := {
 	"explore_reveal": 1.8,  # explorers see 2.6
 	"gather_capacity": 2,  # gatherers carry 6
 	"train_rate": 10.0,  # XP per second passed on at the training grounds
-	"rest_regen": 3.0,  # HP per second while resting idle at home (the village centre by the town hall; none while that is devastated)
+	"rest_regen": 3.0,  # HP per second while idle in the village centre
+	# Resting (Rest mode) inside the town hall: max(max HP x hall_regen_share,
+	# hall_regen_min) per second; a devastated hall: the centre's rate.
+	"hall_regen_share": 0.04,
+	"hall_regen_min": 8.0,
 	"rest_delay": 3.0,  # seconds of idling there before the HP starts coming back
 	"camp_give_up": 3.0,  # seconds with none of an ordered camp's monsters she can get to: she gives the order up
 }

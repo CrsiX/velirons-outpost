@@ -330,7 +330,7 @@ func _describe(n: Node) -> Array:
 		vid = v.id
 	if n is Hero:
 		var h := n as Hero
-		return [h.nid, "h", {"v": vid}, _unit_state(h).merged({"h": h.at_home, "m": h.mode, "xp": h.xp, "lv": h.level, "hp": snappedf(h.hp, 0.5), "mhp": h.max_hp, "d": h.dead, "st": h.support_target.id if h.support_target else -1, "s": h.status_text()}), h.current_tile(), vid, false]
+		return [h.nid, "h", {"v": vid}, _unit_state(h).merged({"h": h.at_home, "m": h.mode, "xp": h.xp, "lv": h.level, "hp": snappedf(h.hp, 0.5), "mhp": h.max_hp, "d": h.dead, "st": h.support_target.id if h.support_target else -1, "s": h.status_text(), "ih": h.in_hall}), h.current_tile(), vid, false]
 	if n is Civilian:
 		var c := n as Civilian
 		if c.dead:
@@ -632,6 +632,7 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		h.max_hp = st["mhp"]
 		h.dead = st["d"]
 		h.support_target = game.villages[st["st"]] if st["st"] >= 0 else null
+		h.in_hall = st.get("ih", false)
 		h.queue_redraw()
 		h.changed.emit()
 	if o is Soldier:

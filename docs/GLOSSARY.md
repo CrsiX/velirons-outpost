@@ -13,6 +13,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Downed**: at 0 HP a unit or the hero is out until it revives (in the reserve, on its bench, or in the village centre).
 - **Devastated**: a building at 0 HP. It does nothing and shows its ruin; repair brings it back. "Does its job" is `working()`. `siege-design.md`
 - **Build queue**: how builders (and the hero in Build mode) choose the next job. `village-design.md`
+- **Builder crew**: the builders (and the hero) working one site together; their work adds up, and a builder joins only if that saves more than its walk. `village-design.md`
 - **Tear down**: a builder dismantles a building outside the walls for a partial refund.
 - **Gatherer / forester / farmer / builder / explorer / miner / trader**: civilian roles. **Merchant** (Pell), **guild master, resident**: named campaign villagers who can't be recruited; Pell is the campaign's trader.
 - **Marketplace**: the trading building; buying works from its stock, selling needs a trader. Pell's stall is the campaign's marketplace. `market-design.md`

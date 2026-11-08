@@ -8,13 +8,16 @@ extends Civilian
 ##   Train   - at training grounds with a unit ready, passes her XP on to it;
 ##             without such grounds she defends instead, but drops any fight as
 ##             soon as a unit is ready to train.
-##   Rest    - walks back to the village centre and stays there, fighting nobody.
+##   Rest    - walks back to the village centre and goes into the town hall,
+##             fighting nobody: out of reach and out of sight, she heals fast
+##             there (a devastated hall: she rests in the centre instead).
 ##   Support - (co-op) walks to another village (`support_target`) and defends
 ##             it as in Defend mode: its gates, its centre. She keeps her XP,
 ##             heals idling in its centre, and when downed revives at home and
 ##             walks back. The village she helps can't give her orders.
 ## Whenever she idles in the village centre (any mode) she slowly gets her HP
-## back: Config.HERO "rest_regen" per second after "rest_delay" seconds.
+## back: Config.HERO "rest_regen" per second after "rest_delay" seconds; inside
+## the town hall (Rest) faster (hall_regen).
 ## Every action except training earns XP (Config.HERO_XP_PER_ACTION; the
 ## blow that kills an enemy earns a "kill" bonus on top). When her
 ## HP runs out she is downed: all XP is lost, she leaves no corpse, and she revives
@@ -149,6 +152,10 @@ var home_override := Vector2i(-1, -1)
 ## Tiles she may not walk into (scenario 9: the village, while the priests
 ## shut her out; an empty rect: none). Her ways go round it, and she leaves
 ## enemies in it alone.
+## Resting inside her town hall (Rest mode; _update_hall): hidden, out of reach.
+var in_hall := false
+## Her fast healing in there is under way (for the log: _note_hall_heal).
+var _hall_healing := false
 var barred := Rect2i()
 
 
@@ -247,7 +254,7 @@ func arrive_home() -> void:
 
 func _set_home(v: bool) -> void:
 	at_home = v
-	visible = not dead
+	visible = not dead and not in_hall
 
 
 ## Runs away (not home) from enemies only while exploring (Config.FLEE).
@@ -295,6 +302,7 @@ func sight_radius() -> float:
 func _tick(delta: float) -> void:
 	if camp_target != null:
 		if is_instance_valid(camp_target) and not camp_target.cleared and not camp_target.alive().is_empty():
+			_update_hall()  # (out of the hall first, if she rested there)
 			_attack_camp(delta)
 			_regen(delta)
 			return
@@ -320,6 +328,7 @@ func _tick(delta: float) -> void:
 			_return_home(delta)
 		Mode.SUPPORT:
 			_defend(delta)  # relative to base(): the village she supports
+	_update_hall()
 	_regen(delta)
 
 
@@ -331,20 +340,60 @@ func _job_idle() -> bool:
 	return job.state == 0
 
 
-## Idle in the village centre: after a short while the HP slowly comes back
-## (she rests in the town hall: none while it is devastated).
+## Idle in the village centre: after a short while the HP comes back, slowly
+## there, fast inside the town hall (hall_regen). A hearth stone adds to both.
 func _regen(delta: float) -> void:
 	var idle := at_home and not evading and not is_instance_valid(target) and grid_pos.distance_to(Vector2(home())) < 0.2
-	if idle and home() == base().center and is_instance_valid(base().town_hall()) and base().town_hall().devastated:
-		idle = false
 	_idle_time = _idle_time + delta if idle else 0.0
+	_note_hall_heal(in_hall and _idle_time >= Config.HERO["rest_delay"] and hp < max_hp)
 	if _idle_time < Config.HERO["rest_delay"] or hp >= max_hp:
 		return
-	hp = minf(max_hp, hp + Config.HERO["rest_regen"] * delta)
+	hp = minf(max_hp, hp + (hall_regen() if in_hall else float(Config.HERO["rest_regen"])) * delta)
 	queue_redraw()
 	hp = minf(max_hp, hp + village.relic_bonus("hero_rest") * delta)  # (a hearth stone)
 	if hp >= max_hp:
 		village.events.debug("the hero is fully rested (%d HP)" % int(max_hp))
+	changed.emit()
+
+
+## Logs (Debug) when her fast healing inside the town hall starts and stops, and why it stopped.
+func _note_hall_heal(on: bool) -> void:
+	if on == _hall_healing:
+		return
+	_hall_healing = on
+	if on:
+		village.events.debug("the hero starts healing in the town hall (%.1f HP/s, %d / %d HP)" % [hall_regen() + village.relic_bonus("hero_rest"), int(hp), int(max_hp)])
+		return
+	var why := "full HP" if hp >= max_hp else ("she is down" if dead else ("she left it" if not in_hall else "interrupted"))
+	village.events.debug("the hero stops healing in the town hall: %s (%d / %d HP)" % [why, int(hp), int(max_hp)])
+
+
+## HP per second resting inside the town hall: max(max HP x hall_regen_share, hall_regen_min).
+func hall_regen() -> float:
+	return maxf(max_hp * float(Config.HERO["hall_regen_share"]), float(Config.HERO["hall_regen_min"]))
+
+
+## Rest mode at home in her own village goes into its town hall (unless it is
+## devastated); any other mode, an order or a devastated hall brings her out
+## into the centre. Inside she is out of sight and out of every enemy's reach.
+func _update_hall() -> void:
+	var h := village.town_hall()
+	var want := mode == Mode.REST and camp_target == null and not dead and at_home and not evading \
+		and base() == village and home_override == Vector2i(-1, -1) and grid_pos.distance_to(Vector2(home())) < 0.2 \
+		and is_instance_valid(h) and not h.devastated
+	if want != in_hall:
+		_set_in_hall(want)
+
+
+func _set_in_hall(on: bool) -> void:
+	in_hall = on
+	visible = not on and not dead
+	for group in ["melee_defenders", "villagers"]:
+		if on:
+			remove_from_group(group)
+		elif not dead:
+			add_to_group(group)
+	village.events.debug("the hero %s the town hall" % ("goes into" if on else "comes out of"))
 	changed.emit()
 
 
@@ -588,9 +637,15 @@ func _snore(delta: float) -> void:
 	z.add_theme_constant_override("outline_size", 5)
 	z.position = Vector2(6.0, -64.0)
 	z.modulate.a = 0.0
-	add_child(z)
+	var rise := Vector2(16.0, -40.0)
+	var hall := village.town_hall()
+	if in_hall and is_instance_valid(hall):  # (she is inside: the Z's rise from its roof)
+		z.position = Vector2(-30.0, -float(Art.info(hall._art()).get("roof", 110.0)) + 10.0)
+		hall.add_child(z)
+	else:
+		add_child(z)
 	var tw := z.create_tween().set_parallel()
-	tw.tween_property(z, "position", Vector2(22.0, -104.0), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(z, "position", z.position + rise, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_property(z, "modulate:a", 1.0, 0.3)
 	tw.tween_property(z, "modulate:a", 0.0, 1.0).set_delay(1.0)
 	tw.chain().tween_callback(z.queue_free)
@@ -757,6 +812,7 @@ func _downed(source = null) -> void:
 	_drop_work()
 	dead = true
 	evading = false
+	in_hall = false
 	xp = 0
 	hp = 0.0
 	remove_from_group("melee_defenders")
@@ -801,7 +857,8 @@ func status() -> String:
 		Mode.REST:
 			if not at_home:
 				return "walking back to rest"
-			return "resting (HP recovering)" if hp < max_hp else "resting (full HP)"
+			var where := "in the town hall" if in_hall else "in the centre"
+			return "resting %s (HP recovering)" % where if hp < max_hp else "resting %s (full HP)" % where
 		Mode.TRAIN:
 			if xp <= 0:
 				return "at the training grounds: no XP left to pass on"

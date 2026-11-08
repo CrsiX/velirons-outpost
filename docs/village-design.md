@@ -182,9 +182,10 @@ generator or the map editor (docs/world-design.md, docs/map-editor-design.md). T
 build, tear down or move it: it is the village, not something in it. Numbers are in
 `Config.TOWN_HALL`, `BUILDING_HP` and `PIECE_PRICES`. It gathers the jobs that had no building:
 
-- **The hero's home:** she rests there (`HERO.rest_regen`, while idle at the centre beside it; no
-  rest while it is devastated). *(Designed, not built:)* she swaps equipment there, only while
-  idle at home (docs/items-design.md).
+- **The hero's home:** in Rest mode she goes inside and heals fast, out of reach (`Hero.hall_regen`);
+  idle in the centre beside it she heals slowly (`HERO.rest_regen`). While it is devastated she
+  rests in the centre (docs/hero-design.md §4.7, §5). *(Designed, not built:)* she swaps
+  equipment there, only while idle at home (docs/items-design.md).
 - *(Designed, not built:)* **the armoury:** the items not worn, and the relics the village owns
   (docs/items-design.md).
 - *(Designed, not built:)* **research** of advancements, one at a time (docs/advancements-design.md).
@@ -214,8 +215,8 @@ piece material like the walls (docs/siege-design.md §2a); level 2 shows a tower
 well clear of the roof (so it doesn't read as the corner tower behind it), level 3 banners, gilding
 and a brazier on it.
 
-**Devastated** (0 HP, docs/siege-design.md): the hero gets no rest there until it is repaired, its
-tower unit walks back to the reserve, and the last stand starts (§3b). *(Designed, not built:)*
+**Devastated** (0 HP, docs/siege-design.md): the hero can't rest inside (she rests in the centre, at
+the slow rate) until it is repaired, its tower unit walks back to the reserve, and the last stand starts (§3b). *(Designed, not built:)*
 research pauses and the armoury is closed (no swaps). Relics keep working: losing all of them to
 one raid would be too harsh.
 
@@ -311,8 +312,8 @@ three are `Resident`s who stay home), the **miner** is locked until anyone walks
   is one second of the building's build time. A site left halfway keeps its progress. The same
   job does upgrades, ruined-tower restorations, hut rebuilds, repairs and tear-downs.
 
-  **Several builders on one site.** Any number of builders (and the hero) work one site
-  (`Building.crew`) and their progress adds up, so two build twice as fast, on every kind of job.
+  **Several builders on one site.** Any number of builders (and the hero) work one site as its
+  **builder crew** (`Building.builder_crew`) and their progress adds up, so two build twice as fast, on every kind of job.
   Whoever's work finishes it completes it; the others go straight on to the next job near by.
   Two rules keep them from crowding:
   - **Buckets still rule.** The top bucket is the town hall's repair during a last stand (§3b); a

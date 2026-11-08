@@ -70,7 +70,7 @@ func _take_next(max_dist := INF) -> bool:
 
 
 func _site_valid() -> bool:
-	return is_instance_valid(site) and site.has_work() and site.crew.has(w.get_instance_id())
+	return is_instance_valid(site) and site.has_work() and site.builder_crew.has(w.get_instance_id())
 
 
 ## Done (or the job was finished by others): a job close by, straight on to
@@ -110,14 +110,14 @@ func resume() -> void:
 func on_evade() -> void:
 	# The site keeps its progress; any builder can pick it up again later.
 	# Fled from too often, it drops a bucket (Construction.release).
-	if is_instance_valid(site) and site.crew.has(w.get_instance_id()):
+	if is_instance_valid(site) and site.builder_crew.has(w.get_instance_id()):
 		w.village.construction.release(site, w, false, true)
 	release()
 	state = State.RESTING
 
 
 func release() -> void:
-	if is_instance_valid(site) and site.crew.has(w.get_instance_id()):
+	if is_instance_valid(site) and site.builder_crew.has(w.get_instance_id()):
 		w.village.construction.release(site, w, false)
 	site = null
 	w.sprite.rotation = 0.0

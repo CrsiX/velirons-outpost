@@ -12,10 +12,10 @@ docs/world-objects-design.md §9 for the special objects she claims and loots.
 
 - **Half villager, half soldier**, with a sword. One per village; she starts in its centre.
 - **Her post** (`Hero.home()`) is the village centre (in Support mode the supported village's).
-  *(Designed, not built:)* the centre becomes the path crossing of the 7×7 village; idle, she
-  stands there. Her **home** is the **town hall** two tiles away (docs/village-design.md §3a):
-  she rests there and swaps equipment there, only while idle at home; a devastated hall gives
-  no rest.
+  The centre is the path crossing of the 7×7 village; idle, she stands there. Her **home** is
+  the **town hall** beside it (docs/village-design.md §3a): in Rest mode she goes inside and
+  heals fast (§4.7, §5). *(Designed, not built:)* she swaps equipment there, only while idle at
+  home.
   A campaign scenario can give her another (`Hero.home_override`, scenario 7: her tent outside
   the walls until she is let in); everything below about "the centre" (standing guard, the leash,
   resting, healing, reviving) is then about her tent.
@@ -178,10 +178,17 @@ she can do and what is most valuable first:
 
 ### 4.7 Rest
 
-- She walks back to the village centre and stays, fighting nobody and fleeing from nobody, healing
-  as she idles (§5), until the player changes the mode. It is the "keep her safe" button.
-- **Snoring:** a rising "z" (every third bigger) shows she is resting, a cheap readable cue
-  (co-op clients show it too).
+- She walks back to the village centre and goes into the **town hall** (`Hero.in_hall`), fighting
+  nobody and fleeing from nobody, healing fast (§5) until the player changes the mode. It is the
+  "keep her safe" button. Inside she is out of sight and out of every enemy's reach (off the
+  `melee_defenders` and `villagers` lists), like a villager in a hut.
+- **Why inside:** the hall gives Rest a real trade-off against idling in Defend: she heals much
+  faster but takes no part in anything, while in the centre she heals slowly and keeps watch.
+- Any other mode, an order (a camp to attack) or a devastated hall brings her out into the centre
+  at once; with the hall devastated she rests in the centre at the slow rate. Her own village's
+  hall only: in Support mode or with a scenario's `home_override` she rests where she stands.
+- **Snoring:** a rising "z" (every third bigger) shows she is resting, from the hall's roof while
+  she is inside, a cheap readable cue (co-op clients show it too).
 
 ### 4.8 Support (co-op only)
 
@@ -195,9 +202,12 @@ she can do and what is most valuable first:
 ## 5. Healing
 
 - **Resting idle** at the centre of the village she guards, in any mode, heals her: idle means at
-  home, not fleeing, no target, near the centre; after a short delay she regenerates up to max
-  HP. The delay stops her healing in the middle of a fight she merely paused. Relics can add to
-  it (`RELICS.hearth.hero_rest`).
+  home, not fleeing, no target, near the centre; after a short delay (`HERO.rest_delay`) she
+  regenerates up to max HP: slowly in the centre (`HERO.rest_regen`), fast inside the town hall
+  in Rest mode (`Hero.hall_regen`: a share of her max HP per second with a floor,
+  `hall_regen_share`, `hall_regen_min`, so it keeps pace as she levels). The delay stops her
+  healing in the middle of a fight she merely paused. Relics add to both
+  (`RELICS.hearth.hero_rest`).
 - **Healing mages** heal her (every village's hero), by their tower's range or their own radius.
 - Nothing else heals her; she doesn't use the villagers' home healing, so the village centre is
   the place that matters.
@@ -261,7 +271,7 @@ docs/items-design.md.
 
 ## 10. The tutorial
 
-- The guided tutorial sets her to **Rest** at the start, so she snores in the centre until the
+- The guided tutorial sets her to **Rest** at the start, so she snores in the town hall until the
   "Your hero" step asks the player to send her exploring. Later steps have her level up and
   mention passing XP on at the grounds; the tutorial tops her XP up to the next level's cost if
   she has less. See docs/tutorial-design.md.

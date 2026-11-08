@@ -192,10 +192,10 @@ func claim(builder: Node, max_dist := INF, work_speed := 1.0) -> Building:
 	var best: Building = null
 	var best_key := []
 	for site in queue:
-		for k in site.crew.keys():
+		for k in site.builder_crew.keys():
 			if not is_instance_id_valid(k):
-				site.crew.erase(k)  # (a builder gone without giving it back)
-		if site.crew.has(me) or site.get_meta("unreachable_until", -INF) > game.clock:
+				site.builder_crew.erase(k)  # (a builder gone without giving it back)
+		if site.builder_crew.has(me) or site.get_meta("unreachable_until", -INF) > game.clock:
 			continue
 		var d := Vector2(site.tile).distance_to(from)
 		if d > max_dist or in_danger(site) or not game.world.pathing.can_reach(village.center, site.work_tile()):
@@ -209,8 +209,8 @@ func claim(builder: Node, max_dist := INF, work_speed := 1.0) -> Building:
 			best = site
 			best_key = key
 	if best != null:
-		best.crew[me] = work_speed
-		village.events.debug("%s %s work on %s" % [builder.label(), "joins" if best.crew.size() > 1 else "starts", best.label()])
+		best.builder_crew[me] = work_speed
+		village.events.debug("%s %s work on %s" % [builder.label(), "joins" if best.builder_crew.size() > 1 else "starts", best.label()])
 		changed.emit()
 	return best
 
@@ -219,7 +219,7 @@ func claim(builder: Node, max_dist := INF, work_speed := 1.0) -> Building:
 ## there takes? What they leave undone by the time it arrives is shared from
 ## then on (docs/village-design.md §5 Builder).
 static func worth_joining(site: Building, walk: float, work_speed: float) -> bool:
-	var rate := maxf(site.crew_speed(), 0.01)
+	var rate := maxf(site.builder_crew_speed(), 0.01)
 	var left := site.work_left() - rate * walk
 	if left <= 0.0:
 		return false
@@ -282,7 +282,7 @@ func in_danger(site: Building) -> bool:
 ## `builder` gives the job back: `unreachable` (it can't get there: skipped
 ## for a while), `interrupted` (it fled: counts towards demotion).
 func release(site: Building, builder: Node, unreachable: bool, interrupted := false) -> void:
-	site.crew.erase(builder.get_instance_id())
+	site.builder_crew.erase(builder.get_instance_id())
 	if unreachable:
 		site.set_meta("unreachable_until", game.clock + float(Config.BUILD_QUEUE["unreachable_retry"]))
 	if interrupted:
@@ -355,7 +355,7 @@ func on_devastated(b: Building, source: Node) -> void:
 		var back := b.cancel_refund()
 		queue.erase(b)
 		village.economy.refund(back, "upgrades")
-		b.crew.clear()
+		b.builder_crew.clear()
 		b.cancel_upgrade()
 	b.set_devastated(true)
 	village.army.eject(b)
@@ -405,7 +405,7 @@ func stop_tear_down(b: Building) -> void:
 		return
 	village.events.debug("stop tearing down %s" % b.label())
 	queue.erase(b)
-	b.crew.clear()
+	b.builder_crew.clear()
 	b.set_tearing_down(false)
 	if b is Workplace:
 		village.population.assign_worker(b, true)
@@ -426,7 +426,7 @@ func _torn_down(b: Building) -> void:
 
 func complete(site: Building) -> void:
 	queue.erase(site)
-	site.crew.clear()
+	site.builder_crew.clear()
 	if site.complete and site.tearing_down:
 		_torn_down(site)
 		return
@@ -547,7 +547,7 @@ func cancel(site: Building) -> void:
 		var repair_back := site.cancel_refund()  # (before cancel_repair clears the progress)
 		queue.erase(site)
 		village.economy.refund(repair_back, "repairs")
-		site.crew.clear()
+		site.builder_crew.clear()
 		site.cancel_repair()
 		village.events.info("Repair of %s called off: %s" % [site.label(), _back_text(repair_back)])
 		changed.emit()
@@ -556,7 +556,7 @@ func cancel(site: Building) -> void:
 		var upgrade_back := site.cancel_refund()  # (before cancel_upgrade clears the progress)
 		queue.erase(site)
 		village.economy.refund(upgrade_back, "upgrades")
-		site.crew.clear()
+		site.builder_crew.clear()
 		site.cancel_upgrade()
 		village.events.info("Upgrade of %s called off: %s" % [site.label(), _back_text(upgrade_back)])
 		changed.emit()
@@ -564,7 +564,7 @@ func cancel(site: Building) -> void:
 	if site.complete:
 		return
 	queue.erase(site)
-	site.crew.clear()  # (a cancelled hut stays on the map: it must be claimable again)
+	site.builder_crew.clear()  # (a cancelled hut stays on the map: it must be claimable again)
 	var back := site.cancel_refund()
 	village.economy.refund(back, "buildings")
 	village.events.info("%s cancelled: %s" % [site.label().capitalize(), _back_text(back)])

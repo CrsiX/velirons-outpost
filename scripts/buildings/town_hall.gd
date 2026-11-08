@@ -122,7 +122,7 @@ func info() -> Dictionary:
 	else:
 		lines.append("The heart of the village. Devastated, it must be repaired in time or the village falls.")
 	if upgrading:
-		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), _crew_text().to_lower()])
+		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), _builder_crew_text().to_lower()])
 		add_cancel_action(lines, actions, "Cancel upgrade")
 	elif level < max_level() and not devastated and not repairing:
 		lines.append("Next level: {hp} %d%s" % [roundi(hp_at(level + 1)), ", a tower post on its roof" if level + 1 == int(Config.TOWN_HALL["post_from"]) else ""])
@@ -159,7 +159,7 @@ func add_hp_info(lines: Array[String], actions: Array[Dictionary]) -> void:
 		return
 	var i := lines.find("Devastated: it does nothing until it is repaired.")
 	if i >= 0:
-		lines[i] = "Devastated: the hero gets no rest here and its post is empty until it is repaired."
+		lines[i] = "Devastated: the hero can't rest inside and its post is empty until it is repaired."
 	if village != null and village.last_stand_left() >= 0.0:
 		for k in range(actions.size() - 1, -1, -1):
 			if str(actions[k]["label"]).begins_with("Cancel repair"):
