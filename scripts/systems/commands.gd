@@ -44,6 +44,8 @@ const HANDLERS := {
 	"post_demand": "_post_demand",
 	"hero_mode": "_hero_mode",
 	"hero_level_up": "_hero_level_up",
+	"equip": "_equip",
+	"unequip": "_unequip",
 	"call_wave": "_call_wave",
 	"set_speed": "_set_speed",
 	"send_caravan": "_send_caravan",
@@ -500,6 +502,38 @@ func _hero_mode(v: Village, a: Dictionary) -> Dictionary:
 	return ok()
 
 
+## The hero puts on `item` (Config.ITEMS key) from the armoury; what she wore
+## in its slot goes back there (docs/items-design.md §3).
+func _equip(v: Village, a: Dictionary) -> Dictionary:
+	var id := str(a.get("item", ""))
+	if not Config.ITEMS.has(id) or Config.ITEM_DEFAULTS.values().has(id):
+		return fail("Unknown item")
+	var err := v.hero.swap_error()
+	if err != "":
+		return fail(err)
+	if not v.armoury.has(id):
+		return fail("The armoury has no %s" % str(Config.ITEMS[id]["name"]).to_lower())
+	v.hero.equip(id)
+	return ok()
+
+
+## The hero takes off what she wears in `slot`: it goes to the armoury, she is
+## back to the slot's default.
+func _unequip(v: Village, a: Dictionary) -> Dictionary:
+	var slot := str(a.get("slot", ""))
+	if not slot in Config.ITEM_SLOTS:
+		return fail("Unknown slot")
+	if not v.hero.equipped.has(slot):
+		return fail("Nothing to take off")
+	var err := v.hero.swap_error()
+	if err != "":
+		return fail(err)
+	if v.armoury.full():
+		return fail("The armoury is full (%d)" % v.armoury.cap())
+	v.hero.unequip(slot)
+	return ok()
+
+
 ## Co-op: which village the hero supports (in Support mode).
 func _hero_support(v: Village, a: Dictionary) -> Dictionary:
 	var t := _other_village(v, a)
@@ -592,7 +626,8 @@ func _set_speed(v: Village, a: Dictionary) -> Dictionary:
 ## host's build decides), from the settings dialog's Debug page. `what`: "gold",
 ## "food", "materials" (+DEBUG_AMOUNT), "xp" (the hero), "reveal" (the whole
 ## map explored, the fog of war stays), "unlock" (every locked unit and role),
-## "spawn" (an enemy of `kind` at the edge, outside the waves' rules).
+## "spawn" (an enemy of `kind` at the edge, outside the waves' rules), "item"
+## (equipment `kind` into the armoury; no item sources exist yet).
 const DEBUG_AMOUNT := 1000
 
 
@@ -616,6 +651,14 @@ func _debug(v: Village, a: Dictionary) -> Dictionary:
 		"unlock":
 			for key: String in Config.LOCKED:
 				game.unlock(key, v)
+		"item":
+			var id := str(a.get("kind", ""))
+			if not game.items_enabled():
+				return fail("There is no equipment here")
+			if not Config.ITEMS.has(id) or Config.ITEM_DEFAULTS.values().has(id):
+				return fail("Unknown item '%s'" % id)
+			if not v.armoury.add(id):
+				return fail("The armoury is full (%d)" % v.armoury.cap())
 		"spawn":
 			var kind := str(a.get("kind", ""))
 			if not Config.ENEMIES.has(kind) or Config.ENEMIES[kind]["behavior"] == "arm":

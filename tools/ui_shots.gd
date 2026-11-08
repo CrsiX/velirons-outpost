@@ -137,6 +137,8 @@ func _run() -> void:
 		await _fortifications()
 	if only in ["", "research"]:
 		await _research()
+	if only in ["", "items"]:
+		await _items()
 	if only in ["", "scenario"]:
 		await _scenario()
 	if only in ["", "campaign"]:
@@ -885,6 +887,53 @@ func _research() -> void:
 	await _frames(15)
 	await shot("research_hall_panel_portrait")
 	g.deselect()
+	await _landscape()
+	g.queue_free()
+	await _frames(3)
+
+
+## The hero's equipment (docs/items-design.md): her panel's slots, the armoury
+## dialog, a weapon library page, a netted enemy.
+func _items() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	for id in ["lance", "throwing_axes", "throwing_axes", "full_plate", "net", "swift_boots"]:
+		g.command("debug", {"what": "item", "kind": id})
+	g.command("equip", {"item": "full_plate"})
+	g.command("equip", {"item": "swift_boots"})
+	g.camera.focus(Iso.tile_to_world(v.center))
+	g.camera.zoom = Vector2(1.1, 1.1)
+	g.hud.toggle_hero_panel(true)
+	await _frames(10)
+	await shot("items_hero_panel")
+	g.hud.open_armoury("weapon")
+	await _frames(10)
+	await shot("items_armoury")
+	g.hud._armoury_panel.visible = false
+	g.hud.toggle_hero_panel(false)
+	g.hud.open_library("weapons")
+	await _frames(10)
+	await shot("items_library")
+	g.hud.library.close()
+	g.waves._spawn({"kind": "orc", "spawn": g.map.edge_spawns[0], "hp_scale": 50.0, "village": v})
+	var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	e.set_grid_pos(Vector2(v.center) + Vector2(4, 1))
+	e.net(30.0)
+	g.camera.focus(e.position)
+	g.camera.zoom = Vector2(1.6, 1.6)
+	await _frames(10)
+	await shot("items_net")
+	await _size(Vector2i(540, 960))
+	g.hud.open_armoury("weapon")
+	await _frames(15)
+	await shot("items_armoury_portrait")
+	g.hud._armoury_panel.visible = false
 	await _landscape()
 	g.queue_free()
 	await _frames(3)

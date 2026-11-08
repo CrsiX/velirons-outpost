@@ -263,6 +263,7 @@ func _village_data(v: Village) -> Dictionary:
 		"sacks": sacks,
 		"unl": game.unlocks.keys(),
 		"rel": v.relics.duplicate(),
+		"arm": v.armoury.items.duplicate(),
 		"eco": [v.economy.amount("gold"), v.economy.amount("food"), v.economy.amount("materials")],
 		"starve": [v.population.starving, snappedf(v.population.starve_timer, 0.1)],
 		"stand": [snappedf(v.last_stand, 0.1), v.stand_unpaid, v.hall_lost],
@@ -342,7 +343,7 @@ func _describe(n: Node) -> Array:
 		vid = v.id
 	if n is Hero:
 		var h := n as Hero
-		return [h.nid, "h", {"v": vid}, _unit_state(h).merged({"h": h.at_home, "m": h.mode, "xp": h.xp, "lv": h.level, "hp": snappedf(h.hp, 0.5), "mhp": h.max_hp, "d": h.dead, "st": h.support_target.id if h.support_target else -1, "s": h.status_text(), "ih": h.in_hall}), h.current_tile(), vid, false]
+		return [h.nid, "h", {"v": vid}, _unit_state(h).merged({"h": h.at_home, "m": h.mode, "xp": h.xp, "lv": h.level, "hp": snappedf(h.hp, 0.5), "mhp": h.max_hp, "d": h.dead, "st": h.support_target.id if h.support_target else -1, "s": h.status_text(), "ih": h.in_hall, "eq": h.equipped.duplicate()}), h.current_tile(), vid, false]
 	if n is Civilian:
 		var c := n as Civilian
 		if c.dead:
@@ -461,6 +462,8 @@ func _apply_village(vd: Dictionary) -> void:
 			game.world.on_unlocked(key)
 			game.hud._queue_refresh()
 	v.relics.assign(vd.get("rel", []))
+	if vd.get("arm", []) != v.armoury.items:
+		v.armoury.set_items(vd.get("arm", []))
 	game.world.sync_net_sacks(vd.get("sacks", []))
 	var eco: Array = vd["eco"]
 	v.economy.set_amounts({"gold": eco[0], "food": eco[1], "materials": eco[2]})
@@ -672,6 +675,10 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		h.dead = st["d"]
 		h.support_target = game.villages[st["st"]] if st["st"] >= 0 else null
 		h.in_hall = st.get("ih", false)
+		var eqd: Dictionary = st.get("eq", {})
+		if eqd != h.equipped:
+			h.equipped = eqd.duplicate()
+			h.apply_equipment()
 		h.queue_redraw()
 		h.changed.emit()
 	if o is Soldier:

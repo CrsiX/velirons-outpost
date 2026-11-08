@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 64 64">
+
+  <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="#15110d" stroke-width="3"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#a77ae0" stroke-width="3"/>
+  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+
+  <defs><radialGradient id="lg"><stop offset="0" stop-color="#ffc84a" stop-opacity="0.85"/><stop offset="1" stop-color="#ffc84a" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="32" cy="36" r="24" fill="url(#lg)"/>
+  <path d="M25 15 Q25 6 32 6 Q39 6 39 15" fill="none" stroke="#15110d" stroke-width="4.2" stroke-linecap="round"/>
+  <path d="M25 15 Q25 6 32 6 Q39 6 39 15" fill="none" stroke="#6a727c" stroke-width="2" stroke-linecap="round"/>
+  <path d="M21 20 L32 13 L43 20Z" fill="#4a4e56" stroke="#15110d" stroke-width="2.4" stroke-linejoin="round"/>
+  <rect x="21" y="19" width="22" height="4" rx="1" fill="#5a5e66" stroke="#15110d" stroke-width="2"/>
+  <path d="M22.5 23 L41.5 23 L40 46 L24 46Z" fill="#ffe7a0" stroke="#15110d" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M32 27 Q37 33 35 38 Q34 42 32 42 Q29 42 29 38 Q28 34 32 27Z" fill="#ff9a2a" stroke="#c85a10" stroke-width="1.2"/>
+  <path d="M32 33 Q34 36 33 39 Q32 40.5 31 39 Q30 37 32 33Z" fill="#fff6d0"/>
+  <path d="M27.5 23 L28.5 46 M36.5 23 L35.5 46" stroke="#4a4e56" stroke-width="2.2"/>
+  <rect x="20" y="45" width="24" height="5" rx="1.5" fill="#5a5e66" stroke="#15110d" stroke-width="2.2"/>
+  <path d="M25 26 L25.5 40" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" opacity="0.8"/>
+</svg>

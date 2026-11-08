@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 64 64">
+
+  <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="#15110d" stroke-width="3"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#c8873e" stroke-width="3"/>
+  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+
+  <path d="M25 12 Q32 20 39 12 L46 15 L52 26 L46 31 L45 50 Q32 55 19 50 L18 31 L12 26 L18 15Z" fill="#8a5a32" stroke="#15110d" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M25 12 Q32 20 39 12 L37 11 Q32 16 27 11Z" fill="#5e3c20" stroke="#15110d" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M32 19 L32 44" stroke="#5e3c20" stroke-width="2.2"/>
+  <path d="M29 22 L35 25 M35 22 L29 25 M29 28 L35 31 M35 28 L29 31 M29 34 L35 37 M35 34 L29 37" stroke="#e8d0a0" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M19.5 41 Q32 45 44.5 41 L44.7 46 Q32 50 19.3 46Z" fill="#5e3c20" stroke="#15110d" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="29" y="41.5" width="6" height="6" rx="1" fill="none" stroke="#c9a24a" stroke-width="1.8"/>
+  <path d="M21 24 Q22 34 21 40 M43 24 Q42 34 43 40" fill="none" stroke="#b07a48" stroke-width="1.8" stroke-dasharray="2 2"/>
+  <path d="M14 26 L18 22 M50 26 L46 22" stroke="#5e3c20" stroke-width="1.6"/>
+</svg>

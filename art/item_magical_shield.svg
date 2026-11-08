@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 64 64">
+
+  <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="#15110d" stroke-width="3"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#c8873e" stroke-width="3"/>
+  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+
+  <defs><radialGradient id="mg"><stop offset="0" stop-color="#b48aff" stop-opacity="0.85"/><stop offset="1" stop-color="#b48aff" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="32" cy="32" r="25" fill="url(#mg)"/>
+  <path d="M15 13 L49 13 L49 30 Q49 46 32 55 Q15 46 15 30Z" fill="#c8ccd8" stroke="#15110d" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M19 17 L45 17 L45 30 Q45 43 32 50.5 Q19 43 19 30Z" fill="#33285e" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M32 22 L32 46 M32 32 L24 24 M32 32 L40 24 M26 41 L32 36 L38 41" fill="none" stroke="#b48aff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+  <path d="M32 22 L32 46 M32 32 L24 24 M32 32 L40 24 M26 41 L32 36 L38 41" fill="none" stroke="#efe6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12 14.5 L13.05 16.95 L15.5 18 L13.05 19.05 L12 21.5 L10.95 19.05 L8.5 18 L10.95 16.95Z" fill="#e0d0ff" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M52 41 L52.9 43.1 L55 44 L52.9 44.9 L52 47 L51.1 44.9 L49 44 L51.1 43.1Z" fill="#e0d0ff" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M50 6.4 L50.78 8.22 L52.6 9 L50.78 9.78 L50 11.6 L49.22 9.78 L47.4 9 L49.22 8.22Z" fill="#e0d0ff" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+</svg>

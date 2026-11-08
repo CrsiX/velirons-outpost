@@ -631,7 +631,7 @@ High Priest) and the right damage (holy, magic, fire), not more arrows. Numbers:
   from it (`Enemy.scary()`), no warning light marks it, and it is drawn see-through
   (`faded_alpha`). It turns solid when:
   - **revealed** (`GhostBehavior._revealed`): in a working light stone's light
-    (`LIGHTSTONE_SIGHT`) or in any High Priest's aura (`Combat.in_holy_aura`, docs/acolyte-design.md
+    (`LIGHTSTONE_SIGHT`), near a hero carrying a lantern (docs/items-design.md §6) or in any High Priest's aura (`Combat.in_holy_aura`, docs/acolyte-design.md
     §6), any village's; towers and their lanterns reveal nothing. Revealed wins: it is solid
     wherever it is; or
   - **hunting** within its target's reach (melee range plus `solid_margin`). So it can always

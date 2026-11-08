@@ -29,6 +29,8 @@ var population: Population
 var construction: Construction
 var army: Army
 var research: Research
+## Equipment the hero isn't wearing (docs/items-design.md §4).
+var armoury: Armoury
 var events: EventLog
 var hero: Hero
 ## No villagers left, or its town hall has fallen (see update_fallen).
@@ -84,6 +86,10 @@ func create(p_game: Game, p_id: int, p_name: String, p_color: Color) -> void:
 	research = Research.new()
 	research.name = "Research"
 	add_child(research)
+	armoury = Armoury.new()
+	armoury.name = "Armoury"
+	armoury.village = self
+	add_child(armoury)
 
 
 ## Sum of a bonus over the relics this village has found ("food", "revive"...).

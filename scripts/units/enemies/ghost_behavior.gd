@@ -4,7 +4,7 @@ extends EnemyBehavior
 ## villager of its village and hunts them, not the village. It follows its
 ## road for road_share of it, then flies (Pathing.ghost_path) to where its
 ## target is. Faded (untargetable, harmless, unseen by villagers) unless
-## revealed (a working light stone's light, a High Priest's aura) or hunting
+## revealed (a working light stone's light, a High Priest's aura, a hero's lantern) or hunting
 ## within melee range + solid_margin of its target. A miner target inside a
 ## mine is driven out once the ghost stands by the mine. Its target fled home
 ## (hidden in the village) it lurks: faded, strolling a few tiles at a time,
@@ -162,6 +162,10 @@ static func _revealed(enemy: Enemy) -> bool:
 		return true
 	for b in enemy.game.world.buildings:
 		if b is LightStone and b.working() and Vector2(b.tile).distance_to(enemy.grid_pos) <= Config.LIGHTSTONE_SIGHT:
+			return true
+	for node in enemy.game.get_tree().get_nodes_in_group("heroes"):  # (a hero's lantern)
+		var h := node as Hero
+		if h.ghost_light() > 0.0 and h.grid_pos.distance_to(enemy.grid_pos) <= h.ghost_light():
 			return true
 	return false
 

@@ -80,6 +80,17 @@ var _research_panel: PanelContainer
 var _research_list: VBoxContainer
 var _research_status: Label
 var _research_shown := ""  # (what the list shows, to rebuild it only when that changes)
+## The armoury dialog (docs/items-design.md §3, ui-design §7.1): one slot of the
+## hero's at a time, what she wears there and the armoury's items for it.
+var _armoury_panel: PanelContainer
+var _armoury_list: VBoxContainer
+var _armoury_status: Label
+var _armoury_tabs := {}  # slot -> Button
+var _armoury_slot := "weapon"
+var _armoury_shown := ""
+## The hero panel's four slots (hidden where there is no equipment).
+var _hero_equip_row: HBoxContainer
+var _hero_slot_buttons := {}  # slot -> Button
 var _upgrade_title: Label
 var _upgrade_options: VBoxContainer
 var _upgrade_hint: Label
@@ -142,6 +153,7 @@ var save_list: SaveList
 var _overlay_load_button: Button
 var _debug_main: Control
 var _debug_enemies: Control
+var _debug_items: Control
 var _speed_before := 0
 var _log_box: VBoxContainer
 ## How many log lines fit above the info panel and below the top bar (_place_log).
@@ -311,6 +323,7 @@ func setup(p_game: Game) -> void:
 	await game.build_step()
 	_build_upgrade_dialogs()
 	_build_research_dialog()
+	_build_armoury_dialog()
 	_build_log()
 	_build_overlay()
 	_dock_hint = _label("Release to withdraw", 22, UiTheme.GOOD)
@@ -1080,6 +1093,7 @@ func _register_popups() -> void:
 	register_popup(_send_unit_panel, func() -> void: _send_unit_panel.visible = false)
 	register_popup(_upgrade_panel, func() -> void: _upgrade_panel.visible = false)
 	register_popup(_research_panel, func() -> void: _research_panel.visible = false)
+	register_popup(_armoury_panel, func() -> void: _armoury_panel.visible = false)
 	register_popup(_confirm_panel, func() -> void: _confirm_panel.visible = false)
 	register_popup(_keys_panel, func() -> void: toggle_keys_help(false))
 	register_popup(_settings, close_settings)
@@ -1135,11 +1149,13 @@ func bind_village(v: Village) -> void:
 		for sig in [_bound.economy.changed, _bound.population.changed, _bound.army.changed, _bound.construction.changed]:
 			sig.disconnect(_queue_refresh)
 		_bound.hero.changed.disconnect(_refresh_hero)
+		_bound.armoury.changed.disconnect(_refresh_hero)
 		_bound.events.changed.disconnect(_on_log_changed)
 	_bound = v
 	for sig in [v.economy.changed, v.population.changed, v.army.changed, v.construction.changed]:
 		sig.connect(_queue_refresh)
 	v.hero.changed.connect(_refresh_hero)
+	v.armoury.changed.connect(_refresh_hero)
 	v.events.changed.connect(_on_log_changed)
 	_selected_unit = null
 	_reserve_signature = ""
@@ -1190,6 +1206,20 @@ func _build_hero_panel() -> void:
 	_hero_stats.add_theme_font_size_override("normal_font_size", 17)
 	_hero_stats.add_theme_color_override("default_color", UiTheme.TEXT)
 	v.add_child(_hero_stats)
+	# Her equipment: a slot each; a tap opens the armoury for it.
+	_hero_equip_row = HBoxContainer.new()
+	_hero_equip_row.name = "Equipment"
+	_hero_equip_row.add_theme_constant_override("separation", 5)
+	v.add_child(_hero_equip_row)
+	for slot: String in Config.ITEM_SLOTS:
+		var sb := _button("", Vector2(42, 52))
+		sb.name = "Slot_" + slot
+		sb.expand_icon = true
+		sb.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sb.pressed.connect(func() -> void: open_armoury(slot))
+		_hero_equip_row.add_child(sb)
+		_hero_slot_buttons[slot] = sb
 	# Her modes, one icon each (the current one framed).
 	var modes := HBoxContainer.new()
 	modes.add_theme_constant_override("separation", 5)
@@ -1423,6 +1453,8 @@ static func _bar_box(color: Color, radius: int, border := Color(0, 0, 0, 0)) -> 
 
 func _refresh_hero() -> void:
 	var h: Hero = game.hero
+	if _armoury_panel and _armoury_panel.visible and not _hero_panel.visible:
+		_refresh_armoury()
 	set_rich_text(_hero_button, "{xp} %d" % h.xp)
 	_hero_button.modulate = Color(1, 0.55, 0.5) if h.dead else Color.WHITE
 	_hero_hp_bar.queue_redraw()
@@ -1443,6 +1475,14 @@ func _refresh_hero() -> void:
 		b.visible = i != Hero.Mode.SUPPORT or game.villages.size() > 1  # (single player: nobody to support)
 		UiTheme.style_selected(b, i == h.mode)
 	_hero_mode_hint.text = HERO_MODE_HINTS[h.mode]
+	_hero_equip_row.visible = game.items_enabled()
+	for slot: String in _hero_slot_buttons:
+		var sb: Button = _hero_slot_buttons[slot]
+		var id := h.worn(slot)
+		sb.icon = Art.tex(Config.item_icon(id))
+		sb.tooltip_text = "%s: %s (tap to change)" % [Config.ITEM_SLOT_NAMES[slot], Config.ITEMS[id]["name"]]
+	if _armoury_panel and _armoury_panel.visible:
+		_refresh_armoury()
 	_hero_support_button.visible = h.mode == Hero.Mode.SUPPORT
 	if h.support_target:
 		_hero_support_button.text = "Support: %s   (tap to change)" % _village_text(h.support_target.id)
@@ -2804,6 +2844,126 @@ func _build_research_dialog() -> void:
 	_research_panel.visible = false
 
 
+# --- the armoury: the hero's equipment (docs/items-design.md) ----------------------------
+
+func _build_armoury_dialog() -> void:
+	_armoury_panel = PanelContainer.new()
+	_armoury_panel.name = "ArmouryDialog"
+	_root.add_child(_armoury_panel)
+	_armoury_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_armoury_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_armoury_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	_armoury_panel.add_child(v)
+	v.add_child(_label("The hero's equipment", 21, UiTheme.GOLD))
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 5)
+	v.add_child(tabs)
+	for slot: String in Config.ITEM_SLOTS:
+		var b := _button(Config.ITEM_SLOT_NAMES[slot], Vector2(0, 42))
+		b.name = "Tab_" + slot
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.add_theme_font_size_override("font_size", 15)
+		b.clip_text = true
+		b.pressed.connect(func() -> void: open_armoury(slot))
+		tabs.add_child(b)
+		_armoury_tabs[slot] = b
+	_armoury_status = _label("", 15, UiTheme.MUTED)
+	_armoury_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_armoury_status)
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(scroll)
+	_armoury_list = VBoxContainer.new()
+	_armoury_list.add_theme_constant_override("separation", 6)
+	scroll.add_child(_armoury_list)
+	var close := _button("Close", Vector2(0, 44))
+	close.pressed.connect(func() -> void: _armoury_panel.visible = false)
+	v.add_child(close)
+	_armoury_panel.visible = false
+
+
+## Opens the armoury dialog on the hero's `slot` (the hero panel's slot buttons).
+func open_armoury(slot: String) -> void:
+	_armoury_slot = slot
+	_armoury_shown = ""
+	_root.move_child(_armoury_panel, -1)  # (over the log and the panels)
+	_armoury_panel.visible = true
+	_refresh_armoury()
+	_fit_dialog(_armoury_panel)
+	_fit_dialog.call_deferred(_armoury_panel)
+
+
+func _refresh_armoury() -> void:
+	var h: Hero = game.hero
+	var arm := game.player_village.armoury
+	var err := h.swap_error()
+	var w := _upgrade_width() + 60.0
+	_armoury_status.text = "Armoury: %d / %d items.  %s" % [arm.items.size(), arm.cap(), err if err != "" else "She can change now."]
+	_armoury_status.custom_minimum_size.x = w
+	var state := "|".join([_armoury_slot, str(h.equipped), str(arm.items), err])
+	if state == _armoury_shown:
+		return
+	_armoury_shown = state
+	for slot: String in _armoury_tabs:
+		UiTheme.style_selected(_armoury_tabs[slot], slot == _armoury_slot)
+	for c in _armoury_list.get_children():
+		_armoury_list.remove_child(c)
+		c.queue_free()
+	var worn := h.worn(_armoury_slot)
+	_armoury_list.add_child(_label("Wearing", 17, UiTheme.GOLD))
+	var take_off := ""
+	if h.equipped.has(_armoury_slot):
+		take_off = "Take off" if not arm.full() else "Take off (the armoury is full)"
+	_armoury_list.add_child(_armoury_row(worn, w, take_off, err != "" or arm.full(), err, func() -> void:
+		_do("unequip", {"slot": _armoury_slot})
+		_refresh_hero()))
+	var list := arm.for_slot(_armoury_slot)
+	_armoury_list.add_child(_label("In the armoury", 17, UiTheme.GOLD))
+	if list.is_empty():
+		var none := _label("Nothing for this slot yet.", 15, UiTheme.MUTED)
+		_armoury_list.add_child(none)
+	var seen := {}
+	for id in list:
+		if seen.has(id):
+			continue  # (copies: one row, its count in the name)
+		seen[id] = true
+		_armoury_list.add_child(_armoury_row(id, w, "Put on", err != "", err, func() -> void:
+			_do("equip", {"item": id})
+			_refresh_hero(), list.count(id)))
+	var scroll := _armoury_list.get_parent() as ScrollContainer
+	scroll.custom_minimum_size = Vector2(w + 12.0, clampf(_root.size.y - 300.0, 160.0, 460.0))
+
+
+## One item: its icon, name and text, and a button (`action`; "" for none).
+func _armoury_row(id: String, w: float, action: String, off: bool, why: String, pressed: Callable, copies := 1) -> Control:
+	var it: Dictionary = Config.ITEMS[id]
+	var row := HBoxContainer.new()
+	row.name = "Item_" + id
+	row.add_theme_constant_override("separation", 10)
+	var icon := _icon(Art.tex(Config.item_icon(id)), 48)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(icon)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	row.add_child(box)
+	box.add_child(_label(str(it["name"]) + ("  x%d" % copies if copies > 1 else ""), 17, UiTheme.TEXT))
+	var desc := _label(str(it["desc"]), 14, UiTheme.MUTED)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.custom_minimum_size.x = w - 58.0
+	box.add_child(desc)
+	if action != "":
+		var b := _button(action, Vector2(w - 58.0, 42))
+		b.name = "Action"
+		b.disabled = off
+		b.tooltip_text = why
+		b.pressed.connect(pressed)
+		box.add_child(b)
+	return row
+
+
 func open_research() -> void:
 	_research_shown = ""
 	_root.move_child(_research_panel, -1)  # (over the log and the panels)
@@ -3294,6 +3454,12 @@ func _build_debug(center: Control) -> void:
 		_debug_main.visible = false
 		_debug_enemies.visible = true)
 	v.add_child(spawn)
+	if game.items_enabled():
+		var give := _button("Give item...", Vector2(0, 48))
+		give.pressed.connect(func() -> void:
+			_debug_main.visible = false
+			_debug_items.visible = true)
+		v.add_child(give)
 	if OS.has_feature("web") and game.game_log and game.game_log.active():  # (no file to look at in a browser)
 		var dl := _button("Download game log", Vector2(0, 48))
 		dl.pressed.connect(func() -> void: game.game_log.download())
@@ -3333,6 +3499,44 @@ func _build_debug(center: Control) -> void:
 		_debug_enemies.visible = false
 		_debug_main.visible = true)
 	ev.add_child(eback)
+	# Item list: any equipment into the armoury (no item sources exist yet).
+	var iv := VBoxContainer.new()
+	iv.add_theme_constant_override("separation", 10)
+	iv.visible = false
+	pages.add_child(iv)
+	_debug_items = iv
+	var ititle := _label("Give item", 30, UiTheme.GOLD)
+	ititle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	iv.add_child(ititle)
+	var iscroll := ScrollContainer.new()
+	iscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	iscroll.custom_minimum_size = Vector2(0, 420)
+	iv.add_child(iscroll)
+	var igrid := GridContainer.new()
+	igrid.columns = 2
+	igrid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	igrid.add_theme_constant_override("h_separation", 10)
+	igrid.add_theme_constant_override("v_separation", 10)
+	iscroll.add_child(igrid)
+	for id: String in Config.ITEMS:
+		if Config.ITEM_DEFAULTS.values().has(id):
+			continue
+		var b := _button(str(Config.ITEMS[id]["name"]), Vector2(180, 52))
+		b.icon = Art.tex(Config.item_icon(id))
+		b.expand_icon = true
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.clip_text = true
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(func() -> void:
+			var r := game.command("debug", {"what": "item", "kind": id})
+			toast("%s: into the armoury" % Config.ITEMS[id]["name"] if r.get("ok", false) else str(r.get("error", "Failed")), UiTheme.GOOD if r.get("ok", false) else Color("ff7a6a")))
+		igrid.add_child(b)
+	var iback := _button("Back", Vector2(0, 52))
+	UiTheme.style_good(iback)
+	iback.pressed.connect(func() -> void:
+		_debug_items.visible = false
+		_debug_main.visible = true)
+	iv.add_child(iback)
 
 
 func _show_debug(on: bool) -> void:
@@ -3341,6 +3545,7 @@ func _show_debug(on: bool) -> void:
 	_debug_panel.visible = on
 	_debug_main.visible = true
 	_debug_enemies.visible = false
+	_debug_items.visible = false
 	_settings_panel.visible = not on
 
 

@@ -248,11 +248,15 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   - Stationing a unit and dropping one onto a post take the front-most post there
     (`World.pick_post`), not whatever is in front of it.
 
-### 7.1 Panels for the new features *(designed, not built)*
+### 7.1 Panels for the new features
 
-- **Hero panel:** her four slots (weapon, armour, accessory, movement); tapping a slot lists the
-  armoury's items for it. A swap is a command, allowed only while she is idle at the town hall and
-  it isn't devastated (docs/items-design.md).
+- **Hero panel** (built): a row with her four slots (weapon, armour, accessory, movement), each
+  showing the icon of what she wears; hidden where there is no equipment (`Game.items_enabled`).
+  A tap opens the **armoury dialog** (`Hud.open_armoury`) on that slot, with a tab per slot:
+  what she wears (*Take off*, unless it is the default) and the armoury's items for the slot,
+  copies as one row (*Put on*). Its status line says how full the armoury is and, when she
+  can't change now, why (`Hero.swap_error`); the buttons are greyed out meanwhile. A swap is a
+  command (docs/items-design.md §3). The debug page has *Give item...*.
 - **Town hall panel** (built: `TownHall.info`): its level and upgrade, the last stand's seconds
   left, its tower post and its bench (unit, *Upgrade*, *Withdraw*), and research: the one under
   research with its time left and *Cancel research*, and *Research...* opening the list

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 64 64">
+
+  <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="#15110d" stroke-width="3"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#d2463c" stroke-width="3"/>
+  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+
+  <defs><radialGradient id="fg"><stop offset="0" stop-color="#ff8a2a" stop-opacity="0.85"/><stop offset="1" stop-color="#ff8a2a" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="32" cy="32" r="24" fill="url(#fg)"/>
+  <g transform="rotate(45 32 32)">
+    <path d="M23 42 Q14 34 21 27 Q16 19 24 15 Q23 7 29 4 Q29 9 32 1 Q35 9 35 4 Q41 7 40 15 Q48 19 43 27 Q50 34 41 42Z" fill="#e8582a" stroke="#15110d" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="M26 40 Q20 34 25 29 Q22 22 27 19 Q27 12 32 7 Q37 12 37 19 Q42 22 39 29 Q44 34 38 40Z" fill="#ffc040"/>
+    <path d="M28.2 40 L28.2 14 L32 6 L35.8 14 L35.8 40Z" fill="#ffd890" stroke="#15110d" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M32 11 L32 37" stroke="#fff6d8" stroke-width="1.8" stroke-linecap="round"/>
+    <rect x="29.4" y="43" width="5.2" height="9" rx="1.5" fill="#5e4129" stroke="#15110d" stroke-width="2.3"/>
+    <path d="M30 46 L34 47.5 M30 49 L34 50.5" stroke="#15110d" stroke-width="1"/>
+    <rect x="20" y="39" width="24" height="5" rx="2.5" fill="#c83a1a" stroke="#15110d" stroke-width="2.4"/>
+    <circle cx="32" cy="55" r="3.6" fill="#c83a1a" stroke="#15110d" stroke-width="2.2"/>
+  </g>
+</svg>

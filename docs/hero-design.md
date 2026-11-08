@@ -14,8 +14,7 @@ docs/world-objects-design.md §9 for the special objects she claims and loots.
 - **Her post** (`Hero.home()`) is the village centre (in Support mode the supported village's).
   The centre is the path crossing of the 7×7 village; idle, she stands there. Her **home** is
   the **town hall** beside it (docs/village-design.md §3a): in Rest mode she goes inside and
-  heals fast (§4.7, §5). *(Designed, not built:)* she swaps equipment there, only while idle at
-  home.
+  heals fast (§4.7, §5). She changes equipment there, only while idle at her post (§9a).
   A campaign scenario can give her another (`Hero.home_override`, scenario 7: her tent outside
   the walls until she is let in); everything below about "the centre" (standing guard, the leash,
   resting, healing, reviving) is then about her tent.
@@ -262,11 +261,14 @@ mode makes her stronger and Explore, Gather and Build are not a sacrifice. The w
   (`hero_revives`: away from home downed is a defeat).
 - Commands that need her (attacking a camp) are refused while she is down.
 
-## 9a. Equipment *(designed, not built)*
+## 9a. Equipment
 
 Four slots (weapon, armour, accessory, movement), each with a default item that is exactly
 today's hero; items change her by modifiers, never flat stats, so they stay worth having at
-every level. Items stay when she is downed. Only the hero wears equipment. Everything else:
+every level (`Hero.eq`: worn items' factors multiply). Items stay when she is downed. Only the
+hero wears equipment. Her blade's reach, category and flyer rule come from her weapon
+(`Hero.reach_to`, `weapon_category`, `reaches_flyers`, `can_hit`), so code that asks what she
+can fight goes through those, not `Config.HERO` directly. Everything else:
 docs/items-design.md.
 
 ## 10. The tutorial

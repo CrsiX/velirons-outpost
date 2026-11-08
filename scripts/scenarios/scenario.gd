@@ -99,6 +99,9 @@ var advancements := false
 ## The marketplace and the trader (docs/market-design.md §9): off in the
 ## campaign unless a scenario switches them on.
 var market := false
+## Hero equipment and the armoury (docs/items-design.md §8): off in the
+## campaign unless a scenario switches them on.
+var items := false
 ## Units may specialise (from Config.BRANCH_MIN_LEVEL).
 var specialise := true
 ## The hero comes back after being downed (home); false: downed is a defeat.

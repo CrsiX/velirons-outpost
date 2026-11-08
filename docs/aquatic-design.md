@@ -143,6 +143,9 @@ and is released when the source ends; the unit then rescans its surroundings nor
 *(decided)*. It never moves a unit into a solid tile; only the octopus's grapple may pull into
 deep water, and that is a death (§8). Units on towers, on benches and inside the walls are never
 moved.
+The hero's equipment changes two things (docs/items-design.md §6): in heavy steel boots she is
+never moved or held (`Unit.immovable`: no pull, no grapple, and the song doesn't slow her
+blows); in feather boots deep water doesn't drown her (`Unit.drown_proof`).
 
 ## 8. Gigantic octopus (water)
 

@@ -1,8 +1,11 @@
 # Veliron's Outpost: items, equipment and relics (design)
 
-Status: **designed, not built yet.** Nothing here is in the code except the four relics that
-exist today (`Config.RELICS`), which this design reworks. Where the text names a `Config`
-symbol that doesn't exist yet it is a proposed name. Numbers will live in
+Status: **the equipment is built** (§2-4, §6: `Config.ITEMS`, `ITEM_SLOTS`, `ITEM_DEFAULTS`,
+`ARMOURY`; `Hero` equipment section, `Armoury`, the `equip` / `unequip` commands, the hero
+panel's slots and the armoury dialog, a library page per slot, `items_bot`). **Not built yet:**
+where items come from (§5; for now only the debug page's *Give item...*), relics as items (§7:
+the four relics of today, `Config.RELICS`, still work as before and are not in the armoury),
+selling and trading items (docs/market-design.md §8). Numbers live in
 `scripts/core/config.gd`, never here.
 Scope: items (equipment and relics), the hero's slots, the armoury, where items come from,
 the item list. Buying and selling items is in docs/market-design.md; the town hall (home of the
@@ -25,8 +28,10 @@ armoury) in docs/village-design.md; the hero in docs/hero-design.md.
 - **Each item works either while owned or while worn, never both.** A ring works on her
   finger; a banner works by being in the town hall. One rule the player can read off the item.
 - **Duplicates are allowed, the effect counts once.** Two of the same relic give its effect
-  once; the second is only worth selling. **Bonuses from different sources add up** (a
-  "more gold per kill" relic and the matching advancement both count).
+  once; the second is only worth selling. **Bonuses from different sources all count** (a
+  "more gold per kill" relic and the matching advancement both count). Equipment modifiers are
+  factors and multiply: across slots and with every other source (the war cry, a High Priest's
+  blessing, critical hits), which the code already applies as factors.
 - **Map-wide relics** affect every village or every enemy on the map. Owned by several players,
   they still apply once.
 
@@ -46,17 +51,24 @@ nothing changes in balance until something is equipped.
   a weapon compete with boots.
 - **Effects across slots multiply** where they overlap (full plate's slowness and swift boots
   roughly cancel): trade-offs across slots are the point.
-- **Swapping** is a command, only while she is idle at home (the town hall) and the hall is
-  not devastated. The hero panel shows the four slots; tapping one lists the armoury's items
-  for that slot. No swapping mid-fight: lance for the flyers, then back to the axe, would be
-  micromanagement.
+- **The defaults are not items.** An empty slot *is* its default; taking an item off sends it
+  to the armoury and shows the default again. Defaults are never in the armoury, can't be given
+  or sold, and don't count towards its cap.
+- **Swapping** is a command (`equip`, `unequip`), only while she is idle at her post in her own
+  village (`Hero.swap_error`: in any mode, standing at her post or resting inside the hall; not
+  downed, fleeing, fighting or on a camp order) and the hall is not devastated. The hero panel
+  shows the four slots; tapping one opens the armoury for that slot. No swapping mid-fight:
+  lance for the flyers, then back to the axe, would be micromanagement.
+- **A full armoury** refuses taking an item off (and new items); a straight swap always works,
+  since the item put on frees its place.
 - **Being downed** loses unspent XP as today, never items.
 - **Hero only.** Soldiers already grow by levels and specialisations.
 
 ## 4. The armoury
 
-- The town hall's store of items not worn (and of owned relics), capped at a number of items
-  (`Config`). Taken-off items go there; nothing is lost by swapping.
+- The town hall's store of items not worn (and, once relics are items, of owned relics),
+  capped at a number of items (`ARMOURY`). Taken-off items go there; nothing is lost by
+  swapping.
 - Items leave it by being worn, sold (docs/market-design.md §8) or traded to another player.
 - A devastated town hall closes the armoury (no swaps), but owned relics **keep working**:
   losing every relic to one raid would be too harsh.
@@ -78,8 +90,22 @@ nothing changes in balance until something is equipped.
 
 ## 6. Equipment list
 
-Marked *(proposed)*: suggested in the design session, not yet confirmed one by one. Every
-share, chance and duration is a `Config` value.
+Marked *(proposed)*: suggested in the design session; all of them are built. Every share,
+chance and duration is a `Config.ITEMS` value. How the open points were settled:
+
+- **Buckler, magical shield:** "a share of hits" is a chance per hit to block it whole.
+- **Mace:** the enemy behind is the nearest one close to the spot a tile beyond the target, on
+  the line from her through it.
+- **Throwing axes:** projectile damage; like every ranged attack they reach flyers; no blade,
+  so no critical hits (every other weapon crits).
+- **Flame sword:** reaches a siren in water the way a fire elemental's blow does.
+- **Net:** on its cooldown she throws it at her current target in range; the target neither
+  moves nor attacks (`Enemy.net`). Bosses are kinds marked `pin_proof` in `ENEMIES`, plus
+  every named enemy and every water-only kind.
+- **Phoenix pendant:** the killing blow leaves her at a share of her max HP; ready again when
+  each wave starts. **Rose necklace:** a share less poison, not immunity. **Cleaver:** heals a
+  share of the damage actually dealt. **Thorn mail:** reflects a share of a melee hit as pure
+  damage.
 
 ### Weapon
 
@@ -171,12 +197,14 @@ the kind of thing one wants to sell on.
 
 ## 8. Scope and other modes
 
-- **Campaign:** off unless a scenario switches it on (§5).
+- **Campaign:** off unless a scenario switches it on (§5, `Scenario.items`); off in the
+  tutorial and the title backdrop (`Game.items_enabled`).
 - **Co-op:** items and relics are sold between players at an asking price
   (docs/market-design.md §7); each hero has her own slots and each village its armoury.
-- **Save:** the hero's slots, the armoury, owned relics, carriers' items and dropped items need
-  `SaveGame.capture` / restore lines and a `SaveGame.FORMAT` bump.
-- **Commands:** equip, unequip and sell are `Commands`.
-- **Library:** a page per slot and one for relics, built from `Config`.
-- **Tests:** a new `items_bot` (defaults leave the hero unchanged, each effect, swap rules,
-  carriers and drops). The balancing bot learns to equip items later.
+- **Save:** the hero's slots and the armoury are saved (built). Owned relics, carriers' items
+  and dropped items will need `SaveGame.capture` / restore lines and a `SaveGame.FORMAT` bump.
+- **Commands:** equip and unequip are `Commands` (built); sell will be one.
+- **Library:** a page per slot (built: Weapons, Armour, Accessories, Movement) and later one for
+  relics, built from `Config`.
+- **Tests:** `items_bot` (built: defaults leave the hero unchanged, each effect, swap rules,
+  the save; later carriers and drops). The balancing bot learns to equip items later.

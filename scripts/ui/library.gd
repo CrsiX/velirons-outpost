@@ -9,8 +9,12 @@ extends Control
 
 signal closed
 
-const TABS: Array[String] = ["enemies", "units", "buildings", "villagers", "hero", "places", "advancements", "damage"]
-const TAB_NAMES := {"enemies": "Enemies", "units": "Units", "buildings": "Buildings", "villagers": "Villagers", "hero": "Hero", "places": "Places", "advancements": "Advancements", "damage": "Damage"}
+const TABS: Array[String] = ["enemies", "units", "buildings", "villagers", "hero", "weapons", "armour", "accessories", "movement", "places", "advancements", "damage"]
+const TAB_NAMES := {"enemies": "Enemies", "units": "Units", "buildings": "Buildings", "villagers": "Villagers", "hero": "Hero",
+	"weapons": "Weapons", "armour": "Armour", "accessories": "Accessories", "movement": "Movement",
+	"places": "Places", "advancements": "Advancements", "damage": "Damage"}
+## The hero's equipment pages, one per slot (Config.ITEM_SLOTS).
+const SLOT_TABS := {"weapons": "weapon", "armour": "armour", "accessories": "accessory", "movement": "movement"}
 ## Unit stats (Config.MILITARY "stats") in words.
 const STAT_NAMES := {
 	"hp": "HP", "damage": "Damage per hit", "cooldown": "Seconds between attacks",
@@ -240,6 +244,8 @@ static func tab_note(key: String) -> String:
 			return "Numbers for %s difficulty, in wave 1. Enemies get %s %% more HP with every wave." % [Settings.difficulty_name(), _n((Config.WAVE_HP_GROWTH - 1.0) * 100.0)]
 		"units":
 			return "Values go from level 1 to level %d. On a tower a unit shoots as far as the tower reaches." % Config.MAX_UNIT_LEVEL
+		"weapons", "armour", "accessories", "movement":
+			return "The hero's %s slot: one item at a time. She changes it in her panel, from the town hall's armoury, while idle at her post. What she wears in different slots adds up (x times x)." % str(Config.ITEM_SLOT_NAMES[SLOT_TABS[key]]).to_lower()
 		"damage":
 			return "Every hit is one kind of damage. Some enemies take more or less of a kind (x the damage); buildings take it by their defence class (at the end)."
 	return ""
@@ -262,9 +268,72 @@ static func entries(key: String) -> Array[Dictionary]:
 			return _places()
 		"advancements":
 			return _advancements()
+		"weapons", "armour", "accessories", "movement":
+			return _items(SLOT_TABS[key])
 		"damage":
 			return _damage()
 	return []
+
+
+## The hero's equipment for `slot` (Config.ITEMS): the default first, then the
+## rest, each with what it does in numbers (item_facts).
+static func _items(slot: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var ids: Array[String] = [str(Config.ITEM_DEFAULTS[slot])]
+	for id: String in Config.ITEMS:
+		if str(Config.ITEMS[id]["slot"]) == slot and not ids.has(id):
+			ids.append(id)
+	for id in ids:
+		var it: Dictionary = Config.ITEMS[id]
+		var name := str(it["name"]) + (" (default)" if id == Config.ITEM_DEFAULTS[slot] else "")
+		out.append({"name": name, "art": Config.item_icon(id), "text": it["desc"], "facts": item_facts(id)})
+	return out
+
+
+## What item `id` does, in numbers, one line per effect key.
+static func item_facts(id: String) -> PackedStringArray:
+	var it: Dictionary = Config.ITEMS[id]
+	var f := PackedStringArray()
+	var factors := {"damage": "Damage", "cooldown": "Time between blows", "reach": "Reach", "speed": "Walking speed",
+		"taken": "Damage taken", "flyer_taken": "Damage taken from flyers", "gather": "Carried when gathering",
+		"build": "Building speed", "xp": "XP earned", "sight": "Sight", "explore": "Sight when exploring"}
+	for k: String in factors:
+		if it.has(k):
+			f.append("%s x%s" % [factors[k], _n(it[k])])
+	if it.has("attack"):
+		var a: Dictionary = Config.ATTACKS[it["attack"]]
+		f.append("%s damage" % Config.DAMAGE_INFO[a["category"]]["name"])
+		if str(a.get("projectile", "")) != "":
+			f.append("Thrown up to %s tiles, at flyers too" % _n(it["range"]))
+	if it.get("hits_flyers", false):
+		f.append("Reaches flyers")
+	if it.has("poison"):
+		f.append("Poison dose: its first tick %s %% of the blow" % _n(float(it["poison"]) * 100.0))
+	if it.has("lifesteal"):
+		f.append("Heals %s %% of the damage dealt" % _n(float(it["lifesteal"]) * 100.0))
+	if it.has("behind"):
+		f.append("The enemy behind takes %s %%" % _n(float(it["behind"][0]) * 100.0))
+	if it.has("circle"):
+		f.append("Every enemy within %s tiles takes %s %% of a blow" % [_n(it["circle"][0]), _n(float(it["circle"][1]) * 100.0)])
+	for cat: String in it.get("block", {}):
+		f.append("Blocks %s %% of %s hits" % [_n(float(it["block"][cat]) * 100.0), str(Config.DAMAGE_INFO[cat]["name"]).to_lower()])
+	for cat: String in it.get("resist", {}):
+		f.append("%s damage taken x%s" % [Config.DAMAGE_INFO[cat]["name"], _n(it["resist"][cat])])
+	if it.has("thorns"):
+		f.append("Deals %s %% of a melee hit back" % _n(float(it["thorns"]) * 100.0))
+	if it.has("net"):
+		f.append("Every %s s, at up to %s tiles: held %s s" % [_n(it["net"][0]), _n(it["net"][1]), _n(it["net"][2])])
+	if it.has("ghost_light"):
+		f.append("Reveals ghosts within %s tiles" % _n(it["ghost_light"]))
+	if it.has("phoenix"):
+		f.append("Once per wave: a killing blow leaves her %s %% HP" % _n(float(it["phoenix"]) * 100.0))
+	if it.get("free_walk", false):
+		f.append("Crosses forest, deep water and walls")
+	if it.get("immovable", false):
+		f.append("Nothing moves or holds her")
+	if f.is_empty():
+		f.append("No effect: the plain hero")
+	return f
 
 
 ## Every advancement (Config.ADVANCEMENTS), tier by tier: what it does, what it

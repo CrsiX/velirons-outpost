@@ -1637,6 +1637,10 @@ const ATTACKS := {
 	"warp": {"projectile": "warp_orb", "whirl": true, "speed": 460.0, "push_immunity": 4.0, "sound": "hit", "category": "magical"},
 	"heal": {"projectile": "", "sound": "recruit", "category": "holy"},
 	"strike": {"projectile": "", "sound": "hit", "category": "melee"},
+	# The hero's weapons (ITEMS "attack"): a burning blade, a holy blade, thrown axes.
+	"flame_blade": {"projectile": "", "sound": "hit", "category": "fire"},
+	"blessed_blade": {"projectile": "", "sound": "hit", "category": "holy"},
+	"throwing_axe": {"projectile": "throwing_axe", "whirl": true, "speed": 620.0, "sound": "shoot", "category": "projectile"},
 	"holy_beam": {"projectile": "", "burst": "holy_beam", "sound": "recruit", "category": "holy"},
 	"smite": {"projectile": "", "burst": "holy_flash", "sound": "hit", "category": "holy"},
 }
@@ -1825,6 +1829,114 @@ const HERO_XP_PER_ACTION := {
 	"salvage": 8,  # each load of salvage brought back to the market
 }
 
+## The hero's equipment (docs/items-design.md §3, §6). Four slots; an empty
+## slot is its default item (ITEM_DEFAULTS), which is exactly the plain hero:
+## a default has no effect keys and is never an item in the armoury.
+## Every equipment item works while worn. Effect keys (all optional; numbers
+## are modifiers, never flat stats, so they hold at every level):
+##   Factors (x; worn items' factors multiply, and with every other source):
+##     damage ...... her blows' damage        cooldown .... time between blows
+##     reach ....... her blade's reach        speed ....... walking speed
+##     taken ....... damage she takes          flyer_taken . damage flyers deal her
+##     gather ...... what she carries gathering   build ... her building speed
+##     xp .......... XP she earns              sight ....... how far she sees
+##     explore ..... how far she sees exploring
+##   resist ...... {category: x damage taken of that category}
+##   block ....... {category: chance a hit of that category is blocked whole}
+##   attack ...... weapon: an ATTACKS key; its "category" replaces her sword's,
+##                 a "projectile" makes her a thrower (range: "range" tiles)
+##   hits_flyers . her blade reaches flyers (as the halberdier's)
+##   flame ....... a burning blade: reaches a siren in water (Enemy.melee_ok)
+##   poison ...... a dose with each blow, its first tick this share of the hit
+##   lifesteal ... heals her this share of the damage dealt
+##   behind ...... [share, reach]: the enemy behind the target (on the line from
+##                 her through it, within reach of the spot a tile beyond) takes
+##                 the share too
+##   circle ...... [radius, share]: every enemy within radius takes share x her blow
+##                 (the target too); she still picks where to stand
+##   thorns ...... share of a melee hit's damage dealt back to the attacker (pure)
+##   net ......... [cooldown, range, seconds]: thrown at her target on its own:
+##                 it can't move or attack (Enemy.net); never at water-only
+##                 kinds, "pin_proof" ones or named ones
+##   ghost_light . ghosts within this many tiles of her are revealed
+##   phoenix ..... once per wave a killing blow leaves her at this share of max HP
+##   free_walk ... crosses forest, deep water and walls (Pathing.free_path), no
+##                 ground slows her, deep water doesn't drown her
+##   immovable ... nothing moves or holds her (Unit.immovable): songs, grapples,
+##                 roots, nets; terrain still slows her
+## "name", "desc" (the library's and the armoury's text; no numbers), "slot".
+const ITEM_SLOTS: Array[String] = ["weapon", "armour", "accessory", "movement"]
+const ITEM_SLOT_NAMES := {"weapon": "Weapon", "armour": "Armour", "accessory": "Accessory", "movement": "Movement"}
+const ITEM_DEFAULTS := {"weapon": "longsword", "armour": "leather_armour", "accessory": "soldiers_helmet", "movement": "soldiers_boots"}
+## The town hall's armoury: items not worn, at most "cap" of them.
+const ARMOURY := {"cap": 12}
+const ITEMS := {
+	# Weapons.
+	"longsword": {"slot": "weapon", "name": "Longsword", "desc": "Her own sword: plain melee."},
+	"flame_sword": {"slot": "weapon", "name": "Flame sword", "attack": "flame_blade", "flame": true,
+		"desc": "A burning blade: fire instead of melee. Wood burns, ghosts feel it, water monsters hardly do."},
+	"poison_sword": {"slot": "weapon", "name": "Poison-coated sword", "poison": 0.4,
+		"desc": "Melee, and every blow leaves a poison dose. The undead, aberrations and buildings ignore it."},
+	"cleaver": {"slot": "weapon", "name": "Cleaver", "lifesteal": 0.25,
+		"desc": "A butcher's blade: what she deals heals her."},
+	"mace": {"slot": "weapon", "name": "Mace", "behind": [0.5, 0.9],
+		"desc": "Hits through: the enemy behind her target takes part of the blow."},
+	"lance": {"slot": "weapon", "name": "Lance", "reach": 1.75, "hits_flyers": true,
+		"desc": "A longer reach, up to flyers, as the halberdier's."},
+	"great_axe": {"slot": "weapon", "name": "Great axe", "circle": [1.4, 0.6],
+		"desc": "A full circle of blows: every enemy around her, each for less."},
+	"blessed_blade": {"slot": "weapon", "name": "Blessed blade", "attack": "blessed_blade",
+		"desc": "Holy damage: it sears the undead and reaches ghosts."},
+	"throwing_axes": {"slot": "weapon", "name": "Throwing axes", "attack": "throwing_axe", "range": 3.2, "damage": 0.8,
+		"desc": "A short ranged attack: she throws from a few tiles away, at flyers too. No blade, so no critical hits."},
+	# Armour.
+	"leather_armour": {"slot": "armour", "name": "Leather armour", "desc": "Her own leathers: no effect."},
+	"full_plate": {"slot": "armour", "name": "Full plate", "speed": 0.8, "taken": 0.7,
+		"desc": "Slower, but she takes less damage."},
+	"bearskin": {"slot": "armour", "name": "Bearskin", "speed": 1.1, "damage": 1.2, "taken": 1.25,
+		"desc": "Wild: faster, harder blows, but she takes more damage."},
+	"buckler": {"slot": "armour", "name": "Buckler", "block": {"melee": 0.25, "projectile": 0.25},
+		"desc": "Blocks some melee and projectile hits entirely."},
+	"magical_shield": {"slot": "armour", "name": "Magical shield", "block": {"magical": 0.5},
+		"desc": "Negates some magical hits entirely."},
+	"thorn_mail": {"slot": "armour", "name": "Thorn mail", "thorns": 0.3,
+		"desc": "Whoever strikes her in melee is cut by the thorns."},
+	# Accessories.
+	"soldiers_helmet": {"slot": "accessory", "name": "Soldier's helmet", "desc": "Her own helmet: no effect."},
+	"net": {"slot": "accessory", "name": "Net", "net": [12.0, 3.0, 3.0],
+		"desc": "Thrown on its own now and then: her target is pinned and can't attack for a few seconds. Never water-only enemies or the mightiest foes."},
+	"rose_necklace": {"slot": "accessory", "name": "Rose necklace", "resist": {"poison": 0.4},
+		"desc": "Poison hurts her far less."},
+	"ring_of_might": {"slot": "accessory", "name": "Ring of might", "damage": 1.2,
+		"desc": "Harder blows."},
+	"lantern": {"slot": "accessory", "name": "Lantern", "ghost_light": 3.5,
+		"desc": "Ghosts near her show themselves: solid, they can be fought."},
+	"gatherers_satchel": {"slot": "accessory", "name": "Gatherer's satchel", "gather": 2.0,
+		"desc": "She carries more when gathering."},
+	"builders_gloves": {"slot": "accessory", "name": "Builder's gloves", "build": 1.6,
+		"desc": "She builds faster."},
+	"scholars_tome": {"slot": "accessory", "name": "Scholar's tome", "xp": 1.25,
+		"desc": "She earns more XP."},
+	"phoenix_pendant": {"slot": "accessory", "name": "Phoenix pendant", "phoenix": 0.3,
+		"desc": "A worn relic: once per wave she survives a killing blow."},
+	"seers_eye": {"slot": "accessory", "name": "Seer's eye", "sight": 1.5,
+		"desc": "A worn relic: she sees farther."},
+	# Movement.
+	"soldiers_boots": {"slot": "movement", "name": "Soldier's boots", "desc": "Her own boots: no effect."},
+	"swift_boots": {"slot": "movement", "name": "Swift boots", "speed": 1.25,
+		"desc": "She walks faster."},
+	"feather_boots": {"slot": "movement", "name": "Feather boots", "free_walk": true, "cooldown": 1.3, "flyer_taken": 2.0,
+		"desc": "Free movement: she crosses forest, deep water and walls, and nothing slows her. Her blows come slower, and flyers hit her much harder. Deep water can't drown her."},
+	"heavy_boots": {"slot": "movement", "name": "Heavy steel boots", "speed": 0.85, "immovable": true,
+		"desc": "Slower, but nothing moves or holds her: no song, grapple, roots or net. Swamp and shallow water still slow her."},
+	"pathfinders_boots": {"slot": "movement", "name": "Pathfinder's boots", "explore": 1.5,
+		"desc": "She sees a wider area when exploring."},
+}
+## An item's icon (art name; tools/gen_art.py draws one for each).
+static func item_icon(id: String) -> String:
+	return "item_" + id
+
+
 ## What every summoned elemental shares (their own numbers are in SUMMONS).
 ## HP and damage come from the summoner's level; at level 1 an earth elemental
 ## is as strong as a Normal goblin.
@@ -1950,6 +2062,7 @@ const CAMERA_KEY_ZOOM := 1.12
 ## library (false: no library entry of its own), library_name (its name there),
 ## habitat, submerges and the other water keys (see "crab" and AQUA),
 ## revivable (false: a necromancer can't raise its corpse),
+## pin_proof (true: a boss; the hero's net never holds it, see ITEMS),
 ## fixed_hp (true: its hp is never scaled by difficulty or wave, see "spider_egg"),
 ## low_priority (true: towers and fighters go for it only when nothing else is in reach),
 ## scares (false: villagers don't run from it, see "spider_egg"),
@@ -2251,6 +2364,7 @@ const ENEMIES := {
 	# (still looking like its tree; it can be hit). Its corpse is a log of
 	# living wood: materials_on_collect building material, nothing else.
 	"wrathwood": {
+		"pin_proof": true,  # (a boss: the hero's net never holds it; ITEMS net)
 		"name": "Wrathwood", "art": "wrathwood", "behavior": "wrathwood", "revivable": false, "family": "beasts",
 		"entry": "none", "siege": 3.0,
 		"desc": "A tree that woke up under a forester's axe. It goes after him, then smashes his camp, and guards its old spot for good. Fire hurts it twice as much; arrows barely scratch it.",
@@ -2498,6 +2612,7 @@ const ENEMIES := {
 	# falls back (CaptainBehavior): untargetable, retreat_speed x as fast, back
 	# the way it came and off the map. ("Commanding abilities": open.)
 	"legion_captain": {
+		"pin_proof": true,  # (a boss: the hero's net never holds it; ITEMS net)
 		"name": "Legion Captain", "art": "legion_captain", "behavior": "captain", "corpse": false, "family": "humans",
 		"siege": 1.0, "campaign": true, "release": true,
 		"desc": "Leads the Dread Legion's soldiers: plumed helm, a captain's cloak. It falls back when beaten instead of falling.",
@@ -2547,6 +2662,7 @@ const ENEMIES := {
 	# a boss. Each blow also hits every other one of ours within cleave_radius
 	# of its target for cleave x the damage (MeleeBehavior, CampBehavior).
 	"legion_champion": {
+		"pin_proof": true,  # (a boss: the hero's net never holds it; ITEMS net)
 		"name": "Court Champion", "art": "legion_champion", "behavior": "melee", "corpse": false, "family": "humans",
 		"siege": 2.0, "campaign": true, "release": true,
 		"desc": "The Pale Court's champion in pale plate, with a greatsword whose blows cleave through everyone around its target.",
@@ -2567,6 +2683,7 @@ const ENEMIES := {
 	# it came (faster by retreat_speed) and is gone.
 	# The marshal: scenario 10's Halvard; can be killed.
 	"legion_marshal": {
+		"pin_proof": true,  # (a boss: the hero's net never holds it; ITEMS net)
 		"support": true, "name": "Legion Marshal", "art": "legion_marshal", "behavior": "commander", "corpse": false, "family": "humans",
 		"siege": 2.0, "campaign": true, "release": true,
 		"desc": "The Dread Legion's marshal: he leads its soldiers in the field. Those near him strike faster and take less harm, and while he lives fresh soldiers keep coming down the roads.",
@@ -2581,6 +2698,7 @@ const ENEMIES := {
 	# The king (scenario 11's Rhodri): a commander whose blows cleave, downed
 	# at 0 HP instead of killed.
 	"legion_king": {
+		"pin_proof": true,  # (a boss: the hero's net never holds it; ITEMS net)
 		"support": true, "name": "The Crowned King", "art": "legion_king", "behavior": "commander", "corpse": false, "family": "humans",
 		"siege": 2.0, "campaign": true, "release": false,
 		"desc": "Rhodri on the field, the reworked crown on his head. His blows cleave, his soldiers fight harder near him, and he is not so easily killed.",

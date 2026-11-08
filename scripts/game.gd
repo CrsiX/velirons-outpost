@@ -1135,6 +1135,13 @@ func market_enabled() -> bool:
 	return backdrop == null and not tutorial_mode and (scenario == null or scenario.spec.market)
 
 
+## Hero equipment and the armoury (docs/items-design.md §8): not in the
+## title backdrop or the tutorial; in the campaign only where the scenario
+## switches it on (Scenario.items).
+func items_enabled() -> bool:
+	return backdrop == null and not tutorial_mode and (scenario == null or scenario.spec.items)
+
+
 ## Can `kind` be built (a scenario may allow only some buildings; the
 ## campaign's own kinds, the stall, only where a scenario lists them)?
 func allows_building(kind: String) -> bool:

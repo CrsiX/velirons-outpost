@@ -6814,6 +6814,50 @@ def arrow():
     a.save("arrow")
 
 
+def throwing_axe():
+    """The hero's thrown hatchet (item throwing_axes), haft along x; it whirls in flight."""
+    a = Art()
+    a.line([(-8, 0), (7, 0)], INK, 3.2)
+    a.line([(-8, 0), (7, 0)], WOOD_L, 1.8)
+    a.line([(-6.5, -1), (-6.5, 1)], INK, 0.8)
+    a.poly([(3.5, 1.9), (8, 1.9), (8.5, -2.5), (11, -7), (1.5, -7.5), (4, -2.5)], "#b4bcc6", INK, 1.1)
+    a.line([(2.6, -6.4), (10, -6.1)], "#e8edf2", 0.9)
+    a.save("throwing_axe")
+
+
+def net_pin():
+    """A net thrown over an enemy (item net): a rope mesh draped over a body, centred
+    about (0, -14), lead weights on its hem. Drawn translucent over the unit."""
+    def pt(u, v):
+        x = -15 * math.cos(math.pi * u) * (0.5 + 0.5 * v)
+        y = -29 + 27 * v + 3.5 * (1 - math.sin(math.pi * u)) * (1 - v) + 2.5 * math.sin(math.pi * u) * v
+        return x, y
+
+    n = 5
+    rope = ""
+    knots = ""
+    for i in range(n + 1):
+        for line in ([pt(i / n, k / 10.0) for k in range(11)], [pt(k / 12.0, i / n) for k in range(13)]):
+            rope += " M" + " L".join("%s %s" % (fmt(x), fmt(y)) for x, y in line)
+        for j in range(n + 1):
+            x, y = pt(i / n, j / n)
+            knots += '<circle cx="%s" cy="%s" r="0.9" fill="#8a6a3a"/>' % (fmt(x), fmt(y))
+    outline = [pt(k / 12.0, 0) for k in range(13)] + [pt(1, k / 10.0) for k in range(11)] + \
+              [pt(1 - k / 12.0, 1) for k in range(13)] + [pt(0, 1 - k / 10.0) for k in range(11)]
+    d = " L".join("%s %s" % (fmt(x), fmt(y)) for x, y in outline)
+    weights = ""
+    for i in (0, 2, 3, 5):
+        x, y = pt(i / n, 1)
+        weights += ('<circle cx="%s" cy="%s" r="2" fill="#5a5e66" stroke="%s" stroke-width="0.8"/>'
+                    % (fmt(x), fmt(y + 1.5), INK))
+    a = Art()
+    a.raw('<g opacity="0.88"><path d="M%s Z" fill="#c8a870" opacity="0.16"/>'
+          '<path d="%s" fill="none" stroke="%s" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>'
+          '<path d="%s" fill="none" stroke="#d8b878" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>%s%s</g>'
+          % (d, rope.strip(), INK, rope.strip(), knots, weights), [(-15.5, -30), (15.5, 3.5)])
+    a.save("net_pin")
+
+
 def sack():
     a = Art()
     a.raw('<path d="M-6,0 Q-8,-8 -3,-10 L-4,-13 L4,-13 L3,-10 Q8,-8 6,0 Z" fill="#b89a60" stroke="%s" stroke-width="1.2" stroke-linejoin="round"/>' % INK, [(-8, -14), (8, 0)])
@@ -10219,6 +10263,397 @@ def advancement_icons():
         icon_svg("adv_" + adv_id, _adv_badge(tier, symbol))
 
 
+# ------------------------------------------------------------------ item icons
+
+# The hero's equipment icons ("item_<id>"): one badge for all, a dark disc like the
+# advancements' with a ring coloured by the item's slot, and the item drawn large in it.
+ITEM_RING = {"weapon": "#d2463c", "armour": "#c8873e", "accessory": "#a77ae0", "movement": "#5cbf5a"}
+STEEL, STEEL_D, STEEL_L = "#b4bcc6", "#7a838e", "#e8edf2"
+LEATHER, LEATHER_D, LEATHER_L = "#8a5a32", "#5e3c20", "#b07a48"
+
+
+def _item_badge(slot, symbol):
+    return f'''
+  <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="{INK}" stroke-width="3"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="{ITEM_RING[slot]}" stroke-width="3"/>
+  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+{symbol}'''
+
+
+def _sword(blade=STEEL, edge=STEEL_L, guard=GOLD, grip=WOOD, pommel=GOLD, behind="", angle=45):
+    """A longsword drawn upright and turned by `angle` about the badge's centre
+    (45: tip to the upper right). `behind` is drawn in the same turned frame first."""
+    return f'''
+  <g transform="rotate({angle} 32 32)">{behind}
+    <path d="M28.2 40 L28.2 14 L32 6 L35.8 14 L35.8 40Z" fill="{blade}" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M32 11 L32 37" stroke="{edge}" stroke-width="1.8" stroke-linecap="round"/>
+    <rect x="29.4" y="43" width="5.2" height="9" rx="1.5" fill="{grip}" stroke="{INK}" stroke-width="2.3"/>
+    <path d="M30 46 L34 47.5 M30 49 L34 50.5" stroke="{INK}" stroke-width="1"/>
+    <rect x="20" y="39" width="24" height="5" rx="2.5" fill="{guard}" stroke="{INK}" stroke-width="2.4"/>
+    <circle cx="32" cy="55" r="3.6" fill="{pommel}" stroke="{INK}" stroke-width="2.2"/>
+  </g>'''
+
+
+def _drop(x, y, r, fill, hi="#ffffff"):
+    """A teardrop hanging from (x, y)."""
+    return f'''
+  <path d="M{x} {y} Q{x + r * 1.1} {y + r * 1.6} {x + r} {y + r * 2.3} A{r} {r} 0 0 1 {x - r} {y + r * 2.3} Q{x - r * 1.1} {y + r * 1.6} {x} {y}Z" fill="{fill}" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round"/>
+  <circle cx="{x - r * 0.35}" cy="{y + r * 2.1}" r="{r * 0.3}" fill="{hi}" opacity="0.8"/>'''
+
+
+def _heart(cx, cy, s, fill="#d8342c"):
+    return f'''
+  <path d="M{cx} {cy + s * 0.9} L{cx - s * 0.95} {cy - s * 0.05} A{s * 0.5} {s * 0.5} 0 0 1 {cx} {cy - s * 0.65} A{s * 0.5} {s * 0.5} 0 0 1 {cx + s * 0.95} {cy - s * 0.05}Z" fill="{fill}" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="{cx - s * 0.5}" cy="{cy - s * 0.3}" r="{s * 0.16}" fill="#ffd0c8"/>'''
+
+
+def _sparkle(x, y, r, fill="#ffffff", sw=1.2):
+    k = r * 0.3
+    return f'''
+  <path d="M{x} {y - r} L{x + k} {y - k} L{x + r} {y} L{x + k} {y + k} L{x} {y + r} L{x - k} {y + k} L{x - r} {y} L{x - k} {y - k}Z" fill="{fill}" stroke="{INK}" stroke-width="{sw}" stroke-linejoin="round"/>'''
+
+
+def _hatchet(tx, ty, rot, flip=False, s=1.0):
+    """A small throwing hatchet, haft upright at (tx, ty), turned by rot."""
+    sc = f" scale({-s} {s})" if flip else f" scale({s})"
+    return f'''
+  <g transform="translate({tx} {ty}) rotate({rot}){sc}">
+    <path d="M-2 -15 L2 -15 L2.4 15 Q0 17.5 -2.4 15Z" fill="{WOOD_L}" stroke="{INK}" stroke-width="2.3" stroke-linejoin="round"/>
+    <path d="M-2.3 9 L2.3 9 M-2.3 12 L2.3 12" stroke="{INK}" stroke-width="1.2"/>
+    <path d="M-3 -16 L5 -18 Q13 -20 15 -15 Q16 -8 14 -2 Q11 -5 5 -6 L-3 -7Z" fill="{STEEL}" stroke="{INK}" stroke-width="2.3" stroke-linejoin="round"/>
+    <path d="M13 -16 Q14.2 -9 12.6 -4" fill="none" stroke="{STEEL_L}" stroke-width="1.8" stroke-linecap="round"/>
+  </g>'''
+
+
+def _rays(cx, cy, r0, r1, n, color, sw=2.4, phase=0.0):
+    out = ""
+    for k in range(n):
+        ang = phase + k * 2 * math.pi / n
+        c, s = math.cos(ang), math.sin(ang)
+        out += " M%s %s L%s %s" % (fmt(cx + c * r0), fmt(cy + s * r0), fmt(cx + c * r1), fmt(cy + s * r1))
+    return f'''
+  <path d="{out.strip()}" stroke="{color}" stroke-width="{sw}" stroke-linecap="round"/>'''
+
+
+def _item_glow(gid, color, r=22, cx=32, cy=32, op=0.85):
+    return f'''
+  <defs><radialGradient id="{gid}"><stop offset="0" stop-color="{color}" stop-opacity="{op}"/><stop offset="1" stop-color="{color}" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#{gid})"/>'''
+
+
+def _torso(fill):
+    """A short-sleeved body garment, front view (jerkin, mail shirt)."""
+    return f'''
+  <path d="M25 12 Q32 20 39 12 L46 15 L52 26 L46 31 L45 50 Q32 55 19 50 L18 31 L12 26 L18 15Z" fill="{fill}" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>'''
+
+
+def _boot(fill, dark, light, sole="#3a2a1c", cuff=None, toe=52):
+    """A boot side on, toe to the right: shaft x 18-36, sole at y 51."""
+    c = cuff or dark
+    return f'''
+  <path d="M19 15 L36 15 L36 34 Q38 38 {toe - 8} 40 Q{toe} 42 {toe} 47 L{toe} 50 L18 50 L18 42 Q20 30 19 15Z" fill="{fill}" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M17 49 L{toe + 1} 49 L{toe + 1} 53 Q{toe} 54.5 {toe - 2} 54.5 L17 54.5Z" fill="{sole}" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M17 54.5 L17 49 L26 49 L26 54.5" fill="{sole}" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M17.5 12 L37.5 12 L37 20 L18.5 20Z" fill="{c}" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M22 24 L22 44" stroke="{light}" stroke-width="2.4" stroke-linecap="round" opacity="0.7"/>'''
+
+
+def _chain(points, color=GOLD):
+    d = "M" + " L".join("%s %s" % (fmt(x), fmt(y)) for x, y in points)
+    return f'''
+  <path d="{d}" fill="none" stroke="{INK}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="{d}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.6 1.6"/>'''
+
+
+def _necklace_chain(x0=17, x1=47, ytop=10, ybot=30):
+    """A chain hanging in a U from both top corners down to a pendant at (32, ybot)."""
+    pts = []
+    for k in range(13):
+        t = k / 12.0
+        x = x0 + (x1 - x0) * t
+        y = ytop + (ybot - ytop) * (1 - (2 * t - 1) ** 2)
+        pts.append((x, y))
+    return _chain(pts)
+
+
+def _net_body():
+    """A weighted throwing net hanging square, sagging a little, with knots and lead weights."""
+    def pt(u, v):
+        return (15 + 34 * u + (u - 0.5) * 5 * math.sin(math.pi * v),
+                11 + 33 * v + 3.5 * math.sin(math.pi * u) * (0.4 + 0.6 * v))
+
+    n = 4
+    rope = ""
+    knots = ""
+    for i in range(n + 1):
+        col = [pt(i / n, k / 12.0) for k in range(13)]
+        row = [pt(k / 12.0, i / n) for k in range(13)]
+        for line in (col, row):
+            rope += " M" + " L".join("%s %s" % (fmt(x), fmt(y)) for x, y in line)
+        for j in range(n + 1):
+            x, y = pt(i / n, j / n)
+            knots += f'''
+  <circle cx="{fmt(x)}" cy="{fmt(y)}" r="1.7" fill="#9a7a44" stroke="{INK}" stroke-width="0.8"/>'''
+    out = f'''
+  <path d="{rope.strip()}" fill="none" stroke="{INK}" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="{rope.strip()}" fill="none" stroke="#d8b878" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>{knots}'''
+    for i in range(0, n + 1):
+        if i == 2:
+            continue
+        x, y = pt(i / n, 1.0)
+        out += f'''
+  <path d="M{fmt(x)} {fmt(y)} L{fmt(x)} {fmt(y + 3)}" stroke="{INK}" stroke-width="1.6"/>
+  <circle cx="{fmt(x)}" cy="{fmt(y + 5)}" r="3.8" fill="#5a5e66" stroke="{INK}" stroke-width="2"/>
+  <circle cx="{fmt(x - 1.2)}" cy="{fmt(y + 3.8)}" r="1.1" fill="#a0a6ae"/>'''
+    return out
+
+
+def _bearskin():
+    fur, fur_d, fur_l = "#6a4a30", "#4a3220", "#8a6646"
+    claws = "".join(f'''
+  <path d="M{x} {y} l{dx} {dy}" stroke="#efe3c8" stroke-width="1.6" stroke-linecap="round"/>''' for (x, y, dx, dy) in [
+        (10, 19, -2, -2), (10, 23, -3, 0), (54, 19, 2, -2), (54, 23, 3, 0),
+        (13, 51, -2, 2), (17, 54, -1, 3), (51, 51, 2, 2), (47, 54, 1, 3)])
+    return claws + f'''
+  <path d="M24 25 Q18 22 11 18 Q8 22 11 26 Q17 30 21 33 Q20 40 21 44 Q16 47 12 51 Q16 56 19 54 Q24 50 28 48 Q30 54 32 56 Q34 54 36 48 Q40 50 45 54 Q48 56 52 51 Q48 47 43 44 Q44 40 43 33 Q47 30 53 26 Q56 22 53 18 Q46 22 40 25 Q32 22 24 25Z" fill="{fur}" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M26 30 Q32 27 38 30 Q40 38 37 46 Q32 48 27 46 Q24 38 26 30Z" fill="{fur_d}" opacity="0.6"/>
+  <path d="M15 22 L20 25 M49 22 L44 25 M17 49 L22 45 M47 49 L42 45 M29 35 L28 40 M35 35 L36 40" stroke="{fur_l}" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="24" cy="12" r="4" fill="{fur}" stroke="{INK}" stroke-width="2.2"/>
+  <circle cx="40" cy="12" r="4" fill="{fur}" stroke="{INK}" stroke-width="2.2"/>
+  <circle cx="24" cy="12" r="1.8" fill="{fur_d}"/><circle cx="40" cy="12" r="1.8" fill="{fur_d}"/>
+  <path d="M22 18 Q22 9 32 9 Q42 9 42 18 Q42 26 32 28 Q22 26 22 18Z" fill="{fur}" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
+  <ellipse cx="32" cy="22" rx="5" ry="4" fill="#a88060" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M30 20 L34 20 L32 22.5Z" fill="{INK}" stroke="{INK}" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M26.5 16 L28.5 17 M37.5 16 L35.5 17" stroke="{INK}" stroke-width="2" stroke-linecap="round"/>
+  <path d="M25 12.5 Q28 10.5 31 11" fill="none" stroke="{fur_l}" stroke-width="1.4" stroke-linecap="round"/>'''
+
+
+ITEM_ICONS = {
+    # ---- weapons
+    "longsword": ("weapon", _sword()),
+    "flame_sword": ("weapon", _item_glow("fg", "#ff8a2a", 24) + _sword(blade="#ffd890", edge="#fff6d8", guard="#c83a1a", pommel="#c83a1a", behind=f'''
+    <path d="M23 42 Q14 34 21 27 Q16 19 24 15 Q23 7 29 4 Q29 9 32 1 Q35 9 35 4 Q41 7 40 15 Q48 19 43 27 Q50 34 41 42Z" fill="#e8582a" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="M26 40 Q20 34 25 29 Q22 22 27 19 Q27 12 32 7 Q37 12 37 19 Q42 22 39 29 Q44 34 38 40Z" fill="#ffc040"/>''')),
+    "poison_sword": ("weapon", _sword(blade="#b8d8a8", edge="#e8f8d8", guard="#4a6a2a", pommel="#4a6a2a", behind=f'''
+    <path d="M35.8 14 Q39.5 18 37 22 Q40 27 37.2 31 Q39.5 35 36 39 L35.8 14Z" fill="#6ad03a" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round"/>''') + f'''
+  <path d="M28.2 40 L28.2 14 L32 6 L35.8 14 L35.8 40Z" transform="rotate(45 32 32)" fill="#7ae04a" opacity="0.45"/>''' + _drop(41.5, 27, 2.6, "#6ad03a", "#e0ffc0") + _drop(34.5, 34, 3.2, "#6ad03a", "#e0ffc0") + _drop(44, 39, 2.2, "#4ab02a", "#e0ffc0")),
+    "cleaver": ("weapon", f'''
+  <g transform="rotate(-28 32 32)">
+    <rect x="40" y="22" width="16" height="7" rx="2.5" fill="{WOOD_L}" stroke="{INK}" stroke-width="2.5"/>
+    <circle cx="46" cy="25.5" r="1.3" fill="{STEEL_L}" stroke="{INK}" stroke-width="0.8"/>
+    <circle cx="51" cy="25.5" r="1.3" fill="{STEEL_L}" stroke="{INK}" stroke-width="0.8"/>
+    <path d="M10 17 L42 17 L42 40 Q26 44 10 41Z" fill="{STEEL}" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+    <path d="M11 37.5 Q26 40.5 41 37" fill="none" stroke="{STEEL_L}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M10 17 L42 17 L42 21 L10 21Z" fill="{STEEL_D}" opacity="0.6"/>
+    <circle cx="16" cy="23" r="2.6" fill="#3a3028" stroke="{INK}" stroke-width="1.8"/>
+    <path d="M18 41.5 Q19 46 21 44 M30 42.6 Q30.5 48 33 44" fill="none" stroke="#c82030" stroke-width="2.4" stroke-linecap="round"/>
+  </g>''' + _heart(45, 45, 9)),
+    "mace": ("weapon", f'''
+  <path d="M15 51 L34 30" stroke="{INK}" stroke-width="7.5" stroke-linecap="round"/>
+  <path d="M15 51 L34 30" stroke="{WOOD_L}" stroke-width="4" stroke-linecap="round"/>
+  <path d="M17 45 L21 49 M20 42 L24 46 M23 39 L27 43" stroke="{INK}" stroke-width="1.6"/>
+  <circle cx="13.5" cy="52.5" r="3.4" fill="{STEEL}" stroke="{INK}" stroke-width="2"/>''' + "".join(f'''
+  <path d="M{fmt(38 + math.cos(a) * 7)} {fmt(26 + math.sin(a) * 7)} L{fmt(38 + math.cos(a + 0.42) * 15.5)} {fmt(26 + math.sin(a + 0.42) * 15.5)} L{fmt(38 + math.cos(a + 0.8) * 7)} {fmt(26 + math.sin(a + 0.8) * 7)}Z" fill="{STEEL}" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>''' for a in [k * math.pi / 4 for k in range(8)]) + f'''
+  <circle cx="38" cy="26" r="8.5" fill="{STEEL}" stroke="{INK}" stroke-width="2.6"/>
+  <circle cx="35.5" cy="23.5" r="3" fill="{STEEL_L}"/>
+  <path d="M51 40 Q55 44 54 50 M46 45 Q50 49 48 54" fill="none" stroke="#ffd27a" stroke-width="2.4" stroke-linecap="round"/>'''),
+    "lance": ("weapon", f'''
+  <path d="M13 51 L44 21" stroke="{INK}" stroke-width="6.5" stroke-linecap="round"/>
+  <path d="M13 51 L44 21" stroke="{WOOD_L}" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M17 44 L21 48 M15 46.5 L19 50.5" stroke="{CRIMSON_D}" stroke-width="2"/>
+  <path d="M38 27 L31 13 L24 18 L28 22 L18 22 L33 32Z" fill="{CRIMSON}" stroke="{INK}" stroke-width="2.3" stroke-linejoin="round"/>
+  <path d="M33 16 L36 23" stroke="#c8434f" stroke-width="2" stroke-linecap="round"/>
+  <path d="M41 23 Q43 15 53 10 Q50 19 42 24Z" fill="{STEEL}" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M44 20 L50 13.5" stroke="{STEEL_L}" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M38 22 L43 27" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>
+  <path d="M38 22 L43 27" stroke="{GOLD}" stroke-width="2.5" stroke-linecap="round"/>'''),
+    "great_axe": ("weapon", f'''
+  <path d="M11 30 A21 21 0 0 1 46 15" fill="none" stroke="#e8f0ff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <path d="M53 34 A21 21 0 0 1 18 49" fill="none" stroke="#e8f0ff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <path d="M46 15 L41 11 M46 15 L40 18 M18 49 L23 53 M18 49 L24 46" stroke="#e8f0ff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <g transform="rotate(28 32 32)">
+    <rect x="29.5" y="10" width="5" height="46" rx="2" fill="{WOOD_L}" stroke="{INK}" stroke-width="2.4"/>
+    <path d="M29.5 46 L34.5 46 M29.5 49.5 L34.5 49.5" stroke="{INK}" stroke-width="1.3"/>
+    <path d="M34 15 L43 10 Q53 22 43 35 L34 30Z" fill="{STEEL}" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M30 15 L21 10 Q11 22 21 35 L30 30Z" fill="{STEEL}" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M44.5 13 Q50 22 44.5 32 M19.5 13 Q14 22 19.5 32" fill="none" stroke="{STEEL_L}" stroke-width="1.8" stroke-linecap="round"/>
+    <rect x="28.5" y="14" width="7" height="17" rx="1.5" fill="{STEEL_D}" stroke="{INK}" stroke-width="2.2"/>
+    <path d="M32 6 L35 10 L32 13 L29 10Z" fill="{STEEL}" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round"/>
+  </g>'''),
+    "blessed_blade": ("weapon", _item_glow("bg", "#fff0a0", 23) + _rays(32, 32, 11, 22, 12, "#ffe070", 2.4, 0.26) + _sword(blade="#fff4cc", edge="#ffffff", guard=GOLD, pommel=GOLD) + _sparkle(16, 18, 4.5, "#fff6c0") + _sparkle(48, 46, 3.5, "#fff6c0")),
+    "throwing_axes": ("weapon", f'''
+  <path d="M8 22 L16 22 M6 30 L14 30 M9 38 L15 38" stroke="#e8e0cc" stroke-width="2.4" stroke-linecap="round" opacity="0.75"/>''' + _hatchet(27, 35, -38) + _hatchet(39, 35, 38, flip=True)),
+    # ---- armour
+    "leather_armour": ("armour", _torso(LEATHER) + f'''
+  <path d="M25 12 Q32 20 39 12 L37 11 Q32 16 27 11Z" fill="{LEATHER_D}" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M32 19 L32 44" stroke="{LEATHER_D}" stroke-width="2.2"/>
+  <path d="M29 22 L35 25 M35 22 L29 25 M29 28 L35 31 M35 28 L29 31 M29 34 L35 37 M35 34 L29 37" stroke="#e8d0a0" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M19.5 41 Q32 45 44.5 41 L44.7 46 Q32 50 19.3 46Z" fill="{LEATHER_D}" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="29" y="41.5" width="6" height="6" rx="1" fill="none" stroke="{GOLD}" stroke-width="1.8"/>
+  <path d="M21 24 Q22 34 21 40 M43 24 Q42 34 43 40" fill="none" stroke="{LEATHER_L}" stroke-width="1.8" stroke-dasharray="2 2"/>
+  <path d="M14 26 L18 22 M50 26 L46 22" stroke="{LEATHER_D}" stroke-width="1.6"/>'''),
+    "full_plate": ("armour", f'''
+  <path d="M22 14 Q32 22 42 14 L46 18 L44 28 Q46 40 43 49 Q32 54 21 49 Q18 40 20 28 L18 18Z" fill="{STEEL}" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M32 19 L32 47 L43 49 Q46 40 44 28 L46 18 L42 14 Q37 18 32 19Z" fill="{STEEL_D}" opacity="0.55"/>
+  <path d="M32 20 L32 47" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M24 22 Q23 30 25 38" fill="none" stroke="{STEEL_L}" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M21 41 Q32 45 43 41 M21.5 45.5 Q32 49.5 42.5 45.5" fill="none" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M8 26 Q8 14 20 13 L24 17 Q16 20 15 30Z" fill="{STEEL}" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M56 26 Q56 14 44 13 L40 17 Q48 20 49 30Z" fill="{STEEL_D}" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M11 22 Q13 17 19 16" fill="none" stroke="{STEEL_L}" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="24.5" cy="19.5" r="1.3" fill="{INK}"/><circle cx="39.5" cy="19.5" r="1.3" fill="{INK}"/>
+  <path d="M22 14 Q32 22 42 14" fill="none" stroke="{GOLD}" stroke-width="2"/>'''),
+    "bearskin": ("armour", _bearskin()),
+    "buckler": ("armour", f'''
+  <circle cx="32" cy="32" r="19" fill="{STEEL_D}" stroke="{INK}" stroke-width="2.8"/>
+  <circle cx="32" cy="32" r="15" fill="{LEATHER}" stroke="{INK}" stroke-width="2"/>
+  <path d="M22 21 L42 43 M42 21 L22 43" stroke="{LEATHER_D}" stroke-width="2"/>
+  <path d="M17.5 30 A15 15 0 0 1 29 17.3" fill="none" stroke="{STEEL_L}" stroke-width="2" stroke-linecap="round" transform="translate(-2.4 -2.4)"/>''' + "".join(f'''
+  <circle cx="{fmt(32 + math.cos(a) * 17)}" cy="{fmt(32 + math.sin(a) * 17)}" r="1.3" fill="{STEEL_L}" stroke="{INK}" stroke-width="0.8"/>''' for a in [k * math.pi / 4 + 0.39 for k in range(8)]) + f'''
+  <circle cx="32" cy="32" r="7" fill="{STEEL}" stroke="{INK}" stroke-width="2.4"/>
+  <circle cx="30" cy="30" r="2.4" fill="{STEEL_L}"/>'''),
+    "magical_shield": ("armour", _item_glow("mg", "#b48aff", 25) + f'''
+  <path d="M15 13 L49 13 L49 30 Q49 46 32 55 Q15 46 15 30Z" fill="#c8ccd8" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M19 17 L45 17 L45 30 Q45 43 32 50.5 Q19 43 19 30Z" fill="#33285e" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M32 22 L32 46 M32 32 L24 24 M32 32 L40 24 M26 41 L32 36 L38 41" fill="none" stroke="#b48aff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+  <path d="M32 22 L32 46 M32 32 L24 24 M32 32 L40 24 M26 41 L32 36 L38 41" fill="none" stroke="#efe6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>''' + _sparkle(12, 18, 3.5, "#e0d0ff") + _sparkle(52, 44, 3, "#e0d0ff") + _sparkle(50, 9, 2.6, "#e0d0ff", 1)),
+    "thorn_mail": ("armour", f'''
+  <defs><pattern id="mail" width="4" height="3.5" patternUnits="userSpaceOnUse"><rect width="4" height="3.5" fill="#8a929c"/><path d="M0 3 Q2 0 4 3" fill="none" stroke="#4a5058" stroke-width="0.9"/></pattern></defs>''' + "".join(f'''
+  <path d="M{x0} {y0} L{x1} {y1} L{x2} {y2}Z" fill="#d8d0b8" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round"/>''' for (x0, y0, x1, y1, x2, y2) in [
+        (14, 23, 6, 22, 12, 28), (17, 16, 11, 11, 20, 14), (47, 16, 53, 11, 44, 14), (50, 23, 58, 22, 52, 28),
+        (19, 36, 11, 38, 19, 41), (45, 36, 53, 38, 45, 41), (25, 51, 22, 58, 29, 52), (39, 51, 42, 58, 35, 52)]) + _torso("url(#mail)") + f'''
+  <path d="M25 12 Q32 20 39 12" fill="none" stroke="{STEEL_L}" stroke-width="1.8"/>
+  <path d="M19 30 Q30 24 36 34 Q41 42 45 38" fill="none" stroke="{INK}" stroke-width="4.6" stroke-linecap="round"/>
+  <path d="M19 30 Q30 24 36 34 Q41 42 45 38" fill="none" stroke="#4a6a2a" stroke-width="2.6" stroke-linecap="round"/>''' + "".join(f'''
+  <path d="M{x - 2} {y} L{x + dx} {y + dy} L{x + 2} {y + 0.5}Z" fill="#c8c0a0" stroke="{INK}" stroke-width="1.3" stroke-linejoin="round"/>''' for (x, y, dx, dy) in [(24, 27, -1, -6), (30, 27, 2, -6), (34, 31, 6, -4), (37, 38, -4, 5), (41, 40, 1, -5), (27, 28, -2, 5)])),
+    # ---- accessories
+    "soldiers_helmet": ("accessory", f'''
+  <path d="M14 38 Q14 12 32 11 Q50 12 50 38Z" fill="#8a929c" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M32 11 Q44 12 48 30 L50 38 L32 38Z" fill="#5a626c" opacity="0.45"/>
+  <path d="M20 30 Q20 17 30 15" fill="none" stroke="#c8d0d8" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M32 11 L32 38" stroke="#5a626c" stroke-width="2.2"/>
+  <path d="M10 38 L54 38 L52 44 L12 44Z" fill="#6a727c" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M29 38 L35 38 L35 53 Q32 56 29 53Z" fill="#7a828c" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <circle cx="17" cy="41" r="1.4" fill="{INK}"/><circle cx="25" cy="41" r="1.4" fill="{INK}"/><circle cx="39" cy="41" r="1.4" fill="{INK}"/><circle cx="47" cy="41" r="1.4" fill="{INK}"/>'''),
+    "net": ("accessory", _net_body()),
+    "rose_necklace": ("accessory", _necklace_chain(14, 50, 12, 32) + f'''
+  <path d="M26 44 Q18 44 16 50 Q24 52 28 46Z M38 44 Q46 44 48 50 Q40 52 36 46Z" fill="#4a8a3a" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M19 49 L26 46 M45 49 L38 46" stroke="#2a5a20" stroke-width="1.2"/>
+  <circle cx="32" cy="41" r="10.5" fill="#c82838" stroke="{INK}" stroke-width="2.6"/>
+  <path d="M32 41 m-2 0 a2.4 2.4 0 1 1 4 1.6 a5 5 0 0 1 -8 -3 a6.5 6.5 0 0 1 11 -3.5 M25 45 Q28 50 35 49 Q40 47 41 42" fill="none" stroke="#7a1420" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M26 36 Q28 33 31 32.5" fill="none" stroke="#f07888" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="32" cy="30" r="2.2" fill="{GOLD}" stroke="{INK}" stroke-width="1.4"/>'''),
+    "ring_of_might": ("accessory", _rays(32, 22, 13, 19, 7, "#ff9a3a", 2.4, -2.9) + f'''
+  <ellipse cx="32" cy="41" rx="15" ry="10.5" fill="none" stroke="{INK}" stroke-width="9"/>
+  <ellipse cx="32" cy="41" rx="15" ry="10.5" fill="none" stroke="{GOLD}" stroke-width="5"/>
+  <path d="M20 46 Q32 54 44 46" fill="none" stroke="{GOLD_D}" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M21 36 Q24 32.5 28 31.6" fill="none" stroke="#ffe8a0" stroke-width="2" stroke-linecap="round"/>
+  <path d="M23 31 L41 31 L38 25 L26 25Z" fill="{GOLD}" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M32 12 L40 18 L37 27 L27 27 L24 18Z" fill="#d8242c" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M24 18 L32 20 L40 18 M32 20 L32 12 M27 27 L32 20 L37 27" fill="none" stroke="#8a0a14" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M28 15.5 L31 13.5" stroke="#ffb0b0" stroke-width="2" stroke-linecap="round"/>'''),
+    "lantern": ("accessory", _item_glow("lg", "#ffc84a", 24, 32, 36) + f'''
+  <path d="M25 15 Q25 6 32 6 Q39 6 39 15" fill="none" stroke="{INK}" stroke-width="4.2" stroke-linecap="round"/>
+  <path d="M25 15 Q25 6 32 6 Q39 6 39 15" fill="none" stroke="#6a727c" stroke-width="2" stroke-linecap="round"/>
+  <path d="M21 20 L32 13 L43 20Z" fill="#4a4e56" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <rect x="21" y="19" width="22" height="4" rx="1" fill="#5a5e66" stroke="{INK}" stroke-width="2"/>
+  <path d="M22.5 23 L41.5 23 L40 46 L24 46Z" fill="#ffe7a0" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M32 27 Q37 33 35 38 Q34 42 32 42 Q29 42 29 38 Q28 34 32 27Z" fill="#ff9a2a" stroke="#c85a10" stroke-width="1.2"/>
+  <path d="M32 33 Q34 36 33 39 Q32 40.5 31 39 Q30 37 32 33Z" fill="#fff6d0"/>
+  <path d="M27.5 23 L28.5 46 M36.5 23 L35.5 46" stroke="#4a4e56" stroke-width="2.2"/>
+  <rect x="20" y="45" width="24" height="5" rx="1.5" fill="#5a5e66" stroke="{INK}" stroke-width="2.2"/>
+  <path d="M25 26 L25.5 40" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" opacity="0.8"/>'''),
+    "gatherers_satchel": ("accessory", f'''
+  <path d="M18 30 Q16 10 32 10 Q48 10 46 30" fill="none" stroke="{INK}" stroke-width="6" stroke-linecap="round"/>
+  <path d="M18 30 Q16 10 32 10 Q48 10 46 30" fill="none" stroke="{LEATHER_D}" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M38 26 Q42 14 50 15 Q46 18 46 22 M42 21 Q38 15 40 10" fill="none" stroke="{INK}" stroke-width="3.6" stroke-linecap="round"/>
+  <path d="M38 26 Q42 14 50 15 Q46 18 46 22 M42 21 Q38 15 40 10" fill="none" stroke="#5cb84a" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M13 27 L51 27 L50 48 Q49 53 44 53 L20 53 Q15 53 14 48Z" fill="{LEATHER}" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M16 46 L16 32 M48 46 L48 32" stroke="{LEATHER_L}" stroke-width="1.6" stroke-dasharray="2 2"/>
+  <path d="M12 27 L52 27 L51 37 Q32 44 13 37Z" fill="{LEATHER_L}" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M15 30 Q32 35 49 30" fill="none" stroke="{LEATHER_D}" stroke-width="1.4" stroke-dasharray="2 2"/>
+  <path d="M29.5 38 L29.5 47 L34.5 47 L34.5 38" fill="{LEATHER_D}" stroke="{INK}" stroke-width="2"/>
+  <rect x="28" y="38" width="8" height="7" rx="1" fill="none" stroke="{GOLD}" stroke-width="2"/>'''),
+    "builders_gloves": ("accessory", f'''
+  <g transform="translate(46 18) rotate(30)">
+    <rect x="-2" y="2" width="4" height="27" rx="1.5" fill="{WOOD_L}" stroke="{INK}" stroke-width="2.2"/>
+    <rect x="-8" y="-4" width="16" height="7.5" rx="1.8" fill="#8a929c" stroke="{INK}" stroke-width="2.4"/>
+    <rect x="-6.5" y="-2.8" width="6" height="2" rx="1" fill="#c8d0d8"/>
+  </g>
+  <path d="M18 46 L17 30 Q14 28 11 24 Q10 20 13 20 Q17 21 20 26 L20 16 Q20 13 23 13 Q26 13 26 16 L26 13 Q26 10 29 10 Q32 10 32 13 L32 15 Q32 12 35 12 Q38 12 38 15 L38 19 Q38 16 41 16 Q44 16 44 19 L44 34 Q44 42 40 46Z" fill="#d0a060" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M26 16 L26 27 M32 15 L32 27 M38 19 L38 28" stroke="#8a6030" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M21 32 Q30 36 41 31" fill="none" stroke="#8a6030" stroke-width="1.6" stroke-dasharray="2 2"/>
+  <path d="M16 44 L42 44 L43 54 L15 54Z" fill="#8a5a32" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M17 49 L42 49" stroke="#b07a48" stroke-width="1.6"/>'''),
+    "scholars_tome": ("accessory", f'''
+  <path d="M14 18 L42 12 L52 18 L24 24Z" fill="#efe3c8" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M24 24 L52 18 L52 44 L24 51Z" fill="#efe3c8" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M27 27 L49 22 M27 31 L49 26 M27 35 L49 30 M27 39 L49 34 M27 43 L49 38" stroke="#c8b890" stroke-width="1.2"/>
+  <path d="M12 18 L24 24 L24 54 L12 48Z" fill="#6a2a3a" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M12 18 L40 12 L42 15 L14 21Z" fill="#7a3444" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M24 51 L52 44 L52 47 L24 54Z" fill="#7a3444" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M14 25 L22 29 M14 43 L22 47" stroke="{GOLD}" stroke-width="2" stroke-linecap="round"/>
+  <path d="M40 46 L40 58 L43 55 L46 58 L46 45" fill="{CRIMSON}" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M38 22 L40.5 28 L47 28.5 L42 32.5 L43.6 39 L38 35.5 L32.4 39 L34 32.5 L29 28.5 L35.5 28Z" fill="#7fd0ff" stroke="{INK}" stroke-width="2" stroke-linejoin="round" transform="translate(-0.5 -1) skewY(-12) translate(0 8)"/>'''),
+    "phoenix_pendant": ("accessory", _necklace_chain(18, 46, 8, 24) + f'''
+  <circle cx="32" cy="38" r="14" fill="{GOLD}" stroke="{INK}" stroke-width="2.6"/>
+  <circle cx="32" cy="38" r="10.5" fill="#5a1a14" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M32 33 Q24 26 12 26 Q18 31 16 34 Q22 33 23 37 Q27 38 30 38 M32 33 Q40 26 52 26 Q46 31 48 34 Q42 33 41 37 Q37 38 34 38" fill="#f06a2a" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M30 36 Q32 31 34 36 L34 42 Q36 48 32 54 Q28 48 30 42Z" fill="#ffb03a" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M30 46 Q26 50 27 54 M34 46 Q38 50 37 54" fill="none" stroke="#ff7a2a" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M22 29 Q26 30 28 33 M42 29 Q38 30 36 33" fill="none" stroke="#ffd860" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="32" cy="31.5" r="2.8" fill="#ffb03a" stroke="{INK}" stroke-width="1.6"/>
+  <path d="M32 29 Q33 26 35 26" fill="none" stroke="#ff7a2a" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="32" cy="24" r="2" fill="{GOLD}" stroke="{INK}" stroke-width="1.3"/>'''),
+    "seers_eye": ("accessory", _necklace_chain(18, 46, 8, 22) + _rays(32, 38, 18, 22.5, 10, "#9ad8ff", 2, -0.31) + f'''
+  <path d="M12 38 Q32 18 52 38 Q32 58 12 38Z" fill="{GOLD}" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M16.5 38 Q32 23 47.5 38 Q32 53 16.5 38Z" fill="#efe8f8" stroke="{INK}" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle cx="32" cy="38" r="8" fill="#2a8aa8" stroke="{INK}" stroke-width="2"/>
+  <circle cx="32" cy="38" r="4.2" fill="#3fd0d8"/>
+  <ellipse cx="32" cy="38" rx="1.8" ry="4" fill="{INK}"/>
+  <circle cx="29.2" cy="35" r="1.8" fill="#ffffff"/>
+  <circle cx="32" cy="22" r="2.2" fill="{GOLD}" stroke="{INK}" stroke-width="1.4"/>'''),
+    # ---- movement
+    "soldiers_boots": ("movement", _boot(LEATHER, LEATHER_D, LEATHER_L) + f'''
+  <path d="M36 32 L36 38" stroke="{INK}" stroke-width="1.4"/>
+  <rect x="17.8" y="27" width="18.6" height="4" fill="{LEATHER_D}" stroke="{INK}" stroke-width="1.6"/>
+  <rect x="25" y="26" width="5" height="6" rx="1" fill="none" stroke="{GOLD}" stroke-width="1.6"/>'''),
+    "swift_boots": ("movement", f'''
+  <path d="M8 26 L15 26 M7 34 L15 34 M9 42 L15 42" stroke="#ffd27a" stroke-width="2.6" stroke-linecap="round"/>''' + _boot("#c08a4a", "#8a5a2a", "#e0b070") + f'''
+  <path d="M35 26 Q45 16 54 18 Q49 21 53 24.5 Q46 25 50 28.5 Q43 29 36 33Z" fill="#f4f0e6" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M38 28 Q45 23 52 22" fill="none" stroke="#b8b0a0" stroke-width="1.3"/>'''),
+    "feather_boots": ("movement", f'''
+  <path d="M24 20 Q14 16 15 8 Q22 9 27 18Z" fill="#f4f0e6" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M38 20 Q48 15 48 7 Q41 8 35 18Z" fill="#f4f0e6" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M29 20 Q26 10 31 5 Q36 10 33 20Z" fill="#cfe4f0" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M25 19 L17 10 M31 19 L31 8 M37 19 L46 9" stroke="#9a9488" stroke-width="1.2"/>
+  <g transform="translate(32 40) scale(0.82) translate(-32 -40)">''' + _boot("#d8ccb0", "#a8987a", "#f4ecda", sole="#7a6a50") + f'''
+  </g>
+  <path d="M20 55 Q25 52.5 30 55 Q35 57.5 40 55 Q42.5 53.8 45 55" fill="none" stroke="#9ad8ff" stroke-width="2.2" stroke-linecap="round" opacity="0.9"/>'''),
+    "heavy_boots": ("movement", _boot(STEEL, STEEL_D, STEEL_L, sole="#3a3e44", cuff=STEEL_D, toe=54) + f'''
+  <path d="M36 34 Q38 38 46 40 M38 39 L38 49 M44 40.5 L44 49 M50 43 L50 49" fill="none" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M19 26 L36 26 M19 33 L36 33 M18.5 41 L36 41" stroke="{INK}" stroke-width="1.8"/>
+  <circle cx="33" cy="23" r="1.3" fill="{INK}"/><circle cx="33" cy="30" r="1.3" fill="{INK}"/><circle cx="33" cy="37" r="1.3" fill="{INK}"/>
+  <path d="M40 44 Q46 43 50 46" fill="none" stroke="{STEEL_L}" stroke-width="1.8" stroke-linecap="round"/>'''),
+    "pathfinders_boots": ("movement", f'''
+  <path d="M14 46 Q10 38 14 32 Q18 26 14 18" fill="none" stroke="#e8d6a8" stroke-width="2.8" stroke-linecap="round" stroke-dasharray="0.5 5"/>
+  <g transform="translate(5 3) scale(0.9)">''' + _boot("#6a5a3a", "#4a3e26", "#8a7a54") + f'''
+  </g>
+  <circle cx="45" cy="21" r="9.5" fill="{GOLD}" stroke="{INK}" stroke-width="2.4"/>
+  <circle cx="45" cy="21" r="6.8" fill="#efe3c8" stroke="{INK}" stroke-width="1.4"/>
+  <path d="M45 15 L47.2 21 L45 21Z" fill="#d8342c"/>
+  <path d="M45 27 L42.8 21 L45 21Z" fill="#5a626c"/>
+  <path d="M45 15 L47.2 21 L45 27 L42.8 21Z" fill="none" stroke="{INK}" stroke-width="1.2" stroke-linejoin="round"/>
+  <circle cx="45" cy="21" r="1.1" fill="{INK}"/>
+  <path d="M45 10 L45 11.5" stroke="{INK}" stroke-width="2.4" stroke-linecap="round"/>'''),
+}
+
+
+def item_icons():
+    for item_id, (slot, symbol) in ITEM_ICONS.items():
+        icon_svg("item_" + item_id, _item_badge(slot, symbol))
+
+
 def main():
     os.makedirs(ART, exist_ok=True)
     os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
@@ -10265,6 +10700,7 @@ def main():
     village_pieces_materials()
     fortifications()
     advancement_icons()
+    item_icons()
     town_halls()
     tile_village_path()
     site()
@@ -10347,6 +10783,8 @@ def main():
     spell_bolt()
     spell_glow()
     arrow()
+    throwing_axe()
+    net_pin()
     sack()
     biome_art()
     icons()

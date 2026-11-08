@@ -290,7 +290,7 @@ static func capture(game: Game) -> Dictionary:
 		vs.append({"name": v.village_name, "color": v.color.to_html(false), "fallen": v.fallen, "relics": Array(v.relics),
 			"stand": [v.last_stand, v.stand_retry, v.hall_lost, v.no_more_stands, v.stand_emptied],
 			"res": {"done": Array(v.research.done), "cur": v.research.current, "p": v.research.progress, "paid": v.research.paid, "locked": Array(v.research.locked)},
-			"cd": v.corpses_delivered, "log": int(v.events.shown_level), "queue": queue,
+			"cd": v.corpses_delivered, "log": int(v.events.shown_level), "queue": queue, "arm": Array(v.armoury.items),
 			"eco": {"gold": v.economy.amount("gold"), "food": v.economy.amount("food"), "materials": v.economy.amount("materials")},
 			"hero": _hero_state(v.hero)})
 	b["villages"] = vs
@@ -393,7 +393,7 @@ static func _hero_state(h: Hero) -> Dictionary:
 	return {"n": h.nid, "mode": int(h.mode), "xp": h.xp, "lvl": h.level, "hp": h.hp, "dead": h.dead, "pos": h.grid_pos, "po": Poison.capture(h),
 		"home": h.at_home, "sup": h.support_target.id if h.support_target else -1,
 		"camp": h.camp_target.index if is_instance_valid(h.camp_target) else -1,
-		"cry": [h.cry_bonus, h.cry_until], "gather": _gather_state(h.jobs[Hero.Mode.GATHER] as GatherJob),
+		"cry": [h.cry_bonus, h.cry_until], "eq": h.equipped.duplicate(), "gather": _gather_state(h.jobs[Hero.Mode.GATHER] as GatherJob),
 		"carry": carry, "from": ex.carrying_from if not carry.is_empty() else ""}
 
 
@@ -501,6 +501,7 @@ static func restore_entities(game: Game, b: Dictionary) -> void:
 		v.research.locked.assign(res["locked"])
 		v.research.reapply()
 		v.relics.assign(d["relics"])
+		v.armoury.set_items(d["arm"])
 		v.corpses_delivered = int(d["cd"])
 		v.economy.set_amounts(d["eco"])
 		v.events.shown_level = int(d["log"]) as EventLog.Level
@@ -724,6 +725,12 @@ static func _restore_hero(game: Game, h: Hero, d: Dictionary, field: Array[Civil
 	h.camp_target = camp if camp and not camp.cleared else null
 	h.cry_bonus = float(d["cry"][0])
 	h.cry_until = float(d["cry"][1])
+	h.equipped.clear()
+	var eqd: Dictionary = d["eq"]
+	for slot: String in eqd:
+		if slot in Config.ITEM_SLOTS and Config.ITEMS.has(str(eqd[slot])):
+			h.equipped[slot] = str(eqd[slot])
+	h.apply_equipment()
 	if bool(d["dead"]):
 		h.dead = true
 		h.hp = 0.0

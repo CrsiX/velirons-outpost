@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 64 64">
+
+  <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="#15110d" stroke-width="3"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#a77ae0" stroke-width="3"/>
+  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+
+  <g transform="translate(46 18) rotate(30)">
+    <rect x="-2" y="2" width="4" height="27" rx="1.5" fill="#7a5738" stroke="#15110d" stroke-width="2.2"/>
+    <rect x="-8" y="-4" width="16" height="7.5" rx="1.8" fill="#8a929c" stroke="#15110d" stroke-width="2.4"/>
+    <rect x="-6.5" y="-2.8" width="6" height="2" rx="1" fill="#c8d0d8"/>
+  </g>
+  <path d="M18 46 L17 30 Q14 28 11 24 Q10 20 13 20 Q17 21 20 26 L20 16 Q20 13 23 13 Q26 13 26 16 L26 13 Q26 10 29 10 Q32 10 32 13 L32 15 Q32 12 35 12 Q38 12 38 15 L38 19 Q38 16 41 16 Q44 16 44 19 L44 34 Q44 42 40 46Z" fill="#d0a060" stroke="#15110d" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M26 16 L26 27 M32 15 L32 27 M38 19 L38 28" stroke="#8a6030" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M21 32 Q30 36 41 31" fill="none" stroke="#8a6030" stroke-width="1.6" stroke-dasharray="2 2"/>
+  <path d="M16 44 L42 44 L43 54 L15 54Z" fill="#8a5a32" stroke="#15110d" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M17 49 L42 49" stroke="#b07a48" stroke-width="1.6"/>
+</svg>

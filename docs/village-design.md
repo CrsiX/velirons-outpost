@@ -184,10 +184,10 @@ build, tear down or move it: it is the village, not something in it. Numbers are
 
 - **The hero's home:** in Rest mode she goes inside and heals fast, out of reach (`Hero.hall_regen`);
   idle in the centre beside it she heals slowly (`HERO.rest_regen`). While it is devastated she
-  rests in the centre (docs/hero-design.md §4.7, §5). *(Designed, not built:)* she swaps
-  equipment there, only while idle at home (docs/items-design.md).
-- *(Designed, not built:)* **the armoury:** the items not worn, and the relics the village owns
-  (docs/items-design.md).
+  rests in the centre (docs/hero-design.md §4.7, §5). She changes equipment there, only
+  while idle at her post (docs/items-design.md §3).
+- **The armoury** (`Armoury`, one per village): the equipment the hero isn't wearing
+  (docs/items-design.md §4). *(Designed, not built:)* the relics the village owns.
 - **Research** of advancements, one at a time (`Research`, docs/advancements-design.md).
 
 **Levels** (1 to 3, `TOWN_HALL.levels`), upgraded like towers with building material and a
@@ -228,8 +228,8 @@ and the bench along its side wall on the front tile.
 
 **Devastated** (0 HP, docs/siege-design.md): the hero can't rest inside (she rests in the centre, at
 the slow rate) until it is repaired, its post and bench units walk back to the reserve, research
-pauses, and the last stand starts (§3b). *(Designed, not built:)* the armoury is closed (no swaps). Relics keep working: losing all of them to
-one raid would be too harsh.
+pauses, the armoury is closed (no swaps), and the last stand starts (§3b). *(Designed, not
+built:)* relics keep working: losing all of them to one raid would be too harsh.
 
 ## 3b. The last stand
 

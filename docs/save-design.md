@@ -218,12 +218,12 @@ Rules behind the table:
 - Advancements (format 7): each village saves what it researched, the research under way with
   its progress and the gold paid, and the exclusive halves it locked; each tower its
   manual-targeting setting. The deed counters are the statistics', which the save holds already.
-- *(Designed, not built:)* the marketplace and items add state that must
-  survive a load, so their change bumps `SaveGame.FORMAT` once more: the marketplace (its
-  buying stock, the goods for sale, the trader's packing progress, the relic-offer timer, the
-  equipment offer), trade caravans in transit (cargo, direction, position: saves come between
-  waves, but a caravan may be on the road), salvage lying on the map, the hero's slots and the
-  armoury, and the relics owned.
+- The hero's slots (`equipped`) and each village's armoury are saved. *(Designed, not built:)*
+  the rest of the marketplace and items add state that must survive a load, so their change
+  bumps `SaveGame.FORMAT` once more: the marketplace (its buying stock, the goods for sale, the
+  trader's packing progress, the relic-offer timer, the equipment offer), trade caravans in
+  transit (cargo, direction, position: saves come between waves, but a caravan may be on the
+  road), salvage lying on the map, and the relics owned.
 
 ## 8. Files
 

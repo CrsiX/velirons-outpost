@@ -41,6 +41,10 @@ var _wood: AStarGrid2D = null
 var _sky: AStarGrid2D = null
 ## The ghosts' grid (ghost_path), made on first use.
 var _ghost: AStarGrid2D = null
+## The hero's grid in feather boots (free_path): made on first use, kept up by set_solid.
+var _free: AStarGrid2D = null
+## Building kinds feather boots walk over (the wall ring).
+const FREE_WALK_KINDS: Array[String] = ["wall", "gate", "wall_tower"]
 
 
 func _init(p_map: MapData) -> void:
@@ -76,6 +80,8 @@ func set_solid(t: Vector2i, solid: bool) -> void:
 		_wood.set_point_solid(t, blocked and not map.is_forest(t))
 	if _sky and map.in_bounds(t):
 		_sky.set_point_solid(t, not sky_open(t))
+	if _free and map.in_bounds(t):
+		_free.set_point_solid(t, not free_open(t))
 	if map.in_bounds(t) and _walk[map.index(t)] != (0 if blocked else 1):
 		_walk[map.index(t)] = 0 if blocked else 1
 		version += 1
@@ -227,6 +233,45 @@ func _sky_open_near(t: Vector2i, near: Vector2) -> Vector2i:
 				best_d = Vector2(n).distance_squared_to(near)
 				best = n
 	return best
+
+
+## Can the hero in feather boots (docs/items-design.md §6) walk `t`? Any
+## walkable tile, forest and deep water, and the wall ring (walls, gates,
+## wall towers); never mountains, lava, other buildings or solid map objects.
+func free_open(t: Vector2i) -> bool:
+	if not map.in_bounds(t):
+		return false
+	if not astar.is_point_solid(t):
+		return true
+	var b := map.building_at(t)
+	if b == null:
+		return map.is_deep(t) or map.is_forest(t)
+	return str(b.get("kind")) in FREE_WALK_KINDS
+
+
+func _free_grid() -> AStarGrid2D:
+	if _free == null:
+		_free = AStarGrid2D.new()
+		_free.region = Rect2i(0, 0, map.size, map.size)
+		_free.cell_size = Vector2.ONE
+		_free.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+		_free.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+		_free.default_estimate_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+		_free.update()
+		for y in map.size:
+			for x in map.size:
+				_free.set_point_solid(Vector2i(x, y), not free_open(Vector2i(x, y)))
+	return _free
+
+
+## The hero's way in feather boots: like find_path, over everything free_open
+## (no ground slows her, so no weights). Empty if there's no way.
+func free_path(from: Vector2i, to: Vector2i) -> PackedVector2Array:
+	if not free_open(from):
+		from = nearest_walkable(from)
+	if not free_open(to):
+		return PackedVector2Array()
+	return _free_grid().get_point_path(from, to)
 
 
 ## Can a ghost drift over `t` (docs/enemies-design.md §10.13)? Everything a

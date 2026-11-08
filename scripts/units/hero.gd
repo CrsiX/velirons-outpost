@@ -24,6 +24,10 @@ extends Civilian
 ## in the village centre when the wave is over (downed between waves: when the
 ## next one begins), still in the same mode.
 ## She has no hut, eats nothing and doesn't count as a villager.
+## Equipment (docs/items-design.md): four slots (Config.ITEM_SLOTS); an empty
+## slot is its default item, today's plain hero. Worn items change her by
+## modifiers (`eq`), multiplied across slots; swaps only while she is idle at
+## her post at home and the town hall stands (`swap_error`). Kept when downed.
 
 signal changed
 ## Struck down (0 HP).
@@ -66,6 +70,12 @@ var _camp_stuck := 0.0
 ## A warrior's war cry (Combat.war_cry): her sword is faster until Game.clock reaches cry_until.
 var cry_bonus := 0.0
 var cry_until := -1.0
+## What she wears: slot -> Config.ITEMS key; a slot not in it holds its default.
+var equipped := {}
+## Seconds until her net (an accessory) can be thrown again.
+var _net_cd := 0.0
+## The phoenix pendant saved her this wave already.
+var phoenix_used := false
 
 
 func setup_hero(p_game: Game, p_village: Village) -> void:
@@ -73,7 +83,7 @@ func setup_hero(p_game: Game, p_village: Village) -> void:
 	village = p_village
 	role = "hero"
 	var spec: Dictionary = Config.HERO
-	speed = spec["speed"]
+	speed = walk_speed()
 	max_hp = spec["hp"]
 	hp = max_hp
 	_init_sprite(art_name(village.color, game.villages.size()))
@@ -94,6 +104,7 @@ func setup_hero(p_game: Game, p_village: Village) -> void:
 		sig.connect(func(_n: int) -> void:
 			if dead:
 				revive())
+	game.waves.wave_started.connect(func(_n: int) -> void: phoenix_used = false)  # (once per wave)
 
 
 func display_name() -> String:
@@ -160,7 +171,29 @@ var barred := Rect2i()
 
 
 func find_way(from: Vector2i, to: Vector2i) -> PackedVector2Array:
+	if eq_flag("free_walk") and not barred.has_area():
+		return game.world.pathing.free_path(from, to)  # (feather boots)
 	return game.world.pathing.find_path_outside(from, to, barred)
+
+
+## Feather boots: no ground slows her.
+func _walk_factor() -> float:
+	return 1.0 if eq_flag("free_walk") else super._walk_factor()
+
+
+## Heavy steel boots: nothing moves or holds her (Unit.force_move).
+func immovable() -> bool:
+	return eq_flag("immovable")
+
+
+## Feather boots: an octopus can pull her into deep water, but it can't drown her.
+func drown_proof() -> bool:
+	return eq_flag("free_walk")
+
+
+## Her walking speed (Config.HERO), times what she wears.
+func walk_speed() -> float:
+	return float(Config.HERO["speed"]) * eq("speed")
 
 
 func home_spot() -> Vector2i:
@@ -268,9 +301,10 @@ func wants_to_evade() -> bool:
 
 
 func on_action(kind: String) -> void:
-	xp += int(Config.HERO_XP_PER_ACTION.get(kind, 0))
-	game.stats.count(village, "hero.xp", int(Config.HERO_XP_PER_ACTION.get(kind, 0)))
-	game.stats.count(village, "hero.xp." + kind, int(Config.HERO_XP_PER_ACTION.get(kind, 0)))
+	var n := roundi(int(Config.HERO_XP_PER_ACTION.get(kind, 0)) * eq("xp"))  # (a scholar's tome)
+	xp += n
+	game.stats.count(village, "hero.xp", n)
+	game.stats.count(village, "hero.xp." + kind, n)
 	changed.emit()
 
 
@@ -296,7 +330,7 @@ func _after_evade() -> void:
 
 
 func sight_radius() -> float:
-	return 0.0 if at_home or dead else Config.HERO["sight"]
+	return 0.0 if at_home or dead else float(Config.HERO["sight"]) * eq("sight")
 
 
 func _tick(delta: float) -> void:
@@ -368,10 +402,9 @@ func _note_hall_heal(on: bool) -> void:
 	village.events.debug("the hero stops healing in the town hall: %s (%d / %d HP)" % [why, int(hp), int(max_hp)])
 
 
-## Fights with a melee weapon (her sword; docs/items-design.md may give her
-## others): what critical hits need.
+## Fights with a melee weapon (anything but thrown axes): what critical hits need.
 func has_melee_weapon() -> bool:
-	return true
+	return not throws()
 
 
 ## HP per second resting inside the town hall: max(max HP x hall_regen_share, hall_regen_min).
@@ -423,17 +456,17 @@ func _defend(delta: float) -> void:
 ## Goes for `target` and strikes it when in reach.
 func _fight(delta: float) -> void:
 	_returning = false
-	if not target.melee_ok(grid_pos):
+	if not can_hit(target):
 		target = null  # it dived, or it's out of a sword's reach
 		return
 	if at_home:
 		_set_home(false)
 	var dist := target.grid_pos.distance_to(grid_pos)
-	if dist <= target.melee_reach(Config.HERO["attack_range"]):
+	if dist <= reach_to(target):
 		_set_moving(false)
 		face(target.grid_pos)
 		if _attack_timer <= 0.0:
-			_attack_timer = Config.HERO["attack_cooldown"]
+			_attack_timer = attack_cooldown()
 			_strike(target)
 	else:
 		if path_index >= path.size() or target.current_tile() != _chase_tile:
@@ -509,10 +542,10 @@ func _pick_enemy() -> Enemy:
 	var out_far := grid_pos.distance_to(centre) > Config.HERO["leash"]
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
-		if e.faded or not e.hurt_by(str(Config.HERO["category"])):
-			continue  # (a ghost: faded, or her sword can't hurt it)
-		if e.flies() or not e.melee_ok(grid_pos):
-			continue  # (flyers: out of her sword's reach, she only hits back; under water or out at sea: none)
+		if e.faded or not e.hurt_by(weapon_category()):
+			continue  # (a ghost: faded, or her weapon can't hurt it)
+		if (e.flies() and not reaches_flyers()) or not can_hit(e):
+			continue  # (flyers: out of a blade's reach, she only hits back; under water or out at sea: none)
 		if barred.has_area() and barred.has_point(e.current_tile()):
 			continue  # (where she may not go)
 		var near_me := not at_home and e.grid_pos.distance_to(grid_pos) <= Config.HERO["sight"]
@@ -559,18 +592,19 @@ func _chase() -> void:
 
 ## A flyer hit her: if her blow is ready she strikes back at once.
 func counter_strike(e: Enemy) -> void:
-	if dead or _attack_timer > 0.0 or e.dead:
+	if dead or _attack_timer > 0.0 or e.dead or not e.hurt_by(weapon_category()):
 		return
-	_attack_timer = Config.HERO["attack_cooldown"]
+	_attack_timer = attack_cooldown()
 	_strike(e)
 
 
 func _strike(foe: Enemy) -> void:
 	var crit := Combat.critical(game, village, foe) if has_melee_weapon() else 1.0  # (Eye for vital points)
-	foe.take_damage(Config.hero_stat("damage", level) * (1.0 + Combat.holy_bonus(game, grid_pos)) * crit, self, str(Config.HERO["category"]))  # (a High Priest blesses him)
-	on_action("hit")
-	if foe.dead:  # the last hit: a bonus
-		on_action("kill")
+	var dmg := blow_damage() * (1.0 + Combat.holy_bonus(game, grid_pos)) * crit  # (a High Priest blesses her)
+	if throws():
+		_throw(foe, dmg)
+	else:
+		_land_blow(foe, dmg)
 	var tw := create_tween()
 	var lunge := (Iso.to_world(foe.grid_pos) - position).normalized() * 6.0
 	tw.tween_property(sprite, "position", lunge, 0.08)
@@ -612,7 +646,8 @@ func _process(delta: float) -> void:
 	if not dead and not game.is_client:
 		# Her blow's cooldown runs in every mode, also while she flees, and no
 		# mode change resets it: switching modes never gives her an extra blow.
-		_attack_timer -= delta * Combat.haste(game, self, grid_pos)
+		_attack_timer -= delta * Combat.haste(game, self, Vector2.INF if immovable() else grid_pos)  # (heavy boots: no song slows her)
+		_tick_net(delta)
 		if is_instance_valid(held_by) and not held_by.dead:
 			# An octopus's arm holds her: she fights it, whatever her mode, even fleeing.
 			target = held_by as Enemy
@@ -798,13 +833,31 @@ func _home_regen(_delta: float) -> void:
 	pass
 
 
-func take_damage(amount: float, source = null, _category: String = "pure") -> void:
+## A hit on her: what she wears may block it, scale it or strike back
+## (docs/items-design.md §6); "pure" (drowning, a drain) is never changed.
+func take_damage(amount: float, source = null, category: String = "pure") -> void:
 	if dead:
 		return
+	if category != "pure":
+		var block := eq_block(category)
+		if block > 0.0 and randf() < block:  # (no roll without a shield: the defaults leave the random sequence alone)
+			float_text("Blocked", Color("cfd8e0"))
+			return
+		var foe: Enemy = source if is_instance_valid(source) and source is Enemy else null
+		if foe != null and category == "melee" and eq("thorns", 0.0) > 0.0 and not foe.dead:
+			foe.take_damage(amount * eq("thorns", 0.0), self, "pure")  # (thorn mail)
+		amount *= eq("taken") * eq_resist(category)
+		if foe != null and foe.flies():
+			amount *= eq("flyer_taken")
 	hp -= amount
 	queue_redraw()
 	sprite.modulate = Color(1.0, 0.5, 0.45)
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
+	if hp <= 0.0 and eq("phoenix", 0.0) > 0.0 and not phoenix_used:
+		phoenix_used = true  # (the phoenix pendant: once per wave)
+		hp = max_hp * eq("phoenix", 0.0)
+		float_text("Phoenix!", Color("ffb040"))
+		village.events.info("The phoenix pendant saves the hero from %s" % game.who(source))
 	changed.emit()
 	if hp <= 0.0:
 		_downed(source)
@@ -879,3 +932,241 @@ func _draw() -> void:
 	if dead or hp >= max_hp:
 		return
 	_draw_hp_bar(30.0, -52.0, 5.0, hp / max_hp, Color("3a2a10"), Color("e8c040"))
+
+
+# --- equipment (docs/items-design.md) -------------------------------------------------------
+
+## The item in `slot`: what she wears there, or its default.
+func worn(slot: String) -> String:
+	return str(equipped.get(slot, Config.ITEM_DEFAULTS[slot]))
+
+
+## A modifier `key` of what she wears (Config.ITEMS): factors multiply across
+## the slots; a slot without it counts `none` (1: no change; 0 for a share).
+func eq(key: String, none := 1.0) -> float:
+	var f := 1.0
+	var any := false
+	for slot: String in equipped:
+		var it: Dictionary = Config.ITEMS[equipped[slot]]
+		if it.has(key) and typeof(it[key]) in [TYPE_FLOAT, TYPE_INT]:
+			f *= float(it[key])
+			any = true
+	return f if any else none
+
+
+func eq_flag(key: String) -> bool:
+	for slot: String in equipped:
+		if Config.ITEMS[equipped[slot]].get(key, false):
+			return true
+	return false
+
+
+## The first worn item's value for `key` (a list or table), or `none`.
+func eq_value(key: String, none: Variant = null) -> Variant:
+	for slot: String in Config.ITEM_SLOTS:
+		if equipped.has(slot) and Config.ITEMS[equipped[slot]].has(key):
+			return Config.ITEMS[equipped[slot]][key]
+	return none
+
+
+## The share of a hit of `category` she still takes (resist tables multiply).
+func eq_resist(category: String) -> float:
+	var f := 1.0
+	for slot: String in equipped:
+		f *= float((Config.ITEMS[equipped[slot]].get("resist", {}) as Dictionary).get(category, 1.0))
+	return f
+
+
+## The chance a hit of `category` is blocked whole (several blocks: each gets its chance).
+func eq_block(category: String) -> float:
+	var through := 1.0
+	for slot: String in equipped:
+		through *= 1.0 - float((Config.ITEMS[equipped[slot]].get("block", {}) as Dictionary).get(category, 0.0))
+	return 1.0 - through
+
+
+## Her weapon's attack (Config.ATTACKS), or {} for her plain sword.
+func weapon_attack() -> Dictionary:
+	var a := str(Config.ITEMS[worn("weapon")].get("attack", ""))
+	return Config.ATTACKS[a] if a != "" else {}
+
+
+func weapon_category() -> String:
+	return str(weapon_attack().get("category", Config.HERO["category"]))
+
+
+## Thrown axes: a ranged weapon.
+func throws() -> bool:
+	return str(weapon_attack().get("projectile", "")) != ""
+
+
+func reaches_flyers() -> bool:
+	return throws() or eq_flag("hits_flyers")
+
+
+## Can she go for `e` with her weapon from where she stands? A thrown axe:
+## anything up and in sight; a blade: Enemy.melee_ok (a burning one reaches a siren in water).
+func can_hit(e: Enemy) -> bool:
+	if throws():
+		return e.targetable()
+	return e.melee_ok(grid_pos, eq_flag("flame"))
+
+
+## How close she must be to strike `e`.
+func reach_to(e: Enemy) -> float:
+	if throws():
+		return float(Config.ITEMS[worn("weapon")]["range"])
+	return e.melee_reach(float(Config.HERO["attack_range"]) * eq("reach"))
+
+
+func attack_cooldown() -> float:
+	return float(Config.HERO["attack_cooldown"]) * eq("cooldown")
+
+
+## One blow's damage before blessings and crits: her level's, times what she wears.
+func blow_damage() -> float:
+	return Config.hero_stat("damage", level) * eq("damage")
+
+
+## A blade's blow on `foe` (and, with a great axe, everyone around her; with a
+## mace, the one behind it): damage, a poison dose, healing from what it dealt.
+func _land_blow(foe: Enemy, dmg: float) -> void:
+	var cat := weapon_category()
+	var hits: Array[Array] = [[foe, dmg]]
+	var circle: Array = eq_value("circle", [])
+	if not circle.is_empty():
+		hits.clear()
+		for node in get_tree().get_nodes_in_group("enemies"):
+			var e := node as Enemy
+			if e.grid_pos.distance_to(grid_pos) <= float(circle[0]) and e.hurt_by(cat) and can_hit(e) and (reaches_flyers() or not e.flies() or e == foe):
+				hits.append([e, dmg * float(circle[1])])
+	var behind: Array = eq_value("behind", [])
+	if not behind.is_empty():
+		var b := _behind(foe, float(behind[1]))
+		if b != null:
+			hits.append([b, dmg * float(behind[0])])
+	var dealt := 0.0
+	for h in hits:
+		var e: Enemy = h[0]
+		if e.dead:
+			continue
+		var before := e.hp + e.mount_hp
+		e.take_damage(h[1], self, cat)
+		dealt += before - maxf(e.hp, 0.0) - maxf(e.mount_hp, 0.0)
+		if eq("poison", 0.0) > 0.0 and not e.dead:
+			Poison.give(e, float(h[1]) * eq("poison", 0.0), self)
+		on_action("hit")
+		if e.dead:  # the last hit: a bonus
+			on_action("kill")
+	if eq("lifesteal", 0.0) > 0.0 and dealt > 0.0:
+		hp = minf(max_hp, hp + dealt * eq("lifesteal", 0.0))
+		queue_redraw()
+		changed.emit()
+
+
+## The enemy behind `foe` seen from her: the nearest one within `reach` of the
+## spot a tile beyond it, on the line from her through it; null if none.
+func _behind(foe: Enemy, reach: float) -> Enemy:
+	var dir := (foe.grid_pos - grid_pos).normalized()
+	if dir == Vector2.ZERO:
+		return null
+	var spot := foe.grid_pos + dir
+	var best: Enemy = null
+	var best_d := reach
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var e := node as Enemy
+		if e == foe or not e.hurt_by(weapon_category()) or not can_hit(e) or (e.flies() and not reaches_flyers()):
+			continue
+		var d := e.grid_pos.distance_to(spot)
+		if d <= best_d:
+			best_d = d
+			best = e
+	return best
+
+
+## Thrown axes: a projectile at `foe` that strikes when it lands.
+func _throw(foe: Enemy, dmg: float) -> void:
+	var a := weapon_attack()
+	var shot := Shot.new()
+	shot.source = self
+	game.world.effects.add_child(shot)
+	var from := position + Vector2(0, -30)
+	shot.launch(a, from, foe, func(t, _at: Vector2) -> void:
+		if not is_instance_valid(t) or t.dead or not (t as Enemy).targetable():
+			return
+		(t as Enemy).take_damage(dmg, self if is_instance_valid(self) else null, str(a["category"]))
+		if is_instance_valid(self) and not dead:
+			on_action("hit")
+			if t.dead:
+				on_action("kill"))
+	if game.replicator and game.replicator.hosting:
+		game.replicator.shot(str(Config.ITEMS[worn("weapon")]["attack"]), from, foe.hit_point())
+
+
+## Her net (an accessory) on its cooldown: thrown at her target when it is in range.
+func _tick_net(delta: float) -> void:
+	var n: Array = eq_value("net", [])
+	if n.is_empty():
+		return
+	_net_cd -= delta
+	if _net_cd > 0.0 or not is_instance_valid(target) or target.dead or in_hall:
+		return
+	if target.grid_pos.distance_to(grid_pos) > float(n[1]) or not target.can_be_netted():
+		return
+	target.net(float(n[2]))
+	_net_cd = float(n[0])
+	village.events.debug("the hero nets %s" % target.label())
+
+
+## Ghosts within this many tiles of her show themselves (a lantern); 0: none.
+func ghost_light() -> float:
+	return 0.0 if dead or in_hall else eq("ghost_light", 0.0)
+
+
+## Why she can't change her equipment now ("" when she can): only while she is
+## idle at her post at home (not downed, fleeing, fighting or on an order) and
+## its town hall stands and isn't devastated.
+func swap_error() -> String:
+	if not game.items_enabled():
+		return "There is no equipment here"
+	if dead:
+		return "The hero is down"
+	if not village.armoury.is_open():
+		return "The town hall is devastated: the armoury is closed"
+	if camp_target != null or evading or is_instance_valid(target) or base() != village \
+			or not at_home or grid_pos.distance_to(Vector2(home())) > 0.3:
+		return "She changes equipment only while idle at her post in the village"
+	return ""
+
+
+## Puts on `id` (Config.ITEMS); whatever was in its slot goes to the armoury.
+## The caller checks the armoury holds it and swap_error.
+func equip(id: String) -> void:
+	var slot := str(Config.ITEMS[id]["slot"])
+	village.armoury.take(id)
+	var old := worn(slot)
+	equipped[slot] = id
+	if old != Config.ITEM_DEFAULTS[slot]:
+		village.armoury.items.append(old)  # (the place `id` left: never over the cap)
+		village.armoury.changed.emit()
+	village.events.info("The hero puts on the %s" % str(Config.ITEMS[id]["name"]).to_lower())
+	apply_equipment()
+
+
+## Takes off what is in `slot` (back to its default); it goes to the armoury.
+func unequip(slot: String) -> void:
+	var old := worn(slot)
+	equipped.erase(slot)
+	village.armoury.add(old)
+	village.events.info("The hero takes off the %s" % str(Config.ITEMS[old]["name"]).to_lower())
+	apply_equipment()
+
+
+## What she wears applies to what is set up front: walking speed, her jobs.
+func apply_equipment() -> void:
+	var spec: Dictionary = Config.HERO
+	speed = walk_speed()
+	(jobs[Mode.BUILD] as BuildJob).efficiency = float(spec["build_efficiency"]) * eq("build")
+	(jobs[Mode.EXPLORE] as HeroExploreJob).reveal = float(spec["explore_reveal"]) * eq("explore")
+	(jobs[Mode.GATHER] as GatherJob).capacity = roundi(int(spec["gather_capacity"]) * eq("gather"))
+	changed.emit()

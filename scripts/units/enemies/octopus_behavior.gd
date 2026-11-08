@@ -83,8 +83,8 @@ func _tick_arms(enemy: Enemy, delta: float) -> void:
 		if a["state"] == Arm.REACH or a["state"] == Arm.HOLD or a["state"] == Arm.SMASH:
 			taken[a["target"]] = true
 	for p in folk:
-		if is_instance_valid(p.held_by):
-			taken[p] = true  # (another octopus holds it already)
+		if is_instance_valid(p.held_by) or (p is Unit and (p as Unit).immovable()):
+			taken[p] = true  # (another octopus holds it already; heavy boots: it can't)
 	var tips: Array = []
 	for a in arms:
 		match a["state"]:
@@ -240,7 +240,7 @@ func _hold(enemy: Enemy, a: Dictionary, delta: float) -> void:
 	if not reachable(t):
 		_retract(a, enemy.stat("arm_cooldown"))
 		return
-	var flies: bool = u.has_method("flies") and u.flies()
+	var flies: bool = (u.has_method("flies") and u.flies()) or u.drown_proof()  # (feather boots)
 	if enemy.game.map.is_deep(u.current_tile()) and not flies:
 		_drown(enemy, u)
 		_retract(a, enemy.stat("arm_cooldown"))

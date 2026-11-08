@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 64 64">
+
+  <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="#15110d" stroke-width="3"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#d2463c" stroke-width="3"/>
+  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+
+  <g transform="rotate(45 32 32)">
+    <path d="M35.8 14 Q39.5 18 37 22 Q40 27 37.2 31 Q39.5 35 36 39 L35.8 14Z" fill="#6ad03a" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M28.2 40 L28.2 14 L32 6 L35.8 14 L35.8 40Z" fill="#b8d8a8" stroke="#15110d" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M32 11 L32 37" stroke="#e8f8d8" stroke-width="1.8" stroke-linecap="round"/>
+    <rect x="29.4" y="43" width="5.2" height="9" rx="1.5" fill="#5e4129" stroke="#15110d" stroke-width="2.3"/>
+    <path d="M30 46 L34 47.5 M30 49 L34 50.5" stroke="#15110d" stroke-width="1"/>
+    <rect x="20" y="39" width="24" height="5" rx="2.5" fill="#4a6a2a" stroke="#15110d" stroke-width="2.4"/>
+    <circle cx="32" cy="55" r="3.6" fill="#4a6a2a" stroke="#15110d" stroke-width="2.2"/>
+  </g>
+  <path d="M28.2 40 L28.2 14 L32 6 L35.8 14 L35.8 40Z" transform="rotate(45 32 32)" fill="#7ae04a" opacity="0.45"/>
+  <path d="M41.5 27 Q44.36 31.16 44.1 32.98 A2.6 2.6 0 0 1 38.9 32.98 Q38.64 31.16 41.5 27Z" fill="#6ad03a" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+  <circle cx="40.59" cy="32.46" r="0.78" fill="#e0ffc0" opacity="0.8"/>
+  <path d="M34.5 34 Q38.02 39.120000000000005 37.7 41.36 A3.2 3.2 0 0 1 31.3 41.36 Q30.98 39.120000000000005 34.5 34Z" fill="#6ad03a" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+  <circle cx="33.38" cy="40.72" r="0.96" fill="#e0ffc0" opacity="0.8"/>
+  <path d="M44 39 Q46.42 42.52 46.2 44.06 A2.2 2.2 0 0 1 41.8 44.06 Q41.58 42.52 44 39Z" fill="#4ab02a" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+  <circle cx="43.23" cy="43.620000000000005" r="0.66" fill="#e0ffc0" opacity="0.8"/>
+</svg>

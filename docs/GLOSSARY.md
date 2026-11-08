@@ -18,7 +18,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Gatherer / forester / farmer / builder / explorer / miner / trader**: civilian roles. **Merchant** (Pell), **guild master, resident**: named campaign villagers who can't be recruited; Pell keeps the campaign's trade stall.
 - **Marketplace**: the trading building (`Market`), one per village by a road; buying works from the merchants' **buying stock**, selling from the village's **for-sale pile** needs a trader. Pell's stall is a separate campaign building for now. `market-design.md`
 - **Trader**: the villager who works a marketplace and sells the goods put up for sale. `market-design.md`
-- **Town hall**: every village's one building in its back quarter, placed by the map; the hero's home, research, and (designed) the armoury and the relics; level 2 adds a tower post, level 3 a barracks bench. `village-design.md`
+- **Town hall**: every village's one building in its back quarter, placed by the map; the hero's home, research, the armoury, and (designed) the relics; level 2 adds a tower post, level 3 a barracks bench. `village-design.md`
 - **Last stand**: the countdown after a town hall is devastated; it must be fully repaired before it runs out or the village falls. `village-design.md`
 - **Salvage**: the cargo of a robbed or destroyed trade caravan; a gatherer or the hero carries it back to the marketplace. `market-design.md`
 - **Order book**: co-op trade; a purchase is filled from other players' goods for sale before the merchants at the map edge. `market-design.md`
@@ -62,7 +62,8 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Hero modes**: Defend, Build, Explore, Gather, Train, Rest, Support (co-op). **Attack a camp** is an order that overrides the mode. `hero-design.md`
 - **Training grounds**: where the hero in Train mode passes her XP to a stationed unit.
 - **Equipment / slot**: what the hero wears in her four slots: weapon (how she attacks), armour (how she takes hits), accessory (the catch-all slot), movement (how she moves). The default items are the plain hero. `items-design.md`
-- **Armoury**: the town hall's store of items not worn.
+- **Armoury**: the town hall's store of items not worn (`Armoury`, capped).
+- **Pin-proof**: an enemy kind the hero's net never holds (a boss; `pin_proof` in `ENEMIES`). `items-design.md`
 
 ## Campaign
 - **Scenario**: one campaign level, one file; it has a baseline, waves, cards, objectives, cutscenes. `scenarios-design.md`

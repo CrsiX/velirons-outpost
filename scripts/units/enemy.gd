@@ -191,6 +191,9 @@ var _ride_from := Vector2.ZERO
 var _dust_in := 0.0
 ## Seconds a halberdier's blow still halts its mount.
 var _halt_left := 0.0
+## Seconds left under the hero's net (net): it neither moves nor attacks.
+var _net_left := 0.0
+var _net_sprite: Sprite2D = null
 ## Mounted, it rides into its village through an open breach (MountedBehavior
 ## sets it): it may break in like anyone on foot, but hits no barrier.
 var ride_in := false
@@ -281,6 +284,38 @@ func root(seconds: float) -> bool:
 
 func is_rooted() -> bool:
 	return _root_left > 0.0
+
+
+## Can the hero's net (Config.ITEMS "net") hold it? Not a water-only kind, a
+## boss ("pin_proof", or one with a name), one under a net already, or one
+## that isn't up.
+func can_be_netted() -> bool:
+	return targetable() and _net_left <= 0.0 and habitat() != "water" and not spec().get("pin_proof", false) and given_name == ""
+
+
+## Under the hero's net for `seconds`: no walking, no blows, no spells (its
+## behaviour waits). Shown to everyone through fx "net".
+func net(seconds: float) -> void:
+	if not can_be_netted():
+		return
+	_net_left = seconds
+	fx["net"] = true
+	_set_moving(false)
+
+
+func is_netted() -> bool:
+	return _net_left > 0.0
+
+
+## The net over it while fx says so (every machine).
+func _show_net() -> void:
+	var on := fx.has("net") and not dead
+	if on and _net_sprite == null:
+		_net_sprite = Art.sprite("net_pin")
+		_net_sprite.name = "Net"
+		add_child(_net_sprite)
+	if _net_sprite != null:
+		_net_sprite.visible = on
 
 
 ## Spatial magic: thrown `tiles` back along its road (away from the village),
@@ -1102,6 +1137,7 @@ func _process(delta: float) -> void:
 	if _wades():
 		_wade(delta)
 	behavior.animate(self, delta)
+	_show_net()
 	if mount != "":
 		_charge_look(delta)
 	if game.is_client:
@@ -1135,6 +1171,13 @@ func _process(delta: float) -> void:
 			_slow = 1.0
 			speed = base_speed
 			sprite.self_modulate = Color.WHITE
+	if _net_left > 0.0:  # (the hero's net: it waits it out)
+		_net_left -= delta
+		if _net_left > 0.0:
+			_set_moving(false)
+			_update_visibility()
+			return
+		fx.erase("net")
 	# The behavior may hold the enemy in place (fighting, casting), or move it
 	# itself (rats going for a farm).
 	self_moved = false

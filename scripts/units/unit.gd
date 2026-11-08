@@ -104,10 +104,23 @@ func is_forced() -> bool:
 	return Engine.get_process_frames() - _forced_frame <= 1
 
 
+## Nothing moves or holds it (the hero in heavy steel boots): force_move
+## does nothing, and an octopus doesn't grab it.
+func immovable() -> bool:
+	return false
+
+
+## Deep water doesn't drown it (the hero in feather boots).
+func drown_proof() -> bool:
+	return false
+
+
 ## Moves the unit by `step` (grid) for `source`, over ground it can walk
 ## (sliding along a shore or a wall); `into_deep`: deep water too (an
-## octopus's grapple). Never onto a solid tile.
+## octopus's grapple). Never onto a solid tile. Not an immovable one.
 func force_move(step: Vector2, source: Object, into_deep := false) -> void:
+	if immovable():
+		return
 	_forced_frame = Engine.get_process_frames()
 	_was_forced = true
 	forced_by = source
