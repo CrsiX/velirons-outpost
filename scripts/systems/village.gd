@@ -15,11 +15,12 @@ var game: Game
 var id := 0
 var village_name := "Veliron's Outpost"
 var color := Color("c9a24a")
-## Village centre tile (where villagers live and the hero waits).
+## Village centre tile: the middle of the path cross (where villagers live,
+## enemies head for and the hero waits).
 var center := Config.VILLAGE_CENTER
-## Its 5x5 walls, gates and the edge road tiles its own wave comes from (all
+## Its walled block, gates and the edge road tiles its own wave comes from (all
 ## from the map, see apply_map).
-var rect := Rect2i(Config.VILLAGE_ORIGIN, Vector2i(5, 5))
+var rect := Rect2i(Config.VILLAGE_ORIGIN, Vector2i.ONE * (2 * Config.VILLAGE_HALF + 1))
 var gates: Array[Vector2i] = []
 var home_spawns: Array[Vector2i] = []
 
@@ -29,8 +30,25 @@ var construction: Construction
 var army: Army
 var events: EventLog
 var hero: Hero
-## No villagers or no intact huts left (see update_fallen).
+## No villagers left, or its town hall has fallen (see update_fallen).
 var fallen := false
+## The last stand (docs/village-design.md §3b): game seconds left to repair the
+## devastated town hall to full HP (-1: none running). `stand_retry`: it is a
+## fallen co-op village's second chance (the longer countdown). `hall_lost`:
+## the hall fell (a countdown ran out, or it was devastated with nobody
+## left): the village has fallen until the hall is back at full HP.
+## `no_more_stands`: a second chance failed: no new countdown until then.
+var last_stand := -1.0
+var stand_retry := false
+var hall_lost := false
+var no_more_stands := false
+## Its hall has fallen and nobody was left at some point since: a villager
+## coming back may start the second chance (§3b step 4). A village that fell
+## with people alive gets none until it empties and fills again.
+var stand_emptied := false
+## The last stand's repair waits for building material (the warning says so).
+var stand_unpaid := false
+var _hall: TownHall
 ## Relics found (Config.RELICS keys): small permanent bonuses.
 var relics: Array[String] = []
 ## Campaign items brought home (a treasure's "item": scenario 9's relic sword).
@@ -160,9 +178,114 @@ func workers() -> Array[Civilian]:
 	return out
 
 
-## Standing needs at least one villager and one intact hut.
+## Its town hall (null on a map without one: such a map is refused for play).
+func town_hall() -> TownHall:
+	if not is_instance_valid(_hall):
+		_hall = null
+		for b in buildings():
+			if b is TownHall:
+				_hall = b
+				break
+	return _hall
+
+
+## Standing needs at least one villager and a town hall that hasn't fallen.
 func is_standing() -> bool:
-	return population.count() > 0 and not intact_huts().is_empty()
+	return population.count() > 0 and not hall_lost
+
+
+# --- the last stand (docs/village-design.md §3b) ------------------------------------------
+
+## Seconds left of a running last stand, or -1.
+func last_stand_left() -> float:
+	return last_stand
+
+
+## Its town hall was devastated (Construction.on_devastated): the last stand
+## starts while anyone lives here; with nobody left the hall has fallen.
+func on_hall_devastated() -> void:
+	if game.backdrop or game.is_client:
+		return
+	if population.count() == 0:
+		hall_lost = true
+		stand_emptied = true
+		return
+	_start_last_stand(false)
+
+
+func _start_last_stand(retry: bool) -> void:
+	var secs := float(Config.TOWN_HALL["last_stand"][Settings.difficulty_key()])
+	if retry:
+		secs *= float(Config.TOWN_HALL["retry_factor"])
+	last_stand = secs
+	stand_retry = retry
+	stand_emptied = false
+	_order_hall_repair()
+	events.important("The town hall has fallen: repair it to full HP within %d s, or %s falls" % [ceili(secs), village_name])
+	toast("Last stand! Repair the town hall within %d s!" % ceili(secs), Color("ff7a6a"))
+	sound("raid")
+	for v in game.villages:
+		if v != self:
+			v.events.important("Town %s falls in %d s" % [village_name, ceili(secs)])
+
+
+## Orders the hall's repair if it isn't ordered yet and the material is there.
+func _order_hall_repair() -> void:
+	var h := town_hall()
+	stand_unpaid = false
+	if h == null or h.repairing or not h.can_repair():
+		return
+	if not construction.order_repair(h):
+		stand_unpaid = true
+
+
+## The town hall is whole again (or, nobody left: no stand at all).
+func _end_last_stand(saved: bool) -> void:
+	last_stand = -1.0
+	stand_unpaid = false
+	if saved:
+		hall_lost = false
+		no_more_stands = false
+		stand_emptied = false
+		events.important("The town hall is repaired: %s stands" % village_name)
+		toast("The town hall stands again!", Color("9fe07a"))
+	else:
+		hall_lost = true
+		if stand_retry:
+			no_more_stands = true
+	stand_retry = false
+	game.check_defeat()
+
+
+## The countdown, the repair order, and a fallen hall back at full HP (host only).
+func _process(delta: float) -> void:
+	if game == null or game.is_client or game.backdrop or game.game_over:
+		return
+	var h := town_hall()
+	if h == null:
+		return
+	var whole := h.complete and not h.devastated and h.hp >= h.max_hp() - 0.01
+	if last_stand >= 0.0:
+		if whole:
+			_end_last_stand(true)
+		elif population.count() == 0:
+			_end_last_stand(false)
+		else:
+			_order_hall_repair()
+			last_stand -= delta
+			if last_stand <= 0.0:
+				events.important("The town hall wasn't repaired in time: %s has fallen" % village_name)
+				_end_last_stand(false)
+		return
+	if hall_lost and whole:
+		hall_lost = false
+		no_more_stands = false
+		stand_emptied = false
+		game.check_defeat()
+	elif hall_lost and population.count() == 0:
+		stand_emptied = true
+	elif hall_lost and stand_emptied and h.devastated and not no_more_stands:
+		_start_last_stand(true)  # (co-op: a fallen village got a villager again)
 
 
 ## Re-checks standing / fallen; returns true if it changed.

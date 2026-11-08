@@ -5,7 +5,8 @@ extends RefCounted
 
 const MAP_SIZE := 75
 const VILLAGE_CENTER := Vector2i(MAP_SIZE / 2, MAP_SIZE / 2)
-const VILLAGE_ORIGIN := VILLAGE_CENTER - Vector2i(2, 2)  # top-left tile of the 5x5 walled village
+const VILLAGE_HALF := 3  # tiles from the village centre to its walls (the 7x7 block)
+const VILLAGE_ORIGIN := VILLAGE_CENTER - Vector2i(VILLAGE_HALF, VILLAGE_HALF)  # top-left tile of the walled village
 
 # --- co-op (docs/multiplayer-design.md) ---------------------------------------------------
 const MAX_PLAYERS := 8
@@ -42,14 +43,21 @@ static func gen_length_scale(size: int, players: int) -> float:
 ## Tax on resources sent to another village: 10 % per extra player, at most 50 %.
 static func help_tax(players: int) -> float:
 	return minf(0.1 * (players - 1), 0.5)
-## Village layout from the design doc. T tower, W wall, G gate, V hut.
+## Village layout (docs/village-design.md §3.1): T wall tower, W wall, G gate,
+## H hut, X the town hall (2x2, its anchor the top-left X), P the path cross
+## joining the gates (its middle is the village centre), blank a free tile a
+## 1x1 building may go on. Rows run along the grid's x axis.
 const VILLAGE_LAYOUT: Array[String] = [
-	"TWGWT",
-	"WVVVW",
-	"GVVVG",
-	"WVVVW",
-	"TWGWT",
+	"TWWGWWT",
+	"WXXPHHW",
+	"WXXP HW",
+	"GPPPPPG",
+	"WH P HW",
+	"WHHPHHW",
+	"TWWGWWT",
 ]
+## The pieces VILLAGE_LAYOUT's letters stand for ("" for the town hall's other tiles).
+const VILLAGE_LAYOUT_KINDS := {"T": "wall_tower", "W": "wall", "G": "gate", "H": "hut", "X": "town_hall"}
 
 const START_RESOURCES := {"gold": 150, "food": 120, "materials": 70}
 const START_CIVILIANS: Array[String] = ["builder", "farmer", "forester", "explorer"]
@@ -74,7 +82,7 @@ const TUTORIAL := {
 	"civilians": ["builder", "forester"], "buildings": ["camp"],
 	"resources": {"gold": 200, "food": 150, "materials": 150},
 	"tower_tile": Vector2i(-1, -1), "farm_tile": Vector2i(-1, -1), "barracks_tile": Vector2i(-1, -1),
-	"camp_tile": Vector2i(32, 38),  # (west of the village, by the forest, in plain view; -1: the usual start spot)
+	"camp_tile": Vector2i(35, 30),  # (north-west of the village, by the forest, in plain view; -1: the usual start spot)
 	"spawn_distance": 18,
 	"waves": [{"goblin": 2}, {"goblin": 5, "orc": 1}],
 	"step_pause": 1.0,  # seconds between a finished step and the next card
@@ -96,7 +104,8 @@ const TUTORIAL := {
 ##   "posts":   what stands there, ready, before it starts. Each one: "kind" (a
 ##              BUILDINGS key, or "wall_tower": the village's corner tower
 ##              nearest the road's gate), "at" [lo, hi] (by the road, lo to hi
-##              road tiles before the gate) or "shore": true (by the water
+##              road tiles before the gate; where woods close in there, a
+##              little further along or a few tiles off it) or "shore": true (by the water
 ##              nearest the village), "level" (towers, barracks),
 ##              "units" [{"kind": a MILITARY key, specialisations too, "level"}]
 ##              (barracks: one per bench), "site": true (a construction site
@@ -583,7 +592,7 @@ const ZONES := {
 const ZONE_SIZE := 22.0  # typical zone diameter, tiles
 const ZONE_BLEND := 0.06  # field noise at zone borders (share of the 0..1 range)
 const DESERT_MAX_SHARE := 0.2  # steppe at most this share of the map (Desert type: its "steppe_max")
-const FOREST_CLEARING_RING := 4  # tiles around the village centre kept free (Chebyshev)
+const VILLAGE_NEAR_RING := 4  # tiles from a village centre (Chebyshev) where no woods are planted and no object goes
 const ZONE_FAIR_RADIUS := 12.0  # around every village: enough meadow and trees
 const ZONE_FAIR_MIN := {"meadow": 0.25, "trees": 0.25}
 const ZONE_FAIR_CLEAR := 8.0  # no steppe, swamp or ash this close to a village
@@ -599,7 +608,6 @@ const ZONE_FAIR_SPREAD := 0.15  # max difference in zone shares between slices
 const ZONE_FAIR_WOODS := {"zone": "oak", "grow": 1.0, "clump": 2.0, "noise": 0.15, "far": 0.6, "meadow": 1.5, "grove": 14}
 ## Villages: within this of their slice's centre, on dry flat land.
 const VILLAGE_CENTER_RADIUS := 12.0
-const VILLAGE_CLEAR_RADIUS := 5.0  # no water, mountains or volcanoes this close to the walls
 const VILLAGE_BORDER_GAP := 8.0  # tiles from the slice's border
 const VILLAGE_MAP_MARGIN := 9  # village centres stay this far from the map edge
 const VILLAGE_VOLCANO_DIST := 20.0
@@ -891,6 +899,7 @@ const BUILDING_HP := {
 	"grove": [400.0, 400.0, 400.0],
 	"church": [400.0],
 	"hut": [1.0],
+	"town_hall": [400.0, 600.0, 800.0],
 }
 ## The village's pieces were never bought: their price and build time count
 ## for repairs (and tear-down shares, should they ever be torn down).
@@ -898,6 +907,9 @@ const PIECE_PRICES := {
 	"gate": {"cost": {"materials": 40}, "build_time": 10.0},
 	"wall": {"cost": {"materials": 30}, "build_time": 10.0},
 	"wall_tower": {"cost": {"materials": 60}, "build_time": 14.0},
+	# (Its build time is the repair time from devastated: one builder makes it
+	# well inside the last stand on Hard, TOWN_HALL "last_stand".)
+	"town_hall": {"cost": {"materials": 120}, "build_time": 30.0},
 }
 ## Gate and wall levels (all start at 1): only more HP (BUILDING_HP) and a
 ## look. Like tower upgrades: building material and a builder's time.
@@ -928,7 +940,23 @@ const PIECE_MATERIALS := {
 }
 const PIECE_MATERIAL_ORDER: Array[String] = ["stone", "sandstone", "basalt", "limestone", "granite", "ice", "wood"]
 ## The pieces whose HP, costs and times the material's factor scales.
-const PIECE_MATERIAL_SCALED: Array[String] = ["wall", "gate", "wall_tower"]
+const PIECE_MATERIAL_SCALED: Array[String] = ["wall", "gate", "wall_tower", "town_hall"]
+## The town hall (docs/village-design.md §3a, §3b): one per village, 2x2, placed
+## by the map. "levels": upgrades like towers (index = level - 1). From level
+## "post_from" it holds a tower post with a watchtower's range at level
+## "post_range_level" (TOWER_RANGE.tower + that TOWER_LEVELS range_bonus).
+## "last_stand": seconds to repair it to full HP once devastated, per difficulty
+## (the one value difficulty scales besides enemy strength and loot);
+## "retry_factor": that times this for a co-op village that gets a villager
+## again while its hall is devastated.
+const TOWN_HALL := {
+	"size": 2,
+	"levels": [{}, {"cost": {"materials": 80}, "work_time": 20.0}, {"cost": {"materials": 140}, "work_time": 30.0}],
+	"post_from": 2,
+	"post_range_level": 3,
+	"last_stand": {"easy": 150.0, "normal": 110.0, "hard": 75.0},
+	"retry_factor": 1.5,
+}
 const PIECE_MATERIAL_BY_MAP_TYPE := {"volcanic": "basalt", "desert": "sandstone", "coast": "limestone", "highlands": "granite"}
 
 
@@ -962,6 +990,9 @@ const SIEGE := {
 	"rebuild_interval": 0.4,  # s: a stale field is rebuilt at most this often
 	"slip_time": 4.0,  # s an intact gate holds a rat or thief ("entry": "slip")
 	"slow_cost": 20,  # field cost of a step on shallow water or swamp (ground: 10)
+	# Inside, a raider takes the nearest intact hut with this chance, else the
+	# nearest other target (the town hall, a building inside; §5.3).
+	"raid_hut_weight": 0.5,
 }
 ## Lurkers (docs/enemies-design.md §9): kinds on foot that can't break
 ## anything ("siege" 0: necromancer, siren, spider mother, snake). At a
@@ -1088,7 +1119,12 @@ const BUILDER_REST := 3.0
 ##   enemy within "danger_radius" tiles;
 ## - by bucket: the first bucket that lists both the job ("build", "repair":
 ##   a hut rebuild too, "upgrade", "teardown"; Construction.job_type) and the
-##   building's kind ("*": any), earlier buckets first;
+##   building's kind ("*": any), earlier buckets first; a bucket marked
+##   "last_stand" only takes the town hall's repair during its last stand;
+## - any number of builders (and the hero) work one site, their progress
+##   adding up: a free job goes by the order above; one that already has
+##   builders is joined only if the time the help saves there is more than the
+##   walk to it (the last stand's bucket skips that test: everyone goes);
 ## - within a bucket, jobs already started first, then the lowest score:
 ##   tiles from the builder minus "age_tiles_per_min" per minute in the queue;
 ## - a job interrupted "demote_after" times (builders fled from it) drops one
@@ -1099,7 +1135,8 @@ const BUILDER_REST := 3.0
 ##   within "chain_radius" tiles, instead of going home to rest first.
 const BUILD_QUEUE := {
 	"buckets": [
-		{"jobs": ["repair"], "kinds": ["gate", "wall"]},
+		{"jobs": ["repair"], "kinds": ["town_hall"], "last_stand": true},  # (only during its last stand: everyone goes)
+		{"jobs": ["repair"], "kinds": ["gate", "wall", "town_hall"]},
 		{"jobs": ["repair"], "kinds": ["hut"]},
 		{"jobs": ["repair"], "kinds": ["wall_tower"]},
 		{"jobs": ["upgrade"], "kinds": ["gate", "wall"]},
@@ -1591,7 +1628,7 @@ const HERO := {
 	"explore_reveal": 1.8,  # explorers see 2.6
 	"gather_capacity": 2,  # gatherers carry 6
 	"train_rate": 10.0,  # XP per second passed on at the training grounds
-	"rest_regen": 3.0,  # HP per second while resting idle in the village centre
+	"rest_regen": 3.0,  # HP per second while resting idle at home (the village centre by the town hall; none while that is devastated)
 	"rest_delay": 3.0,  # seconds of idling there before the HP starts coming back
 	"camp_give_up": 3.0,  # seconds with none of an ordered camp's monsters she can get to: she gives the order up
 }

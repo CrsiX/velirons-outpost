@@ -211,9 +211,10 @@ Rules behind the table:
   villager's (loot is carried home); her other modes and a camp to clear
   decide from where she stands.
 - **Nothing of a running wave and no debug enemies.**
-- *(Designed, not built:)* the town hall, marketplace, items and advancements add state that
-  must survive a load, so their change bumps `SaveGame.FORMAT` once: the town hall (level, HP,
-  a running last stand and its seconds left, a failed co-op last stand), the marketplace (its
+- The town hall is a village piece (its level and HP like any building's) and each village saves
+  its last stand (seconds left, whether it is a second chance, a fallen hall, no more stands,
+  emptied since it fell), and the raids' random generator goes on from where it was; format 6. *(Designed, not built:)* the marketplace, items and advancements add state that must
+  survive a load, so their change bumps `SaveGame.FORMAT` once more: the marketplace (its
   buying stock, the goods for sale, the trader's packing progress, the relic-offer timer, the
   equipment offer), trade caravans in transit (cargo, direction, position: saves come between
   waves, but a caravan may be on the road), salvage lying on the map, the hero's slots and the

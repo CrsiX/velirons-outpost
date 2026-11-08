@@ -198,7 +198,7 @@ func _coop() -> void:
 	for v in m.villages:
 		var ring := (v["rect"] as Rect2i).grow(1)
 		for t in MapData.rect_tiles(ring):
-			if not (v["rect"] as Rect2i).has_point(t):
+			if not (v["rect"] as Rect2i).has_point(t) and c.is_land(t):  # (water and rock may come up to the walls)
 				_set_road(t)
 	var pairs: Array[Vector2i] = []
 	if n == 2:

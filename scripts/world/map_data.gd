@@ -272,7 +272,47 @@ func copy() -> MapData:
 	return MapData.from_bytes(to_bytes())
 
 
-## The pieces (walls, gates, wall towers, huts) of village `i`: [{kind, tile, flip, material}].
+## The standard village (Config.VILLAGE_LAYOUT) around `center`: [{kind, tile,
+## flip, material}], all of `material`, in row order. The town hall is one
+## piece on its anchor (top-left) tile.
+static func standard_pieces(center: Vector2i, material := "stone") -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var n := Config.VILLAGE_LAYOUT.size()
+	var o := center - Vector2i(n / 2, n / 2)
+	var hall := false
+	for row in n:
+		for col in n:
+			var kind: String = Config.VILLAGE_LAYOUT_KINDS.get(Config.VILLAGE_LAYOUT[row][col], "")
+			if kind == "" or (kind == "town_hall" and hall):
+				continue
+			hall = hall or kind == "town_hall"
+			# Walls on the left/right edges run along the grid's y axis: mirrored.
+			out.append({"kind": kind, "tile": o + Vector2i(col, row), "flip": kind != "town_hall" and (col == 0 or col == n - 1), "material": material})
+	return out
+
+
+## Side length of a village piece's square footprint (the town hall's 2, else 1).
+static func piece_size(kind: String) -> int:
+	return int(Config.TOWN_HALL["size"]) if kind == "town_hall" else 1
+
+
+## Every tile piece `p` ({kind, tile}) covers.
+static func piece_footprint(p: Dictionary) -> Array[Vector2i]:
+	return Building.footprint(p["tile"], piece_size(p["kind"]))
+
+
+## On a village's path cross (inside its walls, in line with its centre),
+## which is kept free: nothing is built there (docs/village-design.md §3.1).
+func is_village_path(t: Vector2i) -> bool:
+	for v in villages:
+		var r: Rect2i = v["rect"]
+		var c: Vector2i = v["center"]
+		if r.grow(-1).has_point(t) and (t.x == c.x or t.y == c.y):
+			return true
+	return false
+
+
+## The pieces (walls, gates, wall towers, huts, the town hall) of village `i`: [{kind, tile, flip, material}].
 func village_pieces(i: int) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for p in village_layout:
@@ -296,7 +336,8 @@ func derive() -> void:
 		var first := true
 		for p in village_pieces(i):
 			var t: Vector2i = p["tile"]
-			rect = Rect2i(t, Vector2i.ONE) if first else rect.merge(Rect2i(t, Vector2i.ONE))
+			var pr := Rect2i(t, Vector2i.ONE * MapData.piece_size(p["kind"]))
+			rect = pr if first else rect.merge(pr)
 			first = false
 			if p["kind"] == "gate":
 				vg.append(t)

@@ -347,7 +347,7 @@ func _test_downing() -> void:
 	check(sb.state == MilitaryUnit.State.STATIONED and is_equal_approx(sb.hp, sb.max_hp()), "revived on its bench with full HP")
 	# Downed while walking: revives in the reserve.
 	var ar: MilitaryUnit = game.army.reserve().filter(func(u: MilitaryUnit) -> bool: return u.kind == "archer")[0]
-	var tower: Tower = game.world.buildings.filter(func(b: Building) -> bool: return b is Tower and b.complete and b.garrison == null and b.incoming == null)[0]
+	var tower: Tower = game.world.buildings.filter(func(b: Building) -> bool: return b is Tower and b.can_garrison() and b.garrison == null and b.incoming == null)[0]
 	check(game.army.station(ar, tower), "an archer marches to a tower")
 	await frames(3)
 	(ar.walker as Soldier).take_damage(1e9)
@@ -372,10 +372,21 @@ func _test_downing() -> void:
 # --- attack effects -----------------------------------------------------------------------
 
 ## A unit of `kind` at level `lv`, stationed on a free tower; returns [unit, tower].
-func _manned(kind: String) -> Array:
+func _manned(kind: String, near_gate := false) -> Array:
 	var tower: Tower = null
+	if near_gate:  # (the wall tower nearest a gate: its road runs within reach)
+		var g: Vector2i = game.player_village.gates[0]
+		for b in game.world.buildings:
+			if b is Tower and b.kind == "wall_tower" and (tower == null or Vector2(b.tile).distance_to(Vector2(g)) < Vector2(tower.tile).distance_to(Vector2(g))):
+				tower = b
+		for u in [tower.garrison, tower.incoming]:
+			if u != null:
+				game.army.unstation(u)
+		await wait_until(func() -> bool: return tower.garrison == null and tower.incoming == null, 30.0)
 	for b in game.world.buildings:
-		if b is Tower and b.complete and b.garrison == null and b.incoming == null:
+		if tower != null:
+			break
+		if b is Tower and b.can_garrison() and b.garrison == null and b.incoming == null:
 			tower = b
 			break
 	if tower == null:
@@ -423,7 +434,7 @@ func _test_effects() -> void:
 	await clear_enemies()
 	game.army.unstation(im[0])
 	# Spatial mage: pushed back along its road, then immune for a while.
-	var sm: Array = await _manned("spatial_mage")
+	var sm: Array = await _manned("spatial_mage", true)
 	# An enemy on its own road, as close to the tower as the road comes (within range).
 	var w := spawn_dummy("goblin", _near_tower(sm[1], 2.0), 20.0)
 	var best := -1
@@ -435,12 +446,15 @@ func _test_effects() -> void:
 			best = i
 	w.path_index = best
 	w.set_grid_pos(w.path[best])
-	# (By its distance from the walls: by the gate it lays siege, and then remaining() counts that, not road steps.)
-	var walls := game.player_village.rect
-	var away0 := Hero.rect_distance(walls, w.grid_pos)
-	var pushed := await wait_until(func() -> bool: return Hero.rect_distance(walls, w.grid_pos) > away0 + 0.5, 10.0)
-	check(pushed and best_d < sm[1].act_range(), "warp orbs throw the enemy back along its road, away from the village (%.1f -> %.1f tiles from the walls)" % [away0, Hero.rect_distance(walls, w.grid_pos)])
+	# (By its distance from the village centre: by the gate it lays siege, and then remaining() counts that, not road steps.)
+	var mid := Vector2(game.player_village.center)
+	var away0 := w.grid_pos.distance_to(mid)
+	var pushed := await wait_until(func() -> bool: return w.grid_pos.distance_to(mid) > away0 + 0.5, 10.0)
+	check(pushed and best_d < sm[1].act_range(), "warp orbs throw the enemy back along its road, away from the village (%.1f -> %.1f tiles from the centre)" % [away0, w.grid_pos.distance_to(mid)])
 	check(w._push_immune > 0.0, "after a push it's immune to pushes for a while")
+	if not pushed:
+		print("    push: tower %s at %s (range %.1f), unit %s state %d, enemy at %s sieging %s inside %s dead %s, best_d %.1f" % [sm[1].label(), sm[1].tile, sm[1].act_range(),
+			sm[0].label(), sm[0].state, w.current_tile(), w.sieging, game.player_village.rect.grow(-1).has_point(w.current_tile()), w.dead, best_d])
 	await clear_enemies()
 	game.army.unstation(sm[0])
 	# Healing mage: heals units and heroes of every village, not summons.

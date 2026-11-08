@@ -216,7 +216,7 @@ func _villages() -> void:
 	ed._press(t)
 	ed._release(t)
 	var m := ed.map
-	check(m.villages.size() == 2 and m.village_pieces(1).size() == 25 and MapChecks.standard_layout(m, 1), "Village: a second one, the standard 25 pieces")
+	check(m.villages.size() == 2 and m.village_pieces(1).size() == _pieces() and MapChecks.standard_layout(m, 1), "Village: a second one, the standard pieces")
 	check(ed.selected.get("type") == "village" and int(ed.selected["index"]) == 1, "and it's selected")
 	check(m.village_pieces(1).all(func(p: Dictionary) -> bool: return p.get("material") == "basalt"), "all its pieces are of the material picked (basalt)")
 	ed._run_checks()
@@ -225,10 +225,10 @@ func _villages() -> void:
 	ed._press(t)
 	ed._release(t + Vector2i(2, 0))
 	var moved := ed.map.village_pieces(1)
-	check(ed.map.villages[1]["center"] == t + Vector2i(2, 0) and moved.size() == 25 and moved.all(func(p: Dictionary) -> bool: return Vector2(p["tile"]).distance_to(Vector2(t + Vector2i(2, 0))) < 3.0), "drag a village: it moves, pieces and all")
+	check(ed.map.villages[1]["center"] == t + Vector2i(2, 0) and moved.size() == _pieces() and moved.all(func(p: Dictionary) -> bool: return Vector2(p["tile"]).distance_to(Vector2(t + Vector2i(2, 0))) < 4.5), "drag a village: it moves, pieces and all")
 	ed.tool = "piece"
 	ed.opts["piece"] = "wall"
-	var hut_tile: Vector2i = t + Vector2i(2, 0) + Vector2i(-1, -1)
+	var hut_tile: Vector2i = t + Vector2i(2, 0) + Vector2i(1, -2)  # (a hut of Config.VILLAGE_LAYOUT)
 	ed._press(hut_tile)
 	check(MapTidy.piece_tiles(ed.map).get(hut_tile, "") == "wall" and not MapChecks.standard_layout(ed.map, 1), "Pieces: a hut becomes a wall (not the standard layout)")
 	var mat_at := func(tl: Vector2i) -> String:
@@ -241,7 +241,7 @@ func _villages() -> void:
 	ed.opts["piece"] = "material"
 	ed._press(hut_tile)
 	check(mat_at.call(hut_tile) == "wood" and ed.map.village_pieces(1).filter(func(p: Dictionary) -> bool: return p.get("material") == "wood").size() == 1, "Paint material: that piece alone becomes wood")
-	var a_hut: Vector2i = t + Vector2i(2, 0)
+	var a_hut: Vector2i = t + Vector2i(2, 0) + Vector2i(2, -2)
 	ed._press(a_hut)
 	var huts := ed.map.village_pieces(1).filter(func(p: Dictionary) -> bool: return p["kind"] == "hut")
 	check(huts.size() == 8 and huts.filter(func(p: Dictionary) -> bool: return p["material"] == "wood").size() == 1 and mat_at.call(a_hut) == "wood", "on a hut: that hut alone")
@@ -270,10 +270,10 @@ func _villages() -> void:
 	ed._press(Vector2i(5, 5))
 	check(ed.ui._status.text.begins_with("A spawn goes on a road tile"), "off the edge road: refused, with why")
 	ed.move_village_number(1, -1)
-	check((ed.map.villages[0]["home_spawns"] as Array).has(edge) and ed.map.village_pieces(0).size() == 24, "Number -1: villages 1 and 2 swap")
+	check((ed.map.villages[0]["home_spawns"] as Array).has(edge) and ed.map.village_pieces(0).size() == _pieces() - 1, "Number -1: villages 1 and 2 swap")
 	ed.select({"type": "village", "index": 0})
 	ed.delete_selected()
-	check(ed.map.villages.size() == 1 and ed.map.village_pieces(0).size() == 25 and ed.map.village_layout.size() == 25, "Delete village: one left, its pieces gone")
+	check(ed.map.villages.size() == 1 and ed.map.village_pieces(0).size() == _pieces() and ed.map.village_layout.size() == _pieces(), "Delete village: one left, its pieces gone")
 	for k in 12:  # (add, move, wall, paint, paint a hut, village material, flip, erase, two spawns, swap, delete)
 		ed.undo()
 	check(ed.map.villages.size() == 1 and (ed.map.villages[0]["home_spawns"] as Array).has(edge), "everything undone")
@@ -750,3 +750,8 @@ func _press_text(n: Node, text: String) -> bool:
 		if _press_text(c, text):
 			return true
 	return false
+
+
+## How many pieces the standard village has (the town hall is one).
+func _pieces() -> int:
+	return MapData.standard_pieces(Vector2i.ZERO).size()

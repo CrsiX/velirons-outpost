@@ -241,6 +241,8 @@ func _test_villages() -> void:
 	late.speed = 0.0
 	check(late.target_village == v2, "and its wave comes for it again")
 
+	await _test_last_stand(vs, v2)
+
 	# Lost only when every village has fallen.
 	heard.clear()
 	for v in [vs[0], vs[1]]:
@@ -253,6 +255,44 @@ func _test_villages() -> void:
 		v2.population.kill(c, "in a test")
 	await frames(2)
 	check(game.game_over, "when the last village falls, the game is lost")
+
+
+## The town hall's last stand in co-op (docs/village-design.md §3b): the others
+## hear of it; run out, the village falls with no second chance while its
+## people live; emptied and given a villager again, a longer one; failed too,
+## none until the hall is whole again.
+func _test_last_stand(vs: Array[Village], v2: Village) -> void:
+	var h := v2.town_hall()
+	var mat := v2.economy.amount("materials")
+	v2.economy.add("materials", -mat)  # (no repair can be paid: nobody saves it here)
+	h.take_damage(1e9)
+	var normal := float(Config.TOWN_HALL["last_stand"][Settings.difficulty_key()])
+	check(h.devastated and is_equal_approx(v2.last_stand_left(), normal) and not v2.fallen, "a devastated town hall: the last stand starts, the village still stands")
+	check(vs[0].events.entries.any(func(e: Dictionary) -> bool: return e["text"].begins_with("Town %s falls in" % v2.village_name) and e["level"] == EventLog.Level.IMPORTANT), "the other players hear: Town %s falls in x s" % v2.village_name)
+	v2.last_stand = 0.2
+	await wait_until(func() -> bool: return v2.fallen, 5.0)
+	await wait(0.5)
+	check(v2.fallen and v2.hall_lost and v2.last_stand_left() < 0.0 and not game.game_over, "run out: it has fallen, with no new countdown while its people live")
+	for c in v2.population.civilians.duplicate():
+		v2.population.kill(c, "in a test")
+	await frames(3)
+	v2.population.spawn("builder")
+	await frames(3)
+	var want := normal * float(Config.TOWN_HALL["retry_factor"])
+	check(absf(v2.last_stand_left() - want) < 1.0 and v2.fallen, "emptied and given a villager again: a second chance, %s x as long (%.1f of %.1f s)" % [str(Config.TOWN_HALL["retry_factor"]), v2.last_stand_left(), want])
+	v2.last_stand = 0.2
+	await wait(0.6)
+	for c in v2.population.civilians.duplicate():
+		v2.population.kill(c, "in a test")
+	await frames(3)
+	v2.population.spawn("builder")
+	await wait(0.5)
+	check(v2.fallen and v2.no_more_stands and v2.last_stand_left() < 0.0, "that one failed too: no new countdown, even with a villager again")
+	h.set_devastated(false)
+	h.hp = h.max_hp()
+	await wait_until(func() -> bool: return not v2.fallen, 3.0)
+	check(not v2.fallen and not v2.hall_lost, "its hall whole again (and a villager): it stands")
+	v2.economy.add("materials", mat)
 
 
 ## Live wave enemies (not the monsters standing by their camps).

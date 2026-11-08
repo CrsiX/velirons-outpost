@@ -14,7 +14,7 @@ const OBJECT_COLORS := {
 	"treasure": Color("f2c230"), "camp": Color("b0381f"), "unlock": Color("b777ff"), "ruin": Color("f4f0e6"),
 	"lair": Color("1b1411"), "mine": Color("ff8a1f"),
 }
-const PIECE_COLORS := {"wall": Color("6b6158"), "gate": Color("c8a46a"), "wall_tower": Color("4a423b"), "hut": Color("a0704a")}
+const PIECE_COLORS := {"wall": Color("6b6158"), "gate": Color("c8a46a"), "wall_tower": Color("4a423b"), "hut": Color("a0704a"), "town_hall": Color("c27a3a")}
 const ROAD := Color("f2e2b0")
 const MOUNTAIN := Color("8a837c")
 const WATER := Color("2f5f8f")
@@ -63,7 +63,8 @@ static func image(m: MapData) -> Image:
 	var pieces := MapTidy.piece_tiles(m)
 	for a in m.abandoned:
 		for p in a["pieces"]:
-			pieces[p["tile"]] = p["kind"]
+			for t in MapData.piece_footprint(p):
+				pieces[t] = p["kind"]
 	for y in m.size:
 		for x in m.size:
 			img.set_pixel(x, y, tile_color(m, Vector2i(x, y), pieces))

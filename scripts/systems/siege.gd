@@ -2,8 +2,11 @@ class_name Siege
 extends Node
 ## Enemies at the village (docs/siege-design.md §5). Per village a small
 ## Dijkstra field over its pieces and the band of Config.SIEGE["approach"]
-## tiles around them, towards its intact huts (never the guild warehouse:
-## only thieves go for that, ThiefBehavior). Costs are in tenths of a step:
+## tiles around them, towards its centre (the path crossing; on a village
+## without a free centre, its intact huts). Inside the walls a raider picks
+## its target itself (Enemy, `raid_target`: a hut or the town hall and other
+## buildings by a coin flip; never the guild warehouse: only thieves go for
+## that, ThiefBehavior). Costs are in tenths of a step:
 ## ground STEP, slow ground SIEGE.slow_cost, an intact gate / wall / wall
 ## tower STEP plus STEP per SIEGE.hp_per_step of its HP. So enemies take the
 ## cheapest way in: the weakest barrier, or round to a broken one. Moving is
@@ -31,6 +34,9 @@ var _inside: Dictionary = {}
 var _scan := 0.0
 ## Village ids whose pieces were hit in the current wave (one toast each).
 var _warned: Dictionary = {}
+## A raider's chance to go for a hut rather than another target (Enemy's coin
+## flip; Config.SIEGE "raid_hut_weight", which tests may set aside).
+var raid_hut_weight := float(Config.SIEGE["raid_hut_weight"])
 
 
 func setup(p_game: Game) -> void:
@@ -89,7 +95,7 @@ func in_zone(v: Village, t: Vector2i) -> bool:
 	return v != null and v.rect.grow(int(Config.SIEGE["approach"])).has_point(t)
 
 
-## Cost from `t` to the nearest intact hut (BLOCKED: no way, or outside the field).
+## Cost from `t` to the village centre (BLOCKED: no way, or outside the field).
 func value(v: Village, t: Vector2i, air: bool) -> int:
 	var f := _field(v)
 	var area: Rect2i = f["area"]
@@ -141,7 +147,7 @@ func open_way(v: Village) -> bool:
 	return bool(_field(v)["open_way"])
 
 
-## Open-field cost from `t` to the nearest intact hut (BLOCKED: no way
+## Open-field cost from `t` to the village centre (BLOCKED: no way
 ## without breaking something, or outside the field).
 func open_value(v: Village, t: Vector2i) -> int:
 	var f := _field(v)
@@ -240,7 +246,7 @@ func _build(v: Village, f: Dictionary) -> void:
 	f["at"] = game.clock
 	f["version"] = game.world.pathing.version
 	var n := area.size.x * area.size.y
-	var huts: Array[int] = []
+	var huts: Array[int] = []  # (the targets: the centre, else the intact huts)
 	var ground := PackedInt32Array()
 	var air := PackedInt32Array()
 	var open := PackedInt32Array()
@@ -257,6 +263,8 @@ func _build(v: Village, f: Dictionary) -> void:
 			if hut_at(v, t) != null:
 				huts.append(i)
 	f["enter"] = [ground, air, open]
+	if area.has_point(v.center) and ground[_idx(area, v.center)] < BLOCKED:
+		huts = [_idx(area, v.center)]
 	var open_value := _dijkstra(area, open, huts)
 	f["value"] = [_dijkstra(area, ground, huts), _dijkstra(area, air, huts), open_value]
 	f["open_way"] = _reaches_outside(v, area, open_value)

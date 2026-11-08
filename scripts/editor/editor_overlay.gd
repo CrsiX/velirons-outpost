@@ -231,7 +231,8 @@ func _draw_pointer(m: MapData) -> void:
 			var i := int(sel["index"])
 			if i < m.villages.size():
 				for p in m.village_pieces(i):
-					draw_polyline(_closed(tile_poly(p["tile"])), UiTheme.GOLD, 2.0)
+					for t in MapData.piece_footprint(p):
+						draw_polyline(_closed(tile_poly(t)), UiTheme.GOLD, 2.0)
 		"tile":
 			draw_polyline(_closed(tile_poly(sel["tile"])), UiTheme.GOLD, 3.0)
 	# A road being drawn (Path mode).

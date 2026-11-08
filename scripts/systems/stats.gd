@@ -200,7 +200,7 @@ func on_hut_burned(v: Village) -> void:
 	hw[game.waves.wave] = mini(int(hw.get(game.waves.wave, left)), left)
 
 
-## Village `v` fell (its last villager or hut lost): Closest call leaves this wave out.
+## Village `v` fell (its last villager lost, or its town hall): Closest call leaves this wave out.
 func on_village_fell(v: Village) -> void:
 	if not enabled or ended or v == null:
 		return

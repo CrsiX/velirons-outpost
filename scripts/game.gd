@@ -32,6 +32,8 @@ var is_client := false
 ## Seconds of game time since this game began (stops while paused, runs with the
 ## game speed). Timed effects (a war cry's haste) end at a clock time.
 var clock := 0.0
+## Raids' coin flips and raid_chance rolls (seeded from the map's seed).
+var raid_rng := RandomNumberGenerator.new()
 ## Co-op (host or client): keeps clients in step (see Replicator).
 var replicator: Replicator
 ## Networked game (host or client).
@@ -192,6 +194,7 @@ func _ready() -> void:
 		for i in clampi(test_villages, 1, Config.MAX_PLAYERS):
 			names.append(Config.VILLAGE_NAMES[i])
 			colors.append(Config.VILLAGE_COLORS[i])
+	raid_rng.seed = s  # (raids roll from the map's seed: bot runs repeat)
 	# Villages first (empty), so the world can hand them their buildings.
 	for i in names.size():
 		var v: Village = VILLAGE_SCRIPT.new()
@@ -242,7 +245,7 @@ func _ready() -> void:
 			village.setup_restored()
 		else:
 			village.setup()
-		village.population.civilian_lost.connect(func(_c: Civilian) -> void: _check_defeat())
+		village.population.civilian_lost.connect(func(_c: Civilian) -> void: check_defeat())
 	if loaded:
 		SaveGame.restore_entities(self, restoring)
 		stats.load_state(restoring["stats"])
@@ -329,7 +332,7 @@ func _process(delta: float) -> void:
 	if _info_timer <= 0.0:
 		_info_timer = 0.25
 		if villages.size() > 1 and not is_client:
-			_check_defeat()  # co-op: villages fall and rise again at any time
+			check_defeat()  # co-op: villages fall and rise again at any time
 		_refresh_info()
 	_through_timer -= delta / maxf(Engine.time_scale, 0.001)
 	if _through_timer <= 0.0 and (selected != null or selected_unit != null):
@@ -419,7 +422,7 @@ func select(b: Building) -> void:
 		return
 	events.debug("select %s" % b.label())
 	if b is Tower and b.complete:
-		world.overlay.show_selection(b.tiles(), Vector2(b.tile), b.range_tiles())
+		world.overlay.show_selection(b.tiles(), (b as Tower).act_center(), b.range_tiles())
 	elif b is Barracks and b.complete:
 		world.overlay.show_selection(b.tiles(), b.act_center(), b.activation_range())
 	else:
@@ -614,7 +617,7 @@ func select_unit(unit: MilitaryUnit) -> void:
 	selected_unit = unit
 	var p := unit.post
 	if p is Tower:
-		world.overlay.show_selection(p.tiles(), Vector2(p.tile), (p as Tower).range_tiles())
+		world.overlay.show_selection(p.tiles(), (p as Tower).act_center(), (p as Tower).range_tiles())
 	elif p is Barracks:
 		world.overlay.show_selection(p.tiles(), (p as Barracks).act_center(), (p as Barracks).activation_range())
 	else:
@@ -841,10 +844,10 @@ func thief_steals(g: Enemy, store: Building = null) -> int:
 	return n
 
 
-## Whether `g`, through a gate, burns a hut: always, or with its kind's
-## raid_chance (the small slimes).
+## Whether `g`, getting in, raids at all: always, or with its kind's
+## raid_chance (the small slimes). Rolled once per enemy (Enemy.raids).
 func raid_roll(g: Enemy) -> bool:
-	return randf() < float(g.spec().get("raid_chance", 1.0))
+	return raid_rng.randf() < float(g.spec().get("raid_chance", 1.0))
 
 
 func on_enemy_reached_gate(g: Enemy) -> void:
@@ -869,7 +872,9 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 	if str(g.spec().get("raid", "")) == "maul":
 		_maul(g, v)
 		return
-	if not raid_roll(g):
+	if g.raid_done:
+		return  # (it devastated the town hall: that was its raid)
+	if not (g.raids == 1 if g.raids >= 0 else raid_roll(g)):
 		v.events.debug("%s got into the village and %s" % [g.label().capitalize(), str(g.spec().get("gone", "melted away"))])
 		return
 	v.events.debug("%s broke into the village" % g.label())
@@ -885,7 +890,7 @@ func on_enemy_reached_gate(g: Enemy) -> void:
 	v.sound("raid")
 	v.toast("Enemies broke into the village!", Color("ff7a6a"))
 	v.population.changed.emit()
-	_check_defeat()
+	check_defeat()
 
 
 ## A wolf got in ("raid": "maul"; docs/enemies-design.md §10.12): it kills the
@@ -908,12 +913,12 @@ func _maul(g: Enemy, v: Village) -> void:
 	v.population.kill(hut.resident, "when %s got into their hut" % g.label(), "enemies")
 	v.sound("raid")
 	v.toast("A %s got into the village and killed a villager!" % str(g.spec()["name"]).to_lower(), Color("ff7a6a"))
-	_check_defeat()
+	check_defeat()
 
 
-## A village falls with no villagers or no intact huts; the game is lost when
-## every village has fallen.
-func _check_defeat() -> void:
+## A village falls with no villagers or when its town hall has fallen (its
+## last stand ran out); the game is lost when every village has fallen.
+func check_defeat() -> void:
 	if game_over or backdrop:
 		return
 	for v in villages:
@@ -932,7 +937,7 @@ func _check_defeat() -> void:
 	if not villages.all(func(v: Village) -> bool: return v.fallen):
 		return
 	var no_people := population.count() == 0
-	var why := "No villagers are left." if no_people else "Every hut lies in ruins."
+	var why := "No villagers are left." if no_people else "The town hall wasn't repaired in time."
 	events.important("Veliron's Outpost has fallen: %s" % why.to_lower().trim_suffix("."))
 	if scenario:
 		scenario.lose(why.trim_suffix("."))
@@ -1070,7 +1075,7 @@ func apply_speed(i: int) -> void:
 ## A building's panel; another village's buildings can be looked at, not ordered.
 func building_info(b: Building) -> Dictionary:
 	if b.has_meta("abandoned"):  # (a village of the map nobody plays)
-		var title := "Ruined Hut" if b is Hut else b.display_name()
+		var title := "Ruined Hut" if b is Hut else ("Ruined Town Hall" if b is TownHall else b.display_name())
 		return {"title": title, "lines": ["An abandoned village: nobody lives here,", "and its ruins can't be rebuilt."], "actions": [] as Array[Dictionary]}
 	var d := b.info()
 	if not (b is Hut) and not b.tearing_down:

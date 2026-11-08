@@ -186,8 +186,8 @@ func _render(m: MapData) -> void:
 		var pos := Building.anchor_world(o["tile"], o.get("size", 1))
 		objs.append([pos.y, o["art"], pos, false])
 	for piece in m.village_layout:
-		var pos := Iso.tile_to_world(piece["tile"])
 		var kind: String = piece["kind"]
+		var pos := Building.anchor_world(piece["tile"], MapData.piece_size(kind))
 		var mat: String = piece.get("material", "stone")
 		objs.append([pos.y, Config.piece_art(mat, kind), pos, piece["flip"]])
 		if kind == "wall_tower":

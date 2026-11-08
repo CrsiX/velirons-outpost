@@ -280,9 +280,10 @@ static func add_village(m: MapData, center: Vector2i, material := "stone") -> Va
 	var pieces := MapCheckFree.new(m)
 	var want := MapChecks.standard_pieces(center, material)
 	for p in want:
-		var why := pieces.why_not(p["tile"])
-		if why != "":
-			return why
+		for t in MapData.piece_footprint(p):
+			var why := pieces.why_not(t)
+			if why != "":
+				return why
 	var i := m.villages.size()
 	m.villages.append({"center": center, "home_spawns": [] as Array[Vector2i]})
 	for p in want:
@@ -298,15 +299,16 @@ static func move_village(m: MapData, i: int, center: Vector2i) -> Variant:
 		return [] as Array[Vector2i]
 	var free := MapCheckFree.new(m, i)
 	for p in m.village_pieces(i):
-		var why := free.why_not(p["tile"] + d)
-		if why != "":
-			return why
+		for t in MapData.piece_footprint(p):
+			var why := free.why_not(t + d)
+			if why != "":
+				return why
 	var out: Array[Vector2i] = []
 	for p in m.village_layout:
 		if int(p["owner"]) == i:
-			out.append(p["tile"])
+			out.append_array(MapData.piece_footprint(p))
 			p["tile"] = (p["tile"] as Vector2i) + d
-			out.append(p["tile"])
+			out.append_array(MapData.piece_footprint(p))
 	m.villages[i]["center"] = center
 	return out
 
@@ -317,7 +319,7 @@ static func delete_village(m: MapData, i: int) -> Array[Vector2i]:
 	for p in m.village_layout:
 		var o := int(p["owner"])
 		if o == i:
-			out.append(p["tile"])
+			out.append_array(MapData.piece_footprint(p))
 			continue
 		if o > i:
 			p["owner"] = o - 1
@@ -351,16 +353,17 @@ static func swap_villages(m: MapData, i: int, j: int) -> void:
 	m.village_layout.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["owner"]) < int(b["owner"]) or (int(a["owner"]) == int(b["owner"]) and MapData.row_order(a["tile"], b["tile"])))
 
 
-## A village piece on `t`: `kind` ("wall", "gate", "wall_tower", "hut"),
-## "erase", "flip" (a wall's side) or "material" (the piece there becomes
-## `material`). New pieces belong to village `owner` and are of `material`; a
-## changed one keeps its own.
+## A village piece on `t`: `kind` ("wall", "gate", "wall_tower", "hut",
+## "town_hall": 2x2, `t` its top-left, one per village), "erase", "flip" (a
+## wall's side) or "material" (the piece there becomes `material`). New pieces
+## belong to village `owner` and are of `material`; a changed one keeps its own.
 static func set_piece(m: MapData, t: Vector2i, kind: String, owner: int, material := "stone") -> Variant:
 	if not m.in_bounds(t):
 		return "Outside the map"
 	for k in m.village_layout.size():
 		var p := m.village_layout[k]
-		if p["tile"] != t:
+		var foot := MapData.piece_footprint(p)
+		if not foot.has(t):
 			continue
 		match kind:
 			"erase":
@@ -370,18 +373,25 @@ static func set_piece(m: MapData, t: Vector2i, kind: String, owner: int, materia
 			"material":
 				p["material"] = material
 			_:
+				if kind == "town_hall" or p["kind"] == "town_hall":
+					return "Erase it first: the town hall is bigger than the other pieces"
 				p["kind"] = kind
-		return [t] as Array[Vector2i]
+		return foot
 	if kind in ["erase", "flip", "material"]:
 		return "No village piece there"
 	if owner < 0 or owner >= m.villages.size():
 		return "Place or pick a village first"
-	var why := MapCheckFree.new(m).why_not(t)
-	if why != "":
-		return why
-	m.village_layout.append({"kind": kind, "tile": t, "flip": false, "owner": owner, "material": material})
+	if kind == "town_hall" and m.village_pieces(owner).any(func(p: Dictionary) -> bool: return p["kind"] == "town_hall"):
+		return "Village %d has its town hall already: erase that one first" % (owner + 1)
+	var piece := {"kind": kind, "tile": t, "flip": false, "owner": owner, "material": material}
+	var free := MapCheckFree.new(m)
+	for q in MapData.piece_footprint(piece):
+		var why := free.why_not(q)
+		if why != "":
+			return why
+	m.village_layout.append(piece)
 	m.village_layout.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["owner"]) < int(b["owner"]) or (int(a["owner"]) == int(b["owner"]) and MapData.row_order(a["tile"], b["tile"])))
-	return [t] as Array[Vector2i]
+	return MapData.piece_footprint(piece)
 
 
 ## Adds or removes a spawn on edge road tile `t` (for village `owner`, or the
@@ -561,7 +571,8 @@ class MapCheckFree:
 		m = p_m
 		for p in m.village_layout:
 			if int(p["owner"]) != skip_village:
-				pieces[p["tile"]] = true
+				for t in MapData.piece_footprint(p):
+					pieces[t] = true
 		for k in m.objects.size():
 			if k != skip_object:
 				for t in Building.footprint(m.objects[k]["tile"], int(m.objects[k].get("size", 1))):

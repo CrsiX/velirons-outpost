@@ -540,7 +540,7 @@ func _draw_rings() -> void:
 		var center := Vector2.ZERO
 		var r := 0.0
 		if b is Tower:
-			center = Vector2(b.tile)
+			center = (b as Tower).act_center()
 			r = (b as Tower).range_tiles()
 		elif b is Barracks:
 			center = (b as Barracks).act_center()

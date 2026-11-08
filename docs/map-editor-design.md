@@ -158,7 +158,7 @@ stroke (a drag counts as one).
     around a centre; move or delete a whole village; set its centre (where
     the hero and villagers gather).
   - *Pieces:* add, remove or change single pieces (wall, gate, wall tower,
-    hut) of a village, and flip a wall. A village may have any layout; a
+    hut, town hall: 2×2, one per village) of a village, and flip a wall. A village may have any layout; a
     layout that isn't the standard one is a warning, not an error (§5.4),
     because scenarios need ruined or odd villages.
   - *Materials* (docs/siege-design.md §2a): the Village and Pieces tools
@@ -239,21 +239,23 @@ Errors (block Play and the lobby), the things the game can't run without:
   mine whose `front` is a road tile linked to the network; a camp's
   treasure exists; nothing on a crater's neighbours;
 - village count within the size's slots.
-- *(designed, not built)* every village has exactly one **town hall**
-  (docs/village-design.md §3a). A map without one is **refused for play**
-  with a clear message. The editor still saves it, as it saves any
-  half-finished map, and its checks list the missing hall. The hall is a core
-  part of every village, placed by the generator or by hand here, never added
-  by the game when a file loads. The editor places and moves it like other village
-  pieces; the player in a game never can. Ownerless villages have it as a
-  ruin (§8.2). It needs a map format version bump (§6), and the built-in maps
-  in `data/maps` are reworked by hand for it.
+- every village has exactly one **town hall** (docs/village-design.md §3a). A
+  map without one is **refused for play** with a clear message. The editor
+  still saves it, as it saves any half-finished map, and its checks list the
+  missing hall. The hall is a core part of every village, placed by the
+  generator or by hand here, never added by the game when a file loads. The
+  editor places it with the Pieces tool (2×2, the tile clicked its top-left;
+  a second one for the same village is refused, erase the first) and moves
+  it with its village; the player in a game never can. Ownerless villages
+  have it as a ruin (§8.2). Map format 6 added it (§6). The built-in maps in
+  `data/maps` are still to be reworked by hand for it: until then they are
+  refused for play.
 
 Warnings (never block), the things that may be deliberate:
 - a village with fewer than the generator's minimum of approaches (a single
   approach may be a deliberate feature);
-- a village whose layout isn't the standard one; *(designed, not built: the standard one becomes
-  the 7×7 block with the town hall, docs/village-design.md §3.1)*
+- a village whose layout isn't the standard one (the 7×7 block with the town hall,
+  docs/village-design.md §3.1, `MapData.standard_pieces`);
 - in co-op: a village with no road to another village;
 - `GenChecks`' zone fairness between slices; a slice without treasures; an
   unlock kind missing (it could never be unlocked); no camp in a slice; a far
@@ -399,8 +401,7 @@ keeps a half-finished map openable.
 A village of the map that no player plays is **ownerless**:
 - it is built (walls, gates, wall towers) but every hut is a ruin, and its
   ruins can't be rebuilt;
-- *(designed, not built)* its town hall is a ruin too, and no last stand runs
-  for it;
+- its town hall is a ruin too, and no last stand runs for it;
 - it has no owner: no villagers, hero, economy, army or fog of its own, no
   name label, nothing in the statistics;
 - its spawns send nothing, and no wave share or co-op extra is counted for it;

@@ -6,9 +6,9 @@ extends Node
 ## client with only what that player may know:
 ##   - entities: their own always; others' units, enemies and corpses only
 ##     where their village has surveillance; others' buildings once explored,
-##     with live state only while watched (or public: the huts of the inner
-##     3x3, which everybody sees),
-##   - their village: economy, army, and everyone's standing / fallen,
+##     with live state only while watched (or public: the huts and the town
+##     hall inside the walls, which everybody sees),
+##   - their village: economy, army, its last stand, and everyone's standing / fallen,
 ##   - the wave, the game speed, game over,
 ##   - their log lines, toasts and sounds (their own village's, and the few
 ##     everyone hears: Game.sound_all), floating texts and arrows they can see,
@@ -160,7 +160,7 @@ func _process(delta: float) -> void:
 	var all: Array = []  # [nid, type, spawn, state, tile, owner vid, public]
 	for b in game.world.buildings:
 		if b.nid > 0 and is_instance_valid(b):
-			all.append([b.nid, "b", _building_spawn(b), _building_state(b), b.tile, b.village.id if b.village else -1, b is Hut])
+			all.append([b.nid, "b", _building_spawn(b), _building_state(b), b.tile, b.village.id if b.village else -1, b is Hut or b is TownHall])
 	for n in get_tree().get_nodes_in_group("replicated"):
 		if n is Building or not is_instance_valid(n) or n.is_queued_for_deletion():
 			continue
@@ -264,6 +264,7 @@ func _village_data(v: Village) -> Dictionary:
 		"rel": v.relics.duplicate(),
 		"eco": [v.economy.amount("gold"), v.economy.amount("food"), v.economy.amount("materials")],
 		"starve": [v.population.starving, snappedf(v.population.starve_timer, 0.1)],
+		"stand": [snappedf(v.last_stand, 0.1), v.stand_unpaid, v.hall_lost],
 		"army": army,
 		"fallen": game.villages.map(func(o: Village) -> bool: return o.fallen),
 		"wave": [w.wave, snappedf(w.countdown, 0.1), w.in_progress(), w.enemies_left(), w.can_call()],
@@ -449,6 +450,10 @@ func _apply_village(vd: Dictionary) -> void:
 	var starve: Array = vd["starve"]
 	v.population.starving = starve[0]
 	v.population.starve_timer = starve[1]
+	var stand: Array = vd.get("stand", [-1.0, false, false])
+	v.last_stand = stand[0]
+	v.stand_unpaid = stand[1]
+	v.hall_lost = stand[2]
 	# Army: keep our MilitaryUnit objects, keyed by id.
 	var keep := {}
 	for a in vd["army"]:

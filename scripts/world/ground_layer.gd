@@ -165,6 +165,8 @@ func _tile_arts(t: Vector2i) -> PackedStringArray:
 	var road := ""
 	if v == MapData.Terrain.ROAD and not map.crossings.has(t):
 		road = "tile_road_pass" if _mountains_beside(t) >= 2 and not zone.has("peaks") else "tile_road"
+	elif map.is_village_path(t):
+		road = "tile_village_path"  # (the path cross inside the walls: grass underneath, kept free)
 	return PackedStringArray([base, sand, road])
 
 

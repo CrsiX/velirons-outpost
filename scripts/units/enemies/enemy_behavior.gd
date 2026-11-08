@@ -112,6 +112,6 @@ static func _fighter_near(enemy: Enemy, r: float) -> bool:
 	for b in enemy.game.world.towers():
 		var t := b as Tower
 		if t and t.garrison != null and t.garrison.state == MilitaryUnit.State.STATIONED and t.garrison.fights() \
-				and Vector2(t.tile).distance_to(enemy.grid_pos) <= t.range_tiles():
+				and t.act_center().distance_to(enemy.grid_pos) <= t.range_tiles():
 			return true
 	return false

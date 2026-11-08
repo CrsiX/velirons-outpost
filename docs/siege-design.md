@@ -1,6 +1,6 @@
 # Veliron's Outpost: building HP and sieges (design)
 
-Status: **built; describes the current code**. Tested by tests/siege_bot.gd.
+Status: **built; describes the current code** (one future enemy noted in §5.6). Tested by tests/siege_bot.gd.
 Scope: why buildings have HP, devastation, repairs, gate and wall levels, and how enemies
 break into a village. Every number lives in `scripts/core/config.gd` (`BUILDING_HP`,
 `PIECE_PRICES`, `PIECE_LEVELS`, `REPAIR_SHARE`, `REPAIR_TIME_SHARE`, `SIEGE`, each enemy's
@@ -15,7 +15,7 @@ docs/village-design.md, enemies in docs/enemies-design.md.
   material economy instead of only to huts and lives.
 - **At 0 HP a building is devastated:** a ruin that does nothing until repaired.
 - **Enemies break in.** Walls and gates hold them back; an intact gate is no longer the end
-  of an enemy's road. Once inside, an enemy burns the nearest intact hut, as before.
+  of an enemy's road. Once inside, an enemy burns a hut or goes for the town hall (§5.3).
 - **Flyers** ignore walls; rats and thieves slip through a gate after a short hold, so a
   wall is never an answer to them.
 - **Gates and walls** upgrade like towers, so the player can decide where the village is
@@ -144,8 +144,10 @@ Each enemy kind has an `"entry"`:
 ### 5.2 The siege field
 
 `Siege` (one per village, rebuilt on demand) is a 4-connected Dijkstra field over the village
-and a band (`SIEGE.approach`) round its pieces, towards its intact huts. The guild warehouse
-is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
+and a band (`SIEGE.approach`) round its pieces, towards the **village centre** (the path
+crossing, docs/village-design.md §3.1; a village without a free centre, from an odd map file:
+towards its intact huts). Inside the walls the enemy picks its own target (§5.3). The guild
+warehouse is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
 
 - **Costs:** open ground is cheap; a ruined hut, or a devastated or unfinished piece, counts as
   ground; an intact gate, wall or wall tower costs a detour proportional to its HP
@@ -186,17 +188,16 @@ is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
   walking to the nearest tile of the field first (`Siege.field_entry`). If it can't go on at all
   it leaves, logged at Important with the full state at Debug (`Enemy._log_unbroken_entry`);
   it never burns a hut it didn't reach.
-- **Inside:** it walks to the nearest intact hut, burns it and is gone (small slimes roll
-  their `raid_chance` first).
-- *(Designed, not built:)* with the 7×7 village the field heads for the **village centre** (the
-  path crossing, docs/village-design.md §3.1). Inside, an enemy whose raid is "burn" picks its
-  target by a **coin flip**, which spreads a breach over several targets at once:
+- **Inside** (`Enemy._raid_tick`, on its first tile inside the walls), an enemy whose raid is
+  "burn" picks its target by a **coin flip**, which spreads a breach over several targets at once:
   - **Targets:** huts, the town hall, and buildings standing inside the walls (watchtower, light
-    stone, camp). Never wall pieces from the inside.
-  - **The roll:** whenever it needs a target it takes the **nearest intact hut** and the
-    **nearest other target** and flips between them (the weight is a `Config` value, starting
-    even). With only one kind left there is no roll. It keeps its target until that is burnt or
-    devastated.
+    stone, camp). Never wall pieces from the inside. Only kinds that can hurt buildings (`siege` >
+    0) go for anything but huts.
+  - **The roll** (`Enemy._pick_raid_target`): whenever it needs a target it takes the **nearest
+    intact hut** and the **nearest other target** and flips between them (`SIEGE.raid_hut_weight`,
+    starting even). With only one kind left there is no roll. It keeps its target until that is
+    burnt or devastated; with nothing left it waits inside for the defenders. A building it
+    walks up to and hits from a tile beside it, like a wall.
   - **Burning a hut** ends its raid: it is gone, as now (whoever lives there dies). **The enemy
     whose blow devastates the town hall** is gone too, and the last stand starts
     (docs/village-design.md §3b). **Devastating any other building** is no raid: it rolls again
@@ -206,20 +207,19 @@ is never a target (only thieves go for it, docs/scenarios-4-6-design.md).
     on getting in (a small slime that fails melts away at once; a spiderling never raids). Only
     a raider flips the coin, each time it needs a target; `raid_chance` is never rolled again.
   - **Not for the special raiders:** rats (food), thieves (gold, trade caravans), wolves and
-    snakes (one villager in a hut) and ghosts (their one villager) keep their own rules.
-  - **Randomness:** today `Game.raid_roll` uses the global `randf()`. Only the host rolls, so
-    co-op is fine; for reproducible bot runs the coin and `raid_roll` should share one seeded
-    source.
+    snakes (one villager in a hut: they get in at once and maul) and ghosts (their one villager)
+    keep their own rules.
+  - **Randomness:** the coin and `Game.raid_roll` share one source seeded from the map's seed
+    (`Game.raid_rng`), so bot runs repeat. Only the host rolls, so co-op is fine.
   - **Balance:** breaches burn fewer huts than today, as part of a group spends itself on big HP
     pools; the balance sweep after the layout change checks it.
 - **While any enemy is inside** (`Siege.breached(village)`), villagers walking in there are
   exposed; at home they stay safe. A breach is therefore a real escalation, not just a
   cosmetic one. A faded ghost inside doesn't count, a solid one does
   (docs/enemies-design.md §10.13): what can't be seen can't be run from.
-- **Remaining distance** (`Enemy.remaining()`, what archers use to find the enemy closest to
-  the gate): for a sieging enemy, whole tiles to the village's walls. *(Designed, not built:)*
-  it becomes the distance to the village centre, so an enemy inside comes before one at a gate
-  (docs/military-design.md).
+- **Remaining distance** (`Enemy.remaining()`, what units use to find the most dangerous enemy):
+  the distance to the village centre (for one still on its road, the road to the gate plus the
+  way in), so an enemy inside comes before one at a gate (docs/military-design.md §6a).
 - **Spatial magic** throws a sieging enemy back up the field, away from the huts.
 - **Co-op:** each village has its own field; an enemy whose village falls turns to another
   and leaves its siege.
@@ -238,16 +238,20 @@ same way, but no enemy goes for them yet (thieves and the guild warehouse aside)
 octopus: an arm with nobody in reach smashes a building within reach. This is the hook for
 scenario tactics later.
 
-### 5.6 The town hall *(designed, not built)*
+### 5.6 The town hall
 
-- **HP and defence:** a `BUILDING_HP` entry per level (proposed `"town_hall"`), stone defence,
-  following the village's piece material like the walls (§2a, docs/village-design.md §3a).
+- **HP and defence:** a `BUILDING_HP` entry per level (`"town_hall"`), stone defence, following
+  the village's piece material like the walls (§2a, `PIECE_MATERIAL_SCALED`, docs/village-design.md
+  §3a). Its repair price and time are in `PIECE_PRICES` (it was never bought). Like a hut it never
+  blocks its tiles: villagers go in and out, and the corner tower behind it can always be
+  reached across it, even with trees right outside the walls.
 - **A raid target:** an enemy inside picks it by the coin flip (§5.3) as "the nearest other
   target" and hits it like a wall; the enemy whose blow devastates it is gone, as after
   burning a hut.
 - **At 0 HP** it is devastated like any building, and the village's last stand starts
   (docs/village-design.md §3b): the repair has to bring it back to full HP before the
-  countdown ends.
+  countdown ends. An ownerless village's hall is a ruin with no last stand
+  (docs/map-editor-design.md §8.2).
 - **A future siege enemy** (a kind marked by dealing *more* damage to buildings) must avoid
   the town hall as a target, so it can't wreck it in a few blows and turn the last stand into
   an instant loss.

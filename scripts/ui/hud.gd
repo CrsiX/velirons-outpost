@@ -179,6 +179,9 @@ var _no_builder_for := 0.0
 ## "Food shortage" banner (under the builder's): a countdown over the last
 ## Config.STARVATION_WARNING s before a villager starves, with a tip how to fix it.
 var _food_warning: Label
+## "Last stand" banner (above the other two): the countdown while the town
+## hall must be repaired (docs/village-design.md §3b).
+var _stand_warning: Label
 
 var _sidebar: PanelContainer  # the dock: right sidebar or bottom sheet
 var _sidebar_toggle: Button
@@ -286,6 +289,15 @@ func setup(p_game: Game) -> void:
 	_build_toasts()
 	_build_builder_warning()
 	_build_food_warning()
+	_stand_warning = _label("", 18, UiTheme.BAD)
+	_stand_warning.name = "StandWarning"
+	_stand_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_stand_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_stand_warning.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_stand_warning)
+	_stand_warning.anchor_left = 0.0
+	_stand_warning.anchor_right = 1.0
+	_stand_warning.visible = false
 	_build_trade_dialog()
 	_build_send_dialog()
 	await game.build_step()
@@ -1731,13 +1743,13 @@ func _relayout() -> void:
 		p.offset_top = _top_h + 6.0
 		p.offset_left = 10.0 if _portrait else 330.0
 	_toasts.offset_top = _top_h + 70.0
-	_builder_warning.offset_top = _top_h + 34.0
 	_builder_warning.offset_left = 20.0
 	# (the open sidebar is left free, unless the tactical map covers it)
 	var side := not _portrait and _side_open and not (tactical_map and tactical_map.visible)
 	_builder_warning.offset_right = -(SIDEBAR_W + 20.0) if side else -20.0
-	_food_warning.offset_left = 20.0
-	_food_warning.offset_right = _builder_warning.offset_right
+	for wl in [_food_warning, _stand_warning]:
+		wl.offset_left = 20.0
+		wl.offset_right = _builder_warning.offset_right
 	_place_food_warning()
 	_toasts.offset_right = -SIDEBAR_W if side else 0.0
 	_mode_panel.offset_top = _top_h + 10.0
@@ -2319,11 +2331,14 @@ func _build_food_warning() -> void:
 	_food_warning.visible = false
 
 
-## Right under the builder's warning when that shows, else in its place.
+## The warnings stacked under the top bar, those shown one under the other:
+## the last stand, the builder's, the food shortage.
 func _place_food_warning() -> void:
-	_food_warning.offset_top = _builder_warning.offset_top
-	if _builder_warning.visible:
-		_food_warning.offset_top += _builder_warning.get_combined_minimum_size().y + 4.0
+	var y := _top_h + 34.0
+	for wl: Label in [_stand_warning, _builder_warning, _food_warning]:
+		wl.offset_top = y
+		if wl.visible:
+			y += wl.get_combined_minimum_size().y + 4.0
 
 
 ## Out of food, and a villager starves within Config.STARVATION_WARNING s?
@@ -2355,7 +2370,19 @@ func _refresh_food_warning() -> void:
 	_food_warning.visible = food_warning_due()
 	if _food_warning.visible:
 		_food_warning.text = food_warning_text()
-		_place_food_warning()
+	_stand_warning.visible = game.player_village.last_stand_left() >= 0.0
+	if _stand_warning.visible:
+		_stand_warning.text = stand_warning_text()
+	_place_food_warning()
+
+
+## The last stand's countdown, and what to do when the repair can't be paid.
+func stand_warning_text() -> String:
+	var v := game.player_village
+	var t := "Last stand: repair the town hall within %d s, or the village falls." % maxi(ceili(v.last_stand_left()), 1)
+	if v.stand_unpaid:
+		t += " Not enough building material for the repair: buy some (tap the material counter)."
+	return t
 
 
 func toast(text: String, color: Color = UiTheme.TEXT) -> void:

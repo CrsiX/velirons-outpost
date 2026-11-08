@@ -331,9 +331,12 @@ func _job_idle() -> bool:
 	return job.state == 0
 
 
-## Idle in the village centre: after a short while the HP slowly comes back.
+## Idle in the village centre: after a short while the HP slowly comes back
+## (she rests in the town hall: none while it is devastated).
 func _regen(delta: float) -> void:
 	var idle := at_home and not evading and not is_instance_valid(target) and grid_pos.distance_to(Vector2(home())) < 0.2
+	if idle and home() == base().center and is_instance_valid(base().town_hall()) and base().town_hall().devastated:
+		idle = false
 	_idle_time = _idle_time + delta if idle else 0.0
 	if _idle_time < Config.HERO["rest_delay"] or hp >= max_hp:
 		return

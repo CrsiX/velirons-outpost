@@ -59,7 +59,7 @@ func find_spot(kind: String, near: Vector2i) -> Vector2i:
 	for y in game.map.size:
 		for x in game.map.size:
 			var t := Vector2i(x, y)
-			if game.construction.placement_error(kind, t) == "":
+			if game.construction.placement_error(kind, t) == "" and not game.map.in_village(t):  # (outside: the free tiles inside are tested on their own)
 				cands.append([Vector2(t).distance_to(Vector2(near)), t])
 	cands.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
 	for c in cands:

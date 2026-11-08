@@ -1,7 +1,9 @@
 class_name BuildJob
 extends CivilianJob
 ## Rest -> claim the next construction site -> walk there -> build -> walk home.
-## `efficiency` scales the work speed (the hero builds more slowly).
+## `efficiency` scales the work speed (the hero builds more slowly). Several
+## builders may work one site; whoever's work finishes it completes it, and
+## the others go straight on to the next job near by.
 
 enum State { RESTING, TO_SITE, BUILDING, RETURNING }
 
@@ -26,14 +28,14 @@ func tick(delta: float) -> void:
 				state = State.TO_SITE
 		State.TO_SITE:
 			if not _site_valid():
-				_go_home()
+				_next_or_home()
 				return
 			if w.step_path(delta):
 				state = State.BUILDING
 				w._set_moving(false)
 		State.BUILDING:
 			if not _site_valid():
-				_go_home()
+				_next_or_home()
 				return
 			w._bob += delta * 14.0
 			w.sprite.rotation = sin(w._bob) * 0.15
@@ -43,13 +45,7 @@ func tick(delta: float) -> void:
 				w.on_action("build_second")
 			if site.add_progress(delta * efficiency):
 				w.village.construction.complete(site)
-				site = null
-				w.sprite.rotation = 0.0
-				# A job close by: straight on to it, no rest at home first.
-				if _take_next(Config.BUILD_QUEUE["chain_radius"]):
-					state = State.TO_SITE
-				else:
-					_go_home()
+				_next_or_home()
 		State.RETURNING:
 			if w.step_path(delta):
 				w.arrive_home()
@@ -63,18 +59,29 @@ func tick(delta: float) -> void:
 func _take_next(max_dist := INF) -> bool:
 	var c := w.village.construction
 	for _i in c.queue.size():
-		var s := c.claim(w, max_dist)
+		var s := c.claim(w, max_dist, efficiency)
 		if s == null:
 			return false
 		if w.head_out(s.work_tile()):
 			site = s
 			return true
-		c.release(s, true)
+		c.release(s, w, true)
 	return false
 
 
 func _site_valid() -> bool:
-	return is_instance_valid(site) and site.has_work() and site.builder == w
+	return is_instance_valid(site) and site.has_work() and site.crew.has(w.get_instance_id())
+
+
+## Done (or the job was finished by others): a job close by, straight on to
+## it with no rest at home first; else home.
+func _next_or_home() -> void:
+	site = null
+	w.sprite.rotation = 0.0
+	if _take_next(Config.BUILD_QUEUE["chain_radius"]):
+		state = State.TO_SITE
+	else:
+		_go_home()
 
 
 func _go_home() -> void:
@@ -103,14 +110,14 @@ func resume() -> void:
 func on_evade() -> void:
 	# The site keeps its progress; any builder can pick it up again later.
 	# Fled from too often, it drops a bucket (Construction.release).
-	if is_instance_valid(site) and site.builder == w:
-		w.village.construction.release(site, false, true)
+	if is_instance_valid(site) and site.crew.has(w.get_instance_id()):
+		w.village.construction.release(site, w, false, true)
 	release()
 	state = State.RESTING
 
 
 func release() -> void:
-	if is_instance_valid(site) and site.builder == w:
-		w.village.construction.release(site, false)
+	if is_instance_valid(site) and site.crew.has(w.get_instance_id()):
+		w.village.construction.release(site, w, false)
 	site = null
 	w.sprite.rotation = 0.0

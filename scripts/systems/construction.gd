@@ -53,7 +53,11 @@ func placement_error(kind: String, tile: Vector2i, free: bool = false) -> String
 		if not free and not game.fog.is_explored_by(village.id, t):
 			return "Unexplored land"
 		if map.in_village(t) and not (game.scenario and game.scenario.spec.build_inside) and not (free and spec.get("inside", false)):
-			return "Must be outside the village walls"
+			# Inside, only a 1x1 building on a free tile (docs/village-design.md §3.1).
+			if int(spec["size"]) != 1 or kind == "hut" or free:
+				return "Must be outside the village walls"
+			if map.is_village_path(t):
+				return "Keep the village's paths free"
 		if map.building_at(t) != null:
 			return "Something is already built here"
 		if game.scenario and game.scenario.kept_free.has(t):
@@ -179,27 +183,52 @@ func rebuild_all_huts() -> int:
 ## The best job for `builder` (Config.BUILD_QUEUE), claimed for it; or null.
 ## Only jobs within `max_dist` tiles of it (a builder going straight on from
 ## one job to the next). Only a builder (or the hero) picking a new job asks,
-## also after fleeing; work under way is never taken away.
-func claim(builder: Node, max_dist := INF) -> Building:
+## also after fleeing; work under way is never taken away. `work_speed`: how
+## fast it builds (the hero: slower). A job others already work on is joined
+## only if that pays (worth_joining), except the last stand's: everyone goes.
+func claim(builder: Node, max_dist := INF, work_speed := 1.0) -> Building:
 	var from: Vector2 = Vector2(village.center) if builder.at_home else builder.grid_pos
+	var me := builder.get_instance_id()
 	var best: Building = null
 	var best_key := []
 	for site in queue:
-		if site.builder != null or site.get_meta("unreachable_until", -INF) > game.clock:
+		for k in site.crew.keys():
+			if not is_instance_id_valid(k):
+				site.crew.erase(k)  # (a builder gone without giving it back)
+		if site.crew.has(me) or site.get_meta("unreachable_until", -INF) > game.clock:
 			continue
 		var d := Vector2(site.tile).distance_to(from)
 		if d > max_dist or in_danger(site) or not game.world.pathing.can_reach(village.center, site.work_tile()):
 			continue
-		var key := [bucket(site), 0 if site.work_fraction() > 0.0 else 1,
+		var b := bucket(site)
+		if site.has_builder() and not last_stand_job(site) and not worth_joining(site, d / maxf(float(builder.speed), 0.1), work_speed):
+			continue
+		var key := [b, 0 if site.work_fraction() > 0.0 else 1,
 			d - (game.clock - site.queued_at) / 60.0 * float(Config.BUILD_QUEUE["age_tiles_per_min"])]
 		if best == null or key < best_key:
 			best = site
 			best_key = key
 	if best != null:
-		best.builder = builder
-		village.events.debug("%s starts work on %s" % [builder.label(), best.label()])
+		best.crew[me] = work_speed
+		village.events.debug("%s %s work on %s" % [builder.label(), "joins" if best.crew.size() > 1 else "starts", best.label()])
 		changed.emit()
 	return best
+
+
+## Does joining `site`'s builders save more time than the `walk` (seconds)
+## there takes? What they leave undone by the time it arrives is shared from
+## then on (docs/village-design.md §5 Builder).
+static func worth_joining(site: Building, walk: float, work_speed: float) -> bool:
+	var rate := maxf(site.crew_speed(), 0.01)
+	var left := site.work_left() - rate * walk
+	if left <= 0.0:
+		return false
+	return left / rate - left / (rate + work_speed) > walk
+
+
+## The town hall's repair during its last stand (the top bucket).
+func last_stand_job(site: Building) -> bool:
+	return site is TownHall and site.repairing and village.last_stand_left() >= 0.0
 
 
 ## A job's bucket (Config.BUILD_QUEUE "buckets"; lower goes first), one lower
@@ -208,12 +237,15 @@ func bucket(site: Building) -> int:
 	var buckets: Array = Config.BUILD_QUEUE["buckets"]
 	var job := job_type(site)
 	var i := buckets.size() - 1
+	var stand := last_stand_job(site)
 	for j in buckets.size():
 		var b: Dictionary = buckets[j]
+		if b.get("last_stand", false) and not stand:
+			continue
 		if (job in b["jobs"] or "*" in b["jobs"]) and (site.kind in b["kinds"] or "*" in b["kinds"]):
 			i = j
 			break
-	if site.interrupts >= int(Config.BUILD_QUEUE["demote_after"]):
+	if site.interrupts >= int(Config.BUILD_QUEUE["demote_after"]) and not stand:
 		i = mini(i + 1, buckets.size() - 1)
 	return i
 
@@ -247,10 +279,10 @@ func in_danger(site: Building) -> bool:
 	return false
 
 
-## The builder gives the job back: `unreachable` (it can't get there: skipped
+## `builder` gives the job back: `unreachable` (it can't get there: skipped
 ## for a while), `interrupted` (it fled: counts towards demotion).
-func release(site: Building, unreachable: bool, interrupted := false) -> void:
-	site.builder = null
+func release(site: Building, builder: Node, unreachable: bool, interrupted := false) -> void:
+	site.crew.erase(builder.get_instance_id())
 	if unreachable:
 		site.set_meta("unreachable_until", game.clock + float(Config.BUILD_QUEUE["unreachable_retry"]))
 	if interrupted:
@@ -323,7 +355,7 @@ func on_devastated(b: Building, source: Node) -> void:
 		var back := b.cancel_refund()
 		queue.erase(b)
 		village.economy.refund(back, "upgrades")
-		b.builder = null
+		b.crew.clear()
 		b.cancel_upgrade()
 	b.set_devastated(true)
 	village.army.eject(b)
@@ -336,6 +368,10 @@ func on_devastated(b: Building, source: Node) -> void:
 	var by := game.who(source) if source != null else "enemies"
 	village.events.important("%s devastated by %s" % [b.label().capitalize(), by])
 	village.toast("%s devastated!" % b.display_name(), Color("ff9a6a"))
+	if b is TownHall:
+		village.on_hall_devastated()
+	if source is Enemy:
+		(source as Enemy).on_devastated_target(b)  # (a raider's target: it goes on, or is gone)
 	if village.is_local() and game.selected == b:
 		game.select(b)  # (its panel changes)
 	changed.emit()
@@ -369,7 +405,7 @@ func stop_tear_down(b: Building) -> void:
 		return
 	village.events.debug("stop tearing down %s" % b.label())
 	queue.erase(b)
-	b.builder = null
+	b.crew.clear()
 	b.set_tearing_down(false)
 	if b is Workplace:
 		village.population.assign_worker(b, true)
@@ -390,7 +426,7 @@ func _torn_down(b: Building) -> void:
 
 func complete(site: Building) -> void:
 	queue.erase(site)
-	site.builder = null
+	site.crew.clear()
 	if site.complete and site.tearing_down:
 		_torn_down(site)
 		return
@@ -502,6 +538,8 @@ func _trees_near(t: Vector2i, r: int) -> int:
 ## upgrade give back what is left of what they cost: all of it while no builder
 ## has worked on it, nothing once it is nearly done (Building.refund_share).
 func cancel(site: Building) -> void:
+	if last_stand_job(site):
+		return  # (the last stand's repair: it would be ordered again at once)
 	if site.tearing_down:
 		stop_tear_down(site)
 		return
@@ -509,7 +547,7 @@ func cancel(site: Building) -> void:
 		var repair_back := site.cancel_refund()  # (before cancel_repair clears the progress)
 		queue.erase(site)
 		village.economy.refund(repair_back, "repairs")
-		site.builder = null
+		site.crew.clear()
 		site.cancel_repair()
 		village.events.info("Repair of %s called off: %s" % [site.label(), _back_text(repair_back)])
 		changed.emit()
@@ -518,7 +556,7 @@ func cancel(site: Building) -> void:
 		var upgrade_back := site.cancel_refund()  # (before cancel_upgrade clears the progress)
 		queue.erase(site)
 		village.economy.refund(upgrade_back, "upgrades")
-		site.builder = null
+		site.crew.clear()
 		site.cancel_upgrade()
 		village.events.info("Upgrade of %s called off: %s" % [site.label(), _back_text(upgrade_back)])
 		changed.emit()
@@ -526,7 +564,7 @@ func cancel(site: Building) -> void:
 	if site.complete:
 		return
 	queue.erase(site)
-	site.builder = null  # (a cancelled hut stays on the map: it must be claimable again)
+	site.crew.clear()  # (a cancelled hut stays on the map: it must be claimable again)
 	var back := site.cancel_refund()
 	village.economy.refund(back, "buildings")
 	village.events.info("%s cancelled: %s" % [site.label().capitalize(), _back_text(back)])

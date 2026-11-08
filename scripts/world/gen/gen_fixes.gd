@@ -43,7 +43,7 @@ static func _fair_land(c: GenContext, v: Dictionary) -> void:
 	var need_trees := int(ceil(Config.ZONE_FAIR_MIN["trees"] * land.size()))
 	var trees := land.filter(func(t: Vector2i) -> bool: return m.is_forest(t)).size()
 	if trees < need_trees:
-		var ring := Config.FOREST_CLEARING_RING + 1
+		var ring := Config.VILLAGE_NEAR_RING + 1
 		var open := land.filter(func(t: Vector2i) -> bool: return not m.is_forest(t) and not m.is_road(t) and maxi(absi(t.x - centre.x), absi(t.y - centre.y)) > ring and not _next_to_road(m, t))
 		_grow_woods(c, centre, open, need_trees - trees, float(Config.ZONE_FAIR_WOODS["far"]))
 
@@ -108,7 +108,7 @@ static func _camp_trees(c: GenContext, v: Dictionary) -> void:
 	for dy in range(-9, 10):
 		for dx in range(-9, 10):
 			var t := centre + Vector2i(dx, dy)
-			if maxi(absi(dx), absi(dy)) <= Config.FOREST_CLEARING_RING or not c.is_land(t) or m.is_forest(t):
+			if maxi(absi(dx), absi(dy)) <= Config.VILLAGE_NEAR_RING or not c.is_land(t) or m.is_forest(t):
 				continue
 			var n := 0
 			for ny in range(-5, 6):

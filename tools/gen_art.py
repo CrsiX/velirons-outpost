@@ -9372,6 +9372,344 @@ def riders():
     mounted("unit_legion_king", "unit_legion_king_mounted", "#c4c8d2", GOLD, coat=("#d8d4cc", "#b4b0a8", "#e8e4dc"), leg="#a4a8b2")
 
 
+# ------------------------------------------------------------ the town hall
+
+# Per material (Config.PIECE_MATERIALS): wall faces (top, lit left, shaded right),
+# joints, roof (lit front slope, shaded hip, ridge/eave trim), window light,
+# door, accent (banners, trim).
+HALL_PALETTES = {
+    "stone": {"t": STONE_T, "l": STONE_L, "r": STONE_R, "j": STONE_D, "roof": "#3e4c58", "roof_r": "#2e3a44", "trim": WOOD_D,
+              "glow": GLOW, "door": "#3b2a1d", "accent": CRIMSON, "accent_d": CRIMSON_D, "metal": GOLD},
+    "sandstone": {"t": SAND_T, "l": SAND_L, "r": SAND_R, "j": SAND_D, "roof": "#b5603f", "roof_r": "#8e4630", "trim": "#6e4a2a",
+                  "glow": GLOW, "door": DOOR_BLUE_D, "accent": TILE_BLUE, "accent_d": TILE_BLUE_D, "metal": BRASS},
+    "basalt": {"t": BAS_T, "l": BAS_L, "r": BAS_R, "j": BAS_D, "roof": "#2a2630", "roof_r": "#1d1a22", "trim": "#121016",
+               "glow": LAVA_GLOW, "door": "#141218", "accent": "#a8361e", "accent_d": "#701f12", "metal": LAVA},
+    "limestone": {"t": LIME_T, "l": LIME_L, "r": LIME_R, "j": LIME_J, "roof": SHINGLE, "roof_r": SHINGLE_D, "trim": PLANK_D,
+                  "glow": GLOW, "door": "#2c4a5a", "accent": "#2f6a7a", "accent_d": "#1f4a56", "metal": LICHEN},
+    "granite": {"t": GRAN_T, "l": GRAN_L, "r": GRAN_R, "j": GRAN_D, "roof": SLATE_L, "roof_r": SLATE_R, "trim": "#2a2522",
+                "glow": GLOW, "door": "#3b2a1d", "accent": TARTAN, "accent_d": "#1f3d27", "metal": GOLD},
+    "ice": {"t": ICE_T, "l": ICE_L, "r": ICE_R, "j": ICE_D, "roof": SNOW_L, "roof_r": SNOW_R, "trim": FROST,
+            "glow": COLD_FIRE, "door": ICE_DEEP, "accent": FROST, "accent_d": "#1f4466", "metal": "#dff4ff"},
+    "wood": {"t": LOG_L, "l": LOG, "r": LOG_D, "j": "#2e1f12", "roof": HIDE, "roof_r": HIDE_D, "trim": "#2e1f12",
+             "glow": GLOW, "door": "#22180f", "accent": CRIMSON, "accent_d": CRIMSON_D, "metal": GOLD},
+}
+HALL_BODY = (-0.86, 0.7, -0.8, 0.5)  # x0, x1, y0, y1 of the main block (grid, from the 2x2's middle)
+HALL_H = 52  # its wall height
+HALL_RIDGE = 108  # the hip roof's ridge
+HALL_DECK = {2: 176, 3: 188}  # the tower post's platform height by level: well clear of the ridge
+HALL_TOWER_BACK = 0.12  # the tower stands this far back (both grid axes) from the 2x2's middle: drawn centred, a little behind
+
+
+def _hall_face(face, at, u0, u1, z0, z1):
+    """A rectangle on a visible face: 'left' (gy = at, u along gx) or 'right' (gx = at, u along gy)."""
+    if face == "left":
+        return [P(u0, at, z0), P(u1, at, z0), P(u1, at, z1), P(u0, at, z1)]
+    return [P(at, u0, z0), P(at, u1, z0), P(at, u1, z1), P(at, u0, z1)]
+
+
+def _hall_courses(a, pal, face, at, u0, u1, z0, z1, wood=False, step=11):
+    """Brick courses (or log seams) across a face, joints staggered."""
+    def pt(u, z):
+        return P(u, at, z) if face == "left" else P(at, u, z)
+    z = z0 + step
+    row = 0
+    while z < z1 - 3:
+        a.line([pt(u0, z), pt(u1, z)], pal["j"], 1.0 if not wood else 1.4, opacity=0.8)
+        row += 1
+        z += step
+    if wood:
+        return
+    z = z0
+    row = 0
+    while z < z1 - 3:
+        u = u0 + (0.11 if row % 2 else 0.2)
+        while u < u1 - 0.05:
+            a.line([pt(u, z), pt(u, min(z + step, z1))], pal["j"], 0.9, opacity=0.7)
+            u += 0.22
+        z += step
+        row += 1
+
+
+def _hall_window(a, pal, face, at, u, z, w=0.07, h=13, arch=True):
+    """A lit window with a sill, a mullion and (arch) a rounded head."""
+    def pt(uu, zz):
+        return P(uu, at, zz) if face == "left" else P(at, uu, zz)
+    pts = [pt(u - w, z), pt(u + w, z), pt(u + w, z + h)]
+    if arch:
+        for k in range(1, 6):
+            ang = math.pi * k / 6
+            pts.append(pt(u + w * math.cos(ang), z + h + 4 * math.sin(ang)))
+    pts.append(pt(u - w, z + h))
+    a.poly(pts, pal["glow"], INK, 1.2)
+    a.line([pt(u, z), pt(u, z + h + (3 if arch else 0))], pal["trim"], 1.3)
+    a.line([pt(u - w, z + h * 0.5), pt(u + w, z + h * 0.5)], pal["trim"], 1.0)
+    a.line([pt(u - w - 0.02, z - 1), pt(u + w + 0.02, z - 1)], pal["j"], 2.2)  # sill
+
+
+def _hall_roof_z(gy, y0, y1, ym, h, ridge):
+    """Height of the hip roof's long slopes at grid row gy."""
+    half = (y1 - y0) / 2
+    return ridge - (ridge - h) * abs(gy - ym) / half
+
+
+def town_hall(material, level=1, front=False):
+    """The town hall (docs/village-design.md §3a): a long hall of the village's
+    material with a hip roof, arched lit windows, a gabled porch with a large
+    front door on its left face. Level 2 adds a square tower through the roof
+    with a platform (the tower post; `front`: its front merlons, drawn over the
+    unit), level 3 banners, gilding and a brazier."""
+    pal = HALL_PALETTES[material]
+    wood = material == "wood"
+    a = Art()
+    x0, x1, y0, y1 = HALL_BODY
+    h, ridge = HALL_H, HALL_RIDGE
+    ym = (y0 + y1) / 2
+    d = 0.42  # the hips' run: the ridge runs from x0 + d to x1 - d
+    deck = HALL_DECK.get(level, 0)
+    ts = 0.27  # the tower's half width
+    if front:
+        a._track(_hall_extent())
+        if level >= 2:
+            _hall_merlons(a, pal, ts + 0.03, deck, True, level)
+        return a
+    s = 0.98
+    a.shadow(110, 52, cy=8)
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], "#5a4a36", INK, 1.0, opacity=0.6)  # the yard's trodden ground
+    # Footing and walls.
+    a.box(x0 - 0.04, x1 + 0.04, y0 - 0.04, y1 + 0.04, 0, 7, pal["t"], pal["j"], pal["j"])
+    a.box(x0, x1, y0, y1, 7, h, pal["t"], pal["l"], pal["r"])
+    _hall_courses(a, pal, "left", y1, x0, x1, 7, h, wood)
+    _hall_courses(a, pal, "right", x1, y0, y1, 7, h, wood)
+    a.poly(_hall_face("left", y1, x0, x1, 7, h), "none")
+    a.poly(_hall_face("right", x1, y0, y1, 7, h), "none")
+    # Windows: two rows on the long face (the porch in the middle), two on the end.
+    for u in (-0.56, -0.36, 0.3, 0.46):
+        _hall_window(a, pal, "left", y1, u, 15)
+    for u in (-0.55, -0.15, 0.25):
+        _hall_window(a, pal, "right", x1, u, 15)
+    for u in (-0.55, -0.15, 0.25):  # an upper row, smaller
+        _hall_window(a, pal, "right", x1, u, 36, w=0.05, h=8, arch=False)
+    for u in (-0.56, -0.36, 0.3, 0.46):
+        _hall_window(a, pal, "left", y1, u, 36, w=0.05, h=8, arch=False)
+    # Corner quoins (stone) or posts (wood) and a string course under the eaves.
+    for (face, at, u) in [("left", y1, x0), ("left", y1, x1), ("right", x1, y0)]:
+        for z in range(7, h - 4, 9):
+            a.poly(_hall_face(face, at, u - 0.035, u + 0.035, z, z + 5), pal["t"] if not wood else pal["j"], INK, 0.8)
+    a.line([P(x0, y1, h - 2), P(x1, y1, h - 2), P(x1, y0, h - 2)], pal["trim"], 3)
+    # The roof: back slope (hidden), then the tower through it, then the front slope and right hip.
+    ey = 0.08
+    ra, rb = x0 + d, x1 - d
+    eave = h - (ridge - h) * ey / ((y1 - y0) / 2)
+    if level >= 2:
+        _hall_tower(a, pal, ts, eave, deck, level)
+    front_slope = [P(ra, ym, ridge), P(rb, ym, ridge), P(x1 + ey, y1 + ey, eave), P(x0 - ey, y1 + ey, eave)]
+    hip = [P(rb, ym, ridge), P(x1 + ey, y0 - ey, eave), P(x1 + ey, y1 + ey, eave)]
+    a.poly(front_slope, pal["roof"])
+    a.poly(hip, pal["roof_r"])
+    for t in (0.25, 0.5, 0.75):  # shingle / slate courses
+        za = ridge - (ridge - eave) * t
+        ya = ym + (y1 + ey - ym) * t
+        xa = ra + (x0 - ey - ra) * t
+        xb = rb + (x1 + ey - rb) * t
+        a.line([P(xa, ya, za), P(xb, ya, za)], pal["roof_r"], 1.3)
+        a.line([P(xb, ym + (y0 - ey - ym) * t, za), P(xb, ya, za)], INK, 1.0, opacity=0.35)
+    if material == "ice":  # snow drifts along the eaves
+        a.line([P(x0 - ey, y1 + ey, eave + 2), P(x1 + ey, y1 + ey, eave + 2), P(x1 + ey, y0 - ey, eave + 2)], SNOW, 4)
+    a.line([P(ra, ym, ridge), P(rb, ym, ridge)], pal["trim"], 3)  # ridge
+    a.line([P(rb, ym, ridge), P(x1 + ey, y1 + ey, eave)], pal["trim"], 2.2)  # hip edge
+    a.line([P(x0 - ey, y1 + ey, eave), P(x1 + ey, y1 + ey, eave), P(x1 + ey, y0 - ey, eave)], INK, 1.6)
+    if level < 2:  # a chimney at the back
+        a.box(0.38, 0.5, -0.5, -0.38, ridge - 26, ridge + 8, pal["t"], pal["l"], pal["r"])
+    # The porch: a gabled bay on the long face, its ridge across the hall, the big door in it.
+    _hall_porch(a, pal, wood, level, h)
+    if level >= 3:  # banners at the corners of the long face
+        for u in (-0.76, 0.62):
+            hanging_banner(a, ("left", y1), u - 0.07, u + 0.07, h - 6, h - 30, pal["accent"], pal["metal"])
+    elif level == 2:
+        hanging_banner(a, ("right", x1), 0.02, 0.16, h - 6, h - 28, pal["accent"], pal["metal"])
+    return a
+
+
+def _hall_extent():
+    """Every town hall picture of a material shares one canvas (the level-3 tower's)."""
+    s = 0.98
+    return [P(-s, -s, 0), P(s, -s, 0), P(s, s, 0), P(-s, s, 0), P(-0.3, -0.3, HALL_DECK[3] + 70), P(0.3, 0.3, HALL_DECK[3] + 70),
+            (-112, 34), (112, 34)]
+
+
+def _hall_porch(a, pal, wood, level, h):
+    _, _, _, y1 = HALL_BODY
+    px0, px1, py1 = -0.2, 0.2, y1 + 0.3
+    ph, pr = h - 4, h + 22
+    a.box(px0, px1, y1 - 0.1, py1, 0, ph, pal["t"], pal["l"], pal["r"])
+    _hall_courses(a, pal, "left", py1, px0, px1, 0, ph, wood)
+    _hall_courses(a, pal, "right", px1, y1, py1, 0, ph, wood)
+    a.poly(_hall_face("left", py1, px0, px1, 0, ph), "none")
+    # the gable over it, facing out (ridge along gy)
+    pm = (px0 + px1) / 2
+    gable = [P(px0 - 0.03, py1, ph), P(pm, py1, pr), P(px1 + 0.03, py1, ph)]
+    a.poly(gable, pal["l"])
+    a.poly([P(px1 + 0.04, py1 + 0.04, ph - 1), P(pm, py1 + 0.04, pr + 1), P(pm, y1 - 0.12, pr + 1), P(px1 + 0.04, y1 - 0.12, ph - 1)], pal["roof_r"])
+    a.line([P(px0 - 0.04, py1 + 0.04, ph - 1), P(pm, py1 + 0.04, pr + 1), P(px1 + 0.04, py1 + 0.04, ph - 1)], pal["trim"], 3)
+    x, y = P(pm, py1, ph + 9)  # a crest in the gable
+    a.ellipse(x, y, 5, 5, pal["accent"], INK, 1.1)
+    a.ellipse(x, y, 2, 2, pal["metal"])
+    # the large front door: double leaves under a round arch, iron bands
+    dw, dh = 0.13, 26
+    pts = [P(pm - dw, py1, 0), P(pm + dw, py1, 0), P(pm + dw, py1, dh)]
+    for k in range(1, 8):
+        ang = math.pi * k / 8
+        pts.append(P(pm + dw * math.cos(ang), py1, dh + 6 * math.sin(ang)))
+    pts.append(P(pm - dw, py1, dh))
+    a.poly(pts, pal["door"], INK, 1.4)
+    a.line([P(pm, py1, 0), P(pm, py1, dh + 6)], INK, 1.2)
+    for z in (7, 19):
+        a.line([P(pm - dw, py1, z), P(pm + dw, py1, z)], IRON, 1.6)
+    for u in (pm - 0.03, pm + 0.03):
+        x, y = P(u, py1, 13)
+        a.ellipse(x, y, 1.3, 1.3, pal["metal"])
+    # steps
+    a.box(pm - dw - 0.05, pm + dw + 0.05, py1, py1 + 0.08, 0, 3, pal["t"], pal["j"], pal["j"])
+    if level >= 3:  # gilded arch
+        a.line(pts[2:-1], pal["metal"], 1.6)
+
+
+def _hall_tower(a, pal, ts, z0, deck, level):
+    """The tower post rising from the roof to a platform at `deck`. It stands
+    HALL_TOWER_BACK tiles back along the view axis from the 2x2's middle, so it
+    is drawn centred but a little in the background; the game's post is the
+    middle itself (TownHall.act_center)."""
+    c = -HALL_TOWER_BACK
+    lo, hi = c - ts, c + ts
+    a.box(lo, hi, lo, hi, z0, deck, pal["t"], pal["l"], pal["r"])
+    _hall_courses(a, pal, "left", hi, lo, hi, z0, deck)
+    _hall_courses(a, pal, "right", hi, lo, hi, z0, deck)
+    a.poly(_hall_face("left", hi, lo, hi, z0, deck), "none")
+    a.poly(_hall_face("right", hi, lo, hi, z0, deck), "none")
+    x, y = P(hi, c, deck - 22)  # an arrow slit on the side
+    a.poly([(x - 1.6, y), (x + 1.6, y), (x + 1.6, y - 13), (x - 1.6, y - 13)], "#1a1612")
+    # The hall's clock on its front: what tells this tower from the walls' towers.
+    cx, cy = P(c, hi, deck - (50 if level >= 3 else 30))  # (below the level-3 banners, above the roof)
+    a.ellipse(cx, cy, 9, 10, pal["metal"], INK, 1.3)
+    a.ellipse(cx, cy, 6.5, 7.5, "#efe6cf", INK, 0.9)
+    for k in range(12):
+        ang = math.pi * 2 * k / 12
+        a.line([(cx + math.cos(ang) * 5.2, cy + math.sin(ang) * 6.0), (cx + math.cos(ang) * 6.2, cy + math.sin(ang) * 7.1)], INK, 0.8)
+    a.line([(cx, cy), (cx, cy - 5.2)], INK, 1.3)
+    a.line([(cx, cy), (cx + 3.4, cy + 1.6)], INK, 1.3)
+    a.box(lo - 0.04, hi + 0.04, lo - 0.04, hi + 0.04, deck, deck + 4, pal["t"], pal["l"], pal["r"])
+    _hall_merlons(a, pal, ts + 0.03, deck, False, level)
+    # a pole with the village's pennon at the back
+    bx, by = P(lo + 0.06, lo + 0.06, deck + 4)
+    a.line([(bx, by), (bx, by - 44)], INK, 3)
+    a.poly([(bx, by - 44), (bx + 20, by - 40), (bx + 14, by - 35), (bx + 20, by - 30), (bx, by - 28)], pal["accent"])
+    if level >= 3:
+        hanging_banner(a, ("left", hi), c - 0.12, c + 0.08, deck - 4, deck - 32, pal["accent"], pal["metal"])
+        hanging_banner(a, ("right", hi), -c - 0.1, -c + 0.1, deck - 4, deck - 32, pal["accent"], pal["metal"])
+        a.line([P(lo - 0.04, hi + 0.04, deck + 4), P(hi + 0.04, hi + 0.04, deck + 4), P(hi + 0.04, lo - 0.04, deck + 4)], pal["metal"], 2)
+        bx, by = P(c + 0.14, c - 0.14, deck + 4)
+        a.ellipse(bx, by - 14, 16, 12, pal["glow"], opacity=0.35)
+        a.poly([(bx - 6, by - 6), (bx + 6, by - 6), (bx + 4, by), (bx - 4, by)], IRON, INK, 1)
+        a.poly([(bx - 4, by - 6), (bx, by - 18), (bx + 4, by - 6)], pal["glow"], "#b8401e", 1)
+
+
+def _hall_merlons(a, pal, s, z, front, level):
+    k = 0.12
+    c = -HALL_TOWER_BACK
+    spots_back = [(-s, -s), (-k / 2, -s), (s - k, -s), (-s, -k / 2)]
+    spots_front = [(-s, s - k), (-k / 2, s - k), (s - k, s - k), (s - k, -k / 2), (s - k, -s)]
+    for gx, gy in (spots_front if front else spots_back):
+        gx, gy = gx + c, gy + c
+        a.box(gx, gx + k, gy, gy + k, z + 4, z + 13, pal["t"], pal["l"], pal["r"])
+        if front and level >= 3:
+            a.line([P(gx, gy + k, z + 13), P(gx + k, gy + k, z + 13), P(gx + k, gy, z + 13)], pal["metal"], 1.4)
+
+
+def town_hall_ruin(material):
+    """A devastated town hall: the walls broken down to jagged stubs, the roof
+    fallen in (charred beams, rubble), the porch's arch still standing."""
+    pal = HALL_PALETTES[material]
+    rng = random.Random(5200 + len(material))
+    a = Art()
+    x0, x1, y0, y1 = HALL_BODY
+    s = 0.98
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], "#2d2a26", INK, 1.0, opacity=0.55)
+    a.box(x0 - 0.04, x1 + 0.04, y0 - 0.04, y1 + 0.04, 0, 6, pal["t"], pal["j"], pal["j"])
+    # the back walls, broken
+    for (u0, u1, hh) in [(x0, -0.4, 30), (-0.4, 0.1, 14), (0.1, x1, 24)]:
+        a.box(u0, u1, y0, y0 + 0.1, 6, hh, pal["t"], pal["l"], pal["r"])
+    for (u0, u1, hh) in [(y0 + 0.1, -0.2, 26), (-0.2, y1, 10)]:
+        a.box(x0, x0 + 0.1, u0, u1, 6, hh, pal["t"], pal["l"], pal["r"])
+    # charred beams fallen across the floor
+    for (ga, gb, za, zb) in [((-0.7, -0.6), (0.3, 0.2), 28, 6), ((-0.2, -0.7), (0.5, 0.3), 22, 8), ((-0.6, 0.2), (0.2, -0.4), 8, 18)]:
+        p0, p1 = P(ga[0], ga[1], za), P(gb[0], gb[1], zb)
+        a.line([p0, p1], INK, 6)
+        a.line([p0, p1], "#2a1e15", 4)
+        a.ellipse(p1[0], p1[1], 2.6, 1.8, "#c04a1e", opacity=0.8)
+    for _ in range(18):
+        gx, gy = rng.uniform(x0 + 0.1, x1 - 0.1), rng.uniform(y0 + 0.1, y1)
+        x, y = P(gx, gy, 6)
+        w = rng.uniform(3, 7)
+        a.poly([(x - w, y), (x - w * 0.4, y - w * 0.7), (x + w * 0.6, y - w * 0.6), (x + w, y)], rng.choice([pal["t"], pal["l"], pal["r"]]), INK, 1)
+    # the front walls, low stubs, and the porch arch still standing
+    for (u0, u1, hh) in [(x0, -0.5, 18), (-0.5, -0.22, 8), (0.22, 0.45, 12), (0.45, x1, 6)]:
+        a.box(u0, u1, y1 - 0.1, y1, 6, hh, pal["t"], pal["l"], pal["r"])
+    a.box(x1 - 0.1, x1, y0 + 0.1, -0.1, 6, 20, pal["t"], pal["l"], pal["r"])
+    a.box(x1 - 0.1, x1, -0.1, y1 - 0.1, 6, 9, pal["t"], pal["l"], pal["r"])
+    py1 = y1 + 0.3
+    for u in (-0.2, 0.13):
+        a.box(u, u + 0.07, y1, py1, 0, 30, pal["t"], pal["l"], pal["r"])
+    a.poly([P(-0.2, py1, 30), P(0.2, py1, 30), P(0.2, py1, 36), P(-0.2, py1, 36)], pal["l"], INK, 1.2)
+    for _ in range(3):
+        x, y = P(rng.uniform(-0.5, 0.4), rng.uniform(-0.5, 0.2), 30)
+        a.ellipse(x, y - 10, 7, 10, "#8a8580", opacity=0.25)  # smoke
+    return a
+
+
+def town_halls():
+    """Every material's town hall, its three levels on one canvas (so the
+    picture doesn't jump on an upgrade), the tower post's front merlons, and
+    the ruin."""
+    for mat in HALL_PALETTES:
+        prefix = Config_piece_prefix(mat)
+        for lvl in (1, 2, 3):
+            name = prefix + ("town_hall" if lvl == 1 else "town_hall_%d" % lvl)
+            th = town_hall(mat, lvl)
+            th._track(_hall_extent())
+            extra = {"roof": HALL_RIDGE if lvl == 1 else HALL_DECK[lvl] + 30}
+            if lvl >= 2:
+                # (the unit stands on the deck, which is HALL_TOWER_BACK back: that much higher on screen)
+                extra["platform"] = HALL_DECK[lvl] + 6 + 2 * HALL_TOWER_BACK * TH
+            th.save(name, extra=extra)
+            if lvl >= 2:
+                fr = town_hall(mat, lvl, front=True)
+                fr.pts = th.pts[:]
+                fr.save(prefix + "town_hall_front_%d" % lvl)
+        ru = town_hall_ruin(mat)
+        ru._track(_hall_extent())
+        ru.save(prefix + "town_hall_ruin")
+
+
+def Config_piece_prefix(mat):
+    """Config.PIECE_MATERIALS[mat]["art"]: stone has no prefix."""
+    return "" if mat == "stone" else {"basalt": "basalt_", "sandstone": "sandstone_", "limestone": "limestone_",
+                                       "granite": "granite_", "ice": "ice_", "wood": "wood_"}[mat]
+
+
+def tile_village_path():
+    """The path cross inside the village's walls: trodden earth with flagstones."""
+    rng = random.Random(61)
+    a = Art()
+    a.poly(diamond(1.12), DIRT, stroke=None, opacity=0.4)
+    a.poly(diamond(1.0), DIRT_LIGHT, stroke=None)
+    for _ in range(9):
+        x, y = rand_in_diamond(rng, 0.7)
+        w, hh = rng.uniform(8, 13), rng.uniform(4, 6)
+        a.poly([(x - w, y), (x - w * 0.3, y - hh), (x + w * 0.8, y - hh * 0.8), (x + w, y + 1), (x + w * 0.2, y + hh * 0.7), (x - w * 0.7, y + hh * 0.6)],
+               rng.choice(["#8d877c", "#7f796f", "#958f83"]), "#4b4438", 1.0)
+    a.save("tile_village_path", pad=0, fixed=(-72, -36, 72, 36))
+
+
 def main():
     os.makedirs(ART, exist_ok=True)
     os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
@@ -9416,6 +9754,8 @@ def main():
         wf.pts = w.pts[:]
         wf.save("watchtower_front" + suffix)
     village_pieces_materials()
+    town_halls()
+    tile_village_path()
     site()
     farm_field("field")
     farm_field("site")

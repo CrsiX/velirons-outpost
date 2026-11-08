@@ -354,14 +354,27 @@ func _wall_tower() -> Tower:
 	var gate := road_tile(0)
 	var best: Tower = null
 	for b in game.player_village.buildings():
-		if b is Tower and game.map.in_village(b.tile) and (best == null or Vector2(b.tile).distance_to(Vector2(gate)) < Vector2(best.tile).distance_to(Vector2(gate))):
+		if b is Tower and b.kind == "wall_tower" and (best == null or Vector2(b.tile).distance_to(Vector2(gate)) < Vector2(best.tile).distance_to(Vector2(gate))):
 			best = b
 	return best
 
 
 ## A free spot for `kind` right by the road, `lo` to `hi` road tiles before
-## the gate (nearest the middle of that stretch), clear of `taken`.
+## the gate (nearest the middle of that stretch), clear of `taken`; where the
+## woods close in there, a little further along the road.
 func _by_road(kind: String, lo: int, hi: int, taken: Array[Vector2i]) -> Vector2i:
+	var spot := _by_road_in(kind, lo, hi, taken)
+	var widen := 0
+	while spot.x < 0 and widen < 3:
+		widen += 1
+		spot = _by_road_in(kind, maxi(0, lo - 2 * widen), hi + 2 * widen, taken)
+	if spot.x < 0:
+		spot = _by_road_in(kind, lo, hi + 6, taken, 3)  # (a few tiles off it, then)
+	return spot
+
+
+## `off`: how far off the road it may stand (0: touching it).
+func _by_road_in(kind: String, lo: int, hi: int, taken: Array[Vector2i], off := 0) -> Vector2i:
 	var size: int = Config.BUILDINGS[kind]["size"]
 	var best := Vector2i(-1, -1)
 	var best_score := INF
@@ -370,10 +383,10 @@ func _by_road(kind: String, lo: int, hi: int, taken: Array[Vector2i]) -> Vector2
 		var before_gate := n - 1 - i
 		if before_gate < lo or before_gate > hi:
 			continue
-		for dy in range(-size, size + 1):
-			for dx in range(-size, size + 1):
+		for dy in range(-size - off, size + off + 1):
+			for dx in range(-size - off, size + off + 1):
 				var t := route[i] + Vector2i(dx, dy)
-				if not _fits(kind, t, taken) or not _touches_road(t, size):
+				if not _fits(kind, t, taken) or (off == 0 and not _touches_road(t, size)):
 					continue
 				var score := absf(before_gate - (lo + hi) / 2.0) + 0.1 * Vector2(t).distance_to(Vector2(game.player_village.center))
 				if score < best_score:

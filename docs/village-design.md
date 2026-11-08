@@ -1,7 +1,8 @@
 # Veliron's Outpost: the village (design)
 
 Status: **built; describes the current code**. Tested by tests/sim_bot.gd (also fleeing), tests/rat_bot.gd
-(villager HP, tear-down), tests/hud_bot.gd (the warnings, the villager list) and tests/build_bot.gd (placing).
+(villager HP, tear-down), tests/hud_bot.gd (the warnings, the villager list), tests/build_bot.gd (placing)
+and tests/siege_bot.gd (the town hall, the last stand, several builders on a site).
 Scope: one player's village: resources, huts and villagers, the town hall, the buildings outside
 the walls, the warnings and the villager list. Sections marked *(designed, not built)* describe
 agreed design the code doesn't have yet; the rest describes the code. Every number lives in `scripts/core/config.gd` (the tables
@@ -14,13 +15,12 @@ docs/world-design.md. Co-op transfers are in docs/multiplayer-design.md.
 - **Three resources:** gold, food and building material. Food feeds and recruits villagers,
   material builds, gold buys soldiers (and material, at a poor rate, so gold never becomes
   a way around the foresters).
-- **The village:** a small walled block of huts. One villager per intact hut, so the huts cap
-  the population, and burning a hut is a real loss. *(Designed, not built:)* a 7×7 block with a
-  town hall, the village's heart (§3a).
+- **The village:** a walled 7×7 block of huts round a path cross, with a town hall, the village's
+  heart (§3.1, §3a). One villager per intact hut, so the huts cap the population, and burning a hut
+  is a real loss.
 - **Villagers** work on their own. The player decides *where* buildings go, not who does what
   minute to minute. Farmers and foresters take free workplaces by themselves.
-- **Defeat:** a village falls with no villagers or no intact huts. *(Designed, not built:)* it
-  falls with no villagers, or when its town hall's last stand runs out (§3b).
+- **Defeat:** a village falls with no villagers, or when its town hall's last stand runs out (§3b).
 
 ## 2. Resources
 
@@ -110,9 +110,9 @@ farms and defended farms.
 
 ## 3. Village, huts, raids and defeat
 
-- **Layout** (`VILLAGE_LAYOUT`): a 5×5 block, walls round it, a gate in the middle of each
-  side, a wall tower at each corner, huts inside. Walls, gates and wall towers come in several
-  materials (docs/siege-design.md §2a).
+- **Layout** (`VILLAGE_LAYOUT`, §3.1): a 7×7 block, walls round it, a gate in the middle of each
+  side, a wall tower at each corner, huts and the town hall inside. Walls, gates, wall towers and
+  the hall come in several materials (docs/siege-design.md §2a).
   - Wall towers take units like watchtowers, with their own range (`TOWER_RANGE.wall_tower`).
   - Walls, gates and wall towers have HP and hold enemies back until broken; gates and walls
     level up for more HP (docs/siege-design.md).
@@ -123,10 +123,11 @@ farms and defended farms.
   stay safe, so the cap on losses is the hut, not the household.
 - **Huts:** every villager lives in exactly one intact hut (`Hut.resident`). Recruiting needs a
   free hut, so `Population.cap()` is the number of intact huts.
-- **Raids:** an enemy that breaks in walks to the nearest intact hut and burns it
-  (`Game.on_enemy_reached_gate`, docs/siege-design.md §5), on every difficulty. Only that hut's
-  resident dies; an empty hut costs no life. Exceptions belong to the enemies (rats eat food,
-  thieves steal gold, small slimes burn only sometimes, a vampire bat does nothing).
+- **Raids:** an enemy that breaks in goes for the nearest intact hut or the nearest other target
+  (the town hall, a building inside) by a coin flip (docs/siege-design.md §5.3), on every
+  difficulty. A hut it reaches burns (`Game.on_enemy_reached_gate`): only that hut's resident
+  dies; an empty hut costs no life. Exceptions belong to the enemies (rats eat food, thieves
+  steal gold, small slimes burn only sometimes, a vampire bat does nothing).
 - **Rebuilding:** a ruined hut can be rebuilt on its lot for a share of its price
   (`REPAIR_SHARE`, `Hut.rebuild_cost`, `Construction.order_rebuild`), all or nothing. Builders
   take hut rebuilds before nearly any other job (§5): a hut is the population cap, and every
@@ -134,15 +135,14 @@ farms and defended farms.
   refunds the unbuilt share.
   - The villager list has **Rebuild all huts (n)**: it queues as many ruined huts as the
     material pays for, nearest the centre first, and says how many are left over.
-- **Defeat:** a village falls when it has no villagers or no intact huts
-  (`Village.is_standing`). In single player that ends the game. In co-op a fallen village can
-  stand again and the game is lost when all have fallen (docs/multiplayer-design.md).
-  *(Designed, not built:)* the hut condition goes; the town hall takes over its job of "the
-  village still exists" (§3b).
+- **Defeat:** a village falls when it has no villagers or its town hall has fallen
+  (`Village.is_standing`, §3b). Burning every hut no longer ends it: the town hall took over the
+  job of "the village still exists". In single player a fall ends the game. In co-op a fallen
+  village can stand again and the game is lost when all have fallen (docs/multiplayer-design.md).
 
-### 3.1 The 7×7 layout *(designed, not built)*
+### 3.1 The 7×7 layout
 
-The village grows to a 7×7 block (`VILLAGE_LAYOUT`, `VILLAGE_ORIGIN`):
+The village is a 7×7 block (`VILLAGE_LAYOUT`, `VILLAGE_HALF`, `MapData.standard_pieces`):
 
 ```
 TWWGWWT
@@ -156,55 +156,70 @@ TWWGWWT
 
 T wall tower, W wall, G gate, P path, H hut, X town hall, blank a free tile.
 
-- **Nine huts**, as many as the 5×5 has, so the population cap doesn't change with the layout.
+- **Nine huts**, as many as the earlier 5×5 village had, so the population cap stayed the same.
 - **The path cross** joins the four gates. Its middle tile is the **village centre**: where
-  enemies head for (their pathing goal), what "nearest" means in the default targeting
-  (docs/military-design.md), and the hero's idle post. It is a road tile, never a building, so
-  the centre and the town hall are two different things on purpose: one is where things go, the
-  other is a building that can fall.
+  enemies head for (the siege field's goal), what "nearest" means in the default targeting
+  (`Enemy.remaining`, docs/military-design.md), and the hero's idle post. It is never a building,
+  so the centre and the town hall are two different things on purpose: one is where things go,
+  the other is a building that can fall. The path tiles are grass underneath, drawn as a
+  flagstone path, and nothing is built on them (`MapData.is_village_path`).
 - **The town hall** takes the back quadrant (grid top-left, the top of the screen), so a building
   taller than a hut hides nothing behind it.
 - **Three free tiles** are grass. Any 1×1 building the player can order goes there (watchtower,
-  light stone, worker camp), never a hut: huts are only ever rebuilt, not built new (§7). A camp
-  inside is allowed though seldom wise: its forester walks out to the nearest tree.
+  light stone, worker camp; `Construction.placement_error`), never a hut: huts are only ever
+  rebuilt, not built new (§7). A camp inside is allowed though seldom wise: its forester walks
+  out to the nearest tree. The free starting buildings always go outside.
 - **The ring doubles** (16 walls instead of 8). Wall prices stay as they are until a balance
   sweep says otherwise: a guessed discount is less reliable than a measured one.
 - Inside the walls, an enemy that broke in flips a coin between the nearest hut and the nearest
   other target (the town hall or a building inside), so a breach spreads over several targets
   (docs/siege-design.md §5.3).
 
-## 3a. The town hall *(designed, not built)*
+## 3a. The town hall
 
-Every village has exactly one, placed by the map generator or the map editor (docs/world-design.md,
-docs/map-editor-design.md). The player can't build, tear down or move it: it is the village, not
-something in it. It gathers the jobs that had no building:
+Every village has exactly one (`TownHall`, a village piece like the walls), placed by the map
+generator or the map editor (docs/world-design.md, docs/map-editor-design.md). The player can't
+build, tear down or move it: it is the village, not something in it. Numbers are in
+`Config.TOWN_HALL`, `BUILDING_HP` and `PIECE_PRICES`. It gathers the jobs that had no building:
 
-- **The hero's home:** she rests there (`HERO.rest_regen`) and swaps equipment there, only
-  while idle at home (docs/items-design.md). Idle, she stands at the village centre.
-- **The armoury:** the items not worn, and the relics the village owns (docs/items-design.md).
-- **Research** of advancements, one at a time (docs/advancements-design.md).
+- **The hero's home:** she rests there (`HERO.rest_regen`, while idle at the centre beside it; no
+  rest while it is devastated). *(Designed, not built:)* she swaps equipment there, only while
+  idle at home (docs/items-design.md).
+- *(Designed, not built:)* **the armoury:** the items not worn, and the relics the village owns
+  (docs/items-design.md).
+- *(Designed, not built:)* **research** of advancements, one at a time (docs/advancements-design.md).
 
-**Levels** (1 to 3), upgraded like towers with building material and a builder's time:
+**Levels** (1 to 3, `TOWN_HALL.levels`), upgraded like towers with building material and a
+builder's time (the *Upgrade* command towers use):
 
 - **Level 1:** no advancements at all.
-- **Level 2:** opens advancement tier 1 and adds a **tower post** on the hall's centre. It takes
-  the same units as every tower (ranged, summoner, healer, support), with the range of a level-3
-  watchtower (`TOWER_RANGE.tower` plus `TOWER_LEVELS[2].range_bonus`; the Hawk-eye relic adds as
-  everywhere). It has no upgrades of its own: the hall's level is its level.
-- **Level 3:** opens tier 2 and adds one **barracks bench** on the front (bottom-right) tile. Its
-  unit sorties with a level-1 barracks' activation range (`BARRACKS_LEVELS`): the last line of
-  defence against a breach and what stands just outside the gates.
+- **Level 2:** opens advancement tier 1 *(designed, not built)* and adds a **tower post** on the
+  hall's centre (`TownHall` is a `Tower`: `post_from`). For the game the post is exactly the middle
+  of the 2×2 (`TownHall.act_center`): every range, aura, target and range circle counts from there.
+  The picture puts the tower a little back along the view axis (`HALL_TOWER_BACK` in
+  tools/gen_art.py), so its unit is drawn centred over the hall but a bit in the background. It takes the same units as every tower
+  (ranged, summoner, healer, support), with the range of a level-3 watchtower
+  (`TOWER_RANGE.tower` plus the `TOWER_LEVELS` range bonus of `post_range_level`; the Hawk-eye
+  relic adds as everywhere). It has no upgrades of its own: the hall's level is its level.
+- **Level 3:** more HP and a grander look so far. *(Designed, not built:)* it opens tier 2 and
+  adds one **barracks bench** on the front (bottom-right) tile. Its unit sorties with a level-1
+  barracks' activation range (`BARRACKS_LEVELS`): the last line of defence against a breach and
+  what stands just outside the gates. (Not built yet because one building with a tower post and
+  a bench needs posts of two kinds in one building, which the army code doesn't have.)
 - What else levels 2 and 3 do is still open.
 
-**Look:** larger than a hut and not as plain: several windows, a large front door. It follows the
-village's piece material like the walls (docs/siege-design.md §2a); level 2 shows the tower,
-level 3 the bench.
+**Look:** larger than a hut and not as plain: a long hall with a hip roof, arched lit windows, a
+gabled porch with a large front door (`tools/gen_art.py`, `town_hall`). It follows the village's
+piece material like the walls (docs/siege-design.md §2a); level 2 shows a tower with a clock rising
+well clear of the roof (so it doesn't read as the corner tower behind it), level 3 banners, gilding
+and a brazier on it.
 
-**Devastated** (0 HP, docs/siege-design.md): research pauses, the armoury is closed (no swaps),
-and the hero gets no rest there until it is repaired. Relics keep working: losing all of them to
-one raid would be too harsh. And the last stand starts (§3b).
+**Devastated** (0 HP, docs/siege-design.md): the hero gets no rest there until it is repaired, its
+tower unit walks back to the reserve, and the last stand starts (§3b). *(Designed, not built:)*
+research pauses and the armoury is closed (no swaps). Relics keep working: losing all of them to
+one raid would be too harsh.
 
-## 3b. The last stand *(designed, not built)*
+## 3b. The last stand
 
 **Why:** the town hall gives a defeat a face. Losing it at once would end long games on one bad
 breach; ignoring it would make it unimportant. The last stand is the middle: a countdown in
@@ -213,26 +228,34 @@ which the village can still save itself.
 1. **Damaged above 0:** nothing special; repaired like any building.
 2. **At 0 HP while villagers live:** the last stand starts. The hall must be back at **full HP**
    before the countdown ends, or the village falls (single player: defeat).
-   - The countdown is a `Config` value per difficulty: the one stated exception to "difficulty
-     scales enemy strength and loot only".
-   - The repair is ordered by itself and goes into the build queue's new **top bucket**: every
-     builder and the hero in Build mode go for it, ignoring the worth-it test, and their
-     progress adds up (several builders on one site, §5 Builder).
+   - The countdown is a `Config` value per difficulty (`TOWN_HALL.last_stand`): the one stated
+     exception to "difficulty scales enemy strength and loot only". It counts game seconds
+     (`Village.last_stand`, ticked by the host).
+   - The repair is ordered by itself (`Village._order_hall_repair`) and goes into the build
+     queue's **top bucket** (a bucket marked `last_stand`): every builder and the hero in Build
+     mode go for it, ignoring the worth-it test, and their progress adds up (several builders on
+     one site, §5 Builder). It can't be called off (`Construction.cancel` refuses it): it would only
+     be ordered again.
    - Material is charged as usual. If the village can't pay, the warning says so: the emergency
      material trade (§2) is the way out, which is the valve's real reason to exist.
    - Builders still flee, so a breach still in the walls stalls the repair. That is the drama.
-   - The hall's full repair time (`Config`) is tuned so two builders make it on Hard with no
-     enemy around.
+   - The hall's full repair time (`PIECE_PRICES.town_hall`) is short enough that one builder
+     makes it on Hard with no enemy around and time to spare for the walk; two make it easily.
    - A constant warning, like starvation's, shows the seconds left (§10). In co-op the other
      players get an Important log line, "Town <name> falls in x s", so they can send help.
+   - Done in time, it stands; if not, the hall has **fallen** (`Village.hall_lost`) and so has the
+     village.
 3. **All villagers dead:** the village falls, whatever the hall's state. With no villagers the
    hall doesn't matter.
 4. **Co-op, a fallen village gets a villager again** while its hall is devastated: a last stand
-   with the countdown times a `Config` multiplier. Done in time, it stands; if not, it falls
-   again.
-5. After a failed step 4 it **stays fallen with no new countdown** until its hall is at full HP
-   and it has a villager: the next villager recruited doesn't start another timer, which could
-   otherwise loop for ever.
+   with the countdown times `TOWN_HALL.retry_factor` (`Village.stand_retry`). Done in time, it
+   stands; if not, it falls again. A hall devastated while nobody lives there has fallen at once.
+   A village whose first stand ran out with people still alive gets no second chance from that:
+   only once it has had nobody and gets a villager again (`Village.stand_emptied`), as written,
+   or it would chain straight into a longer countdown.
+5. After a failed step 4 it **stays fallen with no new countdown** (`Village.no_more_stands`) until
+   its hall is at full HP and it has a villager: the next villager recruited doesn't start another
+   timer, which could otherwise loop for ever.
 
 **Standing** is then: at least one villager, and a town hall that hasn't fallen.
 
@@ -288,20 +311,20 @@ three are `Resident`s who stay home), the **miner** is locked until anyone walks
   is one second of the building's build time. A site left halfway keeps its progress. The same
   job does upgrades, ruined-tower restorations, hut rebuilds, repairs and tear-downs.
 
-  *(Designed, not built:)* **several builders on one site.** Today a site takes one builder at a
-  time (`Building.builder`; `Construction.claim` skips a site that has one). It becomes: any
-  number of builders (and the hero) work one site and their progress adds up, so two build
-  twice as fast, on every kind of job. Two rules keep them from crowding:
-  - **Buckets still rule.** A new top bucket is the town hall's repair during a last stand
-    (§3b); a hall damaged but not devastated is repaired in the gate-and-wall bucket. Builders
-    empty a bucket before turning to the next, as now: a *free* site in a higher bucket beats
-    nearby work.
-  - **The worth-it test** decides only whether to *join* a site that already has builders: a
-    builder joins only if the time its help saves there is more than its walk. Otherwise it takes
-    the best job it can reach by the usual order (bucket, then distance), even from a lower
-    bucket. Example: builder A repairs a wall; builder B, far away by two farm sites, builds the
-    farms rather than walking over to halve A's last seconds. The last stand's bucket ignores the
-    test: everyone goes.
+  **Several builders on one site.** Any number of builders (and the hero) work one site
+  (`Building.crew`) and their progress adds up, so two build twice as fast, on every kind of job.
+  Whoever's work finishes it completes it; the others go straight on to the next job near by.
+  Two rules keep them from crowding:
+  - **Buckets still rule.** The top bucket is the town hall's repair during a last stand (§3b); a
+    hall damaged but not devastated is repaired in the gate-and-wall bucket. Builders empty a
+    bucket before turning to the next: a *free* site in a higher bucket beats nearby work.
+  - **The worth-it test** (`Construction.worth_joining`) decides only whether to *join* a site
+    that already has builders: a builder joins only if the time its help saves there is more than
+    its walk (what the others leave undone by the time it arrives, shared from then on).
+    Otherwise it takes the best job it can reach by the usual order (bucket, then distance), even
+    from a lower bucket. Example: builder A repairs a wall; builder B, far away by two farm sites,
+    builds the farms rather than walking over to halve A's last seconds. The last stand's bucket
+    ignores the test: everyone goes.
 
   **Why the queue ranks the way it does.** Only picking a *new* job looks at the queue (also after
   fleeing, which gives the job back); work under way is never taken away, or builders would
@@ -502,7 +525,7 @@ little beyond its range, so a unit is never shot at from the dark.
 
 ## 10. Warnings
 
-Both are red banners under the top bar, checked a few times a second in `Hud`. Their timing is in
+All are red banners under the top bar, checked a few times a second in `Hud`. Their timing is in
 config.gd and counts game seconds; paused time doesn't count. They exist because both situations
 are silent failures: nothing visibly breaks, the village just stops progressing or starves.
 
@@ -514,8 +537,9 @@ are silent failures: nothing visibly breaks, the village just stops progressing 
   builder warning when both show. A tip says what is missing (no working farm; farms but no
   farmer; a farm without a farmer and a farmer without a farm), or nothing when every farm is
   worked (say, farmers kept home by enemies: nothing the player can fix by building).
-- **Last stand** *(designed, not built)*: shown for the whole of a town hall's last stand (§3b)
-  as a countdown, above the other two; it says when the village can't pay for the repair.
+- **Last stand** (`Hud.stand_warning_text`): shown for the whole of a town hall's last stand (§3b)
+  as a countdown, above the other two; it says when the village can't pay for the repair
+  (`Village.stand_unpaid`).
 
 ## 11. Villager list and Retire
 

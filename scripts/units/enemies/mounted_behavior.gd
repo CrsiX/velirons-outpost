@@ -170,9 +170,9 @@ func _stop_riding_in(enemy: Enemy) -> void:
 
 
 ## An open way into its village: the way anyone on foot would break in
-## (the siege field, from the edge of its zone nearest the rider) reaches a
-## hut without an intact gate, wall or wall tower on it (a broken one lets it
-## through).
+## (the siege field, from the edge of its zone nearest the rider) gets inside
+## the walls without an intact gate, wall or wall tower on it (a broken one
+## lets it through).
 func _breach_open(enemy: Enemy) -> bool:
 	var game := enemy.game
 	if game.clock < _closed_until:
@@ -189,7 +189,7 @@ func _breach_open(enemy: Enemy) -> bool:
 	if siege.value(v, t, false) >= Siege.BLOCKED:
 		return false
 	for i in 4 * zone.size.x:
-		if siege.hut_at(v, t) != null:
+		if v.rect.grow(-1).has_point(t) or siege.hut_at(v, t) != null:
 			_open = true
 			break
 		var n := siege.next_step(v, t, false)

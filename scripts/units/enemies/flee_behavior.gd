@@ -59,6 +59,6 @@ static func _danger(enemy: Enemy, at: Vector2) -> float:
 			n += 1.0
 	for b in enemy.game.world.towers():
 		var t := b as Tower
-		if t and t.garrison != null and t.garrison.state == MilitaryUnit.State.STATIONED and Vector2(t.tile).distance_to(at) <= t.range_tiles():
+		if t and t.garrison != null and t.garrison.state == MilitaryUnit.State.STATIONED and t.act_center().distance_to(at) <= t.range_tiles():
 			n += 2.0
 	return n

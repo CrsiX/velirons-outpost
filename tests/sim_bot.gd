@@ -451,14 +451,15 @@ func _run() -> void:
 	check(mountain > 20, "mountain ranges")
 	check(map.gates.all(func(g: Vector2i) -> bool: return map.is_road(g)), "gate tiles are dirt road")
 	var layout_ok := true
-	for row in 5:
-		for col in 5:
-			var t := game.player_village.rect.position + Vector2i(col, row)
+	for p in MapData.standard_pieces(game.player_village.center):
+		for t in MapData.piece_footprint(p):
 			var b: Building = map.building_at(t)
-			var want: String = {"T": "wall_tower", "W": "wall", "G": "gate", "V": "hut"}[Config.VILLAGE_LAYOUT[row][col]]
-			if b == null or b.kind != want:
+			if b == null or b.kind != p["kind"]:
 				layout_ok = false
-	check(layout_ok, "village matches the TWGWT layout")
+	var hall := game.player_village.town_hall()
+	check(layout_ok and hall != null and hall.tiles().size() == 4, "village matches Config.VILLAGE_LAYOUT, its 2x2 town hall included")
+	var centre := game.player_village.center
+	check(map.building_at(centre) == null and map.is_village_path(centre) and game.world.pathing.is_walkable(centre), "the village centre is the free middle of the path cross")
 	check(map.gates.size() == 4, "4 gates")
 	check(map.edge_spawns.size() >= Config.SP_SPAWNS.x - 1, "edge spawns around the map (%d)" % map.edge_spawns.size())
 	var all_reach := true
@@ -532,7 +533,7 @@ func _run() -> void:
 	var wall_towers := game.world.towers().filter(func(t: Tower) -> bool: return t.kind == "wall_tower")
 	check(wall_towers.size() == 4 and wall_towers.all(func(t: Tower) -> bool: return t.garrison == null), "4 unmanned wall towers")
 	var o := game.player_village.rect.position
-	check(game.world.pathing.astar.is_point_solid(o + Vector2i(0, 1)) and not game.world.pathing.astar.is_point_solid(o + Vector2i(2, 0)), "walls block, gates don't")
+	check(game.world.pathing.astar.is_point_solid(o + Vector2i(0, 1)) and not game.world.pathing.astar.is_point_solid(o + Vector2i(Config.VILLAGE_HALF, 0)), "walls block, gates don't")
 	var some_forest: Vector2i = map.props.keys().filter(func(t: Vector2i) -> bool: return map.is_forest(t))[0]
 	var some_mountain: Vector2i = map.props.keys().filter(func(t: Vector2i) -> bool: return map.is_mountain(t))[0]
 	check(game.world.pathing.astar.is_point_solid(some_forest) and game.world.pathing.astar.is_point_solid(some_mountain), "forest and mountains block villagers")
@@ -1373,6 +1374,7 @@ func _run() -> void:
 	game.waves.countdown = 99999.0
 
 	# --- demolition at the gate -------------------------------------------------------
+	game.siege.raid_hut_weight = 1.0  # (raiders burn huts here; the coin flip is siege_bot's)
 	for t in game.world.towers():
 		if t.garrison:
 			game.army.unstation(t.garrison)
@@ -1403,6 +1405,7 @@ func _run() -> void:
 	await wait(1.0)
 	check(game.population.cap() == huts_h - 1, "on hard, an enemy at the gate still destroys exactly one hut")
 	Settings.difficulty = Settings.Difficulty.NORMAL
+	game.siege.raid_hut_weight = float(Config.SIEGE["raid_hut_weight"])
 	gate_b.set_devastated(false)
 	gate_b.hp = gate_b.max_hp()
 	game.waves.countdown = 99999.0
@@ -1753,6 +1756,14 @@ func _test_hero(far: Vector2i) -> void:
 			o.village = game.villages[0]
 		elif o is UnlockSite:
 			(o as UnlockSite).used = true
+	# (The explorers may have seen the whole map by now: fog falls again on
+	# everything a stretch away from the village, for her to uncover.)
+	var fogged := game.fog.explored_of[0].duplicate()
+	for i in fogged.size():
+		if Vector2(i % map.size, i / map.size).distance_to(Vector2(game.player_village.center)) > 12.0:
+			fogged[i] = 0
+	game.fog.explored_of[0] = fogged
+	game.fog.set_local(0)
 	hero.set_mode(Hero.Mode.EXPLORE)
 	var xp_e := hero.xp
 	var ex0 := game.fog.explored_count()
@@ -1947,7 +1958,8 @@ func _test_flee_resume() -> void:
 	var out := await wait_until(func() -> bool: return fo != null and fo.state == Forester.State.CHOPPING, 90.0)
 	var e := still_goblin(fo.grid_pos + Vector2(1.5, 0.0))
 	var fled := await wait_until(func() -> bool: return fo.evading, 3.0)
-	kill(e)
+	if is_instance_valid(e):
+		kill(e)
 	var back := await wait_until(func() -> bool: return not fo.evading, float(Config.FLEE["check_every"]) + 1.0)
 	check(out and fled and back and not fo.at_home and fo.state != Forester.State.GOING_HOME, "a forester who fled goes back to work once the goblin is gone, without walking home first")
 	# The explorer runs off sideways, away from the goblin, then explores on.

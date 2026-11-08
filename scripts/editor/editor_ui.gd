@@ -398,7 +398,7 @@ func _build_options() -> void:
 			_choices(_options, [["add", "Add"], ["remove", "Remove"]], o["volcano"], func(v: Variant) -> void: set_option("volcano", v))
 			_toggle(_options, "Ash land around it", bool(o["ash"]), func(on: bool) -> void: set_option("ash", on))
 		"piece":
-			_choices(_options, [["wall", "Wall"], ["gate", "Gate"], ["wall_tower", "Wall tower"], ["hut", "Hut"], ["flip", "Flip"], ["material", "Paint material"], ["erase", "Erase"]], o["piece"], func(v: Variant) -> void: set_option("piece", v))
+			_choices(_options, [["wall", "Wall"], ["gate", "Gate"], ["wall_tower", "Wall tower"], ["hut", "Hut"], ["town_hall", "Town hall"], ["flip", "Flip"], ["material", "Paint material"], ["erase", "Erase"]], o["piece"], func(v: Variant) -> void: set_option("piece", v))
 			_material_choices(o)
 		"village":
 			_options.add_child(_label("A new village is made of:", 14, UiTheme.MUTED))
@@ -639,7 +639,7 @@ func tile_text(t: Vector2i) -> String:
 	if m.beaches.has(t):
 		parts.append("beach")
 	for p in m.village_layout:
-		if p["tile"] == t:
+		if MapData.piece_footprint(p).has(t):
 			parts.append("%s (%s)" % [str(p["kind"]).replace("_", " "), str(Config.PIECE_MATERIALS[p["material"]]["name"]).to_lower()])
 	return " · ".join(parts)
 

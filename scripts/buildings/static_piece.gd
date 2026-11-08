@@ -98,7 +98,7 @@ func info() -> Dictionary:
 	else:
 		lines.append("Holds enemies back; they break it where it's weakest.")
 	if upgrading:
-		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
+		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), _crew_text().to_lower()])
 		add_cancel_action(lines, actions, "Cancel upgrade")
 	elif level < max_level() and village != null and not devastated and not repairing:
 		lines.append("Next level: {hp} %d" % roundi(hp_at(level + 1)))

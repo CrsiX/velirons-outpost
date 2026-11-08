@@ -587,6 +587,20 @@ static func _buildings() -> Array[Dictionary]:
 		"text": "The towers at the corners of the village walls. They come with the village; station a unit on them and upgrade them like watchtowers.",
 		"facts": PackedStringArray([_hp_fact("wall_tower"), _material_fact()]) + _tower_facts("wall_tower"),
 	})
+	var th: Dictionary = Config.TOWN_HALL
+	var hf := PackedStringArray([_hp_fact("town_hall"), _material_fact()])
+	var tl: Array = th["levels"]
+	for i in range(1, tl.size()):
+		hf.append("Level %d: %s%s" % [i + 1, Config.cost_text(tl[i]["cost"]),
+			", a tower post (range %s tiles)" % _n(Config.TOWER_RANGE["tower"] + Config.TOWER_LEVELS[int(th["post_range_level"]) - 1]["range_bonus"]) if i + 1 == int(th["post_from"]) else ""])
+	var ls: Dictionary = th["last_stand"]
+	hf.append("Last stand: %s / %s / %s s (easy / normal / hard) to repair it once devastated, or the village falls" % [_n(ls["easy"]), _n(ls["normal"]), _n(ls["hard"])])
+	hf.append("Repairs count it as %s, a full repair takes a builder %s s" % [Config.cost_text(Config.PIECE_PRICES["town_hall"]["cost"]), _n(Config.PIECE_PRICES["town_hall"]["build_time"])])
+	out.append({
+		"name": "Town Hall", "art": "town_hall",
+		"text": "The heart of the village, 2x2 in its back quarter; the hero rests there. Enemies inside the walls may go for it instead of a hut. Devastated, it must be repaired to full HP before the last stand runs out, or the village falls.",
+		"facts": hf,
+	})
 	for kind: String in Config.PIECE_LEVELS:
 		var f := PackedStringArray([_hp_fact(kind)])
 		var levels: Array = Config.PIECE_LEVELS[kind]

@@ -1510,11 +1510,13 @@ func _test_riders() -> void:
 	gate_b.take_damage(1e9, null)
 	game.siege.mark_stale(v, true)
 	var huts0 := v.intact_huts().size()
+	game.siege.raid_hut_weight = 1.0  # (a hut, not the town hall: the coin flip is siege_bot's)
 	var r5 := spawn("goblin_raider", Vector2(road_out(12)), 1.0, true)
 	var b5 := r5.behavior as MountedBehavior
 	var rode_in := await wait_until(func() -> bool: return b5.state == MountedBehavior.State.IN, 40.0)
 	var burned := await wait_until(func() -> bool: return v.intact_huts().size() < huts0, 40.0)
 	check(gate_b.devastated and rode_in and burned, "through a broken gate it rides in, mounted, and burns a hut")
+	game.siege.raid_hut_weight = float(Config.SIEGE["raid_hut_weight"])
 	_mend_walls(v)
 	for b in v.buildings():
 		if b is Hut and not (b as Hut).is_intact():
@@ -1550,6 +1552,8 @@ func _test_riders() -> void:
 	var hc := game.corpses.spawn("horse", w.wave, Vector2(road_out(18)))
 	var uh := w.raise_corpse(hc, nec)
 	check(uh.kind == "horse" and uh.behavior is FleeBehavior and uh.raised and float(en["horse"]["damage"]) == 0.0, "a raised horse is an undead horse that never fights")
+	if not is_instance_valid(vic) or vic.dead:
+		vic = ensure_role("gatherer")  # (a raid above may have burned their hut)
 	vic.set_process(false)
 	vic.at_home = false
 	vic.visible = true
@@ -1901,14 +1905,21 @@ func _test_poison() -> void:
 		if c is Poison:
 			c.queue_free()
 	# Her bite poisons; she lurks at the walls and burns no hut through them.
+	for k in 3:
+		await clear_enemies()  # (the big slime above splits when it dies: its young too)
 	var huts := v.intact_huts().size()
 	var gate_b := game.map.building_at(v.gates[0]) as Building
+	var gate_hp := gate_b.hp
 	var mother := spawn("spider_mother", Vector2(road_out(5)), 1.0, true)
 	mother.max_hp = 1e6
 	mother.hp = 1e6
+	(mother.behavior as SpiderMotherBehavior).clutches = int(Config.ENEMIES["spider_mother"]["max_clutches"])  # (no eggs: her spiderlings would break walls)
 	var lurks := await wait_until(func() -> bool: return mother.lurking, 60.0)
 	await wait(10.0)
-	check(lurks and gate_b.hp == gate_b.max_hp() and v.intact_huts().size() == huts, "at the walls she lurks: the gate takes nothing, no hut burns")
+	check(lurks and gate_b.hp == gate_hp and v.intact_huts().size() == huts, "at the walls she lurks: the gate takes nothing, no hut burns")
+	if not (lurks and gate_b.hp == gate_hp and v.intact_huts().size() == huts):
+		print("    mother: lurks %s at %s, gate %.0f/%.0f, huts %d -> %d, open way %s; enemies %s" % [lurks, mother.current_tile(), gate_b.hp, gate_hp, huts, v.intact_huts().size(), game.siege.open_way(v),
+			get_tree().get_nodes_in_group("enemies").map(func(e: Enemy) -> String: return "%s at %s breach %s" % [e.label(), e.current_tile(), e.breach.label() if is_instance_valid(e.breach) else "-"])])
 	var target := _elemental("earth", mother.grid_pos + Vector2(0.4, 0), 1000.0)
 	var bitten := await wait_until(func() -> bool: return Poison.of(target) != null, 10.0)
 	check(bitten, "her bite poisons whoever it hits")
@@ -1956,8 +1967,17 @@ func _test_snake() -> void:
 	var prey := stand_villager("forester", s.grid_pos + Vector2(2.5, 0))
 	if not s.in_lurk_range(v, prey.current_tile()):
 		prey.set_grid_pos(s.grid_pos + Vector2(1.0, 0))
+	if not game.world.pathing.is_walkable(prey.current_tile()):  # (woods may come up to the walls)
+		for d in [Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
+			var t: Vector2i = s.current_tile() + d
+			if game.world.pathing.is_walkable(t) and s.in_lurk_range(v, t):
+				prey.set_grid_pos(Vector2(t))
+				break
 	var bit := await wait_until(func() -> bool: return Poison.of(prey) != null or prey.dead, 30.0)
 	check(bit, "it goes for a villager outside and poisons them")
+	if not bit:
+		print("    snake at %s lurking %s, prey at %s walkable %s in range %s, at home %s, evading %s" % [s.current_tile(), s.lurking, prey.current_tile(),
+			game.world.pathing.is_walkable(prey.current_tile()), s.in_lurk_range(v, prey.current_tile()), prey.at_home, prey.evading])
 	prey.set_process(true)
 	# Through a breach it kills a villager in their hut and is gone; no hut burns.
 	var people := v.population.civilians.size()

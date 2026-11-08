@@ -253,9 +253,10 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
 - **Hero panel:** her four slots (weapon, armour, accessory, movement); tapping a slot lists the
   armoury's items for it. A swap is a command, allowed only while she is idle at the town hall and
   it isn't devastated (docs/items-design.md).
-- **Town hall panel:** its level and upgrade, its posts, and research: the advancements, their
-  conditions and costs, the one under research; exclusive choices are marked clearly as final
-  before they are taken (docs/advancements-design.md).
+- **Town hall panel** (built: `TownHall.info`): its level and upgrade, the last stand's seconds
+  left, its tower post (unit, *Upgrade*, *Withdraw*). Not built: research (the advancements,
+  their conditions and costs, the one under research; exclusive choices are marked clearly as
+  final before they are taken, docs/advancements-design.md).
 - **Marketplace panel:** buying from its stock, putting goods up for sale, caravans out, the
   equipment and relic offers, and in co-op the order book (docs/market-design.md).
 - **Tower panel:** with the manual-targeting advancement, a targeting switch per tower (nearest
@@ -263,7 +264,7 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
 
 ## 8. Warnings
 
-- Both warnings are red text, centred under the top bar. They never catch taps.
+- The warnings are red text, centred under the top bar, stacked when several show. They never catch taps.
 - **No builder:** something waits in the build queue, there is no builder, and the hero is alive but
   not in Build mode. A silent queue that never moves is the most confusing state in the game, so
   after a delay (`NO_BUILDER_DELAY`) the warning says what to do.
@@ -272,10 +273,10 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   sits right under the no-builder warning when that shows. `Hud.food_warning_text()` picks a tip for
   what is missing (no farm, a farm but no farmer, unassigned workers); when every farm is worked, the
   warning stands alone, since there is nothing to advise.
-- *(Designed, not built:)* **Last stand:** shown for the whole of a town hall's last stand, a
+- **Last stand** (`Hud.stand_warning_text`): shown for the whole of a town hall's last stand, a
   countdown above the other warnings, saying when the repair can't be paid (docs/village-design.md
   §3b).
-- Both count **game seconds** (4x runs them 4x as fast) and paused time doesn't count, so they match
+- They count **game seconds** (4x runs them 4x as fast) and paused time doesn't count, so they match
   what the simulation is doing.
 
 ## 9. Settings and the library

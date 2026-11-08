@@ -8,14 +8,16 @@ extends RefCounted
 ## of every problem and where it is.
 
 const FORMAT := "velirons-outpost-map"
-const VERSION := 5
+const VERSION := 6
 ## One character per tile; the index is the MapData.Terrain value.
 const TERRAIN_CODES := ".RFDMWSL"
 ## One character per tile; the index is the Config.ZONE_ORDER index.
 const ZONE_CODES := "mophswac"
 const PALETTE_LETTERS := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const UNDER := {"water": MapData.Terrain.WATER, "shallow": MapData.Terrain.SHALLOW, "lava": MapData.Terrain.LAVA}
-const PIECE_KINDS: Array[String] = ["wall", "gate", "wall_tower", "hut"]
+## (format 6 added the town hall: one per village, 2x2, "tile" its top-left;
+## older files have none and are refused for play by MapChecks.)
+const PIECE_KINDS: Array[String] = ["wall", "gate", "wall_tower", "hut", "town_hall"]
 const OBJECT_KINDS: Array[String] = ["treasure", "camp", "unlock", "ruin", "lair", "mine"]
 const REWARD_KEYS: Array[String] = ["gold", "food", "materials", "hero_xp", "heal_units", "relic"]
 
@@ -643,10 +645,12 @@ class _Reader:
 					continue
 				if t == null:
 					continue
-				if used.has(t):
-					err(pw, "a second village piece on [%d, %d]" % [t.x, t.y])
+				var clash := MapData.piece_footprint({"kind": p["kind"], "tile": t}).filter(func(q: Vector2i) -> bool: return used.has(q))
+				if not clash.is_empty():
+					err(pw, "a second village piece on [%d, %d]" % [clash[0].x, clash[0].y])
 					continue
-				used[t] = true
+				for q in MapData.piece_footprint({"kind": p["kind"], "tile": t}):
+					used[q] = true
 				pieces.append({"kind": p["kind"], "tile": t, "flip": flip, "material": mat})
 			if center == null:
 				continue

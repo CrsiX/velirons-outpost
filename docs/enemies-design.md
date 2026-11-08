@@ -66,7 +66,7 @@ the reasoning and points at the symbols.
 - Nothing else is scaled: not cooldowns, ranges and timings (a longer cooldown would make Hard
   easier), nor shares and rates such as `drain`, `gate_eat`, `steal_share`, `bat_speed` or
   `bat_gate_heal`.
-- *(Designed, not built:)* the one stated exception is a town hall's last-stand countdown
+- The one stated exception is a town hall's last-stand countdown
   (docs/village-design.md §3b): it isn't enemy strength, and it is named here so nobody reads
   it as a precedent.
 - Each enemy also rolls a small spread on its speed so a group doesn't march in lockstep.

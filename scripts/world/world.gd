@@ -13,6 +13,7 @@ const PIECE_SCRIPTS := {
 	"wall": preload("res://scripts/buildings/static_piece.gd"),
 	"gate": preload("res://scripts/buildings/static_piece.gd"),
 	"wall_tower": preload("res://scripts/buildings/tower.gd"),
+	"town_hall": preload("res://scripts/buildings/town_hall.gd"),
 }
 
 const OBJECT_SCRIPTS := {
@@ -108,7 +109,7 @@ func setup(p_game: Game, seed_value: int) -> void:
 	_spawn_map_objects()
 	await game.build_step()
 	game.waves.wave_started.connect(_on_wave_started)
-	# Each village knows its own surroundings, and every village's 5x5 walls
+	# Each village knows its own surroundings, and every village's walls
 	# (docs/multiplayer-design.md §6).
 	for i in map.villages.size():
 		var v: Dictionary = map.villages[i]
@@ -345,7 +346,7 @@ func clear_decor(t: Vector2i) -> void:
 func _spawn_village() -> void:
 	for piece in map.village_layout:
 		_spawn_piece(piece, game.villages[piece.get("owner", 0)])
-	# Villages of the map nobody plays: ownerless, every hut a ruin for good.
+	# Villages of the map nobody plays: ownerless, every hut and the town hall a ruin for good.
 	for a in map.abandoned:
 		for piece in a["pieces"]:
 			_spawn_piece(piece, null)
@@ -363,6 +364,8 @@ func _spawn_piece(piece: Dictionary, owner: Village) -> void:
 		if b is Hut:
 			(b as Hut).ruined = true
 	b.setup(game, kind, piece["tile"], true)
+	if owner == null and b is TownHall:
+		b.set_devastated(true)  # (a ruin too: no last stand runs for it)
 	add_building(b)
 
 

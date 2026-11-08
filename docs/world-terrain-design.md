@@ -48,9 +48,10 @@ seed's character survives. Single player gets the same rule for its one
 village.
 *(To be challenged:)* this rule stays for now, but the coming rework of the
 map generator is to question it.
-*(Designed, not built:)* the clearing ring round the walls goes with the 7×7
-village (world-design.md §3.2, stage 6); trees may then come up to the walls.
-The fair-land repaint above still keeps steppe, swamp and ash away, for now.
+There is no clearing ring round the walls (world-design.md §3.2, stage 6):
+trees may come up to them; planted woods keep `VILLAGE_NEAR_RING` from a
+village centre. The fair-land repaint above still keeps steppe, swamp and ash
+away, for now.
 
 The generator keeps **no room for a farm**: the game places the starting farm
 on the finished map, on the nearest free spot or not at all (docs/village-design.md

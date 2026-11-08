@@ -129,6 +129,8 @@ func _run() -> void:
 		await _saves()
 	if only in ["", "siege"]:
 		await _siege()
+	if only in ["", "town_hall"]:
+		await _town_hall()
 	if only in ["", "scenario"]:
 		await _scenario()
 	if only in ["", "campaign"]:
@@ -818,6 +820,65 @@ func _siege() -> void:
 	await shot("siege_portrait_panel")
 	g.deselect()
 	await _landscape()
+	g.queue_free()
+	await _frames(3)
+
+
+## The 7x7 village and its town hall (docs/village-design.md §3.1, §3a): each
+## level up close, every material, the ruin, the panel and the last stand.
+func _town_hall() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	g.economy.add("materials", 2000)
+	g.economy.add("gold", 2000)
+	var h := v.town_hall()
+	g.camera.focus(Iso.tile_to_world(v.center))
+	g.camera.zoom = Vector2(0.8, 0.8)
+	await _frames(10)
+	await shot("hall_village")
+	var ar := g.army.recruit("archer")
+	g.camera.focus(h.position + Vector2(0, -110))
+	g.camera.zoom = Vector2(1.6, 1.6)
+	for lvl in [1, 2, 3]:
+		h.level = lvl
+		h.hp = h.max_hp()
+		if lvl == 2:  # (on its post at once, no walk there)
+			ar.post = h
+			ar.slot = 0
+			ar.state = MilitaryUnit.State.STATIONED
+			h.set_slot(0, ar)
+		h.refresh()
+		await _frames(8)
+		await shot("hall_level_%d" % lvl)
+	for mat: String in Config.PIECE_MATERIAL_ORDER:
+		for b in v.buildings():
+			if World.PIECE_SCRIPTS.has(b.kind):
+				b.made_of = mat
+				b.refresh()
+		await _frames(6)
+		await shot("hall_%s" % mat)
+	for b in v.buildings():
+		if World.PIECE_SCRIPTS.has(b.kind):
+			b.made_of = "stone"
+			b.refresh()
+	g.select(h)
+	await _frames(6)
+	await shot("hall_panel")
+	g.deselect()
+	h.take_damage(1e6)
+	g.camera.zoom = Vector2(1.1, 1.1)
+	await _frames(20)
+	await shot("hall_last_stand")
+	g.select(h)
+	await _frames(6)
+	await shot("hall_last_stand_panel")
+	g.deselect()
 	g.queue_free()
 	await _frames(3)
 

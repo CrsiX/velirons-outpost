@@ -169,7 +169,7 @@ func _baked_maps() -> void:
 func _post(g: Game, p: Dictionary, used: Array) -> Building:
 	if p["kind"] == "wall_tower":
 		for b in g.player_village.buildings():
-			if b is Tower and g.map.in_village(b.tile) and (b as Tower).garrison != null:
+			if b is Tower and b.kind == "wall_tower" and (b as Tower).garrison != null:
 				return b
 		return null
 	for b in g.player_village.buildings():
@@ -178,12 +178,14 @@ func _post(g: Game, p: Dictionary, used: Array) -> Building:
 			return b
 	for b in g.player_village.buildings():
 		if b.kind == p["kind"] and not used.has(b) and not g.map.in_village(b.tile) and not p.get("shore", false) and (b is MilitaryPost or p.has("at")):
+			# (By the road lo to hi tiles before the gate; where woods close in
+			# there, a little further along or a few tiles off it: TitleBackdrop._by_road.)
 			var at: Array = p.get("at", [0, 99])
-			for d in range(int(at[0]), int(at[1]) + 1):
+			for d in range(maxi(0, int(at[0]) - 6), int(at[1]) + 7):
 				for f in Building.footprint(b.tile, Config.BUILDINGS[b.kind]["size"]):
-					for n in MapData.neighbors4(f):
-						if n == bd.road_tile(d):
-							return b
+					var r := bd.road_tile(d)
+					if maxi(absi(f.x - r.x), absi(f.y - r.y)) <= 4:
+						return b
 	return null
 
 

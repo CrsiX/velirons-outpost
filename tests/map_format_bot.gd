@@ -28,6 +28,7 @@ func _run() -> void:
 	_tolerant(small)
 	_refusals(small)
 	_materials(small)
+	_town_hall(small)
 	_sizes()
 	await _play_loaded()
 	await _play_odd_village()
@@ -84,7 +85,7 @@ func _conversions(g: MapData, what: String) -> void:
 func _for_game(m: MapData, what: String) -> void:
 	var g := m.for_game([2, 0])
 	check(g.villages.size() == 2 and g.villages[0]["center"] == m.villages[2]["center"] and g.villages[1]["center"] == m.villages[0]["center"], "%s, villages 3 and 1 played: they become villages 1 and 2" % what)
-	check(g.abandoned.size() == m.villages.size() - 2 and g.abandoned[0]["center"] == m.villages[1]["center"] and (g.abandoned[0]["pieces"] as Array).size() == 25, "%s: the other village is abandoned, all its pieces kept" % what)
+	check(g.abandoned.size() == m.villages.size() - 2 and g.abandoned[0]["center"] == m.villages[1]["center"] and (g.abandoned[0]["pieces"] as Array).size() == MapData.standard_pieces(Vector2i.ZERO).size(), "%s: the other village is abandoned, all its pieces kept" % what)
 	var s2 := int(m.villages[2]["slice"])
 	var ok := true
 	for i in m.slice_of.size():
@@ -99,7 +100,7 @@ func _for_game(m: MapData, what: String) -> void:
 	check(objs_ok, "%s: objects keep their slice under its new number" % what)
 	var want: Array = (m.villages[2]["home_spawns"] as Array) + (m.villages[0]["home_spawns"] as Array)
 	check(_sorted(g.edge_spawns) == _sorted(want) and g.gates.size() == 8, "%s: only the played villages' spawns and gates" % what)
-	check(g.village_layout.size() == 50 and g.village_layout.all(func(p: Dictionary) -> bool: return int(p["owner"]) in [0, 1]), "%s: the played villages' pieces, with their new owners" % what)
+	check(g.village_layout.size() == 2 * MapData.standard_pieces(Vector2i.ZERO).size() and g.village_layout.all(func(p: Dictionary) -> bool: return int(p["owner"]) in [0, 1]), "%s: the played villages' pieces, with their new owners" % what)
 	check(g.village_links.all(func(l: Vector2i) -> bool: return l.x in [0, 1] and l.y in [0, 1]), "%s: road links only between played villages" % what)
 	var back := MapData.from_bytes(g.to_bytes())
 	check(back.abandoned.size() == g.abandoned.size() and back.abandoned[0]["center"] == g.abandoned[0]["center"], "%s: the abandoned village travels in the packed map (co-op start)" % what)
@@ -469,7 +470,7 @@ func _play_odd_village() -> void:
 	check(MapChecks.errors(problems).is_empty(), "one gate and 8 huts: no errors %s" % str(MapChecks.errors(problems).map(func(p: Dictionary) -> String: return p["text"])))
 	check(warns.any(func(w: String) -> bool: return "fewer than 2 approaches" in w) and warns.any(func(w: String) -> bool: return "standard layout" in w), "but warnings: one approach, not the standard layout")
 	var back: MapData = MapJson.read(MapJson.write(m))["map"]
-	check(back != null and back.village_pieces(0).size() == 24 and differ(back, m) == "", "the odd village survives the file as it is")
+	check(back != null and back.village_pieces(0).size() == MapData.standard_pieces(Vector2i.ZERO).size() - 1 and differ(back, m) == "", "the odd village survives the file as it is")
 	Settings.custom_map = back
 	Settings.custom_village = 0
 	await _start_game()
@@ -492,7 +493,9 @@ func _play_ownerless(m: MapData) -> void:
 	check(game.map.abandoned.size() == 1 and game.map.abandoned[0]["center"] == m.villages[0]["center"], "the other is abandoned")
 	var ruins: Array = game.world.buildings.filter(func(b: Building) -> bool: return b.has_meta("abandoned"))
 	var huts: Array = ruins.filter(func(b: Building) -> bool: return b is Hut)
-	check(ruins.size() == 25 and huts.size() == 9 and huts.all(func(h: Hut) -> bool: return h.village == null and not h.is_intact()), "it stands: 25 pieces, nobody's, every hut a ruin")
+	var halls: Array = ruins.filter(func(b: Building) -> bool: return b is TownHall)
+	check(ruins.size() == MapData.standard_pieces(Vector2i.ZERO).size() and huts.size() == 9 and huts.all(func(h: Hut) -> bool: return h.village == null and not h.is_intact()), "it stands: every piece, nobody's, every hut a ruin")
+	check(halls.size() == 1 and halls[0].devastated and halls[0].village == null and v.last_stand_left() < 0.0, "its town hall a ruin too, and no last stand for it")
 	var r: Dictionary = game.command("rebuild_hut", {"building": huts[0].nid})
 	check(not r["ok"] and game.building_info(huts[0])["actions"].is_empty() and "abandoned" in str(game.building_info(huts[0])["lines"]), "its ruins can't be rebuilt (no actions, refused)")
 	var ring: Array = ruins.filter(func(b: Building) -> bool: return b is Tower)
@@ -508,3 +511,24 @@ func _play_ownerless(m: MapData) -> void:
 	await frames(5)
 	check(get_tree().get_nodes_in_group("enemies").all(func(e: Enemy) -> bool: return e.target_village == v or e.behavior is CampBehavior), "its enemies all go for the played village")
 	await _end_game()
+
+
+## Format 6's town hall: written and read back as one 2x2 piece; a village
+## without one (an older file) reads, but can't be played.
+func _town_hall(m: MapData) -> void:
+	var text := MapJson.write(m)
+	check('"kind": "town_hall"' in text and '"format_version": %d' % MapJson.VERSION in text, "the town hall is written as a piece (format %d)" % MapJson.VERSION)
+	var back: MapData = MapJson.read(text)["map"]
+	check(back != null and back.village_pieces(0).filter(func(p: Dictionary) -> bool: return p["kind"] == "town_hall").size() == 1, "and read back")
+	var d: Dictionary = JSON.parse_string(text)
+	var pieces: Array = d["villages"][0]["pieces"]
+	var hall: Dictionary = pieces.filter(func(p: Dictionary) -> bool: return p["kind"] == "town_hall")[0]
+	pieces.append({"kind": "hut", "tile": [int(hall["tile"][0]) + 1, int(hall["tile"][1]) + 1]})
+	var r: Dictionary = MapJson.read(JSON.stringify(d))
+	check(r["map"] == null and str(r["errors"]).contains("a second village piece"), "a piece on the hall's other tiles is refused")
+	pieces.pop_back()
+	pieces.erase(hall)
+	d["format_version"] = 5
+	var old: MapData = MapJson.read(JSON.stringify(d))["map"]
+	check(old != null, "a format 5 file (no town hall) still reads")
+	check(old != null and MapChecks.play_error(old).contains("has no town hall"), "but it is refused for play: %s" % (MapChecks.play_error(old) if old else "-"))

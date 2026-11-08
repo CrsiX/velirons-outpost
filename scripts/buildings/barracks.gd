@@ -240,7 +240,7 @@ func info() -> Dictionary:
 		else:
 			lines.append("Bench %d: free. Drag a unit from the Army tab here." % (i + 1))
 	if upgrading:
-		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
+		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), _crew_text().to_lower()])
 		add_cancel_action(lines, actions, "Cancel upgrade")
 	elif level < max_level() and not repairing:
 		var nxt: Dictionary = Config.BARRACKS_LEVELS[level]

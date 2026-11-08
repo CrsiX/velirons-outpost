@@ -27,8 +27,14 @@ func _run() -> void:
 	_bench_hero(true)
 	game.economy.add("materials", 2000)
 	game.economy.add("gold", 2000)
+	game.siege.raid_hut_weight = 1.0  # (raiders burn huts; _test_raid_targets flips the coin)
 	Engine.time_scale = 6.0
 	_test_hp()
+	_test_town_hall()
+	_test_inside()
+	await _test_hall_levels()
+	await _test_crew()
+	await _test_last_stand()
 	await _test_repair()
 	await _test_devastated_tower()
 	await _test_farm()
@@ -52,8 +58,10 @@ func _run() -> void:
 	await _test_exposed()
 	_test_hero_targets()
 	await _test_push()
+	await _test_raid_targets()
 	_test_save()
 	_test_stats()
+	await _test_stand_lost()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -145,7 +153,21 @@ func reset_village() -> void:
 		if b is Hut and (b as Hut).ruined:
 			(b as Hut).ruined = false
 			b.refresh()
-	game.siege.mark_stale(game.player_village, true)
+		if b is TownHall:
+			if b.devastated:
+				b.set_devastated(false)
+			b.hp = b.max_hp()
+			b.refresh()
+	var v := game.player_village
+	v.last_stand = -1.0
+	v.hall_lost = false
+	v.no_more_stands = false
+	game.siege.mark_stale(v, true)
+
+
+## The village's town hall.
+func hall() -> TownHall:
+	return game.player_village.town_hall()
 
 
 func intact() -> int:
@@ -324,11 +346,11 @@ func _test_huts_first() -> void:
 	var want: Array[Building] = [g, hut, corner, walls[0], corner2, hurt, tower, wt, farm]
 	var got: Array[Building] = []
 	for site in c.queue:
-		site.builder = null
+		site.crew.clear()
 	var again := c.claim(game.hero)
-	c.release(again, false)
+	c.release(again, game.hero, false)
 	check(again == g and c.claim(game.hero) == g, "the gate repair ordered last comes first, and again when picked anew (after fleeing)")
-	c.release(g, false)
+	c.release(g, game.hero, false)
 	for i in want.size():
 		var s := c.claim(game.hero)
 		got.append(s)
@@ -337,7 +359,7 @@ func _test_huts_first() -> void:
 	check(Construction.job_type(hut) == "repair" and Construction.job_type(tower) == "build" and Construction.job_type(walls[0]) == "upgrade", "a hut rebuild counts as a repair")
 	for site in got:
 		if site:
-			c.release(site, false)
+			c.release(site, game.hero, false)
 	for site: Building in want:
 		c.cancel(site)
 	hurt.hp = hurt.max_hp()
@@ -367,16 +389,16 @@ func _test_queue_rules() -> void:
 	c.order_repair(near)
 	var first := c.claim(hero)
 	check(c.bucket(near) == c.bucket(far) and first == near, "the same bucket: the nearest job first")
-	c.release(first, false)
+	c.release(first, hero, false)
 	var gap := Vector2(far.tile).distance_to(from) - Vector2(near.tile).distance_to(from)
 	far.queued_at -= (gap / float(q["age_tiles_per_min"]) + 0.5) * 60.0
 	first = c.claim(hero)
 	check(first == far, "but one that has waited long enough goes first (%.0f tiles further)" % gap)
-	c.release(first, false)
+	c.release(first, hero, false)
 	near.repair_progress = 0.1
 	first = c.claim(hero)
 	check(first == near, "a job already started goes first in its bucket")
-	c.release(first, false)
+	c.release(first, hero, false)
 	# Demoted after fleeing from it twice; back once calm.
 	var g := gate()
 	g.take_damage(20.0)
@@ -392,21 +414,21 @@ func _test_queue_rules() -> void:
 	check(first == g, "a gate repair before a hut rebuild")
 	var b0 := c.bucket(g)
 	for i in int(q["demote_after"]):
-		c.release(g, false, true)
+		c.release(g, hero, false, true)
 		if i + 1 < int(q["demote_after"]):
 			c.claim(hero)
 	first = c.claim(hero)
 	check(c.bucket(g) == b0 + 1 and c.bucket(g) == c.bucket(hut) and first == hut, "fled from %d times, the gate drops a bucket: the hut rebuild under way goes first" % int(q["demote_after"]))
-	c.release(first, false)
+	c.release(first, hero, false)
 	c._process(float(q["demote_calm"]) + 0.1)
 	first = c.claim(hero)
 	check(g.interrupts == 0 and first == g, "and is back after %d s without enemies near it" % int(q["demote_calm"]))
-	c.release(first, false)
+	c.release(first, hero, false)
 	# An enemy in sight near a job outside the walls: skipped meanwhile. The
 	# gate is worked from inside, safe while no enemy has broken in.
 	var e := spawn_still("goblin", Vector2(road_out(2)))
 	check(not c.in_danger(g), "a gate (worked from inside the walls) is safe with a goblin outside it")
-	c.release(g, false)
+	c.release(g, hero, false)
 	near.repair_progress = 0.0
 	var wp: Building = cands.filter(func(b: Building) -> bool: return b is Workplace)[0]
 	e.set_grid_pos(Vector2(wp.work_tile()) + Vector2(0.3, 0.3))  # (in the building's sight)
@@ -461,7 +483,6 @@ func _test_field() -> void:
 func _test_break_in() -> void:
 	var v := game.player_village
 	var g := gate()
-	var hut_in := game.map.building_at(g.tile + inward(g.tile)) as Hut
 	var huts := intact()
 	var gob := spawn("goblin", Vector2(road_out(7)))
 	gob.max_hp = 1e6
@@ -472,7 +493,8 @@ func _test_break_in() -> void:
 	check(not gob.dead and g.hp < 80.0 and intact() == huts and gob.current_tile() != g.tile, "it stops in front of the gate and hits it (%.0f HP left); no hut burns yet" % g.hp)
 	var gone := await wait_until(func() -> bool: return gob.dead, 60.0)
 	check(gone and g.devastated, "the gate breaks; the goblin walks in")
-	check(intact() == huts - 1 and hut_in != null and hut_in.ruined, "it burns the nearest hut (behind the gate)")
+	var burnt := game.player_village.huts().filter(func(h: Hut) -> bool: return h.ruined)
+	check(intact() == huts - 1 and burnt.size() == 1 and Vector2(burnt[0].tile).distance_to(Vector2(g.tile)) <= 3.0, "it burns the hut nearest the gate")
 	check(logs.any(func(l: String) -> bool: return "under attack" in l), "the first blow at the gate is announced")
 	reset_village()
 
@@ -610,7 +632,10 @@ func _test_no_siege() -> void:
 		await get_tree().process_frame
 		t += get_process_delta_time()
 		spots[ne.current_tile()] = true
-		outside = outside and not v.rect.has_point(ne.current_tile()) and Hero.rect_distance(v.rect, ne.grid_pos) <= leash
+		var ok_here := not v.rect.has_point(ne.current_tile()) and Hero.rect_distance(v.rect, ne.grid_pos) <= leash
+		if outside and not ok_here:
+			print("    lurker strayed to %s (%.1f from the walls, leash %.1f, inside %s)" % [ne.current_tile(), Hero.rect_distance(v.rect, ne.grid_pos), leash, v.rect.has_point(ne.current_tile())])
+		outside = outside and ok_here
 	check(lurks and not ne.dead and g.hp == g.max_hp() and intact() == huts, "a necromancer can't hurt the gate: it lurks, and no hut is lost")
 	check(outside and spots.size() >= 4, "it roams outside the walls within the leash (%d tiles)" % spots.size())
 	walls_beside(g.tile)[0].take_damage(1e6)
@@ -739,3 +764,145 @@ func _test_stats() -> void:
 	var vid := game.player_village.id
 	check(st.value(vid, "building_damage") > 0.0 and st.value(vid, "devastated") > 0.0 and st.value(vid, "repairs") > 0.0, "the statistics count damage, devastation and repairs")
 	check(st.value(vid, "spend.materials.repairs") > 0.0, "material spent on repairs")
+
+
+# --- the town hall and the last stand (docs/village-design.md §3a, §3b) -----------------------------
+
+func _test_town_hall() -> void:
+	var v := game.player_village
+	var h := hall()
+	check(h != null and h.tiles().size() == 4 and h.tile == v.center - Vector2i(2, 2), "the town hall: 2x2 in the back quarter")
+	check(h.hp == float(Config.BUILDING_HP["town_hall"][0]) and not h.is_solid() and h.defense() == "stone_defense", "full HP, stone defence; walkable like a hut")
+	check(not h.can_tear_down() and not h.can_garrison() and h.repair_cost().is_empty(), "never torn down; no post at level 1")
+	check(v.center == v.rect.position + Vector2i(3, 3) and game.map.building_at(v.center) == null, "the centre is the free middle of the path cross")
+	check(game.hero.home() == v.center, "the hero's post is the centre")
+
+
+## Free tiles inside take 1x1 buildings; the path cross and big ones are refused.
+func _test_inside() -> void:
+	var v := game.player_village
+	var c := game.construction
+	check(c.placement_error("tower", v.center + Vector2i(1, -1)) == "", "a watchtower may go on a free tile inside the walls")
+	check(c.placement_error("lightstone", v.center + Vector2i(-1, 1)) == "", "so may a light stone")
+	check(c.placement_error("tower", v.center + Vector2i(0, 1)) == "Keep the village's paths free", "never on the path cross")
+	check(c.placement_error("farm", v.center + Vector2i(1, 1)) == "Must be outside the village walls", "nothing bigger than 1x1 inside")
+	check(c.placement_error("tower", hall().tile) != "", "nor on the town hall")
+
+
+## Upgrades: level 2 adds the tower post with a level-3 watchtower's range.
+func _test_hall_levels() -> void:
+	var h := hall()
+	var r := game.command("upgrade_tower", {"building": h.nid})
+	await finish_work()
+	check(r["ok"] and h.level == 2 and h.hp == float(Config.BUILDING_HP["town_hall"][1]) and h.can_garrison(), "level 2: more HP, and a tower post")
+	var want: float = Config.TOWER_RANGE["tower"] + Config.TOWER_LEVELS[2]["range_bonus"]
+	check(is_equal_approx(h.range_tiles(), want), "its post shoots as far as a level-3 watchtower (%.1f)" % h.range_tiles())
+	var ar := game.army.recruit("archer")
+	game.army.station(ar, h)
+	var on := await wait_until(func() -> bool: return h.garrison == ar and ar.state == MilitaryUnit.State.STATIONED, 60.0)
+	check(on and h._unit_sprite.visible, "an archer takes the post on the hall")
+	var mid := Vector2(h.tile) + Vector2(0.5, 0.5)
+	check(h.act_center() == mid and h.sight_center() == mid, "its post is the middle of the 2x2: ranges and targeting count from there")
+	check(is_zero_approx(h._unit_sprite.position.x) and h.position == Iso.to_world(mid) and h._unit_sprite.position.y < -150.0, "its unit is drawn centred over the middle, up on the tower (%s)" % str(h._unit_sprite.position))
+	game.army.unstation(ar)
+	h.level = 1
+	h.hp = h.max_hp()
+	h.refresh()
+
+
+## Several builders on one site: their work adds up; a far builder joins only
+## when that saves more than its walk.
+func _test_crew() -> void:
+	var c := game.construction
+	await finish_work()
+	var second := game.population.recruit("builder")
+	var h := hall()
+	h.take_damage(h.max_hp() * 0.6)
+	c.order_repair(h)
+	var both := await wait_until(func() -> bool: return h.crew.size() >= 2, 30.0)
+	check(second != null and both, "two builders work on the hall's repair at once")
+	await finish_work()
+	check(h.hp == h.max_hp(), "repaired")
+	check(not Construction.worth_joining(h, 5.0, 1.0), "nothing left to do: nobody joins")
+	h.repairing = true
+	h.repair_time = 40.0
+	h.repair_progress = 0.0
+	h.crew[0] = 1.0
+	check(Construction.worth_joining(h, 3.0, 1.0) and not Construction.worth_joining(h, 30.0, 1.0), "a long job is worth a short walk, not a long one")
+	h.repair_progress = 37.0
+	check(not Construction.worth_joining(h, 2.0, 1.0), "the last seconds aren't worth a walk")
+	h.crew.clear()
+	h.repairing = false
+	game.population.retire(second)  # (the other tests count on one builder)
+
+
+## Devastated with villagers alive: the countdown runs, the repair is
+## ordered by itself, and it ends once the hall is whole again.
+func _test_last_stand() -> void:
+	var v := game.player_village
+	var h := hall()
+	var mat := v.economy.amount("materials")
+	v.economy.add("materials", -mat)
+	h.take_damage(1e6)
+	check(h.devastated and v.last_stand_left() > 0.0 and v.is_standing(), "devastated: the last stand starts, the village still stands")
+	check(is_equal_approx(v.last_stand_left(), float(Config.TOWN_HALL["last_stand"][Settings.difficulty_key()])), "its countdown is the difficulty's")
+	check(not h.repairing and v.stand_unpaid and "Not enough building material" in game.hud.stand_warning_text(), "no material: the repair waits and the warning says so")
+	await wait(0.6)
+	check(game.hud._stand_warning.visible, "the last stand's banner shows")
+	v.economy.add("materials", mat)
+	await frames(3)
+	check(h.repairing and game.construction.bucket(h) == 0, "with material it is ordered by itself, in the top bucket")
+	var before := v.last_stand_left()
+	await wait(1.0)
+	check(v.last_stand_left() < before, "the countdown runs")
+	var saved := await wait_until(func() -> bool: return v.last_stand_left() < 0.0, 200.0)
+	check(saved and not h.devastated and h.hp == h.max_hp() and not v.hall_lost and v.is_standing(), "repaired in time: the village stands")
+	check(logs.any(func(l: String) -> bool: return "The town hall is repaired" in l), "logged")
+	await wait(0.6)
+	check(not game.hud._stand_warning.visible, "the banner is gone")
+	reset_village()
+
+
+## Inside, a raider's coin flip: the town hall (or a building inside) instead
+## of a hut; whoever devastates the hall is gone, and the last stand starts.
+func _test_raid_targets() -> void:
+	var v := game.player_village
+	if game.population.count("builder") == 0:
+		game.population.recruit("builder")  # (the hut-burning tests above may have burned the builder's home)
+	var g := gate()
+	g.take_damage(1e6)
+	var h := hall()
+	h.hp = 15.0
+	game.siege.raid_hut_weight = 0.0
+	var huts := intact()
+	var gob := spawn("goblin", Vector2(road_out(6)))
+	gob.max_hp = 1e6
+	gob.hp = 1e6
+	var going := await wait_until(func() -> bool: return gob.raid_target == h, 60.0)
+	check(going, "with the coin on the other side, a goblin inside goes for the town hall")
+	var gone := await wait_until(func() -> bool: return gob.dead, 60.0)
+	check(gone and gob.raid_done and h.devastated and intact() == huts, "it devastates the hall and is gone, burning no hut")
+	check(v.last_stand_left() > 0.0, "the last stand starts")
+	game.siege.raid_hut_weight = 1.0
+	var again := await wait_until(func() -> bool: return v.last_stand_left() < 0.0 and not h.devastated, 120.0)
+	check(again, "(repaired again)")
+	if not again:
+		var bs: Array = game.population.civilians.filter(func(x: Civilian) -> bool: return x is Builder)
+		print("    stand %.1f, repairing %s, crew %s, hp %.0f, queue %s, materials %d, builders %s" % [v.last_stand_left(), h.repairing, h.crew, h.hp,
+			game.construction.queue.map(func(x: Building) -> String: return x.label()), int(v.economy.amount("materials")),
+			bs.map(func(x: Builder) -> String: return "%s %s at %s" % [x.label(), x.status(), x.current_tile()])])
+	reset_village()
+
+
+## The countdown runs out: the hall has fallen, and so has the village.
+func _test_stand_lost() -> void:
+	var v := game.player_village
+	for b in game.population.civilians.duplicate():
+		if b is Builder:
+			b.process_mode = Node.PROCESS_MODE_DISABLED  # (nobody repairs it)
+	hall().take_damage(1e6)
+	v.last_stand = 0.3
+	var fell := await wait_until(func() -> bool: return v.fallen, 10.0)
+	check(fell and v.hall_lost and not v.is_standing() and game.game_over, "not repaired in time: the village falls (single player: the game is lost)")
+	if not fell:
+		print("    stand %.1f, lost %s, fallen %s, over %s, pop %d" % [v.last_stand_left(), v.hall_lost, v.fallen, game.game_over, game.population.count()])

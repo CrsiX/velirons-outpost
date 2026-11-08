@@ -93,9 +93,11 @@ func refresh_things() -> void:
 func _add_piece(p: Dictionary, ruined: bool) -> void:
 	var kind: String = p["kind"]
 	var mat: String = p.get("material", "stone")
-	var art := Config.piece_art(mat, "hut_ruin" if ruined else kind)
+	var art := Config.piece_art(mat, kind)
+	if ruined:
+		art = Config.piece_art(mat, "town_hall_ruin" if kind == "town_hall" else "hut_ruin")
 	var s := Art.sprite(art)
-	s.position = Iso.tile_to_world(p["tile"])
+	s.position = Building.anchor_world(p["tile"], MapData.piece_size(kind))
 	if kind in ["wall", "gate"]:
 		s.flip_h = p["flip"]
 	things.add_child(s)

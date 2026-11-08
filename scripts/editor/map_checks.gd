@@ -72,8 +72,14 @@ static func _village(out: Array[Dictionary], m: MapData, i: int, objects: Dictio
 		_add(out, "error", "%s has no gate" % name, center)
 	if not own.any(func(p: Dictionary) -> bool: return p["kind"] == "hut"):
 		_add(out, "error", "%s has no hut" % name, center)
+	# Exactly one town hall (docs/village-design.md §3a): never added by the game.
+	var halls := own.filter(func(p: Dictionary) -> bool: return p["kind"] == "town_hall")
+	if halls.is_empty():
+		_add(out, "error", "%s has no town hall: place one in the map editor" % name, center)
+	elif halls.size() > 1:
+		_add(out, "error", "%s has %d town halls (one per village)" % [name, halls.size()], halls[1]["tile"])
 	for p in own:
-		if objects.has(p["tile"]):
+		if MapData.piece_footprint(p).any(func(t: Vector2i) -> bool: return objects.has(t)):
 			_add(out, "error", "%s: a %s stands on an object" % [name, str(p["kind"]).replace("_", " ")], p["tile"])
 	var spawns: Array = v["home_spawns"]
 	if spawns.is_empty():
@@ -108,19 +114,14 @@ static func standard_layout(m: MapData, i: int) -> bool:
 
 
 ## The standard village (Config.VILLAGE_LAYOUT) around `center`: [{kind, tile,
-## flip, material}], all of `material`.
+## flip, material}], all of `material` (MapData.standard_pieces).
 static func standard_pieces(center: Vector2i, material := "stone") -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	var o := center - Vector2i(2, 2)
-	for row in 5:
-		for col in 5:
-			var kind: String = {"T": "wall_tower", "W": "wall", "G": "gate", "V": "hut"}[Config.VILLAGE_LAYOUT[row][col]]
-			out.append({"kind": kind, "tile": o + Vector2i(col, row), "flip": col == 0 or col == 4, "material": material})
-	return out
+	return MapData.standard_pieces(center, material)
 
 
 ## 1 where a villager could walk from some village centre (passable land,
-## not walls, towers or lairs; huts, gates and the other objects are open), else 0.
+## not walls, towers or lairs; huts, gates, town halls and the other objects
+## are open), else 0.
 static func _walkable(m: MapData, pieces: Dictionary, objects: Dictionary) -> PackedByteArray:
 	var reach := PackedByteArray()
 	reach.resize(m.size * m.size)

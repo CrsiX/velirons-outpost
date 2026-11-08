@@ -60,7 +60,7 @@ func _free(t: Vector2i, size: int, vi: int, spacing: float = Config.OBJECT_SPACI
 		if not m.in_bounds(p) or m.is_edge(p) or not c.is_land(p) or m.is_road(p) or m.in_village(p):
 			return false
 		for v in m.villages:
-			if Vector2(p).distance_to(Vector2(v["center"])) < Config.FOREST_CLEARING_RING + 4:
+			if Vector2(p).distance_to(Vector2(v["center"])) < Config.VILLAGE_NEAR_RING + 4:
 				return false
 	for o in m.objects:
 		if Vector2(t).distance_to(Vector2(o["tile"])) < spacing:

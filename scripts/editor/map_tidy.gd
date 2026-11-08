@@ -139,7 +139,8 @@ static func in_volcano(m: MapData, t: Vector2i) -> bool:
 static func piece_tiles(m: MapData) -> Dictionary:
 	var out := {}
 	for p in m.village_layout:
-		out[p["tile"]] = p["kind"]
+		for t in MapData.piece_footprint(p):
+			out[t] = p["kind"]
 	return out
 
 

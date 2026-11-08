@@ -146,6 +146,14 @@ var _siege_left_at := -INF
 var _slip := 0.0
 ## The hut it got to: Game.on_enemy_reached_gate burns this one.
 var raid_hut: Hut = null
+## Inside the walls (docs/siege-design.md §5.3): whether it raids at all
+## (its kind's raid_chance, rolled once on getting in: 1 yes, 0 no, -1 not
+## yet), what it goes for (a hut, the town hall or another building inside,
+## by a coin flip), and whether it already did its raid (it devastated the
+## town hall: it is gone, burning nothing).
+var raids := -1
+var raid_target: Building = null
+var raid_done := false
 ## A guard of a place, not a wave member (the campaign's octopus at the
 ## abbey): a water monster keeps to the deep tiles within `post_leash` of
 ## `post` ((-1, -1): none; AquaBehavior).
@@ -1019,12 +1027,12 @@ func _lead() -> void:
 			_guard = minf(_guard, float(sp["command_guard"]))
 
 
-## Tiles left until the gate (lower = more dangerous); breaking in: tiles to
-## the village's walls (0 at or inside them).
+## Tiles left until the village centre (lower = more dangerous): breaking
+## in, straight there; on its road, the road to the gate plus the way in.
 func remaining() -> int:
 	if sieging and is_instance_valid(target_village):
-		return floori(Hero.rect_distance(target_village.rect, grid_pos))
-	return path.size() - path_index
+		return floori(grid_pos.distance_to(Vector2(target_village.center)))
+	return path.size() - path_index + Config.VILLAGE_HALF
 
 
 func hit_point() -> Vector2:
@@ -1311,6 +1319,8 @@ func _siege_tick(delta: float) -> bool:
 		step_path(delta)
 		return true
 	var here := current_tile()
+	if v.rect.grow(-1).has_point(here):
+		return _raid_tick(v, delta, "by the siege field" + (" (flying)" if air else ""))
 	var hut := game.siege.hut_at(v, here)
 	if hut != null:
 		raid_hut = hut
@@ -1373,6 +1383,131 @@ func _at_barrier(v: Village) -> void:
 		_siege_cd = cd
 
 
+# --- inside the walls (docs/siege-design.md §5.3) ---------------------------------------
+
+## Inside its village: whether it raids is rolled once (raid_chance); a
+## raider goes for a target by a coin flip (raid_target) and burns it (a
+## hut: it is gone) or hits it until it is devastated (the town hall: it is
+## gone; anything else: it picks again). Kinds with a raid of their own
+## (a wolf's maul) get in at once. Returns true (it is busy here).
+func _raid_tick(v: Village, delta: float, how: String) -> bool:
+	if str(spec().get("raid", "")) != "":
+		_get_in(how)
+		return true
+	if raids < 0:
+		raids = 1 if game.raid_roll(self) else 0
+		if raids == 0:
+			_get_in(how)  # (Game.on_enemy_reached_gate: it melts away)
+			return true
+	if not _raid_target_ok(v, raid_target):
+		raid_target = _pick_raid_target(v)
+		path = PackedVector2Array()
+		path_index = 0
+		if raid_target != null:
+			v.events.debug("%s goes for %s" % [label(), raid_target.label()])
+	if raid_target == null:
+		_set_moving(false)  # (nothing left to burn: it waits for the defenders)
+		return true
+	var here := current_tile()
+	if raid_target is Hut:
+		if here == raid_target.tile:
+			raid_hut = raid_target as Hut
+			_get_in(how)
+			return true
+		return _raid_walk(raid_target.tile, delta)
+	if raid_target.neighbour_tiles().has(here):
+		_set_moving(false)
+		face(Vector2(raid_target.tile))
+		_siege_cd -= delta
+		if _siege_cd <= 0.0:
+			var cd := behavior.siege_attack(self, raid_target)
+			if cd > 0.0:
+				_siege_cd = cd
+		return true
+	var stand := _stand_by(raid_target)
+	if stand.x < 0:
+		raid_target = null  # (no way to it: pick again)
+		_set_moving(false)
+		return true
+	return _raid_walk(stand, delta)
+
+
+## Walks to `to` inside its village (flyers straight there). False never: it is busy.
+func _raid_walk(to: Vector2i, delta: float) -> bool:
+	if flies():
+		follow(PackedVector2Array([grid_pos, Vector2(to) + _jitter]))
+	else:
+		var p := find_way(current_tile(), to)
+		if p.size() < 2:
+			raid_target = null  # (cut off: pick again)
+			_set_moving(false)
+			return true
+		p[0] = grid_pos
+		follow(p)
+	step_path(delta)
+	return true
+
+
+## A walkable tile next to `b` (nearest this enemy), or (-1, -1).
+func _stand_by(b: Building) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for t in b.neighbour_tiles():
+		if not game.world.pathing.is_walkable(t) or not (flies() or game.world.pathing.can_reach(current_tile(), t)):
+			continue
+		var d := Vector2(t).distance_squared_to(grid_pos)
+		if d < best_d:
+			best_d = d
+			best = t
+	return best
+
+
+## Still worth going for: intact, its village's, inside its walls.
+func _raid_target_ok(v: Village, b: Building) -> bool:
+	if not is_instance_valid(b) or b.village != v:
+		return false
+	if b is Hut:
+		return (b as Hut).is_intact()
+	return b.complete and not b.devastated
+
+
+## The coin flip (Config.SIEGE "raid_hut_weight"): the nearest intact hut or
+## the nearest other target (the town hall, a building inside the walls;
+## only for those that can hurt buildings). With only one kind left, that one.
+func _pick_raid_target(v: Village) -> Building:
+	var hut: Building = null
+	var other: Building = null
+	var hut_d := INF
+	var other_d := INF
+	var breaks := float(spec().get("siege", 0.0)) > 0.0
+	for b in v.buildings():
+		if not _raid_target_ok(v, b) or Siege.BARRIERS.has(b.kind) or b is Warehouse:
+			continue
+		var d := Vector2(b.tile).distance_squared_to(grid_pos)
+		if b is Hut:
+			if d < hut_d:
+				hut_d = d
+				hut = b
+		elif breaks and v.rect.grow(-1).has_point(b.tile) and d < other_d:
+			other_d = d
+			other = b
+	if hut == null or other == null:
+		return hut if hut != null else other
+	return hut if game.raid_rng.randf() < game.siege.raid_hut_weight else other
+
+
+## A blow of its devastated `b` (Construction.on_devastated): the town hall
+## it went for ends its raid (it is gone, as after burning a hut); anything
+## else, it picks again.
+func on_devastated_target(b: Building) -> void:
+	if b != raid_target or dead:
+		return
+	raid_target = null
+	if b is TownHall:
+		raid_done = true
+		_get_in("it devastated %s" % b.label())
+
+
 # --- lurking (docs/enemies-design.md §9) ---------------------------------------------------
 
 ## Can't break anything and goes on foot: a lurker (Config.LURK).
@@ -1400,6 +1535,8 @@ func _lurk_tick(v: Village, delta: float) -> bool:
 		if path_index < path.size():
 			step_path(delta)
 			return true
+		if v.rect.grow(-1).has_point(here):
+			return _raid_tick(v, delta, "a lurker through a breach")
 		var hut := game.siege.hut_at(v, here)
 		if hut != null:
 			raid_hut = hut
@@ -1473,7 +1610,7 @@ func tower_reach(at: Vector2) -> bool:
 	for b in game.world.towers():
 		var t := b as Tower
 		if t and t.garrison != null and t.garrison.state == MilitaryUnit.State.STATIONED and t.garrison.fights() \
-				and Vector2(t.tile).distance_to(at) <= t.range_tiles() + margin:
+				and t.act_center().distance_to(at) <= t.range_tiles() + margin:
 			return true
 	return false
 

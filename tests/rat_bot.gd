@@ -422,7 +422,7 @@ func ensure_role(role: String) -> void:
 func built(kind: String) -> Building:
 	game.economy.add("materials", 300)
 	game.economy.add("gold", 300)
-	var b := game.construction.place(kind, find_spot(kind, game.player_village.center + Vector2i(6, 6)))
+	var b := game.construction.place(kind, open_spot(kind, game.player_village.center + Vector2i(6, 6)))
 	game.construction.queue.erase(b)
 	b.progress = b.build_time
 	game.construction.complete(b)
@@ -490,6 +490,31 @@ func _test_teardown() -> void:
 	check(is_equal_approx(game.world.overlay._range, b.activation_range()) and game.world.overlay._range_center == b.act_center(), "a selected barracks shows its range (%.1f)" % b.activation_range())
 	game.deselect()
 	check(not game.hud._recruit_rows.has("spatial_archmage"), "the Spatial Archmage isn't in the Village tab")
+
+
+## A spot for `kind` near `near` with open ground all round it (trees may
+## come right up to the walls, which would box a tower in).
+func open_spot(kind: String, near: Vector2i) -> Vector2i:
+	var size: int = Config.BUILDINGS[kind]["size"]
+	var best := find_spot(kind, near)
+	var best_d := INF
+	for dy in range(-10, 11):
+		for dx in range(-10, 11):
+			var t := near + Vector2i(dx, dy)
+			if game.construction.placement_error(kind, t) != "" or game.map.in_village(t):
+				continue
+			var foot := Building.footprint(t, size)
+			var open := true
+			for f in foot:
+				for d in [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)]:
+					var n: Vector2i = f + d
+					if not foot.has(n) and (not game.world.pathing.is_walkable(n) or game.map.in_village(n) or game.map.building_at(n) != null):
+						open = false
+			var dist := Vector2(dx, dy).length()
+			if open and dist < best_d and game.world.pathing.can_reach(game.player_village.center, t + Vector2i(size / 2 + 1, 0)):
+				best_d = dist
+				best = t
+	return best
 
 
 # --- a tower boxed in by trees -------------------------------------------------------------------

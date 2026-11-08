@@ -91,30 +91,26 @@ crushed.
 4. **Mountains and volcanoes** (§7); ash land marked around volcanoes.
 5. **Zones and vegetation** (§4): zone from height x moisture, ash land where
    marked, then trees and decor by zone.
-6. **Villages:** per slice, the best tile near its centre. A tile qualifies if
-   it keeps clear of water, mountains and lava round the walls and keeps its
-   distance from the sea, volcanoes, other villages, its slice's border
-   (co-op) and the map edge (`VILLAGE_*`). The nearest to the centre wins,
-   meadow slightly preferred and pine, steppe, swamp and ash held back. If no
-   tile qualifies the rules are loosened in steps; if still none, the village
-   goes on the slice's centre and the map counts as failed. The village is
-   stamped in with a clearing ring; steppe, swamp and ash inside it become
-   meadow. Single player uses the same rule round the map centre.
-   *(Designed, not built:)* the village becomes a 7×7 block with its **town
-   hall**, which the generator places as part of the village, a core part of
-   every map with no safety net when a file loads (docs/village-design.md
-   §3.1, §3a). The clearing ring and its meadow stamping go, and so does the
-   rule keeping water, mountains and lava away from the walls; the distances
-   from the sea and from volcanoes (`VILLAGE_SEA_DIST`, `VILLAGE_VOLCANO_DIST`)
-   stay, and no distance from the ocean is added (that belongs to the coast
-   map type). What a spot must still give: the 7×7 footprint on land that can
-   be built on; no water, mountain or lava directly in front of any gate
-   (forest is fine: a gate may face woods a forester will open up); at least
-   two gates with a road (world-roads-design.md §5.1), since one road would
-   make a village too easy to defend. The free tiles and paths inside are
-   grass. The starting farm and camp are placed on the finished map or left
-   out (docs/village-design.md §4), as now. The title maps need a rebake
-   after this change.
+6. **Villages** (`GenVillages`): per slice, the best tile near its centre. A
+   tile qualifies if the village fits there (`GenVillages.fits`: the 7×7
+   footprint on land, no water, mountain, lava or crater under it, trees are
+   cleared; land, forest included, directly in front of every gate: a gate
+   may face woods a forester will open up) and it keeps its distance from the
+   sea, volcanoes (`VILLAGE_SEA_DIST`, `VILLAGE_VOLCANO_DIST`), other
+   villages, its slice's border (co-op) and the map edge (`VILLAGE_*`). No
+   distance from the ocean is added (that belongs to the coast map type), and
+   water, mountains and lava may come right up to the walls. The nearest to
+   the centre wins, meadow slightly preferred and pine, steppe, swamp and ash
+   held back. If no tile qualifies the rules are loosened in steps; if still
+   none, the village goes on the slice's centre and the map counts as failed.
+   The village (docs/village-design.md §3.1), its **town hall** included, is
+   stamped in (`MapData.standard_pieces`): a core part of every map, with no
+   safety net when a file loads (§3a there). Its tiles become grass (steppe,
+   swamp and ash inside become meadow); there is no clearing ring round it,
+   so trees may come up to the walls. At least two gates must have a road
+   (world-roads-design.md §5.1), since one road would make a village too easy
+   to defend. The starting farm and camp are placed on the finished map or
+   left out (docs/village-design.md §4).
    **Coast inlets** (stage 6b, Coast maps only; world-objects-design.md §9.8)
    follow the villages and come before the roads, so the road network sees
    them as sea and routes around their deep water.

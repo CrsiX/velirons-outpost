@@ -21,8 +21,33 @@ var build_time := 1.0
 ## (Config.PIECE_MATERIALS): its look, and for walls, gates and wall towers its
 ## HP, costs and times. Everything else is "stone" (factor 1). Set before setup().
 var made_of := "stone"
-## Builder currently assigned to this site (if any).
-var builder: Node = null
+## Builders working on this job now (docs/village-design.md §5 Builder): their
+## instance id -> work speed (1: a builder; the hero builds more slowly). Their
+## progress adds up (Construction.claim).
+var crew := {}
+func has_builder() -> bool:
+	return not crew.is_empty()
+
+
+## The work its builders do together per second.
+func crew_speed() -> float:
+	var sum := 0.0
+	for k in crew:
+		sum += float(crew[k])
+	return sum
+
+
+## Seconds of one builder's work left on the job under way.
+func work_left() -> float:
+	if not complete:
+		return maxf(build_time - progress, 0.0)
+	if tearing_down:
+		return maxf(teardown_time() - teardown_progress, 0.0)
+	if repairing:
+		return maxf(repair_time - repair_progress, 0.0)
+	return maxf(upgrade_time - upgrade_progress, 0.0)
+
+
 ## Its job in the build queue (Construction.claim): when it was queued
 ## (Game.clock), how often builders fled from it, and for how long no enemy
 ## has been near it since.
@@ -497,11 +522,11 @@ func info() -> Dictionary:
 	var actions: Array[Dictionary] = []
 	if not complete:
 		lines.append("Construction site: %d%%" % int(100.0 * progress / build_time))
-		lines.append("Builder at work" if builder != null else "Waiting for a builder")
+		lines.append(_crew_text())
 		add_cancel_action(lines, actions, "Cancel")
 	elif tearing_down:
 		lines.append("Tearing down: %d%%" % int(100.0 * work_fraction()))
-		lines.append("Builder at work" if builder != null else "Waiting for a builder")
+		lines.append(_crew_text())
 		lines.append(Config.cost_icons({"materials": teardown_refund()}) + " back when it's done")
 		actions.append({"label": "Stop tear-down", "action": func() -> void: game.command("stop_tear_down", {"building": nid})})
 	var title := display_name()
@@ -521,7 +546,7 @@ func add_hp_info(lines: Array[String], actions: Array[Dictionary]) -> void:
 	else:
 		top.append("{hp} %d / %d" % [ceili(hp), roundi(max_hp())])
 	if repairing:
-		top.append("Repairing: %d%% (%s)" % [int(100.0 * work_fraction()), "builder at work" if builder != null else "waiting for a builder"])
+		top.append("Repairing: %d%% (%s)" % [int(100.0 * work_fraction()), _crew_text().to_lower()])
 		add_cancel_action(top, actions, "Cancel repair")
 	elif can_repair() and not tearing_down:
 		var cost := repair_cost()
@@ -532,6 +557,14 @@ func add_hp_info(lines: Array[String], actions: Array[Dictionary]) -> void:
 		})
 	for i in top.size():
 		lines.insert(i, top[i])
+
+
+## Who works on its job: "Builder at work", "3 builders at work", "Waiting for a builder".
+func _crew_text() -> String:
+	match crew.size():
+		0: return "Waiting for a builder"
+		1: return "Builder at work"
+	return "%d builders at work" % crew.size()
 
 
 ## Calling off the work under way (a site, or an ordered upgrade: `what` names

@@ -112,16 +112,15 @@ map areas and for colour-blind players.
 
 - Every village has the single-player start (walled village, huts, starting
   farm and camp with their workers, builder, explorer, hero, resources).
-- **Standing**: at least one villager and one intact hut (the single-player
-  defeat rule, applied per village). **Fallen** otherwise, logged at Important
-  for everyone. *(Designed, not built:)* standing becomes at least one villager
-  and a town hall that hasn't fallen (docs/village-design.md §3b). A hall's
-  last stand is announced to every other player at Important ("Town <name>
-  falls in x s"; the hall has already fallen when it starts), so they can send
-  their hero or units. A fallen village that gets a villager again while its
-  hall is devastated gets a last stand with a longer countdown (a `Config`
-  multiplier); if that one fails it stays fallen, with no new countdown, until
-  its hall is at full HP and it has a villager.
+- **Standing**: at least one villager and a town hall that hasn't fallen (the
+  single-player defeat rule, applied per village; docs/village-design.md §3b).
+  **Fallen** otherwise, logged at Important for everyone. A hall's last stand
+  is announced to every other player at Important ("Town <name> falls in x s"),
+  so they can send their hero or units; its countdown reaches its own player's
+  client in the snapshot. A fallen village that gets a villager again while its
+  hall is devastated gets a last stand with a longer countdown
+  (`TOWN_HALL.retry_factor`); if that one fails it stays fallen, with no new
+  countdown, until its hall is at full HP and it has a villager.
 - **Fallen villages:**
   - Their wave share keeps coming (§4.2), and enemies bound for a fallen
     village turn to the standing village nearest to where they are. This is

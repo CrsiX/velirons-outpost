@@ -11,7 +11,7 @@ extends RefCounted
 ## length (u32) and the body (var_to_bytes, zstd). Plain values only: entities
 ## refer to each other by nid, villages by index, map objects by index.
 
-const FORMAT := 5
+const FORMAT := 6
 const MAGIC := "VOSV"
 const EXT := "vsave"
 const AUTO_PREFIX := "auto-"
@@ -255,7 +255,7 @@ static func wave_text(wave: int) -> String:
 static func capture(game: Game) -> Dictionary:
 	var world := game.world
 	var b := {}
-	b["game"] = {"game_id": game.game_id, "difficulty": int(Settings.difficulty), "clock": game.clock,
+	b["game"] = {"game_id": game.game_id, "difficulty": int(Settings.difficulty), "clock": game.clock, "raid_rng": game.raid_rng.state,
 		"next_nid": game._next_nid, "ids": game._ids.duplicate(), "unlocks": game.unlocks.keys()}
 	b["map"] = game.map.to_bytes()
 	var live := PackedInt32Array()
@@ -287,6 +287,7 @@ static func capture(game: Game) -> Dictionary:
 		for site in v.construction.queue:
 			queue.append(site.nid)
 		vs.append({"name": v.village_name, "color": v.color.to_html(false), "fallen": v.fallen, "relics": Array(v.relics),
+			"stand": [v.last_stand, v.stand_retry, v.hall_lost, v.no_more_stands, v.stand_emptied],
 			"cd": v.corpses_delivered, "log": int(v.events.shown_level), "queue": queue,
 			"eco": {"gold": v.economy.amount("gold"), "food": v.economy.amount("food"), "materials": v.economy.amount("materials")},
 			"hero": _hero_state(v.hero)})
@@ -454,6 +455,7 @@ static func restore_entities(game: Game, b: Dictionary) -> void:
 	var g: Dictionary = b["game"]
 	game._next_nid = maxi(game._next_nid, int(g["next_nid"]))
 	game.clock = float(g["clock"])
+	game.raid_rng.state = int(g["raid_rng"])  # (raids go on as they would have, not from the game's start)
 	for key in g["unlocks"]:
 		game.unlocks[key] = true
 		game.world.on_unlocked(key)
@@ -462,6 +464,12 @@ static func restore_entities(game: Game, b: Dictionary) -> void:
 		var v := game.villages[i]
 		var d: Dictionary = b["villages"][i]
 		v.fallen = bool(d["fallen"])
+		var stand: Array = d["stand"]
+		v.last_stand = float(stand[0])
+		v.stand_retry = bool(stand[1])
+		v.hall_lost = bool(stand[2])
+		v.no_more_stands = bool(stand[3])
+		v.stand_emptied = bool(stand[4])
 		v.relics.assign(d["relics"])
 		v.corpses_delivered = int(d["cd"])
 		v.economy.set_amounts(d["eco"])
