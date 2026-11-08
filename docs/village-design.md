@@ -220,13 +220,14 @@ builder's time (the *Upgrade* command towers use):
 - What else levels 2 and 3 do is still open.
 
 **Look:** larger than a hut and not as plain: a long hall with a hip roof, arched lit windows, a
-gabled porch with a large front door (`tools/gen_art.py`, `town_hall`). It follows the village's
-piece material like the walls (docs/siege-design.md §2a); level 2 shows a tower with a clock rising
-well clear of the roof (so it doesn't read as the corner tower behind it), level 3 banners, gilding
-and a brazier on it, and the bench along its side wall on the front tile.
+gabled porch with a large front door and a clock in its gable (`tools/gen_art.py`, `town_hall`). It
+follows the village's piece material like the walls (docs/siege-design.md §2a); level 2 adds a low
+parapeted podium built into the roof's ridge for the tower post (no tower of its own: the hall stays
+a hall, apart from the corner tower behind it), level 3 banners, gilding, a brazier on the podium,
+and the bench along its side wall on the front tile.
 
 **Devastated** (0 HP, docs/siege-design.md): the hero can't rest inside (she rests in the centre, at
-the slow rate) until it is repaired, its tower and bench units walk back to the reserve, research
+the slow rate) until it is repaired, its post and bench units walk back to the reserve, research
 pauses, and the last stand starts (§3b). *(Designed, not built:)* the armoury is closed (no swaps). Relics keep working: losing all of them to
 one raid would be too harsh.
 

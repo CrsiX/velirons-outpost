@@ -136,11 +136,13 @@ conditions are `Config` values (`ADVANCEMENTS`), agreed when built.
 - **Drill II:** as Drill I, adding to it.
 - **Master builders** (faster building) ***or*** **cheaper repairs.**
 - **Cheaper specialising *or* cheaper base units** (recruiting).
-- **Trader: better price at the edge *or* one more caravan.**
+- *(Designed, not built: needs the marketplace)* **Trader: better price at the edge *or* one more
+  caravan.**
 
 ### Candidates for more exclusive pairs (proposed)
 
-- Fortify (more wall HP) *or* mobilise (a wider barracks activation range).
+- Fortify (more wall HP) *or* mobilise (a wider barracks activation range). Not built: left
+  out until it is agreed.
 
 Wall levels 4 and 5 are never part of an exclusive pair: no repair choice may block them.
 

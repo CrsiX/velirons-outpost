@@ -803,7 +803,7 @@ func _test_hall_levels() -> void:
 	check(on and h._unit_sprite.visible, "an archer takes the post on the hall")
 	var mid := Vector2(h.tile) + Vector2(0.5, 0.5)
 	check(h.act_center() == mid and h.sight_center() == mid, "its post is the middle of the 2x2: ranges and targeting count from there")
-	check(is_zero_approx(h._unit_sprite.position.x) and h.position == Iso.to_world(mid) and h._unit_sprite.position.y < -150.0, "its unit is drawn centred over the middle, up on the tower (%s)" % str(h._unit_sprite.position))
+	check(is_zero_approx(h._unit_sprite.position.x) and h.position == Iso.to_world(mid) and h._unit_sprite.position.y < -100.0, "its unit is drawn centred over the middle, up on the roof podium (%s)" % str(h._unit_sprite.position))
 	game.army.unstation(ar)
 	await wait_until(func() -> bool: return h.garrison == null and h.incoming == null, 30.0)
 	await _test_hall_bench(h)
