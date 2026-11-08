@@ -38,6 +38,10 @@ const HANDLERS := {
 	"swap_units": "_swap_units",
 	"buy_materials": "_buy_materials",
 	"trade": "_trade",
+	"market_buy": "_market_buy",
+	"market_sell": "_market_sell",
+	"market_take_back": "_market_take_back",
+	"post_demand": "_post_demand",
 	"hero_mode": "_hero_mode",
 	"hero_level_up": "_hero_level_up",
 	"call_wave": "_call_wave",
@@ -187,6 +191,60 @@ func _trade(v: Village, a: Dictionary) -> Dictionary:
 	return ok({"amount": (b as Stall).buy(good)})
 
 
+## Buys a lot of `good` at the village's marketplace (Market.buy): from
+## another player's pile first, else the merchants' stock.
+func _market_buy(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if not (b is Market):
+		return fail("That isn't your marketplace")
+	var good := str(a.get("good", ""))
+	var err := (b as Market).buy_error(good)
+	if err != "":
+		return fail(err)
+	return ok({"amount": (b as Market).buy(good)})
+
+
+## Puts `amount` of `good` up for sale at the marketplace (Market.put_up).
+func _market_sell(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if not (b is Market):
+		return fail("That isn't your marketplace")
+	var good := str(a.get("good", ""))
+	var amount := int(a.get("amount", 0))
+	var err := (b as Market).sell_error(good, amount)
+	if err != "":
+		return fail(err)
+	(b as Market).put_up(good, amount)
+	return ok()
+
+
+## Takes up to `amount` of `good` back from the for-sale pile.
+func _market_take_back(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if not (b is Market):
+		return fail("That isn't your marketplace")
+	var good := str(a.get("good", ""))
+	var amount := int(a.get("amount", 0))
+	var err := (b as Market).take_back_error(good, amount)
+	if err != "":
+		return fail(err)
+	return ok({"amount": (b as Market).take_back(good, amount)})
+
+
+## A demand ("wants to buy 100 food"): an Info line in every player's log
+## (docs/market-design.md §7). Only in co-op.
+func _post_demand(v: Village, a: Dictionary) -> Dictionary:
+	var good := str(a.get("good", ""))
+	var amount := int(a.get("amount", 0))
+	if game.villages.size() < 2:
+		return fail("Only with other villages")
+	if not (Config.MARKET["buy"] as Dictionary).has(good) or amount <= 0:
+		return fail("Nothing like that to ask for")
+	for other in game.villages:
+		other.events.info("%s wants to buy %d %s" % [v.village_name, amount, "building material" if good == "materials" else good])
+	return ok()
+
+
 func _cancel_site(v: Village, a: Dictionary) -> Dictionary:
 	var b := _building(v, a)
 	if b == null or not b.has_work():
@@ -228,7 +286,7 @@ func _rebuild_all_huts(v: Village, _a: Dictionary) -> Dictionary:
 
 func _upgrade_tower(v: Village, a: Dictionary) -> Dictionary:
 	var t := _building(v, a)
-	if not (t is Tower or t is Barracks or t is StaticPiece):
+	if not (t is Tower or t is Barracks or t is StaticPiece or t is Market):
 		return fail("That isn't your tower")
 	return ok() if v.construction.order_upgrade(t) else fail("Can't upgrade that now")
 

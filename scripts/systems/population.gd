@@ -21,6 +21,7 @@ const ROLE_SCRIPTS := {
 	"spatial_archmage": preload("res://scripts/units/archmage.gd"),
 	"miner": preload("res://scripts/units/miner.gd"),
 	"merchant": preload("res://scripts/units/merchant.gd"),
+	"trader": preload("res://scripts/units/trader.gd"),
 	"guildmaster": preload("res://scripts/units/guild_master.gd"),
 	"priest": preload("res://scripts/units/resident.gd"),
 	"princess": preload("res://scripts/units/resident.gd"),
@@ -98,6 +99,10 @@ func recruit_error(role: String) -> String:
 		return "Only a level %d spatial mage can become one" % Config.ARCHMAGE_LEVEL if role == "spatial_archmage" else "Can't be recruited"
 	if not game.is_unlocked(role):
 		return "Walk up to a mine first"
+	if not game.available(role):
+		return "Not here"
+	if Config.CIVILIANS[role].has("max") and count(role) >= int(Config.CIVILIANS[role]["max"]):
+		return "One %s per village" % Config.CIVILIANS[role]["name"].to_lower()
 	if free_huts().is_empty():
 		return "No free hut (%d/%d)" % [count(), cap()]
 	if not village.economy.can_afford(Config.CIVILIANS[role]["cost"]):

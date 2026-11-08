@@ -806,6 +806,12 @@ const BUILDINGS := {
 		"name": "Light Stone", "cost": {"materials": 20}, "build_time": 10.0, "size": 1, "art": "light_stone", "defense": "stone_defense",
 		"desc": "Rune pillar that lights up the land around it. Needs no one to man it.",
 	},
+	# One per village, on a road (MARKET; docs/market-design.md). Off in the
+	# campaign unless a scenario switches it on (Scenario.market).
+	"market": {
+		"name": "Marketplace", "cost": {"materials": 90, "gold": 30}, "build_time": 20.0, "size": 3, "art": "market", "defense": "civilian",
+		"desc": "3x3, by a road; one per village. Buy food and material for gold; a trader sells your surplus by trade caravan. Rats eat its food.",
+	},
 	# The merchant's trade stall (docs/scenarios-design.md §7.4): only in the
 	# campaign's scenarios that allow it ("campaign": never in a normal game).
 	# Its level is its stage (STALL_LEVELS); the merchant works it.
@@ -869,6 +875,46 @@ const STALL_LEVELS: Array[Dictionary] = [
 		"lots": {"materials": {"amount": 25, "gold": 30}, "food": {"amount": 25, "gold": 22}}},
 ]
 
+## The marketplace (Market; docs/market-design.md): one per village, 3x3,
+## touching a road. Gold is the only currency. "levels" (index = level - 1):
+## the upgrade's "cost" and "work_time" (like towers), "stock": goods of each
+## kind the merchants' buying stock and the for-sale pile hold at most,
+## "caravans": the village's own trade caravans on the road at once, "tax":
+## the share taken from sales at the map edge (none between players).
+## "buy": a lot bought for gold ({good: {"amount", "gold"}}, filled from other
+## players' for-sale piles first, then the merchants' stock); "sell": gold one
+## lot of a good fetches at the edge before the tax; "lot": goods put up for
+## sale (or taken back) per order. "start_stock": share of "stock" a new market
+## has. The trader packs "pack_rate" goods per second into a load of at most
+## "load"; a load leaves when full or when the pile is empty. Merchants'
+## caravans: one at a time, every "restock_every" seconds while the stock has
+## room, carrying "restock" x that level's "stock" of each good. Trade caravans
+## have "hp" and walk at "speed"; out on the road they turn back when a
+## visible enemy is within "blocked_radius" of the way ahead (looking
+## "look_ahead" waypoints on); none sets off while one is that close to its
+## route. "finder_fee": gold for salvage of the merchants' goods brought back,
+## as a share of what the goods cost to buy.
+const MARKET := {
+	"levels": [
+		{"stock": 120, "caravans": 1, "tax": 0.3},
+		{"cost": {"materials": 80}, "work_time": 20.0, "stock": 200, "caravans": 2, "tax": 0.2},
+		{"cost": {"materials": 140, "gold": 40}, "work_time": 30.0, "stock": 320, "caravans": 3, "tax": 0.1},
+	],
+	"buy": {"food": {"amount": 20, "gold": 24}, "materials": {"amount": 20, "gold": 30}},
+	"sell": {"food": 14, "materials": 18},
+	"lot": 20,
+	"start_stock": 0.5,
+	"pack_rate": 2.0,
+	"load": 60,
+	"restock_every": 90.0,
+	"restock": 0.4,
+	"hp": 60.0,
+	"speed": 1.2,
+	"blocked_radius": 4.0,
+	"look_ahead": 12,
+	"finder_fee": 0.15,
+}
+
 ## Tower range in tiles. Towers own the range; units own damage and speed.
 const TOWER_RANGE := {"tower": 3.6, "wall_tower": 4.8}
 ## Tower levels (wall towers and watchtowers alike start at 1). Levels only add
@@ -900,6 +946,7 @@ const BUILDING_HP := {
 	"lightstone": [80.0],
 	"training": [150.0],
 	"stall": [100.0, 150.0, 200.0],
+	"market": [150.0, 250.0, 400.0],
 	"warehouse": [500.0],  # (10 thieves' plunder: WAREHOUSE.raid_damage)
 	"graveyard": [150.0],
 	"grove": [400.0, 400.0, 400.0],
@@ -1062,6 +1109,12 @@ const CIVILIANS := {
 		"name": "Miner", "cost": {"food": 30}, "speed": 1.5,
 		"desc": "Works a mine in the mountains for gold. Stays at the mine, safe inside; one miner per mine.",
 	},
+	# One per village ("max"); works at the marketplace (MARKET).
+	"trader": {
+		"name": "Trader", "cost": {"food": 30}, "speed": 1.5, "max": 1,
+		"desc": "Works at the marketplace: packs the goods you put up for sale and sends them off by trade caravan. One per village.",
+		"works_at": "market",
+	},
 	# Can't be recruited: only a campaign scenario has one (Pell; docs/scenarios-design.md §7.4).
 	"merchant": {
 		"name": "Merchant", "cost": {}, "speed": 1.5, "recruit": false,
@@ -1105,7 +1158,7 @@ static func worker_role(kind: String) -> String:
 	return ""
 
 
-const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "merchant", "guildmaster", "priest", "princess", "spatial_archmage"]
+const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "trader", "merchant", "guildmaster", "priest", "princess", "spatial_archmage"]
 ## Unit kinds and villager roles that have to be unlocked first, and how
 ## (docs/world-design.md §9.4, §9.6). Unlocks are global: for every village.
 const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "acolyte": "chapel", "miner": "mine"}
@@ -1769,6 +1822,7 @@ const HERO_XP_PER_ACTION := {
 	"explore": 1,  # each exploring step that uncovers new tiles
 	"corpse": 4,  # each corpse picked up
 	"loot": 10,  # each treasure looted (not for picking up dropped loot)
+	"salvage": 8,  # each load of salvage brought back to the market
 }
 
 ## What every summoned elemental shares (their own numbers are in SUMMONS).
@@ -2048,11 +2102,12 @@ const ENEMIES := {
 	"thief": {
 		"name": "Thief", "art": "thief", "behavior": "thief", "family": "humans",
 		"entry": "slip",
-		"desc": "Quick on its feet. At a gate it burns nothing: it steals gold and runs back. Kill it to get the gold back.",
+		"desc": "Quick on its feet. At a gate it burns nothing: it steals gold and runs back. It robs trade caravans too. Kill it to get the loot back.",
 		"hp": 20.0, "speed": 1.5,
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 2, "gold_on_collect": 3, "food_on_collect": 0,
 		"steal_share": 0.04,
+		"rob_reach": 4.0,  # a trade caravan this close is robbed instead (MARKET; ThiefBehavior)
 		"resist": {"holy": 0.75},
 	},
 	# The first flyer: it keeps to the roads, but no ground slows it (swamps,

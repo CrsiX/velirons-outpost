@@ -11,7 +11,7 @@ extends RefCounted
 ## length (u32) and the body (var_to_bytes, zstd). Plain values only: entities
 ## refer to each other by nid, villages by index, map objects by index.
 
-const FORMAT := 7
+const FORMAT := 8
 const MAGIC := "VOSV"
 const EXT := "vsave"
 const AUTO_PREFIX := "auto-"
@@ -19,6 +19,7 @@ const ELEMENTAL_SCRIPT := preload("res://scripts/units/earth_elemental.gd")
 const ENEMY_SCRIPT := preload("res://scripts/units/enemy.gd")
 const CORPSE_SCRIPT := preload("res://scripts/units/corpse.gd")
 const CARAVAN_SCRIPT := preload("res://scripts/units/caravan.gd")
+const TRADE_CARAVAN_SCRIPT := preload("res://scripts/units/trade_caravan.gd")
 
 
 ## Tests: their own folder instead of Config.SAVE["dir"] (never the player's saves).
@@ -315,6 +316,14 @@ static func capture(game: Game) -> Dictionary:
 		if ca and ca.is_processing():
 			caravans.append({"n": ca.nid, "u": ca.uid, "from": ca.from.id, "to": ca.to.id, "cargo": ca.cargo.duplicate(), "tax": ca.tax, "pos": ca.grid_pos})
 	b["caravans"] = caravans
+	var trade: Array = []
+	for n in world.objects.get_children():
+		var tc := n as TradeCaravan
+		if tc and not tc.dead and is_instance_valid(tc.market):
+			trade.append({"n": tc.nid, "u": tc.uid, "m": tc.market.nid, "tr": int(tc.trip), "cargo": tc.cargo.duplicate(),
+				"buyer": tc.buyer.id if tc.buyer else -1, "esc": tc.escrow, "dest": tc.dest, "orig": tc.origin,
+				"ret": tc.returning, "hp": tc.hp, "pos": tc.grid_pos})
+	b["trade"] = trade
 	var corpses: Array = []
 	for c in game.corpses.corpses:
 		if is_instance_valid(c):
@@ -339,6 +348,10 @@ static func _building_state(bd: Building) -> Dictionary:
 		d["ru"] = (bd as Hut).ruined
 	if bd is Farm:
 		d["st"] = (bd as Farm).stored
+	if bd is Market:
+		var m := bd as Market
+		d["mk"] = {"sm": m.stock_materials, "pile": m.pile.duplicate(), "pk": m.packed.duplicate(), "ord": m.orders.duplicate(true),
+			"rt": m.restock_timer, "b": m.bought, "s": m.sold}
 	if bd is TownHall and (bd as TownHall).bench != null:
 		d["bn"] = (bd as TownHall).bench.nid  # (its bench: the post its unit names)
 	if bd is Tower and (bd as Tower).targeting != "default":
@@ -360,6 +373,9 @@ static func _civilian_state(c: Civilian) -> Dictionary:
 		d["carry"] = fo.carrying
 	elif c is Gatherer:
 		d["job"] = _gather_state((c as Gatherer).job)
+	elif c is Trader:
+		var tr := c as Trader
+		d["mkt"] = tr.market.nid if is_instance_valid(tr.market) else 0
 	elif c is Miner:
 		var m := c as Miner
 		d["mine"] = m.mine.index if is_instance_valid(m.mine) else -1
@@ -505,6 +521,8 @@ static func restore_entities(game: Game, b: Dictionary) -> void:
 		_restore_caravan(game, d)
 	for d: Dictionary in b["corpses"]:
 		_restore_corpse(game, d)
+	for d: Dictionary in b["trade"]:
+		_restore_trade_caravan(game, d)
 	for d: Dictionary in b["guards"]:
 		var camp := game.world.map_object(int(d["camp"])) as MonsterCamp
 		if camp:
@@ -596,6 +614,16 @@ static func _apply_building(bd: Building, d: Dictionary) -> void:
 		bd.repair_paid = (rp["c"] as Dictionary).duplicate()
 	if bd is Farm:
 		(bd as Farm).stored = float(d.get("st", 0.0))
+	if bd is Market and d.has("mk"):
+		var m := bd as Market
+		var mk: Dictionary = d["mk"]
+		m.stock_materials = float(mk["sm"])
+		m.pile = (mk["pile"] as Dictionary).duplicate()
+		m.packed = (mk["pk"] as Dictionary).duplicate()
+		m.orders.assign((mk["ord"] as Array).duplicate(true))
+		m.restock_timer = float(mk["rt"])
+		m.bought = int(mk["b"])
+		m.sold = int(mk["s"])
 	if bd is Tower:
 		(bd as Tower).targeting = str(d.get("tg", "default"))
 	var q: Array = d.get("q", [0.0, 0])
@@ -648,6 +676,12 @@ static func _restore_civilian(game: Game, d: Dictionary, field: Array[Civilian])
 		f.carrying = int(d["carry"])
 	elif civ is Gatherer:
 		_apply_gather((civ as Gatherer).job, d["job"])
+	elif civ is Trader:
+		var mk := game.entity(int(d["mkt"])) as Market
+		if mk and mk.worker == null:
+			mk.worker = civ
+			(civ as Trader).assign(mk)
+			mk.refresh()
 	elif civ is Miner:
 		var m := civ as Miner
 		var mine := game.world.map_object(int(d["mine"])) as Mine
@@ -803,6 +837,26 @@ static func _restore_caravan(game: Game, d: Dictionary) -> void:
 	ca.set_grid_pos(d["pos"])
 	ca.follow(game.world.pathing.find_path(ca.current_tile(), ca.to.center))
 	game.world.objects.add_child(ca)
+
+
+static func _restore_trade_caravan(game: Game, d: Dictionary) -> void:
+	var m := game.entity(int(d["m"])) as Market
+	if m == null:
+		return
+	var tc: TradeCaravan = TRADE_CARAVAN_SCRIPT.new()
+	tc.init_cart(game, m, int(d["tr"]) as TradeCaravan.Trip, (d["cargo"] as Dictionary).duplicate())
+	tc.uid = int(d["u"])
+	tc.nid = int(d["n"])
+	game.register_as(tc, tc.nid)
+	var bv := int(d["buyer"])
+	tc.buyer = game.villages[bv] if bv >= 0 and bv < game.villages.size() else null
+	tc.escrow = int(d["esc"])
+	tc.dest = d["dest"]
+	tc.origin = d["orig"]
+	tc.returning = bool(d["ret"])
+	tc.hp = clampf(float(d["hp"]), 1.0, tc.max_hp)
+	game.world.objects.add_child(tc)
+	tc.resume_trip(d["pos"])
 
 
 static func _restore_corpse(game: Game, d: Dictionary) -> void:

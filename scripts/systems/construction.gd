@@ -13,6 +13,7 @@ const KIND_SCRIPTS := {
 	"training": preload("res://scripts/buildings/training_grounds.gd"),
 	"barracks": preload("res://scripts/buildings/barracks.gd"),
 	"stall": preload("res://scripts/buildings/stall.gd"),
+	"market": preload("res://scripts/buildings/market.gd"),
 	"warehouse": preload("res://scripts/buildings/warehouse.gd"),
 	"graveyard": preload("res://scripts/buildings/graveyard.gd"),
 	"grove": preload("res://scripts/buildings/grove.gd"),
@@ -80,11 +81,28 @@ func placement_error(kind: String, tile: Vector2i, free: bool = false) -> String
 			return "Nothing grows in the %s" % Config.ZONES[map.zone(t)]["name"].to_lower()
 		if map.near_crater(t):
 			return "Too close to the volcano"
+	if kind == "market":
+		var err := _market_error(tile)
+		if err != "":
+			return err
 	if SOLID_KINDS.has(kind) and not _reachable_side(Building.footprint(tile, spec["size"])):
 		return "Nobody could get to it: keep a way free next to it"
 	if not free and not village.economy.can_afford(spec["cost"]):
 		return "Not enough building material" if spec["cost"].keys() == ["materials"] else "Not enough resources"
 	return ""
+
+
+## The marketplace: one per village (its site counts), and a side of it on a road.
+func _market_error(tile: Vector2i) -> String:
+	for b in village.buildings():
+		if b.kind == "market":
+			return "The village has a marketplace already"
+	var foot := Building.footprint(tile, int(Config.BUILDINGS["market"]["size"]))
+	for t in foot:
+		for n in MapData.neighbors4(t):
+			if not foot.has(n) and game.map.in_bounds(n) and game.map.get_terrain(n) == MapData.Terrain.ROAD:
+				return ""
+	return "A marketplace must touch a road"
 
 
 ## Kinds that block their tiles once built (Building.is_solid_when_complete):
@@ -415,6 +433,8 @@ func stop_tear_down(b: Building) -> void:
 
 
 func _torn_down(b: Building) -> void:
+	if b is Market:
+		(b as Market).clear_out()
 	var back := b.teardown_refund()
 	village.economy.add("materials", back, "teardown")
 	game.stats.count(village, "torn_down")

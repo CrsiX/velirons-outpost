@@ -234,6 +234,14 @@ func workers() -> Array[Civilian]:
 
 
 ## Its town hall (null on a map without one: such a map is refused for play).
+## Its marketplace (finished or not), or null: one per village.
+func market() -> Market:
+	for b in buildings():
+		if b is Market:
+			return b
+	return null
+
+
 func town_hall() -> TownHall:
 	if not is_instance_valid(_hall):
 		_hall = null

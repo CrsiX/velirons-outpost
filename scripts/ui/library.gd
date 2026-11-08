@@ -607,6 +607,8 @@ static func _buildings() -> Array[Dictionary]:
 				f.append("The hero passes on %s XP per second" % _n(Config.HERO["train_rate"]))
 			"lightstone":
 				f.append("Lights up %s tiles around it" % _n(Config.LIGHTSTONE_SIGHT))
+			"market":
+				f.append_array(_market_facts())
 			"warehouse":
 				f.append("Each enemy that gets to it takes %s HP; it can't be torn down" % _n(Config.WAREHOUSE["raid_damage"]))
 		if b.get("campaign", false):
@@ -696,6 +698,24 @@ static func _tower_facts(kind: String) -> PackedStringArray:
 	return f
 
 
+## The marketplace (Config.MARKET): prices, levels, caravans, salvage.
+static func _market_facts() -> PackedStringArray:
+	var mk: Dictionary = Config.MARKET
+	var f := PackedStringArray()
+	for good: String in mk["buy"]:
+		var word := "building material" if good == "materials" else good
+		f.append("Buy %d %s for %d gold; sold at the map edge %d fetch %d gold before tax" % [int(mk["buy"][good]["amount"]), word, int(mk["buy"][good]["gold"]), int(mk["lot"]), int(mk["sell"][good])])
+	var lv: Array = mk["levels"]
+	for i in lv.size():
+		var l: Dictionary = lv[i]
+		var cost := " (%s)" % Config.cost_text(l["cost"]) if l.has("cost") else ""
+		f.append("Level %d%s: stock %d, %d trade caravan%s on the road, tax %d %%" % [i + 1, cost, int(l["stock"]), int(l["caravans"]), "" if int(l["caravans"]) == 1 else "s", roundi(float(l["tax"]) * 100.0)])
+	f.append("Merchants' caravans every %s s refill the stock; trade caravans have %d HP and turn back from enemies on the road" % [_n(mk["restock_every"]), int(mk["hp"])])
+	f.append("Co-op: purchases come from other players' for-sale piles first, by caravan, with no tax")
+	f.append("Lost cargo lies as salvage: gatherers carry it back (finder's fee %d %% for the merchants' goods)" % roundi(float(mk["finder_fee"]) * 100.0))
+	return f
+
+
 static func _villagers() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for role in Config.CIVILIAN_ORDER:
@@ -717,6 +737,9 @@ static func _villagers() -> Array[Dictionary]:
 				f.append("Uncovers %s tiles around them" % _n(Config.EXPLORER_REVEAL))
 			"miner":
 				f.append("A mine gives %s gold per second" % _n(Config.MINE_GOLD_RATE))
+			"trader":
+				f.append("Packs %s goods per second into loads of up to %d for the trade caravans" % [_n(Config.MARKET["pack_rate"]), int(Config.MARKET["load"])])
+				f.append("Without one the market only sells to you")
 		out.append({"name": c["name"], "art": "unit_" + role, "text": c["desc"], "facts": f})
 	return out
 

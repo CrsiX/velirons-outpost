@@ -1,0 +1,607 @@
+class_name Market
+extends Farm
+## The marketplace (3x3, one per village, touching a road; docs/market-design.md).
+## Gold is the only currency. Two piles of goods:
+##   - the merchants' buying stock (`stored`: its food, which rats eat as
+##     they eat a farm's crops; `stock_materials`), bought for gold at once
+##     with or without a trader, refilled by incoming merchants' caravans;
+##   - the village's for-sale pile (`pile`), put up by the player and packed
+##     by the trader into loads that leave by trade caravan (TradeCaravan):
+##     to the map edge (gold on arrival, minus the level's tax), or to another
+##     player who bought from it (`orders`; the co-op order book, no tax).
+## Its levels (Config.MARKET "levels") raise the stock, the caravans on the
+## road at once and lower the tax. It is a Farm to the rats; it grows nothing.
+
+const TRADE_CARAVAN_SCRIPT := preload("res://scripts/units/trade_caravan.gd")
+
+## The merchants' building material (their food is `stored`).
+var stock_materials := 0.0
+## Goods the village put up for sale, not yet packed: {good: amount}.
+var pile := {"food": 0, "materials": 0}
+## The load the trader is packing for the edge: {good: amount}.
+var packed := {"food": 0, "materials": 0}
+## Other players' purchases from our pile (the order book), oldest first:
+## {"buyer": village id, "good", "amount", "gold": paid by the buyer, "packed": goods packed}.
+var orders: Array[Dictionary] = []
+## Seconds until the merchants send their next caravan.
+var restock_timer := 0.0
+## Lots bought and loads sold so far (scenario and test hooks).
+var bought := 0
+var sold := 0
+var _check := 0.0
+## Co-op client: what the host says ([own caravans on the road, merchants'
+## caravan coming, {good: source village id or -1}]).
+var _net_road := 0
+var _net_incoming := false
+var _net_src := {}
+var _pack_acc := 0.0
+var _last_stored := 0.0
+
+
+func _build_visuals() -> void:
+	sprite = Sprite2D.new()
+	sprite.show_behind_parent = true
+	add_child(sprite)
+	_site_sprite = Art.sprite("site")
+	_site_sprite.show_behind_parent = true
+	_site_sprite.scale *= 1.8
+	add_child(_site_sprite)
+
+
+func _exit_tree() -> void:
+	pass
+
+
+func refresh() -> void:
+	Art.apply(sprite, "market" if level <= 1 else "market_%d" % level)
+	sprite.visible = complete
+	_site_sprite.visible = not complete
+	var c := Color.WHITE if (worker != null or not complete) else Color(0.82, 0.82, 0.82)
+	if tearing_down:
+		c.a = 0.6
+	sprite.modulate = c
+	queue_redraw()
+
+
+func finish() -> void:
+	super.finish()
+	if not game.is_client:
+		stored = floorf(capacity() * float(Config.MARKET["start_stock"]))
+		stock_materials = stored
+		restock_timer = float(Config.MARKET["restock_every"])
+
+
+func spec_level() -> Dictionary:
+	return Config.MARKET["levels"][clampi(level, 1, max_level()) - 1]
+
+
+func max_level() -> int:
+	return (Config.MARKET["levels"] as Array).size()
+
+
+## Goods of each kind the buying stock and the for-sale pile hold at most.
+func capacity() -> float:
+	return float(spec_level()["stock"])
+
+
+## Share of a sale at the map edge the tax takes.
+func tax() -> float:
+	return float(spec_level()["tax"])
+
+
+## Trade caravans of ours that may be on the road at once.
+func caravan_cap() -> int:
+	return int(spec_level()["caravans"])
+
+
+## Grows nothing: no food for the village (Population.food_per_second).
+func rate() -> float:
+	return 0.0
+
+
+## The merchants' stock of `good`.
+func stock(good: String) -> float:
+	return stored if good == "food" else stock_materials
+
+
+func add_stock(good: String, amount: float) -> void:
+	if good == "food":
+		stored = clampf(stored + amount, 0.0, capacity())
+	else:
+		stock_materials = clampf(stock_materials + amount, 0.0, capacity())
+
+
+## The trader is at the market (packing goes on only then).
+func is_open() -> bool:
+	return working() and worker != null and worker.has_method("tending") and worker.tending()
+
+
+func pile_total() -> int:
+	return int(pile["food"]) + int(pile["materials"])
+
+
+func packed_total() -> int:
+	return int(packed["food"]) + int(packed["materials"])
+
+
+## Goods reserved by other players' orders, not yet on the road.
+func ordered(good: String = "") -> int:
+	var n := 0
+	for o in orders:
+		if good == "" or o["good"] == good:
+			n += int(o["amount"])
+	return n
+
+
+## For the replicator: what a client's panel needs.
+func net_state() -> Dictionary:
+	var src := {}
+	for good: String in Config.MARKET["buy"]:
+		var m := source(good)
+		src[good] = m.village.id if m != null else -1
+	return {"sm": int(stock_materials), "pile": pile.duplicate(), "pk": packed.duplicate(), "ord": orders.duplicate(true),
+		"rt": ceilf(restock_timer), "road": caravans_out().size(), "inc": incoming() != null, "src": src}
+
+
+func apply_net_state(st: Dictionary) -> void:
+	stock_materials = float(st.get("sm", 0))
+	pile = (st.get("pile", pile) as Dictionary).duplicate()
+	packed = (st.get("pk", packed) as Dictionary).duplicate()
+	orders.assign(st.get("ord", []))
+	restock_timer = float(st.get("rt", 0.0))
+	_net_road = int(st.get("road", 0))
+	_net_incoming = bool(st.get("inc", false))
+	_net_src = (st.get("src", {}) as Dictionary).duplicate()
+
+
+## Our trade caravans on the road (to the edge or a buyer, or coming back).
+func caravans_out() -> Array[TradeCaravan]:
+	var out: Array[TradeCaravan] = []
+	for n in get_tree().get_nodes_in_group("trade_caravans"):
+		var tc := n as TradeCaravan
+		if tc.market == self and not tc.dead and tc.trip != TradeCaravan.Trip.INCOMING:
+			out.append(tc)
+	return out
+
+
+## The merchants' caravan on its way here, or null.
+func incoming() -> TradeCaravan:
+	for n in get_tree().get_nodes_in_group("trade_caravans"):
+		var tc := n as TradeCaravan
+		if tc.market == self and not tc.dead and tc.trip == TradeCaravan.Trip.INCOMING:
+			return tc
+	return null
+
+
+# --- buying -------------------------------------------------------------------------------
+
+## Where a lot of `good` comes from: another player's market that has it up
+## for sale (the order book, docs/market-design.md §7), else this one (the
+## merchants' stock), else null (sold out).
+func source(good: String) -> Market:
+	if game.is_client:
+		var vid := int(_net_src.get(good, -1))
+		if vid < 0:
+			return null
+		var other := game.villages[vid].market() if vid != village.id else self
+		return other if other != null else self  # (a market we can't see: ours stands in for the name)
+	var lot := int(Config.MARKET["buy"][good]["amount"])
+	for v in game.villages:
+		if v == village or v.fallen:
+			continue
+		var m := v.market()
+		if m != null and m.working() and m.worker != null and int(m.pile[good]) >= lot:
+			return m
+	return self if stock(good) >= lot else null
+
+
+## The other village a lot of `good` would come from, or "".
+func _source_name(good: String) -> String:
+	if game.is_client:
+		var vid := int(_net_src.get(good, -1))
+		return game.villages[vid].village_name if vid >= 0 and vid != village.id else ""
+	var from := source(good)
+	return from.village.village_name if from != null and from != self else ""
+
+
+## Why a lot of `good` can't be bought now, or "".
+func buy_error(good: String) -> String:
+	if not (Config.MARKET["buy"] as Dictionary).has(good):
+		return "The market doesn't sell that"
+	if not working():
+		return "The market is closed" if complete else "The market isn't built yet"
+	if source(good) == null:
+		return "Sold out: wait for the merchants' next caravan"
+	if not village.economy.can_afford({"gold": Config.MARKET["buy"][good]["gold"]}):
+		return "Not enough gold"
+	return ""
+
+
+## Buys a lot of `good`: from another player's pile (it comes by caravan, the
+## seller is paid when it arrives) or from the merchants' stock (at once).
+## Returns the amount bought (0: none).
+func buy(good: String) -> int:
+	if buy_error(good) != "":
+		return 0
+	var lot: Dictionary = Config.MARKET["buy"][good]
+	var amount := int(lot["amount"])
+	var gold := int(lot["gold"])
+	var from := source(good)
+	village.economy.spend({"gold": gold}, "trade")
+	bought += 1
+	game.stats.count(village, "trade.bought")
+	village.sound("coin")
+	if from != self:
+		from.pile[good] = int(from.pile[good]) - amount
+		from.orders.append({"buyer": village.id, "good": good, "amount": amount, "gold": gold, "packed": 0.0})
+		village.events.info("Bought %d %s from %s for %d gold: it comes by trade caravan" % [amount, _good_name(good), from.village.village_name, gold])
+		from.village.events.info("%s bought %d %s from your market: your trader packs it" % [village.village_name, amount, _good_name(good)])
+		return amount
+	add_stock(good, -amount)
+	village.economy.add(good, amount, "trade")
+	village.events.debug("buy %d %s at %s for %d gold" % [amount, good, label(), gold])
+	return amount
+
+
+# --- selling ------------------------------------------------------------------------------
+
+## Why `amount` of `good` can't be put up for sale, or "".
+func sell_error(good: String, amount: int) -> String:
+	if not pile.has(good):
+		return "The market doesn't take that"
+	if not working():
+		return "The market is closed" if complete else "The market isn't built yet"
+	if amount <= 0:
+		return "Nothing to sell"
+	if pile_total() + amount > int(capacity()):
+		return "The for-sale pile is full (%d)" % int(capacity())
+	if village.economy.amount(good) < amount:
+		return "Not enough %s" % _good_name(good)
+	return ""
+
+
+## Puts `amount` of `good` up for sale: it leaves the village's stock now.
+func put_up(good: String, amount: int) -> bool:
+	if sell_error(good, amount) != "":
+		return false
+	village.economy.spend({good: amount}, "trade")
+	pile[good] = int(pile[good]) + amount
+	village.events.debug("put %d %s up for sale at %s" % [amount, good, label()])
+	village.sound("place")
+	return true
+
+
+## Why `amount` of `good` can't be taken back from the pile, or "".
+func take_back_error(good: String, amount: int) -> String:
+	if not pile.has(good):
+		return "Nothing like that for sale"
+	if amount <= 0 or int(pile[good]) <= 0:
+		return "None of it is for sale"
+	return ""
+
+
+## Takes up to `amount` of `good` back from the for-sale pile into the village.
+func take_back(good: String, amount: int) -> int:
+	if take_back_error(good, amount) != "":
+		return 0
+	var n := mini(amount, int(pile[good]))
+	pile[good] = int(pile[good]) - n
+	village.economy.refund({good: n}, "trade")
+	village.events.debug("took %d %s back from %s" % [n, good, label()])
+	return n
+
+
+## Gold a load of `goods` fetches at the map edge before the tax.
+static func edge_value(goods: Dictionary) -> int:
+	var lot := float(Config.MARKET["lot"])
+	var g := 0.0
+	for k in goods:
+		g += float(goods[k]) * float(Config.MARKET["sell"].get(k, 0)) / lot
+	return floori(g)
+
+
+# --- the trader, caravans -----------------------------------------------------------------
+
+func _process(delta: float) -> void:
+	if game.is_client:
+		return
+	since_gain = 0.0 if stored > _last_stored else since_gain + delta
+	_last_stored = stored
+	var dimmed := sprite.modulate.r < 0.9
+	if complete and dimmed == (worker != null):
+		refresh()
+	if not working():
+		return
+	if not has_rats():
+		_restock(delta)
+	if is_open():
+		_pack(delta)
+	_check -= delta
+	if _check <= 0.0:
+		_check = 1.0
+		_dispatch()
+
+
+## Every "restock_every" seconds while the stock has room, the merchants send
+## a caravan from the nearest edge (one at a time).
+func _restock(delta: float) -> void:
+	if incoming() != null:
+		return
+	restock_timer -= delta
+	if restock_timer > 0.0:
+		return
+	restock_timer = float(Config.MARKET["restock_every"])
+	var cargo := {}
+	var each := floorf(capacity() * float(Config.MARKET["restock"]))
+	for good in ["food", "materials"]:
+		var room := floorf(capacity() - stock(good))
+		if room >= 1.0:
+			cargo[good] = int(minf(each, room))
+	if cargo.is_empty():
+		return
+	var edge := edge_tile()
+	if edge == Vector2i(-1, -1) or not route_clear(game.world.pathing.find_path(edge, work_tile())):
+		restock_timer = 10.0  # (try again soon)
+		return
+	_send(TradeCaravan.Trip.INCOMING, cargo, edge)
+	village.events.debug("merchants' caravan sets off for %s from %s" % [label(), str(edge)])
+
+
+## The trader packs: orders first (another player's purchase), then the
+## for-sale pile into a load for the edge.
+func _pack(delta: float) -> void:
+	var rate_now := float(Config.MARKET["pack_rate"]) * delta
+	if not orders.is_empty():
+		var o := orders[0]
+		o["packed"] = minf(float(o["packed"]) + rate_now, float(o["amount"]))
+		return
+	var room := int(Config.MARKET["load"]) - packed_total()
+	if room <= 0 or pile_total() <= 0:
+		_pack_acc = 0.0
+		return
+	_pack_acc += rate_now
+	var n := floori(_pack_acc)
+	if n <= 0:
+		return
+	_pack_acc -= n
+	var good := "food" if int(pile["food"]) >= int(pile["materials"]) else "materials"
+	n = mini(mini(n, room), int(pile[good]))
+	pile[good] = int(pile[good]) - n
+	packed[good] = int(packed[good]) + n
+
+
+## Loads that are ready leave once their way is clear and a caravan is free.
+func _dispatch() -> void:
+	if caravans_out().size() >= caravan_cap():
+		return
+	if not orders.is_empty():
+		var o := orders[0]
+		var buyer := game.villages[int(o["buyer"])]
+		var bm := buyer.market()
+		if bm == null or buyer.fallen:
+			_refund_order(o, "%s has no market any more" % buyer.village_name)
+			orders.pop_front()
+			pile[o["good"]] = int(pile[o["good"]]) + int(o["amount"])
+			return
+		if float(o["packed"]) + 0.001 < float(o["amount"]):
+			return
+		if not route_clear(game.world.pathing.find_path(work_tile(), bm.work_tile())):
+			return
+		orders.pop_front()
+		var tc := _send(TradeCaravan.Trip.ORDER, {o["good"]: int(o["amount"])}, bm.work_tile())
+		tc.buyer = buyer
+		tc.escrow = int(o["gold"])
+		village.events.info("Trade caravan leaves for %s with %d %s" % [buyer.village_name, int(o["amount"]), _good_name(o["good"])])
+		return
+	var full := packed_total() >= int(Config.MARKET["load"])
+	var whole := {}
+	for good in packed:
+		if int(packed[good]) > 0:
+			whole[good] = int(packed[good])
+	if whole.is_empty() or not (full or pile_total() <= 0):
+		return
+	var edge := edge_tile()
+	if edge == Vector2i(-1, -1) or not route_clear(game.world.pathing.find_path(work_tile(), edge)):
+		return
+	for good in whole:
+		packed[good] = 0
+	_send(TradeCaravan.Trip.OUTGOING, whole, edge)
+	village.events.info("Trade caravan leaves for the map edge with %s" % _goods_text(whole))
+
+
+func _send(trip: TradeCaravan.Trip, cargo: Dictionary, to: Vector2i) -> TradeCaravan:
+	var tc: TradeCaravan = TRADE_CARAVAN_SCRIPT.new()
+	tc.setup(game, self, trip, cargo, to)
+	game.world.objects.add_child(tc)
+	return tc
+
+
+## A refused or lost order: the buyer gets the gold back.
+func _refund_order(o: Dictionary, why: String) -> void:
+	var buyer := game.villages[int(o["buyer"])]
+	buyer.economy.refund({"gold": int(o["gold"])}, "trade")
+	buyer.events.info("Order of %d %s cancelled (%s): %d gold back" % [int(o["amount"]), _good_name(o["good"]), why, int(o["gold"])])
+
+
+## The edge tile nearest the market by road: the village's own spawns in
+## co-op, the map's edge spawns otherwise; (-1, -1) if none can be reached.
+func edge_tile() -> Vector2i:
+	var points: Array[Vector2i] = village.home_spawns if game.villages.size() > 1 and not village.home_spawns.is_empty() else game.map.edge_spawns
+	var dist := game.world.pathing.distance_field(work_tile())
+	var best := Vector2i(-1, -1)
+	var best_d := float(Pathing.UNREACHABLE)
+	for p in points:
+		var d := float(dist[game.map.index(p)])
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
+
+
+## No enemy our village can see is within MARKET "blocked_radius" of `path`
+## (camp guards stay at their camps and don't count).
+func route_clear(path: PackedVector2Array) -> bool:
+	return TradeCaravan.first_block(game, village, path, 0, path.size()) < 0
+
+
+## Salvage brought back (TradeCaravan.drop_salvage): our goods back on the
+## pile; the merchants' into their stock, with a finder's fee. Returns the fee.
+func take_salvage(goods: Dictionary, merchants: bool) -> int:
+	var fee := 0
+	for good in goods:
+		if merchants:
+			add_stock(good, float(goods[good]))
+			fee += floori(float(goods[good]) * float(Config.MARKET["buy"][good]["gold"]) / float(Config.MARKET["buy"][good]["amount"]) * float(Config.MARKET["finder_fee"]))
+		else:
+			pile[good] = int(pile.get(good, 0)) + int(goods[good])
+	if fee > 0:
+		village.economy.add("gold", fee, "salvage")
+	game.stats.count(village, "trade.salvage")
+	return fee
+
+
+func can_upgrade() -> bool:
+	return free_for_work() and level < max_level()
+
+
+func upgrade_cost() -> Dictionary:
+	return spec_level_at(level + 1).get("cost", {}) if level < max_level() else {}
+
+
+func spec_level_at(lv: int) -> Dictionary:
+	return Config.MARKET["levels"][clampi(lv, 1, max_level()) - 1]
+
+
+func start_upgrade() -> void:
+	upgrading = true
+	upgrade_progress = 0.0
+	upgrade_time = float(spec_level_at(level + 1)["work_time"])
+	queue_redraw()
+
+
+func pending_upgrade_cost() -> Dictionary:
+	return upgrade_cost() if upgrading else {}
+
+
+func finish_upgrade() -> void:
+	super.finish_upgrade()
+	gain_level()
+	refresh()
+
+
+## Its price plus the upgrades paid for (tear-down refund).
+func materials_spent() -> int:
+	var n := super.materials_spent()
+	for i in range(2, level + 1):
+		n += int(spec_level_at(i).get("cost", {}).get("materials", 0))
+	return n
+
+
+## Torn down: what was up for sale (and packed) comes back to the village;
+## other players' orders are refunded (Construction calls it).
+func clear_out() -> void:
+	for good in pile:
+		if int(pile[good]) > 0:
+			village.economy.refund({good: int(pile[good])}, "trade")
+			pile[good] = 0
+	for good in packed:
+		if int(packed[good]) > 0:
+			village.economy.refund({good: int(packed[good])}, "trade")
+		packed[good] = 0
+	for o in orders:
+		_refund_order(o, "the seller's market is gone")
+	orders.clear()
+
+
+static func _good_name(good: String) -> String:
+	return "building material" if good == "materials" else good
+
+
+static func _goods_text(goods: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for g in goods:
+		parts.append("%d %s" % [int(goods[g]), _good_name(g)])
+	return ", ".join(parts)
+
+
+# --- panel --------------------------------------------------------------------------------
+
+func info() -> Dictionary:
+	var d := super.info()
+	if working():
+		d["title"] = "%s  ·  Level %d/%d" % [display_name(), level, max_level()]
+	return d
+
+
+func _work_info(d: Dictionary) -> void:
+	var lines: Array[String] = d["lines"]
+	var actions: Array[Dictionary] = d["actions"]
+	var cap := int(capacity())
+	lines.append("Merchants' stock: %d {food}  %d {materials}  (up to %d each)" % [int(stored), int(stock_materials), cap])
+	if has_rats():
+		lines.append("%d rat%s eating the merchants' food!" % [rats.size(), "" if rats.size() == 1 else "s"])
+	var inc := _net_incoming if game.is_client else incoming() != null
+	if inc:
+		lines.append("A merchants' caravan is on its way.")
+	else:
+		lines.append("Next merchants' caravan in %d s." % ceili(maxf(restock_timer, 0.0)))
+	for good: String in Config.MARKET["buy"]:
+		var lot: Dictionary = Config.MARKET["buy"][good]
+		var err := buy_error(good)
+		var where := _source_name(good)
+		where = "" if where == "" else "  from %s" % where
+		actions.append({
+			"label": "Buy %s  (%s)%s" % [Config.cost_icons({good: lot["amount"]}), Config.cost_icons({"gold": lot["gold"]}), where],
+			"disabled": err != "",
+			"action": func() -> void: game.command("market_buy", {"building": nid, "good": good}),
+		})
+	if worker == null:
+		lines.append("No trader: nothing you put up for sale leaves. Recruit one in the Village tab.")
+	elif not is_open():
+		lines.append("%s is away: packing waits until he's back." % worker.label().capitalize())
+	var on_road := _net_road if game.is_client else caravans_out().size()
+	lines.append("For sale: %d {food}  %d {materials}  (pile up to %d)  ·  packed: %d" % [int(pile["food"]), int(pile["materials"]), cap, packed_total()])
+	if not orders.is_empty():
+		lines.append("Orders from other players: %d goods to pack first." % ordered())
+	lines.append("Trade caravans on the road: %d / %d  ·  tax at the edge: %d%%" % [on_road, caravan_cap(), roundi(tax() * 100.0)])
+	var lot_n := int(Config.MARKET["lot"])
+	for good: String in pile:
+		var cost := {good: lot_n}
+		var gold := floori(float(Config.MARKET["sell"][good]) * (1.0 - tax()))
+		var err := sell_error(good, lot_n)
+		actions.append({
+			"label": "Sell %s  (+%s at the edge)" % [Config.cost_icons(cost), Config.cost_icons({"gold": gold})],
+			"disabled": err != "",
+			"action": func() -> void: game.command("market_sell", {"building": nid, "good": good, "amount": lot_n}),
+		})
+	for good: String in pile:
+		if int(pile[good]) > 0:
+			actions.append({
+				"label": "Take back %s" % Config.cost_icons({good: mini(lot_n, int(pile[good]))}),
+				"action": func() -> void: game.command("market_take_back", {"building": nid, "good": good, "amount": lot_n}),
+			})
+	if game.villages.size() > 1:
+		for good: String in Config.MARKET["buy"]:
+			actions.append({
+				"label": "Ask for %s (tell the others)" % Config.cost_icons({good: Config.MARKET["buy"][good]["amount"] * 5}),
+				"action": func() -> void: game.command("post_demand", {"good": good, "amount": int(Config.MARKET["buy"][good]["amount"]) * 5}),
+			})
+	if upgrading:
+		lines.append("Upgrading to level %d: %d%% (%s)" % [level + 1, int(100.0 * work_fraction()), _builder_crew_text().to_lower()])
+		add_cancel_action(lines, actions, "Cancel upgrade")
+	elif level < max_level() and not repairing:
+		var nxt := spec_level_at(level + 1)
+		lines.append("Next level: stock %d, %d caravans, tax %d%%, {hp} %d." % [int(nxt["stock"]), int(nxt["caravans"]), roundi(float(nxt["tax"]) * 100.0), roundi(hp_at(level + 1))])
+		actions.append({
+			"label": "Upgrade market (%s)" % Config.cost_icons(upgrade_cost()),
+			"disabled": not village.economy.can_afford(upgrade_cost()),
+			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
+		})
+
+
+func _draw() -> void:
+	_draw_bars()
+
+
+func _bar_y() -> float:
+	return -120.0

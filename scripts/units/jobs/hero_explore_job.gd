@@ -68,8 +68,8 @@ func _pick_task() -> bool:
 			prio = 0
 		elif o is RuinedTower and (o as RuinedTower).claimable():
 			prio = 0
-		elif o is Treasure and (o as Treasure).lootable():
-			prio = 1
+		elif o is Treasure and (o as Treasure).lootable() and not (o as Treasure).reward().has("salvage"):
+			prio = 1  # (salvage is carried to the market by gatherers, GatherJob)
 		if prio >= 0 and o.is_found_by(v) and not site_blocked(o):
 			cands.append([prio, Vector2(o.tile).distance_to(w.grid_pos), o])
 	if cands.is_empty():

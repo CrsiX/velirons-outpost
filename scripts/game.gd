@@ -1123,12 +1123,23 @@ func is_unlocked(key: String) -> bool:
 ## Can the village have `key` (a unit kind or villager role) now: unlocked,
 ## and a scenario's rules allow it.
 func available(key: String) -> bool:
+	if key == "trader" and not market_enabled():
+		return false
 	return is_unlocked(key) and (scenario == null or scenario.allows(key))
+
+
+## Is there trade at all (docs/market-design.md §9): the marketplace and the
+## trader. Not in the title backdrop or the tutorial; in the campaign only
+## where the scenario switches it on (Scenario.market).
+func market_enabled() -> bool:
+	return backdrop == null and not tutorial_mode and (scenario == null or scenario.spec.market)
 
 
 ## Can `kind` be built (a scenario may allow only some buildings; the
 ## campaign's own kinds, the stall, only where a scenario lists them)?
 func allows_building(kind: String) -> bool:
+	if kind == "market" and not market_enabled():
+		return false
 	if scenario == null:
 		return not Config.BUILDINGS.get(kind, {}).get("campaign", false)
 	return scenario.allows_building(kind)

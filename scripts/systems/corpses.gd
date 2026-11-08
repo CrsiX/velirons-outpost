@@ -17,7 +17,9 @@ var rot := true
 
 func setup(p_game: Game) -> void:
 	game = p_game
-	game.waves.wave_finished.connect(func(n: int) -> void: clear_wave(n - 1))
+	game.waves.wave_finished.connect(func(n: int) -> void:
+		clear_wave(n - 1)
+		clear_salvage(n))
 
 
 func spawn(kind: String, wave: int, at: Vector2) -> Corpse:
@@ -48,6 +50,18 @@ func clear_wave(wave: int) -> void:
 			n += 1
 	if n > 0:
 		game.log_all(EventLog.Level.DEBUG, "%d corpse%s of wave %d and older cleared away" % [n, "" if n == 1 else "s", wave])
+
+
+## Salvage (TradeCaravan.drop_salvage) lies until the wave after the one it
+## was dropped in (or after) is over: wave `n` just ended.
+func clear_salvage(n: int) -> void:
+	if game.is_client:
+		return
+	for o in game.world.map_objects.duplicate():
+		var t := o as Treasure
+		if t != null and t.reward().has("salvage") and int(t.reward()["salvage"].get("wave", 0)) < n and t.claimed_by == null:
+			game.log_for(game.entity(int(t.reward()["salvage"].get("market", 0))), EventLog.Level.INFO, "Salvage of %s was left too long and is gone" % Market._goods_text(t.reward()["salvage"]["goods"]))
+			t.mark_looted()
 
 
 ## Safe = no living enemy within CORPSE_SAFE_RADIUS.

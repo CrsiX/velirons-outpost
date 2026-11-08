@@ -21,7 +21,7 @@ const METRICS: Array = [
 const SOURCE_NAMES := {
 	"kills": "kills", "corpses": "corpses", "mines": "mines", "treasure": "treasure", "call": "calling waves early",
 	"caravans": "caravans received", "farms": "farms", "foresters": "foresters", "trade": "trade",
-	"teardown": "tear-down refunds",
+	"teardown": "tear-down refunds", "salvage": "salvage finder's fees",
 }
 const SPENT_NAMES := {
 	"buildings": "buildings", "units": "units", "upgrades": "upgrades", "villagers": "villagers",

@@ -8,9 +8,12 @@ extends CivilianJob
 ## campaign relic: scenario 9's sword is the hero's to carry). The
 ## battlefield's fallen (Corpse.fallen; scenario 6) are fetched only while the
 ## village has a graveyard, Config.FALLEN carry at a time, and carried there
-## to be buried (TO_GRAVE, BURYING).
+## to be buried (TO_GRAVE, BURYING). Salvage (the cargo of a lost trade
+## caravan, a sack with "salvage" in its reward; docs/market-design.md §6) of
+## its own village's market is fetched like dropped loot and carried to the
+## market, not home (TO_MARKET).
 
-enum State { RESTING, TO_CORPSE, LOOTING, RETURNING, TO_GRAVE, BURYING }
+enum State { RESTING, TO_CORPSE, LOOTING, RETURNING, TO_GRAVE, BURYING, TO_MARKET }
 
 var state := State.RESTING
 var target: Corpse = null
@@ -73,8 +76,8 @@ func tick(delta: float) -> void:
 				_timer -= delta
 				if _timer <= 0.0:
 					for k in sack.reward():
-						loot[k] = sack.reward()[k] if k == "relic" else int(loot.get(k, 0)) + int(sack.reward()[k])
-					w.village.events.info("%s picked up the dropped loot" % w.label().capitalize())
+						loot[k] = sack.reward()[k] if k in ["relic", "salvage"] else int(loot.get(k, 0)) + int(sack.reward()[k])
+					w.village.events.info("%s picked up %s" % [w.label().capitalize(), "the salvage" if loot.has("salvage") else "the dropped loot"])
 					sack.mark_looted()
 					sack = null
 					_go_home()
@@ -106,6 +109,15 @@ func tick(delta: float) -> void:
 				w.arrive_home()
 				state = State.RESTING
 				w.rest_timer = Config.GATHERER_REST
+		State.TO_MARKET:
+			var m := _salvage_market()
+			if m == null:
+				state = State.RETURNING  # (it fell meanwhile: home with it)
+				w.head_home()
+			elif w.step_path(delta):
+				_deliver_salvage()
+				state = State.RETURNING
+				w.head_home()
 		State.TO_GRAVE:
 			var gy := _graveyard()
 			if gy == null:
@@ -165,6 +177,8 @@ func _pick_sack() -> bool:
 			continue
 		if t.reward().has("item"):
 			continue  # (a campaign's relic: only the hero exploring carries it, scenario 9)
+		if t.reward().has("salvage") and _market_of(t.reward()["salvage"]) == null:
+			continue  # (salvage goes back to its own village's market only)
 		if not _safe_at(t.tile):
 			continue
 		if w.head_out(t.visit_tile()):
@@ -212,6 +226,10 @@ func _go_home() -> void:
 	w.sprite.rotation = 0.0
 	if carried_fallen > 0 and _to_grave():
 		return
+	var m := _salvage_market()
+	if m != null and w.head_out(m.work_tile()):
+		state = State.TO_MARKET
+		return
 	state = State.RETURNING
 	w.head_home()
 
@@ -239,7 +257,35 @@ func _to_grave() -> bool:
 	return true
 
 
+## The working market of ours salvage `s` belongs to, or null.
+func _market_of(s: Dictionary) -> Market:
+	var m := w.game.entity(int(s.get("market", 0))) as Market
+	return m if m != null and m.village == w.village and m.working() else null
+
+
+## The market the salvage carried goes to, or null (none carried, or it is gone).
+func _salvage_market() -> Market:
+	return _market_of(loot["salvage"]) if loot.has("salvage") else null
+
+
+## Salvage into the market: our goods back on the for-sale pile, the
+## merchants' into their stock for a finder's fee (Market.take_salvage).
+func _deliver_salvage() -> void:
+	var m := _salvage_market()
+	var s: Dictionary = loot.get("salvage", {})
+	loot.erase("salvage")
+	if m == null:
+		return
+	var fee := m.take_salvage(s["goods"], bool(s["merchants"]))
+	w.village.events.info("%s brought salvage back to %s: %s%s" % [w.label().capitalize(), m.label(), Market._goods_text(s["goods"]), (", +%d gold finder's fee" % fee) if fee > 0 else ""])
+	w.float_text("+%d {gold}" % fee if fee > 0 else "Salvage back", UiTheme.GOLD)
+	w.on_action("salvage")
+	w.village.sound("coin")
+
+
 func _deliver() -> void:
+	if loot.has("salvage"):
+		_deliver_salvage()  # (home first after all: it goes to the market from here)
 	if not loot.is_empty():
 		var what := Treasure.pay(w.village, loot)
 		loot = {}
@@ -309,4 +355,5 @@ func status() -> String:
 		State.RETURNING: return "carrying %d corpses home" % carried.size()
 		State.TO_GRAVE: return "carrying %d of the fallen to the graveyard" % carried_fallen
 		State.BURYING: return "burying the fallen"
+		State.TO_MARKET: return "carrying salvage to the marketplace"
 	return "resting"

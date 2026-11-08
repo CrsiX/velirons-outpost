@@ -151,12 +151,15 @@ Dropped: **shared exploration for all players** (tier 2): shared vision covers i
 
 ## 7. Scope and other modes
 
-- **Campaign:** off unless a scenario switches it on.
-- **Save:** researched advancements, the research in progress, exclusive locks, the manual
-  targeting setting of every tower and the deed counters need `SaveGame.capture` / restore lines
-  and a `SaveGame.FORMAT` bump.
-- **Commands:** starting and cancelling research and setting a tower's targeting are
-  `Commands`.
-- **Library:** a page per tier, built from `Config`.
-- **Tests:** a new `advancement_bot` (conditions, exclusive locks, each effect, both targeting
-  modes). The balancing bot learns to research later.
+- **Campaign:** off unless a scenario switches it on (`Scenario.advancements`). Never in the
+  title backdrop.
+- **Save:** researched advancements, the research in progress, exclusive locks and the manual
+  targeting setting of every tower (`SaveGame.FORMAT` 7). The deed counters are the statistics',
+  which the save holds already.
+- **Co-op:** the host researches; a client sees its own village's research (the snapshot) and
+  its towers' settings.
+- **Commands:** `research`, `cancel_research`, `set_targeting`.
+- **Library:** an Advancements tab, tier by tier, built from `Config`.
+- **Tests:** `advancement_bot` (conditions, research and cancelling, a devastated hall pausing
+  it, exclusive locks, each effect, both targeting modes, the save, shared vision). The balancing
+  bot learns to research later.

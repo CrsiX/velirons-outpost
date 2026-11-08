@@ -21,12 +21,16 @@ var blocked := ""
 
 func art() -> String:
 	if data.get("sack", false):
+		if reward().has("salvage"):
+			return "salvage"
 		return "relic_sword" if reward().has("item") else "sack"
 	return data["art"] + ("_looted" if looted else "")
 
 
 func display_name() -> String:
 	if data.get("sack", false):
+		if reward().has("salvage"):
+			return "Salvage"
 		if reward().has("item"):
 			var item := str(reward()["item"])
 			return item.substr(0, 1).to_upper() + item.substr(1)
@@ -76,6 +80,8 @@ func found_message(_v: Village) -> String:
 
 
 func _a_name() -> String:
+	if reward().has("salvage"):
+		return "salvage from a trade caravan"
 	return "some dropped loot" if data.get("sack", false) else with_article(display_name().to_lower())
 
 
@@ -158,6 +164,10 @@ func info() -> Dictionary:
 		lines.append(landmark())
 	elif looted:
 		lines.append("Looted.")
+	elif reward().has("salvage"):
+		var sv: Dictionary = reward()["salvage"]
+		lines.append("The cargo of a lost trade caravan: %s." % Market._goods_text(sv.get("goods", {})))
+		lines.append("A gatherer (or the hero gathering) carries it back to its marketplace. It lies here until the next wave is over.")
 	else:
 		lines.append("Treasure: %s." % ("something valuable" if reward().is_empty() else "worth looting"))
 		if guard() != null:

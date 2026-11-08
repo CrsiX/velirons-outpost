@@ -293,9 +293,9 @@ which the village can still save itself.
 ## 5. Villagers
 
 Roles, costs, speeds, rests and work times are in `CIVILIANS` and the `*_REST` / `*_TIME`
-constants. *(Designed, not built:)* the **trader** works the marketplace and sells what the
-player puts up for sale; at most one per village, and without a marketplace he idles like a farmer
-without a farm (docs/market-design.md). Roles that don't work from a recruit button: the **merchant**, **guild master**,
+constants. The **trader** works the marketplace and sells what the player puts up for sale;
+at most one per village (`"max"`), and without a marketplace he idles like a farmer without a
+farm (docs/market-design.md). Roles that don't work from a recruit button: the **merchant**, **guild master**,
 **priest** and **princess** exist only in the campaign (docs/scenarios-4-6-design.md, scenarios-7-9-design.md; the last
 three are `Resident`s who stay home), the **miner** is locked until anyone walks up to a mine
 (`LOCKED.miner`), and the **Spatial Archmage** can't be recruited.
@@ -448,9 +448,10 @@ Costs, sizes and build times are in `BUILDINGS`. What each is for:
 - **Training grounds:** one unit and the hero, who trains it with XP.
 - **Light stone:** gives sight, nobody inside (`LIGHTSTONE_SIGHT`).
 - **Hut:** only rebuilt on its ruined lot (§3).
-- **Marketplace** *(designed, not built)*: 3×3, at most one per village, touching a road
-  (inside or outside the walls, wherever a road runs); buying, selling through the trader,
-  caravans. Pell's trade stall becomes its campaign form (docs/market-design.md).
+- **Marketplace:** 3×3, at most one per village, touching a road; outside the walls like
+  every building bigger than a tile (the 7×7 village has no room for it). Buying, selling
+  through the trader, trade caravans (docs/market-design.md). Pell's trade stall is meant to
+  become its campaign form; for now it is still its own building.
 - **Campaign-only buildings** (`"campaign": true`: trade stall, guild warehouse, graveyard,
   druids' grove) are placed by their scenario or only where it lists them; they are prebuilt or
   not torn down: docs/scenario-system-design.md and docs/military-design.md §6.

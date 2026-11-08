@@ -315,6 +315,10 @@ Every enemy kind in its own section; one sharing a behaviour with others is grou
 - Where its village has a standing guild warehouse (scenario 4) it goes for that instead: along
   its road to where it passes nearest, then across (never through the walls), plunders it
   (`WAREHOUSE.raid_damage`), steals as at a gate and runs back.
+- A loaded trade caravan within `rob_reach` comes first (docs/market-design.md §5): it leaves
+  its road for the cart, takes the whole cargo and runs for the nearest map edge; killed, it
+  leaves the cargo as salvage. If the cart gets away first, it has no road to go back to and
+  makes for the edge empty-handed.
 
 ### 10.5 Gargoyle
 

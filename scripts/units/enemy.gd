@@ -71,6 +71,9 @@ var from_lair := false
 var hp_scale := 1.0
 ## Gold a thief stole; its corpse holds it too.
 var loot_gold := 0
+## A trade caravan's cargo a thief took (TradeCaravan.rob): {"goods",
+## "market", "merchants"}; killed, it leaves it as salvage.
+var loot_cargo: Dictionary = {}
 ## A name of its own (the campaign's Legion captains: "Lysa"), shown over
 ## its head and used in the log; "" for the rest.
 var given_name := ""
@@ -902,13 +905,19 @@ func _walk_factor() -> float:
 ## A thief with stolen gold: it shows a coin sack.
 func set_loot(gold: int) -> void:
 	loot_gold = gold
-	if gold > 0 and _sack == null:
+	if (gold > 0 or not loot_cargo.is_empty()) and _sack == null:
 		_sack = Art.sprite("sack")
 		_sack.position = Vector2(8, -22)
 		_sack.scale = Vector2.ONE * 0.8
 		add_child(_sack)
 	if _sack:
-		_sack.visible = gold > 0
+		_sack.visible = gold > 0 or not loot_cargo.is_empty()
+
+
+## A thief with a trade caravan's cargo (TradeCaravan.rob): it shows a sack too.
+func set_cargo(taken: Dictionary) -> void:
+	loot_cargo = taken
+	set_loot(loot_gold)
 
 
 ## Raised from its corpse: `share` of its HP, draining to 0 in `decay` s.

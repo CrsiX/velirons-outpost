@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b7m4rk3tb0t1"]
+
+[ext_resource type="Script" path="res://tests/market_bot.gd" id="1_mkt"]
+
+[node name="MarketBot" type="Node" unique_id=1857204777]
+script = ExtResource("1_mkt")

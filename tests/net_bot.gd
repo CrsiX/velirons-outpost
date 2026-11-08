@@ -214,8 +214,20 @@ func _host_custom() -> void:
 	check(game.villages.size() == 2 and game.villages[0].center == m.villages[0]["center"] and game.villages[1].center == m.villages[2]["center"], "two villages, on the map's villages 1 and 3")
 	check(game.map.abandoned.size() == 1 and game.map.abandoned[0]["center"] == m.villages[1]["center"], "village 2 is nobody's")
 	var ruins := game.world.buildings.filter(func(b: Building) -> bool: return b.has_meta("abandoned"))
-	check(ruins.size() == 25 and ruins.all(func(b: Building) -> bool: return b.village == null), "it stands as ruins")
+	var pieces := _pieces()
+	check(ruins.size() == pieces and ruins.all(func(b: Building) -> bool: return b.village == null), "it stands as ruins (%d of %d pieces)" % [ruins.size(), pieces])
 	await seconds(4.0)
+
+
+## Pieces of a village (Config.VILLAGE_LAYOUT): walls, gates, towers, huts
+## and the town hall (one piece on its four "X" tiles).
+static func _pieces() -> int:
+	var n := 0
+	for row in Config.VILLAGE_LAYOUT:
+		for ch in row:
+			if Config.VILLAGE_LAYOUT_KINDS.has(ch):
+				n += 1
+	return n - 3
 
 
 func _client_custom() -> void:
@@ -243,7 +255,7 @@ func _client_custom() -> void:
 	await wait_until(func() -> bool: return mine.buildings().size() >= 26 and mine.buildings().any(func(b: Building) -> bool: return b is WorkerCamp))
 	check(mine.id == 1 and mine.center == want.villages[2]["center"], "we play village 3 of the map")
 	check(game.map.abandoned.size() == 1 and game.map.meta.get("name") == "Net bot map", "we got the host's map, village 2 abandoned")
-	var ruins := await wait_until(func() -> bool: return game.world.buildings.filter(func(b: Building) -> bool: return b.has_meta("abandoned")).size() == 25, 30.0)
+	var ruins := await wait_until(func() -> bool: return game.world.buildings.filter(func(b: Building) -> bool: return b.has_meta("abandoned")).size() == _pieces(), 30.0)
 	check(ruins, "its ruins reach us, nobody's")
 	var huts := game.world.buildings.filter(func(b: Building) -> bool: return b.has_meta("abandoned") and b is Hut)
 	check(huts.size() == 9 and huts.all(func(h: Hut) -> bool: return h.village == null and not h.is_intact()), "every hut of it a ruin")
@@ -391,7 +403,7 @@ func _client() -> void:
 		return
 	var game := Net.game
 	var mine := game.player_village
-	# (25 village pieces and the starting camp; the starting farm only where it fits)
+	# (the village's pieces and the starting camp; the starting farm only where it fits)
 	var synced := await wait_until(func() -> bool: return mine.buildings().size() >= 26 and mine.buildings().any(func(b: Building) -> bool: return b is WorkerCamp) and mine.population.count() == Config.START_CIVILIANS.size() and mine.hero.nid > 0)
 	check(synced, "our village arrives from the host: %d buildings, %d villagers, the hero" % [mine.buildings().size(), mine.population.count()])
 	check(mine.id == 1 and mine.village_name == CLIENT_NAME and game.villages[0].village_name == HOST_NAME, "we play the second village")

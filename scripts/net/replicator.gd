@@ -24,6 +24,7 @@ const SOLDIER_SCRIPT := preload("res://scripts/units/soldier.gd")
 const ELEMENTAL_SCRIPT := preload("res://scripts/units/earth_elemental.gd")
 const CORPSE_SCRIPT := preload("res://scripts/units/corpse.gd")
 const CARAVAN_SCRIPT := preload("res://scripts/units/caravan.gd")
+const TRADE_CARAVAN_SCRIPT := preload("res://scripts/units/trade_caravan.gd")
 
 var game: Game
 var hosting := false
@@ -326,6 +327,8 @@ func _building_state(b: Building) -> Dictionary:
 		st["w"] = game.id_of(b.worker)
 	if b is Farm:
 		st["fs"] = int(b.stored)
+	if b is Market:
+		st["mk"] = (b as Market).net_state()
 	if b is TrainingGrounds:
 		st["th"] = game.id_of(b.trainee_hero)
 	return st
@@ -349,7 +352,7 @@ func _describe(n: Node) -> Array:
 		var e := n as Enemy
 		if e.dead and not e.shell:  # (a hatched egg's shell stays a while)
 			return []
-		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0, "c": e.color}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "rz": e.raised, "ud": e.undead, "sh": e.shell, "air": e.airborne, "ld": e.landed, "fd": e.fed, "fa": e.faded, "ch": e.channel_to if e.channel_to != Vector2.INF else null, "dv": int(e.dive), "efx": e.fx, "k": e.kind, "mt": e.mount, "mh": snappedf(e.mount_hp, 0.5), "mm": e.mount_max, "cg": e.charge_ready}), e.current_tile(), -1, false]
+		return [e.nid, "e", {"k": e.kind, "u": e.uid, "v": e.target_village.id if e.target_village else 0, "c": e.color}, _unit_state(e).merged({"hp": snappedf(e.hp, 0.5), "mhp": e.max_hp, "lg": e.loot_gold, "lc": not e.loot_cargo.is_empty(), "rz": e.raised, "ud": e.undead, "sh": e.shell, "air": e.airborne, "ld": e.landed, "fd": e.fed, "fa": e.faded, "ch": e.channel_to if e.channel_to != Vector2.INF else null, "dv": int(e.dive), "efx": e.fx, "k": e.kind, "mt": e.mount, "mh": snappedf(e.mount_hp, 0.5), "mm": e.mount_max, "cg": e.charge_ready}), e.current_tile(), -1, false]
 	if n is Soldier:
 		var s := n as Soldier
 		vid = s.unit.village.id if s.unit.village else -1
@@ -359,6 +362,11 @@ func _describe(n: Node) -> Array:
 		if el.dead:
 			return []
 		return [el.nid, "el", {"v": vid, "u": el.uid, "sm": el.summon}, _unit_state(el).merged({"hp": snappedf(el.hp, 0.5), "mhp": el.max_hp}), el.current_tile(), vid, false]
+	if n is TradeCaravan:
+		var tc := n as TradeCaravan
+		if tc.dead:
+			return []
+		return [tc.nid, "tc", {"tr": int(tc.trip), "v": tc.village.id if tc.village else -1, "u": tc.uid}, _unit_state(tc).merged({"hp": snappedf(tc.hp, 0.5)}), tc.current_tile(), vid, false]
 	if n is Caravan:
 		var ca := n as Caravan
 		return [ca.nid, "ca", {"from": ca.from.id, "to": ca.to.id, "u": ca.uid}, _unit_state(ca), ca.current_tile(), vid, false]
@@ -601,6 +609,14 @@ func _spawn(nid: int, type: String, s: Dictionary, st: Dictionary) -> void:
 			game.register_as(ca, nid)
 			game.world.objects.add_child(ca)
 			o = ca
+		"tc":
+			var tc: TradeCaravan = TRADE_CARAVAN_SCRIPT.new()
+			tc.init_cart(game, null, int(s["tr"]) as TradeCaravan.Trip, {}, game.villages[s["v"]] if s["v"] >= 0 else null)
+			tc.uid = s["u"]
+			tc.nid = nid
+			game.register_as(tc, nid)
+			game.world.objects.add_child(tc)
+			o = tc
 		"co":
 			var co: Corpse = CORPSE_SCRIPT.new()
 			co.setup(game, s["k"], 0, s["p"])
@@ -630,6 +646,9 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		if not (u is Enemy):  # (the host's "vis" is its own fog's; an enemy follows ours: Enemy._process)
 			u.visible = st["vis"]
 		Poison.show_on(u, st.get("po", false))
+	if o is TradeCaravan:
+		(o as TradeCaravan).hp = float(st.get("hp", (o as TradeCaravan).hp))
+		(o as TradeCaravan).queue_redraw()
 	if o is Civilian:
 		var c := o as Civilian
 		c.at_home = st.get("h", c.at_home)
@@ -671,6 +690,8 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		o.queue_redraw()
 	if o is Enemy:
 		var en := o as Enemy
+		if bool(st.get("lc", false)) == en.loot_cargo.is_empty():
+			en.set_cargo({"goods": {}} if st.get("lc", false) else {})
 		if int(st.get("lg", 0)) != en.loot_gold:
 			en.set_loot(int(st.get("lg", 0)))
 		if st.get("rz", false) and not en.raised:
@@ -738,6 +759,8 @@ func _apply_building(b: Building, st: Dictionary) -> void:
 		b.worker = game.entity(st.get("w", 0))
 	if b is Farm:
 		b.stored = st.get("fs", 0)
+	if b is Market and st.has("mk"):
+		(b as Market).apply_net_state(st["mk"])
 	if b is TrainingGrounds:
 		b.trainee_hero = game.entity(st.get("th", 0))
 	b.refresh()

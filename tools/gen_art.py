@@ -3619,6 +3619,249 @@ def stall(level):
     a.save("stall")
 
 
+def _market_house(a, x0, x1, y0, y1, h, ridge, wall, wall_r, roof, roof_l, stone=False):
+    """A gabled trading house along x for the marketplace (ridge along x)."""
+    if stone:
+        a.box(x0, x1, y0, y1, 0, h, STONE_T, STONE_L, STONE_R)
+        for k in range(1, 4):  # stone courses
+            a.line([P(x0, y1, h * k / 4), P(x1, y1, h * k / 4)], STONE_D, 0.8)
+    else:
+        a.box(x0, x1, y0, y1, 0, 10, STONE_T, STONE_L, STONE_R)
+        a.box(x0, x1, y0, y1, 10, h, wall, wall, wall_r)
+        for t in (0.0, 0.33, 0.66, 1.0):
+            gx = x0 + (x1 - x0) * t
+            a.line([P(gx, y1, 10), P(gx, y1, h)], "#3b2a1d", 1.8)
+    ym = (y0 + y1) / 2
+    ey, ex = 0.07, 0.04
+    slope = (ridge - h) / (y1 - ym)
+    eave = h - slope * ey
+    xa, xb = x0 - ex, x1 + ex
+    a.poly([P(xa, y0 - ey, eave), P(xb, y0 - ey, eave), P(xb, ym, ridge), P(xa, ym, ridge)], roof)
+    a.poly([P(x1, y0, h), P(x1, ym, ridge), P(x1, y1, h)], wall_r if not stone else STONE_R)
+    a.poly([P(xa, ym, ridge), P(xb, ym, ridge), P(xb, y1 + ey, eave), P(xa, y1 + ey, eave)], roof_l)
+    for t in (0.33, 0.66):
+        yy = ym + (y1 + ey - ym) * t
+        a.line([P(xa, yy, ridge - (ridge - eave) * t), P(xb, yy, ridge - (ridge - eave) * t)], shade(roof, 0.8), 1.1)
+    a.line([P(xa, ym, ridge), P(xb, ym, ridge)], "#3b2a1d", 2.2)
+
+
+def _market_goods(a, spots):
+    """Crates, barrels and sacks at grid offsets."""
+    for i, (gx, gy) in enumerate(spots):
+        x, y = P(gx, gy, 0)
+        if i % 3 == 0:
+            a.box(gx - 0.09, gx + 0.09, gy - 0.09, gy + 0.09, 0, 9, "#b08a58", WOOD, WOOD_D, sw=1)
+        elif i % 3 == 1:
+            a.poly([(x - 5, y), (x + 5, y), (x + 6, y - 12), (x - 6, y - 12)], WOOD, INK, 1)
+            a.line([(x - 5.5, y - 4), (x + 5.5, y - 4)], "#6a6a6a", 1.1)
+            a.ellipse(x, y - 12, 6, 2.2, WOOD_D, INK, 0.8)
+        else:
+            a.ellipse(x - 2, y - 4, 5, 4.2, "#c9a86a", INK, 0.9)
+            a.ellipse(x + 4, y - 3, 4.2, 3.6, "#b8955a", INK, 0.9)
+
+
+def _market_banner(a, gx, gy, h, col):
+    px, py = P(gx, gy, 0)
+    a.line([(px, py), (px, py - h)], WOOD_D, 2.4)
+    a.poly([(px, py - h), (px + 16, py - h + 4), (px + 16, py - h + 18), (px + 8, py - h + 14), (px, py - h + 18)], col, INK, 1)
+    a.line([(px + 5, py - h + 7), (px + 11, py - h + 9)], GOLD, 1.2)
+
+
+def _market_cart(a, gx, gy):
+    """A two-wheeled handcart parked in the yard, piled with sacks (faces left)."""
+    x, y = P(gx, gy, 0)
+    a.line([(x + 14, y - 8), (x + 32, y - 2)], WOOD_D, 2.4)  # handles on the ground
+    a.line([(x + 12, y - 12), (x + 31, y - 5)], WOOD_D, 2.0)
+    a.poly([(x - 18, y - 12), (x + 14, y - 20), (x + 14, y - 12), (x - 18, y - 4)], WOOD_L, INK, 1.2)  # bed
+    a.poly([(x - 18, y - 12), (x + 14, y - 20), (x + 12, y - 27), (x - 20, y - 19)], WOOD, INK, 1.2)  # side board
+    a.ellipse(x - 8, y - 26, 7, 5.5, "#c9a86a", INK, 1)
+    a.ellipse(x + 3, y - 29, 6.5, 5, "#b8955a", INK, 1)
+    a.ellipse(x - 3, y - 34, 5.5, 4.2, "#d4b478", INK, 1)
+    a.ellipse(x - 2, y - 5, 8, 8, WOOD_D, INK, 1.3)  # wheel
+    a.ellipse(x - 2, y - 5, 2.2, 2.2, "#3a2a1a")
+    for d in ((-6, 0), (6, 0), (0, -6), (0, 6)):
+        a.line([(x - 2, y - 5), (x - 2 + d[0], y - 5 + d[1])], INK, 0.9)
+
+
+def _market_well(a, gx, gy):
+    """A small stone well with a wooden winch roof."""
+    x, y = P(gx, gy, 0)
+    a.ellipse(x, y - 2, 13, 6.5, STONE_D, INK, 1.2)
+    a.poly([(x - 13, y - 2), (x - 13, y - 12), (x + 13, y - 12), (x + 13, y - 2)], STONE_L, None)
+    a.line([(x - 13, y - 2), (x - 13, y - 12)], INK, 1.2)
+    a.line([(x + 13, y - 2), (x + 13, y - 12)], INK, 1.2)
+    a.raw('<path d="M%s,%s A13,6.5 0 0 0 %s,%s" fill="none" stroke="%s" stroke-width="1.2"/>' % (fmt(x - 13), fmt(y - 2), fmt(x + 13), fmt(y - 2), INK), [(x - 13, y - 2), (x + 13, y + 5)])
+    a.ellipse(x, y - 12, 13, 6.5, STONE_T, INK, 1.2)
+    a.ellipse(x, y - 12, 9, 4.2, "#1e2a30", INK, 0.8)
+    for sx in (-10, 10):
+        a.line([(x + sx, y - 12), (x + sx, y - 32)], WOOD_D, 2.2)
+    a.poly([(x - 15, y - 30), (x + 15, y - 30), (x + 10, y - 39), (x - 10, y - 39)], "#6e4a30", INK, 1.1)
+    a.line([(x, y - 30), (x, y - 18)], "#c8b080", 1)
+    a.poly([(x - 3, y - 18), (x + 3, y - 18), (x + 2.5, y - 13), (x - 2.5, y - 13)], WOOD, INK, 0.8)
+
+
+def _market_paving(a, s, seed):
+    """Cobbles over the square's packed earth, thinning towards its edges."""
+    rng = random.Random(seed)
+    for _ in range(70):
+        gx, gy = rng.uniform(-s + 0.1, s - 0.1), rng.uniform(-s + 0.1, s - 0.1)
+        if rng.random() < max(abs(gx), abs(gy)) / s - 0.2:
+            continue
+        x, y = P(gx, gy, 0)
+        w = rng.uniform(4.5, 7.5)
+        col = rng.choice(["#8b877f", "#7d7970", "#958f84", "#6f6b63"])
+        a.ellipse(x, y, w, w * 0.5, col, "#4f4a42", 0.6, opacity=0.85)
+
+
+def _market_produce(a, gx, gy, kind):
+    """A basket of apples, a crate of cabbages or a rolled rug at grid offset."""
+    x, y = P(gx, gy, 0)
+    if kind == "apples":
+        a.poly([(x - 7, y - 1), (x + 7, y - 1), (x + 8, y - 8), (x - 8, y - 8)], "#a07a48", INK, 1)
+        for dx, dy in ((-4, -9), (0, -10), (4, -9), (-2, -12), (2, -12)):
+            a.ellipse(x + dx, y + dy, 2.3, 2.3, "#b0302a", INK, 0.6)
+    elif kind == "greens":
+        a.box(gx - 0.08, gx + 0.08, gy - 0.08, gy + 0.08, 0, 7, "#b08a58", WOOD, WOOD_D, sw=1)
+        for dx in (-4, 0, 4):
+            a.ellipse(x + dx, y - 9, 3, 2.4, "#6a9a3a", INK, 0.6)
+    else:  # a rolled rug and a bolt of cloth
+        a.poly([(x - 12, y - 2), (x + 10, y - 8), (x + 12, y - 4), (x - 10, y + 2)], "#7a3a5a", INK, 1)
+        a.ellipse(x + 11, y - 6, 2.4, 3.2, "#5a2a42", INK, 0.8)
+        a.line([(x - 8, y - 1), (x + 8, y - 5.5)], GOLD, 0.9)
+
+
+def _market_lantern(a, gx, gy, h):
+    x, y = P(gx, gy, 0)
+    a.line([(x, y), (x, y - h)], WOOD_D, 2)
+    a.line([(x, y - h), (x + 6, y - h - 2)], WOOD_D, 1.6)
+    a.poly([(x + 4, y - h), (x + 9, y - h - 1), (x + 9, y - h + 7), (x + 4, y - h + 8)], GOLD, INK, 0.9)
+    a.ellipse(x + 6.5, y - h + 3.5, 1.6, 2, "#fff4c0")
+
+
+def market(level):
+    """The marketplace (3x3, docs/market-design.md): a cobbled square with a
+    well, striped booths full of goods, lanterns, a merchant's handcart and
+    crates and barrels; level 2 adds a timber trading house at the back and a
+    third booth; level 3 (guild market) a stone hall with arches, the guild's
+    banners and sign, and a fourth booth."""
+    a = Art()
+    s = 1.48
+    a.shadow(130, 62, cy=8, opacity=0.25)
+    a.poly([P(-s, -s), P(s, -s), P(s, s), P(-s, s)], DIRT_LIGHT, INK, 1.0, opacity=0.92)
+    _market_paving(a, s, 77 + level)
+    for (gx0, gy0, gx1, gy1) in [(-s, s, s, s), (s, -s, s, s)]:  # a low kerb along the front edges
+        a.line([P(gx0, gy0, 0), P(gx1, gy1, 0)], STONE_D, 2.6)
+        a.line([P(gx0, gy0, 2), P(gx1, gy1, 2)], STONE_T, 1.2)
+    if level >= 3:
+        _market_house(a, -1.35, 0.55, -1.35, -0.55, 40, 74, None, None, "#2e3a44", "#3e4c58", stone=True)
+        for t in (0.2, 0.5, 0.8):  # arches
+            gx = -1.35 + 1.9 * t
+            a.poly([P(gx - 0.14, -0.55, 0), P(gx + 0.14, -0.55, 0), P(gx + 0.14, -0.55, 18), P(gx, -0.55, 25), P(gx - 0.14, -0.55, 18)], "#22180f", INK, 1)
+        sx, sy = P(0.55, -0.95, 30)  # the guild's scales on the gable
+        a.poly([(sx - 2, sy - 10), (sx + 12, sy - 15), (sx + 12, sy - 1), (sx - 2, sy + 4)], "#2f4a6a", INK, 1)
+        a.line([(sx + 5, sy - 10), (sx + 5, sy - 1)], GOLD, 1.4)
+        a.line([(sx + 1, sy - 6), (sx + 9, sy - 9)], GOLD, 1.4)
+        _market_banner(a, 0.8, -1.25, 70, "#2f4a6a")
+        _market_banner(a, -1.3, 0.2, 60, CRIMSON)
+    elif level >= 2:
+        _market_house(a, -1.3, 0.3, -1.35, -0.65, 30, 58, "#8c7b62", "#6c5e4a", "#5a3a26", "#6e4a30")
+        a.poly([P(-0.65, -0.65, 0), P(-0.35, -0.65, 0), P(-0.35, -0.65, 20), P(-0.65, -0.65, 20)], "#22180f", INK, 1)
+        bx, by = P(-0.1, -0.65, 26)  # a hanging sign
+        a.line([(bx, by), (bx + 10, by - 3)], WOOD_D, 1.6)
+        a.poly([(bx + 4, by - 1), (bx + 12, by - 3), (bx + 12, by + 5), (bx + 4, by + 7)], GOLD_D, INK, 0.9)
+        _market_banner(a, 0.75, -1.2, 58, CRIMSON)
+        _market_cart(a, 0.95, -0.85)
+    else:
+        _market_cart(a, -0.75, -0.95)
+        _market_banner(a, 0.9, -1.1, 52, CRIMSON)
+        a.box(-0.05, 0.25, -1.25, -1.0, 0, 10, "#b08a58", WOOD, WOOD_D, sw=1)  # a stack of crates at the back
+        a.box(0.0, 0.2, -1.2, -1.05, 10, 19, "#c09a68", "#8a6440", WOOD_D, sw=1)
+    _market_well(a, -1.0, 0.95)
+    _market_goods(a, [(1.15, 0.2), (1.25, 0.45), (1.0, 0.55), (-1.25, 0.25), (-0.95, 1.3), (0.2, 1.2)])
+    _market_produce(a, 0.85, 0.15, "apples")
+    _market_produce(a, -0.25, 0.85, "greens")
+    _market_produce(a, 0.45, 0.4, "rug")
+    _awning_stall(a, 0.35, -0.2, 0.4, 0.22, [CRIMSON, "#e8dcc0"])
+    _awning_stall(a, -0.55, 0.3, 0.32, 0.2, ["#2f5a7a", "#e8dcc0"])
+    if level >= 2:
+        _awning_stall(a, 0.55, 0.85, 0.3, 0.18, ["#5a7a2f", "#e8dcc0"])
+    if level >= 3:
+        _awning_stall(a, 1.0, -0.85, 0.28, 0.18, [GOLD_D, "#e8dcc0"])
+    _market_lantern(a, 1.35, 1.35, 40)
+    _market_lantern(a, -1.35, 1.35, 40)
+    a.save("market" if level == 1 else "market_%d" % level)
+
+
+def trader():
+    """The trader: a green travelling coat, a satchel and a ledger."""
+    def extra(a, layer):
+        if layer == "front":
+            a.poly([(-7, -12), (7, -12), (6, -27), (-6, -27)], "#3e5a3a", INK, 1)  # coat
+            a.line([(-5, -26), (6, -13)], "#6a4a2c", 1.6)  # satchel strap
+            a.poly([(3, -16), (9, -16), (9, -10), (3, -10)], "#6a4a2c", INK, 1)  # satchel
+            a.line([(-5, -22), (-10, -17)], INK, 3.6)  # arm with the ledger
+            a.poly([(-14, -20), (-8, -21), (-8, -14), (-14, -13)], "#e8dcc0", INK, 1)
+            a.line([(-12.5, -18), (-9.5, -18.5)], "#6a5a40", 0.8)
+
+    def hat(a):
+        a.raw('<path d="M-8,-37 Q0,-41 8,-37 Q4,-35.5 0,-35.5 Q-4,-35.5 -8,-37Z" fill="#5a4630" stroke="%s" stroke-width="1.2"/>' % INK, [(-9, -42), (9, -34)])
+        a.raw('<path d="M-5,-37 Q-4,-44 0,-44 Q4,-44 5,-37Z" fill="#6a5238" stroke="%s" stroke-width="1.2"/>' % INK, [(-6, -45), (6, -36)])
+        a.line([(-4.5, -38.5), (4.5, -38.5)], GOLD, 1.4)
+    person("unit_trader", ("#3e5a3a", "#2e4630"), hat=hat, extra=extra)
+
+
+def trade_cart(name, cloth):
+    """A trade caravan (docs/market-design.md §5): an open four-wheeled cart
+    piled with crates and sacks, a pennant in its owner's colour (`cloth`),
+    pulled by a mule (faces right). Not the covered help wagon."""
+    a = Art()
+    a.ellipse(0, 1, 28, 7, "#000", opacity=0.35)
+    a.poly([(-26, -11), (4, -11), (6, -19), (-24, -19)], WOOD_L, INK, 1.3)  # open bed
+    a.poly([(-26, -11), (4, -11), (4, -8), (-26, -8)], WOOD_D, INK, 1.1)
+    for (x, y, w, h, col) in [(-22, -19, 9, 9, "#b08a58"), (-13, -19, 8, 11, "#9a7448")]:  # crates
+        a.poly([(x, y), (x + w, y), (x + w, y - h), (x, y - h)], col, INK, 1)
+        a.line([(x, y - h / 2), (x + w, y - h / 2)], WOOD_D, 0.8)
+    a.ellipse(-1, -24, 6, 5, "#c9a86a", INK, 1.0)  # sacks
+    a.ellipse(-16, -33, 5, 4, "#d4b478", INK, 1.0)
+    for wx in (-20, -2):  # wheels
+        a.ellipse(wx, -5, 6, 6, WOOD_D, INK, 1.3)
+        a.ellipse(wx, -5, 1.8, 1.8, "#3a2a1a")
+    a.line([(-24, -19), (-25, -44)], WOOD_D, 1.8)  # pennant pole
+    a.poly([(-25, -44), (-11, -41), (-25, -36)], cloth, INK, 0.9)
+    a.line([(5, -13), (13, -11)], WOOD_D, 2.2)  # shafts
+    mule, mule_d = "#6e6258", "#4e443c"
+    for x in (14, 18, 25, 29):
+        a.line([(x, -12), (x + (1 if x % 2 else -1), 0)], INK, 3)
+        a.line([(x, -12), (x + (1 if x % 2 else -1), 0)], mule_d, 1.7)
+    a.ellipse(21.5, -15.5, 9.5, 5.5, mule, INK, 1.3)
+    a.poly([(28, -18), (31, -27), (35, -28), (37, -24), (32, -17)], mule, INK, 1.2)
+    a.poly([(31, -27), (30, -34), (33, -28)], mule, INK, 0.9)  # long ears
+    a.poly([(34, -28), (33, -35), (36, -28)], mule, INK, 0.9)
+    a.ellipse(35, -25.5, 0.9, 0.9, "#111")
+    a.poly([(17, -20), (26, -20), (26, -16), (17, -16)], cloth, INK, 0.8, opacity=0.9)  # blanket
+    a.save(name)
+
+
+def trade_carts():
+    """The merchants' neutral cart, and one in each village's colour."""
+    trade_cart("unit_trade_cart", "#8a7a5a")
+    for i, col in enumerate(village_colors()):
+        trade_cart("unit_trade_cart_c%d" % i, col)
+
+
+def salvage():
+    """A lost trade caravan's cargo on the ground: a broken crate, spilled sacks."""
+    a = Art()
+    a.shadow(14, 5, opacity=0.3)
+    a.poly([(-12, -1), (-2, -3), (-1, -12), (-11, -10)], "#b08a58", INK, 1.1)
+    a.line([(-12, -5), (-1, -7)], WOOD_D, 0.9)
+    a.line([(-9, -10), (-4, -1)], WOOD_D, 1.2)  # a broken slat
+    a.ellipse(5, -4, 6, 4.5, "#c9a86a", INK, 1.0)
+    a.ellipse(10, -2, 4, 3.2, "#b8955a", INK, 0.9)
+    a.ellipse(2, -10, 4, 3, "#d4b478", INK, 0.9)
+    a.save("salvage")
+
+
 def merchant():
     """Pell: a wide-brimmed hat, a long brown coat, a lantern."""
     def extra(a, layer):
@@ -10114,6 +10357,11 @@ def main():
     stall(1)
     stall(3)
     merchant()
+    for lv in (1, 2, 3):
+        market(lv)
+    trader()
+    trade_carts()
+    salvage()
     barracks_ruin()
     warehouse()
     guild_house()

@@ -1836,7 +1836,7 @@ func _build_page_build() -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	var grid := _entry_grid(v)
-	for kind in ["tower", "barracks", "farm", "camp", "lightstone", "training", "stall"]:
+	for kind in ["tower", "barracks", "farm", "camp", "lightstone", "training", "market", "stall"]:
 		var spec: Dictionary = Config.BUILDINGS[kind]
 		var icon := Art.tex(spec["art"])
 		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_icons(spec["cost"]), _on_build_pressed.bind(kind))

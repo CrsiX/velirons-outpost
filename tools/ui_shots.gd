@@ -131,6 +131,8 @@ func _run() -> void:
 		await _siege()
 	if only in ["", "town_hall"]:
 		await _town_hall()
+	if only in ["", "market"]:
+		await _market()
 	if only in ["", "fortifications"]:
 		await _fortifications()
 	if only in ["", "research"]:
@@ -980,6 +982,73 @@ func _town_hall() -> void:
 	g.select(h)
 	await _frames(6)
 	await shot("hall_last_stand_panel")
+	g.deselect()
+	g.queue_free()
+	await _frames(3)
+
+
+## The marketplace (docs/market-design.md): its three levels with the trader,
+## trade caravans on the road (ours, the merchants'), salvage, and its panel.
+func _market() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	g.economy.add("materials", 2000)
+	g.economy.add("gold", 2000)
+	g.economy.add("food", 2000)
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for y in g.map.size:
+		for x in g.map.size:
+			var t := Vector2i(x, y)
+			var d := Vector2(t).distance_to(Vector2(v.center))
+			if d < best_d and g.construction.placement_error("market", t) == "":
+				best_d = d
+				best = t
+	var m := v.construction._new_building("market", best, false) as Market
+	m.finish()
+	g.population.recruit("trader")
+	for i in 600:
+		await get_tree().process_frame
+		if m.is_open():
+			break
+	m.put_up("food", 60)
+	m.put_up("materials", 40)
+	var way := g.world.pathing.find_path(m.work_tile(), m.edge_tile())
+	var out := m._send(TradeCaravan.Trip.OUTGOING, {"food": 40}, m.edge_tile())
+	var inc := m._send(TradeCaravan.Trip.INCOMING, {"food": 50, "materials": 50}, m.edge_tile())
+	for tc in [out, inc]:
+		tc.set_process(false)
+	out.set_grid_pos(way[mini(4, way.size() - 1)])
+	out.face(way[mini(6, way.size() - 1)])
+	inc.set_grid_pos(way[mini(8, way.size() - 1)])
+	inc.face(way[mini(5, way.size() - 1)])
+	var st := TradeCaravan._free_tile(g, Vector2i(way[mini(10, way.size() - 1)].round()) + Vector2i(1, 1))
+	g.world.add_dropped_loot(st, {"salvage": {"goods": {"food": 30}, "market": m.nid, "merchants": true, "wave": 0}})
+	m.restock_timer = 999.0
+	g.camera.focus(m.position + Vector2(-60, -40))
+	g.camera.zoom = Vector2(0.9, 0.9)
+	await _frames(10)
+	await shot("market_road")
+	g.camera.focus(m.position + Vector2(0, -50))
+	g.camera.zoom = Vector2(1.6, 1.6)
+	for lvl in [1, 2, 3]:
+		m.level = lvl
+		m.hp = m.max_hp()
+		m.refresh()
+		await _frames(8)
+		await shot("market_level_%d" % lvl)
+	m.level = 1
+	m.hp = m.max_hp()
+	m.refresh()
+	g.select(m)
+	await _frames(8)
+	await shot("market_panel")
 	g.deselect()
 	g.queue_free()
 	await _frames(3)

@@ -1,8 +1,11 @@
 # Veliron's Outpost: marketplace, trader and trade (design)
 
-Status: **designed, not built yet.** Nothing here is in the code; where the text names a
-`Config` symbol that doesn't exist yet it is a proposed name. Numbers will live in
-`scripts/core/config.gd` once built, never here.
+Status: **built**, except what needs items (§8: equipment and relic offers, selling items,
+the trader's stationed time) and folding Pell's stall into the marketplace (§2): the stall
+is still its own campaign building (`Stall`, `Config.STALL_LEVELS`). The code: `Market`
+(`Config.MARKET`, `Config.BUILDINGS.market`), `Trader` (`Config.CIVILIANS.trader`),
+`TradeCaravan`, salvage as a dropped-loot sack (`GatherJob`), `ThiefBehavior`; tested by
+`market_bot`. Numbers live in `scripts/core/config.gd`, never here.
 Scope: the marketplace building, the trader villager, buying and selling, trade caravans,
 salvage, the co-op order book, and the market's item and relic offers. Items themselves
 (equipment, relics) are in docs/items-design.md; the town hall in docs/village-design.md;
@@ -34,7 +37,8 @@ marketplace → items → advancements; the market sells items only once items e
 - **Levels** (three, like Pell's stall: peddler, stall, guild market), upgraded like towers
   with material and a builder's time. Each level raises the building's HP, the stock it holds,
   and how many caravans it can have in transit at once; each level lowers the tax (§4).
-- **Pell's stall is the campaign form of the same building.** One building kind, two dresses:
+- **Pell's stall is the campaign form of the same building** (planned, not built: the stall
+  is still separate). One building kind, two dresses:
   in a scenario Pell is the fixed trader and the scenario sets the level. This replaces the
   separate `Stall` mechanics so there is one trading system with one set of rules. The
   campaign rules (Pell must not die, losing the stall loses scenario 2) stay in the scenarios.
@@ -98,29 +102,32 @@ kind with its own rules; the two must never be confused.
 | Look | covered wagon in the **sender's colour** | open cart with crates and sacks in the owner's colour; incoming merchants' carts in a neutral colour |
 | Route | village to village | market to buyer or map edge, or map edge to market |
 
-- **Departure:** a trade caravan (outgoing *and* incoming) sets off only when no **visible**
-  enemy is on its route, or the wave is over. The player can't choose the route: the nearest
+- **Departure:** a trade caravan (outgoing *and* incoming) sets off only when no enemy its
+  village can see is near its route (camp guards don't count: they keep to their camps). The player can't choose the route: the nearest
   edge by road (single player, or when no player buys), or the buyer's village (§7).
 - **Head-on is intended.** The roads lead to the spawns, so a caravan to the edge meets the
   next wave if the player trades late. Trade between waves.
 - **On the way** it is a civilian to enemies: attacked when in reach, not hunted. Ghosts never
   haunt it and wolves don't hunt it (they hunt living villagers). It never flees, but **turns
-  back** to the market when a visible enemy blocks the road ahead.
+  back** to the market when a visible enemy blocks the road ahead (a merchants' caravan turns
+  back to the edge and comes again later); its load waits at the market for the next try.
 - **Thieves rob it:** a thief with a trade caravan in reach goes for it instead of a gate,
-  takes the whole cargo and runs for the edge; the empty caravan goes home unharmed. Killed on
+  takes the whole cargo and runs for the edge; the empty caravan goes home unharmed. A buyer
+  whose order is lost (robbed or destroyed) gets the gold back. Killed on
   the way, the thief leaves the cargo as salvage (§6), as its corpse holds stolen gold today.
 - **Destroyed,** it leaves its cargo as salvage.
 
 ## 6. Salvage
 
 - **Salvage** is the cargo of a destroyed or robbed trade caravan. It lies on the map and
-  doesn't rot until the next wave is over (unlike corpses).
+  doesn't rot until the next wave is over (unlike corpses). Only the village whose market it
+  belongs to fetches it; the hero exploring leaves it alone (it isn't treasure).
 - **It is never free to take.** A gatherer, or the hero in Gather mode, carries it **to the
   market**, not into the village stock:
   - **outgoing** cargo (the player's goods) goes back into the for-sale pile, no fee;
   - **incoming** cargo (the merchants' goods) goes back into the buying stock, and the player
     gets a small **finder's fee** in gold (`Config`), far below the goods' value.
-- **The hero earns XP** for salvage she brings back (proposed `HERO_XP_PER_ACTION.salvage`).
+- **The hero earns XP** for salvage she brings back (`HERO_XP_PER_ACTION.salvage`).
 - **Why not free:** if incoming cargo dropped as free loot, players would steer enemies onto
   merchant caravans for free goods. The departure rule (§5) and a fee far below the value keep
   that from paying.
@@ -129,7 +136,8 @@ kind with its own rules; the two must never be confused.
 
 - **One shared order book.** When a player buys at their market, the purchase is filled from
   **other players' for-sale piles first**: the seller's trader packs it, a trade caravan walks
-  village to village, and the seller is paid on arrival. Only if no player sells that good does
+  village to village, and the seller is paid on arrival. The buyer pays when buying (the gold
+  travels with the caravan). Only a seller with a trader counts: without one nothing leaves. Only if no player sells that good does
   it come from the merchants' buying stock.
 - **Zero tax between players.** No gold is created when one player buys from another, so there
   is nothing to brake; the costs are the trader's rate and the walk. This is what makes co-op
@@ -142,8 +150,8 @@ kind with its own rules; the two must never be confused.
   seller sets an **asking price**, the first player to accept gets it, and it travels by trade
   caravan. No bidding: an asking price is the smallest thing that is flexible, and auctions need
   timers and a UI for a rare event.
-- **Demands:** a player can post a demand ("wants to buy 300 food"). For now it is only an
-  **Info line in every player's event log**: no reservation, no toast. This may change (a toast
+- **Demands:** a player can post a demand ("wants to buy 100 food", the market's *Ask for*
+  action). For now it is only an **Info line in every player's event log**: no reservation, no toast. This may change (a toast
   or a board) once it has been played.
 - **Without a market** a player can still send gifts by help caravan, as today.
 
@@ -172,8 +180,9 @@ kind with its own rules; the two must never be confused.
   caravans and the order book.
 - **Statistics:** trades, tax paid and salvage recovered can be counted within one game.
 - **Library:** a page for the marketplace and the trader, built from `Config`.
-- **Tests:** a new `market_bot` (buying, selling through the trader, caravan departure rule,
-  robbery and salvage, order book in a two-village game). The balancing bot learns to sell
+- **Tests:** `market_bot` (buying, selling through the trader, caravan departure rule,
+  turning back, robbery and salvage, a destroyed merchants' caravan, restocking, the save,
+  order book in a two-village game). The balancing bot learns to sell
   surpluses later (docs/balance-bot-design.md).
 
 ## 10. Open for later

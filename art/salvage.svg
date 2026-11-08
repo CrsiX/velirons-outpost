@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="68" height="48" viewBox="-17 -16 34 24">
+  <ellipse cx="0" cy="0" rx="14" ry="5" fill="#000" opacity="0.3"/>
+  <polygon points="-12,-1 -2,-3 -1,-12 -11,-10" fill="#b08a58" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
+  <polyline points="-12,-5 -1,-7" fill="none" stroke="#43301e" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="-9,-10 -4,-1" fill="none" stroke="#43301e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="5" cy="-4" rx="6" ry="4.5" fill="#c9a86a" stroke="#15110d" stroke-width="1.0"/>
+  <ellipse cx="10" cy="-2" rx="4" ry="3.2" fill="#b8955a" stroke="#15110d" stroke-width="0.9"/>
+  <ellipse cx="2" cy="-10" rx="4" ry="3" fill="#d4b478" stroke="#15110d" stroke-width="0.9"/>
+</svg>

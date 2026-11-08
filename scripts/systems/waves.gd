@@ -851,6 +851,9 @@ func _on_enemy_killed(g: Enemy) -> void:
 		var c := game.corpses.spawn(g.kind, g.wave, g.grid_pos)
 		c.extra_gold = g.loot_gold
 		c.hp_scale = g.hp_scale
+	if not g.loot_cargo.is_empty():  # (a thief's haul from a trade caravan)
+		TradeCaravan.drop_salvage(game, g.current_tile(), game.entity(int(g.loot_cargo["market"])) as Market, g.loot_cargo["goods"], bool(g.loot_cargo["merchants"]))
+		g.loot_cargo = {}
 	_split(g)
 	_enemy_gone(g)
 
