@@ -746,7 +746,7 @@ their own (`Enemy.set_identity`). Numbers and the rest: docs/scenarios-4-6-desig
 
 ## 12. Open ideas / not built
 
-- **"Support" flag** *(designed, not built)*: a per-kind flag in `Config.ENEMIES`, hand-kept, for
+- **"Support" flag** (`"support": true`): a per-kind flag in `Config.ENEMIES`, hand-kept, for
   the enemies that stand back and make the rest stronger or more dangerous. Manual targeting's
   "support first" switch (docs/advancements-design.md) goes for them, then falls back to
   "nearest the village centre". The list: witch, necromancer, spider mother, siren, Legion

@@ -265,6 +265,7 @@ func _village_data(v: Village) -> Dictionary:
 		"eco": [v.economy.amount("gold"), v.economy.amount("food"), v.economy.amount("materials")],
 		"starve": [v.population.starving, snappedf(v.population.starve_timer, 0.1)],
 		"stand": [snappedf(v.last_stand, 0.1), v.stand_unpaid, v.hall_lost],
+		"res": [v.research.done.duplicate(), v.research.current, snappedf(v.research.progress, 0.1), v.research.locked.duplicate(), v.research.paid],
 		"army": army,
 		"fallen": game.villages.map(func(o: Village) -> bool: return o.fallen),
 		"wave": [w.wave, snappedf(w.countdown, 0.1), w.in_progress(), w.enemies_left(), w.can_call()],
@@ -300,6 +301,8 @@ func _building_state(b: Building) -> Dictionary:
 		st["dv"] = true
 	if b is Tower:
 		st["en"] = b.enchanted > 0.0
+		if (b as Tower).targeting != "default":
+			st["tg"] = (b as Tower).targeting
 	if b is MilitaryPost:
 		# Every slot: [unit id, kind, level, train xp, out, downed]; and who's marching in.
 		var sl := []
@@ -460,6 +463,17 @@ func _apply_village(vd: Dictionary) -> void:
 	v.last_stand = stand[0]
 	v.stand_unpaid = stand[1]
 	v.hall_lost = stand[2]
+	var res: Array = vd.get("res", [[], "", 0.0, [], 0])
+	var r := v.research
+	var newly := (res[0] as Array).size() != r.done.size()
+	r.done.assign(res[0])
+	r.current = res[1]
+	r.progress = res[2]
+	r.locked.assign(res[3])
+	r.paid = res[4]
+	if newly:
+		r.reapply()  # (what is already in play: walking speeds, shared vision)
+		r.changed.emit()
 	# Army: keep our MilitaryUnit objects, keyed by id.
 	var keep := {}
 	for a in vd["army"]:
@@ -700,6 +714,7 @@ func _apply_building(b: Building, st: Dictionary) -> void:
 		b.set_devastated(st.get("dv", false))
 	if b is Tower:
 		b.enchanted = 1.0 if st.get("en", false) else 0.0
+		(b as Tower).targeting = st.get("tg", "default")
 	if b is MilitaryPost:
 		b.fit_slots()
 		var sl: Array = st.get("sl", [])

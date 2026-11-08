@@ -47,7 +47,8 @@ open. The story it tells is in `story-design.md` (read that first: names, places
   place. Home bookends the campaign: she rebuilds it, leaves, and defends it at the end.
 - **Pell's market** is present from scenario 2. At home it grows (peddler, stall, guild market); away it is his wagon, a smaller stall (the full
   market only in the guild's town of scenario 4).
-- *(Designed, not built:)* **marketplace, items and advancements are off in every scenario unless it switches them on**
+- **Marketplace, items and advancements are off in every scenario unless it switches them on** (advancements built:
+  `Scenario.advancements`; the marketplace and items designed, not built)
   (docs/market-design.md, items-design.md, advancements-design.md): the scenarios are balanced as they are. Pell's stall becomes the
   campaign form of the marketplace (one building kind, Pell as its fixed trader, the level set by the scenario). **Equipment** is taught
   around scenario 4 and is set per scenario (its offers and carriers in `scenario_<n>.gd`); nothing carries over by design. A scenario

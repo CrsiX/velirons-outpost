@@ -368,6 +368,12 @@ func _note_hall_heal(on: bool) -> void:
 	village.events.debug("the hero stops healing in the town hall: %s (%d / %d HP)" % [why, int(hp), int(max_hp)])
 
 
+## Fights with a melee weapon (her sword; docs/items-design.md may give her
+## others): what critical hits need.
+func has_melee_weapon() -> bool:
+	return true
+
+
 ## HP per second resting inside the town hall: max(max HP x hall_regen_share, hall_regen_min).
 func hall_regen() -> float:
 	return maxf(max_hp * float(Config.HERO["hall_regen_share"]), float(Config.HERO["hall_regen_min"]))
@@ -560,7 +566,8 @@ func counter_strike(e: Enemy) -> void:
 
 
 func _strike(foe: Enemy) -> void:
-	foe.take_damage(Config.hero_stat("damage", level) * (1.0 + Combat.holy_bonus(game, grid_pos)), self, str(Config.HERO["category"]))  # (a High Priest blesses him)
+	var crit := Combat.critical(game, village, foe) if has_melee_weapon() else 1.0  # (Eye for vital points)
+	foe.take_damage(Config.hero_stat("damage", level) * (1.0 + Combat.holy_bonus(game, grid_pos)) * crit, self, str(Config.HERO["category"]))  # (a High Priest blesses him)
 	on_action("hit")
 	if foe.dead:  # the last hit: a bonus
 		on_action("kill")

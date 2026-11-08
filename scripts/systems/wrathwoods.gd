@@ -121,6 +121,7 @@ func _on_killed(e: Enemy) -> void:
 	var v := game.village_of(e.killer)
 	if v == null:
 		v = e.target_village
+	gold = v.kill_gold(gold)  # (Skilled looting)
 	v.economy.add("gold", gold, "kills")
 	game.world.float_text("+%d {gold}" % gold, e.position + Vector2(0, -60), Color("c9a24a"))
 	v.sound("coin")

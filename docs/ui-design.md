@@ -254,13 +254,16 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   armoury's items for it. A swap is a command, allowed only while she is idle at the town hall and
   it isn't devastated (docs/items-design.md).
 - **Town hall panel** (built: `TownHall.info`): its level and upgrade, the last stand's seconds
-  left, its tower post and its bench (unit, *Upgrade*, *Withdraw*). Not built: research (the advancements,
-  their conditions and costs, the one under research; exclusive choices are marked clearly as
-  final before they are taken, docs/advancements-design.md).
+  left, its tower post and its bench (unit, *Upgrade*, *Withdraw*), and research: the one under
+  research with its time left and *Cancel research*, and *Research...* opening the list
+  (`Hud.open_research`): each advancement by tier with its icon, what it does, its conditions (met or
+  not), its cost and time; exclusive choices ask before they are taken, saying what they lock
+  for good (docs/advancements-design.md).
 - **Marketplace panel:** buying from its stock, putting goods up for sale, caravans out, the
   equipment and relic offers, and in co-op the order book (docs/market-design.md).
 - **Tower panel:** with the manual-targeting advancement, a targeting switch per tower (nearest
-  the village centre, weakest, strongest, fastest, support first).
+  the village centre, weakest, strongest, fastest, support first): its current rule and a button
+  to the next (`Tower.add_targeting_info`).
 
 ## 8. Warnings
 

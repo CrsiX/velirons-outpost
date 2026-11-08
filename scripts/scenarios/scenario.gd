@@ -93,6 +93,9 @@ var build: Array[String] = []
 ## Buildings may go inside the village's walls too, on free tiles off the
 ## road (scenario 5's fort, where barracks and training grounds stand inside).
 var build_inside := false
+## Advancements at the town hall (docs/advancements-design.md §7): off in the
+## campaign unless a scenario switches them on.
+var advancements := false
 ## Units may specialise (from Config.BRANCH_MIN_LEVEL).
 var specialise := true
 ## The hero comes back after being downed (home); false: downed is a defeat.

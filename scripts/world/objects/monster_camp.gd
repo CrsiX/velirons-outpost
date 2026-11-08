@@ -98,6 +98,7 @@ func _on_killed(e: Enemy) -> void:
 	var v := game.village_of(e.killer)
 	var gold := Config.enemy_stat_int(e.kind, "gold_on_kill")
 	if v:
+		gold = v.kill_gold(gold)  # (Skilled looting)
 		v.economy.add("gold", gold, "kills")
 		v.events.debug("killed %s at a camp (by %s, +%d gold)" % [e.label(), game.who(e.killer), gold])
 	game.world.float_text("+%d {gold}" % gold, e.position + Vector2(0, -50), Color("c9a24a"))

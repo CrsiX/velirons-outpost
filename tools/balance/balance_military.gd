@@ -97,7 +97,7 @@ func _water_defence() -> void:
 	var target := foes[0].current_tile()
 	var best := Vector2i(-1, -1)
 	var best_d := INF
-	var reach: float = Config.TOWER_RANGE["tower"] + float(Config.TOWER_LEVELS[Config.TOWER_LEVELS.size() - 1]["range_bonus"])
+	var reach: float = Config.TOWER_RANGE["tower"] + float(Config.TOWER_LEVELS[Config.PIECE_BASE_MAX_LEVEL - 1]["range_bonus"])  # (the top level without the Fortifications advancements)
 	for dy in range(-7, 8):
 		for dx in range(-7, 8):
 			var t := target + Vector2i(dx, dy)

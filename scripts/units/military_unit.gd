@@ -117,9 +117,17 @@ func state_text() -> String:
 	return "in reserve"
 
 
-## A stat of the current level ("damage", "cooldown", "interval", ...).
+## A stat of the current level ("damage", "cooldown", "interval", ...); its
+## damage with what its village's advancements add (More damage).
 func stat(key: String) -> float:
-	return Config.unit_stat(kind, key, level)
+	var v := Config.unit_stat(kind, key, level)
+	if key in DAMAGE_STATS and village != null:
+		v *= 1.0 + village.adv_bonus("damage")
+	return v
+
+
+## The stats More damage raises (its own blows and its summons').
+const DAMAGE_STATS: Array[String] = ["damage", "summon_damage"]
 
 
 func has_stat(key: String) -> bool:
@@ -168,6 +176,8 @@ func hunger_rate() -> float:
 ## berserker's rage (the more HP it has lost, the faster).
 func rate(game: Game, pos := Vector2.INF) -> float:
 	var r := Combat.haste(game, self, pos) * hunger_rate()
+	if village != null:
+		r *= 1.0 + village.adv_bonus("attack_rate")  # (Faster attacks)
 	if has_stat("rage"):
 		var missing := clampf(1.0 - hp / max_hp(), 0.0, 1.0)
 		r /= maxf(1.0 - stat("rage") * missing, 0.05)
@@ -232,7 +242,12 @@ func can_train() -> bool:
 func train_xp_needed() -> float:
 	if level >= Config.MAX_UNIT_LEVEL - 1:
 		return 0.0
-	return Config.unit_train_xp(kind, level) * Config.TRAIN_XP_DIFFICULTY[Settings.difficulty_key()]
+	return Config.unit_train_xp(kind, level) * Config.TRAIN_XP_DIFFICULTY[Settings.difficulty_key()] * drill_factor()
+
+
+## What its village's Drill advancements leave of a level-up's gold and XP (1: all).
+func drill_factor() -> float:
+	return maxf(1.0 - (village.adv_bonus("drill") if village else 0.0), 0.0)
 
 
 func can_upgrade() -> bool:
@@ -242,7 +257,7 @@ func can_upgrade() -> bool:
 ## Gold for the next level, less what training has already paid for
 ## (`trained_share` × TRAIN_GOLD_DISCOUNT of it; at least 1 gold).
 func upgrade_cost() -> Dictionary:
-	var cost := Config.unit_upgrade_cost(kind, level)
+	var cost := Config.scaled_cost(Config.unit_upgrade_cost(kind, level), drill_factor())
 	var off := trained_share() * Config.TRAIN_GOLD_DISCOUNT
 	if cost.has("gold") and off > 0.0:
 		cost["gold"] = maxi(1, roundi(cost["gold"] * (1.0 - clampf(off, 0.0, 1.0))))
@@ -267,7 +282,8 @@ func upgrade_options() -> Array[Dictionary]:
 		out_opts.append({"to": kind, "level": level + 1, "cost": upgrade_cost(), "archmage": false})
 	if level + 1 >= Config.BRANCH_MIN_LEVEL and (village == null or village.game.allows_branches()):
 		for b in spec().get("branches", []):
-			out_opts.append({"to": b, "level": 0, "cost": Config.MILITARY[b]["branch_cost"], "archmage": false})
+			var branch := Config.scaled_cost(Config.MILITARY[b]["branch_cost"], 1.0 - (village.adv_bonus("branch_cost") if village else 0.0))
+			out_opts.append({"to": b, "level": 0, "cost": branch, "archmage": false})
 	if spec().get("archmage", false) and level + 1 >= Config.ARCHMAGE_LEVEL:
 		out_opts.append({"to": "spatial_archmage", "level": 0, "cost": Config.ARCHMAGE_COST, "archmage": true})
 	return out_opts

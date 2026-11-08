@@ -33,6 +33,9 @@ var explored_of: Array[PackedByteArray] = []
 var watched_of: Array[PackedByteArray] = []
 ## The village whose fog is drawn (the local player's).
 var local := 0
+## Village ids with Shared vision (an advancement): they also watch, and
+## explore, what every other village watches (one way).
+var shared_vision: Dictionary = {}
 ## No fog at all: every tile is explored and under surveillance (Game.disable_fog: the title backdrop, tests).
 var disabled := false
 var _image: Image
@@ -183,6 +186,21 @@ func update_surveillance() -> void:
 					var t := ct + Vector2i(dx, dy)
 					if map.in_bounds(t) and Vector2(t).distance_to(c) <= radius:
 						all[base + map.index(t)] = 1
+	for key in shared_vision:
+		var vid := int(key)
+		if vid >= n:
+			continue
+		var base := vid * area
+		var seen: Array[Vector2i] = []
+		for other in n:
+			if other == vid:
+				continue
+			for i in area:
+				if all[other * area + i] == 1 and all[base + i] == 0:
+					all[base + i] = 1
+					seen.append(Vector2i(i % map.size, i / map.size))
+		if not seen.is_empty():
+			explore_tiles(seen, vid)  # (what it sees there, it knows)
 	for vid in n:
 		watched_of[vid] = all.slice(vid * area, (vid + 1) * area)
 	map.watched = watched_of[local].duplicate()

@@ -74,6 +74,12 @@ var _popups: Array[Control] = []
 var _popup_close: Dictionary = {}  # Control -> Callable
 var _stats_speed_before := 0
 var _upgrade_panel: PanelContainer
+## The town hall's research dialog (docs/advancements-design.md): every
+## advancement with its conditions, cost and state; exclusive choices ask first.
+var _research_panel: PanelContainer
+var _research_list: VBoxContainer
+var _research_status: Label
+var _research_shown := ""  # (what the list shows, to rebuild it only when that changes)
 var _upgrade_title: Label
 var _upgrade_options: VBoxContainer
 var _upgrade_hint: Label
@@ -138,6 +144,8 @@ var _debug_main: Control
 var _debug_enemies: Control
 var _speed_before := 0
 var _log_box: VBoxContainer
+## How many log lines fit above the info panel and below the top bar (_place_log).
+var _log_room := EventLog.MAX_SHOWN
 var _log_dirty := true
 var _dock_hint: Label
 var _hero_button: Button
@@ -302,6 +310,7 @@ func setup(p_game: Game) -> void:
 	_build_send_dialog()
 	await game.build_step()
 	_build_upgrade_dialogs()
+	_build_research_dialog()
 	_build_log()
 	_build_overlay()
 	_dock_hint = _label("Release to withdraw", 22, UiTheme.GOOD)
@@ -456,6 +465,14 @@ static func icon_bbcode(text: String, font_size: int) -> String:
 	var px := int(font_size * 1.15)
 	for tok in ICON_ART:
 		s = s.replace(tok, "[img=%dx%d]res://art/%s.svg[/img]" % [px, px, ICON_ART[tok]])
+	var at := s.find("{adv:")
+	while at >= 0:  # (an advancement's icon: {adv:<id>})
+		var end := s.find("}", at)
+		if end < 0:
+			break
+		var id := s.substr(at + 5, end - at - 5)
+		s = s.substr(0, at) + "[img=%dx%d]res://art/%s.svg[/img]" % [px, px, Config.advancement_icon(id)] + s.substr(end + 1)
+		at = s.find("{adv:")
 	return s
 
 
@@ -1062,6 +1079,7 @@ func _register_popups() -> void:
 	register_popup(_send_panel, func() -> void: _send_panel.visible = false)
 	register_popup(_send_unit_panel, func() -> void: _send_unit_panel.visible = false)
 	register_popup(_upgrade_panel, func() -> void: _upgrade_panel.visible = false)
+	register_popup(_research_panel, func() -> void: _research_panel.visible = false)
 	register_popup(_confirm_panel, func() -> void: _confirm_panel.visible = false)
 	register_popup(_keys_panel, func() -> void: toggle_keys_help(false))
 	register_popup(_settings, close_settings)
@@ -2757,6 +2775,156 @@ func _build_upgrade_dialogs() -> void:
 	_confirm_panel.visible = false
 
 
+# --- research (docs/advancements-design.md) ----------------------------------------------
+
+func _build_research_dialog() -> void:
+	_research_panel = PanelContainer.new()
+	_research_panel.name = "ResearchDialog"
+	_root.add_child(_research_panel)
+	_research_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_research_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_research_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	_research_panel.add_child(v)
+	v.add_child(_label("Research at the town hall", 21, UiTheme.GOLD))
+	_research_status = _label("", 15, UiTheme.MUTED)
+	_research_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_research_status)
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(scroll)
+	_research_list = VBoxContainer.new()
+	_research_list.add_theme_constant_override("separation", 6)
+	scroll.add_child(_research_list)
+	var close := _button("Close", Vector2(0, 44))
+	close.pressed.connect(func() -> void: _research_panel.visible = false)
+	v.add_child(close)
+	_research_panel.visible = false
+
+
+func open_research() -> void:
+	_research_shown = ""
+	_root.move_child(_research_panel, -1)  # (over the log and the panels)
+	_research_panel.visible = true
+	_refresh_research()
+	_fit_dialog(_research_panel)
+	_fit_dialog.call_deferred(_research_panel)
+
+
+## What the list shows: rebuilt when anything in it changed (a condition met,
+## gold, the research under way).
+func _research_state() -> String:
+	var r := game.player_village.research
+	var parts: Array[String] = [r.current, str(r.done), str(r.locked), str(int(game.economy.amount("gold")))]
+	for id in r.offered():
+		parts.append(r.error(id))
+	return "|".join(parts)
+
+
+func _refresh_research() -> void:
+	var r := game.player_village.research
+	var w := _upgrade_width() + 60.0
+	if r.current != "":
+		_research_status.text = "Researching %s: %d s left." % [Config.ADVANCEMENTS[r.current]["name"], ceili(r.time_left())]
+	else:
+		_research_status.text = "One research at a time: gold now, then research time. Bonuses last for this game."
+	_research_status.custom_minimum_size.x = w
+	var state := _research_state()
+	if state == _research_shown:
+		return
+	_research_shown = state
+	for c in _research_list.get_children():
+		_research_list.remove_child(c)
+		c.queue_free()
+	var tier := 0
+	for id in r.offered():
+		var a: Dictionary = Config.ADVANCEMENTS[id]
+		if int(a["tier"]) != tier:
+			tier = int(a["tier"])
+			_research_list.add_child(_label("Tier %d  (town hall level %d)" % [tier, int(Config.ADVANCEMENT_TIERS[tier])], 18, UiTheme.GOLD))
+		_research_list.add_child(_research_row(id, w))
+	var scroll := _research_list.get_parent() as ScrollContainer
+	scroll.custom_minimum_size = Vector2(w + 12.0, clampf(_root.size.y - 260.0, 200.0, 560.0))
+
+
+## One advancement: its name, what it does, its conditions and its button.
+func _research_row(id: String, w: float) -> Control:
+	var r := game.player_village.research
+	var a: Dictionary = Config.ADVANCEMENTS[id]
+	var row := HBoxContainer.new()
+	row.name = "Adv_" + id
+	row.add_theme_constant_override("separation", 10)
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.texture = Art.tex(Config.advancement_icon(id))
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(48, 48)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if r.locked.has(id):
+		icon.modulate = Color(1, 1, 1, 0.4)
+	row.add_child(icon)
+	w -= 58.0  # (the icon and the gap beside it)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	row.add_child(box)
+	var head := _label(str(a["name"]), 17, UiTheme.TEXT)
+	box.add_child(head)
+	var desc := _label(str(a["desc"]), 14, UiTheme.MUTED)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.custom_minimum_size.x = w
+	box.add_child(desc)
+	var lines: Array[String] = []
+	for c in r.conditions(id):
+		lines.append(("Met: " if c[1] else "Needs: ") + str(c[0]))
+	if a.has("excludes"):
+		lines.append("Exclusive: researching it locks %s for good." % Config.ADVANCEMENTS[str(a["excludes"])]["name"])
+	var cond := _label("\n".join(lines), 13, UiTheme.MUTED)
+	cond.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	cond.custom_minimum_size.x = w
+	box.add_child(cond)
+	var b := _button("", Vector2(w, 44))
+	b.name = "Research"
+	if r.has(id):
+		b.text = "Researched"
+		b.disabled = true
+	elif r.locked.has(id):
+		b.text = "Locked: you chose %s" % Config.ADVANCEMENTS[str(a["excludes"])]["name"]
+		b.disabled = true
+	elif r.current == id:
+		b.text = "Under research"
+		b.disabled = true
+	else:
+		set_rich_text(b, "Research  (%s, %d s)" % [Config.cost_icons({"gold": int(a["gold"])}), int(a["time"])])
+		var why := r.error(id)
+		b.disabled = why != ""
+		b.tooltip_text = why
+		if a.has("excludes"):
+			UiTheme.style_primary(b)
+		b.pressed.connect(func() -> void: _start_research(id))
+	box.add_child(b)
+	return row
+
+
+## Starts a research; an exclusive one asks first, saying what it locks for good.
+func _start_research(id: String) -> void:
+	var a: Dictionary = Config.ADVANCEMENTS[id]
+	if not a.has("excludes"):
+		if _do("research", {"id": id})["ok"]:
+			_refresh_research()
+		return
+	var other := str(Config.ADVANCEMENTS[str(a["excludes"])]["name"])
+	_ask("A final choice", UiTheme.GOLD, "Researching %s locks %s for the rest of this game. This can't be undone. Research it?" % [a["name"], other],
+		"Research %s  (%s)" % [a["name"], Config.cost_icons({"gold": int(a["gold"])})], false, func() -> void:
+			if _do("research", {"id": id})["ok"]:
+				_confirm_panel.visible = false
+				_refresh_research(),
+		func() -> bool: return game.player_village.research.error(id) == "")
+
+
 ## F1: every hotkey, in a dialog (F1 again, Close or Esc close it).
 ## Keys that need the game's view (or open a panel): they close the map first.
 const MAP_CLOSING_KEYS: Array[Key] = [KEY_Z, KEY_U, KEY_Q, KEY_N, KEY_TAB, KEY_V, KEY_X]
@@ -2836,7 +3004,7 @@ func _build_log() -> void:
 
 
 ## Above the info panel if one is open, else above the bottom sheet (portrait)
-## or the screen edge; at most MAX_SHOWN lines high.
+## or the screen edge; at most MAX_SHOWN lines high, and never up over the top bar.
 func _place_log() -> void:
 	if _log_box == null:
 		return
@@ -2848,16 +3016,24 @@ func _place_log() -> void:
 	_log_box.offset_left = 10.0
 	_log_box.offset_right = right
 	_log_box.offset_bottom = bottom
-	var top := bottom - LOG_LINE_H * EventLog.MAX_SHOWN
+	var top := maxf(bottom - LOG_LINE_H * EventLog.MAX_SHOWN, _top_h + 6.0 - vp.y)  # (never over the top bar)
 	for p in [_hero_panel, _people_panel]:
 		if p.visible:  # stay below the hero panel or the villager list (they open top left)
 			top = maxf(top, to_ui(p.get_global_rect().end).y + 6.0 - vp.y)
-	_log_box.offset_top = minf(top, bottom)
+	# As many lines as fit (a tall panel leaves fewer; the newest stay).
+	var room := clampi(floori((bottom - top) / LOG_LINE_H), 0, EventLog.MAX_SHOWN)
+	if room != _log_room:
+		_log_room = room
+		_log_dirty = true
+	_log_box.offset_top = bottom - LOG_LINE_H * room
+	_log_box.visible = room > 0
 
 
 func _refresh_log() -> void:
 	_log_dirty = false
 	var shown := game.events.visible_entries()
+	if shown.size() > _log_room:
+		shown = shown.slice(shown.size() - _log_room)  # (only what fits, the newest)
 	while _log_box.get_child_count() < shown.size():
 		var nl := _label("", 15)
 		nl.clip_text = true
@@ -3688,7 +3864,9 @@ func _refresh() -> void:
 		elif role == "gatherer":
 			(e["desc"] as Label).text = "%s\nCorpses lying around: %d" % [Config.CIVILIANS[role]["desc"], game.corpses.count()]
 	for kind in _military_buttons:
-		(_military_buttons[kind] as Button).disabled = not game.economy.can_afford(Config.MILITARY[kind]["cost"])
+		var cost := game.player_village.recruit_cost(kind)  # (cheaper base units)
+		set_rich_text(_military_buttons[kind], "Recruit  (%s)" % Config.cost_icons(cost))
+		(_military_buttons[kind] as Button).disabled = not game.economy.can_afford(cost)
 		(_military_panels[kind] as Control).visible = game.available(kind)
 	_rebuild_reserve()
 	_refresh_send()
@@ -3698,6 +3876,8 @@ func _refresh() -> void:
 ## Open dialogs whose buttons cost something follow the resources (and the
 ## unit's availability): earned enough meanwhile, a greyed-out button turns on.
 func _refresh_dialogs() -> void:
+	if _research_panel.visible:
+		_refresh_research()
 	if _upgrade_panel.visible and is_instance_valid(_upgrade_unit):
 		for b: Button in _upgrade_options.get_children():
 			if b.has_meta("cost"):

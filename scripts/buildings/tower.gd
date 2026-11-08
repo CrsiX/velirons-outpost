@@ -12,6 +12,9 @@ var enchanted := 0.0
 var _glow_t := 0.0
 var _front: Sprite2D
 var _site_sprite: Sprite2D
+## Manual targeting (an advancement): the rule its unit and its elementals
+## follow (Config.TARGETING_MANUAL; "default": nearest the village centre).
+var targeting := "default"
 
 
 func _art() -> String:
@@ -39,8 +42,9 @@ func display_name() -> String:
 	return "Wall Tower" if kind == "wall_tower" else "Watchtower"
 
 
+## Its top level: Config.PIECE_BASE_MAX_LEVEL, higher with the Fortifications advancements.
 func max_level() -> int:
-	return Config.TOWER_LEVELS.size()
+	return mini(Config.TOWER_LEVELS.size(), village.max_piece_level() if village else Config.PIECE_BASE_MAX_LEVEL)
 
 
 ## Range of the stationed unit: tower base range plus the level bonus.
@@ -277,7 +281,19 @@ func info() -> Dictionary:
 		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": incoming.nid})})
 	else:
 		lines.append("Unmanned. Drag a unit from the Army tab onto this tower.")
+	add_targeting_info(lines, actions)
 	return d
+
+
+## With Manual targeting: its switch (a line, and a button to the next rule).
+func add_targeting_info(lines: Array[String], actions: Array[Dictionary]) -> void:
+	if village == null or village.targeting() != "manual":
+		return
+	var modes := Config.TARGETING_MANUAL
+	var next: String = modes[(modes.find(targeting) + 1) % modes.size()]
+	lines.append("Targets: %s" % Config.TARGETING_NAMES[targeting])
+	actions.append({"label": "Target: %s" % str(Config.TARGETING_NAMES[next]).to_lower(),
+		"action": func() -> void: game.command("set_targeting", {"building": nid, "mode": next})})
 
 
 func _bar_y() -> float:

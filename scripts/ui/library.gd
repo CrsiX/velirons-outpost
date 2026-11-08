@@ -9,8 +9,8 @@ extends Control
 
 signal closed
 
-const TABS: Array[String] = ["enemies", "units", "buildings", "villagers", "hero", "places", "damage"]
-const TAB_NAMES := {"enemies": "Enemies", "units": "Units", "buildings": "Buildings", "villagers": "Villagers", "hero": "Hero", "places": "Places", "damage": "Damage"}
+const TABS: Array[String] = ["enemies", "units", "buildings", "villagers", "hero", "places", "advancements", "damage"]
+const TAB_NAMES := {"enemies": "Enemies", "units": "Units", "buildings": "Buildings", "villagers": "Villagers", "hero": "Hero", "places": "Places", "advancements": "Advancements", "damage": "Damage"}
 ## Unit stats (Config.MILITARY "stats") in words.
 const STAT_NAMES := {
 	"hp": "HP", "damage": "Damage per hit", "cooldown": "Seconds between attacks",
@@ -260,9 +260,39 @@ static func entries(key: String) -> Array[Dictionary]:
 			return _hero()
 		"places":
 			return _places()
+		"advancements":
+			return _advancements()
 		"damage":
 			return _damage()
 	return []
+
+
+## Every advancement (Config.ADVANCEMENTS), tier by tier: what it does, what it
+## costs and takes, its conditions, and the other half of an exclusive pair.
+static func _advancements() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for tier in [1, 2]:
+		for id: String in Config.ADVANCEMENTS:
+			var a: Dictionary = Config.ADVANCEMENTS[id]
+			if int(a["tier"]) != tier:
+				continue
+			var f := PackedStringArray()
+			f.append("Tier %d: town hall level %d" % [tier, int(Config.ADVANCEMENT_TIERS[tier])])
+			f.append("Research: %s, %s s" % [Config.cost_text({"gold": int(a["gold"])}), _n(a["time"])])
+			if a.has("wave"):
+				f.append("From wave %d" % int(a["wave"]))
+			for n: String in a.get("needs", []):
+				f.append("Needs %s" % Config.ADVANCEMENTS[n]["name"])
+			if a.has("earned_gold"):
+				f.append("Once %d gold has been earned this game" % int(a["earned_gold"]))
+			if a.has("deed"):
+				f.append("Deed: %d %s this game" % [int(a["deed"]["count"]), a["deed"]["text"]])
+			if a.has("excludes"):
+				f.append("Exclusive with %s: one locks the other for good" % Config.ADVANCEMENTS[str(a["excludes"])]["name"])
+			if a.get("coop", false):
+				f.append("Only with other villages (co-op)")
+			out.append({"name": a["name"], "art": Config.advancement_icon(id), "text": a["desc"], "facts": f})
+	return out
 
 
 ## Every enemy kind with an entry, family by family (Config.ENEMY_FAMILY_ORDER).
@@ -609,7 +639,7 @@ static func _buildings() -> Array[Dictionary]:
 		var f := PackedStringArray([_hp_fact(kind)])
 		var levels: Array = Config.PIECE_LEVELS[kind]
 		for i in range(1, levels.size()):
-			f.append("Level %d: %s" % [i + 1, Config.cost_text(levels[i]["cost"])])
+			f.append("Level %d: %s%s" % [i + 1, Config.cost_text(levels[i]["cost"]), _fort_note(i + 1)])
 		f.append("Repairs count it as %s" % Config.cost_text(Config.PIECE_PRICES[kind]["cost"]))
 		f.append(_material_fact())
 		out.append({
@@ -647,12 +677,22 @@ static func _material_fact() -> String:
 	return "Made of %s, all alike; %s" % [a, "; ".join(other)]
 
 
+## " (with Fortifications IV)" for a level only an advancement opens, else "".
+static func _fort_note(lv: int) -> String:
+	if lv <= Config.PIECE_BASE_MAX_LEVEL:
+		return ""
+	for id: String in Config.ADVANCEMENTS:
+		if int(Config.ADVANCEMENTS[id].get("max_piece_level", 0)) == lv:
+			return " (with %s)" % Config.ADVANCEMENTS[id]["name"]
+	return ""
+
+
 static func _tower_facts(kind: String) -> PackedStringArray:
 	var f := PackedStringArray()
 	f.append("Range %s tiles" % _n(Config.TOWER_RANGE[kind]))
 	for i in range(1, Config.TOWER_LEVELS.size()):
 		var l: Dictionary = Config.TOWER_LEVELS[i]
-		f.append("Level %d (%s): +%s range" % [i + 1, Config.cost_text(l["cost"]), _n(l["range_bonus"])])
+		f.append("Level %d (%s): +%s range%s" % [i + 1, Config.cost_text(l["cost"]), _n(l["range_bonus"]), _fort_note(i + 1)])
 	return f
 
 

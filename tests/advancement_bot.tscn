@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b7adv4nc3m3nt"]
+
+[ext_resource type="Script" path="res://tests/advancement_bot.gd" id="1_adv"]
+
+[node name="AdvancementBot" type="Node" unique_id=1857204611]
+script = ExtResource("1_adv")

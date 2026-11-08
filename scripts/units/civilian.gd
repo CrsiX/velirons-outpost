@@ -31,10 +31,15 @@ var _fleeing_away := false
 var _flee_check := 0.0
 
 
+## Its walking speed: its role's, plus what its village's advancements add (Quick feet).
+func walk_speed() -> float:
+	return float(Config.CIVILIANS[role]["speed"]) * (1.0 + (village.walk_bonus(role) if village else 0.0))
+
+
 func setup(p_game: Game, p_role: String) -> void:
 	game = p_game
 	role = p_role
-	speed = Config.CIVILIANS[role]["speed"]
+	speed = walk_speed()
 	_init_sprite("unit_" + role)
 	set_grid_pos(Vector2(village.center))
 	_set_home(true)

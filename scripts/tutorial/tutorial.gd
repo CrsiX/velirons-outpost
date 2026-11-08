@@ -267,7 +267,7 @@ func _farms() -> Array:
 
 
 func _barracks() -> Array:
-	return game.player_village.buildings().filter(func(b: Building) -> bool: return b is Barracks)
+	return game.player_village.buildings().filter(func(b: Building) -> bool: return b is Barracks and not b is HallBench)  # (not the town hall's bench)
 
 
 func _first_tiles(list: Array) -> Array[Vector2i]:

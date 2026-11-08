@@ -183,7 +183,7 @@ func finish_work() -> bool:
 
 func _test_config() -> void:
 	var hp := Config.BUILDING_HP
-	check(hp["gate"] == [80.0, 160.0, 320.0] and hp["wall"] == [100.0, 200.0, 400.0] and hp["wall_tower"] == [200.0, 400.0, 800.0] and hp["hut"] == [1.0], "HP: gate 80/160/320, wall 100/200/400, wall tower 200/400/800, hut 1")
+	check(hp["gate"].slice(0, 3) == [80.0, 160.0, 320.0] and hp["wall"].slice(0, 3) == [100.0, 200.0, 400.0] and hp["wall_tower"].slice(0, 3) == [200.0, 400.0, 800.0] and hp["hut"] == [1.0], "HP: gate 80/160/320, wall 100/200/400, wall tower 200/400/800 (levels 1-3), hut 1")
 	check(hp["gate"][0] < hp["wall"][0], "a gate is weaker than a wall at level 1")
 	for kind in Config.BUILDINGS:
 		check(hp.has(kind), "%s has HP" % kind)

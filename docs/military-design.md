@@ -290,9 +290,9 @@ branch price. Their level 1 is above the shield bearer's level 3 (the rule in §
   that broke in is nearer the centre than one outside a gate, so a breach comes first: what a
   defender would do. Spider eggs stay last, and scenario overrides (an octopus's arm holding one
   of ours) stay above any rule. The change in balance is small; a balance sweep should confirm it.
-- *(Designed, not built:)* **better targeting** and **manual targeting** are an exclusive pair of
-  advancements: one rule per unit kind for every tower, or a switch per tower
-  (docs/advancements-design.md).
+- **Better targeting** and **manual targeting** are an exclusive pair of advancements: one rule
+  per unit kind for every tower, or a switch per tower (`Targeting`, docs/advancements-design.md
+  §5); barracks sorties keep the default.
 
 ## 7. Upgrading and the Spatial Archmage
 

@@ -18,7 +18,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Gatherer / forester / farmer / builder / explorer / miner / trader**: civilian roles. **Merchant** (Pell), **guild master, resident**: named campaign villagers who can't be recruited; Pell is the campaign's trader.
 - **Marketplace**: the trading building; buying works from its stock, selling needs a trader. Pell's stall is the campaign's marketplace. `market-design.md`
 - **Trader**: the villager who works a marketplace and sells the goods put up for sale. `market-design.md`
-- **Town hall**: every village's one building in its back quarter, placed by the map; the hero's home and (designed) the armoury, the relics and research; level 2 adds a tower post, level 3 a barracks bench. `village-design.md`
+- **Town hall**: every village's one building in its back quarter, placed by the map; the hero's home, research, and (designed) the armoury and the relics; level 2 adds a tower post, level 3 a barracks bench. `village-design.md`
 - **Last stand**: the countdown after a town hall is devastated; it must be fully repaired before it runs out or the village falls. `village-design.md`
 - **Salvage**: the cargo of a robbed or destroyed trade caravan; a gatherer or the hero carries it back to the marketplace. `market-design.md`
 - **Order book**: co-op trade; a purchase is filled from other players' goods for sale before the merchants at the map edge. `market-design.md`

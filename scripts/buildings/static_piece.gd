@@ -49,8 +49,9 @@ func display_name() -> String:
 	return "Village Gate" if kind == "gate" else "Village Wall"
 
 
+## Its top level: Config.PIECE_BASE_MAX_LEVEL, higher with the Fortifications advancements.
 func max_level() -> int:
-	return (Config.PIECE_LEVELS[kind] as Array).size()
+	return mini((Config.PIECE_LEVELS[kind] as Array).size(), village.max_piece_level() if village else Config.PIECE_BASE_MAX_LEVEL)
 
 
 func can_upgrade() -> bool:

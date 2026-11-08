@@ -171,6 +171,7 @@ func info() -> Dictionary:
 			"disabled": not can_upgrade() or not village.economy.can_afford(upgrade_cost()),
 			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
 		})
+	_research_info(lines, actions)
 	if not has_post() or devastated:
 		return d
 	lines.append("Tower post: range %.1f tiles" % range_tiles())
@@ -187,9 +188,28 @@ func info() -> Dictionary:
 		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": incoming.nid})})
 	else:
 		lines.append("Unmanned. Drag a unit from the Army tab onto the town hall.")
+	add_targeting_info(lines, actions)
 	if has_bench() and bench != null:
 		_bench_info(lines, actions)
 	return d
+
+
+## Research (docs/advancements-design.md): what is under way, and the way to the list.
+func _research_info(lines: Array[String], actions: Array[Dictionary]) -> void:
+	var r := village.research
+	if not r.enabled():
+		return
+	if r.current != "":
+		var a: Dictionary = Config.ADVANCEMENTS[r.current]
+		lines.append("Researching {adv:%s} %s: %d%%, %d s left%s" % [r.current, a["name"], int(100.0 * r.progress / float(a["time"])), ceili(r.time_left()), "  (paused: devastated)" if devastated else ""])
+		var back := r.cancel_refund()
+		actions.append({"label": "Cancel research (+%s)" % Config.cost_icons({"gold": back}) if back > 0 else "Cancel research",
+			"action": func() -> void: game.command("cancel_research")})
+	elif level < int(Config.ADVANCEMENT_TIERS[1]):
+		lines.append("Advancements: from town hall level %d." % int(Config.ADVANCEMENT_TIERS[1]))
+		return
+	lines.append("Advancements researched: %d" % r.done.size())
+	actions.append({"label": "Research...", "action": func() -> void: game.hud.open_research()})
 
 
 ## The bench's lines and actions in the hall's panel (as a barracks shows its benches).

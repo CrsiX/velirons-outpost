@@ -33,6 +33,7 @@ func tick(post: Node, unit: MilitaryUnit, delta: float) -> void:
 	e.setup(post.game, home, post.outer_tile(), unit.stat("summon_hp") * sm["hp"], unit.stat("summon_damage") * sm["damage"], kind)
 	if unit.spec()["stats"].has("root"):
 		e.root_time = unit.stat("root")
+	e.tower = post if post is Tower else null
 	e.uid = post.game.next_id("elemental")
 	e.nid = post.game.register(e)
 	post.village.events.debug("summoned %s by %s on %s" % [e.label(), unit.label(), post.label()])

@@ -33,6 +33,8 @@ GOLD, GOLD_D = "#c9a24a", "#8f6f2a"
 GLOW = "#f0b04a"
 
 manifest = {}
+# While a level-4/5 wall, gate or tower is drawn: what fort_marks adds before it is saved.
+FORT = {"hook": None}
 
 
 def P(gx, gy, z=0.0):
@@ -85,6 +87,8 @@ class Art:
         self.ellipse(cx, cy, rx, ry if ry else rx / 2, "#000", opacity=opacity)
 
     def save(self, name, pad=3, extra=None, fixed=None):
+        if FORT["hook"] is not None and "_front" not in name:
+            FORT["hook"](self)  # (levels 4 and 5 of walls, gates and towers: fort_marks)
         if fixed:
             minx, miny, maxx, maxy = fixed
         else:
@@ -9720,6 +9724,258 @@ def tile_village_path():
     a.save("tile_village_path", pad=0, fixed=(-72, -36, 72, 36))
 
 
+# --------------------------------------------- walls, gates and towers at levels 4 and 5
+
+# Per piece kind and material: the front face (gy), the height its marks go up
+# to, and the half width of a tower (the Fortifications advancements,
+# docs/advancements-design.md; Config.TOWER_LEVELS, PIECE_LEVELS).
+FORT_GEOMETRY = {
+    "wall": {"stone": (0.14, 34), "wood": (0.06, 36), "sandstone": (0.14, 32), "basalt": (0.14, 34),
+             "limestone": (0.13, 32), "granite": (0.15, 28), "ice": (0.15, 28)},
+    "gate": {"stone": (0.16, 46), "wood": (0.06, 36), "sandstone": (0.16, 42), "basalt": (0.16, 44),
+             "limestone": (0.16, 42), "granite": (0.16, 40), "ice": (0.16, 40)},
+    "wall_tower": {"stone": (0.36, 74), "wood": (0.32, 60), "sandstone": (0.36, 74), "basalt": (0.36, 74),
+                   "limestone": (0.36, 74), "granite": (0.36, 74), "ice": (0.36, 74)},
+    "watchtower": {"stone": (0.3, 16)},
+}
+
+
+def _studs(a, pts, metal):
+    for x, y in pts:
+        a.ellipse(x, y, 1.4, 1.4, metal, INK, 0.5)
+
+
+def _crest(a, x, y, pal, big=1.0):
+    a.ellipse(x, y, 6.5 * big, 7.5 * big, pal["metal"], INK, 1.1)
+    a.ellipse(x, y, 4.2 * big, 5 * big, pal["accent"], INK, 0.8)
+    a.ellipse(x, y - 1.2 * big, 1.6 * big, 1.6 * big, pal["metal"])
+
+
+def fort_marks(a, kind, mat, level):
+    """What levels 4 and 5 add to a wall, gate, wall tower or watchtower in its
+    material's colours: level 4 a reinforced footing, iron-studded; level 5 also
+    gilded crests and gilded studs at the corners."""
+    pal = HALL_PALETTES[mat]
+    if kind in ("wall", "gate"):
+        y1, h = FORT_GEOMETRY[kind][mat]
+        spans = [(-0.5, 0.5)] if kind == "wall" else [(-0.5, -0.22), (0.22, 0.5)]
+        for u0, u1 in spans:  # the footing before the front face
+            a.box(u0, u1, y1, y1 + 0.06, 0, 8, pal["t"], pal["j"], pal["j"], sw=1.1)
+            n = max(2, int((u1 - u0) / 0.12))
+            _studs(a, [P(u0 + (u1 - u0) * (k + 0.5) / n, y1 + 0.06, 4) for k in range(n)], IRON_L)
+        if level >= 5:
+            if kind == "wall":
+                for u in (-0.3, 0.3):
+                    x, y = P(u, y1, h * 0.55)
+                    _crest(a, x, y, pal)
+            else:
+                x, y = P(0.0, y1, h * 0.78)
+                _crest(a, x, y, pal, 1.2)
+            for u, _ in spans:
+                _studs(a, [P(u + 0.03, y1 + 0.06, 8)], pal["metal"])
+    else:
+        s, h = FORT_GEOMETRY[kind][mat]
+        r = s + 0.05
+        # the footing round its base: only its two faces in front (a top would cover the tower)
+        a.poly([P(-r, r, 0), P(r, r, 0), P(r, r, 10), P(-r, r, 10)], pal["l"], INK, 1.1)
+        a.poly([P(r, r, 0), P(r, -r, 0), P(r, -r, 10), P(r, r, 10)], pal["r"], INK, 1.1)
+        a.line([P(-r, r, 10), P(r, r, 10), P(r, -r, 10)], pal["t"], 2.2)
+        a.line([P(-r, r, 4), P(r, r, 4), P(r, -r, 4)], pal["j"], 1.2)
+        _studs(a, [P(u, r, 5) for u in (-r * 0.6, 0.0, r * 0.6)] + [P(r, u, 5) for u in (-r * 0.6, 0.0, r * 0.6)], IRON_L)
+        if level >= 5:
+            x, y = P(s * 0.55, s, min(h * 0.4, h - 10) if kind == "wall_tower" else h * 0.55)
+            _crest(a, x, y, pal)
+            _studs(a, [P(-r, r, 10), P(r, r, 10), P(r, -r, 10)], pal["metal"])
+
+
+def _fort_levels(kind, mat, fn):
+    """Levels 4 and 5 of `fn` (a wall or gate function, which saves itself)."""
+    for lvl in (4, 5):
+        FORT["hook"] = lambda a, l=lvl: fort_marks(a, kind, mat, l)
+        fn(lvl)
+    FORT["hook"] = None
+
+
+def fortifications():
+    """Walls, gates, wall towers and watchtowers at levels 4 and 5 (the
+    Fortifications advancements), every material."""
+    walls = {"stone": (wall, gate), "wood": (wood_wall, wood_gate), "sandstone": (sand_wall, sand_gate),
+             "basalt": (bas_wall, bas_gate), "limestone": (lime_wall, lime_gate), "granite": (gran_wall, gran_gate),
+             "ice": (ice_wall, ice_gate)}
+    for mat, (w, g) in walls.items():
+        _fort_levels("wall", mat, w)
+        _fort_levels("gate", mat, g)
+    towers = [("", wall_tower, 78), ("wood_", wood_wall_tower, WOOD_DECK + 2), ("sandstone_", sand_wall_tower, 78),
+              ("basalt_", bas_wall_tower, 78), ("limestone_", lime_wall_tower, 78), ("granite_", gran_wall_tower, 78),
+              ("ice_", ice_wall_tower, 78)]
+    for prefix, fn, deck in towers:
+        mat = prefix.rstrip("_") or "stone"
+        for lvl in (4, 5):
+            FORT["hook"] = lambda a, l=lvl, m=mat: fort_marks(a, "wall_tower", m, l)
+            wt = fn(level=lvl)
+            wt.pts = fn(level=3).pts[:]
+            wt.save(prefix + "wall_tower_%d" % lvl, extra={"platform": deck})
+            FORT["hook"] = None
+            wtf = fn(front=True, level=lvl)
+            wtf.pts = wt.pts[:]
+            wtf.save(prefix + "wall_tower_front_%d" % lvl)
+    for lvl in (4, 5):
+        FORT["hook"] = lambda a, l=lvl: fort_marks(a, "watchtower", "stone", l)
+        w = watchtower(level=lvl)
+        w.pts = watchtower(level=3).pts[:]
+        w.save("watchtower_%d" % lvl, extra={"platform": 66})
+        FORT["hook"] = None
+        wf = watchtower(front=True, level=lvl)
+        wf.pts = w.pts[:]
+        wf.save("watchtower_front_%d" % lvl)
+
+
+# ------------------------------------------------------------- advancement icons
+
+# The advancements' icons (Config.ADVANCEMENTS; "adv_<id>"): one badge for all, a dark
+# disc with an iron ring (tier 1) or a gold one (tier 2), and the advancement's sign in it.
+ADV_RING = {1: "#9aa0a8", 2: "#e0b84a"}
+
+
+def _adv_badge(tier, symbol):
+    return f'''
+  <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="{INK}" stroke-width="3"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="{ADV_RING[tier]}" stroke-width="3"/>
+  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+{symbol}'''
+
+
+def _numeral(text, y=55):
+    """A small Roman numeral (I and V strokes, no font) on a ribbon at the badge's foot."""
+    widths = {"I": 2.0, "V": 6.0}
+    gap = 2.5
+    total = sum(widths[c] for c in text) + gap * (len(text) - 1)
+    w = total + 10
+    out = f'''
+  <path d="M{32 - w / 2} {y - 7} L{32 + w / 2} {y - 7} L{32 + w / 2 + 3} {y - 2.5} L{32 + w / 2} {y + 2} L{32 - w / 2} {y + 2} L{32 - w / 2 - 3} {y - 2.5}Z" fill="{CRIMSON}" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round"/>'''
+    x = 32 - total / 2
+    for c in text:
+        if c == "I":
+            out += f'''
+  <path d="M{x + 1} {y - 5} L{x + 1} {y}" stroke="{GOLD}" stroke-width="2" stroke-linecap="round"/>'''
+        else:
+            out += f'''
+  <path d="M{x} {y - 5} L{x + 3} {y} L{x + 6} {y - 5}" fill="none" stroke="{GOLD}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'''
+        x += widths[c] + gap
+    return out
+
+
+def _battlement(fill_top, fill_face):
+    return f'''
+  <path d="M14 46 L14 24 L19 24 L19 29 L24 29 L24 24 L29 24 L29 29 L35 29 L35 24 L40 24 L40 29 L45 29 L45 24 L50 24 L50 46Z" fill="{fill_face}" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M14 34 L50 34 M14 40 L50 40 M24 29 L24 34 M35 29 L35 34 M20 34 L20 40 M32 34 L32 40 M44 34 L44 40 M26 40 L26 46 M38 40 L38 46" stroke="{STONE_D}" stroke-width="1.6"/>
+  <path d="M28 46 L28 39 Q32 35 36 39 L36 46Z" fill="#1a1612" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M14 24 L19 24 M24 24 L29 24 M35 24 L40 24 M45 24 L50 24" stroke="{fill_top}" stroke-width="2"/>'''
+
+
+def _target(inner="#d8342c"):
+    return f'''
+  <circle cx="32" cy="32" r="16" fill="#efe3c8" stroke="{INK}" stroke-width="2.5"/>
+  <circle cx="32" cy="32" r="10.5" fill="{inner}" stroke="{INK}" stroke-width="2"/>
+  <circle cx="32" cy="32" r="5" fill="#efe3c8" stroke="{INK}" stroke-width="1.6"/>'''
+
+
+def _chevrons(n):
+    out = ""
+    for k in range(n):
+        y = 40 - k * 9
+        out += f'''
+  <path d="M18 {y + 8} L32 {y - 2} L46 {y + 8} L46 {y + 2} L32 {y - 8} L18 {y + 2}Z" fill="#5cc24a" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>'''
+    return out
+
+
+def _price_tag(x, y):
+    return f'''
+  <g transform="translate({x} {y}) rotate(-25)">
+    <path d="M-9 -6 L5 -6 L11 0 L5 6 L-9 6Z" fill="{GOLD}" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="5" cy="0" r="1.6" fill="{INK}"/>
+    <path d="M-6 0 L1 0" stroke="#8a5a26" stroke-width="2.2" stroke-linecap="round"/>
+  </g>'''
+
+
+ADV_ICONS = {
+    "fortifications_4": (1, _battlement(STONE_T, STONE_L) + _numeral("IV")),
+    "fortifications_5": (2, _battlement(GOLD, "#8f8a80") + f'''
+  <path d="M14 24 L19 24 M24 24 L29 24 M35 24 L40 24 M45 24 L50 24" stroke="{GOLD}" stroke-width="2.5"/>''' + _numeral("V")),
+    "better_targeting": (1, _target() + f'''
+  <path d="M50 14 L35 29" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>
+  <path d="M50 14 L35 29" stroke="{WOOD_L}" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M47 11 L54 11 L53 18 M44 14 L51 14 L50 21" fill="none" stroke="#e8e0cc" stroke-width="2" stroke-linecap="round"/>
+  <path d="M38 23 L33 31 L41 26Z" fill="#9a9a9a" stroke="{INK}" stroke-width="1.5" stroke-linejoin="round"/>'''),
+    "manual_targeting": (1, _target("#3f7fbf") + f'''
+  <circle cx="44" cy="44" r="9" fill="#8a929c" stroke="{INK}" stroke-width="2.5"/>
+  <path d="M44 44 L44 36.5" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>
+  <path d="M37 47 L40 46 M44 51.5 L44 49 M51 47 L48 46" stroke="{INK}" stroke-width="1.6"/>'''),
+    "faster_attacks": (1, f'''
+  <path d="M14 44 L44 20" stroke="{INK}" stroke-width="6" stroke-linecap="round"/>
+  <path d="M14 44 L44 20" stroke="{WOOD_L}" stroke-width="3" stroke-linecap="round"/>
+  <path d="M40 16 L52 13 L49 25Z" fill="#c9ced6" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M12 40 L8 46 L16 47 M17 44 L13 50 L21 51" fill="none" stroke="#e8e0cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M16 22 L28 22 M12 29 L24 29 M24 50 L38 50" stroke="#ffd27a" stroke-width="2.6" stroke-linecap="round"/>'''),
+    "quick_feet": (1, f'''
+  <path d="M22 16 L34 16 L34 36 L46 42 Q50 44 49 49 L20 49 L20 40Z" fill="#7a5a38" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M20 44 L49 44" stroke="#5a3e26" stroke-width="2"/>
+  <path d="M34 20 Q46 12 54 16 Q48 18 52 22 Q44 22 47 26 Q40 26 34 30Z" fill="#efe3c8" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M8 30 L16 30 M6 37 L16 37 M10 44 L16 44" stroke="#ffd27a" stroke-width="2.4" stroke-linecap="round"/>'''),
+    "drill_1": (1, _chevrons(1) + _numeral("I")),
+    "drill_2": (2, _chevrons(2) + _numeral("II")),
+    "skilled_looting": (1, f'''
+  <path d="M22 26 Q14 34 16 44 Q18 52 32 52 Q46 52 48 44 Q50 34 42 26Z" fill="#b89a60" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M22 26 Q32 21 42 26" fill="none" stroke="#6a5230" stroke-width="2.4"/>
+  <path d="M24 26 L26 20 L38 20 L40 26" fill="#8a6c34" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <circle cx="32" cy="16" r="6" fill="{GOLD}" stroke="{INK}" stroke-width="2"/>
+  <circle cx="24" cy="13" r="4.5" fill="{GOLD}" stroke="{INK}" stroke-width="1.8"/>
+  <circle cx="41" cy="12" r="4.5" fill="{GOLD}" stroke="{INK}" stroke-width="1.8"/>
+  <path d="M28 40 L36 40 M32 36 L32 44" stroke="{GOLD_D}" stroke-width="2.6" stroke-linecap="round"/>'''),
+    "shared_vision": (1, f'''
+  <path d="M8 32 Q32 10 56 32 Q32 54 8 32Z" fill="#efe3c8" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="9" fill="#3f7fbf" stroke="{INK}" stroke-width="2.2"/>
+  <circle cx="32" cy="32" r="4" fill="{INK}"/>
+  <circle cx="29" cy="29" r="1.8" fill="#ffffff"/>
+  <path d="M12 47 Q20 40 28 47 M36 47 Q44 40 52 47" fill="none" stroke="#5fbf5a" stroke-width="2.6" stroke-linecap="round"/>'''),
+    "vital_points": (1, f'''
+  <path d="M40 14 L48 6 L50 8 L42 16Z" fill="{WOOD_L}" stroke="{INK}" stroke-width="2"/>
+  <path d="M38 12 L46 20" stroke="{INK}" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M42 16 L20 38 L17 44 L23 41 L45 19Z" fill="#c9ced6" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M21 41 L18 38 L12 40 L10 34 L16 32 L14 26 L20 28 L22 22 L26 28 L32 26 L28 32" fill="#d8342c" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round" transform="translate(-4 10)"/>
+  <circle cx="14" cy="42" r="3.5" fill="#ffd27a"/>'''),
+    "more_damage": (2, f'''
+  <path d="M16 46 L42 20 L48 14 L50 16 L44 22 L18 48Z" fill="#c9ced6" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M48 46 L22 20 L16 14 L14 16 L20 22 L46 48Z" fill="#b8bec8" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M12 42 L22 52 M52 42 L42 52" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>
+  <path d="M12 42 L22 52 M52 42 L42 52" stroke="{GOLD}" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M32 8 L35 15 L42 16 L36 20 L38 27 L32 23 L26 27 L28 20 L22 16 L29 15Z" fill="#ffd27a" stroke="{INK}" stroke-width="1.6" stroke-linejoin="round"/>'''),
+    "master_builders": (2, f'''
+  <g transform="rotate(-40 32 34)">
+    <rect x="29" y="22" width="6" height="30" rx="2" fill="#b08a58" stroke="{INK}" stroke-width="2.5"/>
+    <rect x="18" y="14" width="28" height="11" rx="2.5" fill="#8a929c" stroke="{INK}" stroke-width="2.8"/>
+    <rect x="20" y="16" width="11" height="3" rx="1.5" fill="#b8c0ca"/>
+  </g>
+  <path d="M46 8 L48 13 L53 13 L49 16 L51 21 L46 18 L41 21 L43 16 L39 13 L44 13Z" fill="{GOLD}" stroke="{INK}" stroke-width="1.5" stroke-linejoin="round"/>'''),
+    "cheaper_repairs": (2, f'''
+  <path d="M12 46 L12 36 L30 36 L30 46Z M30 46 L30 36 L50 36 L50 46Z M20 36 L20 26 L40 26 L40 36Z" fill="{STONE_L}" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M20 41 L22 41 M40 41 L42 41" stroke="{STONE_D}" stroke-width="2"/>''' + _price_tag(44, 18)),
+    "cheaper_specialising": (2, f'''
+  <path d="M18 46 L32 34 L46 46 L46 40 L32 28 L18 40Z" fill="#5cc24a" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M32 10 L35 18 L43 19 L37 24 L39 32 L32 28 L25 32 L27 24 L21 19 L29 18Z" fill="{GOLD}" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round"/>''' + _price_tag(46, 18)),
+    "cheaper_recruits": (2, f'''
+  <path d="M18 40 Q18 18 32 18 Q46 18 46 40Z" fill="#8a929c" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M14 40 L50 40 L48 45 L16 45Z" fill="#6a727c" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M32 18 L32 40" stroke="#5a626c" stroke-width="2.4"/>
+  <path d="M24 28 L28 28 L28 34 M36 28 L40 28" stroke="{INK}" stroke-width="2"/>''' + _price_tag(46, 18)),
+}
+
+
+def advancement_icons():
+    for adv_id, (tier, symbol) in ADV_ICONS.items():
+        icon_svg("adv_" + adv_id, _adv_badge(tier, symbol))
+
+
 def main():
     os.makedirs(ART, exist_ok=True)
     os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
@@ -9764,6 +10020,8 @@ def main():
         wf.pts = w.pts[:]
         wf.save("watchtower_front" + suffix)
     village_pieces_materials()
+    fortifications()
+    advancement_icons()
     town_halls()
     tile_village_path()
     site()

@@ -11,7 +11,7 @@ extends RefCounted
 ## length (u32) and the body (var_to_bytes, zstd). Plain values only: entities
 ## refer to each other by nid, villages by index, map objects by index.
 
-const FORMAT := 6
+const FORMAT := 7
 const MAGIC := "VOSV"
 const EXT := "vsave"
 const AUTO_PREFIX := "auto-"
@@ -288,6 +288,7 @@ static func capture(game: Game) -> Dictionary:
 			queue.append(site.nid)
 		vs.append({"name": v.village_name, "color": v.color.to_html(false), "fallen": v.fallen, "relics": Array(v.relics),
 			"stand": [v.last_stand, v.stand_retry, v.hall_lost, v.no_more_stands, v.stand_emptied],
+			"res": {"done": Array(v.research.done), "cur": v.research.current, "p": v.research.progress, "paid": v.research.paid, "locked": Array(v.research.locked)},
 			"cd": v.corpses_delivered, "log": int(v.events.shown_level), "queue": queue,
 			"eco": {"gold": v.economy.amount("gold"), "food": v.economy.amount("food"), "materials": v.economy.amount("materials")},
 			"hero": _hero_state(v.hero)})
@@ -340,6 +341,8 @@ static func _building_state(bd: Building) -> Dictionary:
 		d["st"] = (bd as Farm).stored
 	if bd is TownHall and (bd as TownHall).bench != null:
 		d["bn"] = (bd as TownHall).bench.nid  # (its bench: the post its unit names)
+	if bd is Tower and (bd as Tower).targeting != "default":
+		d["tg"] = (bd as Tower).targeting  # (Manual targeting's switch)
 	return d
 
 
@@ -474,6 +477,13 @@ static func restore_entities(game: Game, b: Dictionary) -> void:
 		v.hall_lost = bool(stand[2])
 		v.no_more_stands = bool(stand[3])
 		v.stand_emptied = bool(stand[4])
+		var res: Dictionary = d["res"]
+		v.research.done.assign(res["done"])
+		v.research.current = str(res["cur"])
+		v.research.progress = float(res["p"])
+		v.research.paid = int(res["paid"])
+		v.research.locked.assign(res["locked"])
+		v.research.reapply()
 		v.relics.assign(d["relics"])
 		v.corpses_delivered = int(d["cd"])
 		v.economy.set_amounts(d["eco"])
@@ -586,6 +596,8 @@ static func _apply_building(bd: Building, d: Dictionary) -> void:
 		bd.repair_paid = (rp["c"] as Dictionary).duplicate()
 	if bd is Farm:
 		(bd as Farm).stored = float(d.get("st", 0.0))
+	if bd is Tower:
+		(bd as Tower).targeting = str(d.get("tg", "default"))
 	var q: Array = d.get("q", [0.0, 0])
 	bd.queued_at = float(q[0])
 	bd.interrupts = int(q[1])

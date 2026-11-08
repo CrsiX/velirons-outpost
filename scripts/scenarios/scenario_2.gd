@@ -205,7 +205,7 @@ func steps(r: ScenarioRunner) -> Array[Dictionary]:
 			"text": "Barracks send their units out to fight what comes near: rats on the farm, too. Build one by the road and station a shield bearer on its bench.",
 			"done": func() -> bool: return g.army.units.any(func(u: MilitaryUnit) -> bool: return u.post is Barracks and u.state == MilitaryUnit.State.STATIONED),
 			"point": func() -> Dictionary:
-				var bs := g.player_village.buildings().filter(func(b: Building) -> bool: return b is Barracks)
+				var bs := g.player_village.buildings().filter(func(b: Building) -> bool: return b is Barracks and not b is HallBench)  # (not the town hall's bench)
 				if bs.is_empty():
 					return r.place_point("barracks", Building.footprint(r.spots.spot("barracks", r.spots.by_road("barracks", 8, 13, [stall_tile] as Array[Vector2i])), 2))
 				return r.unit_point("shield_bearer", bs)},

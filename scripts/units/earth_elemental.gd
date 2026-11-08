@@ -24,6 +24,9 @@ var uid := 0
 var village: Village
 ## "earth" / "fire" / "thorn" (Config.SUMMONS).
 var summon := "earth"
+## The tower its summoner stands on (null: a barracks sortie): its targeting
+## (Targeting.rule) is the elemental's too.
+var tower: Node = null
 ## Seconds each blow roots its enemy for (thornlings: their druid's "root"; 0: none).
 var root_time := 0.0
 var _flicker := 0.0
@@ -127,14 +130,24 @@ func _pick_target() -> void:
 	if is_instance_valid(held_by) and not held_by.dead:
 		target = held_by as Enemy  # an octopus's arm holds it: it fights the arm
 		return
+	var seen: Array = []
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var e := node as Enemy
 		if e.dead or not _can_hit(e):
 			continue
 		var d := e.grid_pos.distance_to(grid_pos)
-		# Only enemies it can see, and not too far from its post; eggs last.
-		var k := d + (Enemy.LOW_PRIORITY_TILES if e.low_priority() else 0.0)
-		if d <= Config.SUMMON["sight"] and e.grid_pos.distance_to(Vector2(home)) <= Config.SUMMON["leash"] + Config.SUMMON["sight"] and k < best_d:
+		# Only enemies it can see, and not too far from its post.
+		if d <= Config.SUMMON["sight"] and e.grid_pos.distance_to(Vector2(home)) <= Config.SUMMON["leash"] + Config.SUMMON["sight"]:
+			seen.append(e)
+	# Its tower's targeting rule first (Targeting), then the nearest; eggs last.
+	var keys := Targeting.keys(Targeting.rule(village, tower if is_instance_valid(tower) else null, summon), seen)
+	var best_rule := INF
+	for node in seen:
+		var e := node as Enemy
+		var kr: float = keys.get(e.get_instance_id(), 0.0) + (1000.0 if e.low_priority() else 0.0)
+		var k := e.grid_pos.distance_to(grid_pos)
+		if kr < best_rule or (kr == best_rule and k < best_d):
+			best_rule = kr
 			best_d = k
 			best = e
 	if best != null and best != target:

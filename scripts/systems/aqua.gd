@@ -36,7 +36,7 @@ static func eligibility(game: Game, vi: int) -> Dictionary:
 	var center: Vector2i = map.villages[vi]["center"]
 	var dist := threat_distance(game, center, ceili(max_reach) + 1)
 	var spawn_shore := float(Config.AQUA["spawn_shore"])
-	var cover := Config.TOWER_RANGE["tower"] + float(Config.TOWER_LEVELS[Config.TOWER_LEVELS.size() - 1]["range_bonus"])
+	var cover := Config.TOWER_RANGE["tower"] + float(Config.TOWER_LEVELS[Config.PIECE_BASE_MAX_LEVEL - 1]["range_bonus"])  # (the top level without the Fortifications advancements)
 	var coverable := {}  # body -> bool
 	for kind in kinds:
 		var e: Dictionary = Config.ENEMIES[kind]

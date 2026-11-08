@@ -36,8 +36,10 @@ func info_lines(unit: MilitaryUnit) -> Array[String]:
 
 
 ## Enemies within `radius` tiles of the post that can be hit (not under
-## water; and, given the `unit` that would go for them, only those its damage hurts), closest to their gate first; low-priority ones (spider eggs) last;
-## where the scenario says so, an octopus's arm holding one of ours first of all.
+## water; and, given the `unit` that would go for them, only those its damage
+## hurts), by the unit's targeting rule (Targeting: the default is nearest the
+## village centre); low-priority ones (spider eggs) last; where the scenario
+## says so, an octopus's arm holding one of ours first of all.
 static func enemies_near(post: Node, radius: float, unit: MilitaryUnit = null) -> Array[Enemy]:
 	var out: Array[Enemy] = []
 	var c: Vector2 = post.act_center()
@@ -46,10 +48,15 @@ static func enemies_near(post: Node, radius: float, unit: MilitaryUnit = null) -
 		if e.targetable() and e.grid_pos.distance_to(c) <= radius and (unit == null or unit.can_face(e)):
 			out.append(e)
 	var arms_first: bool = post.game.scenario != null and post.game.scenario.spec.arms_first
+	var keys := Targeting.keys(Targeting.rule(post.village, post, unit.kind) if unit != null else "default", out)
 	out.sort_custom(func(a: Enemy, b: Enemy) -> bool:
 		if arms_first and a.holding != b.holding:
 			return a.holding  # (an octopus's arm with one of ours in its grip: cut it first)
 		if a.low_priority() != b.low_priority():
 			return b.low_priority()
+		var ka: float = keys.get(a.get_instance_id(), 0.0)
+		var kb: float = keys.get(b.get_instance_id(), 0.0)
+		if ka != kb:
+			return ka < kb
 		return a.remaining() < b.remaining())
 	return out

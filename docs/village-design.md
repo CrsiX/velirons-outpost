@@ -188,13 +188,13 @@ build, tear down or move it: it is the village, not something in it. Numbers are
   equipment there, only while idle at home (docs/items-design.md).
 - *(Designed, not built:)* **the armoury:** the items not worn, and the relics the village owns
   (docs/items-design.md).
-- *(Designed, not built:)* **research** of advancements, one at a time (docs/advancements-design.md).
+- **Research** of advancements, one at a time (`Research`, docs/advancements-design.md).
 
 **Levels** (1 to 3, `TOWN_HALL.levels`), upgraded like towers with building material and a
 builder's time (the *Upgrade* command towers use):
 
 - **Level 1:** no advancements at all.
-- **Level 2:** opens advancement tier 1 *(designed, not built)* and adds a **tower post** on the
+- **Level 2:** opens advancement tier 1 and adds a **tower post** on the
   hall's centre (`TownHall` is a `Tower`: `post_from`). For the game the post is exactly the middle
   of the 2×2 (`TownHall.act_center`): every range, aura, target and range circle counts from there.
   The picture puts the tower a little back along the view axis (`HALL_TOWER_BACK` in
@@ -202,7 +202,7 @@ builder's time (the *Upgrade* command towers use):
   (ranged, summoner, healer, support), with the range of a level-3 watchtower
   (`TOWER_RANGE.tower` plus the `TOWER_LEVELS` range bonus of `post_range_level`; the Hawk-eye
   relic adds as everywhere). It has no upgrades of its own: the hall's level is its level.
-- **Level 3:** opens tier 2 *(designed, not built)* and adds one **barracks bench** on the front
+- **Level 3:** opens tier 2 and adds one **barracks bench** on the front
   (bottom-right) tile (`bench_from`). Its unit sorties with the activation range of a barracks at
   level `bench_range_level` (`BARRACKS_LEVELS`): the last line of defence against a breach and
   what stands just outside the gates.
@@ -226,8 +226,8 @@ well clear of the roof (so it doesn't read as the corner tower behind it), level
 and a brazier on it, and the bench along its side wall on the front tile.
 
 **Devastated** (0 HP, docs/siege-design.md): the hero can't rest inside (she rests in the centre, at
-the slow rate) until it is repaired, its tower and bench units walk back to the reserve, and the last stand starts (§3b). *(Designed, not built:)*
-research pauses and the armoury is closed (no swaps). Relics keep working: losing all of them to
+the slow rate) until it is repaired, its tower and bench units walk back to the reserve, research
+pauses, and the last stand starts (§3b). *(Designed, not built:)* the armoury is closed (no swaps). Relics keep working: losing all of them to
 one raid would be too harsh.
 
 ## 3b. The last stand

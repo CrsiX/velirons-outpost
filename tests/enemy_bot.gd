@@ -815,7 +815,7 @@ func _test_spiders() -> void:
 	m.base_speed = 0.25
 	await frames(2)
 	var lay_r := float(sm["lay_near"])
-	var wt3 := float(Config.TOWER_RANGE["wall_tower"] + Config.TOWER_LEVELS[-1]["range_bonus"])
+	var wt3 := float(Config.TOWER_RANGE["wall_tower"] + Config.TOWER_LEVELS[2]["range_bonus"])  # (level 3: the top without the Fortifications advancements)
 	check(lay_r > wt3 and lay_r < wt3 + 1.0 and float(sm["lay_every"]) == 15.0, "she lays her first clutch within %s tiles of a manned post (a level 3 wall tower: %.1f), then every %s s" % [sm["lay_near"], wt3, sm["lay_every"]])
 	check(not mb.started and _of_kind("spider_egg").is_empty() and not SpiderMotherBehavior.post_near(m, lay_r), "far out on the road, with no manned post near, she lays nothing")
 	var towers := game.world.towers()

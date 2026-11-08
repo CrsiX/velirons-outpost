@@ -48,7 +48,7 @@ func _in_state(s: int) -> Array[MilitaryUnit]:
 
 
 func recruit(kind: String) -> MilitaryUnit:
-	if not game.is_unlocked(kind) or not Config.MILITARY[kind].get("recruit", false) or not village.economy.spend(Config.MILITARY[kind]["cost"], "units"):
+	if not game.is_unlocked(kind) or not Config.MILITARY[kind].get("recruit", false) or not village.economy.spend(village.recruit_cost(kind), "units"):
 		return null
 	var u := MilitaryUnit.new(kind)
 	u.village = village
@@ -57,7 +57,7 @@ func recruit(kind: String) -> MilitaryUnit:
 	u.uid = game.next_id(kind)
 	units.append(u)
 	game.stats.count(village, "units_recruited")
-	village.events.debug("recruit %s for %s" % [u.label(), Config.cost_text(Config.MILITARY[kind]["cost"])])
+	village.events.debug("recruit %s for %s" % [u.label(), Config.cost_text(village.recruit_cost(kind))])
 	village.sound("recruit")
 	changed.emit()
 	return u

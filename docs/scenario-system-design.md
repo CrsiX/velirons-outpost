@@ -15,7 +15,7 @@ Part of the scenario design; index in scenarios-design.md. The code is the sourc
 
 - **Every order passes one place.** `Commands.submit` asks the runner whether the command is allowed, so a rule cannot be bypassed by any input path (or a co-op-style client). The HUD hides what is not allowed so the player is not offered it, but the check is the command's, never the UI's.
 - **Defeat and win are the scenario's to define:** a villager's death, a named person's death, or the hero being downed can each end it; the usual defeat does too. The defeat screen names the cause; the win screen leads on to the next scenario, whether or not this one was completed, or after the last to the campaign map. Completion is remembered by title; release builds show only unlocked scenarios.
-- **Rules per scenario instead of global switches:** enemy strength, a custom wave mix, locked specialisation, whether the hero revives, who must live. *(Designed, not built:)* also whether the marketplace, items and advancements exist at all (off unless the scenario switches them on), and which items a scenario offers or hands over.
+- **Rules per scenario instead of global switches:** enemy strength, a custom wave mix, locked specialisation, whether the hero revives, who must live. Also whether advancements exist at all (`Scenario.advancements`, off unless the scenario switches them on); *(designed, not built:)* the same for the marketplace and items, and which items a scenario offers or hands over.
 - **Campaign-only things live outside the normal game:** buildings, people and enemies flagged campaign-only are not buildable or recruitable except where a scenario lists them.
 
 ## Cutscenes

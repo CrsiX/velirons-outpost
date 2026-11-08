@@ -864,7 +864,8 @@ func _payee(g: Enemy) -> Village:
 	return v
 
 
-func _pay_kill(g: Enemy, v: Village, gold: int, what: String) -> void:
+func _pay_kill(g: Enemy, v: Village, base: int, what: String) -> void:
+	var gold := v.kill_gold(base)  # (Skilled looting)
 	v.economy.add("gold", gold, "kills")
 	v.events.debug("%s (by %s, +%d gold)" % [what, game.who(g.killer), gold])
 	if gold > 0:

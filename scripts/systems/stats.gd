@@ -172,6 +172,8 @@ func on_kill(e: Enemy) -> void:
 	count(v, "kills")
 	count(v, "kill." + kill_group(e))
 	count(v, "kill_by." + by)
+	if k is Hero or (k is Soldier and (k as Soldier).unit != null and (k as Soldier).unit.role() == "melee"):
+		count(v, "kill_by.melee")  # (Eye for vital points' deed: melee units and the hero)
 	if k is Tower:
 		var t := k as Tower
 		var towers: Dictionary = villages[v.id]["towers"]

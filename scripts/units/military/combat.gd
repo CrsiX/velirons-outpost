@@ -21,6 +21,8 @@ static func attack(game: Game, unit: MilitaryUnit, from: Vector2, target: Enemy,
 		dmg *= 1.0 + holy_bonus(game, source.act_center())
 	unit.village.sound(a.get("sound", "shoot"), 0.15)
 	if a["projectile"] == "":  # a melee strike lands at once
+		if unit.role() == "melee":
+			dmg *= critical(game, unit.village, target)
 		hit(game, unit, target, dmg, source, target.hit_point())
 		return
 	var shot: Shot = SHOT_SCRIPT.new()
@@ -29,6 +31,17 @@ static func attack(game: Game, unit: MilitaryUnit, from: Vector2, target: Enemy,
 	shot.launch(a, from, target, func(t, at: Vector2) -> void: hit(game, unit, t, dmg, source, at))
 	if game.replicator and game.replicator.hosting:
 		game.replicator.shot(unit.spec()["attack"], from, target.hit_point())
+
+
+## A melee blow's damage factor by `v`'s Eye for vital points: its "factor"
+## with its "chance" (shown over `target`), else 1.
+static func critical(game: Game, v: Village, target: Node) -> float:
+	var c := v.crit() if v != null else {}
+	if c.is_empty() or randf() >= float(c["chance"]):
+		return 1.0
+	if is_instance_valid(target) and target is Node2D:
+		game.world.float_text("Critical!", (target as Node2D).position + Vector2(0, -60), Color("ffd27a"))
+	return float(c["factor"])
 
 
 ## The hit: damage, then the unit's effect. `t` is untyped: the target may

@@ -28,6 +28,7 @@ var economy: Economy
 var population: Population
 var construction: Construction
 var army: Army
+var research: Research
 var events: EventLog
 var hero: Hero
 ## No villagers left, or its town hall has fallen (see update_fallen).
@@ -80,6 +81,9 @@ func create(p_game: Game, p_id: int, p_name: String, p_color: Color) -> void:
 	army = Army.new()
 	army.name = "Army"
 	add_child(army)
+	research = Research.new()
+	research.name = "Research"
+	add_child(research)
 
 
 ## Sum of a bonus over the relics this village has found ("food", "revive"...).
@@ -88,6 +92,54 @@ func relic_bonus(key: String) -> float:
 	for r in relics:
 		sum += float(Config.RELICS[r].get(key, 0.0))
 	return sum
+
+
+# --- advancements (docs/advancements-design.md; Research) -----------------------------------
+
+## The sum of advancement effect `key` this village has researched (0: none).
+func adv_bonus(key: String) -> float:
+	return research.bonus(key) if research else 0.0
+
+
+## The highest level its walls, gates, wall towers and watchtowers may reach.
+func max_piece_level() -> int:
+	var lv := Config.PIECE_BASE_MAX_LEVEL
+	if research:
+		for id in research.done:
+			lv = maxi(lv, int(Config.ADVANCEMENTS[id].get("max_piece_level", 0)))
+	return lv
+
+
+## How much faster villagers of `role` walk (Quick feet).
+func walk_bonus(role: String) -> float:
+	var sum := 0.0
+	if research:
+		for id in research.done:
+			sum += float((Config.ADVANCEMENTS[id].get("walk", {}) as Dictionary).get(role, 0.0))
+	return sum
+
+
+## "better", "manual" or "" (the default rule): its targeting advancement.
+func targeting() -> String:
+	return str(research.effect("targeting", "")) if research else ""
+
+
+## Gold for a kill worth `base` (Skilled looting: a share more, at least 1 more).
+func kill_gold(base: int) -> int:
+	var b := adv_bonus("kill_gold")
+	if base <= 0 or b <= 0.0:
+		return base
+	return base + maxi(1, roundi(base * b))
+
+
+## Its critical hits ({"chance", "factor"}; empty: none): Eye for vital points.
+func crit() -> Dictionary:
+	return research.effect("crit", {}) if research else {}
+
+
+## A military unit's recruiting price here (cheaper base units).
+func recruit_cost(kind: String) -> Dictionary:
+	return Config.scaled_cost(Config.MILITARY[kind]["cost"], 1.0 - adv_bonus("recruit_cost"))
 
 
 ## Takes this village's place on the generated map (MapData.villages[id]).
@@ -105,6 +157,7 @@ func setup() -> void:
 	construction.build_starting()  # before the villagers, who then go to work there
 	population.setup(self)
 	army.setup(self)
+	research.setup(self)
 	hero = HERO_SCRIPT.new()
 	hero.setup_hero(game, self)
 	hero.nid = game.register(hero)
@@ -118,6 +171,7 @@ func setup_restored() -> void:
 	construction.setup(self)
 	population.setup(self, false)
 	army.setup(self)
+	research.setup(self)
 	hero = HERO_SCRIPT.new()
 	hero.setup_hero(game, self)
 	game.world.objects.add_child(hero)
@@ -130,6 +184,7 @@ func setup_client() -> void:
 	construction.setup(self)
 	population.setup(self, false)
 	army.setup(self)
+	research.setup(self)
 	hero = HERO_SCRIPT.new()
 	hero.setup_hero(game, self)
 	hero.visible = false
@@ -222,7 +277,6 @@ func _start_last_stand(retry: bool) -> void:
 	stand_emptied = false
 	_order_hall_repair()
 	events.important("The town hall has fallen: repair it to full HP within %d s, or %s falls" % [ceili(secs), village_name])
-	toast("Last stand! Repair the town hall within %d s!" % ceili(secs), Color("ff7a6a"))
 	sound("raid")
 	for v in game.villages:
 		if v != self:

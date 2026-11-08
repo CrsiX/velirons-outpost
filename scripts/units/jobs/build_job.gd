@@ -43,7 +43,7 @@ func tick(delta: float) -> void:
 			if _work_acc >= 1.0:
 				_work_acc -= 1.0
 				w.on_action("build_second")
-			if site.add_progress(delta * efficiency):
+			if site.add_progress(delta * work_speed()):
 				w.village.construction.complete(site)
 				_next_or_home()
 		State.RETURNING:
@@ -59,7 +59,7 @@ func tick(delta: float) -> void:
 func _take_next(max_dist := INF) -> bool:
 	var c := w.village.construction
 	for _i in c.queue.size():
-		var s := c.claim(w, max_dist, efficiency)
+		var s := c.claim(w, max_dist, work_speed())
 		if s == null:
 			return false
 		if w.head_out(s.work_tile()):
@@ -67,6 +67,11 @@ func _take_next(max_dist := INF) -> bool:
 			return true
 		c.release(s, w, true)
 	return false
+
+
+## How fast it builds: its efficiency (the hero: slower), and Master builders.
+func work_speed() -> float:
+	return efficiency * (1.0 + w.village.adv_bonus("build_speed"))
 
 
 func _site_valid() -> bool:

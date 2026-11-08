@@ -874,20 +874,26 @@ const TOWER_RANGE := {"tower": 3.6, "wall_tower": 4.8}
 ## Tower levels (wall towers and watchtowers alike start at 1). Levels only add
 ## range for the stationed unit. Upgrading costs building material and a
 ## builder's time; the tower keeps fighting meanwhile.
+## Levels 4 and 5 only with the Fortifications IV / V advancements
+## (ADVANCEMENTS "max_piece_level"; Village.max_piece_level).
 const TOWER_LEVELS: Array[Dictionary] = [
 	{"range_bonus": 0.0},
 	{"range_bonus": 0.8, "cost": {"materials": 30}, "work_time": 8.0},
 	{"range_bonus": 1.6, "cost": {"materials": 55}, "work_time": 12.0},
+	{"range_bonus": 2.2, "cost": {"materials": 90}, "work_time": 16.0},
+	{"range_bonus": 2.8, "cost": {"materials": 130}, "work_time": 20.0},
 ]
+## Without the Fortifications advancements, walls, gates and towers stop at this level.
+const PIECE_BASE_MAX_LEVEL := 3
 
 ## Building HP (docs/siege-design.md §2): max HP per kind and level (index =
 ## level - 1; kinds without levels have one entry). Huts have 1: any enemy
 ## that reaches one burns it. Upgrades add the difference to the current HP.
 const BUILDING_HP := {
-	"gate": [80.0, 160.0, 320.0],
-	"wall": [100.0, 200.0, 400.0],
-	"wall_tower": [200.0, 400.0, 800.0],
-	"tower": [100.0, 200.0, 400.0],
+	"gate": [80.0, 160.0, 320.0, 480.0, 640.0],
+	"wall": [100.0, 200.0, 400.0, 600.0, 800.0],
+	"wall_tower": [200.0, 400.0, 800.0, 1200.0, 1600.0],
+	"tower": [100.0, 200.0, 400.0, 600.0, 800.0],
 	"barracks": [150.0, 250.0, 400.0],
 	"farm": [100.0],
 	"camp": [50.0],
@@ -914,8 +920,10 @@ const PIECE_PRICES := {
 ## Gate and wall levels (all start at 1): only more HP (BUILDING_HP) and a
 ## look. Like tower upgrades: building material and a builder's time.
 const PIECE_LEVELS := {
-	"gate": [{}, {"cost": {"materials": 30}, "work_time": 8.0}, {"cost": {"materials": 60}, "work_time": 12.0}],
-	"wall": [{}, {"cost": {"materials": 35}, "work_time": 8.0}, {"cost": {"materials": 70}, "work_time": 12.0}],
+	"gate": [{}, {"cost": {"materials": 30}, "work_time": 8.0}, {"cost": {"materials": 60}, "work_time": 12.0},
+		{"cost": {"materials": 100}, "work_time": 16.0}, {"cost": {"materials": 150}, "work_time": 20.0}],
+	"wall": [{}, {"cost": {"materials": 35}, "work_time": 8.0}, {"cost": {"materials": 70}, "work_time": 12.0},
+		{"cost": {"materials": 110}, "work_time": 16.0}, {"cost": {"materials": 160}, "work_time": 20.0}],
 }
 ## What a village's pieces are made of (docs/siege-design.md §2a). "art" prefixes
 ## their art names (stone: the plain names: "wall_2", "sandstone_wall_2", "wood_hut":
@@ -967,6 +975,16 @@ const PIECE_MATERIAL_BY_MAP_TYPE := {"volcanic": "basalt", "desert": "sandstone"
 ## Art name `art` ("wall_2", "gate_ruin", "wall_tower_front") in `material`: "wood_wall_2".
 static func piece_art(material: String, art: String) -> String:
 	return str(PIECE_MATERIALS[material]["art"]) + art
+
+
+## `cost` with every amount times `factor`, rounded, at least 1 (advancements' discounts).
+static func scaled_cost(cost: Dictionary, factor: float) -> Dictionary:
+	if is_equal_approx(factor, 1.0):
+		return cost.duplicate()
+	var out := {}
+	for k in cost:
+		out[k] = maxi(1, roundi(float(cost[k]) * factor)) if int(cost[k]) > 0 else cost[k]
+	return out
 
 
 ## `cost` for a piece of `material`: every amount times its factor, rounded, at least 1.
@@ -1250,6 +1268,87 @@ const EXPLORE := {
 ## on its way to some fog sets that fog aside, and all fog this close to it,
 ## while those guards live: the way there runs past them (ExploreJob).
 const EXPLORER_BLOCKED_RADIUS := 4.0
+
+## --- Advancements (docs/advancements-design.md) -------------------------------------------
+## Researched at the town hall, one at a time, for gold and research time;
+## one village's own, for this game only. Tier 1 needs the hall at level
+## ADVANCEMENT_TIERS[1], tier 2 at ADVANCEMENT_TIERS[2]. Per advancement:
+## "name", "tier", "gold", "time" (research seconds), "desc"; conditions (all
+## must hold): "wave" (reached), "needs" [advancements], "earned_gold" (gold
+## earned this game, the statistics' earn.gold), "deed" {"stat": a statistics
+## key of this game, "count", "text"}, "coop" (only with several villages);
+## "excludes": the other half of an exclusive pair (researching one locks the
+## other for good). Effects (Village.adv_bonus sums them over what was researched):
+##   max_piece_level  walls, gates, wall towers and watchtowers go to this level
+##   targeting        "better" (a rule per unit kind: TARGETING_BETTER) or "manual" (a switch per tower)
+##   attack_rate      every unit's attack, cast, summon and heal timers this share faster
+##   walk             {role: share}: these villagers walk this share faster
+##   drill            unit level-ups cost this share less gold and training XP
+##   kill_gold        gold per kill this share more (at least +1)
+##   shared_vision    see the other villages' surveillance (one way)
+##   crit             {"chance", "factor"}: melee units' and the hero's sword blows
+##   damage           every unit's damage this share more
+##   build_speed      builders and the hero build this share faster
+##   repair_cost      repairs cost this share less building material
+##   branch_cost      specialising costs this share less gold
+##   recruit_cost     recruiting military units costs this share less gold
+## Not built yet (they need the marketplace): Trade charter; trader's price at
+## the edge or one more caravan.
+const ADVANCEMENT_TIERS := {1: 2, 2: 3}
+const ADVANCEMENTS := {
+	"fortifications_4": {"name": "Fortifications IV", "tier": 1, "gold": 150, "time": 60.0, "wave": 6, "max_piece_level": 4,
+		"desc": "Walls, gates, wall towers and watchtowers can be upgraded to level 4."},
+	"better_targeting": {"name": "Better targeting", "tier": 1, "gold": 120, "time": 45.0, "excludes": "manual_targeting", "targeting": "better",
+		"desc": "Every tower's unit picks its targets by what it is good at (its kind)."},
+	"manual_targeting": {"name": "Manual targeting", "tier": 1, "gold": 120, "time": 45.0, "excludes": "better_targeting", "targeting": "manual",
+		"desc": "Every tower gets a switch: nearest the centre, weakest, strongest, fastest or support first."},
+	"faster_attacks": {"name": "Faster attacks", "tier": 1, "gold": 180, "time": 75.0, "wave": 10, "attack_rate": 0.1,
+		"desc": "Every unit attacks 10 % faster."},
+	"quick_feet": {"name": "Quick feet", "tier": 1, "gold": 100, "time": 45.0,
+		"walk": {"forester": 0.15, "farmer": 0.15, "gatherer": 0.15, "builder": 0.15},
+		"desc": "Foresters, farmers, gatherers and builders walk 15 % faster."},
+	"drill_1": {"name": "Drill I", "tier": 1, "gold": 150, "time": 60.0, "wave": 7, "drill": 0.15,
+		"desc": "A unit's level-up costs 15 % less gold and training XP."},
+	"skilled_looting": {"name": "Skilled looting", "tier": 1, "gold": 120, "time": 60.0, "earned_gold": 500, "kill_gold": 0.25,
+		"desc": "25 % more gold per kill (at least 1 more)."},
+	"shared_vision": {"name": "Shared vision", "tier": 1, "gold": 100, "time": 45.0, "coop": true, "shared_vision": true,
+		"desc": "You see what the other villages see (they don't see yours)."},
+	"vital_points": {"name": "Eye for vital points", "tier": 1, "gold": 160, "time": 60.0,
+		"deed": {"stat": "kill_by.melee", "count": 40, "text": "melee kills (the hero's too)"}, "crit": {"chance": 0.1, "factor": 2.0},
+		"desc": "Melee units and the hero's sword: a 10 % chance of a critical hit for double damage."},
+	"fortifications_5": {"name": "Fortifications V", "tier": 2, "gold": 250, "time": 90.0, "wave": 20, "needs": ["fortifications_4"], "max_piece_level": 5,
+		"desc": "Walls, gates, wall towers and watchtowers can be upgraded to level 5."},
+	"more_damage": {"name": "More damage", "tier": 2, "gold": 280, "time": 100.0, "needs": ["faster_attacks"], "damage": 0.1,
+		"desc": "Every unit deals 10 % more damage."},
+	"drill_2": {"name": "Drill II", "tier": 2, "gold": 240, "time": 90.0, "wave": 14, "needs": ["drill_1"], "drill": 0.15,
+		"desc": "Level-ups cost another 15 % less (30 % with Drill I)."},
+	"master_builders": {"name": "Master builders", "tier": 2, "gold": 220, "time": 75.0, "excludes": "cheaper_repairs", "build_speed": 0.25,
+		"desc": "Builders and the hero build 25 % faster."},
+	"cheaper_repairs": {"name": "Cheaper repairs", "tier": 2, "gold": 220, "time": 75.0, "excludes": "master_builders", "repair_cost": 0.25,
+		"desc": "Repairs cost 25 % less building material."},
+	"cheaper_specialising": {"name": "Cheaper specialising", "tier": 2, "gold": 150, "time": 75.0, "excludes": "cheaper_recruits", "branch_cost": 0.25,
+		"desc": "Specialising a unit costs 25 % less gold."},
+	"cheaper_recruits": {"name": "Cheaper base units", "tier": 2, "gold": 150, "time": 75.0, "excludes": "cheaper_specialising", "recruit_cost": 0.2,
+		"desc": "Recruiting military units costs 20 % less gold."},
+}
+## Better targeting (docs/advancements-design.md §5): the rule per unit kind
+## (and summon kind); anyone not listed keeps the default. Rules: "default"
+## (nearest the village centre), "weakest", "strongest", "fastest", "group"
+## (most enemies around it), "pushable" (what a throw-back moves first),
+## "unholy" (unholy first), "support" (the support flag first).
+const TARGETING_BETTER := {
+	"swiftbowman": "weakest", "crossbowman": "strongest", "apprentice": "weakest",
+	"fire_mage": "group", "ice_mage": "fastest", "spatial_mage": "pushable",
+	"acolyte": "unholy", "inquisitor": "unholy",
+	"earth": "strongest", "fire": "group", "thorn": "fastest",
+}
+## Manual targeting: the switch every tower gets, in its order (the first is the default).
+const TARGETING_MANUAL: Array[String] = ["default", "weakest", "strongest", "fastest", "support"]
+const TARGETING_NAMES := {"default": "Nearest the centre", "weakest": "Weakest first", "strongest": "Strongest first",
+	"fastest": "Fastest first", "support": "Support first", "group": "Biggest group", "pushable": "What it can throw back", "unholy": "Unholy first"}
+## "group": enemies within this many tiles of a target count as its group.
+const TARGETING_GROUP_RADIUS := 1.5
+
 
 ## --- Military (docs/military-design.md) ------------------------------------------------
 ## Every unit goes up to MAX_UNIT_LEVEL. Stats are given for level 1 and level 10
@@ -1783,7 +1882,9 @@ const CAMERA_KEY_ZOOM := 1.12
 ##   gold_on_collect, food_on_collect .. paid when a gatherer brings the corpse home
 ##   (optional: materials_on_collect, building material, see "wrathwood")
 ## Behaviours may add their own keys (see "witch").
-## Optional: corpse (false: none), raid_chance (of burning a hut at the gate; 1),
+## Optional: support (true: it stands back and makes the others stronger or more
+## dangerous: manual targeting's "support first" goes for it; hand-kept,
+## docs/enemies-design.md §12), corpse (false: none), raid_chance (of burning a hut at the gate; 1),
 ## raid ("maul": kills a villager in their hut instead of burning it, see "wolf"),
 ## plural (its name for many, "Wolves"; default: name + "s"), first (logged
 ## at Info when the first one of the game comes),
@@ -1901,7 +2002,7 @@ const ENEMIES := {
 	# enchants their unit (it stops shooting/summoning for a while). Spells hurt
 	# earth elementals. Whoever attacks her becomes her first target.
 	"witch": {
-		"name": "Witch", "art": "witch", "behavior": "witch", "attack_category": "magical", "family": "humans",
+		"support": true, "name": "Witch", "art": "witch", "behavior": "witch", "attack_category": "magical", "family": "humans",
 		"siege": 1.0,
 		"desc": "No close combat: she stops at manned towers in range and bewitches their unit, which then stops shooting for a moment.",
 		"hp": 12.0, "speed": 1.0,
@@ -1976,7 +2077,7 @@ const ENEMIES := {
 	# its kind's kill gold (rounded down); decayed, nothing. A raised enemy's
 	# corpse, and a necromancer's own, can never be raised.
 	"necromancer": {
-		"name": "Necromancer", "art": "necromancer", "behavior": "necromancer", "revivable": false, "family": "undead",
+		"support": true, "name": "Necromancer", "art": "necromancer", "behavior": "necromancer", "revivable": false, "family": "undead",
 		"siege": 0.0,
 		"desc": "No attack: it stops by the corpses of other enemies and raises them again for a while.",
 		"hp": 20.0, "speed": 0.95,
@@ -2030,7 +2131,7 @@ const ENEMIES := {
 	# poison, so she can't break walls (siege 0): at intact walls she lurks
 	# (LURK), laying as she roams, until her young or anyone else make a breach.
 	"spider_mother": {
-		"name": "Spider mother", "art": "spider_mother", "behavior": "spider_mother", "family": "beasts",
+		"support": true, "name": "Spider mother", "art": "spider_mother", "behavior": "spider_mother", "family": "beasts",
 		"siege": 0.0, "attack_category": "poison",
 		"desc": "A huge, slow spider with a poisoned bite. Now and then she lays a clutch of eggs; threatened while few of her young are around her, she stops and lays more, and waits for them to hatch. She can't break walls: she waits outside for a breach.",
 		"hp": 90.0, "speed": 0.6,
@@ -2202,7 +2303,7 @@ const ENEMIES := {
 	# dives for dive_time s after losing dive_loss of her max HP within
 	# dive_window s.
 	"siren": {
-		"name": "Siren", "art": "siren", "behavior": "siren", "family": "aquatic",
+		"support": true, "name": "Siren", "art": "siren", "behavior": "siren", "family": "aquatic",
 		"siege": 0.0,
 		"desc": "She sings from the water: our people are drawn towards her and fight slower. Melee can't reach her in the water, unless a High Priest blesses them.",
 		"hp": 24.0, "speed": 0.9,
@@ -2379,7 +2480,7 @@ const ENEMIES := {
 	# within banner_radius of its banner (itself too) strikes and shoots
 	# 1 + banner_haste times as fast (Enemy.haste; several banners: one counts).
 	"legion_banner": {
-		"name": "Legion Banner-bearer", "art": "legion_banner", "behavior": "melee", "corpse": false, "family": "humans",
+		"support": true, "name": "Legion Banner-bearer", "art": "legion_banner", "behavior": "melee", "corpse": false, "family": "humans",
 		"siege": 0.5, "campaign": true, "release": true,
 		"desc": "Carries the Legion's pale banner. Legion soldiers near it strike and shoot faster: kill it first.",
 		"hp": 45.0, "speed": 0.9,
@@ -2411,7 +2512,7 @@ const ENEMIES := {
 	# it came (faster by retreat_speed) and is gone.
 	# The marshal: scenario 10's Halvard; can be killed.
 	"legion_marshal": {
-		"name": "Legion Marshal", "art": "legion_marshal", "behavior": "commander", "corpse": false, "family": "humans",
+		"support": true, "name": "Legion Marshal", "art": "legion_marshal", "behavior": "commander", "corpse": false, "family": "humans",
 		"siege": 2.0, "campaign": true, "release": true,
 		"desc": "The Dread Legion's marshal: he leads its soldiers in the field. Those near him strike faster and take less harm, and while he lives fresh soldiers keep coming down the roads.",
 		"hp": 760.0, "speed": 0.8,
@@ -2425,7 +2526,7 @@ const ENEMIES := {
 	# The king (scenario 11's Rhodri): a commander whose blows cleave, downed
 	# at 0 HP instead of killed.
 	"legion_king": {
-		"name": "The Crowned King", "art": "legion_king", "behavior": "commander", "corpse": false, "family": "humans",
+		"support": true, "name": "The Crowned King", "art": "legion_king", "behavior": "commander", "corpse": false, "family": "humans",
 		"siege": 2.0, "campaign": true, "release": false,
 		"desc": "Rhodri on the field, the reworked crown on his head. His blows cleave, his soldiers fight harder near him, and he is not so easily killed.",
 		"hp": 1000.0, "speed": 0.85,
@@ -2727,9 +2828,23 @@ static func cost_icons(cost: Dictionary) -> String:
 	return "  ".join(parts)
 
 
-## Text with icon tokens ({gold} {food} {materials} {xp}) as plain words.
+## Text with icon tokens ({gold} {food} {materials} {xp}, an advancement's
+## {adv:<id>}) as plain words (an advancement's icon: nothing).
 static func plain_text(text: String) -> String:
-	return text.replace("{gold}", "gold").replace("{food}", "food").replace("{materials}", "materials").replace("{xp}", "XP").replace("{hp}", "HP")
+	var s := text.replace("{gold}", "gold").replace("{food}", "food").replace("{materials}", "materials").replace("{xp}", "XP").replace("{hp}", "HP")
+	var at := s.find("{adv:")
+	while at >= 0:
+		var end := s.find("}", at)
+		if end < 0:
+			break
+		s = s.substr(0, at) + s.substr(end + 1).lstrip(" ")
+		at = s.find("{adv:")
+	return s
+
+
+## An advancement's icon (art name; tools/gen_art.py draws one for each).
+static func advancement_icon(id: String) -> String:
+	return "adv_" + id
 
 
 static func cost_text(cost: Dictionary) -> String:

@@ -131,6 +131,10 @@ func _run() -> void:
 		await _siege()
 	if only in ["", "town_hall"]:
 		await _town_hall()
+	if only in ["", "fortifications"]:
+		await _fortifications()
+	if only in ["", "research"]:
+		await _research()
 	if only in ["", "scenario"]:
 		await _scenario()
 	if only in ["", "campaign"]:
@@ -820,6 +824,98 @@ func _siege() -> void:
 	await shot("siege_portrait_panel")
 	g.deselect()
 	await _landscape()
+	g.queue_free()
+	await _frames(3)
+
+
+## Advancements (docs/advancements-design.md): the research list, the hall's
+## panel with a research under way, a final choice, a tower's targeting switch.
+func _research() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	g.waves.wave = 8
+	var v := g.player_village
+	g.economy.add("gold", 2000)
+	var h := v.town_hall()
+	h.level = 2
+	h.refresh()
+	g.stats.count(v, "earn.gold", 620.0)
+	g.stats.count(v, "kill_by.melee", 12.0)
+	v.research.done.append("quick_feet")
+	g.camera.focus(h.position + Vector2(0, -60))
+	g.camera.zoom = Vector2(1.1, 1.1)
+	g.hud.open_research()
+	await _frames(10)
+	await shot("research_list")
+	g.hud._start_research("manual_targeting")
+	await _frames(6)
+	await shot("research_final_choice")
+	g.hud._confirm_panel.visible = false
+	g.hud._research_panel.visible = false
+	g.command("research", {"id": "drill_1"})
+	await _frames(20)
+	g.select(h)
+	await _frames(6)
+	await shot("research_hall_panel")
+	g.deselect()
+	g.hud.open_library("advancements")
+	await _frames(10)
+	await shot("research_library")
+	g.hud.library.close()
+	v.research.done.append("manual_targeting")
+	var wt: Tower = v.buildings().filter(func(b: Building) -> bool: return b.kind == "wall_tower")[0]
+	g.select(wt)
+	await _frames(6)
+	await shot("research_tower_targeting")
+	g.deselect()
+	# Portrait (a phone): the list and the hall's panel.
+	await _size(Vector2i(540, 960))
+	g.hud.open_research()
+	await _frames(15)
+	await shot("research_list_portrait")
+	g.hud._research_panel.visible = false
+	g.select(h)
+	await _frames(15)
+	await shot("research_hall_panel_portrait")
+	g.deselect()
+	await _landscape()
+	g.queue_free()
+	await _frames(3)
+
+
+## Walls, gates, wall towers and a watchtower at levels 4 and 5 (the
+## Fortifications advancements), in a few materials.
+func _fortifications() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	var tower := g.construction.place("tower", _free_spot_in(g, "tower", v.center + Vector2i(5, 1)))
+	if tower:
+		tower.progress = tower.build_time
+		g.construction.complete(tower)
+	g.camera.focus(Iso.tile_to_world(v.center + Vector2i(3, 0)))
+	g.camera.zoom = Vector2(1.3, 1.3)
+	for mat: String in ["stone", "sandstone", "granite", "wood", "ice"]:
+		for lvl in [3, 4, 5]:
+			for b in g.world.buildings:
+				if b.village == v and (b is StaticPiece or b is Tower) and not (b is TownHall):
+					if World.PIECE_SCRIPTS.has(b.kind):
+						b.made_of = mat
+					b.level = lvl
+					b.hp = b.max_hp()
+					b.refresh()
+			await _frames(6)
+			await shot("fort_%s_%d" % [mat, lvl])
 	g.queue_free()
 	await _frames(3)
 

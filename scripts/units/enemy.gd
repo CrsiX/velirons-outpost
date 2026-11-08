@@ -282,6 +282,11 @@ func is_rooted() -> bool:
 
 ## Spatial magic: thrown `tiles` back along its road (away from the village),
 ## at most once every `immunity` seconds. Returns whether it moved.
+## Would a throw-back move it now (what push_back does)?
+func can_be_pushed() -> bool:
+	return _push_immune <= 0.0 and (sieging or (path.size() >= 2 and habitat() != "water"))
+
+
 func push_back(tiles: float, immunity: float) -> bool:
 	if sieging and _push_immune <= 0.0:
 		_push_immune = immunity

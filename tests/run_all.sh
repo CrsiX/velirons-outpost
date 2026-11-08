@@ -37,7 +37,7 @@ if [[ -z "$godot" ]]; then
 fi
 
 # Cheap ones first, so a broken build shows up in seconds and not in an hour.
-all=(build library stats save map_format editor mapgen world title coop net tutorial scenario military enemy aqua siege rat hud sim)
+all=(build library stats save map_format editor mapgen world title coop net tutorial scenario military enemy aqua siege advancement rat hud sim)
 bots=("$@")
 if (( ${#bots[@]} == 0 )); then
 	bots=("${all[@]}")

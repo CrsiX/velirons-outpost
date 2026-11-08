@@ -23,6 +23,9 @@ const HANDLERS := {
 	"rebuild_all_huts": "_rebuild_all_huts",
 	"upgrade_tower": "_upgrade_tower",
 	"repair": "_repair",
+	"research": "_research",
+	"cancel_research": "_cancel_research",
+	"set_targeting": "_set_targeting",
 	"recruit_villager": "_recruit_villager",
 	"retire_villager": "_retire_villager",
 	"assign_worker": "_assign_worker",
@@ -243,6 +246,39 @@ func _repair(v: Village, a: Dictionary) -> Dictionary:
 	if not v.economy.can_afford(b.repair_cost()):
 		return fail("Not enough building material")
 	return ok() if v.construction.order_repair(b) else fail("Can't repair that now")
+
+
+# --- advancements (docs/advancements-design.md) ----------------------------------------
+
+## Starts researching advancement `id` at the town hall.
+func _research(v: Village, a: Dictionary) -> Dictionary:
+	var id := str(a.get("id", ""))
+	var why := v.research.error(id)
+	if why != "":
+		return fail(why)
+	return ok() if v.research.start(id) else fail("Can't research that now")
+
+
+func _cancel_research(v: Village, _a: Dictionary) -> Dictionary:
+	if v.research.current == "":
+		return fail("Nothing is being researched")
+	v.research.cancel()
+	return ok()
+
+
+## A tower's targeting switch (Manual targeting): `mode` one of Config.TARGETING_MANUAL.
+func _set_targeting(v: Village, a: Dictionary) -> Dictionary:
+	var t := _building(v, a) as Tower
+	if t == null:
+		return fail("That isn't your tower")
+	if v.targeting() != "manual":
+		return fail("Needs the Manual targeting advancement")
+	var mode := str(a.get("mode", ""))
+	if not Config.TARGETING_MANUAL.has(mode):
+		return fail("No such targeting")
+	t.targeting = mode
+	v.events.debug("%s targets: %s" % [t.label(), Config.TARGETING_NAMES[mode]])
+	return ok()
 
 
 # --- villagers -------------------------------------------------------------------------
