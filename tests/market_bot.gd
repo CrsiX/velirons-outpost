@@ -140,6 +140,7 @@ func _test_selling() -> void:
 	var value := Market.edge_value(cargo)
 	var expect := floori(value * (1.0 - m.tax()))
 	check(tc.trip == TradeCaravan.Trip.OUTGOING and tc.is_in_group("villagers"), "to the map edge; enemies can hit it like a villager")
+	check(not AquaBehavior.people(game).has(tc), "water monsters (and other hunters) don't hunt it")
 	check(is_equal_approx(v.economy.amount("gold"), gold), "no gold before the goods arrive")
 	check(await wait_until(func() -> bool: return tc.returning, 120.0), "it reaches the edge")
 	check(is_equal_approx(v.economy.amount("gold"), gold + expect) and expect > 0, "paid on arrival: %d gold for %s (tax %d%%)" % [expect, Market._goods_text(cargo), roundi(m.tax() * 100.0)])
@@ -182,10 +183,15 @@ func _test_turn_back() -> void:
 	var e := _foe("goblin", ahead)
 	game.fog.update_surveillance()
 	check(await wait_until(func() -> bool: return tc.returning, 5.0), "an enemy on the road ahead: it turns back")
-	check(await wait_until(when_gone(tc, func(x: TradeCaravan) -> bool: return x.dead), 60.0) and int(m.packed["food"]) >= 30, "home again, its goods back in the load (%d packed)" % int(m.packed["food"]))
+	var full := int(Config.MARKET["load"])
+	m.packed["food"] = full - 10  # (the trader packed another load meanwhile; the enemy keeps it in)
+	var pile := int(m.pile["food"])
+	check(await wait_until(when_gone(tc, func(x: TradeCaravan) -> bool: return x.dead), 60.0) and m.packed_total() == full and int(m.pile["food"]) == pile + 20,
+		"home again: its goods top the load up to one full load (%d / %d packed), the rest back on the pile (+%d)" % [m.packed_total(), full, int(m.pile["food"]) - pile])
+	m.packed["food"] = 0
+	m.pile["food"] = 0
 	kill(e)
 	await frames(3)
-	m.packed["food"] = 0
 
 
 func _test_robbery() -> void:

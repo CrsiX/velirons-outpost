@@ -896,9 +896,9 @@ const STALL_LEVELS: Array[Dictionary] = [
 ## as a share of what the goods cost to buy.
 const MARKET := {
 	"levels": [
-		{"stock": 120, "caravans": 1, "tax": 0.3},
-		{"cost": {"materials": 80}, "work_time": 20.0, "stock": 200, "caravans": 2, "tax": 0.2},
-		{"cost": {"materials": 140, "gold": 40}, "work_time": 30.0, "stock": 320, "caravans": 3, "tax": 0.1},
+		{"stock": 120, "caravans": 2, "tax": 0.3},
+		{"cost": {"materials": 80}, "work_time": 20.0, "stock": 200, "caravans": 3, "tax": 0.2},
+		{"cost": {"materials": 140, "gold": 40}, "work_time": 30.0, "stock": 320, "caravans": 4, "tax": 0.1},
 	],
 	"buy": {"food": {"amount": 20, "gold": 24}, "materials": {"amount": 20, "gold": 30}},
 	"sell": {"food": 14, "materials": 18},

@@ -34,7 +34,7 @@ static func people(game: Game, sortie_only := false) -> Array[Node]:
 	var tree := game.get_tree()
 	for node in tree.get_nodes_in_group("villagers"):
 		var c := node as Civilian
-		if c.is_exposed():
+		if c != null and c.is_exposed():  # (a trade caravan is in the group too: never hunted)
 			out.append(c)
 	for node in tree.get_nodes_in_group("heroes"):
 		var h := node as Hero

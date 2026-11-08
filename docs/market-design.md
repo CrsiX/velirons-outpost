@@ -110,7 +110,8 @@ kind with its own rules; the two must never be confused.
 - **On the way** it is a civilian to enemies: attacked when in reach, not hunted. Ghosts never
   haunt it and wolves don't hunt it (they hunt living villagers). It never flees, but **turns
   back** to the market when a visible enemy blocks the road ahead (a merchants' caravan turns
-  back to the edge and comes again later); its load waits at the market for the next try.
+  back to the edge and comes again later); its load waits at the market for the next try. Back home it tops up the load being packed
+  to one full load and the rest goes back on the for-sale pile, so no caravan carries more than a load.
 - **Thieves rob it:** a thief with a trade caravan in reach goes for it instead of a gate,
   takes the whole cargo and runs for the edge; the empty caravan goes home unharmed. A buyer
   whose order is lost (robbed or destroyed) gets the gold back. Killed on

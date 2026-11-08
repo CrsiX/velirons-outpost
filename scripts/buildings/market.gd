@@ -36,6 +36,8 @@ var _net_incoming := false
 var _net_src := {}
 var _pack_acc := 0.0
 var _last_stored := 0.0
+## Why the next load waits (debug log: a line only when the reason changes).
+var _wait_note := ""
 
 
 func _build_visuals() -> void:
@@ -342,9 +344,9 @@ func _restock(delta: float) -> void:
 	var edge := edge_tile()
 	if edge == Vector2i(-1, -1) or not route_clear(game.world.pathing.find_path(edge, work_tile())):
 		restock_timer = 10.0  # (try again soon)
+		village.events.debug("%s: the merchants' caravan waits at the edge (%s)" % [label(), "no road to the edge" if edge == Vector2i(-1, -1) else "an enemy near the route from %s" % str(edge)])
 		return
 	_send(TradeCaravan.Trip.INCOMING, cargo, edge)
-	village.events.debug("merchants' caravan sets off for %s from %s" % [label(), str(edge)])
 
 
 ## The trader packs: orders first (another player's purchase), then the
@@ -372,7 +374,10 @@ func _pack(delta: float) -> void:
 
 ## Loads that are ready leave once their way is clear and a caravan is free.
 func _dispatch() -> void:
-	if caravans_out().size() >= caravan_cap():
+	var out := caravans_out().size()
+	if out >= caravan_cap():
+		if not orders.is_empty() or packed_total() > 0:
+			_note_wait("all %d trade caravans are on the road (%d packed, %d ordered)" % [caravan_cap(), packed_total(), ordered()])
 		return
 	if not orders.is_empty():
 		var o := orders[0]
@@ -382,15 +387,19 @@ func _dispatch() -> void:
 			_refund_order(o, "%s has no market any more" % buyer.village_name)
 			orders.pop_front()
 			pile[o["good"]] = int(pile[o["good"]]) + int(o["amount"])
+			village.events.debug("%s: order of %d %s for %s dropped (no market there): goods back on the pile" % [label(), int(o["amount"]), o["good"], buyer.village_name])
 			return
 		if float(o["packed"]) + 0.001 < float(o["amount"]):
 			return
 		if not route_clear(game.world.pathing.find_path(work_tile(), bm.work_tile())):
+			_note_wait("the order for %s waits: an enemy near the route" % buyer.village_name)
 			return
 		orders.pop_front()
 		var tc := _send(TradeCaravan.Trip.ORDER, {o["good"]: int(o["amount"])}, bm.work_tile())
 		tc.buyer = buyer
 		tc.escrow = int(o["gold"])
+		_note_wait("")
+		village.events.debug("%s: %s carries the order of %d %s to %s (%d gold in escrow; %d / %d caravans out)" % [label(), tc.label(), int(o["amount"]), o["good"], buyer.village_name, tc.escrow, out + 1, caravan_cap()])
 		village.events.info("Trade caravan leaves for %s with %d %s" % [buyer.village_name, int(o["amount"]), _good_name(o["good"])])
 		return
 	var full := packed_total() >= int(Config.MARKET["load"])
@@ -401,12 +410,27 @@ func _dispatch() -> void:
 	if whole.is_empty() or not (full or pile_total() <= 0):
 		return
 	var edge := edge_tile()
-	if edge == Vector2i(-1, -1) or not route_clear(game.world.pathing.find_path(work_tile(), edge)):
+	if edge == Vector2i(-1, -1):
+		_note_wait("a load of %s waits: no road to the edge" % _goods_text(whole))
+		return
+	if not route_clear(game.world.pathing.find_path(work_tile(), edge)):
+		_note_wait("a load of %s waits: an enemy near the route to %s" % [_goods_text(whole), str(edge)])
 		return
 	for good in whole:
 		packed[good] = 0
-	_send(TradeCaravan.Trip.OUTGOING, whole, edge)
+	var tc := _send(TradeCaravan.Trip.OUTGOING, whole, edge)
+	_note_wait("")
+	village.events.debug("%s: %s takes a load to the edge (%d / %d caravans out, %d left on the pile)" % [label(), tc.label(), out + 1, caravan_cap(), pile_total()])
 	village.events.info("Trade caravan leaves for the map edge with %s" % _goods_text(whole))
+
+
+## A debug line when the reason a load waits changes ("" : it went).
+func _note_wait(why: String) -> void:
+	if why == _wait_note:
+		return
+	_wait_note = why
+	if why != "":
+		village.events.debug("%s: %s" % [label(), why])
 
 
 func _send(trip: TradeCaravan.Trip, cargo: Dictionary, to: Vector2i) -> TradeCaravan:
@@ -497,8 +521,9 @@ func materials_spent() -> int:
 	return n
 
 
-## Torn down: what was up for sale (and packed) comes back to the village;
-## other players' orders are refunded (Construction calls it).
+## Torn down: what was up for sale (and packed, or reserved by an order)
+## comes back to the village; other players' orders are refunded
+## (Construction calls it).
 func clear_out() -> void:
 	for good in pile:
 		if int(pile[good]) > 0:
@@ -508,8 +533,9 @@ func clear_out() -> void:
 		if int(packed[good]) > 0:
 			village.economy.refund({good: int(packed[good])}, "trade")
 		packed[good] = 0
-	for o in orders:
+	for o in orders:  # (the buyer's gold back to them, the goods back to us)
 		_refund_order(o, "the seller's market is gone")
+		village.economy.refund({o["good"]: int(o["amount"])}, "trade")
 	orders.clear()
 
 

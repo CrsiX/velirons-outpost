@@ -35,6 +35,8 @@ var max_hp := 1.0
 var dead := false
 var uid := 0
 var _look := 0.0
+## Who hit it last (debug log: a line when the attacker changes).
+var _last_hit_by := 0
 
 
 func setup(p_game: Game, p_market: Market, p_trip: Trip, p_cargo: Dictionary, to: Vector2i) -> void:
@@ -49,6 +51,7 @@ func setup(p_game: Game, p_market: Market, p_trip: Trip, p_cargo: Dictionary, to
 		dest = to
 	set_grid_pos(Vector2(origin))
 	follow(game.world.pathing.find_path(origin, dest))
+	_debug("sets off (%s) from %s to %s with %s: %d waypoints, %.0f hp" % [trip_name(), str(origin), str(dest), _cargo_text(), path.size(), hp])
 
 
 ## What every cart has: a new one, a loaded one (SaveGame) and a co-op
@@ -79,6 +82,7 @@ func resume_trip(pos: Vector2) -> void:
 	if not p.is_empty():
 		p[0] = grid_pos
 	follow(p)
+	_debug("resumed after a load at %s (%s, %s), heading for %s with %s" % [str(current_tile()), trip_name(), "returning" if returning else "on its way", str(to), _cargo_text()])
 
 
 ## Its art: the owner's colour, or a neutral merchants' cart.
@@ -88,6 +92,15 @@ static func art_for(p_trip: Trip, v: Village) -> String:
 
 func label() -> String:
 	return "trade caravan %d" % uid
+
+
+## "outgoing", "order" or "incoming" (debug log).
+func trip_name() -> String:
+	return str(Trip.keys()[trip]).to_lower()
+
+
+func market_name() -> String:
+	return market.label() if is_instance_valid(market) else "its market"
 
 
 func display_name() -> String:
@@ -108,6 +121,10 @@ func take_damage(amount: float, source = null, category: String = "pure") -> voi
 	if dead or category == "poison" or game.is_client:
 		return
 	hp -= amount
+	var by: int = source.get_instance_id() if is_instance_valid(source) else 0
+	if by != _last_hit_by:
+		_last_hit_by = by
+		_debug("attacked by %s at %s (%.0f / %.0f hp)" % [game.who(source), str(current_tile()), maxf(hp, 0.0), max_hp])
 	queue_redraw()
 	sprite.modulate = Color(1.0, 0.5, 0.45)
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
@@ -121,6 +138,7 @@ func _destroyed(source) -> void:
 	remove_from_group("villagers")
 	remove_from_group("trade_caravans")
 	var what := _cargo_text()
+	_debug("destroyed at %s (%s%s)" % [str(current_tile()), trip_name(), ", returning" if returning else ""])
 	_log_owner(EventLog.Level.IMPORTANT, "%s destroyed by %s%s" % [label().capitalize(), game.who(source), (": %s left as salvage" % what) if what != "" else ""])
 	if trip == Trip.ORDER and buyer != null and escrow > 0 and not cargo.is_empty():
 		buyer.economy.refund({"gold": escrow}, "trade")
@@ -141,6 +159,7 @@ func rob(thief: Enemy) -> Dictionary:
 		return {}
 	var taken := {"goods": cargo.duplicate(), "market": market.nid if is_instance_valid(market) else 0, "merchants": trip == Trip.INCOMING}
 	_log_owner(EventLog.Level.IMPORTANT, "%s robbed %s of %s" % [thief.label().capitalize(), label(), _cargo_text()])
+	_debug("robbed at %s by %s (%s%s)" % [str(current_tile()), thief.label(), trip_name(), ", returning" if returning else ""])
 	if trip == Trip.ORDER and buyer != null and escrow > 0:
 		buyer.economy.refund({"gold": escrow}, "trade")
 		buyer.events.info("Your order from %s was stolen on the road: %d gold back" % [village.village_name, escrow])
@@ -158,8 +177,10 @@ static func drop_salvage(p_game: Game, at: Vector2i, p_market: Market, goods: Di
 		return
 	var t := _free_tile(p_game, at)
 	if t == Vector2i(-1, -1):
+		p_market.village.events.debug("salvage of %s at %s lost: no free tile near it" % [Market._goods_text(goods), str(at)])
 		return
 	p_game.world.add_dropped_loot(t, {"salvage": {"goods": goods.duplicate(), "market": p_market.nid, "merchants": merchants, "wave": p_game.waves.wave}})
+	p_market.village.events.debug("salvage of %s (%s) dropped at %s for %s, wave %d" % [Market._goods_text(goods), "merchants' goods" if merchants else "our goods", str(t), p_market.label(), p_game.waves.wave])
 
 
 static func _free_tile(p_game: Game, at: Vector2i) -> Vector2i:
@@ -185,7 +206,9 @@ func _process(delta: float) -> void:
 		_look = 0.5
 		if not returning and not cargo.is_empty() and village != null:
 			var to := mini(path_index + int(Config.MARKET["look_ahead"]), path.size())
-			if first_block(game, village, path, path_index, to) >= 0:
+			var at := first_block(game, village, path, path_index, to)
+			if at >= 0:
+				_debug("enemy near waypoint %d %s (it is at %d of %d, at %s): turns back" % [at, str(Vector2i(path[at].round())), path_index, path.size(), str(current_tile())])
 				_log_owner(EventLog.Level.INFO, "%s turns back: enemies on the road" % label().capitalize())
 				float_text("Enemies ahead!", Color("ff9a6a"))
 				_head_back()
@@ -224,6 +247,7 @@ func _head_back() -> void:
 	if not p.is_empty():
 		p[0] = grid_pos
 	follow(p)
+	_debug("heads back from %s to %s with %s (%d waypoints)" % [str(current_tile()), str(home), _cargo_text() if not cargo.is_empty() else "nothing", p.size()])
 
 
 func _arrive() -> void:
@@ -241,6 +265,7 @@ func _arrive() -> void:
 			if is_instance_valid(market):
 				market.sold += 1
 			village.events.info("Trade caravan sold %s at the map edge: +%d gold (tax %d)" % [_cargo_text(), gold, value - gold])
+			_debug("at the edge %s: %s worth %d gold, tax %d%%, paid %d" % [str(dest), _cargo_text(), value, roundi(rate * 100.0), gold])
 			float_text("+%d {gold}" % gold, UiTheme.GOLD)
 			village.sound("coin")
 		Trip.ORDER:
@@ -252,6 +277,7 @@ func _arrive() -> void:
 				market.sold += 1
 			buyer.events.info("Trade caravan from %s arrived: +%s" % [village.village_name, _cargo_text()])
 			village.events.info("Your trade caravan reached %s: +%d gold" % [buyer.village_name, escrow])
+			_debug("delivered %s to %s at %s for %d gold" % [_cargo_text(), buyer.village_name, str(dest), escrow])
 			float_text("+%d {gold}" % escrow, UiTheme.GOLD)
 			escrow = 0
 			buyer.sound("coin")
@@ -259,7 +285,9 @@ func _arrive() -> void:
 			if is_instance_valid(market) and market.working():
 				for good in cargo:
 					market.add_stock(good, float(cargo[good]))
-				village.events.debug("merchants' caravan brings %s to %s" % [_cargo_text(), market.label()])
+				_debug("brings %s to %s: stock now %d food, %d material" % [_cargo_text(), market.label(), int(market.stock("food")), int(market.stock("materials"))])
+			else:
+				_debug("reaches %s, which isn't working: %s lost" % [market_name(), _cargo_text()])
 			_vanish()
 			return
 	cargo = {}
@@ -267,15 +295,30 @@ func _arrive() -> void:
 
 
 ## Back where it set off: a cart turned back unloads into the market again
-## (an order goes back on the book), then it is gone.
+## (an order goes back on the book; a load for the edge tops up the load
+## being packed to one full load, the rest goes back on the for-sale pile,
+## so no caravan ever leaves with more than MARKET "load"), then it is gone.
 func _home() -> void:
-	if trip != Trip.INCOMING and not cargo.is_empty() and is_instance_valid(market):
-		if trip == Trip.ORDER and buyer != null:
-			for good in cargo:
-				market.orders.push_front({"buyer": buyer.id, "good": good, "amount": int(cargo[good]), "gold": escrow, "packed": float(cargo[good])})
-		else:
-			for good in cargo:
-				market.packed[good] = int(market.packed.get(good, 0)) + int(cargo[good])
+	if trip == Trip.INCOMING:
+		_debug("back at the map edge %s with %s: the merchants come again later" % [str(origin), _cargo_text()])
+	elif cargo.is_empty():
+		_debug("home at %s empty" % market_name())
+	elif not is_instance_valid(market):
+		_debug("home with %s, but the market is gone: the goods are lost" % _cargo_text())
+	elif trip == Trip.ORDER and buyer != null:
+		for good in cargo:
+			market.orders.push_front({"buyer": buyer.id, "good": good, "amount": int(cargo[good]), "gold": escrow, "packed": float(cargo[good])})
+		_debug("home at %s with %s: the order for %s is back on the book" % [market_name(), _cargo_text(), buyer.village_name])
+	else:
+		var to_load := {}
+		var to_pile := {}
+		for good in cargo:
+			var n := mini(int(cargo[good]), maxi(int(Config.MARKET["load"]) - market.packed_total(), 0))
+			market.packed[good] = int(market.packed.get(good, 0)) + n
+			market.pile[good] = int(market.pile.get(good, 0)) + int(cargo[good]) - n
+			to_load[good] = n
+			to_pile[good] = int(cargo[good]) - n
+		_debug("home at %s: %s back into the load (now %d / %d), %s back on the pile" % [market_name(), Market._goods_text(to_load), market.packed_total(), int(Config.MARKET["load"]), Market._goods_text(to_pile)])
 	cargo = {}
 	_vanish()
 
@@ -288,6 +331,12 @@ func _vanish() -> void:
 	var tw := create_tween()
 	tw.tween_property(self, "modulate:a", 0.0, 0.4)
 	tw.tween_callback(queue_free)
+
+
+## A debug line for the owner's log (an incoming cart's: the market's village;
+## an order's: the buyer's too), named "trade caravan N" so a grep finds its trip.
+func _debug(text: String) -> void:
+	_log_owner(EventLog.Level.DEBUG, "%s: %s" % [label(), text])
 
 
 func _log_owner(level: EventLog.Level, text: String) -> void:

@@ -231,8 +231,8 @@ func _skipped(enemy: Enemy, node) -> bool:
 
 
 static func _prey_ok(node, all: bool) -> bool:
-	if not is_instance_valid(node) or node.dead or _sheltered(node):
-		return false
+	if not is_instance_valid(node) or node.dead or _sheltered(node) or node is TradeCaravan:
+		return false  # (a trade caravan is hit in reach, never hunted)
 	return all or not (node is Soldier and (node as Soldier).unit.role() != "melee")
 
 

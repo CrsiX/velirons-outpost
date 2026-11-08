@@ -19,8 +19,8 @@ func lurk_goal(enemy: Enemy) -> Vector2:
 	var best_d := r
 	var tree := enemy.get_tree()
 	for node in tree.get_nodes_in_group("melee_defenders") + tree.get_nodes_in_group("villagers"):
-		if node.dead or _sheltered(node):
-			continue
+		if node.dead or _sheltered(node) or node is TradeCaravan:
+			continue  # (a trade caravan is hit in reach, never hunted)
 		var d: float = (node.grid_pos as Vector2).distance_to(enemy.grid_pos)
 		if d <= best_d:
 			best_d = d
