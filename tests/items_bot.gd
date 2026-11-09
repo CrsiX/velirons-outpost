@@ -156,6 +156,14 @@ func _test_swaps() -> void:
 	hall.devastated = true
 	check(not arm.is_open() and h.swap_error().contains("devastated"), "a devastated town hall closes the armoury (%s)" % h.swap_error())
 	hall.devastated = false
+	# Resting inside the town hall counts as at her post.
+	h.mode = Hero.Mode.REST
+	h._set_in_hall(true)
+	check(h.in_hall and h.swap_error() == "", "resting inside the town hall she may change (%s)" % h.swap_error())
+	check(game.command("equip", {"item": "lance"})["ok"] and h.worn("weapon") == "lance" and arm.has("mace"), "inside the hall: a swap")
+	check(game.command("equip", {"item": "mace"})["ok"] and h.worn("weapon") == "mace" and arm.has("lance") and h.in_hall, "inside the hall: and back, still inside")
+	h._set_in_hall(false)
+	h.mode = Hero.Mode.DEFEND
 	game.tutorial_mode = true
 	check(not game.items_enabled() and h.swap_error() != "" and not give("net")["ok"], "the tutorial has no equipment")
 	game.tutorial_mode = false
@@ -225,6 +233,27 @@ func _test_weapons() -> void:
 	for e in near:
 		kill(e)
 	kill(far)
+	# Great axe: no reach from the shore at one on deep water.
+	var shore := Vector2i(-1, -1)
+	var water := Vector2i(-1, -1)
+	for y in game.map.size:
+		for x in game.map.size:
+			var t := Vector2i(x, y)
+			if water == Vector2i(-1, -1) and game.map.is_deep(t) and game.world.pathing.is_walkable(t + Vector2i(1, 0)):
+				water = t
+				shore = t + Vector2i(1, 0)
+	check(water != Vector2i(-1, -1), "the test map has deep water by a shore")
+	if water != Vector2i(-1, -1):
+		var crab := spawn("goblin", Vector2(water))
+		h.set_grid_pos(Vector2(shore))
+		check(is_equal_approx(h.reach_to(crab), float(Config.HERO["attack_range"])) and not h.can_hit(crab), "great axe: one on deep water off the shore is no target (reach %.1f)" % h.reach_to(crab))
+		wear([])
+		check(h.can_hit(crab) and h.reach_to(crab) >= float(Config.AQUA["melee_reach"]), "a sword strikes it from the shore")
+		kill(crab)
+		reset_hero()
+	wear(["great_axe"])
+	check(h.reach_to(spawn("goblin", home + Vector2(3, 0))) <= float(Config.ITEMS["great_axe"]["circle"][0]), "great axe: her target is always within the circle")
+	await clear_enemies()
 	# Lance: reach and flyers.
 	wear(["lance"])
 	g = spawn("goblin", home + Vector2(4, 0))
@@ -339,7 +368,7 @@ func _test_accessories() -> void:
 	var walker := spawn("goblin", Vector2(road) + Vector2(0.5, 0.5), 50.0, true)
 	walker.speed = 1.0
 	h.target = walker
-	h._net_cd = 0.0
+	h.net_cooldown = 0.0
 	h._tick_net(0.1)
 	check(walker.is_netted() and walker.fx.has("net"), "net: thrown at her target in range")
 	var at := walker.grid_pos
@@ -406,6 +435,19 @@ func _test_movement() -> void:
 	var at := h.grid_pos
 	h.force_move(Vector2(0.5, 0), self)
 	check(h.grid_pos == at and not h.is_forced(), "heavy boots: a pull doesn't move her")
+	# A wrathwood's roots: they grow on her, then fall off at once.
+	var tree := spawn("wrathwood", at + Vector2(1, 0))
+	var wb := tree.behavior as WrathwoodBehavior
+	var total := float(tree.spec()["grip_time"])
+	wb._held[h] = total
+	var steps := 0
+	while wb._held.has(h) and steps < 600:
+		wb._hold(tree, 1.0 / 60.0)
+		steps += 1
+	var took := steps / 60.0
+	check(took >= total * WrathwoodBehavior.ROOTS_GROW and took < total * (WrathwoodBehavior.ROOTS_GROW + WrathwoodBehavior.ROOTS_SINK) + 0.1 and h.grid_pos == at,
+		"heavy boots: the roots grow on and fall off at once (%.2f s of %.1f)" % [took, total])
+	kill(tree)
 	wear([])
 	h.force_move(Vector2(0.3, 0), self)
 	check(h.grid_pos != at, "without them, a pull does")
@@ -417,9 +459,12 @@ func _test_movement() -> void:
 func _test_save() -> void:
 	wear(["ring_of_might", "swift_boots"])
 	v.armoury.set_items(["lance", "lance", "net"])
+	h.net_cooldown = 7.5
+	h.phoenix_used = true
 	var body := SaveGame.capture(game)
 	var hv: Dictionary = body["villages"][0]
 	check(hv["arm"] == ["lance", "lance", "net"] and hv["hero"]["eq"] == {"accessory": "ring_of_might", "movement": "swift_boots"}, "a save holds the armoury and what she wears")
+	check(hv["hero"]["eqt"] == {"net": 7.5, "phoenix": true}, "a save holds her items' timers: the net's cooldown, the pendant used this wave")
 	game.queue_free()
 	await frames(3)
 	Settings.pending_save = body
@@ -430,6 +475,7 @@ func _test_save() -> void:
 	h = game.hero
 	check(game.loaded and h.worn("accessory") == "ring_of_might" and h.worn("movement") == "swift_boots" and h.worn("weapon") == "longsword", "loaded: she wears the same")
 	check(Array(v.armoury.items) == ["lance", "lance", "net"], "loaded: the armoury holds the same")
+	check(h.phoenix_used and h.net_cooldown > 0.0 and h.net_cooldown <= 7.5, "loaded: the pendant stays used, the net's cooldown goes on (%.2f)" % h.net_cooldown)
 	check(is_equal_approx(h.speed, float(Config.HERO["speed"]) * float(Config.ITEMS["swift_boots"]["speed"])), "loaded: her boots work again")
 	game.queue_free()
 	await frames(3)

@@ -36,6 +36,12 @@ var _attack := 0.0
 var _grip := 0.0
 var _cast := 0.0
 var _held: Dictionary = {}
+## The share of a grip in which the roots grow up round a leg, and the share
+## at its end in which they sink back (what _draw_roots shows). One nothing
+## holds (Unit.immovable: the hero in heavy steel boots) sees them grow on
+## and, fully grown, sink back at once: no hold.
+const ROOTS_GROW := 0.15
+const ROOTS_SINK := 0.2
 var _goal := Vector2i(-1, -1)
 var _plan := 0.0
 var _wander_from := Vector2.ZERO
@@ -375,6 +381,8 @@ func _hold(enemy: Enemy, delta: float) -> void:
 		if left <= 0.0 or not is_instance_valid(n) or n.dead:
 			_held.erase(n)
 			continue
+		if (n as Unit).immovable() and left < total * (1.0 - ROOTS_GROW) and left > total * ROOTS_SINK:
+			left = total * ROOTS_SINK  # (grown on: they fall off at once)
 		_held[n] = left
 		(n as Unit).force_move(Vector2.ZERO, enemy)
 		roots.append([(n as Unit).grid_pos, 1.0 - left / total])
@@ -427,7 +435,7 @@ func _draw_roots(enemy: Enemy) -> void:
 	for r in enemy.fx["grip"]:
 		var at := Iso.to_world(Vector2(r[0])) - enemy.position
 		var k := float(r[1])
-		var grow := clampf(k / 0.15, 0.0, 1.0) * clampf((1.0 - k) / 0.2, 0.0, 1.0)
+		var grow := clampf(k / ROOTS_GROW, 0.0, 1.0) * clampf((1.0 - k) / ROOTS_SINK, 0.0, 1.0)
 		if grow <= 0.0:
 			continue
 		_roots.draw_set_transform(at, 0.0, Vector2(1.0, 0.5))

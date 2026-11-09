@@ -73,7 +73,7 @@ var cry_until := -1.0
 ## What she wears: slot -> Config.ITEMS key; a slot not in it holds its default.
 var equipped := {}
 ## Seconds until her net (an accessory) can be thrown again.
-var _net_cd := 0.0
+var net_cooldown := 0.0
 ## The phoenix pendant saved her this wave already.
 var phoenix_used := false
 
@@ -165,6 +165,11 @@ var home_override := Vector2i(-1, -1)
 ## enemies in it alone.
 ## Resting inside her town hall (Rest mode; _update_hall): hidden, out of reach.
 var in_hall := false
+## Her few steps between her post and the hall's door (TownHall.door_spot),
+## the mode's own walking paused meanwhile: 1 going in, -1 coming out, 0 none.
+var _door_walk := 0
+## The hall was looked at once: a new or loaded game starts her inside at once.
+var _hall_checked := false
 ## Her fast healing in there is under way (for the log: _note_hall_heal).
 var _hall_healing := false
 var barred := Rect2i()
@@ -334,6 +339,8 @@ func sight_radius() -> float:
 
 
 func _tick(delta: float) -> void:
+	if _door_walk != 0 and _door_step(delta):
+		return
 	if camp_target != null:
 		if is_instance_valid(camp_target) and not camp_target.cleared and not camp_target.alive().is_empty():
 			_update_hall()  # (out of the hall first, if she rested there)
@@ -413,15 +420,69 @@ func hall_regen() -> float:
 
 
 ## Rest mode at home in her own village goes into its town hall (unless it is
-## devastated); any other mode, an order or a devastated hall brings her out
-## into the centre. Inside she is out of sight and out of every enemy's reach.
+## devastated); any other mode, an order or a devastated hall brings her out.
+## She walks from her post to its door and in, and comes out of the door
+## (TownHall.door_spot); a new or loaded game starts her inside at once.
+## Inside she is out of sight and out of every enemy's reach, and her place is
+## her post (resting, swapping equipment).
 func _update_hall() -> void:
+	var first := not _hall_checked
+	_hall_checked = true
+	if _door_walk != 0:
+		return
+	var want := _hall_wanted()
+	if in_hall and not want:
+		_set_in_hall(false)
+		_walk_out()
+	elif want and not in_hall and grid_pos.distance_to(Vector2(home())) < 0.2:
+		if first:
+			_set_in_hall(true)
+		else:
+			_walk_in()
+
+
+## Should she be inside the hall (wherever she stands at home)?
+func _hall_wanted() -> bool:
 	var h := village.town_hall()
-	var want := mode == Mode.REST and camp_target == null and not dead and at_home and not evading \
-		and base() == village and home_override == Vector2i(-1, -1) and grid_pos.distance_to(Vector2(home())) < 0.2 \
-		and is_instance_valid(h) and not h.devastated
-	if want != in_hall:
-		_set_in_hall(want)
+	return mode == Mode.REST and camp_target == null and not dead and at_home and not evading \
+		and base() == village and home_override == Vector2i(-1, -1) and is_instance_valid(h) and not h.devastated
+
+
+## From her post to the path in front of the door, then to the door.
+func _walk_in() -> void:
+	var h := village.town_hall()
+	follow(PackedVector2Array([grid_pos, h.door_front(), h.door_spot()]))
+	_door_walk = 1
+
+
+## Out of the door onto the path in front of it; from there her mode walks her on.
+func _walk_out() -> void:
+	var h := village.town_hall()
+	if not is_instance_valid(h):
+		return
+	set_grid_pos(h.door_spot())
+	_set_home(false)
+	_returning = false
+	follow(PackedVector2Array([h.door_spot(), h.door_front()]))
+	_door_walk = -1
+
+
+## A step of the walk to or from the door; false when it is called off (on her
+## way in she isn't wanted inside any more: she goes on from where she stands).
+func _door_step(delta: float) -> bool:
+	if _door_walk > 0 and not _hall_wanted():
+		_door_walk = 0
+		path = PackedVector2Array()
+		path_index = 0
+		_returning = false
+		_set_home(false)
+		return false
+	if step_path(delta):
+		if _door_walk > 0:
+			_set_in_hall(true)
+			set_grid_pos(Vector2(home()))  # (inside, her place is her post)
+		_door_walk = 0
+	return true
 
 
 func _set_in_hall(on: bool) -> void:
@@ -873,6 +934,7 @@ func _downed(source = null) -> void:
 	dead = true
 	evading = false
 	in_hall = false
+	_door_walk = 0
 	xp = 0
 	hp = 0.0
 	remove_from_group("melee_defenders")
@@ -1006,17 +1068,25 @@ func reaches_flyers() -> bool:
 
 ## Can she go for `e` with her weapon from where she stands? A thrown axe:
 ## anything up and in sight; a blade: Enemy.melee_ok (a burning one reaches a siren in water).
+## A blade with no shore reach (the great axe) has nothing on deep water as a
+## target unless it is in her reach now (feather boots: she walks out to it).
 func can_hit(e: Enemy) -> bool:
 	if throws():
 		return e.targetable()
-	return e.melee_ok(grid_pos, eq_flag("flame"))
+	if not e.melee_ok(grid_pos, eq_flag("flame")):
+		return false
+	if eq_flag("no_shore_reach") and not eq_flag("free_walk") and e.on_deep():
+		return e.grid_pos.distance_to(grid_pos) <= reach_to(e)
+	return true
 
 
-## How close she must be to strike `e`.
+## How close she must be to strike `e`. A blade reaches one on deep water from
+## the shore (Enemy.melee_reach), except one with no shore reach (the great axe).
 func reach_to(e: Enemy) -> float:
 	if throws():
 		return float(Config.ITEMS[worn("weapon")]["range"])
-	return e.melee_reach(float(Config.HERO["attack_range"]) * eq("reach"))
+	var base := float(Config.HERO["attack_range"]) * eq("reach")
+	return base if eq_flag("no_shore_reach") else e.melee_reach(base)
 
 
 func attack_cooldown() -> float:
@@ -1108,13 +1178,13 @@ func _tick_net(delta: float) -> void:
 	var n: Array = eq_value("net", [])
 	if n.is_empty():
 		return
-	_net_cd -= delta
-	if _net_cd > 0.0 or not is_instance_valid(target) or target.dead or in_hall:
+	net_cooldown = maxf(net_cooldown - delta, 0.0)
+	if net_cooldown > 0.0 or not is_instance_valid(target) or target.dead or in_hall:
 		return
 	if target.grid_pos.distance_to(grid_pos) > float(n[1]) or not target.can_be_netted():
 		return
 	target.net(float(n[2]))
-	_net_cd = float(n[0])
+	net_cooldown = float(n[0])
 	village.events.debug("the hero nets %s" % target.label())
 
 

@@ -10,6 +10,11 @@ extends Tower
 ## "bench_from" its bench (HallBench, a one-bench barracks on its front tile)
 ## takes a unit too.
 
+## Its door (grid, from its tile): the middle of its two front tiles, the long
+## face the porch and the big door are drawn on (tools/gen_art.py, town_hall).
+## The resting hero goes in and comes out there.
+const DOOR := Vector2(0.5, 1.0)
+
 ## Its bench (a post of its own for the army; made when the hall enters the world).
 var bench: HallBench
 
@@ -31,6 +36,16 @@ func _ready() -> void:
 		bench.nid = -1
 	bench.setup(game, "hall_bench", tile + Vector2i(1, 1), true)
 	game.world.add_building(bench)
+
+
+## Where its door is (grid): see DOOR.
+func door_spot() -> Vector2:
+	return Vector2(tile) + DOOR
+
+
+## The spot on the path just in front of its door (grid): a tile out from it.
+func door_front() -> Vector2:
+	return door_spot() + Vector2(0.0, 1.0)
 
 
 ## The bench on its front tile (from level "bench_from").

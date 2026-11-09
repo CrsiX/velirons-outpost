@@ -481,7 +481,9 @@ buildings; weak to fire, strong against projectiles (a tree), so it asks for fir
     gone, out of leash, or safe, it goes on with what it was doing.
 - **Root grip:** periodically, when someone of ours on the ground is close, it roots everyone
   close (they can't move but can still fight; `Unit.force_move` with no step), so melee in its
-  reach is held in place with it.
+  reach is held in place with it. The hero in heavy steel boots (`Unit.immovable`) is caught
+  too, but the roots only grow on and fall off at once: the player sees the grip and that it
+  doesn't hold her.
 - **Killed:** gold to the killer's village, and a corpse: a log of living wood
   (`corpse_wrathwood`) worth building material and nothing else, which a necromancer can't raise
   (`"revivable": false`). It belongs to the wave running then (or the last one) and rots like

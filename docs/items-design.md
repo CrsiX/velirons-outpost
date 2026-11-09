@@ -94,6 +94,12 @@ Marked *(proposed)*: suggested in the design session; all of them are built. Eve
 chance and duration is a `Config.ITEMS` value. How the open points were settled:
 
 - **Buckler, magical shield:** "a share of hits" is a chance per hit to block it whole.
+- **Great axe:** her reach stays the sword's, with no reach from the shore at a monster on deep
+  water (`AQUA.melee_reach`, which every other blade gets): such a monster is no target unless it
+  is within that reach, and no one in the circle either. In practice the great axe doesn't fight
+  water monsters out on deep water (feather boots let her walk out to them). Why: one rule for
+  the whole weapon (everything she hits is within the circle, her target always among them),
+  and a trade-off the player can read.
 - **Mace:** the enemy behind is the nearest one close to the spot a tile beyond the target, on
   the line from her through it.
 - **Throwing axes:** projectile damage; like every ranged attack they reach flyers; no blade,
@@ -117,7 +123,7 @@ chance and duration is a `Config.ITEMS` value. How the open points were settled:
 | Cleaver | heals her a share of the damage dealt |
 | Mace | also hits the enemy behind the target for a share of the damage |
 | Lance | longer reach, and she can hit flyers, as the halberdier can |
-| Great axe | hits every enemy in a full circle around her, less damage per target; she still picks where to stand, but never one target. (A circle, not an arc: she has no facing direction in the simulation.) |
+| Great axe | hits every enemy in a full circle around her, less damage per target; she still picks where to stand, but never one target. (A circle, not an arc: she has no facing direction in the simulation.) No reach from the shore: see below. |
 | Blessed blade *(proposed)* | holy damage |
 | Throwing axes *(proposed)* | a short ranged attack |
 
@@ -154,7 +160,7 @@ chance and duration is a `Config.ITEMS` value. How the open points were settled:
 | Soldier's boots *(default)* | no effect |
 | Swift boots | faster walking |
 | Feather boots | free movement: she crosses forest, deep water and walls (no gate needed), and swamp and shallow water don't slow her. In return her attacks are slower and flyers deal her a multiple of their damage. An octopus can still grab her and pull her into deep water, but deep water doesn't kill her while she wears them. Needs a path grid of her own. |
-| Heavy steel boots | slower; nothing moves or holds her: immune to the siren's song (pull and slow), the octopus grapple, roots, the net and any future pin (`Unit.forced`). Terrain (swamp, shallow water) still slows her. |
+| Heavy steel boots | slower; nothing moves or holds her: immune to the siren's song (pull and slow), the octopus grapple, roots (a wrathwood's roots grow on her and fall off at once), the net and any future pin (`Unit.forced`). Terrain (swamp, shallow water) still slows her. |
 | Pathfinder's boots *(proposed)* | explores a wider area |
 
 Dropped: **the horse** (mounted hero). It would have needed the enemy-only mounted rules
@@ -201,7 +207,10 @@ the kind of thing one wants to sell on.
   tutorial and the title backdrop (`Game.items_enabled`).
 - **Co-op:** items and relics are sold between players at an asking price
   (docs/market-design.md §7); each hero has her own slots and each village its armoury.
-- **Save:** the hero's slots and the armoury are saved (built). Owned relics, carriers' items
+- **Save:** the hero's slots and the armoury are saved (built), and so are the items' own
+  timers (the net's cooldown, the phoenix pendant used this wave): unlike an AI's cooldowns
+  they outlast a wave (a camp fight between waves), so every future item with a cooldown or a
+  per-wave charge gets its line in the hero's `"eqt"`. Owned relics, carriers' items
   and dropped items will need `SaveGame.capture` / restore lines and a `SaveGame.FORMAT` bump.
 - **Commands:** equip and unequip are `Commands` (built); sell will be one.
 - **Library:** a page per slot (built: Weapons, Armour, Accessories, Movement) and later one for

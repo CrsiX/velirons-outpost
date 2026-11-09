@@ -177,14 +177,19 @@ she can do and what is most valuable first:
 
 ### 4.7 Rest
 
-- She walks back to the village centre and goes into the **town hall** (`Hero.in_hall`), fighting
+- She walks back to the village centre, then to the hall's door and into the **town hall** (`Hero.in_hall`), fighting
   nobody and fleeing from nobody, healing fast (§5) until the player changes the mode. It is the
   "keep her safe" button. Inside she is out of sight and out of every enemy's reach (off the
   `melee_defenders` and `villagers` lists), like a villager in a hut.
 - **Why inside:** the hall gives Rest a real trade-off against idling in Defend: she heals much
   faster but takes no part in anything, while in the centre she heals slowly and keeps watch.
-- Any other mode, an order (a camp to attack) or a devastated hall brings her out into the centre
-  at once; with the hall devastated she rests in the centre at the slow rate. Her own village's
+- Any other mode, an order (a camp to attack) or a devastated hall brings her out at once, out
+  of the door, and her mode walks her on from the path in front of it; with the hall devastated
+  she rests in the centre at the slow rate. **The door** (`TownHall.door_spot`) is the middle of
+  the hall's two front tiles, the face the porch and the big door are drawn on: walking in and
+  out there reads as entering a building, where vanishing in the centre looked like a glitch.
+  Inside, her place is still her post (the centre): resting and swapping equipment count there.
+  A new or loaded game starts her inside at once. Her own village's
   hall only: in Support mode or with a scenario's `home_override` she rests where she stands.
 - **Snoring:** a rising "z" (every third bigger) shows she is resting, from the hall's roof while
   she is inside, a cheap readable cue (co-op clients show it too).

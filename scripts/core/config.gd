@@ -1854,6 +1854,9 @@ const HERO_XP_PER_ACTION := {
 ##                 the share too
 ##   circle ...... [radius, share]: every enemy within radius takes share x her blow
 ##                 (the target too); she still picks where to stand
+##   no_shore_reach  her blade keeps its own reach against one on deep water
+##                 (no AQUA melee_reach from the shore): such a one is no target
+##                 unless in that reach (feather boots: she walks out to it)
 ##   thorns ...... share of a melee hit's damage dealt back to the attacker (pure)
 ##   net ......... [cooldown, range, seconds]: thrown at her target on its own:
 ##                 it can't move or attack (Enemy.net); never at water-only
@@ -1883,8 +1886,8 @@ const ITEMS := {
 		"desc": "Hits through: the enemy behind her target takes part of the blow."},
 	"lance": {"slot": "weapon", "name": "Lance", "reach": 1.75, "hits_flyers": true,
 		"desc": "A longer reach, up to flyers, as the halberdier's."},
-	"great_axe": {"slot": "weapon", "name": "Great axe", "circle": [1.4, 0.6],
-		"desc": "A full circle of blows: every enemy around her, each for less."},
+	"great_axe": {"slot": "weapon", "name": "Great axe", "circle": [1.4, 0.6], "no_shore_reach": true,
+		"desc": "A full circle of blows: every enemy around her, each for less. Too unwieldy to strike from the shore at what is out on deep water."},
 	"blessed_blade": {"slot": "weapon", "name": "Blessed blade", "attack": "blessed_blade",
 		"desc": "Holy damage: it sears the undead and reaches ghosts."},
 	"throwing_axes": {"slot": "weapon", "name": "Throwing axes", "attack": "throwing_axe", "range": 3.2, "damage": 0.8,

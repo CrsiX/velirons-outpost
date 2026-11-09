@@ -393,7 +393,8 @@ static func _hero_state(h: Hero) -> Dictionary:
 	return {"n": h.nid, "mode": int(h.mode), "xp": h.xp, "lvl": h.level, "hp": h.hp, "dead": h.dead, "pos": h.grid_pos, "po": Poison.capture(h),
 		"home": h.at_home, "sup": h.support_target.id if h.support_target else -1,
 		"camp": h.camp_target.index if is_instance_valid(h.camp_target) else -1,
-		"cry": [h.cry_bonus, h.cry_until], "eq": h.equipped.duplicate(), "gather": _gather_state(h.jobs[Hero.Mode.GATHER] as GatherJob),
+		"cry": [h.cry_bonus, h.cry_until], "eq": h.equipped.duplicate(),
+		"eqt": {"net": h.net_cooldown, "phoenix": h.phoenix_used}, "gather": _gather_state(h.jobs[Hero.Mode.GATHER] as GatherJob),
 		"carry": carry, "from": ex.carrying_from if not carry.is_empty() else ""}
 
 
@@ -731,6 +732,9 @@ static func _restore_hero(game: Game, h: Hero, d: Dictionary, field: Array[Civil
 		if slot in Config.ITEM_SLOTS and Config.ITEMS.has(str(eqd[slot])):
 			h.equipped[slot] = str(eqd[slot])
 	h.apply_equipment()
+	var eqt: Dictionary = d.get("eqt", {})  # (her items' timers: the net's cooldown, the pendant used this wave)
+	h.net_cooldown = float(eqt.get("net", 0.0))
+	h.phoenix_used = bool(eqt.get("phoenix", false))
 	if bool(d["dead"]):
 		h.dead = true
 		h.hp = 0.0
