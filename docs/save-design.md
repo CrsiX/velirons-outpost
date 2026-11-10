@@ -219,14 +219,13 @@ Rules behind the table:
   its progress and the gold paid, and the exclusive halves it locked; each tower its
   manual-targeting setting. The deed counters are the statistics', which the save holds already.
 - The hero's slots (`equipped`) and each village's armoury are saved, and her items' timers
-  (`"eqt"`: the net's cooldown, the phoenix pendant used this wave) are the exception to "no
+  (`"eqt"`: the net's cooldown) are the exception to "no
   cooldowns": they belong to the item, not to what she is doing, and a camp fight between waves
-  uses them. *(Designed, not built:)*
-  the rest of the marketplace and items add state that must survive a load, so their change
-  bumps `SaveGame.FORMAT` once more: the marketplace (its buying stock, the goods for sale, the
-  trader's packing progress, the relic-offer timer, the equipment offer), trade caravans in
-  transit (cargo, direction, position: saves come between waves, but a caravan may be on the
-  road), salvage lying on the map, and the relics owned.
+  uses them. A camp or lair guard's carried item is saved with the guard, the market's
+  equipment offer with the market; dropped items are sacks on the map (format 9).
+  Relics (docs/items-design.md §7) are the village's `"relics"` list, duplicates kept, and the
+  market's relic offer and its trader's stationed time (`"ro"`, `"st"`, read with defaults), so
+  they needed no format bump.
 
 ## 8. Files
 

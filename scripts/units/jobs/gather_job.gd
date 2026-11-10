@@ -11,7 +11,9 @@ extends CivilianJob
 ## to be buried (TO_GRAVE, BURYING). Salvage (the cargo of a lost trade
 ## caravan, a sack with "salvage" in its reward; docs/market-design.md §6) of
 ## its own village's market is fetched like dropped loot and carried to the
-## market, not home (TO_MARKET).
+## market, not home (TO_MARKET). A dropped item (a sack with "equipment",
+## docs/items-design.md §5) goes to the town hall's armoury, only while it
+## has room (ItemDrops.room_for).
 
 enum State { RESTING, TO_CORPSE, LOOTING, RETURNING, TO_GRAVE, BURYING, TO_MARKET }
 
@@ -76,8 +78,8 @@ func tick(delta: float) -> void:
 				_timer -= delta
 				if _timer <= 0.0:
 					for k in sack.reward():
-						loot[k] = sack.reward()[k] if k in ["relic", "salvage"] else int(loot.get(k, 0)) + int(sack.reward()[k])
-					w.village.events.info("%s picked up %s" % [w.label().capitalize(), "the salvage" if loot.has("salvage") else "the dropped loot"])
+						loot[k] = sack.reward()[k] if k in ["relic", "salvage", "equipment"] else int(loot.get(k, 0)) + int(sack.reward()[k])
+					w.village.events.info("%s picked up %s" % [w.label().capitalize(), "the salvage" if loot.has("salvage") else ("a dropped item" if loot.has("equipment") else "the dropped loot")])
 					sack.mark_looted()
 					sack = null
 					_go_home()
@@ -179,6 +181,8 @@ func _pick_sack() -> bool:
 			continue  # (a campaign's relic: only the hero exploring carries it, scenario 9)
 		if t.reward().has("salvage") and _market_of(t.reward()["salvage"]) == null:
 			continue  # (salvage goes back to its own village's market only)
+		if not ItemDrops.room_for(w.village, t.reward()):
+			continue  # (an item waits until the armoury has room)
 		if not _safe_at(t.tile):
 			continue
 		if w.head_out(t.visit_tile()):

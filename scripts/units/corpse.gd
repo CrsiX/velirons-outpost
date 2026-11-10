@@ -1,7 +1,8 @@
 class_name Corpse
 extends Node2D
 ## What's left of a killed enemy. Lies where it fell until a gatherer carries
-## it home, it rots away (CORPSE_LIFETIME), or the wave after next is finished.
+## it home, it rots away (CORPSE_LIFETIME; later near a village holding Grave
+## salt), or the wave after next is finished.
 ## On deep water it sinks: it fades over AQUA sink_time and is gone (nobody
 ## can gather it; a necromancer can still raise it until then).
 ## A battlefield's fallen soldier (scenario 6, `fallen`) lies until it is
@@ -54,6 +55,17 @@ func setup(p_game: Game, p_kind: String, p_wave: int, at: Vector2) -> void:
 		sinking = true
 		_sink_total = float(Config.AQUA["sink_time"])
 		time_left = _sink_total
+	else:
+		time_left = Config.CORPSE_LIFETIME * (1.0 + _salt())
+
+
+## The Grave salt of the village nearest to it (0: none there).
+func _salt() -> float:
+	var best: Village = null
+	for v: Village in game.villages:
+		if best == null or Vector2(v.center).distance_to(grid_pos) < Vector2(best.center).distance_to(grid_pos):
+			best = v
+	return best.relic_bonus("corpse_life") if best != null else 0.0
 
 
 ## Makes it one of the battlefield's fallen (raised: a skeleton, its `kind`).

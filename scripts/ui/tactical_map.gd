@@ -435,6 +435,7 @@ func _draw() -> void:
 	draw_set_transform_matrix(tr)
 	draw_texture(_fog, Vector2.ZERO)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
+	_draw_rumours()
 	if is_on("rings"):
 		_draw_rings()
 	if is_on("units"):
@@ -531,6 +532,33 @@ func _draw_objects() -> void:
 		if o is MonsterLair and (o as MonsterLair).awake:
 			var c := _footprint_center(o)
 			draw_arc(c, _dot_radius(2.2), 0.0, TAU, 24, C["enemy"], 2.0, true)
+
+
+## A Cartographer's chart (Config.RELICS "chart"): a "?" over every place the
+## village hasn't found yet (treasures, camps, lairs, sites, mines, ruined
+## towers), without saying what it is. Not dropped sacks or landmarks.
+func _draw_rumours() -> void:
+	var v := game.player_village
+	if v == null or v.relic_bonus("chart") <= 0.0 or game.fog.disabled:
+		return
+	var font := ThemeDB.fallback_font
+	var size := roundi(float(C["rumour_size"]) * sqrt(_zoom))
+	for o in game.world.map_objects:
+		if not is_instance_valid(o) or o.is_found_by(v) or not is_rumour(o):
+			continue
+		var c := _footprint_center(o)
+		var w := font.get_string_size("?", HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		var at := c + Vector2(-w / 2.0, size * 0.35)
+		draw_string_outline(font, at, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, size, 4, Color(0, 0, 0, 0.8))
+		draw_string(font, at, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, size, C["rumour"])
+
+
+## Does a chart show `o` as a rumour (a place to find, not a sack or a landmark)?
+static func is_rumour(o: MapObject) -> bool:
+	if o is Treasure:
+		var t := o as Treasure
+		return not t.data.get("sack", false) and not t.looted and t.landmark() == ""
+	return true
 
 
 func _draw_rings() -> void:

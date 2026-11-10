@@ -39,6 +39,7 @@ const HANDLERS := {
 	"buy_materials": "_buy_materials",
 	"trade": "_trade",
 	"market_buy": "_market_buy",
+	"market_buy_item": "_market_buy_item",
 	"market_sell": "_market_sell",
 	"market_take_back": "_market_take_back",
 	"post_demand": "_post_demand",
@@ -204,6 +205,19 @@ func _market_buy(v: Village, a: Dictionary) -> Dictionary:
 	if err != "":
 		return fail(err)
 	return ok({"amount": (b as Market).buy(good)})
+
+
+## Buys item `item` off the marketplace's equipment offer (Market.buy_item).
+func _market_buy_item(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if not (b is Market):
+		return fail("That isn't your marketplace")
+	var id := str(a.get("item", ""))
+	var err := (b as Market).item_buy_error(id)
+	if err != "":
+		return fail(err)
+	(b as Market).buy_item(id)
+	return ok()
 
 
 ## Puts `amount` of `good` up for sale at the marketplace (Market.put_up).
@@ -583,7 +597,7 @@ func _send_caravan(v: Village, a: Dictionary) -> Dictionary:
 	for res in cargo:
 		game.stats.count(v, "caravan_sent." + res, cargo[res])
 	var c: Caravan = CARAVAN_SCRIPT.new()
-	c.setup(game, v, t, cargo, Config.help_tax(game.villages.size()))
+	c.setup(game, v, t, cargo, Relics.help_tax(game))
 	c.nid = game.register(c)
 	game.world.objects.add_child(c)
 	v.events.debug("send %s to %s: %s" % [c.label(), t.village_name, Config.cost_text(cargo)])

@@ -11,7 +11,7 @@ extends RefCounted
 ## length (u32) and the body (var_to_bytes, zstd). Plain values only: entities
 ## refer to each other by nid, villages by index, map objects by index.
 
-const FORMAT := 8
+const FORMAT := 9
 const MAGIC := "VOSV"
 const EXT := "vsave"
 const AUTO_PREFIX := "auto-"
@@ -273,7 +273,7 @@ static func capture(game: Game) -> Dictionary:
 		if o is MonsterCamp:
 			for e in (o as MonsterCamp).alive():
 				guards.append({"camp": o.index, "k": e.kind, "hp": e.hp, "hs": e.hp_scale, "w": e.wave, "pos": e.grid_pos,
-					"home": (e.behavior as CampBehavior).home if e.behavior is CampBehavior else e.grid_pos, "u": e.uid, "n": e.nid, "c": e.color})
+					"home": (e.behavior as CampBehavior).home if e.behavior is CampBehavior else e.grid_pos, "u": e.uid, "n": e.nid, "c": e.color, "it": e.carried_item})
 	b["live"] = live
 	b["objects"] = objs
 	b["guards"] = guards
@@ -351,7 +351,7 @@ static func _building_state(bd: Building) -> Dictionary:
 	if bd is Market:
 		var m := bd as Market
 		d["mk"] = {"sm": m.stock_materials, "pile": m.pile.duplicate(), "pk": m.packed.duplicate(), "ord": m.orders.duplicate(true),
-			"rt": m.restock_timer, "b": m.bought, "s": m.sold}
+			"rt": m.restock_timer, "b": m.bought, "s": m.sold, "io": m.item_offer.duplicate(), "ro": m.relic_offer.duplicate(), "st": m.stationed}
 	if bd is TownHall and (bd as TownHall).bench != null:
 		d["bn"] = (bd as TownHall).bench.nid  # (its bench: the post its unit names)
 	if bd is Tower and (bd as Tower).targeting != "default":
@@ -394,7 +394,7 @@ static func _hero_state(h: Hero) -> Dictionary:
 		"home": h.at_home, "sup": h.support_target.id if h.support_target else -1,
 		"camp": h.camp_target.index if is_instance_valid(h.camp_target) else -1,
 		"cry": [h.cry_bonus, h.cry_until], "eq": h.equipped.duplicate(),
-		"eqt": {"net": h.net_cooldown, "phoenix": h.phoenix_used}, "gather": _gather_state(h.jobs[Hero.Mode.GATHER] as GatherJob),
+		"eqt": {"net": h.net_cooldown}, "gather": _gather_state(h.jobs[Hero.Mode.GATHER] as GatherJob),
 		"carry": carry, "from": ex.carrying_from if not carry.is_empty() else ""}
 
 
@@ -626,6 +626,9 @@ static func _apply_building(bd: Building, d: Dictionary) -> void:
 		m.restock_timer = float(mk["rt"])
 		m.bought = int(mk["b"])
 		m.sold = int(mk["s"])
+		m.item_offer.assign(mk["io"])
+		m.relic_offer.assign(mk.get("ro", []))
+		m.stationed = float(mk.get("st", 0.0))
 	if bd is Tower:
 		(bd as Tower).targeting = str(d.get("tg", "default"))
 	var q: Array = d.get("q", [0.0, 0])
@@ -732,9 +735,8 @@ static func _restore_hero(game: Game, h: Hero, d: Dictionary, field: Array[Civil
 		if slot in Config.ITEM_SLOTS and Config.ITEMS.has(str(eqd[slot])):
 			h.equipped[slot] = str(eqd[slot])
 	h.apply_equipment()
-	var eqt: Dictionary = d.get("eqt", {})  # (her items' timers: the net's cooldown, the pendant used this wave)
+	var eqt: Dictionary = d.get("eqt", {})  # (her items' timers: the net's cooldown)
 	h.net_cooldown = float(eqt.get("net", 0.0))
-	h.phoenix_used = bool(eqt.get("phoenix", false))
 	if bool(d["dead"]):
 		h.dead = true
 		h.hp = 0.0

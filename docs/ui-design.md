@@ -254,7 +254,9 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   showing the icon of what she wears; hidden where there is no equipment (`Game.items_enabled`).
   A tap opens the **armoury dialog** (`Hud.open_armoury`) on that slot, with a tab per slot:
   what she wears (*Take off*, unless it is the default) and the armoury's items for the slot,
-  copies as one row (*Put on*). Its status line says how full the armoury is and, when she
+  copies as one row (*Put on*); a last tab, *Relics*, lists the relics the village has (village-wide,
+  map-wide; a duplicate with its count), nothing to press. Its status line says how full the
+  armoury is (items and relics together) and, when she
   can't change now, why (`Hero.swap_error`); the buttons are greyed out meanwhile. A swap is a
   command (docs/items-design.md §3). The debug page has *Give item...*.
 - **Town hall panel** (built: `TownHall.info`): its level and upgrade, the last stand's seconds
@@ -446,7 +448,9 @@ nothing is placed, stationed or upgraded on it, so it can never be a second, wor
      devastated ones dark red, sites lighter. Every post shows one dot per slot: filled while its
      unit sits there, an empty ring while the slot is free or its unit is away, so manned and empty
      posts are readable at a glance.
-  4. *Map objects* found by the village.
+  4. *Map objects* found by the village. With a Cartographer's chart (docs/items-design.md §7),
+     a *rumour* over the fog: a "?" over every place not found yet, never what it is. It is the
+     one thing the map shows past the fog, and only because a relic says so.
   5. *Range rings* (toggle): every manned tower's range and every barracks' activation range with a
      unit on its benches.
   6. *Our people* (toggle): units in the field, summons, villagers outside the walls and the hero,

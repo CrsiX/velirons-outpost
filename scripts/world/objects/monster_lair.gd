@@ -94,6 +94,7 @@ func on_wave(n: int) -> void:
 	_spawn_guards(guard_kinds if not guard_kinds.is_empty() else theme()["guards"], guard_hp if guard_hp > 0.0 else pow(Config.WAVE_HP_GROWTH, n - 1))
 	for e in monsters:
 		e.wave = n
+	ItemDrops.maybe_carrier(game, monsters, float(Config.ITEM_SOURCES["lair"]), _item_rng())
 	refresh()
 	_announce(n, again)
 
@@ -141,9 +142,13 @@ func _loot(v: Village) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	if rng.randf() < Config.LAIR_RELIC_CHANCE:
-		var keys: Array = Config.RELICS.keys().filter(func(k: String) -> bool: return v == null or not v.relics.has(k))
-		if not keys.is_empty():
-			return {"relic": keys[rng.randi() % keys.size()]}
+		var id := Relics.random(game, rng, v)
+		if id != "":
+			return {"relic": id}
+	if game.items_enabled() and rng.randf() < float(Config.ITEM_SOURCES["lair_loot"]):
+		var id := ItemDrops.random_item(game, rng)
+		if id != "":
+			return {"equipment": id}
 	var k := 1.0 + Config.LAIR_LOOT_GROWTH * maxi(game.waves.wave - Config.LAIR_FROM_WAVE, 0)
 	var out := {}
 	for key in Config.LAIR_LOOT:

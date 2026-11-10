@@ -255,7 +255,7 @@ func _village_data(v: Village) -> Dictionary:
 	var sacks := []
 	for o in game.world.map_objects:
 		if o.data.get("sack", false):
-			sacks.append([o.index, o.tile])
+			sacks.append([o.index, o.tile, (o as Treasure).reward().has("equipment")])  # (an item's sack: unnamed)
 		else:
 			objs.append([o.index] + o.net_state())
 	return {

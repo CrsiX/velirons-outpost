@@ -74,6 +74,9 @@ var loot_gold := 0
 ## A trade caravan's cargo a thief took (TradeCaravan.rob): {"goods",
 ## "market", "merchants"}; killed, it leaves it as salvage.
 var loot_cargo: Dictionary = {}
+## An item it carries (a Config.ITEMS key, "" for none; docs/items-design.md
+## §5, ItemDrops): killed, it drops it in a sack. Shown by a glint (fx "glint").
+var carried_item := ""
 ## A name of its own (the campaign's Legion captains: "Lysa"), shown over
 ## its head and used in the log; "" for the rest.
 var given_name := ""
@@ -453,6 +456,8 @@ func damage_factor(category: String) -> float:
 			f *= float(n["raised_holy"])
 		elif category == "poison":
 			f *= float(n["raised_poison"])
+	if category == "holy" and (raised or undead or spec().get("unholy", false)) and game != null:
+		f *= 1.0 + Relics.map_bonus(game, "sun_holy")  # (a Sun disc)
 	return f
 
 
@@ -1849,6 +1854,8 @@ func _draw() -> void:
 		draw_line(from, to, Color(0.42, 1.0, 0.54, a * 0.5), 6.0)
 		draw_line(from, to, Color(0.75, 1.0, 0.8, a), 2.0)
 		draw_circle(to, 7.0 + 2.0 * sin(Time.get_ticks_msec() / 120.0), Color(0.42, 1.0, 0.54, a * 0.35))
+	if fx.has("glint") and not dead and dive != Dive.DOWN:
+		_draw_glint()
 	if given_name != "" and not dead:
 		var f := ThemeDB.fallback_font
 		var w := f.get_string_size(given_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
@@ -1863,6 +1870,11 @@ func _draw() -> void:
 		bar_y += 7.0
 	if mount != "" and mount_hp < mount_max:  # (its mount's, brown)
 		_draw_hp_bar(28.0, bar_y, 4.0, mount_hp / mount_max, Color("3a2614"), Color("b07a3a"))
+
+
+## A carrier's glint (fx "glint"), above its shoulder.
+func _draw_glint() -> void:
+	ItemDrops.draw_glint(self, Vector2(16.0, _bar_y() + 2.0))
 
 
 ## Where its HP bar goes: its kind's hp_bar_y, higher on a horse it doesn't

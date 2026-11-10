@@ -27,6 +27,7 @@ func _run() -> void:
 	_title_map()
 	_tolerant(small)
 	_refusals(small)
+	_relics(small)
 	_materials(small)
 	_town_hall(small)
 	_sizes()
@@ -276,6 +277,9 @@ func _refusals(m: MapData) -> void:
 		["a bad map type", func(d: Dictionary) -> Variant: d["map_type"] = "<script>"; return d, "map_type: only letters"],
 		["a name too long", func(d: Dictionary) -> Variant: d["name"] = "x".repeat(61); return d, "name: must be 1 to 60 characters"],
 		["an unknown material", func(d: Dictionary) -> Variant: _piece(d, "wall")["material"] = "marble"; return d, "material: must be one of"],
+		["an unknown relic", func(d: Dictionary) -> Variant: _treasure(d)["reward"] = {"relic": "holy_grail"}; return d, "unknown relic \"holy_grail\""],
+		["an item as a relic", func(d: Dictionary) -> Variant: _treasure(d)["reward"] = {"relic": "net"}; return d, "unknown relic \"net\""],
+		["a relic as an item", func(d: Dictionary) -> Variant: _treasure(d)["reward"] = {"equipment": "hawkeye"}; return d, "unknown item \"hawkeye\""],
 	]
 	for c in cases:
 		var d: Dictionary = JSON.parse_string(text)
@@ -285,6 +289,33 @@ func _refusals(m: MapData) -> void:
 		var errs: Array = r["errors"]
 		var named := errs.any(func(e: String) -> bool: return str(c[2]) in e)
 		check(r["map"] == null and named, "import refuses %s, naming the place (%s)" % [c[0], errs[0] if not errs.is_empty() else "no error"])
+
+
+## The file's first treasure.
+func _treasure(d: Dictionary) -> Dictionary:
+	for o in d["objects"]:
+		if o["kind"] == "treasure":
+			return o
+	return {}
+
+
+## Every relic (village-wide, map-wide) in a treasure reads and writes back
+## unchanged, and the editor's picker offers each, saying what kind it is.
+func _relics(m: MapData) -> void:
+	var text := MapJson.write(m)
+	var ok := true
+	for id in Relics.pool_for(Config.MAX_PLAYERS):
+		var d: Dictionary = JSON.parse_string(text)
+		_treasure(d)["reward"] = {"relic": id}
+		var r := MapJson.read(JSON.stringify(d))
+		if r["map"] == null:
+			ok = false
+			print("  relic %s refused: %s" % [id, str(r["errors"])])
+			continue
+		var back: Dictionary = JSON.parse_string(MapJson.write(r["map"]))
+		ok = ok and _treasure(back).get("reward", {}) == {"relic": id}
+	check(ok, "every relic (%d) in a treasure reads and writes back" % Relics.pool_for(Config.MAX_PLAYERS).size())
+	check(EditorUi.relic_choice_name("sun_disc") == "Sun disc (map-wide)" and "co-op only" in EditorUi.relic_choice_name("peace_ribbon") and EditorUi.relic_choice_name("hawkeye") == "Hawk-eye relic", "the editor's relic picker says which are map-wide or co-op only")
 
 
 ## The first piece of `kind` in the file's first village.

@@ -268,6 +268,18 @@ func _grid(parent: Control, columns: int) -> GridContainer:
 
 
 ## A row of choice buttons; `current` is framed. `pick` gets the chosen value.
+## A relic in the treasure's picker: its name, and what kind of relic it is
+## unless village-wide ("map-wide", "co-op only": a game that can't use it
+## gets a village-wide one instead, Relics.usable).
+static func relic_choice_name(id: String) -> String:
+	var tags: Array[String] = []
+	if Relics.reach(id) == "map":
+		tags.append("map-wide")
+	if Config.RELICS.get(id, {}).get("coop", false):
+		tags.append("co-op only")
+	return Relics.name_of(id) + (" (%s)" % ", ".join(tags) if not tags.is_empty() else "")
+
+
 func _choices(parent: Control, items: Array, current: Variant, pick: Callable, columns: int = 2) -> GridContainer:
 	var g := _grid(parent, _cols(columns, items.size()))
 	for it in items:
@@ -679,9 +691,10 @@ func _object_info(i: int) -> void:
 					set_field.call("reward", r))
 				row.add_child(sb)
 				_inspect.add_child(row)
+			_inspect.add_child(_label("Relic (instead of the rest; docs/items-design.md §7)", 14, UiTheme.MUTED))
 			var relics := [["", "No relic"]]
-			for r in Config.RELICS:
-				relics.append([r, str(Config.RELICS[r].get("name", r))])
+			for r in Relics.pool_for(Config.MAX_PLAYERS):
+				relics.append([r, relic_choice_name(r)])
 			_choices(_inspect, relics, str(reward.get("relic", "")), func(v: Variant) -> void:
 				var r: Dictionary = (editor.map.objects[i].get("reward", {}) as Dictionary).duplicate()
 				if str(v) == "":
@@ -689,6 +702,17 @@ func _object_info(i: int) -> void:
 				else:
 					r = {"relic": v}
 				set_field.call("reward", r), 1)
+			_inspect.add_child(_label("Item (instead of the rest; docs/items-design.md §5)", 14, UiTheme.MUTED))
+			var items := [["", "No item"]]
+			for id: String in ItemDrops.pool(null):
+				items.append([id, str(Config.ITEMS[id]["name"])])
+			_choices(_inspect, items, str(reward.get("equipment", "")), func(v: Variant) -> void:
+				var r: Dictionary = (editor.map.objects[i].get("reward", {}) as Dictionary).duplicate()
+				if str(v) == "":
+					r.erase("equipment")
+				else:
+					r = {"equipment": v}
+				set_field.call("reward", r))
 		"camp":
 			_tier_row(o, set_field)
 			var g := int(o.get("guards", -1))

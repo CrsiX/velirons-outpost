@@ -12,4 +12,5 @@ paths:
 - Buildings, walls, gates and wall towers have art per material and level (`Config.piece_art` names them). Huts' materials only change their look.
 - A tap picks by the art's pixels (`Config.PICK`), so changing a building's art changes what is clickable.
 - Store-listing images under `fastlane/` come from the same icon; `.gdignore` keeps Godot out of that folder.
+- **Item and relic icons** (`item_<id>`, `relic_<id>`; `ITEM_ICONS`, `RELIC_ICONS` in the generator): a new item or relic needs its icon there. The relic icons stop the generator if a `Config.RELICS` key has none. Item icons always get the item badge, relic icons the relic badge: an item is never a relic.
 - Village-coloured art (the co-op heroes' `unit_hero_c<i>`) reads `Config.VILLAGE_COLORS` straight from `config.gd`, so after changing those colours rerun the generator.

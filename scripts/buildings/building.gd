@@ -366,7 +366,7 @@ func can_repair() -> bool:
 func repair_cost() -> Dictionary:
 	if missing_share() <= 0.0:
 		return {}
-	var off := village.adv_bonus("repair_cost") if village else 0.0  # (Cheaper repairs)
+	var off := minf(0.9, village.adv_bonus("repair_cost") + village.relic_bonus("repair_cost")) if village else 0.0  # (Cheaper repairs, a Mason's seal)
 	return {"materials": maxi(1, ceili(materials_spent() * Config.REPAIR_SHARE * missing_share() * (1.0 - off) - 0.0001))}
 
 

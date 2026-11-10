@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b11f4un1bsohy"
-path="res://.godot/imported/item_phoenix_pendant.svg-28765a79ee4e1c544b546f6d08f5d570.ctex"
+uid="uid://bx1n5r4o1aqsd"
+path="res://.godot/imported/relic_tithe_box.svg-0cb6c54217bc868938008f18a46decb1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/item_phoenix_pendant.svg"
-dest_files=["res://.godot/imported/item_phoenix_pendant.svg-28765a79ee4e1c544b546f6d08f5d570.ctex"]
+source_file="res://art/relic_tithe_box.svg"
+dest_files=["res://.godot/imported/relic_tithe_box.svg-0cb6c54217bc868938008f18a46decb1.ctex"]
 
 [params]
 

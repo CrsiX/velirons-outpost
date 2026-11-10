@@ -226,13 +226,14 @@ func map_object(i: int) -> MapObject:
 	return _objects_by_index.get(i)
 
 
-## Co-op client: the sacks the host has, [[index, tile], ...]; others go.
+## Co-op client: the sacks the host has, [[index, tile, holds an item], ...];
+## others go.
 func sync_net_sacks(list: Array) -> void:
 	var keep := {}
 	for e in list:
 		keep[int(e[0])] = true
 		if map_object(int(e[0])) == null:
-			add_dropped_loot(e[1], {}, int(e[0]))
+			add_dropped_loot(e[1], {"equipment": ""} if (e as Array).size() > 2 and bool(e[2]) else {}, int(e[0]))
 	for o in map_objects.duplicate():
 		if o.data.get("sack", false) and not keep.has(o.index):
 			remove_map_object(o)

@@ -11,6 +11,12 @@ extends Farm
 ##     player who bought from it (`orders`; the co-op order book, no tax).
 ## Its levels (Config.MARKET "levels") raise the stock, the caravans on the
 ## road at once and lower the tax. It is a Farm to the rats; it grows nothing.
+## Equipment (docs/market-design.md §8, where Game.items_enabled): a few
+## random items on offer (`item_offer`), rolled anew by each merchants'
+## caravan that arrives; bought for gold into the armoury, no trader needed.
+## A relic (`relic_offer`, Relics.pool; docs/items-design.md §7) comes only
+## from the trader: a new one every MARKET "relic_after" seconds he tends it
+## (`stationed`), the old one gone whether bought or not.
 
 const TRADE_CARAVAN_SCRIPT := preload("res://scripts/units/trade_caravan.gd")
 
@@ -25,6 +31,15 @@ var packed := {"food": 0, "materials": 0}
 var orders: Array[Dictionary] = []
 ## Seconds until the merchants send their next caravan.
 var restock_timer := 0.0
+## Items on offer (Config.ITEMS keys), MARKET "item_offer" of them at most.
+var item_offer: Array[String] = []
+## The relic on offer (Relics.pool: a Config.RELICS key), at most one: the
+## trader brought it; empty once it is bought.
+var relic_offer: Array[String] = []
+## Seconds the trader has tended it since he brought the last relic (MARKET
+## "relic_after" brings the next): counts while he is at the market
+## (is_open), offer or not; pauses while he is away.
+var stationed := 0.0
 ## Lots bought and loads sold so far (scenario and test hooks).
 var bought := 0
 var sold := 0
@@ -71,6 +86,7 @@ func finish() -> void:
 		stored = floorf(capacity() * float(Config.MARKET["start_stock"]))
 		stock_materials = stored
 		restock_timer = float(Config.MARKET["restock_every"])
+		roll_items()
 
 
 func spec_level() -> Dictionary:
@@ -88,7 +104,7 @@ func capacity() -> float:
 
 ## Share of a sale at the map edge the tax takes.
 func tax() -> float:
-	return float(spec_level()["tax"])
+	return float(spec_level()["tax"]) * maxf(0.0, 1.0 - village.relic_bonus("tax"))  # (a Toll charter)
 
 
 ## Trade caravans of ours that may be on the road at once.
@@ -142,7 +158,7 @@ func net_state() -> Dictionary:
 		var m := source(good)
 		src[good] = m.village.id if m != null else -1
 	return {"sm": int(stock_materials), "pile": pile.duplicate(), "pk": packed.duplicate(), "ord": orders.duplicate(true),
-		"rt": ceilf(restock_timer), "road": caravans_out().size(), "inc": incoming() != null, "src": src}
+		"rt": ceilf(restock_timer), "road": caravans_out().size(), "inc": incoming() != null, "src": src, "io": item_offer.duplicate(), "ro": relic_offer.duplicate(), "st": stationed}
 
 
 func apply_net_state(st: Dictionary) -> void:
@@ -154,6 +170,9 @@ func apply_net_state(st: Dictionary) -> void:
 	_net_road = int(st.get("road", 0))
 	_net_incoming = bool(st.get("inc", false))
 	_net_src = (st.get("src", {}) as Dictionary).duplicate()
+	item_offer.assign(st.get("io", []))
+	relic_offer.assign(st.get("ro", []))
+	stationed = float(st.get("st", 0.0))
 
 
 ## Our trade caravans on the road (to the edge or a buyer, or coming back).
@@ -245,6 +264,82 @@ func buy(good: String) -> int:
 	return amount
 
 
+# --- equipment (docs/market-design.md §8) -------------------------------------------------
+
+## A new offer of random items (host; a merchants' caravan brought it).
+func roll_items() -> void:
+	if game.is_client or not game.items_enabled():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	item_offer.clear()
+	for k in int(Config.MARKET["item_offer"]):
+		var id := ItemDrops.random_item(game, rng)
+		if id != "":
+			item_offer.append(id)
+	village.events.debug("%s offers %s" % [label(), ", ".join(item_offer)])
+
+
+## The trader tended it for `delta` more seconds (host): every MARKET
+## "relic_after" of them he brings a new relic for sale; one still on offer is
+## gone then (a relic can be bought only in its window).
+func tend_relic(delta: float) -> void:
+	if game.is_client or not game.items_enabled():
+		return
+	stationed += delta
+	if stationed < float(Config.MARKET["relic_after"]):
+		return
+	stationed = 0.0
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var old: String = relic_offer[0] if not relic_offer.is_empty() else ""
+	var r := Relics.random(game, rng, village)
+	relic_offer.assign([r] if r != "" else [])
+	var who: String = worker.label().capitalize() if worker != null else "The trader"
+	if old != "":
+		village.events.info("Nobody bought the %s: it is gone. %s brings the %s instead." % [Relics.name_of(old), who, Relics.name_of(r)])
+	elif r != "":
+		village.events.info("%s brings a relic for sale at the market: the %s." % [who, Relics.name_of(r)])
+
+
+## What item or relic `id` costs here (gold).
+static func offer_price(id: String) -> int:
+	return int(Config.MARKET["relic_gold" if Relics.is_relic(id) else "item_gold"])
+
+
+## Why item or relic `id` can't be bought now, or "".
+func item_buy_error(id: String) -> String:
+	if not game.items_enabled():
+		return "There is no equipment here"
+	if not item_offer.has(id) and not relic_offer.has(id):
+		return "That isn't on offer"
+	if not working():
+		return "The market is closed" if complete else "The market isn't built yet"
+	if village.armoury.full():
+		return "The armoury is full (%d)" % village.armoury.cap()
+	if not village.economy.can_afford({"gold": offer_price(id)}):
+		return "Not enough gold"
+	return ""
+
+
+## Buys item or relic `id` off the offer into the armoury. Returns whether it did.
+func buy_item(id: String) -> bool:
+	if item_buy_error(id) != "":
+		return false
+	var gold := offer_price(id)
+	village.economy.spend({"gold": gold}, "trade")
+	village.sound("coin")
+	if relic_offer.has(id):
+		relic_offer.erase(id)
+		Relics.bring_home(village, id)
+		village.events.info("Bought the %s for %d gold" % [Relics.name_of(id), gold])
+		return true
+	item_offer.erase(id)
+	village.armoury.add(id)
+	village.events.info("Bought the %s for %d gold: it is in the armoury" % [str(Config.ITEMS[id]["name"]).to_lower(), gold])
+	return true
+
+
 # --- selling ------------------------------------------------------------------------------
 
 ## Why `amount` of `good` can't be put up for sale, or "".
@@ -318,6 +413,7 @@ func _process(delta: float) -> void:
 		_restock(delta)
 	if is_open():
 		_pack(delta)
+		tend_relic(delta)
 	_check -= delta
 	if _check <= 0.0:
 		_check = 1.0
@@ -581,6 +677,8 @@ func _work_info(d: Dictionary) -> void:
 			"disabled": err != "",
 			"action": func() -> void: game.command("market_buy", {"building": nid, "good": good}),
 		})
+	if game.items_enabled():
+		_item_info(lines, actions)
 	if worker == null:
 		lines.append("No trader: nothing you put up for sale leaves. Recruit one in the Village tab.")
 	elif not is_open():
@@ -622,6 +720,49 @@ func _work_info(d: Dictionary) -> void:
 			"label": "Upgrade market (%s)" % Config.cost_icons(upgrade_cost()),
 			"disabled": not village.economy.can_afford(upgrade_cost()),
 			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
+		})
+
+
+## The equipment on offer: a buy action each.
+func _item_info(lines: Array[String], actions: Array[Dictionary]) -> void:
+	_relic_info(lines, actions)
+	if item_offer.is_empty():
+		lines.append("No equipment on offer: the merchants' next caravan brings some.")
+		return
+	lines.append("Equipment on offer (new with each merchants' caravan):")
+	var gold := int(Config.MARKET["item_gold"])
+	for id in item_offer.duplicate():
+		var spec: Dictionary = Config.ITEMS[id]
+		var err := item_buy_error(id)
+		lines.append("{item:%s} %s (%s): %s" % [id, spec["name"], Config.ITEM_SLOT_NAMES[spec["slot"]].to_lower(), spec["desc"]])
+		actions.append({
+			"label": "Buy {item:%s} %s  (%s)" % [id, spec["name"], Config.cost_icons({"gold": gold})],
+			"disabled": err != "",
+			"action": func() -> void: game.command("market_buy_item", {"building": nid, "item": id}),
+		})
+
+
+## "4 min", "40 s".
+static func _minutes(s: float) -> String:
+	return "%d min" % ceili(s / 60.0) if s >= 60.0 else "%d s" % ceili(s)
+
+
+## The relic on offer (or how long until the trader finds one): a buy action.
+func _relic_info(lines: Array[String], actions: Array[Dictionary]) -> void:
+	var left := maxf(0.0, float(Config.MARKET["relic_after"]) - stationed)
+	var when := "%s more of the trader's time here%s" % [_minutes(left), "" if is_open() else " (he is away: it waits)"]
+	if worker == null:
+		lines.append("A trader tending the market brings a new relic for sale every %s of his time." % _minutes(float(Config.MARKET["relic_after"])))
+	elif relic_offer.is_empty():
+		lines.append("The next relic for sale: %s." % when)
+	for id in relic_offer.duplicate():
+		var err := item_buy_error(id)
+		var dup := " You have one: a second does nothing more." if Relics.has_relic(village, id) else ""
+		lines.append(("A relic on offer for %s: " % when) + "%s %s: %s.%s" % [Relics.token(id), Relics.name_of(id), Relics.desc_of(id).trim_suffix("."), dup])
+		actions.append({
+			"label": "Buy %s %s  (%s)" % [Relics.token(id), Relics.name_of(id), Config.cost_icons({"gold": offer_price(id)})],
+			"disabled": err != "",
+			"action": func() -> void: game.command("market_buy_item", {"building": nid, "item": id}),
 		})
 
 

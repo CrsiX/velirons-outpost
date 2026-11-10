@@ -63,7 +63,7 @@ func _tick(delta: float) -> void:
 			_timer -= delta
 			_bob += delta * 10.0
 			sprite.rotation = sin(_bob) * 0.25
-			var felled := game.world.chop_tree(tree, delta)
+			var felled := game.world.chop_tree(tree, delta * (1.0 + village.relic_bonus("chop")))  # (a Woodcutter's axe)
 			if felled:
 				village.events.debug("%s cut down %s" % [label(), game.world.tree_label(tree)])
 				game.wrathwoods.on_felled(village)

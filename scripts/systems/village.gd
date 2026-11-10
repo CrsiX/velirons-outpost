@@ -52,7 +52,8 @@ var stand_emptied := false
 ## The last stand's repair waits for building material (the warning says so).
 var stand_unpaid := false
 var _hall: TownHall
-## Relics found (Config.RELICS keys): small permanent bonuses.
+## The village-wide and map-wide relics it has (Config.RELICS keys, duplicates kept:
+## each counts once; docs/items-design.md §7). They take room in the armoury.
 var relics: Array[String] = []
 ## Campaign items brought home (a treasure's "item": scenario 9's relic sword).
 var items: Array[String] = []
@@ -92,12 +93,10 @@ func create(p_game: Game, p_id: int, p_name: String, p_color: Color) -> void:
 	add_child(armoury)
 
 
-## Sum of a bonus over the relics this village has found ("food", "revive"...).
+## Sum of a bonus over the village-wide relics this village has, each kind once
+## ("food", "revive"...; Relics.bonus).
 func relic_bonus(key: String) -> float:
-	var sum := 0.0
-	for r in relics:
-		sum += float(Config.RELICS[r].get(key, 0.0))
-	return sum
+	return Relics.bonus(self, key)
 
 
 # --- advancements (docs/advancements-design.md; Research) -----------------------------------
@@ -130,9 +129,10 @@ func targeting() -> String:
 	return str(research.effect("targeting", "")) if research else ""
 
 
-## Gold for a kill worth `base` (Skilled looting: a share more, at least 1 more).
+## Gold for a kill worth `base` (Skilled looting and a Tithe box: a share
+## more, at least 1 more).
 func kill_gold(base: int) -> int:
-	var b := adv_bonus("kill_gold")
+	var b := adv_bonus("kill_gold") + relic_bonus("kill_gold")
 	if base <= 0 or b <= 0.0:
 		return base
 	return base + maxi(1, roundi(base * b))

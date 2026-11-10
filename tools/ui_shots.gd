@@ -40,6 +40,9 @@ extends Node
 ## unhorsed by its wolf's corpse, Legion cavalry with its footmen, the mounted
 ## captains and commanders (a hurt horse's bar), Rhodri on foot, an undead
 ## horse bolting, and the library's raider and halberdier;
+## (`--only=relics`) relics: the library's Relics page, the armoury's Relics
+## tab, the tactical map's rumours, the market's relic offer,
+## a dropped relic;
 ## (`--only=map`) the tactical map (M): manned towers with their rings, a hurt
 ## wall, the hero and units out, goblins on the roads, zoomed, toggles off,
 ## portrait;
@@ -139,6 +142,8 @@ func _run() -> void:
 		await _research()
 	if only in ["", "items"]:
 		await _items()
+	if only in ["", "relics"]:
+		await _relics()
 	if only in ["", "scenario"]:
 		await _scenario()
 	if only in ["", "campaign"]:
@@ -935,8 +940,193 @@ func _items() -> void:
 	await shot("items_armoury_portrait")
 	g.hud._armoury_panel.visible = false
 	await _landscape()
+	await _item_icons(g)
 	g.queue_free()
 	await _frames(3)
+
+
+func clear_enemies_of(_g: Game) -> void:
+	for n in get_tree().get_nodes_in_group("enemies"):
+		var e := n as Enemy
+		if not e.dead and not (e.behavior is CampBehavior):
+			e.vanish()
+
+
+## Relics (docs/items-design.md §7): the library's Relics page, the armoury's
+## Relics tab, the tactical map's rumours (a
+## Cartographer's chart), the market's relic offer (before and after its
+## trader found one), a dropped relic and its
+## floating text.
+func _relics() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	add_child(g)
+	await _frames(30)
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	g.hud.open_library("relics")
+	await _frames(10)
+	await shot("relics_library")
+	for name: String in ["Sun disc", "Grave salt"]:
+		await _scroll_to(g.hud.library, name)
+		await shot("relics_library_%s" % name.to_snake_case().replace("'", ""))
+	g.hud.library.close()
+	await _frames(3)
+	v.relics.assign(["hawkeye", "tithe_box", "tithe_box", "cartographers_chart", "kings_banner", "sun_disc", "stormglass"])
+	v.armoury.set_items(["net"])
+	g.hud.toggle_hero_panel(true)
+	g.hud.open_armoury("relics")
+	await _frames(10)
+	await shot("relics_armoury")
+	g.hud._armoury_panel.visible = false
+	g.hud.toggle_hero_panel(false)
+	await _frames(3)
+	g.hud.toggle_map(true)
+	await _frames(5)
+	var tm := g.hud.tactical_map
+	tm._zoom = float(Config.TACTICAL_MAP["min_zoom"])  # (the whole map: the rumours are out in the fog)
+	tm._center = tm._map_center()
+	tm.queue_redraw()
+	await _frames(10)
+	await shot("relics_map_rumours")
+	g.hud.toggle_map(false)
+	await _frames(3)
+	g.fog.reveal_all()
+	# The market's relic offer.
+	g.economy.add("materials", 2000)
+	g.economy.add("gold", 2000)
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for y in g.map.size:
+		for x in g.map.size:
+			var t := Vector2i(x, y)
+			var d := Vector2(t).distance_to(Vector2(v.center))
+			if d < best_d and g.construction.placement_error("market", t) == "":
+				best_d = d
+				best = t
+	if best.x >= 0:
+		var m := v.construction._new_building("market", best, false) as Market
+		m.finish()
+		m.item_offer.assign(["flame_sword", "lance"])
+		m.restock_timer = 999.0
+		g.camera.focus(m.position + Vector2(0, -50))
+		m.stationed = 95.0  # (no relic yet: how much of the trader's time it still takes)
+		g.select(m)
+		await _frames(10)
+		await shot("relics_market_waiting")
+		g.deselect()
+		m.relic_offer.assign(["sun_disc"])
+		g.select(m)
+		await _frames(10)
+		await shot("relics_market_offer")
+		m.relic_offer.assign(["tithe_box"])
+		g.deselect()
+		g.select(m)
+		await _frames(10)
+		await shot("relics_market_offer_duplicate")
+		g.deselect()
+	# A dropped relic, the floating text of one brought home.
+	clear_enemies_of(g)
+	g.hero.set_process(false)
+	var at := ItemDrops.free_tile(g, v.center + Vector2i(4, 2))
+	var sack := g.world.add_dropped_loot(at, {"relic": "grave_salt"})
+	g.camera.focus(sack.position + Vector2(0, -20))
+	g.camera.zoom = Vector2(2.6, 2.6)
+	await _frames(12)
+	g.world.float_text("{relic:masons_seal} Mason's seal", sack.position + Vector2(-40, -90), UiTheme.GOLD)
+	await _frames(4)
+	await shot("relics_sack_and_float")
+	g.select(sack)
+	await _frames(8)
+	await shot("relics_dropped_panel")
+	g.deselect()
+	g.hero.set_process(true)
+	g.queue_free()
+	await _frames(3)
+
+
+## Every item's and relic's icon where the game shows it (docs/items-design.md):
+## the library's four slot pages and its relics, the armoury on each slot, the
+## market's offer, a carrier's glint, a dropped item, floating texts.
+func _item_icons(g: Game) -> void:
+	var v := g.player_village
+	for tab: String in Library.SLOT_TABS:
+		g.hud.open_library(tab)
+		await _frames(10)
+		await shot("icons_library_%s" % tab)
+		var names: Array = g.hud.library.shown_names()
+		if names.size() > 4:
+			await _scroll_to(g.hud.library, str(names[names.size() - 4]))
+			await shot("icons_library_%s_more" % tab)
+		g.hud.library.close()
+		await _frames(3)
+	g.hud.open_library("places")
+	await _frames(10)
+	await _scroll_to(g.hud.library, "Relics")
+	await shot("icons_library_relics")
+	g.hud.library.close()
+	await _frames(3)
+	var all: Array[String] = []
+	for id: String in Config.ITEMS:
+		if not Config.ITEM_DEFAULTS.values().has(id):
+			all.append(id)
+	v.armoury.set_items(all)  # (over the cap: only to show every icon)
+	g.hud.toggle_hero_panel(true)
+	for slot: String in Config.ITEM_SLOTS:
+		g.hud.open_armoury(slot)
+		await _frames(10)
+		await shot("icons_armoury_%s" % slot)
+	g.hud._armoury_panel.visible = false
+	g.hud.toggle_hero_panel(false)
+	v.armoury.set_items([])
+	# The market's offer.
+	g.economy.add("materials", 2000)
+	g.economy.add("gold", 2000)
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for y in g.map.size:
+		for x in g.map.size:
+			var t := Vector2i(x, y)
+			var d := Vector2(t).distance_to(Vector2(v.center))
+			if d < best_d and g.construction.placement_error("market", t) == "":
+				best_d = d
+				best = t
+	if best.x >= 0:
+		var m := v.construction._new_building("market", best, false) as Market
+		m.finish()
+		m.item_offer.assign(["flame_sword", "feather_boots", "rose_necklace"])
+		m.restock_timer = 999.0
+		g.camera.focus(m.position + Vector2(0, -50))
+		g.select(m)
+		await _frames(10)
+		await shot("icons_market_offer")
+		g.deselect()
+	# A carrier's glint, a dropped item, floating texts.
+	clear_enemies_of(g)
+	g.hero.set_grid_pos(Vector2(g.hero.home()))
+	g.hero.set_process(false)  # (stays home: the carrier is the picture)
+	var spot := Vector2(v.center) + Vector2(4, 1)  # (in the village's sight, as the net's picture)
+	g.waves._spawn({"kind": "orc", "spawn": g.map.edge_spawns[0], "hp_scale": 50.0, "village": v, "item": "lance"})
+	var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	e.set_grid_pos(spot)
+	e.speed = 0.0
+	e.follow(PackedVector2Array([spot, spot + Vector2(0.001, 0)]))
+	var sack := ItemDrops.drop(g, Vector2i(spot.round()) + Vector2i(1, 0), "mace")
+	g.camera.focus(e.position + Vector2(0, -20))
+	g.camera.zoom = Vector2(2.6, 2.6)
+	await _frames(12)
+	await shot("icons_carrier_and_sack")
+	g.world.float_text("+{item:great_axe} Great axe", e.position + Vector2(-60, -110), UiTheme.GOLD)
+	g.world.float_text("{relic:hawkeye} Hawk-eye relic", e.position + Vector2(60, -60), UiTheme.GOLD)
+	await _frames(4)
+	await shot("icons_float_texts")
+	if sack != null:
+		g.select(sack)
+		await _frames(8)
+		await shot("icons_dropped_item_panel")
+		g.deselect()
+	g.hero.set_process(true)
 
 
 ## Walls, gates, wall towers and a watchtower at levels 4 and 5 (the

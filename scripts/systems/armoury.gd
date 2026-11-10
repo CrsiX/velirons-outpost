@@ -2,8 +2,10 @@ class_name Armoury
 extends Node
 ## The town hall's armoury (docs/items-design.md §4): one village's equipment
 ## items that the hero isn't wearing (Config.ITEMS keys, duplicates allowed),
-## at most Config.ARMOURY "cap". Taken-off items go here; nothing is lost by
-## swapping. A devastated town hall closes it: no swaps until it is repaired.
+## at most Config.ARMOURY "cap" together with the village's village-wide and map-wide
+## relics (Village.relics, kept here too). Taken-off items go here; nothing is
+## lost by swapping. A devastated town hall closes it: no swaps until it is
+## repaired; the relics keep working.
 
 signal changed
 
@@ -15,8 +17,13 @@ func cap() -> int:
 	return int(Config.ARMOURY["cap"])
 
 
+## Items and relics it holds.
+func count() -> int:
+	return items.size() + (village.relics.size() if village else 0)
+
+
 func full() -> bool:
-	return items.size() >= cap()
+	return count() >= cap()
 
 
 func has(id: String) -> bool:

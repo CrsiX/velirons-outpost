@@ -478,14 +478,18 @@ static func icon_bbcode(text: String, font_size: int) -> String:
 	var px := int(font_size * 1.15)
 	for tok in ICON_ART:
 		s = s.replace(tok, "[img=%dx%d]res://art/%s.svg[/img]" % [px, px, ICON_ART[tok]])
-	var at := s.find("{adv:")
-	while at >= 0:  # (an advancement's icon: {adv:<id>})
-		var end := s.find("}", at)
-		if end < 0:
-			break
-		var id := s.substr(at + 5, end - at - 5)
-		s = s.substr(0, at) + "[img=%dx%d]res://art/%s.svg[/img]" % [px, px, Config.advancement_icon(id)] + s.substr(end + 1)
-		at = s.find("{adv:")
+	# An advancement's, an item's or a relic's icon: {adv:<id>}, {item:<id>}, {relic:<id>}.
+	for pre: String in ["adv", "item", "relic"]:
+		var tag := "{%s:" % pre
+		var at := s.find(tag)
+		while at >= 0:
+			var end := s.find("}", at)
+			if end < 0:
+				break
+			var id := s.substr(at + tag.length(), end - at - tag.length())
+			var art := Config.advancement_icon(id) if pre == "adv" else (Config.item_icon(id) if pre == "item" else Config.relic_icon(id))
+			s = s.substr(0, at) + "[img=%dx%d]res://art/%s.svg[/img]" % [px, px, art] + s.substr(end + 1)
+			at = s.find(tag)
 	return s
 
 
@@ -2632,7 +2636,7 @@ func _step_send(res: String, step: int) -> void:
 func _refresh_send() -> void:
 	if _send_panel == null:
 		return
-	var tax := Config.help_tax(game.villages.size())
+	var tax := Relics.help_tax(game)
 	var any := false
 	var got: Array[String] = []
 	for res in Economy.RESOURCES:
@@ -2860,8 +2864,8 @@ func _build_armoury_dialog() -> void:
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 5)
 	v.add_child(tabs)
-	for slot: String in Config.ITEM_SLOTS:
-		var b := _button(Config.ITEM_SLOT_NAMES[slot], Vector2(0, 42))
+	for slot: String in Config.ITEM_SLOTS + ["relics"]:
+		var b := _button(Config.ITEM_SLOT_NAMES.get(slot, "Relics"), Vector2(0, 42))
 		b.name = "Tab_" + slot
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.add_theme_font_size_override("font_size", 15)
@@ -2901,9 +2905,9 @@ func _refresh_armoury() -> void:
 	var arm := game.player_village.armoury
 	var err := h.swap_error()
 	var w := _upgrade_width() + 60.0
-	_armoury_status.text = "Armoury: %d / %d items.  %s" % [arm.items.size(), arm.cap(), err if err != "" else "She can change now."]
+	_armoury_status.text = "Armoury: %d / %d items and relics.  %s" % [arm.count(), arm.cap(), err if err != "" else "She can change now."]
 	_armoury_status.custom_minimum_size.x = w
-	var state := "|".join([_armoury_slot, str(h.equipped), str(arm.items), err])
+	var state := "|".join([_armoury_slot, str(h.equipped), str(arm.items), str(game.player_village.relics), err])
 	if state == _armoury_shown:
 		return
 	_armoury_shown = state
@@ -2912,6 +2916,11 @@ func _refresh_armoury() -> void:
 	for c in _armoury_list.get_children():
 		_armoury_list.remove_child(c)
 		c.queue_free()
+	var scroll := _armoury_list.get_parent() as ScrollContainer
+	scroll.custom_minimum_size = Vector2(w + 12.0, clampf(_root.size.y - 300.0, 160.0, 460.0))
+	if _armoury_slot == "relics":
+		_armoury_relics(w)
+		return
 	var worn := h.worn(_armoury_slot)
 	_armoury_list.add_child(_label("Wearing", 17, UiTheme.GOLD))
 	var take_off := ""
@@ -2933,24 +2942,45 @@ func _refresh_armoury() -> void:
 		_armoury_list.add_child(_armoury_row(id, w, "Put on", err != "", err, func() -> void:
 			_do("equip", {"item": id})
 			_refresh_hero(), list.count(id)))
-	var scroll := _armoury_list.get_parent() as ScrollContainer
-	scroll.custom_minimum_size = Vector2(w + 12.0, clampf(_root.size.y - 300.0, 160.0, 460.0))
 
 
-## One item: its icon, name and text, and a button (`action`; "" for none).
+## The armoury's Relics tab: the village-wide and map-wide relics the village
+## has (a duplicate: its count, doing nothing more).
+func _armoury_relics(w: float) -> void:
+	var v := game.player_village
+	for reach: String in ["village", "map"]:
+		_armoury_list.add_child(_label("Village-wide: for the village" if reach == "village" else "Map-wide: for everyone", 17, UiTheme.GOLD))
+		var seen := {}
+		for id in v.relics:
+			if seen.has(id) or Relics.reach(id) != reach:
+				continue
+			seen[id] = true
+			_armoury_list.add_child(_armoury_row(id, w, "", false, "", Callable(), v.relics.count(id)))
+		if seen.is_empty():
+			_armoury_list.add_child(_label("None yet.", 15, UiTheme.MUTED))
+	var note := _label("A relic works just by being here; a second of the same does nothing more.", 14, UiTheme.MUTED)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size.x = w
+	_armoury_list.add_child(note)
+
+
+## One item or relic: its icon, name and text, and a button (`action`; "" for none).
 func _armoury_row(id: String, w: float, action: String, off: bool, why: String, pressed: Callable, copies := 1) -> Control:
-	var it: Dictionary = Config.ITEMS[id]
+	var it: Dictionary = Config.RELICS[id] if Config.RELICS.has(id) else Config.ITEMS[id]
 	var row := HBoxContainer.new()
 	row.name = "Item_" + id
 	row.add_theme_constant_override("separation", 10)
-	var icon := _icon(Art.tex(Config.item_icon(id)), 48)
+	var icon := _icon(Art.tex(Config.relic_icon(id) if Config.RELICS.has(id) else Config.item_icon(id)), 48)
 	icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	row.add_child(icon)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
 	row.add_child(box)
 	box.add_child(_label(str(it["name"]) + ("  x%d" % copies if copies > 1 else ""), 17, UiTheme.TEXT))
-	var desc := _label(str(it["desc"]), 14, UiTheme.MUTED)
+	var d := str(it["desc"])
+	if Config.RELICS.has(id):
+		d = d.substr(0, 1).to_upper() + d.substr(1) + "."
+	var desc := _label(d, 14, UiTheme.MUTED)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size.x = w - 58.0
 	box.add_child(desc)

@@ -383,6 +383,9 @@ func _test_loot() -> void:
 	while game.population.free_huts().is_empty():
 		game.population.kill(game.population.civilians.back())
 	var ga: Civilian = game.population.recruit("gatherer")
+	for o in game.world.map_objects.duplicate():  # (an item a camp guard killed earlier dropped: not this test's)
+		if o is Treasure and o != sack and o.data.get("sack", false):
+			(o as Treasure).mark_looted()
 	var gold0 := game.economy.amount("gold")
 	var picked := await wait_until(when_gone(sack, func(x: Object) -> bool: return x.looted), 60.0)
 	var paid := await wait_until(func() -> bool: return game.economy.amount("gold") >= gold0 + 40, 60.0)

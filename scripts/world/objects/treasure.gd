@@ -34,6 +34,10 @@ func display_name() -> String:
 		if reward().has("item"):
 			var item := str(reward()["item"])
 			return item.substr(0, 1).to_upper() + item.substr(1)
+		if reward().has("equipment"):
+			return "Dropped item"
+		if reward().has("relic"):
+			return "Dropped relic"
 		return "Dropped loot"
 	return Config.TREASURES[data["treasure"]]["name"]
 
@@ -46,6 +50,17 @@ func loot_time() -> float:
 
 func reward() -> Dictionary:
 	return data.get("reward", {})
+
+
+## Where there are no items (Game.items_enabled), a treasure holding one pays
+## gold instead (ITEM_SOURCES "treasure_gold"); a relic this game can't use (a
+## co-op one alone) is another one (Relics.usable).
+func setup_object(p_game: Game, p_index: int, p_data: Dictionary) -> void:
+	if p_data.get("reward", {}).has("equipment") and not p_game.items_enabled() and not p_game.is_client:
+		p_data["reward"] = {"gold": int(Config.ITEM_SOURCES["treasure_gold"])}
+	if p_data.get("reward", {}).has("relic") and not p_game.is_client:
+		p_data["reward"]["relic"] = Relics.usable(p_game, str(p_data["reward"]["relic"]), p_index)
+	super.setup_object(p_game, p_index, p_data)
 
 
 ## The camp guarding it, while it isn't cleared (else null).
@@ -82,6 +97,10 @@ func found_message(_v: Village) -> String:
 func _a_name() -> String:
 	if reward().has("salvage"):
 		return "salvage from a trade caravan"
+	if data.get("sack", false) and reward().has("equipment"):
+		return "a dropped item"
+	if data.get("sack", false) and reward().has("relic"):
+		return "a dropped relic"
 	return "some dropped loot" if data.get("sack", false) else with_article(display_name().to_lower())
 
 
@@ -129,13 +148,14 @@ static func pay(v: Village, r: Dictionary) -> String:
 					v.items.append(str(r[k]))
 				v.events.important("%s is home with %s." % [v.hero.label() if v.hero else "The hero", r[k]])
 				parts.append(str(r[k]))
+			"equipment":
+				var got := ItemDrops.bring_home(v, str(r[k]))
+				if got != "":
+					parts.append(got)
 			"relic":
-				var key: String = r[k]
-				if not v.relics.has(key):
-					v.relics.append(key)
-				var spec: Dictionary = Config.RELICS[key]
-				v.events.important("Found the %s: %s!" % [spec["name"], spec["desc"]])
-				parts.append(spec["name"])
+				var got_relic := Relics.bring_home(v, str(r[k]))
+				if got_relic != "":
+					parts.append(got_relic)
 	return ", ".join(parts)
 
 
@@ -152,6 +172,8 @@ static func reward_text(r: Dictionary) -> String:
 				parts.append("every unit healed")
 			"relic":
 				parts.append("a relic")
+			"equipment":
+				parts.append("an item")
 			"item":
 				parts.append(str(r[k]))
 	return ", ".join(parts)
@@ -168,6 +190,12 @@ func info() -> Dictionary:
 		var sv: Dictionary = reward()["salvage"]
 		lines.append("The cargo of a lost trade caravan: %s." % Market._goods_text(sv.get("goods", {})))
 		lines.append("A gatherer (or the hero gathering) carries it back to its marketplace. It lies here until the next wave is over.")
+	elif data.get("sack", false) and reward().has("relic"):
+		lines.append("Something that glints: a relic.")
+		lines.append("A gatherer (or the hero gathering or exploring) brings it to the armoury once it has room. It lies here until then.")
+	elif data.get("sack", false) and reward().has("equipment"):
+		lines.append("Something that glints: an item.")
+		lines.append("A gatherer (or the hero gathering or exploring) brings it to the armoury once it has room. It lies here until then.")
 	else:
 		lines.append("Treasure: %s." % ("something valuable" if reward().is_empty() else "worth looting"))
 		if guard() != null:
@@ -193,7 +221,15 @@ func apply_net_state(s: Array) -> void:
 		refresh()
 
 
+## A dropped item's or relic's sack glints (ItemDrops.draw_glint), redrawn every frame.
+func _process(_delta: float) -> void:
+	if data.get("sack", false) and (reward().has("equipment") or reward().has("relic")) and visible:
+		queue_redraw()
+
+
 func _draw() -> void:
+	if data.get("sack", false) and (reward().has("equipment") or reward().has("relic")) and not looted:
+		ItemDrops.draw_glint(self, Vector2(7.0, -24.0))
 	if not sealed or seal_max <= 0.0 or looted:
 		return
 	var w := 70.0

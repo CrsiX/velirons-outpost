@@ -687,12 +687,44 @@ const TREASURES := {
 		"landmark": "The throne hall of Veliron. Rhodri sits within, with what is left of his court."},
 }
 const RELIC_MAX := 2  # per map
-## Relics: a small permanent bonus for the village that finds one.
+## Relics (docs/items-design.md §7; Relics): special finds with a static
+## effect that works just by a village having one; never worn. "reach":
+## "village" (village-wide: for the village that has it) or "map" (for every
+## village or every enemy on the map while any standing village has one).
+## A duplicate counts once (two Sun discs on the map: one Sun disc). Relics
+## take room in the armoury (ARMOURY "cap").
+## "coop": only comes in games of two villages or more. Effects (shares):
+##   tower_range .. towers (and the town hall) reach this share farther
+##   revive ....... downed units come back this share sooner (negative: less time)
+##   hero_rest .... HP per second more for the hero resting in the town hall
+##   food ......... farms yield this share more
+##   chop ......... foresters chop this share faster (they carry no more)
+##   repair_cost .. repairs cost this share less (with Cheaper repairs)
+##   kill_gold .... gold per kill this share more, at least 1 (with Skilled looting)
+##   tower_attack . units in a tower (the town hall's post too) attack this share faster
+##   chart ........ places not found yet show as a rumour ("?") on the tactical map
+##   tax .......... the marketplace's tax is this share lower
+##   corpse_life .. corpses nearest this village rot this share later
+##   sun_holy ..... (map) undead enemies take this share more holy damage
+##   help_tax ..... (map) the tax on help sent between villages is this share lower
+##   dive ......... (map) a siren's and an octopus's dive when hurt is this share shorter
 const RELICS := {
-	"hawkeye": {"name": "Hawk-eye relic", "desc": "+10 % tower range", "tower_range": 0.1},
-	"phoenix": {"name": "Phoenix feather", "desc": "units revive 20 % faster", "revive": -0.2},
-	"hearth": {"name": "Hearth stone", "desc": "+1 hero HP per second while resting", "hero_rest": 1.0},
-	"harvest": {"name": "Harvest idol", "desc": "+10 % food from farms", "food": 0.1},
+	# Owned.
+	"hawkeye": {"reach": "village", "name": "Hawk-eye relic", "desc": "+10 % tower range", "tower_range": 0.1},
+	"phoenix": {"reach": "village", "name": "Phoenix feather", "desc": "units revive 20 % faster", "revive": -0.2},
+	"hearth": {"reach": "village", "name": "Hearth stone", "desc": "+1 hero HP per second while resting", "hero_rest": 1.0},
+	"harvest": {"reach": "village", "name": "Harvest idol", "desc": "+10 % food from farms", "food": 0.1},
+	"woodcutters_axe": {"reach": "village", "name": "Woodcutter's axe", "desc": "foresters chop 25 % faster", "chop": 0.25},
+	"masons_seal": {"reach": "village", "name": "Mason's seal", "desc": "repairs cost 20 % less", "repair_cost": 0.2},
+	"tithe_box": {"reach": "village", "name": "Tithe box", "desc": "15 % more gold per kill", "kill_gold": 0.15},
+	"kings_banner": {"reach": "village", "name": "Old kings' banner", "desc": "units in towers attack 10 % faster", "tower_attack": 0.1},
+	"cartographers_chart": {"reach": "village", "name": "Cartographer's chart", "desc": "places not found yet show as rumours on the tactical map", "chart": 1.0},
+	"toll_charter": {"reach": "village", "name": "Toll charter", "desc": "the marketplace's tax is a third lower", "tax": 0.34},
+	"grave_salt": {"reach": "village", "name": "Grave salt", "desc": "corpses near the village rot 50 % later", "corpse_life": 0.5},
+	# Map-wide.
+	"sun_disc": {"reach": "map", "name": "Sun disc", "desc": "for everyone: the undead take 25 % more holy damage", "sun_holy": 0.25},
+	"peace_ribbon": {"reach": "map", "coop": true, "name": "Peace ribbon", "desc": "for everyone: the tax on help between villages is halved", "help_tax": 0.5},
+	"stormglass": {"reach": "map", "name": "Stormglass", "desc": "for everyone: sirens and octopuses stay under half as long when hurt", "dive": 0.5},
 }
 ## Monster camps guard some far treasures: neutral monsters that stay by the
 ## camp and fight whoever comes close. Cleared only on the player's order.
@@ -893,7 +925,14 @@ const STALL_LEVELS: Array[Dictionary] = [
 ## visible enemy is within "blocked_radius" of the way ahead (looking
 ## "look_ahead" waypoints on); none sets off while one is that close to its
 ## route. "finder_fee": gold for salvage of the merchants' goods brought back,
-## as a share of what the goods cost to buy.
+## as a share of what the goods cost to buy. Equipment (docs/market-design.md
+## §8, only where Game.items_enabled): "item_offer" random items on offer,
+## rolled anew by each merchants' caravan that arrives, each for "item_gold";
+## buying one needs no trader, only room in the armoury. Relics
+## (docs/market-design.md §8): every "relic_after" seconds of a trader tending
+## the market (his stationed time; it pauses while he is away) he brings a new
+## relic for sale (Relics.pool), for "relic_gold": one not bought by then is
+## gone, one bought leaves the offer empty until then.
 const MARKET := {
 	"levels": [
 		{"stock": 120, "caravans": 2, "tax": 0.3},
@@ -913,6 +952,10 @@ const MARKET := {
 	"blocked_radius": 4.0,
 	"look_ahead": 12,
 	"finder_fee": 0.15,
+	"item_offer": 3,
+	"item_gold": 160,
+	"relic_after": 300.0,
+	"relic_gold": 320,
 }
 
 ## Tower range in tiles. Towers own the range; units own damage and speed.
@@ -1839,8 +1882,7 @@ const HERO_XP_PER_ACTION := {
 ##     reach ....... her blade's reach        speed ....... walking speed
 ##     taken ....... damage she takes          flyer_taken . damage flyers deal her
 ##     gather ...... what she carries gathering   build ... her building speed
-##     xp .......... XP she earns              sight ....... how far she sees
-##     explore ..... how far she sees exploring
+##     xp .......... XP she earns              explore ..... how far she sees exploring
 ##   resist ...... {category: x damage taken of that category}
 ##   block ....... {category: chance a hit of that category is blocked whole}
 ##   attack ...... weapon: an ATTACKS key; its "category" replaces her sword's,
@@ -1862,17 +1904,43 @@ const HERO_XP_PER_ACTION := {
 ##                 it can't move or attack (Enemy.net); never at water-only
 ##                 kinds, "pin_proof" ones or named ones
 ##   ghost_light . ghosts within this many tiles of her are revealed
-##   phoenix ..... once per wave a killing blow leaves her at this share of max HP
 ##   free_walk ... crosses forest, deep water and walls (Pathing.free_path), no
 ##                 ground slows her, deep water doesn't drown her
 ##   immovable ... nothing moves or holds her (Unit.immovable): songs, grapples,
 ##                 roots, nets; terrain still slows her
 ## "name", "desc" (the library's and the armoury's text; no numbers), "slot".
+## Equipment works only while worn; it is never a relic (docs/items-design.md §2).
 const ITEM_SLOTS: Array[String] = ["weapon", "armour", "accessory", "movement"]
 const ITEM_SLOT_NAMES := {"weapon": "Weapon", "armour": "Armour", "accessory": "Accessory", "movement": "Movement"}
 const ITEM_DEFAULTS := {"weapon": "longsword", "armour": "leather_armour", "accessory": "soldiers_helmet", "movement": "soldiers_boots"}
-## The town hall's armoury: items not worn, at most "cap" of them.
+## The town hall's armoury: equipment not worn and the village's relics, at most "cap" together.
 const ARMOURY := {"cap": 12}
+## Where items come from (docs/items-design.md §5; ItemDrops). Every item that
+## isn't a default can come from any source, all equally likely (a scenario
+## may narrow that, Scenario.item_pool). Only where Game.items_enabled.
+##   camp .......... chance per monster camp that one of its guards carries an item
+##   lair .......... chance, each time a lair wakes, that one of its guards carries one
+##   lair_loot ..... chance a cleared lair's sack holds an item (after LAIR_RELIC_CHANCE)
+##   wave_from ..... late-wave carriers only from this wave on
+##   wave .......... chance per wave (from wave_from) that one wave enemy carries one
+##   treasure ...... chance a generated treasure of tier 2 or 3 that holds
+##                   gold holds an item instead (never a shrine; a relic first)
+##   treasure_max .. items in treasures per village slice at most
+##   treasure_gold . gold a treasure holding an item pays where items are off
+##   drop_radius ... tiles around a fallen carrier searched for a free spot
+##                   for the sack (none: the item is lost)
+## A carrier is never a water-only, flying, "pin_proof" or named enemy.
+const ITEM_SOURCES := {
+	"camp": 0.35,
+	"lair": 0.5,
+	"lair_loot": 0.15,
+	"wave_from": 8,
+	"wave": 0.3,
+	"treasure": 0.35,
+	"treasure_max": 2,
+	"treasure_gold": 120,
+	"drop_radius": 6,
+}
 const ITEMS := {
 	# Weapons.
 	"longsword": {"slot": "weapon", "name": "Longsword", "desc": "Her own sword: plain melee."},
@@ -1920,10 +1988,6 @@ const ITEMS := {
 		"desc": "She builds faster."},
 	"scholars_tome": {"slot": "accessory", "name": "Scholar's tome", "xp": 1.25,
 		"desc": "She earns more XP."},
-	"phoenix_pendant": {"slot": "accessory", "name": "Phoenix pendant", "phoenix": 0.3,
-		"desc": "A worn relic: once per wave she survives a killing blow."},
-	"seers_eye": {"slot": "accessory", "name": "Seer's eye", "sight": 1.5,
-		"desc": "A worn relic: she sees farther."},
 	# Movement.
 	"soldiers_boots": {"slot": "movement", "name": "Soldier's boots", "desc": "Her own boots: no effect."},
 	"swift_boots": {"slot": "movement", "name": "Swift boots", "speed": 1.25,
@@ -1938,6 +2002,11 @@ const ITEMS := {
 ## An item's icon (art name; tools/gen_art.py draws one for each).
 static func item_icon(id: String) -> String:
 	return "item_" + id
+
+
+## A relic's icon (art/relic_<id>.svg, tools/gen_art.py: a gold-rimmed badge).
+static func relic_icon(id: String) -> String:
+	return "relic_" + id
 
 
 ## What every summoned elemental shares (their own numbers are in SUMMONS).
@@ -2016,6 +2085,7 @@ const TACTICAL_MAP := {
 	"enemy": Color("e0303a"), "flyer": Color("ff8a7a"), "named": Color("f2c230"), "warning": Color("ff4030"),
 	"dot": 3.0,  # px radius of a unit or enemy at the fitted size (grows a little with the zoom)
 	"hp_bar": Vector2(18, 4),  # px, at the fitted size
+	"rumour": Color("f0d890"), "rumour_size": 20,  # a Cartographer's chart: "?" over a place not found yet (font px at the fitted size)
 }
 
 

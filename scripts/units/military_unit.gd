@@ -178,6 +178,8 @@ func rate(game: Game, pos := Vector2.INF) -> float:
 	var r := Combat.haste(game, self, pos) * hunger_rate()
 	if village != null:
 		r *= 1.0 + village.adv_bonus("attack_rate")  # (Faster attacks)
+		if post is Tower and state == State.STATIONED:
+			r *= 1.0 + village.relic_bonus("tower_attack")  # (the Old kings' banner)
 	if has_stat("rage"):
 		var missing := clampf(1.0 - hp / max_hp(), 0.0, 1.0)
 		r /= maxf(1.0 - stat("rage") * missing, 0.05)

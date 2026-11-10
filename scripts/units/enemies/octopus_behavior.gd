@@ -351,7 +351,7 @@ func on_hurt(enemy: Enemy) -> void:
 			if a["state"] == Arm.REACH or a["state"] == Arm.HOLD or a["state"] == Arm.SMASH:
 				_retract(a, enemy.stat("arm_cooldown") * 0.5)
 		enemy.fx.erase("arms")
-		_dive_left = enemy.stat("dive_time")
+		_dive_left = Relics.dive_time(enemy.game, enemy.stat("dive_time"))  # (a Stormglass)
 		_lockout = _dive_left + enemy.stat("dive_lockout")
 		_hp_log.clear()
 		home_village(enemy).events.debug("%s dives, letting go of everything" % enemy.label())

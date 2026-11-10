@@ -68,8 +68,8 @@ func _pick_task() -> bool:
 			prio = 0
 		elif o is RuinedTower and (o as RuinedTower).claimable():
 			prio = 0
-		elif o is Treasure and (o as Treasure).lootable() and not (o as Treasure).reward().has("salvage"):
-			prio = 1  # (salvage is carried to the market by gatherers, GatherJob)
+		elif o is Treasure and (o as Treasure).lootable() and not (o as Treasure).reward().has("salvage") and ItemDrops.room_for(v, (o as Treasure).reward()):
+			prio = 1  # (salvage is carried to the market by gatherers, GatherJob; an item only while the armoury has room)
 		if prio >= 0 and o.is_found_by(v) and not site_blocked(o):
 			cands.append([prio, Vector2(o.tile).distance_to(w.grid_pos), o])
 	if cands.is_empty():
@@ -184,6 +184,8 @@ func _finish() -> void:
 
 
 static func _a(name: String) -> String:
+	if name == "dropped item":
+		return "a dropped item"
 	return "some " + name if name.begins_with("dropped") else Treasure.with_article(name)
 
 

@@ -307,7 +307,11 @@ instead of list positions, so reordering never breaks a link), `kind`,
   since a camp may stand just over the border) nor a treasure's `guard` (the
   camp naming it).
 - Treasures carry their `reward` in the file (a hand-made map decides what
-  its treasure gives); an unlock site's `unlocks` and `wave` and a camp's
+  its treasure gives; since format 7 that may be an item, `"equipment"`, a
+  `Config.ITEMS` key that isn't a default; where items are off it pays gold instead, or a
+  `"relic"`: any relic, village-wide or map-wide, docs/items-design.md §7; the editor's picker
+  says which kind, and a game that can't use one, a co-op one alone, gets a village-wide relic
+  instead); an unlock site's `unlocks` and `wave` and a camp's
   `monsters` are optional and default to the site's / the tier's from
   `config.gd`.
 - A ruin's `building` says what it was and becomes again when restored

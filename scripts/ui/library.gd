@@ -9,9 +9,9 @@ extends Control
 
 signal closed
 
-const TABS: Array[String] = ["enemies", "units", "buildings", "villagers", "hero", "weapons", "armour", "accessories", "movement", "places", "advancements", "damage"]
+const TABS: Array[String] = ["enemies", "units", "buildings", "villagers", "hero", "weapons", "armour", "accessories", "movement", "relics", "places", "advancements", "damage"]
 const TAB_NAMES := {"enemies": "Enemies", "units": "Units", "buildings": "Buildings", "villagers": "Villagers", "hero": "Hero",
-	"weapons": "Weapons", "armour": "Armour", "accessories": "Accessories", "movement": "Movement",
+	"weapons": "Weapons", "armour": "Armour", "accessories": "Accessories", "movement": "Movement", "relics": "Relics",
 	"places": "Places", "advancements": "Advancements", "damage": "Damage"}
 ## The hero's equipment pages, one per slot (Config.ITEM_SLOTS).
 const SLOT_TABS := {"weapons": "weapon", "armour": "armour", "accessories": "accessory", "movement": "movement"}
@@ -246,6 +246,8 @@ static func tab_note(key: String) -> String:
 			return "Values go from level 1 to level %d. On a tower a unit shoots as far as the tower reaches." % Config.MAX_UNIT_LEVEL
 		"weapons", "armour", "accessories", "movement":
 			return "The hero's %s slot: one item at a time. She changes it in her panel, from the town hall's armoury, while idle at her post. What she wears in different slots adds up (x times x)." % str(Config.ITEM_SLOT_NAMES[SLOT_TABS[key]]).to_lower()
+		"relics":
+			return "A relic works just by your village having it; it is never worn. Village-wide ones work for their village, map-wide ones for everyone while any village has one. A second of the same does nothing more. Relics take room in the armoury (%d with the items)." % int(Config.ARMOURY["cap"])
 		"damage":
 			return "Every hit is one kind of damage. Some enemies take more or less of a kind (x the damage); buildings take it by their defence class (at the end)."
 	return ""
@@ -270,6 +272,8 @@ static func entries(key: String) -> Array[Dictionary]:
 			return _advancements()
 		"weapons", "armour", "accessories", "movement":
 			return _items(SLOT_TABS[key])
+		"relics":
+			return _relics()
 		"damage":
 			return _damage()
 	return []
@@ -290,13 +294,30 @@ static func _items(slot: String) -> Array[Dictionary]:
 	return out
 
 
+## Every relic (docs/items-design.md §7): village-wide, then map-wide.
+static func _relics() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var text := {"village": "A village-wide relic: it works for the village that has it, from the armoury.",
+		"map": "A map-wide relic: it works for every village while any one has it, once however many have it."}
+	for reach: String in ["village", "map"]:
+		for id in Relics.pool_for(Config.MAX_PLAYERS):
+			if Relics.reach(id) != reach:
+				continue
+			var f := PackedStringArray([Relics.desc_of(id).substr(0, 1).to_upper() + Relics.desc_of(id).substr(1)])
+			if Config.RELICS.get(id, {}).get("coop", false):
+				f.append("Co-op games only")
+			f.append("From relic treasures, lairs, and the marketplace: its trader brings a new one every %s min (%d gold)" % [_n(float(Config.MARKET["relic_after"]) / 60.0), int(Config.MARKET["relic_gold"])])
+			out.append({"name": Relics.name_of(id), "art": Config.relic_icon(id), "text": text[reach], "facts": f})
+	return out
+
+
 ## What item `id` does, in numbers, one line per effect key.
 static func item_facts(id: String) -> PackedStringArray:
 	var it: Dictionary = Config.ITEMS[id]
 	var f := PackedStringArray()
 	var factors := {"damage": "Damage", "cooldown": "Time between blows", "reach": "Reach", "speed": "Walking speed",
 		"taken": "Damage taken", "flyer_taken": "Damage taken from flyers", "gather": "Carried when gathering",
-		"build": "Building speed", "xp": "XP earned", "sight": "Sight", "explore": "Sight when exploring"}
+		"build": "Building speed", "xp": "XP earned", "explore": "Sight when exploring"}
 	for k: String in factors:
 		if it.has(k):
 			f.append("%s x%s" % [factors[k], _n(it[k])])
@@ -325,8 +346,6 @@ static func item_facts(id: String) -> PackedStringArray:
 		f.append("Every %s s, at up to %s tiles: held %s s" % [_n(it["net"][0]), _n(it["net"][1]), _n(it["net"][2])])
 	if it.has("ghost_light"):
 		f.append("Reveals ghosts within %s tiles" % _n(it["ghost_light"]))
-	if it.has("phoenix"):
-		f.append("Once per wave: a killing blow leaves her %s %% HP" % _n(float(it["phoenix"]) * 100.0))
 	if it.get("free_walk", false):
 		f.append("Crosses forest, deep water and walls")
 	if it.get("immovable", false):
@@ -809,6 +828,7 @@ static func _villagers() -> Array[Dictionary]:
 			"trader":
 				f.append("Packs %s goods per second into loads of up to %d for the trade caravans" % [_n(Config.MARKET["pack_rate"]), int(Config.MARKET["load"])])
 				f.append("Without one the market only sells to you")
+				f.append("Every %s min of his time there he brings a new relic for sale (%d gold); one not bought by then is gone" % [_n(float(Config.MARKET["relic_after"]) / 60.0), int(Config.MARKET["relic_gold"])])
 		out.append({"name": c["name"], "art": "unit_" + role, "text": c["desc"], "facts": f})
 	return out
 
@@ -858,12 +878,9 @@ static func _places() -> Array[Dictionary]:
 			f.append("May hold a relic instead")
 		f.append("The hero loots it in Explore mode: %s s, and the reward is paid when she's home" % _n(t["loot_time"]))
 		out.append({"name": t["name"], "art": kind, "text": TREASURE_TEXT.get(kind, ""), "facts": f})
-	var relics := PackedStringArray()
-	for k: String in Config.RELICS:
-		relics.append("%s: %s" % [Config.RELICS[k]["name"], Config.RELICS[k]["desc"]])
-	out.append({"name": "Relics", "art": "sack",
-		"text": "Rare finds in some treasures and lairs: a small bonus for the village, for good. At most %d on a map." % Config.RELIC_MAX,
-		"facts": relics})
+	out.append({"name": "Relics", "art": Config.relic_icon(Config.RELICS.keys()[0]),
+		"text": "Rare finds in some treasures and lairs, and at the marketplace. Every relic is on the Relics page.",
+		"facts": PackedStringArray(["At most %d in a map's treasures" % Config.RELIC_MAX, "A cleared lair's loot: a relic %d %% of the time" % roundi(Config.LAIR_RELIC_CHANCE * 100.0)])})
 	var camp := PackedStringArray()
 	for i in Config.CAMP_MONSTERS.size():
 		if Config.CAMP_CHANCE[i] <= 0.0:

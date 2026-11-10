@@ -2,7 +2,9 @@ extends "res://tests/bot_base.gd"
 ## Headless test of the hero's equipment (docs/items-design.md §2-4, §6): the
 ## item list in Config, the defaults leaving the hero unchanged, every item's
 ## effect, the swap rules (armoury, idle at her post, a devastated hall, full
-## armoury, downed keeps items, modes without equipment), and the save. Run with:
+## armoury, downed keeps items, modes without equipment), where items come
+## from (§5: carriers and their sacks, gathering them home, a full armoury,
+## treasures and lairs, the market's offer), relics (§7), and the save. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/items_bot.tscn
 ## Exits 0 when every check passes.
 
@@ -31,6 +33,8 @@ func _run() -> void:
 	_test_armour()
 	await _test_accessories()
 	await _test_movement()
+	await _test_sources()
+	await _test_relics()
 	await _test_save()
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -71,7 +75,6 @@ func give(id: String) -> Dictionary:
 func reset_hero() -> void:
 	h.hp = h.max_hp
 	h.target = null
-	h.phoenix_used = false
 	h.set_grid_pos(Vector2(h.home()))
 	h._set_home(true)
 
@@ -96,7 +99,7 @@ func _test_config() -> void:
 		var d: Dictionary = Config.ITEMS[Config.ITEM_DEFAULTS[slot]]
 		defaults_ok = defaults_ok and str(d["slot"]) == slot and d.keys().all(func(k: String) -> bool: return k in ["slot", "name", "desc"])
 	check(defaults_ok, "each slot has its default item there, with no effect at all")
-	check(Config.ITEMS.size() == 30, "the full list of docs/items-design.md §6: 30 items (%d)" % Config.ITEMS.size())
+	check(Config.ITEMS.size() == 28, "the full list of docs/items-design.md §6: 28 items (%d)" % Config.ITEMS.size())
 	check(ResourceLoader.exists("res://art/throwing_axe.svg") and ResourceLoader.exists("res://art/net_pin.svg"), "art for the thrown axe and the net")
 
 
@@ -336,21 +339,6 @@ func _test_accessories() -> void:
 	var xp := h.xp
 	h.on_action("kill")
 	check(h.xp - xp == roundi(int(Config.HERO_XP_PER_ACTION["kill"]) * float(Config.ITEMS["scholars_tome"]["xp"])), "scholar's tome: more XP (%d)" % (h.xp - xp))
-	wear(["seers_eye"])
-	h._set_home(false)
-	check(is_equal_approx(h.sight_radius(), float(Config.HERO["sight"]) * float(Config.ITEMS["seers_eye"]["sight"])), "seer's eye: she sees farther")
-	reset_hero()
-	# Phoenix pendant: once per wave.
-	wear(["phoenix_pendant"])
-	h.hp = 5.0
-	h.take_damage(100.0, null, "melee")
-	check(not h.dead and is_equal_approx(h.hp, h.max_hp * float(Config.ITEMS["phoenix_pendant"]["phoenix"])) and h.phoenix_used, "phoenix pendant: the killing blow leaves her standing")
-	h.take_damage(1000.0, null, "melee")
-	check(h.dead, "phoenix pendant: only once per wave")
-	h.revive()
-	game.waves.wave_started.emit(1)
-	check(not h.phoenix_used, "a new wave: the pendant is ready again")
-	game.waves.wave_started.emit(1)
 	reset_hero()
 	# Lantern: ghosts near her show themselves.
 	var ghost := spawn("ghost", home + Vector2(2, 0))
@@ -456,15 +444,251 @@ func _test_movement() -> void:
 	wear([])
 
 
+func _item_sacks() -> Array[Treasure]:
+	var out: Array[Treasure] = []
+	for o in game.world.map_objects:
+		if o is Treasure and (o as Treasure).reward().has("equipment") and not (o as Treasure).looted and o.data.get("sack", false):
+			out.append(o)
+	return out
+
+
+func _test_sources() -> void:
+	reset_hero()
+	wear([])
+	v.armoury.set_items([])
+	# Which items, who may carry.
+	var pool := ItemDrops.pool(game)
+	check(not pool.has("longsword") and not pool.has("soldiers_boots") and pool.has("flame_sword") and pool.size() == Config.ITEMS.size() - Config.ITEM_DEFAULTS.size(), "every item but the defaults can come from a source (%d)" % pool.size())
+	var never := true
+	for kind: String in Config.ENEMIES:
+		var sp: Dictionary = Config.ENEMIES[kind]
+		if (str(sp.get("habitat", "land")) == "water" or sp.get("flying", false) or sp.get("pin_proof", false)) and ItemDrops.can_carry(kind):
+			never = false
+	check(never and ItemDrops.can_carry("goblin") and not ItemDrops.can_carry("goblin", "Lysa"), "carriers: never water-only, flying, bosses or named ones")
+	check(ItemDrops.carriers_on(game), "single player has random carriers")
+	for sk in _item_sacks():  # (camp guards killed by the earlier tests may have carried one)
+		sk.mark_looted()
+	# A carrier: the glint, the sack where it falls.
+	var at := Vector2(v.center + Vector2i(6, 0))
+	game.waves._spawn({"kind": "goblin", "spawn": game.map.edge_spawns[0], "hp_scale": 1.0, "village": v, "item": "lance"})
+	var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+	e.set_grid_pos(at)
+	e.speed = 0.0
+	check(e.carried_item == "lance" and e.fx.has("glint"), "a wave entry's \"item\": the enemy carries it, with a glint")
+	kill(e)
+	await frames(3)
+	var sacks := _item_sacks()
+	check(sacks.size() == 1 and str(sacks[0].reward()["equipment"]) == "lance" and Vector2(sacks[0].tile).distance_to(at) <= float(Config.ITEM_SOURCES["drop_radius"]) * 1.5, "killed, it drops the item in a sack nearby (%s near %s)" % [str(sacks.map(func(t: Treasure) -> Vector2i: return t.tile)), str(at)])
+	if sacks.is_empty():
+		return
+	check(sacks[0].display_name() == "Dropped item" and sacks[0].art() == "sack", "the sack doesn't say which item")
+	# Full armoury: no one picks it up; with room, the hero gathering brings it home.
+	var full: Array[String] = []
+	for k in v.armoury.cap():
+		full.append("net")
+	v.armoury.set_items(full)
+	check(not ItemDrops.room_for(v, sacks[0].reward()), "a full armoury: the sack waits")
+	v.armoury.set_items([])
+	_bench_hero(false)
+	game.command("hero_mode", {"mode": Hero.Mode.GATHER})
+	check(await wait_until(func() -> bool: return v.armoury.has("lance"), 120.0), "the hero gathering brings it to the armoury")
+	check(_item_sacks().is_empty(), "and the sack is gone")
+	game.command("hero_mode", {"mode": Hero.Mode.DEFEND})
+	_bench_hero(true)
+	reset_hero()
+	# Brought home to a full armoury: it waits by the town hall.
+	v.armoury.set_items(full)
+	Treasure.pay(v, {"equipment": "mace"})
+	sacks = _item_sacks()
+	check(sacks.size() == 1 and str(sacks[0].reward()["equipment"]) == "mace" and Vector2(sacks[0].tile).distance_to(Vector2(v.town_hall().tile)) < 8.0, "home to a full armoury: the item waits by the town hall")
+	for sk in sacks:
+		sk.mark_looted()
+	v.armoury.set_items([])
+	Treasure.pay(v, {"equipment": "mace"})
+	check(v.armoury.has("mace"), "a treasure's item goes to the armoury")
+	# A camp carrier keeps its item through a save; camps roll their carriers.
+	var rng := RandomNumberGenerator.new()
+	var camp_guards: Array = []
+	for i in 3:
+		var g: Enemy = game.waves._walker("goblin", at, 1.0, v)
+		camp_guards.append(g)
+	var c := ItemDrops.maybe_carrier(game, camp_guards, 1.0, rng)
+	check(c != null and c.carried_item != "" and pool.has(c.carried_item), "a sure chance: one guard carries a random item")
+	check(ItemDrops.maybe_carrier(game, camp_guards, 0.0, rng) == null, "no chance: none more")
+	for g: Enemy in camp_guards:
+		g.free()
+	# The market's offer.
+	v.economy.add("materials", 200, "debug")
+	v.economy.add("gold", 100, "debug")
+	var spot := find_spot("market", v.center)
+	var placed := game.command("place_building", {"kind": "market", "tile": spot})
+	var m := v.market()
+	check(placed["ok"] and m != null, "a market to test the item offer (%s)" % placed.get("error", ""))
+	if m == null:
+		return
+	m.finish()
+	v.construction.queue.erase(m)
+	check(m.item_offer.size() == int(Config.MARKET["item_offer"]) and m.item_offer.all(func(id: String) -> bool: return pool.has(id)), "the market offers %d random items" % int(Config.MARKET["item_offer"]))
+	var want := m.item_offer[0]
+	v.economy.add("gold", int(Config.MARKET["item_gold"]) * 2, "debug")
+	var gold := v.economy.amount("gold")
+	v.armoury.set_items(full)
+	check(not game.command("market_buy_item", {"building": m.nid, "item": want}).get("ok", false), "no buying into a full armoury")
+	v.armoury.set_items([])
+	check(game.command("market_buy_item", {"building": m.nid, "item": want}).get("ok", false) and v.armoury.has(want), "bought: into the armoury")
+	check(v.economy.amount("gold") == gold - int(Config.MARKET["item_gold"]) and m.item_offer.size() == int(Config.MARKET["item_offer"]) - 1, "for its price, and off the offer")
+	check(not game.command("market_buy_item", {"building": m.nid, "item": "longsword"}).get("ok", false), "only what is on offer")
+	var body := SaveGame.capture(game)
+	var found := false
+	for bd: Dictionary in body["buildings"]:
+		if bd.has("mk"):
+			found = bd["mk"]["io"] == m.item_offer
+	check(found, "a save holds the market's offer")
+	v.armoury.set_items([])
+
+
+## Relics (docs/items-design.md §7): the list, every relic's effect, a
+## duplicate counting once, map-wide ones for everyone, room in the armoury,
+## never an item, the sources and the market's relic offer.
+func _test_relics() -> void:
+	print("-- relics")
+	reset_hero()
+	wear([])
+	v.armoury.set_items([])
+	v.relics.clear()
+	for sk in _item_sacks():
+		sk.mark_looted()
+	# The list.
+	var shape := true
+	for k: String in Config.RELICS:
+		var r: Dictionary = Config.RELICS[k]
+		shape = shape and str(r.get("reach", "")) in ["village", "map"] and r.has("name") and r.has("desc") and not Config.ITEMS.has(k)
+	check(shape, "every relic is village-wide or map-wide, named, described, and no item shares its id")
+	check(Config.ITEMS.keys().all(func(id: String) -> bool: return not Relics.is_relic(id) and not Config.ITEMS[id].has("relic")), "no equipment is a relic: equipment is worn, a relic never")
+	var pool := Relics.pool(game)
+	check(pool.has("hawkeye") and pool.has("sun_disc") and not pool.has("peace_ribbon") and pool.all(func(id: String) -> bool: return Config.RELICS.has(id)), "single player: every relic but the peace ribbon (co-op only) can come, and only relics")
+	check(Relics.pool_for(2).has("peace_ribbon"), "two villages: the peace ribbon too")
+	check(Relics.usable(game, "peace_ribbon", 3) != "peace_ribbon" and Relics.reach(Relics.usable(game, "peace_ribbon", 3)) == "village" and Relics.usable(game, "stormglass", 3) == "stormglass", "a relic this game can't use is swapped for a village-wide one")
+	# Village-wide, a duplicate once.
+	check(v.kill_gold(100) == 100, "no relic: plain kill gold")
+	Treasure.pay(v, {"relic": "tithe_box"})
+	check(v.relics == ["tithe_box"] and v.kill_gold(100) == 100 + roundi(100 * float(Config.RELICS["tithe_box"]["kill_gold"])), "a tithe box: more gold per kill (%d)" % v.kill_gold(100))
+	Treasure.pay(v, {"relic": "tithe_box"})
+	check(v.relics.count("tithe_box") == 2 and v.kill_gold(100) == 100 + roundi(100 * float(Config.RELICS["tithe_box"]["kill_gold"])), "a second tithe box is kept but counts once")
+	check(Relics.has_relic(v, "tithe_box") and v.armoury.count() == 2, "relics take room in the armoury (%d)" % v.armoury.count())
+	v.relics.clear()
+	# Mason's seal: repairs.
+	var hall := v.town_hall()
+	hall.hp = hall.max_hp() * 0.5
+	var plain := int(hall.repair_cost().get("materials", 0))
+	v.relics.assign(["masons_seal"])
+	var sealed := int(hall.repair_cost().get("materials", 0))
+	check(plain > 0 and sealed < plain, "a mason's seal: repairs cost less (%d, not %d)" % [sealed, plain])
+	hall.hp = hall.max_hp()
+	# Old kings' banner: units in towers.
+	v.economy.add("gold", 500, "debug")
+	var u := v.army.recruit("archer")
+	check(u != null, "an archer to test the banner")
+	if u != null:
+		u.post = hall
+		u.state = MilitaryUnit.State.STATIONED
+		v.relics.clear()
+		var r0 := u.rate(game)
+		v.relics.assign(["kings_banner"])
+		check(is_equal_approx(u.rate(game), r0 * (1.0 + float(Config.RELICS["kings_banner"]["tower_attack"]))), "old kings' banner: a unit in a tower attacks faster")
+		u.state = MilitaryUnit.State.RESERVE
+		check(is_equal_approx(u.rate(game), r0), "but not out of it")
+		u.post = null
+	# Woodcutter's axe, toll charter, cartographer's chart: their bonus.
+	v.relics.assign(["woodcutters_axe", "cartographers_chart"])
+	check(is_equal_approx(v.relic_bonus("chop"), float(Config.RELICS["woodcutters_axe"]["chop"])) and v.relic_bonus("chart") > 0.0, "the woodcutter's axe and the cartographer's chart count")
+	var camp_like := game.world.map_objects.filter(func(o: MapObject) -> bool: return is_instance_valid(o) and o is MonsterCamp)
+	check(not camp_like.is_empty() and TacticalMap.is_rumour(camp_like[0]), "the chart shows a camp as a rumour")
+	# Grave salt: corpses near the village rot later.
+	v.relics.assign(["grave_salt"])
+	var c := game.corpses.spawn("goblin", 0, Vector2(v.center) + Vector2(3, 0))
+	check(is_equal_approx(c.time_left, Config.CORPSE_LIFETIME * (1.0 + float(Config.RELICS["grave_salt"]["corpse_life"]))), "grave salt: a corpse by the village rots later (%.0f s)" % c.time_left)
+	game.corpses.remove(c)
+	c.queue_free()
+	v.relics.clear()
+	# Map-wide: for every enemy, once however many.
+	var sk := spawn("skeleton", Vector2(v.center) + Vector2(9, 0))
+	var gob := spawn("goblin", Vector2(v.center) + Vector2(9, 1))
+	var holy0 := sk.damage_factor("holy")
+	var gob0 := gob.damage_factor("holy")
+	v.relics.assign(["sun_disc", "sun_disc"])
+	check(is_equal_approx(sk.damage_factor("holy"), holy0 * (1.0 + float(Config.RELICS["sun_disc"]["sun_holy"]))) and is_equal_approx(gob.damage_factor("holy"), gob0), "a sun disc (two count once): the undead take more holy damage, others not")
+	v.fallen = true
+	check(is_equal_approx(sk.damage_factor("holy"), holy0), "a fallen village's relics work no more")
+	v.fallen = false
+	kill(sk)
+	kill(gob)
+	v.relics.assign(["stormglass", "peace_ribbon"])
+	check(is_equal_approx(Relics.dive_time(game, 6.0), 6.0 * (1.0 - float(Config.RELICS["stormglass"]["dive"]))), "stormglass: a hurt water monster's dive is shorter")
+	check(is_equal_approx(Relics.map_bonus(game, "help_tax"), float(Config.RELICS["peace_ribbon"]["help_tax"])), "peace ribbon: the help tax is lower")
+	v.relics.clear()
+	# A full armoury: looters leave it, and one brought home waits by the hall.
+	var full: Array[String] = []
+	for k in v.armoury.cap() - 1:
+		full.append("net")
+	v.armoury.set_items(full)
+	v.relics.assign(["hawkeye"])
+	check(v.armoury.full() and not ItemDrops.room_for(v, {"relic": "harvest"}), "items and relics fill the armoury together: no room for a relic")
+	Treasure.pay(v, {"relic": "harvest"})
+	var waiting := game.world.map_objects.filter(func(o: MapObject) -> bool: return is_instance_valid(o) and o is Treasure and (o as Treasure).data.get("sack", false) and not (o as Treasure).looted and str((o as Treasure).reward().get("relic", "")) == "harvest")
+	check(not v.relics.has("harvest") and waiting.size() == 1 and (waiting[0] as Treasure).display_name() == "Dropped relic", "brought home to a full armoury: it waits by the town hall")
+	for w: Treasure in waiting:
+		w.mark_looted()
+	v.armoury.set_items([])
+	# The market's relic offer.
+	var m := v.market()
+	check(m != null, "the market from the item test")
+	if m != null:
+		m.relic_offer.clear()
+		m.stationed = 0.0
+		m.roll_items()
+		check(m.relic_offer.is_empty() and m.worker == null, "no trader: a new equipment offer brings no relic")
+		await frames(30)
+		check(m.relic_offer.is_empty() and m.stationed == 0.0, "and no trader's time counts")
+		var after := float(Config.MARKET["relic_after"])
+		m.tend_relic(after * 0.6)
+		m.tend_relic(after * 0.3)
+		check(m.relic_offer.is_empty() and is_equal_approx(m.stationed, after * 0.9), "the trader's time adds up, short of a relic")
+		m.tend_relic(after * 0.2)
+		check(m.relic_offer.size() == 1 and pool.has(m.relic_offer[0]) and m.stationed == 0.0, "after %s s of his time he brings a relic for sale" % str(after))
+		m.relic_offer.assign(["peace_ribbon"])  # (one no source here gives: its swap shows)
+		m.tend_relic(after * 0.5)
+		check(m.relic_offer == ["peace_ribbon"] and is_equal_approx(m.stationed, after * 0.5), "his time goes on counting while it is on offer")
+		m.tend_relic(after * 0.5)
+		check(m.relic_offer.size() == 1 and m.relic_offer[0] != "peace_ribbon" and m.stationed == 0.0, "not bought in its time: it is gone, a new one instead (%s)" % str(m.relic_offer))
+		var want := m.relic_offer[0]
+		v.economy.add("gold", int(Config.MARKET["relic_gold"]), "debug")
+		var gold := v.economy.amount("gold")
+		check(game.command("market_buy_item", {"building": m.nid, "item": want}).get("ok", false) and Relics.has_relic(v, want), "bought the %s" % want)
+		check(v.economy.amount("gold") == gold - int(Config.MARKET["relic_gold"]) and m.relic_offer.is_empty(), "for the relic price, and off the offer")
+		m.tend_relic(after * 0.9)
+		check(m.relic_offer.is_empty(), "bought: the offer stays empty for the rest of its time")
+		m.tend_relic(after * 0.1)
+		check(m.relic_offer.size() == 1, "then he brings the next one")
+		m.tend_relic(12.5)
+		var mk := {}
+		for bd: Dictionary in SaveGame.capture(game)["buildings"]:
+			if bd.has("mk"):
+				mk = bd["mk"]
+		check(mk.get("ro", []) == Array(m.relic_offer) and not m.relic_offer.is_empty(), "a save holds the relic offer")
+		check(is_equal_approx(float(mk.get("st", -1.0)), 12.5), "and the trader's time towards the next one")
+	v.armoury.set_items([])
+	v.relics.assign(["sun_disc", "sun_disc", "hawkeye"])
+
+
 func _test_save() -> void:
 	wear(["ring_of_might", "swift_boots"])
 	v.armoury.set_items(["lance", "lance", "net"])
 	h.net_cooldown = 7.5
-	h.phoenix_used = true
 	var body := SaveGame.capture(game)
 	var hv: Dictionary = body["villages"][0]
 	check(hv["arm"] == ["lance", "lance", "net"] and hv["hero"]["eq"] == {"accessory": "ring_of_might", "movement": "swift_boots"}, "a save holds the armoury and what she wears")
-	check(hv["hero"]["eqt"] == {"net": 7.5, "phoenix": true}, "a save holds her items' timers: the net's cooldown, the pendant used this wave")
+	check(hv["hero"]["eqt"] == {"net": 7.5}, "a save holds her items' timers: the net's cooldown")
 	game.queue_free()
 	await frames(3)
 	Settings.pending_save = body
@@ -475,7 +699,8 @@ func _test_save() -> void:
 	h = game.hero
 	check(game.loaded and h.worn("accessory") == "ring_of_might" and h.worn("movement") == "swift_boots" and h.worn("weapon") == "longsword", "loaded: she wears the same")
 	check(Array(v.armoury.items) == ["lance", "lance", "net"], "loaded: the armoury holds the same")
-	check(h.phoenix_used and h.net_cooldown > 0.0 and h.net_cooldown <= 7.5, "loaded: the pendant stays used, the net's cooldown goes on (%.2f)" % h.net_cooldown)
+	check(Array(v.relics) == ["sun_disc", "sun_disc", "hawkeye"] and Relics.map_bonus(game, "sun_holy") > 0.0, "loaded: the relics, a duplicate too, and they work")
+	check(h.net_cooldown > 0.0 and h.net_cooldown <= 7.5, "loaded: the net's cooldown goes on (%.2f)" % h.net_cooldown)
 	check(is_equal_approx(h.speed, float(Config.HERO["speed"]) * float(Config.ITEMS["swift_boots"]["speed"])), "loaded: her boots work again")
 	game.queue_free()
 	await frames(3)

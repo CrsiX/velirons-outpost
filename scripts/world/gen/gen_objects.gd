@@ -197,9 +197,16 @@ func _roads_near(t: Vector2i, r: int) -> int:
 func _treasures() -> void:
 	var k := maxi(1, c.count_in(Config.TREASURE_COUNT, c.area_scale)) if c.area_scale != 1.0 else c.count_in(Config.TREASURE_COUNT)
 	var relics := 0
-	var relic_keys: Array = Config.RELICS.keys()
+	# Every relic (a co-op one in a one-village game is swapped, Relics.usable).
+	var relic_keys: Array[String] = Relics.pool_for(c.players)
+	# Items in treasures (docs/items-design.md §5) roll on their own seeded
+	# numbers, so the rest of a seed's map stays as it was.
+	var item_rng := RandomNumberGenerator.new()
+	item_rng.seed = c.seed_value * 7919 + 104729
+	var item_keys: Array[String] = ItemDrops.pool(null)
 	for s in c.players:
 		var vi := _village_of_slice(s)
+		var items := 0
 		for j in k:
 			var tier := 1 + int(j * 3 / k)  # the same tier pattern in every slice
 			var lo: float = Config.TREASURE_DISTANCE.x if tier == 1 else Config.TREASURE_TIER_DIST[tier - 2]
@@ -221,6 +228,9 @@ func _treasures() -> void:
 			if spec.get("relic", false) and tier >= 2 and relics < Config.RELIC_MAX and c.rng.randf() < 0.5:
 				reward = {"relic": relic_keys[c.rng.randi() % relic_keys.size()]}
 				relics += 1
+			elif tier >= 2 and reward_src.has("gold") and items < int(Config.ITEM_SOURCES["treasure_max"]) and item_rng.randf() < float(Config.ITEM_SOURCES["treasure"]):
+				reward = {"equipment": item_keys[item_rng.randi() % item_keys.size()]}
+				items += 1
 			o["reward"] = reward
 			var idx := _add(o)
 			if c.rng.randf() < Config.CAMP_CHANCE[tier - 1]:

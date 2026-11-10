@@ -107,6 +107,17 @@ func _test_trader() -> void:
 	check(not game.command("recruit_villager", {"role": "trader"})["ok"], "only one trader per village (%s)" % v.population.recruit_error("trader"))
 	check(m.worker is Trader, "the trader goes to work at the market")
 	check(await wait_until(func() -> bool: return m.is_open(), 30.0), "he walks there and tends it")
+	# His time at the market finds a relic for sale (docs/market-design.md §8).
+	m.relic_offer.clear()
+	m.stationed = 0.0
+	check(await wait_until(func() -> bool: return m.stationed > 0.5, 10.0), "his time at the market counts towards a relic (%.1f s)" % m.stationed)
+	m.stationed = float(Config.MARKET["relic_after"]) - 0.5
+	check(await wait_until(func() -> bool: return not m.relic_offer.is_empty(), 10.0) and m.stationed < 1.0, "every %s s of his time he brings a relic for sale (%s)" % [str(Config.MARKET["relic_after"]), str(m.relic_offer)])
+	var first: String = m.relic_offer[0] if not m.relic_offer.is_empty() else ""
+	m.relic_offer.assign(["peace_ribbon"])  # (marks the old one: a new one replaces it)
+	m.stationed = float(Config.MARKET["relic_after"]) - 0.5
+	check(await wait_until(func() -> bool: return m.stationed < 1.0, 10.0) and m.relic_offer.size() == 1 and m.relic_offer[0] != "peace_ribbon", "not bought in time: the next one replaces it (first %s, now %s)" % [first, str(m.relic_offer)])
+	m.relic_offer.clear()
 
 
 func _test_buying() -> void:

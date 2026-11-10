@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bjy7nqvw4smkp"
-path="res://.godot/imported/item_seers_eye.svg-03797211b03e3937a23b887027a27d56.ctex"
+uid="uid://rnyvyyugg8em"
+path="res://.godot/imported/relic_sun_disc.svg-be8c502ac46e016a89ac299aae898efa.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/item_seers_eye.svg"
-dest_files=["res://.godot/imported/item_seers_eye.svg-03797211b03e3937a23b887027a27d56.ctex"]
+source_file="res://art/relic_sun_disc.svg"
+dest_files=["res://.godot/imported/relic_sun_disc.svg-be8c502ac46e016a89ac299aae898efa.ctex"]
 
 [params]
 

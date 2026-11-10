@@ -74,8 +74,6 @@ var cry_until := -1.0
 var equipped := {}
 ## Seconds until her net (an accessory) can be thrown again.
 var net_cooldown := 0.0
-## The phoenix pendant saved her this wave already.
-var phoenix_used := false
 
 
 func setup_hero(p_game: Game, p_village: Village) -> void:
@@ -104,7 +102,6 @@ func setup_hero(p_game: Game, p_village: Village) -> void:
 		sig.connect(func(_n: int) -> void:
 			if dead:
 				revive())
-	game.waves.wave_started.connect(func(_n: int) -> void: phoenix_used = false)  # (once per wave)
 
 
 func display_name() -> String:
@@ -335,7 +332,7 @@ func _after_evade() -> void:
 
 
 func sight_radius() -> float:
-	return 0.0 if at_home or dead else float(Config.HERO["sight"]) * eq("sight")
+	return 0.0 if at_home or dead else float(Config.HERO["sight"])
 
 
 func _tick(delta: float) -> void:
@@ -914,11 +911,6 @@ func take_damage(amount: float, source = null, category: String = "pure") -> voi
 	queue_redraw()
 	sprite.modulate = Color(1.0, 0.5, 0.45)
 	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.15)
-	if hp <= 0.0 and eq("phoenix", 0.0) > 0.0 and not phoenix_used:
-		phoenix_used = true  # (the phoenix pendant: once per wave)
-		hp = max_hp * eq("phoenix", 0.0)
-		float_text("Phoenix!", Color("ffb040"))
-		village.events.info("The phoenix pendant saves the hero from %s" % game.who(source))
 	changed.emit()
 	if hp <= 0.0:
 		_downed(source)

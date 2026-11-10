@@ -18,7 +18,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Gatherer / forester / farmer / builder / explorer / miner / trader**: civilian roles. **Merchant** (Pell), **guild master, resident**: named campaign villagers who can't be recruited; Pell keeps the campaign's trade stall.
 - **Marketplace**: the trading building (`Market`), one per village by a road; buying works from the merchants' **buying stock**, selling from the village's **for-sale pile** needs a trader. Pell's stall is a separate campaign building for now. `market-design.md`
 - **Trader**: the villager who works a marketplace and sells the goods put up for sale. `market-design.md`
-- **Town hall**: every village's one building in its back quarter, placed by the map; the hero's home, research, the armoury, and (designed) the relics; level 2 adds a tower post, level 3 a barracks bench. `village-design.md`
+- **Town hall**: every village's one building in its back quarter, placed by the map; the hero's home, research, the armoury (items and relics); level 2 adds a tower post, level 3 a barracks bench. `village-design.md`
 - **Last stand**: the countdown after a town hall is devastated; it must be fully repaired before it runs out or the village falls. `village-design.md`
 - **Salvage**: the cargo of a robbed or destroyed trade caravan; a gatherer or the hero carries it back to the marketplace. `market-design.md`
 - **Order book**: co-op trade; a purchase is filled from other players' goods for sale before the merchants at the map edge. `market-design.md`
@@ -48,8 +48,9 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 ## World
 - **Fog of war**: unexplored (black), explored (darkened), under surveillance (clear). Enemies are only visible when watched.
 - **Map object**: treasure, monster camp, unit-unlock site, ruined watchtower, mine, monster lair; hidden until found. `world-objects-design.md`
-- **Item**: a single thing a village holds, sells or trades: equipment or a relic (some are both). `items-design.md`
-- **Relic**: an item with a village-wide or map-wide effect, either while owned or while worn; a second copy adds nothing. `items-design.md`
+- **Item**: a single thing a village has, sells or trades: equipment or a relic, never both. `items-design.md`
+- **Relic**: an item whose static effect works just by the village having it, never worn: village-wide (for that village) or map-wide (for everyone while any standing village has one); a second copy adds nothing; relics take room in the armoury. `Relics`, `items-design.md` §7
+- **Rumour** (tactical map): a "?" over a place the village hasn't found yet, shown by the Cartographer's chart; also the log line about an unlock site not found yet. `items-design.md` §7
 - **Deed**: something done in the current game (kills by one unit kind, map explored, a volcano found) that an advancement may need. `advancements-design.md`
 - **Advancement**: a lasting upgrade researched at the town hall during one game; one village's unless it says it is for all players. Some are exclusive choices that can't be undone. `advancements-design.md`
 - **Lair**: wakes late and adds a spawn point; the hero can clear it.
@@ -61,8 +62,10 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 ## Hero
 - **Hero modes**: Defend, Build, Explore, Gather, Train, Rest, Support (co-op). **Attack a camp** is an order that overrides the mode. `hero-design.md`
 - **Training grounds**: where the hero in Train mode passes her XP to a stationed unit.
-- **Equipment / slot**: what the hero wears in her four slots: weapon (how she attacks), armour (how she takes hits), accessory (the catch-all slot), movement (how she moves). The default items are the plain hero. `items-design.md`
-- **Armoury**: the town hall's store of items not worn (`Armoury`, capped).
+- **Equipment / slot**: an item that works only while the hero wears it, in one of her four slots: weapon (how she attacks), armour (how she takes hits), accessory (the catch-all slot), movement (how she moves). The default items are the plain hero. `items-design.md`
+- **Armoury**: the town hall's store of the village's relics and of equipment not worn (`Armoury`, capped).
+- **Carrier / glint**: an enemy carrying an item (`Enemy.carried_item`), marked by a drawn glint (`ItemDrops.draw_glint`; a dropped item's sack glints too); killed, it drops the item in a sack. `items-design.md`
+- **Dropped item**: an item lying on the map in a sack (`"equipment"` in a dropped-loot reward) until a gatherer or the hero brings it to the armoury. `items-design.md`
 - **Pin-proof**: an enemy kind the hero's net never holds (a boss; `pin_proof` in `ENEMIES`). `items-design.md`
 
 ## Campaign

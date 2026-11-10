@@ -166,11 +166,32 @@ func _start_wave() -> void:
 	var vultures := _vulture_packs(n, hp_scale)  # (on top of the mix: first, they smell the dead)
 	vultures.append_array(_queue)
 	_queue.assign(vultures)
+	_wave_carrier(n)
 	_spawn_timer = 0.5
 	game.log_all(EventLog.Level.INFO, "Wave %d begins: %d enemies" % [n, _queue.size()])
 	game.sound_all("horn", 0.0)
 	wave_started.emit(wave)
 	changed.emit()
+
+
+## Late waves (docs/items-design.md §5): from ITEM_SOURCES "wave_from", with
+## its "wave" chance one enemy of the wave's queue that can carry gets an
+## item ("item" in its entry; _spawn gives it).
+func _wave_carrier(n: int) -> void:
+	if n < int(Config.ITEM_SOURCES["wave_from"]) or not ItemDrops.carriers_on(game):
+		return
+	if _rng.randf() >= float(Config.ITEM_SOURCES["wave"]):
+		return
+	var able: Array[int] = []
+	for i in _queue.size():
+		var q := _queue[i]
+		if not q.has("item") and ItemDrops.can_carry(str(q.get("kind", Config.WAVE_FILLER)), str(q.get("name", ""))):
+			able.append(i)
+	if able.is_empty():
+		return
+	var id := ItemDrops.random_item(game, _rng)
+	if id != "":
+		_queue[able[_rng.randi() % able.size()]]["item"] = id
 
 
 ## Vulture packs for wave `n` (docs/enemies-design.md §10.11), on top of the
@@ -641,6 +662,9 @@ func _spawn(spec: Dictionary) -> Enemy:
 	g.from_lair = is_instance_valid(lair) and (lair as MonsterLair).woke_at == wave
 	_add(g, target)
 	g.target_village.events.debug("%s appears at %s" % [g.label(), str(route[0])])
+	if spec.has("item"):  # (a carrier: a late wave's, or a scenario's)
+		ItemDrops.give(g, str(spec["item"]))
+		g.target_village.events.debug("%s carries an item (%s)" % [g.label(), g.carried_item])
 	if spec.has("on_spawn"):  # (a scenario's: scenario 9's Legion company signs it up)
 		(spec["on_spawn"] as Callable).call(g)
 	return g
@@ -662,7 +686,8 @@ func _add(g: Enemy, target: Village) -> void:
 ## at its head, next to come); `extra` goes into each one's queue entry
 ## ("name", "art": Enemy.set_identity; "hp_x": its HP times that, "power": its
 ## damage, Enemy.power; "on_spawn": a Callable(Enemy) called once it is on the
-## map; "gap": seconds before the next one comes).
+## map; "gap": seconds before the next one comes; "item": a Config.ITEMS key
+## it carries, ItemDrops).
 func add_to_wave(kind: String, tile: Vector2i, count: int = 1, extra: Dictionary = {}, front := false) -> void:
 	var hp_scale := pow(Config.WAVE_HP_GROWTH, maxi(wave, 1) - 1)
 	for i in count:
@@ -851,6 +876,7 @@ func _on_enemy_killed(g: Enemy) -> void:
 		var c := game.corpses.spawn(g.kind, g.wave, g.grid_pos)
 		c.extra_gold = g.loot_gold
 		c.hp_scale = g.hp_scale
+	ItemDrops.drop_carried(game, g, v)
 	if not g.loot_cargo.is_empty():  # (a thief's haul from a trade caravan)
 		TradeCaravan.drop_salvage(game, g.current_tile(), game.entity(int(g.loot_cargo["market"])) as Market, g.loot_cargo["goods"], bool(g.loot_cargo["merchants"]))
 		g.loot_cargo = {}

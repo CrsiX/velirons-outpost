@@ -117,7 +117,7 @@ func on_hurt(enemy: Enemy) -> void:
 		return
 	if recent_loss(_hp_log, _clock, enemy.stat("dive_window"), enemy.hp) >= enemy.stat("dive_loss") * enemy.max_hp:
 		if enemy.dive_down():
-			_dive_left = enemy.stat("dive_time")
+			_dive_left = Relics.dive_time(enemy.game, enemy.stat("dive_time"))  # (a Stormglass)
 			_hp_log.clear()
 			home_village(enemy).events.debug("%s dives away from the attack" % enemy.label())
 

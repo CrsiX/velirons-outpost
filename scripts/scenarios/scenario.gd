@@ -102,6 +102,12 @@ var market := false
 ## Hero equipment and the armoury (docs/items-design.md §8): off in the
 ## campaign unless a scenario switches them on.
 var items := false
+## Where items come from in this scenario (docs/items-design.md §5): the items
+## any random source may give ([]: every one), and whether random carriers
+## come at all (camps, lairs, late waves; off: only what the scenario scripts,
+## e.g. a wave entry's "item" in Waves.add_to_wave or ItemDrops.give).
+var item_pool: Array[String] = []
+var item_carriers := false
 ## Units may specialise (from Config.BRANCH_MIN_LEVEL).
 var specialise := true
 ## The hero comes back after being downed (home); false: downed is a defeat.

@@ -2,10 +2,13 @@
 
 Status: **the equipment is built** (§2-4, §6: `Config.ITEMS`, `ITEM_SLOTS`, `ITEM_DEFAULTS`,
 `ARMOURY`; `Hero` equipment section, `Armoury`, the `equip` / `unequip` commands, the hero
-panel's slots and the armoury dialog, a library page per slot, `items_bot`). **Not built yet:**
-where items come from (§5; for now only the debug page's *Give item...*), relics as items (§7:
-the four relics of today, `Config.RELICS`, still work as before and are not in the armoury),
-selling and trading items (docs/market-design.md §8). Numbers live in
+panel's slots and the armoury dialog, a library page per slot, `items_bot`), and so is **where
+equipment comes from** (§5: `ItemDrops`, `Config.ITEM_SOURCES`; the market's equipment offer,
+`MARKET` "item_offer"), and so are **relics** (§7: `Config.RELICS`, `Relics`; village-wide and
+map-wide relics in `Village.relics` and the armoury's Relics tab; the market's relic offer,
+brought by its trader, `MARKET` "relic_after"; the library's Relics page; the tactical map's
+rumours). **Not built yet:** selling and trading items and relics
+(docs/market-design.md §8). Numbers live in
 `scripts/core/config.gd`, never here.
 Scope: items (equipment and relics), the hero's slots, the armoury, where items come from,
 the item list. Buying and selling items is in docs/market-design.md; the town hall (home of the
@@ -21,18 +24,22 @@ armoury) in docs/village-design.md; the hero in docs/hero-design.md.
 
 ## 2. Items
 
-- An **item** is one single thing a village holds: equipment, a relic, or both (a worn relic).
+- An **item** is one single thing a village has: equipment or a relic, **never both**.
 - **Effects are modifiers, never flat stats:** a share of damage, a damage category, a chance,
   a flag ("reaches flyers"). The hero's damage grows from level 1 to `HERO_MAX_LEVEL`; a flat
   "+10 damage" would be huge at level 1 and nothing at level 20.
-- **Each item works either while owned or while worn, never both.** A ring works on her
-  finger; a banner works by being in the town hall. One rule the player can read off the item.
+- **Equipment works only while the hero wears it; a relic works just by the village having it,
+  and is never worn.** A ring works on her finger; a banner works by being in the town hall.
+  One rule the player can read off the kind of item, never off the single item. An effect
+  that needs the hero to wear something is equipment; a static effect for a village or the
+  whole map is a relic. A relic may still touch the hero (the Hearth stone), as long as it
+  works by being had, not worn.
 - **Duplicates are allowed, the effect counts once.** Two of the same relic give its effect
   once; the second is only worth selling. **Bonuses from different sources all count** (a
   "more gold per kill" relic and the matching advancement both count). Equipment modifiers are
   factors and multiply: across slots and with every other source (the war cry, a High Priest's
   blessing, critical hits), which the code already applies as factors.
-- **Map-wide relics** affect every village or every enemy on the map. Owned by several players,
+- **Map-wide relics** affect every village or every enemy on the map. Had by several villages,
   they still apply once.
 
 ## 3. The hero's slots
@@ -66,27 +73,56 @@ nothing changes in balance until something is equipped.
 
 ## 4. The armoury
 
-- The town hall's store of items not worn (and, once relics are items, of owned relics),
-  capped at a number of items (`ARMOURY`). Taken-off items go there; nothing is lost by
-  swapping.
+- The town hall's store of equipment not worn and of the village's relics,
+  capped at a number of both together (`ARMOURY`, `Armoury.count`). Taken-off items go there;
+  nothing is lost by swapping. The armoury dialog has a Relics tab next to the four slots: what
+  the village holds, a duplicate with its count. Why relics take room: a relic is a thing the
+  village keeps like any item, and a full armoury is a reason to sell (later) or leave one
+  lying; uncapped, duplicates would pile up for free.
 - Items leave it by being worn, sold (docs/market-design.md §8) or traded to another player.
-- A devastated town hall closes the armoury (no swaps), but owned relics **keep working**:
+- A devastated town hall closes the armoury (no swaps), but its relics **keep working**:
   losing every relic to one raid would be too harsh.
 
 ## 5. Where items come from
 
-- **The market's rotating offer** and **relic offers** (docs/market-design.md §8).
-- **Treasures and lairs**, as relics come today. `RELIC_MAX` stays a limit on the generator
-  only; a later generator may rework relics as treasures.
-- **Carriers:** some enemies carry an item and drop it on their corpse: camp monsters (a chance
-  for one per camp), lair guardians, and rarely an enemy in a late wave. Never ordinary early
-  wave enemies, or gatherers drown in swords. A carrier is marked with a **glint**, not new
-  art, so the player can decide "go get that". A gatherer (or the hero gathering) brings the
-  item to the town hall's armoury.
+Built (`ItemDrops`, `Config.ITEM_SOURCES`; relics: `Relics`, §7). Every
+non-default piece of equipment can come from every equipment source, all equally likely: there is no rarity, and a
+rarity would push every game towards the same few rare "best" items.
+
+- **The market's rotating offer** (docs/market-design.md §8), with a relic offer (§7).
+- **Treasures and lairs**, as relics come today. The generator puts an item into some tier-2
+  and tier-3 treasures that hold gold (never a shrine; a relic wins first), with a cap per
+  village slice, so co-op slices stay fair. Those rolls use their own seeded numbers, so the
+  rest of a seed's map stays as it was. A cleared lair's sack sometimes holds an item, after
+  its relic chance. `RELIC_MAX` stays a limit on the generator only; a later generator may
+  rework relics as treasures. Where items are off (the tutorial, the backdrop, a scenario
+  without them), a treasure holding an item pays gold instead, so a map file can always hold
+  one. Map files name the item (`"equipment"`, format 7), and the editor offers it.
+- **Carriers:** some enemies carry an item: camp monsters (a chance for one per camp), lair
+  guardians (a chance each time a lair wakes), and rarely one enemy of a late wave. Never
+  ordinary early wave enemies, or gatherers drown in swords. Never water-only, flying, boss
+  or named enemies either: what they drop would land out of reach or steal a scripted
+  moment. A carrier is marked with a **glint** (drawn, not new art; its `fx`, so co-op
+  clients see it too), so the player can decide "go get that".
+- **Dropped items are a sack, not a corpse:** corpses rot, sink and get raised, and an item
+  must not vanish with them. The sack lands on the nearest free tile, open ground before
+  forest (none within the drop radius: the item is lost), and **stays until picked up**. It
+  glints like a carrier (`ItemDrops.draw_glint`): a small sack is easily hidden behind the
+  trees of the tile in front of it in the isometric view, and the glint stands above them. An item is rare, so losing it to a
+  timer would feel bad.
+- **Bringing it home:** a gatherer, the hero gathering or the hero exploring brings it to the
+  town hall's armoury. They leave it lying while the armoury is full. If it fills up while
+  the item is on the way, the item goes into a sack by the town hall, never lost.
+- **Unnamed until home:** a treasure, a sack or a carrier only says "an item". The market's
+  offer is the exception: there one buys a known thing.
 - **Campaign:** items are set per scenario (offers, drops and carriers scripted in
-  `scenario_<n>.gd`); **nothing carries over** between scenarios by design. A scenario can
-  script a carry-over itself, as scenarios 9 to 11 will do with the rescued sword. Equipment is
-  introduced around scenario 4 (docs/scenarios-design.md).
+  `scenario_<n>.gd`); **nothing carries over** between scenarios by design. The hooks:
+  `Scenario.item_pool` (the items random sources may give) and `Scenario.item_carriers`
+  (random carriers at all; off by default, so a scenario only has what it scripts: a wave
+  entry's `"item"` in `Waves.add_to_wave`, `ItemDrops.give` / `drop`, a map treasure's
+  `"equipment"`). A scenario can script a carry-over itself, as scenarios 9 to 11 will do
+  with the rescued sword. Equipment is introduced around scenario 4
+  (docs/scenarios-design.md); no scenario uses it yet.
 
 ## 6. Equipment list
 
@@ -108,8 +144,7 @@ chance and duration is a `Config.ITEMS` value. How the open points were settled:
 - **Net:** on its cooldown she throws it at her current target in range; the target neither
   moves nor attacks (`Enemy.net`). Bosses are kinds marked `pin_proof` in `ENEMIES`, plus
   every named enemy and every water-only kind.
-- **Phoenix pendant:** the killing blow leaves her at a share of her max HP; ready again when
-  each wave starts. **Rose necklace:** a share less poison, not immunity. **Cleaver:** heals a
+- **Rose necklace:** a share less poison, not immunity. **Cleaver:** heals a
   share of the damage actually dealt. **Thorn mail:** reflects a share of a melee hit as pure
   damage.
 
@@ -150,8 +185,6 @@ chance and duration is a `Config.ITEMS` value. How the open points were settled:
 | Gatherer's satchel *(proposed)* | carries more when gathering |
 | Builder's gloves *(proposed)* | builds faster |
 | Scholar's tome *(proposed)* | more XP |
-| Phoenix pendant *(proposed, worn relic)* | once per wave she survives a killing blow |
-| Seer's eye *(proposed, worn relic)* | more sight |
 
 ### Movement
 
@@ -168,31 +201,56 @@ Dropped: **the horse** (mounted hero). It would have needed the enemy-only mount
 
 ## 7. Relics
 
-Relics become items: special, individual goods with a village-wide or map-wide effect. They
-are not unique on the map; a duplicate's effect counts once. The four existing relics
-(Hawk-eye, Phoenix feather, Hearth stone, Harvest idol) keep their effects as owned relics.
+Built: `Config.RELICS` and `Relics` (the pool, who has what, the bonuses, bringing one home).
+Relics are special, individual goods with a static village-wide or map-wide effect that works
+just by a village having one; **a relic is never worn, and no equipment is a relic** (§2).
+They are not unique on the map; a duplicate counts once. Every number is in `Config.RELICS`;
+here only what each does. Kept in `Village.relics`, with room in the armoury (§4); a devastated
+hall closes the armoury, but its relics keep working.
 
-**Owned (village-wide), proposed:**
+- **Village-wide** (`"reach": "village"`): works for the village that has it, read through
+  `Village.relic_bonus` (`Relics.bonus`), each kind once.
+- **Map-wide** (`"map"`): works for everyone while any village that hasn't fallen has one,
+  once however many have it (`Relics.map_bonus`). Why only standing villages: a fallen village
+  can use nothing, and its relics shouldn't outlive it.
+
+Why never worn: a relic that is also an accessory blurs the one rule the player reads off a
+kind of item, and an effect on the hero's own body is what equipment is for.
+
+**Village-wide:**
 
 | Relic | Effect |
 |---|---|
+| Hawk-eye relic | towers (and the town hall's post) reach farther |
+| Phoenix feather | downed units come back sooner |
+| Hearth stone | the hero heals faster resting in the hall |
+| Harvest idol | farms yield more food |
 | Woodcutter's axe | foresters chop faster (not carry more) |
-| Mason's seal | cheaper repairs |
-| Tithe box | more gold per kill |
-| Old kings' banner | tower units attack faster |
-| Cartographer's chart | map objects show as rumours on the tactical map |
+| Mason's seal | cheaper repairs (adds to the Cheaper repairs advancement) |
+| Tithe box | more gold per kill (adds to Skilled looting) |
+| Old kings' banner | units in a tower attack faster (only while stationed there) |
+| Cartographer's chart | places the village hasn't found show as a "?" on the tactical map, never what they are (`TacticalMap.is_rumour`: not sacks or landmarks) |
 | Toll charter | lower market tax |
-| Grave salt | corpses rot slower |
+| Grave salt | corpses rot later where this village is the nearest (a corpse belongs to no village, so the nearest one decides) |
 
-**Map-wide, proposed:**
+**Map-wide:**
 
 | Relic | Effect |
 |---|---|
-| Sun disc | the undead everywhere take more holy damage |
-| Peace ribbon | the help tax is halved for everyone |
-| Stormglass | water monsters dive less |
+| Sun disc | the undead (unholy kinds, raised and undead enemies) take more holy damage (`Enemy.damage_factor`) |
+| Peace ribbon | the help tax is lower for everyone (`Relics.help_tax`); co-op only (`"coop"`): it never comes in a one-village game |
+| Stormglass | a siren's and an octopus's dive when hurt is shorter (`Relics.dive_time`). Crabs riding under deep water aren't affected: that is how they move, not a dive to escape |
 
-**Worn:** the Phoenix pendant and Seer's eye (accessories, §6).
+**Where they come from:** generated relic treasures (`RELIC_MAX` per map), a cleared lair's
+loot (one the village doesn't have yet where it can) and the market's relic offer (its trader
+brings a new one every stretch of his time there, the old one gone, bought or not;
+docs/market-design.md §8). All pick
+from `Relics.pool`: every relic, without the co-op ones in a one-village game. A map's relic
+the game can't use is swapped for a village-wide one on
+setup (`Relics.usable`), so a map file may name any relic. Bringing one home goes through
+`Relics.bring_home`; a full armoury leaves it lying (looters skip it, `ItemDrops.room_for`) or,
+once home, in a sack by the town hall, as with items. A dropped relic's sack glints and says
+only "a relic".
 
 **Dropped:** a "Wardline bell" (longer wave countdown): a countdown is shared in co-op, so a
 village-wide effect can't work.
@@ -204,16 +262,28 @@ the kind of thing one wants to sell on.
 ## 8. Scope and other modes
 
 - **Campaign:** off unless a scenario switches it on (§5, `Scenario.items`); off in the
-  tutorial and the title backdrop (`Game.items_enabled`).
+  tutorial and the title backdrop (`Game.items_enabled`). Relics don't need items: a map's
+  relic treasure or a lair still gives one where items are off. No scenario names a relic.
 - **Co-op:** items and relics are sold between players at an asking price
   (docs/market-design.md §7); each hero has her own slots and each village its armoury.
 - **Save:** the hero's slots and the armoury are saved (built), and so are the items' own
-  timers (the net's cooldown, the phoenix pendant used this wave): unlike an AI's cooldowns
+  timers (the net's cooldown): unlike an AI's cooldowns
   they outlast a wave (a camp fight between waves), so every future item with a cooldown or a
-  per-wave charge gets its line in the hero's `"eqt"`. Owned relics, carriers' items
-  and dropped items will need `SaveGame.capture` / restore lines and a `SaveGame.FORMAT` bump.
+  per-wave charge gets its line in the hero's `"eqt"`. A camp or lair guard's item is saved
+  with the guard. Dropped items are sacks, so they are part of the map. The market's offer
+  is saved too, its relic offer and the trader's time since he brought it as well (`"ro"`,
+  `"st"`). A wave's carriers are not: nothing of a
+  running wave is saved. A village's relics are saved as a list, duplicates kept.
 - **Commands:** equip and unequip are `Commands` (built); sell will be one.
-- **Library:** a page per slot (built: Weapons, Armour, Accessories, Movement) and later one for
-  relics, built from `Config`.
-- **Tests:** `items_bot` (built: defaults leave the hero unchanged, each effect, swap rules,
-  the save; later carriers and drops). The balancing bot learns to equip items later.
+- **Library:** a page per slot (Weapons, Armour, Accessories, Movement) and a Relics page
+  (village-wide, map-wide), built from `Config`; the Places page has one Relics entry pointing
+  there.
+- **Icons:** every item has one (`Config.item_icon`: a dark badge ringed in its slot's colour)
+  and every relic too (`Config.relic_icon`: the same badge with a gold rim and studs, so a relic
+  reads as one), drawn by `tools/gen_art.py`. A text shows one with `{item:<id>}` /
+  `{relic:<id>}` (`Hud.icon_bbcode`; `Relics.token` picks the right one): the market's offers and
+  the floating text of what came home.
+- **Tests:** `items_bot` (defaults leave the hero unchanged, each effect, swap rules, carriers
+  and their sacks, gathering home, a full armoury, the market's offer, every relic's effect,
+  duplicates and map-wide relics counting once, relics in the armoury, the relic offer, the
+  save). The balancing bot learns to equip items later.

@@ -8,7 +8,7 @@ extends RefCounted
 ## of every problem and where it is.
 
 const FORMAT := "velirons-outpost-map"
-const VERSION := 6
+const VERSION := 7
 ## One character per tile; the index is the MapData.Terrain value.
 const TERRAIN_CODES := ".RFDMWSL"
 ## One character per tile; the index is the Config.ZONE_ORDER index.
@@ -16,10 +16,13 @@ const ZONE_CODES := "mophswac"
 const PALETTE_LETTERS := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const UNDER := {"water": MapData.Terrain.WATER, "shallow": MapData.Terrain.SHALLOW, "lava": MapData.Terrain.LAVA}
 ## (format 6 added the town hall: one per village, 2x2, "tile" its top-left;
-## older files have none and are refused for play by MapChecks.)
+## older files have none and are refused for play by MapChecks; format 7
+## added a treasure's "equipment" reward, a Config.ITEMS key that isn't a
+## default: older files simply have none. A "relic" is any relic,
+## Relics.is_relic; a game that can't use it gets another, Relics.usable.)
 const PIECE_KINDS: Array[String] = ["wall", "gate", "wall_tower", "hut", "town_hall"]
 const OBJECT_KINDS: Array[String] = ["treasure", "camp", "unlock", "ruin", "lair", "mine"]
-const REWARD_KEYS: Array[String] = ["gold", "food", "materials", "hero_xp", "heal_units", "relic"]
+const REWARD_KEYS: Array[String] = ["gold", "food", "materials", "hero_xp", "heal_units", "relic", "equipment"]
 
 const TOP_KEYS: Array[String] = [
 	"format", "format_version", "name", "author", "description", "size", "map_type", "origin",
@@ -236,7 +239,7 @@ static func _object_line(o: Dictionary, i: int) -> String:
 			var rp := PackedStringArray()
 			for k in REWARD_KEYS:
 				if reward.has(k):
-					rp.append("%s: %s" % [_q(k), _q(str(reward[k])) if k == "relic" else str(int(reward[k]))])
+					rp.append("%s: %s" % [_q(k), _q(str(reward[k])) if k in ["relic", "equipment"] else str(int(reward[k]))])
 			parts.append('"reward": {%s}' % ", ".join(rp))
 		"camp":
 			parts.append('"tier": %d' % int(o["tier"]))
@@ -829,8 +832,12 @@ class _Reader:
 			if not REWARD_KEYS.has(k):
 				continue
 			if k == "relic":
-				if not Config.RELICS.has(v[k]):
+				if not Relics.is_relic(str(v[k])):
 					err(where + ".relic", "unknown relic \"%s\"" % str(v[k]))
+				out[k] = v[k]
+			elif k == "equipment":
+				if not Config.ITEMS.has(v[k]) or Config.ITEM_DEFAULTS.values().has(v[k]):
+					err(where + ".equipment", "unknown item \"%s\"" % str(v[k]))
 				out[k] = v[k]
 			else:
 				var n = whole(v[k], "%s.%s" % [where, k])

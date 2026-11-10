@@ -285,6 +285,7 @@ func _arrive() -> void:
 			if is_instance_valid(market) and market.working():
 				for good in cargo:
 					market.add_stock(good, float(cargo[good]))
+				market.roll_items()  # (and new equipment on offer)
 				_debug("brings %s to %s: stock now %d food, %d material" % [_cargo_text(), market.label(), int(market.stock("food")), int(market.stock("materials"))])
 			else:
 				_debug("reaches %s, which isn't working: %s lost" % [market_name(), _cargo_text()])

@@ -34,6 +34,14 @@ func display_name() -> String:
 ## Host: the monsters come out at the start.
 func spawn_monsters() -> void:
 	_spawn_guards(data.get("monsters", []), Config.CAMP_HP_SCALE)
+	ItemDrops.maybe_carrier(game, monsters, float(Config.ITEM_SOURCES["camp"]), _item_rng())
+
+
+## Random numbers for who carries an item (docs/items-design.md §5).
+func _item_rng() -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	return rng
 
 
 ## Can the hero be sent against it now?
@@ -84,6 +92,7 @@ func restore_guard(d: Dictionary) -> void:
 	(e.behavior as CampBehavior).setup(self, home)
 	e.uid = int(d["u"])
 	e.nid = int(d["n"])
+	ItemDrops.give(e, str(d.get("it", "")))
 	game.register_as(e, e.nid)
 	e.killed.connect(_on_killed)
 	game.world.objects.add_child(e)
@@ -102,6 +111,7 @@ func _on_killed(e: Enemy) -> void:
 		v.economy.add("gold", gold, "kills")
 		v.events.debug("killed %s at a camp (by %s, +%d gold)" % [e.label(), game.who(e.killer), gold])
 	game.world.float_text("+%d {gold}" % gold, e.position + Vector2(0, -50), Color("c9a24a"))
+	ItemDrops.drop_carried(game, e, v)
 	if monsters.is_empty() and not cleared:
 		cleared = true
 		_on_cleared(v)

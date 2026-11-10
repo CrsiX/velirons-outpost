@@ -1,7 +1,9 @@
 # Veliron's Outpost: marketplace, trader and trade (design)
 
-Status: **built**, except what needs items (§8: equipment and relic offers, selling items,
-the trader's stationed time) and folding Pell's stall into the marketplace (§2): the stall
+Status: **built**, except selling items (§8: selling items and relics; the equipment and relic
+offers are built: `Market.item_offer` / `relic_offer`, the trader's stationed time
+`Market.stationed`, `MARKET` "item_offer" / "item_gold" / "relic_after" / "relic_gold", the
+`market_buy_item` command) and folding Pell's stall into the marketplace (§2): the stall
 is still its own campaign building (`Stall`, `Config.STALL_LEVELS`). The code: `Market`
 (`Config.MARKET`, `Config.BUILDINGS.market`), `Trader` (`Config.CIVILIANS.trader`),
 `TradeCaravan`, salvage as a dropped-loot sack (`GatherJob`), `ThiefBehavior`; tested by
@@ -158,14 +160,24 @@ kind with its own rules; the two must never be confused.
 
 ## 8. The market's item and relic offers
 
-- **Equipment offers:** a small **rotating, randomly generated** offer of items, changed by each
-  incoming caravan. Buying needs no trader. Not a catalogue: a full shop would make every game
-  end with the same best kit.
+- **Equipment offers** (built): a small **rotating, randomly generated** offer of items, rolled
+  when the market is finished and again by each merchants' caravan that arrives. Buying needs
+  no trader, only room in the armoury, and every item costs the same (there is no rarity,
+  docs/items-design.md §5). Not a catalogue: a full shop would make every game end with the
+  same best kit. Only where items are on (`Game.items_enabled`).
 - **Selling items** (from the town hall's armoury) needs a trader present: at the asking price
   to another player (§7), or at the edge for a fixed value per item (`Config`).
-- **Relic offers:** a trader stationed long enough (`Config`; the time pauses while he is away)
-  makes **one relic offer**: a random relic, at a gold price. Relics are items (docs/items-design.md):
-  a duplicate may be bought or sold, but its effect counts once.
+- **Relic offers** (built): every time a trader has been stationed long enough (`MARKET`
+  "relic_after"; the time pauses while he is away) he brings **one relic offer**: a random
+  relic (`Relics.pool`, one the village doesn't have where it can), at a gold price, bought the
+  same way as equipment. **It is there only for that window:** when his next stretch is up,
+  a relic not bought is gone and a new one takes its place; one bought leaves the offer empty
+  until then. Why: a relic is a chance to take or let pass, not a shelf to come back to, and
+  the next one may be a better fit. A new equipment offer never brings a relic: the relic is
+  the trader's, so a market without a trader never offers one, and keeping a trader at work
+  is what earns it. The panel says how much of his time is left. Relics are items
+  (docs/items-design.md): a duplicate may be bought (the offer says so) or later sold, but its
+  effect counts once.
 - **Relics trade in co-op** like any item, and their effect moves with them.
 
 ## 9. Scope and other modes
@@ -173,7 +185,7 @@ kind with its own rules; the two must never be confused.
 - **Campaign:** off unless a scenario switches it on (Pell's stall is the campaign's market;
   docs/scenarios-design.md).
 - **Tutorial, title backdrop:** off.
-- **Save:** the market's stock and for-sale pile, the trader's stationed time, caravans in
+- **Save:** the market's stock and for-sale pile, the trader's stationed time (`"st"`), caravans in
   transit (position, cargo, owner, direction) and salvage on the map all need
   `SaveGame.capture` / restore lines and a `SaveGame.FORMAT` bump (docs/save-design.md).
 - **Commands:** buying, putting up for sale, taking back from the pile, selling an item and
