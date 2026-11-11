@@ -198,7 +198,7 @@ builder's time (the *Upgrade* command towers use):
   hall's centre (`TownHall` is a `Tower`: `post_from`). For the game the post is exactly the middle
   of the 2×2 (`TownHall.act_center`): every range, aura, target and range circle counts from there.
   The picture puts the tower a little back along the view axis (`HALL_TOWER_BACK` in
-  tools/gen_art.py), so its unit is drawn centred over the hall but a bit in the background. It takes the same units as every tower
+  tools/art/buildings.py), so its unit is drawn centred over the hall but a bit in the background. It takes the same units as every tower
   (ranged, summoner, healer, support), with the range of a level-3 watchtower
   (`TOWER_RANGE.tower` plus the `TOWER_LEVELS` range bonus of `post_range_level`; the Hawk-eye
   relic adds as everywhere). It has no upgrades of its own: the hall's level is its level.
@@ -220,7 +220,7 @@ builder's time (the *Upgrade* command towers use):
 - What else levels 2 and 3 do is still open.
 
 **Look:** larger than a hut and not as plain: a long hall with a hip roof, arched lit windows, a
-gabled porch with a large front door and a clock in its gable (`tools/gen_art.py`, `town_hall`). It
+gabled porch with a large front door and a clock in its gable (`tools/art/buildings.py`, `town_hall`). It
 follows the village's piece material like the walls (docs/siege-design.md §2a); level 2 adds a low
 parapeted podium built into the roof's ridge for the tower post (no tower of its own: the hall stays
 a hall, apart from the corner tower behind it), level 3 banners, gilding, a brazier on the podium,

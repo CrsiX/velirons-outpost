@@ -27,7 +27,7 @@ docs/village-design.md.
 - The hall's panel shows the research under way and opens the list (*Research...*): every
   advancement with what it does, its conditions (met or not), its cost and time.
 - **Icons:** every advancement has its own (`Config.advancement_icon`, drawn by
-  `tools/gen_art.py`, `ADV_ICONS`), shown beside its name in the list, the library and the
+  `tools/art/icons.py`, `ADV_ICONS`), shown beside its name in the list, the library and the
   hall's panel (the `{adv:<id>}` text token). One badge for all, its ring telling the tier
   (iron: tier 1, gold: tier 2), so a new advancement needs a sign in `ADV_ICONS`
   (advancement_bot checks every one has its icon).

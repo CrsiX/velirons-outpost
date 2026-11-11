@@ -2019,12 +2019,12 @@ const ITEMS := {
 	"pathfinders_boots": {"slot": "movement", "name": "Pathfinder's boots", "explore": 1.5,
 		"desc": "She sees a wider area when exploring."},
 }
-## An item's icon (art name; tools/gen_art.py draws one for each).
+## An item's icon (art name; tools/art/icons.py, ITEM_ICONS, draws one for each).
 static func item_icon(id: String) -> String:
 	return "item_" + id
 
 
-## A relic's icon (art/relic_<id>.svg, tools/gen_art.py: a gold-rimmed badge).
+## A relic's icon (art/relic_<id>.svg, tools/art/icons.py, RELIC_ICONS: a gold-rimmed badge).
 static func relic_icon(id: String) -> String:
 	return "relic_" + id
 
@@ -3108,7 +3108,7 @@ static func plain_text(text: String) -> String:
 	return s
 
 
-## An advancement's icon (art name; tools/gen_art.py draws one for each).
+## An advancement's icon (art name; tools/art/icons.py, ADV_ICONS, draws one for each).
 static func advancement_icon(id: String) -> String:
 	return "adv_" + id
 

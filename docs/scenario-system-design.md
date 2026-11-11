@@ -20,7 +20,7 @@ Part of the scenario design; index in scenarios-design.md. The code is the sourc
 
 ## Cutscenes
 
-- In-engine, not video: the game runs on behind black bars, the HUD hidden and map input off; the camera moves between spots and people speak in a box with a portrait. The mission narrator (no portrait, italic) says what to do, never the story. Portraits are generated art (`tools/gen_art.py`).
+- In-engine, not video: the game runs on behind black bars, the HUD hidden and map input off; the camera moves between spots and people speak in a box with a portrait. The mission narrator (no portrait, italic) says what to do, never the story. Portraits are generated art (`tools/art/portraits.py`).
 - A cutscene is a list of steps. **Skip must be safe:** a skipped cutscene never runs the steps after the skip, so a scene cannot rely on a last step to clean up. Figures made for a cutscene vanish when it ends, played or skipped; one the scenario keeps is made explicitly.
 - **A choice is a line with buttons.** Skip before a choice jumps to it (only the `do` steps on the way run), so the player always makes it, and at the choice Skip and Esc do nothing.
 

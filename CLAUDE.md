@@ -64,7 +64,7 @@ scripts/
   net/        Net autoload (ENet session, lobby), lan_discovery, replicator
   editor/     the map editor
   game.gd     composition root: villages, command entry, entity ids, speed, selection, raids, defeat; `clock`
-tools/        gen_art.py, balancing bot (balance_bot.*, balance/), map tools, title-map baker, ui_shots, export/stamp scripts, explore_trace
+tools/        gen_art.py (art entry point), art/ (the art generator, by kind), balancing bot (balance_bot.*, balance/), map tools, title-map baker, ui_shots, export/stamp scripts, explore_trace
 data/maps/    built-in map files; data/title_maps/ baked backdrop maps
 tests/        the bots, run_all.sh, lint.sh, run_net_test.sh
 docs/         design docs and the glossary

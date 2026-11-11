@@ -281,7 +281,7 @@ the kind of thing one wants to sell on.
   there.
 - **Icons:** every item has one (`Config.item_icon`: a dark badge ringed in its slot's colour)
   and every relic too (`Config.relic_icon`: the same badge with a gold rim and studs, so a relic
-  reads as one), drawn by `tools/gen_art.py`. A text shows one with `{item:<id>}` /
+  reads as one), drawn by `tools/art/icons.py` (`ITEM_ICONS`, `RELIC_ICONS`). A text shows one with `{item:<id>}` /
   `{relic:<id>}` (`Hud.icon_bbcode`; `Relics.token` picks the right one): the market's offers and
   the floating text of what came home.
 - **Tests:** `items_bot` (defaults leave the hero unchanged, each effect, swap rules, carriers

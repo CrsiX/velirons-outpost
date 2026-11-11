@@ -11,7 +11,7 @@ extends Tower
 ## takes a unit too.
 
 ## Its door (grid, from its tile): the middle of its two front tiles, the long
-## face the porch and the big door are drawn on (tools/gen_art.py, town_hall).
+## face the porch and the big door are drawn on (tools/art/buildings.py, town_hall).
 ## The resting hero goes in and comes out there.
 const DOOR := Vector2(0.5, 1.0)
 

@@ -10,7 +10,7 @@ extends Barracks
 ## its id and its bench).
 
 ## Where the sitter is drawn, from the bench tile's centre (grid): on the bench
-## along the side wall in the hall's level-3 art (tools/gen_art.py, HALL_BENCH,
+## along the side wall in the hall's level-3 art (tools/art/buildings.py, HALL_BENCH,
 ## which counts from the 2x2's middle: half a tile less each way).
 const BENCH_SPOT := Vector2(0.36, -0.2)
 

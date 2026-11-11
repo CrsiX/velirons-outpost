@@ -71,7 +71,7 @@ village should look like a Highlands village.
   (`PIECE_MATERIAL_SCALED`, `Config.material_cost`), so it stays internally consistent
   instead of needing its own tables.
 - Each material has its own art for every level and its ruin; the name is the stone name
-  with a prefix (`Config.piece_art`). Look descriptions live in `tools/gen_art.py`.
+  with a prefix (`Config.piece_art`). Look descriptions live in `tools/art/village/` (a module per material).
 - Huts have a material for their look only; the factor never touches them. The generator
   gives a village's huts its material, the editor can paint each. A scenario's special
   homes (`Hut.look`) keep their own art.

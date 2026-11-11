@@ -28,7 +28,7 @@ const PLANNED := 11
 ## The campaign map's layout (docs/ui-design.md): its size, the places on it
 ## (each scenario names one, Scenario.place; scenarios on the same map share
 ## one), the road crossings and the roads, in the picture's units. The same
-## file draws the picture (tools/gen_art.py, art "campaign_map").
+## file draws the picture (tools/art/campaign_map.py, art "campaign_map").
 const MAP_FILE := "res://data/campaign_map.json"
 static var _layout := {}
 
@@ -142,7 +142,7 @@ static func route(from: String, to: String) -> PackedVector2Array:
 	return out
 
 
-## Corner-cutting smoothing, the ends kept (tools/gen_art.py's chaikin does the same).
+## Corner-cutting smoothing, the ends kept (tools/art/campaign_map.py, chaikin, does the same).
 static func smooth(pts: PackedVector2Array, times := 3) -> PackedVector2Array:
 	for _i in times:
 		var out := PackedVector2Array([pts[0]])

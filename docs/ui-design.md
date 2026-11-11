@@ -45,7 +45,7 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   and any screen without a list of cards. The geography is in docs/story-design.md §4a.
   - *One layout file serves picture and route* (`data/campaign_map.json`, `Campaign.layout()` /
     `places()` / `route()`), so the drawn roads and the route Brenna walks always match. The
-    picture (`campaign_map`) is made by `gen_art.py` from it.
+    picture (`campaign_map`) is made by `tools/art/campaign_map.py` from it.
   - *The picture has no writing.* Region names are labels laid over it (`Campaign.REGIONS`), so they
     stay sharp at any zoom and can be translated.
   - *The view* always covers the screen, so no edge ever shows. Choosing a place glides the map to

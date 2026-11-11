@@ -694,7 +694,7 @@ edge of the defences. It joins the waves after the slimes (`WAVE_MIX`).
   - a coiled base image, head raised: at rest, striking, and in the library;
   - a slither cycle (`"slither"` frames, `unit_snake_slither_<n>`): one tapered body drawn along an S-curve whose wave
     runs back along the body while the head moves almost straight on; each frame shifts the
-    curve's phase by a sixth. All frames come from the same parameters in `tools/gen_art.py`,
+    curve's phase by a sixth. All frames come from the same parameters in `tools/art/enemies.py`,
     so they match exactly;
   - frames advance by the distance moved (one every `slither_step` tiles, `Enemy._slither`),
     not by time, so it never slides on the spot when slowed or rooted and every speed looks
