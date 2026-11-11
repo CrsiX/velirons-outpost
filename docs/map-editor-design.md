@@ -240,7 +240,8 @@ Errors (block Play and the lobby), the things the game can't run without:
   treasure exists; nothing on a crater's neighbours;
 - village count within the size's slots.
 - every village has exactly one **town hall** (docs/village-design.md §3a). A
-  map without one is **refused for play** with a clear message. The editor
+  map without one is **refused for play** with a clear message (a campaign
+  scenario's map is checked against its own switch instead, §3c). The editor
   still saves it, as it saves any half-finished map, and its checks list the
   missing hall. The hall is a core part of every village, placed by the
   generator or by hand here, never added by the game when a file loads. The
@@ -248,8 +249,7 @@ Errors (block Play and the lobby), the things the game can't run without:
   a second one for the same village is refused, erase the first) and moves
   it with its village; the player in a game never can. Ownerless villages
   have it as a ruin (§8.2). Map format 6 added it (§6). The built-in maps in
-  `data/maps` are still to be reworked by hand for it: until then they are
-  refused for play.
+  `data/maps` are scenario maps, drawn by hand, with or without a hall.
 
 Warnings (never block), the things that may be deliberate:
 - a village with fewer than the generator's minimum of approaches (a single

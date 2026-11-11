@@ -151,14 +151,18 @@ are left out of the list, not shown locked.
   out until it is agreed.
 
 Wall levels 4 and 5 are never part of an exclusive pair: no repair choice may block them.
+Their art is each material's level-3 picture with the new level's marks in its own colours
+(`tools/art/village/levels.py`, `fort_marks`): a reinforced, iron-studded footing at level 4, gilded crests
+at level 5. Without the advancements walls and towers stop at `PIECE_BASE_MAX_LEVEL`; the
+town hall keeps its own levels and its tower post its own range.
 
 Dropped: **shared exploration for all players** (tier 2): shared vision covers it; a pair
 "walls level 4/5 *or* cheaper repairs".
 
 ## 7. Scope and other modes
 
-- **Campaign:** off unless a scenario switches it on (`Scenario.advancements`). Never in the
-  title backdrop.
+- **Campaign:** off unless a scenario switches it on (`Scenario.advancements`) and has a town hall
+  (`Scenario.town_hall`, docs/village-design.md §3c). Never in the title backdrop.
 - **Save:** researched advancements, the research in progress, exclusive locks and the manual
   targeting setting of every tower (`SaveGame.FORMAT` 7). The deed counters are the statistics',
   which the save holds already.

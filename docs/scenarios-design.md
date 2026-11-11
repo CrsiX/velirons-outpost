@@ -55,8 +55,8 @@ open. The story it tells is in `story-design.md` (read that first: names, places
 - **Nothing carries over between scenarios**, so a scenario plays the same however the one before it went. What the story passes on, a
   scenario hands over in its own setup as if it came from the one before: the First King's Hand and the sword rescued in scenario 9
   are items scenarios 10 and 11 start with *(designed, not built)*.
-- The nine map files in `data/maps` need the 7×7 village and a town hall (docs/village-design.md §3.1); the user reworks them by hand,
-  they are never regenerated. Until then they are refused for play.
+- **Scenario maps are drawn by hand**, never regenerated: the 7×7 village or the old 5×5 one. A scenario has a town hall only if it
+  switches it on (`Scenario.town_hall`) and its map has one; some early scenarios and scenario 5 have none (docs/village-design.md §3c).
 - **Monsters arrive by category** (`story-design.md`), so the campaign also introduces the library's categories one after another: Wilderness
   (1, 2), with sea monsters (crabs in 4, octopus and leviathan in 9), Renegades (3, 4), Arcane (the siren in 4, witches and gargoyles in 5), the
   Dread Legion (first patrol in 5), Undead (6, with the first necromancers, an Evil kind) and Evil (vampires from 8). The Dread Legion is

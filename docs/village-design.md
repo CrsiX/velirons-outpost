@@ -16,11 +16,12 @@ docs/world-design.md. Co-op transfers are in docs/multiplayer-design.md.
   material builds, gold buys soldiers (and material, at a poor rate, so gold never becomes
   a way around the foresters).
 - **The village:** a walled 7×7 block of huts round a path cross, with a town hall, the village's
-  heart (§3.1, §3a). One villager per intact hut, so the huts cap the population, and burning a hut
+  heart (§3.1, §3a). Some campaign scenarios have none (§3c). One villager per intact hut, so the huts cap the population, and burning a hut
   is a real loss.
 - **Villagers** work on their own. The player decides *where* buildings go, not who does what
   minute to minute. Farmers and foresters take free workplaces by themselves.
-- **Defeat:** a village falls with no villagers, or when its town hall's last stand runs out (§3b).
+- **Defeat:** a village falls with no villagers, or when its town hall's last stand runs out (§3b);
+  without a hall, only with no villagers (§3c).
 
 ## 2. Resources
 
@@ -138,7 +139,7 @@ farms and defended farms.
   - The villager list has **Rebuild all huts (n)**: it queues as many ruined huts as the
     material pays for, nearest the centre first, and says how many are left over.
 - **Defeat:** a village falls when it has no villagers or its town hall has fallen
-  (`Village.is_standing`, §3b). Burning every hut no longer ends it: the town hall took over the
+  (`Village.is_standing`, §3b; a village without a hall, §3c, only by the first). Burning every hut no longer ends it: the town hall took over the
   job of "the village still exists". In single player a fall ends the game. In co-op a fallen
   village can stand again and the game is lost when all have fallen (docs/multiplayer-design.md).
 
@@ -179,7 +180,8 @@ T wall tower, W wall, G gate, P path, H hut, X town hall, blank a free tile.
 
 ## 3a. The town hall
 
-Every village has exactly one (`TownHall`, a village piece like the walls), placed by the map
+Every village has exactly one (`TownHall`, a village piece like the walls), except in a campaign
+scenario that leaves it out (§3c). It is placed by the map
 generator or the map editor (docs/world-design.md, docs/map-editor-design.md). The player can't
 build, tear down or move it: it is the village, not something in it. Numbers are in
 `Config.TOWN_HALL`, `BUILDING_HP` and `PIECE_PRICES`. It gathers the jobs that had no building:
@@ -271,7 +273,30 @@ which the village can still save itself.
    its hall is at full HP and it has a villager: the next villager recruited doesn't start another
    timer, which could otherwise loop for ever.
 
-**Standing** is then: at least one villager, and a town hall that hasn't fallen.
+**Standing** is then: at least one villager, and a town hall that hasn't fallen (with no hall,
+just the villager: §3c).
+
+## 3c. Villages without a town hall (campaign only)
+
+**Why:** some early scenarios tell of an outpost that hasn't grown a hall yet (scenario 5's fort
+has none either), and their maps are drawn by hand, some in the old 5×5 layout. Forcing a hall
+into them would change the story and the maps; the hall's jobs are all ones those scenarios
+leave out anyway.
+
+- **Only a scenario** may have a village without one, and it says so: `Scenario.town_hall`
+  (on unless the scenario switches it off). Free play, co-op and maps from files still need
+  exactly one per village (docs/map-editor-design.md).
+- **The switch and the map must agree.** At start-up the runner checks both ways: switched off
+  with a hall on the map, or on without exactly one, is a programmer's mistake and the scenario
+  won't start (the same error path as an unreadable map). The rest of the map checks only go to
+  the event log at Debug level (docs/scenario-system-design.md).
+- **Without a hall:** no last stand; the village falls only when its last villager is gone
+  (the scenario's own defeat rules still apply). The hero rests by the village centre at the slow
+  rate and snores there (docs/hero-design.md §4.7). No tower post, no bench.
+- **Research and the armoury** each need the hall switched on **and** their own scenario flag
+  (`Scenario.advancements`, `Scenario.items`): either one off means no research, or no
+  equipment and no armoury swaps. Relics don't depend on it (docs/items-design.md §8).
+- The map alone decides: no hall appears during a scenario.
 
 ## 4. The start
 

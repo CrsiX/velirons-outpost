@@ -261,7 +261,8 @@ the kind of thing one wants to sell on.
 
 ## 8. Scope and other modes
 
-- **Campaign:** off unless a scenario switches it on (§5, `Scenario.items`); off in the
+- **Campaign:** off unless a scenario switches it on (§5, `Scenario.items`) and has a town hall
+  (`Scenario.town_hall`, docs/village-design.md §3c: no hall, no armoury); off in the
   tutorial and the title backdrop (`Game.items_enabled`). Relics don't need items: a map's
   relic treasure or a lair still gives one where items are off. No scenario names a relic.
 - **Co-op:** items and relics are sold between players at an asking price

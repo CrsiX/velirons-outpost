@@ -192,7 +192,8 @@ she can do and what is most valuable first:
   A new or loaded game starts her inside at once. Her own village's
   hall only: in Support mode or with a scenario's `home_override` she rests where she stands.
 - **Snoring:** a rising "z" (every third bigger) shows she is resting, from the hall's roof while
-  she is inside, a cheap readable cue (co-op clients show it too).
+  she is inside, else over her where she rests (by the centre when the hall is devastated or a
+  scenario has none, docs/village-design.md §3c), a cheap readable cue (co-op clients show it too).
 
 ### 4.8 Support (co-op only)
 
