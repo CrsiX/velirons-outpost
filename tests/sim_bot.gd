@@ -182,8 +182,8 @@ func buttons_in(n: Node) -> Array[Button]:
 func hud_buttons_on_screen(hud: Hud) -> String:
 	var vp := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size).grow(0.5)
 	for b in buttons_in(hud._root):
-		if hud._sheet_scroll.is_ancestor_of(b):
-			continue
+		if hud._sheet_scroll.is_ancestor_of(b) or hud._info_scroll.is_ancestor_of(b):
+			continue  # (scroll areas: their buttons may lie scrolled away)
 		if not vp.encloses(b.get_global_rect()):
 			return "%s '%s' at %s" % [b.get_path(), Hud.button_text(b), b.get_global_rect()]
 	return ""

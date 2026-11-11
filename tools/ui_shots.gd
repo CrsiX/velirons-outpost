@@ -1298,7 +1298,7 @@ func _market() -> void:
 	await _frames(8)
 	await shot("market_panel")
 	var pool := ItemDrops.pool(g)
-	for id in pool.slice(0, 3):
+	for id in pool.slice(0, 4):
 		v.armoury.add(id)
 	v.relics.append("harvest")
 	m.sell_item(pool[3], -1)
@@ -1363,6 +1363,26 @@ func _market_coop() -> void:
 	g.select(ms[0])
 	await _frames(10)
 	await shot("market_coop_panel")
+	Hud._info_folded["Equipment and relics on offer"] = true
+	g.deselect()
+	g.select(ms[0])
+	await _frames(8)
+	await shot("market_coop_folded")
+	g.hud._info_scroll.scroll_vertical = 100000
+	await _frames(4)
+	await shot("market_coop_scrolled")
+	Hud._info_folded.clear()
+	Settings.ui_scale = 0.9
+	Layout.refresh()
+	g.deselect()
+	g.select(ms[0])
+	await _frames(10)
+	await shot("market_coop_scale_90")
+	Settings.ui_scale = 1.0
+	Layout.refresh()
+	g.deselect()
+	g.select(ms[0])
+	await _frames(6)
 	g.hud.open_sell_item(ms[0], pool[0])
 	await _frames(6)
 	await shot("market_sell_dialog")

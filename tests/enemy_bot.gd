@@ -1820,7 +1820,7 @@ func _test_ghosts() -> void:
 		check(roam.mode == GhostBehavior.Mode.ROAM and roam.target == null and h2.faded, "its target %s: it fades and roams" % how)
 		var gone := await wait_until(when_gone(h2), float(gc["roam_time"]) + 8.0)
 		await frames(2)
-		check(gone and w._alive == left0 - 1 and game.economy.amount("gold") == gold0 and game.corpses.corpses.size() == corpses0, "it vanishes within %d s of it: no gold, no corpse, and the wave no longer counts it (gone %s, alive %d of %d, gold %+d, corpses %+d)" % [int(gc["roam_time"]), gone, w._alive, left0 - 1, game.economy.amount("gold") - gold0, game.corpses.corpses.size() - corpses0])
+		check(gone and w._alive == left0 - 1 and game.economy.amount("gold") == gold0 and game.corpses.corpses.size() == corpses0, "it vanishes within %d s of it: no gold, no corpse, and the wave no longer counts it (gone %s, alive %d of %d, gold %+d, corpses %+d; gold earned from %s)" % ([int(gc["roam_time"]), gone, w._alive, left0 - 1, game.economy.amount("gold") - gold0, game.corpses.corpses.size() - corpses0] + _gold_sources()))
 	# A miner inside his mine is driven out when the ghost stands by it.
 	await clear_enemies()
 	var mines: Array = game.world.map_objects.filter(func(o: MapObject) -> bool: return o is Mine)
@@ -1989,3 +1989,12 @@ func _test_snake() -> void:
 	await clear_enemies()
 	await clear_corpses()
 
+
+## Gold earned so far by source (the statistics), for a failure's message.
+func _gold_sources() -> Array:
+	var parts: PackedStringArray = []
+	var c: Dictionary = game.stats.villages[0]["c"]
+	for k: String in c:
+		if k.begins_with("earn.gold."):
+			parts.append("%s %d" % [k.trim_prefix("earn.gold."), int(c[k])])
+	return [", ".join(parts)]

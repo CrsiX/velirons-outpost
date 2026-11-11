@@ -207,6 +207,11 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
 - **Info panel:** opens when you tap a building, a stationed unit or a map object, with title,
   lines and action buttons; it refreshes on a short tick. It sits just above the bottom edge (in
   portrait above the sheet) and grows upwards, away from the thumb.
+  - A long panel (the marketplace's) groups its actions in **sections**: a heading over a
+    group of notes and buttons (an action's `"section"`, `"note"` entries for the text in it).
+    A heading folds its section away and back, remembered while the game runs, so a player
+    keeps open what they use. Its notes set the panel's width, a share of the screen's (so a
+    dialog still fits beside it), and its body **scrolls** once it would reach the top bar.
   - Towers and barracks also draw their range on the map.
   - Tapping the selected thing again where nothing else is behind it deselects it (Picking, below).
   - Other villages' buildings can be looked at but not ordered.

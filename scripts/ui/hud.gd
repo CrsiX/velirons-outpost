@@ -13,6 +13,13 @@ extends CanvasLayer
 ##               building, station or drag a unit, or look at a selection.
 
 const SIDEBAR_W := 320.0
+## The widths a note in the info panel wraps at: a share of the screen's
+## width between these (the panel is then at least that wide; never wider
+## than the screen allows).
+const INFO_W := 520.0
+const INFO_MIN_W := 340.0
+## The info panel's scroll bar width (it scrolls when taller than the screen).
+const INFO_BAR_W := 8.0
 ## Game speed button cycles through these; 0 = paused.
 const SPEED_ICONS: Array[String] = ["icon_play", "icon_fast", "icon_fastest", "icon_pause"]
 const TOPBAR_H := 64.0
@@ -269,6 +276,14 @@ var _info_panel: PanelContainer
 var _info_title: Label
 var _info_lines: VBoxContainer
 var _info_actions: HFlowContainer
+## The panel's body (lines, actions, sections); it scrolls when the screen is too short.
+var _info_scroll: ScrollContainer
+var _info_body: VBoxContainer
+## Sectioned actions (an action's "section": a heading over its own group of
+## buttons, with "note" entries as text lines in it), after the plain ones.
+var _info_sections: VBoxContainer
+## Info panel sections the player folded (by heading), kept while the game runs.
+static var _info_folded := {}
 var _info_signature := ""
 
 var _mode_panel: PanelContainer
@@ -2182,19 +2197,30 @@ func _build_info_panel() -> void:
 	var close := _button("X", Vector2(44, 40))
 	close.pressed.connect(func() -> void: game.deselect())
 	head.add_child(close)
+	_info_scroll = ScrollContainer.new()
+	_info_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_info_scroll.get_v_scroll_bar().custom_minimum_size.x = INFO_BAR_W
+	v.add_child(_info_scroll)
+	_info_body = VBoxContainer.new()
+	_info_body.add_theme_constant_override("separation", 6)
+	_info_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_info_scroll.add_child(_info_body)
 	_info_lines = VBoxContainer.new()
-	v.add_child(_info_lines)
+	_info_body.add_child(_info_lines)
 	_info_actions = HFlowContainer.new()
 	_info_actions.add_theme_constant_override("h_separation", 6)
 	_info_actions.add_theme_constant_override("v_separation", 6)
-	v.add_child(_info_actions)
+	_info_body.add_child(_info_actions)
+	_info_sections = VBoxContainer.new()
+	_info_sections.add_theme_constant_override("separation", 6)
+	_info_body.add_child(_info_sections)
 	_info_panel.visible = false
 
 
 func show_info(data: Dictionary) -> void:
 	var sig := str(data["title"]) + "|" + "|".join(data["lines"])
 	for a in data["actions"]:
-		sig += "|%s:%s" % [a["label"], a.get("disabled", false)]
+		sig += "|%s:%s:%s" % [a.get("section", ""), a.get("label", a.get("note", "")), a.get("disabled", false)]
 	if not _info_panel.visible:
 		_auto_collapse()  # a new selection: fold the sheet so the panel has room
 		_auto_closed = false  # ...and leave it folded afterwards
@@ -2208,10 +2234,33 @@ func show_info(data: Dictionary) -> void:
 		c.queue_free()
 	for line in data["lines"]:
 		_info_lines.add_child(_rich_line(line, 16))
-	for c in _info_actions.get_children():
-		_info_actions.remove_child(c)
-		c.queue_free()
+	for box: Container in [_info_actions, _info_sections]:
+		for c in box.get_children():
+			box.remove_child(c)
+			c.queue_free()
+	var flow: Container = _info_actions
+	var section := ""
 	for a in data["actions"]:
+		var sec := str(a.get("section", ""))
+		if sec != section or (flow == _info_actions and sec != ""):
+			section = sec
+			if sec != "":
+				_info_sections.add_child(_section_head(sec))
+			flow = HFlowContainer.new()
+			flow.add_theme_constant_override("h_separation", 6)
+			flow.add_theme_constant_override("v_separation", 6)
+			_info_sections.add_child(flow)
+		if _info_folded.has(sec):
+			continue
+		if a.has("note"):  # (a line of its own, the buttons after it in a new row)
+			var note := _rich_line(str(a["note"]), 16)
+			note.custom_minimum_size.x = minf(clampf(_root.size.x * 0.36, INFO_MIN_W, INFO_W), _root.size.x - 60.0)
+			_info_sections.add_child(note)
+			flow = HFlowContainer.new()
+			flow.add_theme_constant_override("h_separation", 6)
+			flow.add_theme_constant_override("v_separation", 6)
+			_info_sections.add_child(flow)
+			continue
 		var b := _button(a["label"], Vector2(0, 50))
 		b.disabled = a.get("disabled", false)
 		var cb: Callable = a["action"]
@@ -2222,14 +2271,43 @@ func show_info(data: Dictionary) -> void:
 				show_info(game.unit_info(game.selected_unit))
 			elif game.selected:
 				show_info(game.building_info(game.selected)))
-		_info_actions.add_child(b)
+		flow.add_child(b)
 	_place_info_panel.call_deferred()
+
+
+## A section's heading in the info panel: a flat button that folds it away and back.
+func _section_head(sec: String) -> Button:
+	var folded := _info_folded.has(sec)
+	var b := Button.new()
+	b.flat = true
+	b.text = ("+  " if folded else "−  ") + sec
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.add_theme_font_size_override("font_size", 17)
+	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(k, UiTheme.GOLD)
+	b.tooltip_text = "Show" if folded else "Fold away"
+	b.pressed.connect(func() -> void:
+		if _info_folded.has(sec):
+			_info_folded.erase(sec)
+		else:
+			_info_folded[sec] = true
+		_info_signature = ""
+		if game.selected_unit:
+			show_info(game.unit_info(game.selected_unit))
+		elif game.selected:
+			show_info(game.building_info(game.selected)))
+	return b
 
 
 ## Anchor the panel's bottom edge 10px above the screen bottom (portrait: above
 ## the bottom sheet), growing upwards.
 func _place_info_panel() -> void:
 	var bottom := -10.0 - (_sheet_h if _portrait else 0.0)
+	# The body scrolls once the panel would reach the top bar.
+	var body := _info_body.get_combined_minimum_size()
+	var room := _root.size.y - _top_h - 20.0 + bottom - (_info_panel.get_combined_minimum_size().y - _info_scroll.custom_minimum_size.y)
+	var h_room := clampf(body.y, 60.0, maxf(room, 60.0))
+	_info_scroll.custom_minimum_size = Vector2(body.x + (INFO_BAR_W + 6.0 if body.y > h_room else 0.0), h_room)
 	var h := _info_panel.get_combined_minimum_size().y
 	_info_panel.offset_top = bottom - h
 	_info_panel.offset_bottom = bottom
@@ -2685,6 +2763,10 @@ func open_sell_item(market: Market, id: String) -> void:
 func _refresh_sell() -> void:
 	if _sell_panel == null or not is_instance_valid(_sell_market):
 		return
+	if not _portrait and _info_panel.visible:  # (beside the market's panel, never over it)
+		var left := maxf(330.0, _info_panel.position.x + _info_panel.size.x + 10.0)
+		var side := SIDEBAR_W + 20.0 if _side_open else 10.0  # (and clear of the open sidebar)
+		_sell_panel.offset_left = minf(left, _root.size.x - side - _sell_panel.get_combined_minimum_size().x)
 	var guild := _sell_market.guild_price(_sell_item)
 	var name := Relics.name_of(_sell_item) if Relics.is_relic(_sell_item) else str(Config.ITEMS.get(_sell_item, {}).get("name", _sell_item))
 	_sell_title.text = "Sell the %s" % name
