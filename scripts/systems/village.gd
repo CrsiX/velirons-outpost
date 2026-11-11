@@ -97,6 +97,13 @@ func create(p_game: Game, p_id: int, p_name: String, p_color: Color) -> void:
 
 ## Sum of a bonus over the village-wide relics this village has, each kind once
 ## ("food", "revive"...; Relics.bonus).
+## Which of Config.VILLAGE_COLORS it wears (the art of its carts and wagons is
+## drawn once per colour); a colour not in the list falls back to its number.
+func color_slot() -> int:
+	var i := Config.VILLAGE_COLORS.find(color)
+	return i if i >= 0 else id % Config.VILLAGE_COLORS.size()
+
+
 func relic_bonus(key: String) -> float:
 	return Relics.bonus(self, key)
 

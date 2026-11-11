@@ -1,7 +1,8 @@
 # Veliron's Outpost: the balancing bot (design)
 
 Status: **built**. Code: `tools/balance_bot.gd` (runner), `tools/balance/balance_player.gd`
-(the player and its parts, §3), `balance_ledger.gd` and `balance_recorder.gd` (the record),
+(the player and its parts, §3: `balance_economy`, `balance_hero`, `balance_military`,
+`balance_market`, `balance_research`, `balance_items`), `balance_ledger.gd` and `balance_recorder.gd` (the record),
 `tools/balance/{sweep,variant,report}.py`. Tunables: `Config.BALANCE_BOT`, `BALANCE_ECONOMY`,
 `BALANCE_HERO` and `BALANCE_PROFILES` (every key documented there).
 
@@ -46,14 +47,19 @@ What matters for design:
 (`refusals`) to show where the bot got stuck. It is "a decent average player, not an optimal
 one": compare runs with each other, not with a human.
 
-**Three parts** (`BalancePart` subclasses), split by what a policy may change:
+**Its parts** (`BalancePart` subclasses), split by what a policy may change:
 
-- `BalanceEconomy` (repairs, the farm, villagers, farms and camps, gold into material) and
-  `BalanceHero` are **the same for every policy** (`BALANCE_ECONOMY`, `BALANCE_HERO`). A policy
-  is a playing style of the army; if each profile also ran its own economy, a survival difference
-  could come from either, and comparing policies would say nothing about units.
+- `BalanceEconomy` (repairs, the farm, villagers, farms and camps, buying goods),
+  `BalanceMarket` (the marketplace) and `BalanceHero` are **the same for every policy**
+  (`BALANCE_ECONOMY`, `BALANCE_HERO`). If each profile also ran its own economy, a survival
+  difference could come from either, and comparing policies would say nothing about what the
+  policy changes. The one exception is the hero's keys a policy overrides on purpose (`"hero"`).
 - `BalanceMilitary` (defence buildings, units, upgrades, calling waves) **is the policy**
   (a `BALANCE_PROFILES` entry).
+- `BalanceResearch` and `BalanceItems` exist only in the policies that ask for them. A policy
+  can be `"like"` another and add to it, so `research` and `equipment` play the `balanced`
+  military and differ from it in that one thing: comparing them with `balanced` measures what
+  research or equipment is worth.
 
 The parts talk only through the player's public fields (what waits for material, whether a farm
 is missing or unworked), and a round runs them in priority order, so the earlier ones get the
@@ -91,13 +97,42 @@ reasoning:
   is bought (else the cheaper kind would always win while gold is short); unit upgrades leave the
   gold of the unit an empty post waits for.
 
+- **The town hall's posts** are extra: its tower post is manned only once every other tower post
+  is, and its bench only after enemies have been inside the walls (that is what it is for).
+  They don't count as empty posts that hold back new ones. Only a `research` policy upgrades
+  the hall (its levels are the tiers), so in the others it stays at level 1 and has no post.
+- **The marketplace** comes once the economy is steady: every farm and camp the schedule wants
+  stands and is worked, nothing waits for material, and the food has grown for a while. A
+  steady economy first, because a market bought on a shaky one takes material and a villager
+  from what keeps the village alive. A trader is kept only while there is something for him:
+  goods beyond what the village keeps, a sale on its way, or spare gold for the relic he brings.
+  A full village lets someone go to make room for him and lets him go again when he has been
+  idle a while, so the hut goes back to a farmer or a forester when trade has nothing to do:
+  a villager is worth more working than standing in a market. Relics on offer are bought with
+  spare gold.
+- **Buying goods** (material for what can't wait, food when it runs out) goes to the
+  marketplace when it sells the good and is cheaper, else to emergency trading. The prices
+  really paid are recorded per way, because emergency trading must stay dearer than the market
+  or the market is pointless.
+- **Research** (`research` policy): of the advancements it can take now it picks one **at
+  random** and saves up for it, keeping the army's gold; it picks again after each one and after
+  each town hall level. Random, because the bot's survival should show what research is worth
+  on average, not what one opinion about the best order is worth.
+- **Equipment** (`equipment` policy): the first item for a slot still on its default goes on,
+  then she keeps what she wears; no judging one item against another, which would be a balance
+  opinion of its own. Equipment on offer for such a slot is bought. Her policy sends her
+  against monster camps, where the items are.
+- **Every choice is explained:** a pick, a trader hired or let go, a sale, an item put on goes
+  into the game's log and the record's `decisions`, with its reason.
+
 **What it doesn't do** (unless a profile key switches it on): attack camps, send caravans, use
 light stones, tear down, move units between posts beyond the training swap, call waves early,
 replace units already on their posts by other kinds. Each omission is a skill a player might use;
 the bot's survival numbers are therefore a floor for a good player, comparable across variants.
 
 **Profiles** (`BALANCE_PROFILES`, the `policy` of a case) are playing styles: `balanced` (the
-default player), `archers`, `swift`, `melee`, `mages`, `holy`. Some unlock their units by cheat.
+default player), `archers`, `swift`, `melee`, `mages`, `holy`, and `research` and `equipment`
+(the balanced military plus one feature). Some unlock their units by cheat.
 A profile lists only the military: building counts by wave, tower levels, units per post class
 and the specialisation per kind. Several profiles exist because a change that
 helps one style can break another; balance is judged across them.
@@ -120,6 +155,9 @@ One JSON line per run. The schema is whatever `balance_recorder.gd` writes (it c
 - **A timeline** sampled at a fixed interval (economy, army, hero), for charts of growth.
 - **The bot's own actions and refusals**, the gold that went into the army by what it bought,
   and the last important log events (what killed the village).
+- **Its decisions, the prices it paid, research, the marketplace and the hero's items:** what
+  it picked and why, gold per unit by way and good, the advancements taken, lots sold, relics,
+  traders hired and let go, what the hero wore.
 - **The ledger** (`BalanceLedger`, only looks): a row per farm, camp and defence building (when it
   was placed and finished, time working, devastated, without its worker or with empty slots, what
   it brought home, a tower's kills) and what the hero spent her time on. Stats say how the village
@@ -155,7 +193,9 @@ tool. What to read, and its traps:
    **Casters:** what witches and necromancers achieved (towers kept from acting, raises, raised
    dead at the gate, spells lost), from game counters, because their threat isn't in their HP.
    **Buildings** and **the hero** come from the ledger: output and idle time per kind, the
-   hero's time per mode and XP by source.
+   hero's time per mode and XP by source. **Research, trade and items:** gold per unit paid at
+   the market and by emergency trading, the marketplace's use, the advancements taken and how
+   often, the items worn.
 
 ## 6. Testing a balance change without touching the config
 

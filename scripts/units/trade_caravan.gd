@@ -93,7 +93,7 @@ func resume_trip(pos: Vector2) -> void:
 
 ## Its art: the owner's colour, or the guild's neutral cart.
 static func art_for(p_trip: Trip, v: Village) -> String:
-	return "unit_trade_cart" if p_trip == Trip.INCOMING or v == null else "unit_trade_cart_c%d" % (v.id % Config.VILLAGE_COLORS.size())
+	return "unit_trade_cart" if p_trip == Trip.INCOMING or v == null else "unit_trade_cart_c%d" % v.color_slot()
 
 
 func label() -> String:

@@ -168,4 +168,4 @@ Dropped: **shared exploration for all players** (tier 2): shared vision covers i
 - **Library:** an Advancements tab, tier by tier, built from `Config`.
 - **Tests:** `advancement_bot` (conditions, research and cancelling, a devastated hall pausing
   it, exclusive locks, each effect, both targeting modes, the save, shared vision). The balancing
-  bot learns to research later.
+  bot's `research` policy researches at random (docs/balance-bot-design.md §3).

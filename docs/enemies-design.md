@@ -750,7 +750,7 @@ their own (`Enemy.set_identity`). Numbers and the rest: docs/scenarios-4-6-desig
 - Lair guards (`LAIR_THEMES.guards`) work the same way, with the waking wave's HP scale.
 - Wave counts ignore guards (filter `CampBehavior`).
 
-## 12. Open ideas / not built
+## 12. Support flag, trade caravans, open ideas
 
 - **"Support" flag** (`"support": true`): a per-kind flag in `Config.ENEMIES`, hand-kept, for
   the enemies that stand back and make the rest stronger or more dangerous. Manual targeting's
@@ -758,16 +758,18 @@ their own (`Enemy.set_identity`). Numbers and the rest: docs/scenarios-4-6-desig
   "nearest the village centre". The list: witch, necromancer, spider mother, siren, Legion
   banner-bearer, Legion marshal, the Crowned King. Not the legion captain (it buffs nobody), nor
   vampire, octopus, snake, leviathan or wolf: dangerous, but they make nobody else stronger.
-- **Trade caravans** *(designed, not built, docs/market-design.md)*: enemies treat them like
-  civilians, except ghosts (which haunt villagers only) and wolves (which never hunt them). A
-  **thief** that gets one in reach robs it instead of heading for a gate: it takes the whole
+- **Trade caravans** (docs/market-design.md): no enemy hunts one; an enemy hits it only when it
+  is in reach. A **thief** that gets one in reach robs it instead of heading for a gate: it takes the whole
   cargo and runs for the edge, the empty cart going home unharmed; killed on the way, its corpse
   leaves the cargo as salvage, as a thief's stolen gold does today (§10.4). Help caravans stay
   immune (docs/multiplayer-design.md §7.1).
-- **A siege enemy** (later): a kind marked by dealing *more* damage to buildings must avoid the
-  town hall as a target, so it can't end a game in a few blows (docs/siege-design.md §5.6).
+- **Heavy siege enemies** (a `siege` factor above 1, the Legion's heavy kinds): they pick their
+  raid targets like any siege enemy, the town hall included, and their extra damage makes them
+  a real danger to the last stand. That is meant (docs/siege-design.md §5.6).
+
+Open ideas, not built:
 
 - **More invisible enemies:** the ghost (§10.13) is the first. A new one should reveal through
   the same rule (`GhostBehavior._revealed`: light stones and `Combat.in_holy_aura`).
-- **Flying allied units:** none yet. The vampire's comments note that a bat would be theirs to
-  fight.
+- **Flying allied units:** the fire elemental hovers and fights flyers, a vampire's bat among
+  them (docs/aquatic-design.md §15). More are an open idea.

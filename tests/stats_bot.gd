@@ -263,7 +263,7 @@ func _single() -> void:
 	hud._stats_overlay_button.pressed.emit()
 	await frames(2)
 	check(scr.visible and scr.get_index() > hud._overlay.get_index(), "it opens the statistics over the game-over screen")
-	check(hud._food_rate_label.text.begins_with("(") and hud._food_rate_label.text.ends_with("/min)") and str(int(game.economy.amount("food"))) == hud._food_label.text, "the food rate is a label of its own next to the amount")
+	check(hud._food_rate_label.text.begins_with("(") and hud._food_rate_label.text.ends_with("/min)") and str(int(game.economy.amount("food"))) == hud._food_button.text, "the food rate is a label of its own next to the amount")
 	scr.close()
 	game.queue_free()
 	await frames(3)

@@ -9,14 +9,23 @@ extends Node
 ##  - BalanceHero: what the hero does: the same for every policy
 ##    (Config.BALANCE_HERO);
 ##  - BalanceMilitary: defence buildings, units, upgrades, calling waves: what
-##    a policy is (a Config.BALANCE_PROFILES entry).
+##    a policy is (a Config.BALANCE_PROFILES entry);
+##  - BalanceMarket: the marketplace, its trader, selling surpluses, relics:
+##    the same for every policy (Config.BALANCE_ECONOMY);
+##  - BalanceResearch and BalanceItems: only in the policies that ask for them
+##    ("research", "equipment").
 ## BalanceLedger watches what gets built and how well it does. The parts talk
-## through the public fields below.
+## through the public fields below. Every choice a part makes that a reader
+## would want explained (an advancement picked, a trader hired, an item put on)
+## goes through `decide`: the run's record and the game's log keep it.
 ##
 ## Order of a round: cheats, the economy's first part (walls, the farm, huts,
 ## other repairs), the hero, the economy's second part (villagers, farms and
-## camps), the military, trading, calling the wave. Earlier steps get the
-## resources first.
+## camps), the marketplace, research, equipment, the military, buying goods,
+## calling the wave. Earlier steps get the resources first: the material a
+## marketplace or a town hall level waits for holds the military's new
+## buildings and upgrades back (want_materials, claim_gold), and an
+## advancement or item saved up for holds its unit upgrades (save_gold).
 
 var game: Game
 var village: Village
@@ -25,6 +34,9 @@ var profile: Dictionary = {}
 var economy: BalanceEconomy
 var hero: BalanceHero
 var military: BalanceMilitary
+var market: BalanceMarket
+var research: BalanceResearch  # (null: the policy doesn't research)
+var items: BalanceItems  # (null: the policy doesn't equip the hero)
 var ledger: BalanceLedger
 ## Commands sent: type -> {"ok": n, "fail": n}; refusals by reason.
 var commands_sent: Dictionary = {}
@@ -35,10 +47,26 @@ var refusals: Dictionary = {}
 var army_gold: Dictionary = {}
 ## Waves called early.
 var early_calls := 0
+## The choices explained (`decide`): [{"t", "wave", "part", "text"}].
+var decisions: Array[Dictionary] = []
+## Goods bought with gold, by way ("emergency", "market") -> good ->
+## {"n": purchases, "amount": goods, "gold": gold}: the prices really paid.
+var purchases: Dictionary = {}
+## The marketplace let someone go to make room for a trader: the economy
+## leaves the free hut alone until he is hired.
+var hut_for_trader := false
+## An enemy has been inside the walls in this game (the town hall's bench is manned from then on).
+var breached_once := false
 
 ## --- what the parts tell each other (reset every round) ---
 ## Material the building held back by lack of it wants (0: nothing).
 var want_materials := 0
+## Gold the marketplace (or a town hall level) waits for: the military's
+## recruits and unit upgrades leave it alone (BalancePart._claim).
+var claim_gold := 0
+## Gold an advancement or an item the policy saves up for needs: unit upgrades
+## leave it alone (recruits don't: the army's posts come first).
+var save_gold := 0
 ## Something that can't wait (a repair, a hut, the farm) lacks material: the
 ## economy trades gold for it (critical_lack is how much).
 var want_critical := false
@@ -67,10 +95,15 @@ func setup(p_game: Game, p_profile: String) -> void:
 	game = p_game
 	village = game.player_village
 	profile_name = p_profile
-	profile = Config.BALANCE_PROFILES[p_profile]
+	profile = Config.balance_profile(p_profile)
 	economy = BalanceEconomy.new(self)
 	hero = BalanceHero.new(self)
 	military = BalanceMilitary.new(self)
+	market = BalanceMarket.new(self)
+	if profile.has("research"):
+		research = BalanceResearch.new(self)
+	if profile.has("equipment"):
+		items = BalanceItems.new(self)
 	ledger = BalanceLedger.new(game)
 	_timer = 0.5  # (the first decisions right away)
 
@@ -87,12 +120,20 @@ func _process(delta: float) -> void:
 
 func _think() -> void:
 	want_materials = 0
+	claim_gold = 0
+	save_gold = 0
 	want_critical = false
 	critical_lack = 0
 	_cheats()
+	breached_once = breached_once or game.siege.breached(village.id)
 	economy.first()
 	hero.think()
 	economy.second()
+	market.think()
+	if research:
+		research.think()
+	if items:
+		items.think()
 	military.think()
 	economy.trade()
 	military.call_wave()
@@ -109,7 +150,18 @@ func send(type: String, args: Dictionary = {}) -> Dictionary:
 		var u: MilitaryUnit = game.entity(int(args["unit"]))
 		what = ("level %s" % u.kind) if args["to"] == u.kind else ("branch %s -> %s" % [u.kind, args["to"]])
 	var gold0 := village.economy.amount("gold")
+	var good := str(args.get("good", ""))
+	var had := village.economy.amount(good) if good != "" else 0.0
 	var r := game.command(type, args)
+	if r["ok"] and (type == "emergency_buy" or type == "market_buy"):
+		var way := "emergency" if type == "emergency_buy" else "market"
+		var by: Dictionary = purchases.get(way, {})
+		var row: Dictionary = by.get(good, {"n": 0, "amount": 0, "gold": 0})
+		row["n"] += 1
+		row["amount"] += int(round(village.economy.amount(good) - had))
+		row["gold"] += int(round(gold0 - village.economy.amount("gold")))
+		by[good] = row
+		purchases[way] = by
 	if what != "" and r["ok"]:
 		var row: Dictionary = army_gold.get(what, {"n": 0, "gold": 0})
 		row["n"] += 1
@@ -122,6 +174,12 @@ func send(type: String, args: Dictionary = {}) -> Dictionary:
 		var key := "%s: %s" % [type, r["error"]]
 		refusals[key] = int(refusals.get(key, 0)) + 1
 	return r
+
+
+## Notes a choice of `part` and why: in the run's record and the game's log.
+func decide(part: String, text: String) -> void:
+	decisions.append({"t": snappedf(game.clock, 0.1), "wave": game.waves.wave, "part": part, "text": text})
+	village.events.debug("balance bot (%s): %s" % [part, text])
 
 
 ## Debug commands run at the start (what a test of one unit line needs).

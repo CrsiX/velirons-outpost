@@ -1,6 +1,6 @@
 class_name Caravan
 extends Unit
-## A horse-drawn cart taking resources from one village to another (co-op help).
+## A horse-drawn covered wagon in the sender's colour, taking resources from one village to another (co-op help).
 ## The sender pays when it leaves; the receiver gets the cargo minus the help
 ## tax (Config.help_tax) when it arrives at their village centre. Enemies
 ## ignore caravans, nothing stops them, and they can't be recalled.
@@ -24,7 +24,7 @@ func setup(p_game: Game, p_from: Village, p_to: Village, p_cargo: Dictionary, p_
 	tax = p_tax
 	uid = game.next_id("caravan")
 	speed = Config.CARAVAN_SPEED
-	_init_sprite("unit_caravan")
+	_init_sprite("unit_caravan_c%d" % from.color_slot())  # (a covered wagon in the sender's colour)
 	set_grid_pos(Vector2(from.center))
 	add_to_group("observers")
 	var p := game.world.pathing.find_path(from.center, to.center)

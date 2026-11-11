@@ -1,6 +1,6 @@
 # Veliron's Outpost: building HP and sieges (design)
 
-Status: **built; describes the current code** (one future enemy noted in §5.6). Tested by tests/siege_bot.gd.
+Status: **built; describes the current code**. Tested by tests/siege_bot.gd.
 Scope: why buildings have HP, devastation, repairs, gate and wall levels, and how enemies
 break into a village. Every number lives in `scripts/core/config.gd` (`BUILDING_HP`,
 `PIECE_PRICES`, `PIECE_LEVELS`, `REPAIR_SHARE`, `REPAIR_TIME_SHARE`, `SIEGE`, each enemy's
@@ -252,9 +252,9 @@ scenario tactics later.
   (docs/village-design.md §3b): the repair has to bring it back to full HP before the
   countdown ends. An ownerless village's hall is a ruin with no last stand
   (docs/map-editor-design.md §8.2).
-- **A future siege enemy** (a kind marked by dealing *more* damage to buildings) must avoid
-  the town hall as a target, so it can't wreck it in a few blows and turn the last stand into
-  an instant loss.
+- **Heavy siege enemies** (a `siege` factor above 1, the Legion's heavy kinds) pick the town
+  hall like any other raid target and deal their extra damage to it. They are meant as a real
+  danger to the last stand: kill them before they reach the hall.
 
 ## 6. The hero
 

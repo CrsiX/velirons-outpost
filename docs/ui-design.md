@@ -110,14 +110,39 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   (nothing in the editor and in any build made without `tools/export.sh` or CI); the numbers come
   from a stamp file written while a build is exported.
 
+## 2a. The start screen (`loading_screen.gd`, autoload `Loading`)
+
+Free play's *Play*, a loaded save and a co-op start go **black at once**, before the level scene
+even loads, and the game **fades in** over `Config.LOADING` "fade" once its first frame is drawn.
+Why: a level takes a moment to make, and a black screen that fades into the map reads as a
+deliberate start instead of a frozen menu. Scenarios, the tutorial and the map editor's Play have
+their own starts and don't use it. The black catches clicks and keys, so nothing reaches the game
+under it.
+
+- **The bar** shows only when a map is generated (not for a map from a file or a save, which have
+  nothing to make). The generator pauses for a frame after each stage (`generate_async`), which is
+  what lets the bar move on the web build, which has no threads. Try *n* (from 1) fills the bar to
+  *n* / (*n* + 1), each stage by its weight (`Config.MAP_STAGE_WEIGHTS`). A map that passes jumps
+  it to full; a failed one starts the next try from where the bar is, so it only ever goes
+  forward. It stays full while the level is built.
+- **Giving up:** after `MAP_TRIES` failed tries the start stops and goes back to the title (free
+  play) with a toast naming the seed, or for co-op everyone goes back to the lobby with that line
+  and presses Ready again. The title shows the toast for `LOADING` "notice_time".
+- **Co-op:** the host's start makes every client black too, and sends them its bar. Built, the host
+  waits **paused** until every connected client has built the level too, at most `LOADING`
+  "wait_clients" real seconds, with *Waiting for clients...* under the bar on every screen that
+  waits. Then one "go" makes everyone fade in together. A client that is later still gets "go"
+  as soon as it is ready.
+
 ## 3. The top bar
 
 - **Contents.** The left group holds the resources and the hero; the right group the wave controls
   and the buttons for map, library, statistics and settings. See `Hud` for the exact list.
   - Food shows its rate next to the amount and turns red while the village starves: the rate is the
     number the player manages, the colour says it is too late.
-  - The material counter is a button that opens the trade dialog, since "I need material" is
-    when the player looks at it.
+  - The food and material counters are buttons that open emergency trading for their good, since
+    "I need food / material" is when the player looks at them. One panel, showing the good whose
+    counter was tapped; tapping that counter again closes it.
   - The hero's button carries her health bar along its bottom edge (`HERO_HP_BAR`), so she can be
     watched without opening her panel.
   - The wave text and call button say what the wave is doing ("Fighting...", "Not yet" while the
@@ -126,7 +151,7 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   things first: spacing, then the wave text (the call button and enemy count still say enough),
   then the food rate. It refits whenever its content grows, not only on a resize.
 - **Portrait:** two rows: the wave controls on top, the resources and hero below.
-- **The top-left panels** (hero panel, villager list, trade dialog) share a corner. Opening one
+- **The top-left panels** (hero panel, villager list, emergency trading) share a corner. Opening one
   closes the others, so they never stack over each other.
 
 ## 4. The dock: sidebar and bottom sheet
@@ -233,7 +258,8 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
 - **Villager list** (the people button): every villager by role with what they are doing (and their
   HP when hurt), *View* (moves the camera to them) and *Retire* (after a confirmation; frees the hut;
   the last villager can't retire). With ruined huts it offers *Rebuild all huts*.
-- **Trade dialog** (the material button): buy building material with gold.
+- **Emergency trading** (the food or material button): buy that good with gold, in the
+  bundles `EMERGENCY_TRADE` sets, dearer than a marketplace (docs/village-design.md §2).
 - **Toasts:** short coloured messages under the top bar for refusals and notices. They never catch
   taps, so they can't block play.
 - **Picking** (`World.pick_all`, `Game._tap_select`, `Config.PICK`): what is under a tap, front to

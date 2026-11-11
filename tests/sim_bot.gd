@@ -612,11 +612,19 @@ func _run() -> void:
 
 	# --- trade + farm -------------------------------------------------------------
 	var gold := game.economy.amount("gold")
+	var mrate: Dictionary = Config.EMERGENCY_TRADE["materials"]
+	var frate: Dictionary = Config.EMERGENCY_TRADE["food"]
 	await tap(center(hud._materials_button))
-	check(hud._trade_panel.visible, "tapping materials opens the trade dialog")
+	check(hud._trade_panel.visible and hud._trade_good == "materials", "tapping materials opens emergency trading for material")
 	await tap(center(hud._trade_buttons[0]))
-	check(game.economy.amount("gold") == gold - 15 and game.economy.amount("materials") == mats - 30 + 10, "bought 10 materials for 15 gold")
-	hud._trade_panel.visible = false
+	check(game.economy.amount("gold") == gold - int(mrate["gold"]) and game.economy.amount("materials") == mats - 30 + int(mrate["amount"]), "bought %d materials for %d gold" % [mrate["amount"], mrate["gold"]])
+	var food_had := game.economy.amount("food")
+	await tap(center(hud._food_button))
+	check(hud._trade_panel.visible and hud._trade_good == "food", "tapping food switches it to food")
+	await tap(center(hud._trade_buttons[0]))
+	check(game.economy.amount("gold") == gold - int(mrate["gold"]) - int(frate["gold"]) and game.economy.amount("food") >= food_had + int(frate["amount"]) - 1.0, "bought %d food for %d gold" % [frate["amount"], frate["gold"]])
+	await tap(center(hud._food_button))
+	check(not hud._trade_panel.visible, "tapping food again closes it")
 	# The starting farm took the plot next to the walls: clear the trees off the
 	# nearest other 3x3 patch of grass / forest (as foresters would).
 	game.fog.reveal(Vector2(game.player_village.center), 12.0)
@@ -846,8 +854,8 @@ func _run() -> void:
 	check(not speed_other["ok"] and speed_other["error"] == "The host sets the speed" and is_equal_approx(Engine.time_scale, 6.0), "only the host sets the game speed")
 	other.queue_free()
 	var mat_c0 := game.economy.amount("materials")
-	var rb := game.command("buy_materials", {"bundles": 1})
-	check(rb["ok"] and game.economy.amount("materials") == mat_c0 + Config.MATERIALS_TRADE["materials"], "a valid command is applied")
+	var rb := game.command("emergency_buy", {"good": "materials", "bundles": 1})
+	check(rb["ok"] and game.economy.amount("materials") == mat_c0 + int(Config.EMERGENCY_TRADE["materials"]["amount"]), "a valid command is applied")
 	var plain := cmd_log.all(func(c: Array) -> bool: return bytes_to_var(var_to_bytes(c[1])) == c[1] and not c[1].values().any(func(x) -> bool: return x is Object))
 	check(not cmd_log.is_empty() and plain, "command arguments are plain data that survive serialisation (%d commands so far)" % cmd_log.size())
 
@@ -1568,7 +1576,7 @@ func _run() -> void:
 	for c in cmd_log:
 		if c[2]:
 			seen_cmds[c[0]] = true
-	var want_cmds := ["place_building", "buy_materials", "recruit_unit", "station_unit", "move_unit", "swap_units", "withdraw_unit", "call_wave", "set_speed", "hero_mode"]
+	var want_cmds := ["place_building", "emergency_buy", "recruit_unit", "station_unit", "move_unit", "swap_units", "withdraw_unit", "call_wave", "set_speed", "hero_mode"]
 	check(want_cmds.all(func(t: String) -> bool: return seen_cmds.has(t)), "taps and drags in the UI were applied as commands (missing: %s)" % str(want_cmds.filter(func(t: String) -> bool: return not seen_cmds.has(t))))
 	check(pvil.update_fallen() == false and pvil.is_standing(), "the village still stands before the defeat test")
 
@@ -1591,7 +1599,7 @@ func _run() -> void:
 		EventLog.Level.DEBUG: ["recruit archer", "recruit farmer", "assign forester", "unassign forester", "place watchtower", "starts work on", "send archer", "takes up its post on",
 			"withdraw archer", "is back in the reserve", "level-up archer", "drag archer", "move archer", "select ", "killed goblin", "killed skeleton", "appears at", "left behind",
 			"collected corpse", "corpses home", "cut down tree", "building material at", "food home", "summoned elemental", "crumbles", "casts a spell at", "bewitched by",
-			"fights elemental", "the hero attacks", "hero mode: ", "flees home", "heads for the fog", "buy 10 building material", "game speed", "open settings", "log level", "rotted away", "order upgrade of", "broke into the village"],
+			"fights elemental", "the hero attacks", "hero mode: ", "flees home", "heads for the fog", "emergency trading: 10 building material", "game speed", "open settings", "log level", "rotted away", "order upgrade of", "broke into the village"],
 		EventLog.Level.INFO: ["Wave 1 begins", "Wave 1 is over", "watchtower 1 finished", "upgraded to level 2", "The hero returns", "fully trained to level 2", "rebuilt", " cancelled: "],
 		EventLog.Level.IMPORTANT: ["destroyed by goblin", "destroyed by orc", "died when", "died of starvation", "The hero was struck down"],
 	}

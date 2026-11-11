@@ -26,6 +26,7 @@ Sfx="*res://scripts/core/sfx.gd"
 Settings="*res://scripts/core/settings.gd"
 Layout="*res://scripts/core/screen_layout.gd"
 Net="*res://scripts/net/net.gd"
+Loading="*res://scripts/ui/loading_screen.gd"
 
 [display]
 

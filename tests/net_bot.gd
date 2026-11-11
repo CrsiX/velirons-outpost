@@ -114,6 +114,7 @@ func _host() -> void:
 	check(loaded, "the client loaded the level")
 	if not loaded:
 		return
+	check(await wait_until(func() -> bool: return not Loading.active and not get_tree().paused, 30.0), "everyone has the level: the host's start screen fades in, the game runs")
 	var game := Net.game
 	var v0 := game.villages[0]
 	var v1 := game.villages[1]
@@ -396,11 +397,17 @@ func _client() -> void:
 	check(told and Net.players[me]["name"] == CLIENT_NAME, "the host's village name can't be taken")
 	var lobby_map := await wait_until(func() -> bool: return Net.map_type == MAP_TYPE and Net.map_seed == MAP_SEED, 20.0)
 	check(lobby_map, "the host's map settings show in our lobby (%s, %d)" % [Net.map_type, Net.map_seed])
+	var bar := [0.0]
+	var watch := func() -> void: bar[0] = maxf(bar[0], Loading.value() if Loading.active else 0.0)
+	get_tree().process_frame.connect(watch)
 	Net.set_ready(true)
 	var started := await wait_until(func() -> bool: return Net.game != null and Net.game.is_client)
 	check(started, "the host starts: we get the map and the level")
 	if not started:
 		return
+	check(await wait_until(func() -> bool: return Net.go_received and not Loading.active, 30.0), "the host says go: our start screen fades in too")
+	get_tree().process_frame.disconnect(watch)
+	check(bar[0] >= 0.5, "our bar showed the host's generator (up to %.2f)" % bar[0])
 	var game := Net.game
 	var mine := game.player_village
 	# (the village's pieces and the starting camp; the starting farm only where it fits)

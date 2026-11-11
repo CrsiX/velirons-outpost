@@ -120,8 +120,9 @@ crushed.
    Repairs rather than regeneration, so a seed's character survives.
 10. **Special objects** (§9), including mine spurs and lair roads.
 11. **Checks** (§5.3): on a failed hard check the map is made again from
-    another seed (`MAP_TRIES` at most, best try kept); a missed soft goal is
-    retried once. With many narrow slices slice fairness is often missed;
+    another seed (`MAP_TRIES` at most, best try kept; a start screen's game
+    gives up instead when every try failed, docs/ui-design.md §2a); a missed
+    soft goal is retried once. With many narrow slices slice fairness is often missed;
     land round villages is always repaired.
 
 ## 8. Map types

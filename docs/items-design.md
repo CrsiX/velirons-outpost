@@ -126,7 +126,7 @@ rarity would push every game towards the same few rare "best" items.
 
 ## 6. Equipment list
 
-Marked *(proposed)*: suggested in the design session; all of them are built. Every share,
+All of them are built. Every share,
 chance and duration is a `Config.ITEMS` value. How the open points were settled:
 
 - **Buckler, magical shield:** "a share of hits" is a chance per hit to block it whole.
@@ -159,8 +159,8 @@ chance and duration is a `Config.ITEMS` value. How the open points were settled:
 | Mace | also hits the enemy behind the target for a share of the damage |
 | Lance | longer reach, and she can hit flyers, as the halberdier can |
 | Great axe | hits every enemy in a full circle around her, less damage per target; she still picks where to stand, but never one target. (A circle, not an arc: she has no facing direction in the simulation.) No reach from the shore: see below. |
-| Blessed blade *(proposed)* | holy damage |
-| Throwing axes *(proposed)* | a short ranged attack |
+| Blessed blade | holy damage |
+| Throwing axes | a short ranged attack |
 
 ### Armour
 
@@ -171,7 +171,7 @@ chance and duration is a `Config.ITEMS` value. How the open points were settled:
 | Bearskin | faster, deals more damage, takes more damage |
 | Buckler | blocks a share of melee and projectile hits |
 | Magical shield | negates a share of magical hits |
-| Thorn mail *(proposed)* | reflects a share of melee damage |
+| Thorn mail | reflects a share of melee damage |
 
 ### Accessory
 
@@ -181,10 +181,10 @@ chance and duration is a `Config.ITEMS` value. How the open points were settled:
 | Net | thrown on its own on a cooldown: pins an enemy in place and stops it attacking for a few seconds. Never on water-only enemies or bosses. (The first idea, dragging the enemy along behind her, was dropped: it needs new path-following for enemies.) |
 | Rose necklace | resists poison |
 | Ring of might | more damage (a share) |
-| Lantern *(proposed)* | reveals ghosts near her |
-| Gatherer's satchel *(proposed)* | carries more when gathering |
-| Builder's gloves *(proposed)* | builds faster |
-| Scholar's tome *(proposed)* | more XP |
+| Lantern | reveals ghosts near her |
+| Gatherer's satchel | carries more when gathering |
+| Builder's gloves | builds faster |
+| Scholar's tome | more XP |
 
 ### Movement
 
@@ -194,7 +194,7 @@ chance and duration is a `Config.ITEMS` value. How the open points were settled:
 | Swift boots | faster walking |
 | Feather boots | free movement: she crosses forest, deep water and walls (no gate needed), and swamp and shallow water don't slow her. In return her attacks are slower and flyers deal her a multiple of their damage. An octopus can still grab her and pull her into deep water, but deep water doesn't kill her while she wears them. Needs a path grid of her own. |
 | Heavy steel boots | slower; nothing moves or holds her: immune to the siren's song (pull and slow), the octopus grapple, roots (a wrathwood's roots grow on her and fall off at once), the net and any future pin (`Unit.forced`). Terrain (swamp, shallow water) still slows her. |
-| Pathfinder's boots *(proposed)* | explores a wider area |
+| Pathfinder's boots | explores a wider area |
 
 Dropped: **the horse** (mounted hero). It would have needed the enemy-only mounted rules
 (`Config.MOUNTED`) on the player's side and a mount that dies for good.
@@ -223,7 +223,7 @@ kind of item, and an effect on the hero's own body is what equipment is for.
 |---|---|
 | Hawk-eye relic | towers (and the town hall's post) reach farther |
 | Phoenix feather | downed units come back sooner |
-| Hearth stone | the hero heals faster resting in the hall |
+| Hearth stone | the hero heals faster resting at home (the centre and the hall) |
 | Harvest idol | farms yield more food |
 | Woodcutter's axe | foresters chop faster (not carry more) |
 | Mason's seal | cheaper repairs (adds to the Cheaper repairs advancement) |
@@ -287,4 +287,4 @@ the kind of thing one wants to sell on.
 - **Tests:** `items_bot` (defaults leave the hero unchanged, each effect, swap rules, carriers
   and their sacks, gathering home, a full armoury, the market's offer, every relic's effect,
   duplicates and map-wide relics counting once, relics in the armoury, the relic offer, the
-  save). The balancing bot learns to equip items later.
+  save). The balancing bot's `equipment` policy equips the hero (docs/balance-bot-design.md §3).

@@ -41,7 +41,7 @@ from art.terrain import (
 )
 from art.trees import tree_dead, tree_oak, tree_pine, tree_spruce
 from art.units import (
-    acolytes, archer, archmage, builder, caravan, crossbowman, druid, earth_elemental,
+    acolytes, archer, archmage, builder, caravans, crossbowman, druid, earth_elemental,
     eldest_priest_person, explorer, farmer, fire_elemental, fire_summoner, forester, gatherer,
     guild_master, herald, hero, legion_archer, legion_banner, legion_captain, legion_champion,
     legion_footman, legion_guard, legion_king, legion_marshal, mages, merchant, priest_person,
@@ -135,7 +135,7 @@ def main():
     warning_light()
     corpse_goblin()
     hero()
-    caravan()
+    caravans()
     shield_bearer()
     shield_bearer_branches()
     crossbowman()

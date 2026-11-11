@@ -201,11 +201,11 @@ the library marks them as such.
 | Category | Members now | Planned or open | Why they came |
 |---|---|---|---|
 | **Wilderness** | goblin, orc, rat, slime | spider mother with her eggs and spiderlings (built: `enemies-design.md` §10.9); vultures, carrion animals (built: §10.11); **sea monsters**: giant crab (4), giant octopus and leviathan (9), which swim rivers, lakes and the sea (built: `aquatic-design.md`) | Always lived around the kingdom. The Wardline held them back. |
-| **Renegades** (*Abtrünnige*) | thief | bandit, deserter, assassin | **Fully human**, ordinary criminals who saw the chance when the order collapsed: bad people, but not evil. |
-| **Undead** | skeleton | ghost, wraith, zombie | The war's dead, unburied. |
+| **Renegades** (*Abtrünnige*) | thief | deserter, assassin (no bandits: `scenarios-design.md` §4) | **Fully human**, ordinary criminals who saw the chance when the order collapsed: bad people, but not evil. |
+| **Undead** | skeleton, ghost | wraith, zombie | The war's dead, unburied. |
 | **Evil** | vampire, necromancer | demon | Intelligent and malicious, drawn by the death. |
-| **Dread Legion** | footman, captain, archer, guardsman, banner-bearer, the court champion (campaign only: `scenarios-4-6-design.md`, `scenarios-7-9-design.md`) | the marshal (a mid-boss) | Rhodri's own army: human soldiers under the corruption's influence, like brainwashing. See below. |
-| **Arcane** (*open*) | witch, gargoyle | siren, wisp, golem | Magic-made or magic-using. Goes with neither Wilderness nor Evil. |
+| **Dread Legion** | footman, captain, archer, guardsman, banner-bearer, cavalry, the marshal (a mid-boss), the court champion, the Crowned King (all campaign only: `scenarios-4-6-design.md` to `scenarios-10-11-design.md`) | none | Rhodri's own army: human soldiers under the corruption's influence, like brainwashing. See below. |
+| **Arcane** (*open*) | witch, gargoyle, siren | wisp, golem | Magic-made or magic-using. Goes with neither Wilderness nor Evil. |
 
 Library and log text should use the category name ("a Renegade", "the Undead"), not a person's backstory.
 
@@ -235,7 +235,7 @@ orders.
 
 ## 6. Trade: the merchant guilds
 
-A market that trades with the outside (planned) is how the story shows that the world beyond Veliron still exists.
+A market that trades with the outside (built: `market-design.md`) is how the story shows that the world beyond Veliron still exists.
 
 - **The guild split.** The merchant guild tried to stay neutral in the war, but it was hit hard and broke apart. It split into several guilds that
   are now somewhat hostile to each other. The pieces that picked a side made alliances (with Fiona's court, with Rhodri's army, with each other). Only a smaller version of
@@ -246,8 +246,8 @@ A market that trades with the outside (planned) is how the story shows that the 
   relics and salvage are worth coin, and the merchant is the hero's friend.
 - **Enemies on the road:** Renegades raid caravans and steal gold on the same roads. The rival guilds are a second threat (whether they hire
   Renegades is *open*).
-- **Mechanics it could reuse:** the existing "buy material with gold" button is the first trade. The co-op caravan (a horse-drawn cart) can be the
-  traders' arrival.
+- **How the game shows it:** the marketplace's trader and its trade caravans, which thieves can rob (`market-design.md`). Co-op help caravans
+  are a separate thing and can't be attacked.
 - **Growth** (at home; away it is Pell's wagon, and the guild town of scenario 4 has the full market):
 
 | Stage | What it is | Story reason |

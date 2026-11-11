@@ -274,6 +274,8 @@ jobs:
           - {name: random-melee, map: random, seed: random, difficulty: normal, policy: melee}
           - {name: random-mages, map: random, seed: random, difficulty: easy, policy: mages}
           - {name: random-holy, map: random, seed: random, difficulty: normal, policy: holy}
+          - {name: fixed-research, map: temperate, seed: "3", difficulty: normal, policy: research}
+          - {name: random-equipment, map: random, seed: random, difficulty: easy, policy: equipment}
     steps:
       - uses: actions/checkout@v7
         with:

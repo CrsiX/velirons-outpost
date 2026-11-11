@@ -20,6 +20,7 @@ static func run(m: MapData) -> Array[Dictionary]:
 	var walk := _walkable(m, pieces, objects)
 	for i in m.villages.size():
 		_village(out, m, i, objects, walk)
+	_overlaps(out, m)
 	for t in m.edge_spawns:
 		if not m.is_edge(t) or not m.is_road(t):
 			_add(out, "error", "Spawn [%d, %d] isn't a road tile on the map's edge" % [t.x, t.y], t)
@@ -68,6 +69,10 @@ static func _village(out: Array[Dictionary], m: MapData, i: int, objects: Dictio
 		_add(out, "error", "%s: its centre is outside the map" % name, NO_TILE)
 		return
 	var own := m.village_pieces(i)
+	for p in own:
+		if not MapData.piece_footprint(p).all(func(t: Vector2i) -> bool: return m.in_bounds(t)):
+			_add(out, "error", "%s: a %s lies outside the map" % [name, str(p["kind"]).replace("_", " ")], center)
+			break
 	if not own.any(func(p: Dictionary) -> bool: return p["kind"] == "gate"):
 		_add(out, "error", "%s has no gate" % name, center)
 	if not own.any(func(p: Dictionary) -> bool: return p["kind"] == "hut"):
@@ -96,6 +101,24 @@ static func _village(out: Array[Dictionary], m: MapData, i: int, objects: Dictio
 		_add(out, "warning", "%s has fewer than 2 approaches" % name, center)
 	if not standard_layout(m, i):
 		_add(out, "warning", "%s doesn't have the standard layout" % name, center)
+
+
+## Two villages whose pieces' bounding boxes share a tile (one built into the
+## other's walls, or on top of it): an error for each such pair.
+static func _overlaps(out: Array[Dictionary], m: MapData) -> void:
+	var boxes: Array[Rect2i] = []
+	for i in m.villages.size():
+		var box := Rect2i()
+		var first := true
+		for p in m.village_pieces(i):
+			for t in MapData.piece_footprint(p):
+				box = Rect2i(t, Vector2i.ONE) if first else box.merge(Rect2i(t, Vector2i.ONE))
+				first = false
+		boxes.append(box)
+	for i in boxes.size():
+		for j in range(i + 1, boxes.size()):
+			if boxes[i].has_area() and boxes[j].has_area() and boxes[i].intersects(boxes[j]):
+				_add(out, "error", "Village %d and village %d overlap" % [i + 1, j + 1], m.villages[j]["center"])
 
 
 ## Whether village `i`'s pieces are exactly Config.VILLAGE_LAYOUT around its centre.

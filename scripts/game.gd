@@ -218,7 +218,17 @@ func _ready() -> void:
 	_use_custom_map()
 	if backdrop:
 		hud.visible = false
+	# Generated over frames under the start screen: nothing runs on the half-made level meanwhile.
+	var held := start_bar()
+	var mode := process_mode
+	if held:
+		process_mode = Node.PROCESS_MODE_DISABLED
 	await world.setup(self, s)
+	if held and world.map != null:
+		process_mode = mode  # (a start given up stays still until it is gone)
+	if world.map == null:
+		give_up_start(s)
+		return
 	if not restoring.is_empty():
 		SaveGame.restore_world(self, restoring)
 	# What world.setup explored for this village (co-op client: not village 0)
@@ -289,6 +299,63 @@ func _ready() -> void:
 	if backdrop:
 		await build_step(true)  # (the last first draws, before it shows)
 		backdrop.start(self)
+	elif Loading.active:
+		await _fade_in()
+
+
+# --- the start screen (docs/ui-design.md §2a) ------------------------------------------
+
+## Tests: called instead of going back to the title when a start gives up.
+static var give_up_for_test := Callable()
+
+
+## Whether this game's map is generated under the start screen's bar.
+func start_bar() -> bool:
+	return backdrop == null and not is_client and Loading.active and Loading.value() >= 0.0
+
+
+## The generator's progress (0..1): the bar, and a co-op host's clients' bars.
+func start_progress(f: float) -> void:
+	Loading.progress(f)
+	if networked and not is_client:
+		Net.send_progress(f)
+
+
+## Every try of the map failed its checks: back to the title (free play) or
+## the lobby (co-op, everyone ready again), saying so.
+func give_up_start(seed_value: int) -> void:
+	var text := "Couldn't make a map from seed %d. Try another seed." % seed_value
+	game_over = true
+	Engine.time_scale = 1.0
+	get_tree().paused = false
+	Loading.notice = text
+	if networked:
+		Net.back_to_lobby(text)
+	elif give_up_for_test.is_valid():
+		give_up_for_test.call()
+	else:
+		get_tree().change_scene_to_file(Net.TITLE_SCENE)
+
+
+## The level is built: fade into it once its first frame is drawn. A co-op
+## host first waits, paused, until every client has built it too (at most
+## Config.LOADING "wait_clients" real seconds), then all start together.
+func _fade_in() -> void:
+	await get_tree().process_frame  # (the level's first frame has been drawn)
+	await get_tree().process_frame
+	if networked and not is_client:
+		var was := get_tree().paused
+		get_tree().paused = true
+		var until := Time.get_ticks_msec() + int(float(Config.LOADING["wait_clients"]) * 1000.0)
+		Loading.set_waiting(not Net.clients_loaded())
+		while not Net.clients_loaded() and Time.get_ticks_msec() < until:
+			await get_tree().process_frame
+		Net.send_go()
+		get_tree().paused = was
+	elif is_client and not Net.go_received:
+		Loading.set_waiting(true)
+		await Net.go
+	Loading.finish()
 
 
 ## A map from a file (docs/map-editor-design.md §8): single player plays

@@ -629,7 +629,7 @@ func _test_branching() -> void:
 	game.economy.add("gold", 1, "kills")
 	await frames(2)
 	check(poor and ice_btn != null and not ice_btn.disabled and hud._upgrade_panel.visible, "too little gold: the option is greyed out; gold earned while the dialog is open turns it on")
-	var five: int = Config.MATERIALS_TRADE["gold"] * 5
+	var five: int = int(Config.EMERGENCY_TRADE["materials"]["gold"]) * 5
 	game.economy.spend({"gold": game.economy.amount("gold") - (five - 1)})
 	await frames(2)
 	var trade_off := not hud._trade_buttons[0].disabled and hud._trade_buttons[1].disabled

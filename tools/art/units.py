@@ -147,7 +147,7 @@ def trader():
 def trade_cart(name, cloth):
     """A trade caravan (docs/market-design.md §5): an open four-wheeled cart
     piled with crates and sacks, a pennant in its owner's colour (`cloth`),
-    pulled by a mule (faces right). Not the covered help wagon."""
+    pulled by a mule (faces right). Not the covered help wagon (`caravan`)."""
     a = Art()
     a.ellipse(0, 1, 28, 7, "#000", opacity=0.35)
     a.poly([(-26, -11), (4, -11), (6, -19), (-24, -19)], WOOD_L, INK, 1.3)  # open bed
@@ -551,19 +551,23 @@ def thornling():
     a.save("unit_thornling")
 
 
-def caravan():
-    """Two-wheeled cart with sacks and planks, pulled by a brown horse (faces right)."""
+def caravan(name, cover):
+    """A co-op help caravan (docs/multiplayer-design.md §7.1): a two-wheeled cart under an
+    arched canvas cover in the sender's colour (`cover`), pulled by a brown horse (faces
+    right). Covered, so it can't be mistaken for an open trade cart, which can be attacked."""
     a = Art()
     a.ellipse(0, 1, 26, 7, "#000", opacity=0.35)
     wood, wood_d = WOOD, WOOD_D
-    # cart bed and load
+    # cart bed
     a.poly([(-24, -12), (2, -12), (4, -20), (-22, -20)], wood, INK, 1.3)
     a.poly([(-24, -12), (2, -12), (2, -9), (-24, -9)], wood_d, INK, 1.1)
-    a.ellipse(-16, -24, 6, 5, "#c9a86a", INK, 1.1)  # sacks
-    a.ellipse(-8, -25, 6, 5.5, "#b8955a", INK, 1.1)
-    a.ellipse(-12, -30, 5, 4.2, "#d4b478", INK, 1.0)
-    a.poly([(-3, -21), (3, -21), (1, -31), (-5, -31)], "#8a6a44", INK, 1.0)  # planks
-    a.line([(-2, -21), (-4, -31)], "#6a5034", 0.8)
+    # the cover: an arch over the bed, its lower hem shaded, hoops showing through
+    arch = [(-23 + 26 * t, -20 - 17 * math.sin(math.pi * t)) for t in (i / 12 for i in range(13))]
+    a.poly(arch, cover, INK, 1.3)
+    a.poly([(-22, -20), (2, -20), (1.2, -23), (-21.2, -23)], shade(cover, 0.78), None, 0)
+    for x in (-17, -10, -3):
+        h = 17 * math.sin(math.pi * (x + 23) / 26)
+        a.line([(x, -20), (x, -20 - h)], shade(cover, 0.68), 1.1)
     a.ellipse(-12, -6, 6.5, 6.5, wood_d, INK, 1.4)  # wheel
     a.ellipse(-12, -6, 2, 2, "#3a2a1a")
     for d in ((-4.5, 0), (4.5, 0), (0, -4.5), (0, 4.5)):
@@ -581,7 +585,14 @@ def caravan():
     a.ellipse(36, -28, 0.9, 0.9, "#111")
     a.line([(11, -17), (6, -10)], "#2a1a10", 2)  # tail
     a.poly([(16, -21), (26, -21), (26, -17), (16, -17)], CRIMSON, INK, 0.8, opacity=0.9)  # harness blanket
-    a.save("unit_caravan")
+    a.save(name)
+
+
+def caravans():
+    """The neutral help wagon (scenes, icons) and one in each village's colour."""
+    caravan("unit_caravan", "#d8ccae")
+    for i, col in enumerate(village_colors()):
+        caravan("unit_caravan_c%d" % i, col)
 
 
 def shield_bearer():

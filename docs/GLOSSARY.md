@@ -17,6 +17,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Tear down**: a builder dismantles a building outside the walls for a partial refund.
 - **Gatherer / forester / farmer / builder / explorer / miner / trader**: civilian roles. **Merchant** (Pell), **guild master, resident**: named campaign villagers who can't be recruited; Pell keeps the campaign's trade stall.
 - **Marketplace**: the trading building (`Market`), one per village by a road; buying works from the guild's **buying stock**, selling from the village's **for-sale pile** needs a trader. Pell's stall is a separate campaign building for now. `market-design.md`
+- **Emergency trading**: buying food or building material with gold from the top bar's counters, no marketplace needed; always dearer than a marketplace. `village-design.md`
 - **Trader**: the villager who works a marketplace and sells the goods, items and relics put up for sale. `market-design.md`
 - **Asking price**: what a seller in co-op asks for an item or relic; the first other player to accept pays it, and at or below the guild's price the guild buys it after a short wait. `market-design.md`
 - **Town hall**: every village's one building in its back quarter, placed by the map; the hero's home, research, the armoury (items and relics); level 2 adds a tower post, level 3 a barracks bench. `village-design.md`
@@ -53,7 +54,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Item**: a single thing a village has, sells or trades: equipment or a relic, never both. `items-design.md`
 - **Relic**: an item whose static effect works just by the village having it, never worn: village-wide (for that village) or map-wide (for everyone while any standing village has one); a second copy adds nothing; relics take room in the armoury. `Relics`, `items-design.md` §7
 - **Rumour** (tactical map): a "?" over a place the village hasn't found yet, shown by the Cartographer's chart; also the log line about an unlock site not found yet. `items-design.md` §7
-- **Deed**: something done in the current game (kills by one unit kind, map explored, a volcano found) that an advancement may need. `advancements-design.md`
+- **Deed**: something done in the current game (kills by one unit kind, goods sold at the marketplace) that an advancement may need. `advancements-design.md`
 - **Advancement**: a lasting upgrade researched at the town hall during one game; one village's unless it says it is for all players. Some are exclusive choices that can't be undone. `advancements-design.md`
 - **Lair**: wakes late and adds a spawn point; the hero can clear it.
 - **Spawn / water spawn**: where enemies enter at the map edge or from deep water.

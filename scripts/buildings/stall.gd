@@ -1,6 +1,6 @@
 class_name Stall
 extends Farm
-## The merchant's trade stall (2x2; docs/scenarios-design.md §7.4), only in the
+## The merchant's trade stall (2x2; docs/scenarios-1-3-design.md, scenario 2), only in the
 ## campaign's scenarios. Its level is its stage (Config.STALL_LEVELS: peddler,
 ## stall, guild market). While the merchant tends it, its stock of goods
 ## (`stored`, as a farm's food) refills, and gold buys lots of building

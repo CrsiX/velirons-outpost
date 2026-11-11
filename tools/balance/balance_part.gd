@@ -86,6 +86,22 @@ func _note_missing(cost: Dictionary, essential := true, critical := false) -> vo
 			p.critical_lack = maxi(p.critical_lack, lack)
 
 
+## The economy's next building (the marketplace, a town hall level) waits for
+## `cost`: its material holds the military's buildings and upgrades back
+## (want_materials), its gold the military's recruits and unit upgrades
+## (claim_gold), so it isn't spent away every round before it is complete.
+func _claim(cost: Dictionary) -> void:
+	p.want_materials = maxi(p.want_materials, maxi(0, int(cost.get("materials", 0)) - int(_materials())))
+	p.claim_gold = maxi(p.claim_gold, int(cost.get("gold", 0)))
+
+
+## Whether `cost` is affordable with the claimed gold left alone.
+func _can_afford_after_claims(cost: Dictionary) -> bool:
+	if p.claim_gold > 0 and _gold() - float(p.claim_gold) < float(cost.get("gold", 0)):
+		return false
+	return _can_afford(cost)
+
+
 # --- training (the hero's XP into a unit's levels) ---------------------------------------
 
 ## The levels (at most BALANCE_HERO "train_levels") the hero can still train `u`

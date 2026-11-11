@@ -78,10 +78,11 @@ func consume_food(value: float) -> bool:
 	return _amounts["food"] <= 0.0
 
 
-## Static exchange: gold -> building material, `bundles` at a time.
-func buy_materials(bundles: int) -> bool:
-	var cost := {"gold": Config.MATERIALS_TRADE["gold"] * bundles}
-	if not spend(cost, "trade"):
+## Emergency trading: gold -> `good` (food or materials), `bundles` of
+## Config.EMERGENCY_TRADE[good] at a time.
+func emergency_buy(good: String, bundles: int) -> bool:
+	var rate: Dictionary = Config.EMERGENCY_TRADE[good]
+	if not spend({"gold": int(rate["gold"]) * bundles}, "trade"):
 		return false
-	add("materials", Config.MATERIALS_TRADE["materials"] * bundles, "trade")
+	add(good, int(rate["amount"]) * bundles, "trade")
 	return true

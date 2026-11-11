@@ -70,6 +70,12 @@ func setup(p_game: Game, seed_value: int) -> void:
 		map = game.preset_map
 	elif game.is_client and Net.map:
 		map = Net.map
+	elif game.start_bar():
+		# The start screen's bar follows the generator (docs/ui-design.md §2a);
+		# no map after every try: the start gives up (Game.give_up_start).
+		map = await MapGenerator.generate_async(seed_value, game.villages.size(), game.map_type, game.start_progress)
+		if map == null:
+			return
 	else:
 		map = MapGenerator.generate(seed_value, game.villages.size(), game.map_type)
 	await game.build_step()

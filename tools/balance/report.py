@@ -356,6 +356,45 @@ def army_gold(runs):
     return sorted(((k, (v[0] / n, v[1] / n)) for k, v in tot.items()), key=lambda kv: -kv[1][1])
 
 
+def research_trade_items(runs):
+    """[what, value] rows: the prices really paid per unit (emergency trading
+    against the marketplace: emergency must be dearer), the marketplace, the
+    research and the hero's items (records with schema 2+ only)."""
+    rs = [r for r in runs if "purchases" in r]
+    if not rs:
+        return []
+    n = len(rs)
+    rows = []
+    for way in ("market", "emergency"):
+        for good in ("food", "materials"):
+            got = [r["purchases"].get(way, {}).get(good) for r in rs]
+            got = [g for g in got if g]
+            amount = sum(g["amount"] for g in got)
+            if amount:
+                rows.append([f"{way} {good}: gold per unit (purchases / run)", f"{f(sum(g['gold'] for g in got) / amount, 2)} ({f(sum(g['n'] for g in got) / n, 1)})"])
+    mk = [r.get("market", {}) for r in rs]
+    rows.append(["marketplace built (% of runs)", f(100.0 * sum(1 for m in mk if m.get("built")) / n, 0)])
+    for key, label in (("lots_sold", "lots sold / run"), ("trader_hires", "traders hired / run"), ("trader_retires", "traders let go / run")):
+        rows.append([label, f(sum(m.get(key, 0) for m in mk) / n, 1)])
+    rows.append(["relics bought / run", f(sum(len(m.get("relics", [])) for m in mk) / n, 1)])
+    rows.append(["town hall level at the end (mean)", f(mean([r.get("research", {}).get("hall_level", 0) for r in rs]), 1)])
+    done = defaultdict(int)
+    for r in rs:
+        for a in r.get("research", {}).get("done", []):
+            done[a] += 1
+    rows.append(["advancements researched / run", f(sum(done.values()) / n, 1)])
+    for a, k in sorted(done.items(), key=lambda kv: -kv[1])[:8]:
+        rows.append([f"  {a} (% of runs)", f(100.0 * k / n, 0)])
+    worn = defaultdict(int)
+    for r in rs:
+        for slot in r.get("items", {}).get("worn", {}):
+            worn[slot] += 1
+    for slot, k in sorted(worn.items()):
+        rows.append([f"hero wears an item in the {slot} slot (% of runs)", f(100.0 * k / n, 0)])
+    rows.append(["items bought / run", f(sum(len(r.get("items", {}).get("bought", [])) for r in rs) / n, 1)])
+    return rows
+
+
 # --- charts (SVG, written with CSS variables for light and dark) ----------------------------------------
 
 def esc(s):
@@ -630,6 +669,12 @@ def main():
         md.append("\n## 5g. Who burned the huts (per run)\n")
         md.append(md_table(["kind", "huts / run", "share %"], bu))
         sections.append(("5g. Who burned the huts", [], [table(["kind", "huts / run", "share %"], bu)]))
+    ri = research_trade_items(runs)
+    if ri:
+        md.append("\n## 5h. Research, trade and items\n")
+        md.append(md_table(["what", "value"], ri))
+        md.append("\n*Emergency trading must cost more per unit than the marketplace, or the marketplace is pointless.*\n")
+        sections.append(("5h. Research, trade and items", [], [table(["what", "value"], ri)]))
     cs = casters(runs)
     md.append("\n## 5d. Witches and necromancers (mean per run)\n")
     md.append(md_table(["what", "amount"], cs))

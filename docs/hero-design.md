@@ -137,9 +137,9 @@ she can do and what is most valuable first:
 - Like a gatherer (the shared `GatherJob`) with a smaller load. She only goes for safe corpses on
   explored land and picks up dropped loot first. XP is paid when a corpse is picked up, while the
   gold and food are paid at home as for any gatherer. She runs from enemies like a villager.
-- *(Designed, not built:)* she also carries **salvage** (a robbed or destroyed trade caravan's
-  cargo) back to the marketplace like a gatherer, and earns extra XP for it (proposed
-  `HERO_XP_PER_ACTION` "salvage", docs/market-design.md).
+- She also carries **salvage** (a robbed or destroyed trade caravan's cargo) back to her
+  village's marketplace like a gatherer, and earns extra XP for it (`HERO_XP_PER_ACTION`
+  "salvage", docs/market-design.md). Only Gather does this; exploring leaves salvage alone.
 
 ### 4.5 Attack a camp (an order, not a mode)
 
@@ -232,7 +232,7 @@ mode makes her stronger and Explore, Gather and Build are not a sacrifice. The w
 - **Shrines:** looting a shrine pays a bigger XP lump when she gets home, or instead heals every
   unit and her fully (`TREASURES.shrine`).
 - Training earns nothing. No other unit ever gains XP.
-- *(Designed, not built:)* salvage brought back to the marketplace pays XP (§4.4).
+- Salvage brought back to the marketplace pays XP (§4.4).
 - Debug builds: *+1000 XP* in the Debug dialog (command `_debug` "xp").
 
 ## 7. Levels (`HERO_LEVELS`, `HERO_MAX_LEVEL`)

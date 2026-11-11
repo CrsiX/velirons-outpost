@@ -82,10 +82,69 @@ func _run() -> void:
 	title.queue_free()
 	await frames(2)
 	check(Engine.time_scale == 1.0 and not Sfx.muted, "leaving the title screen: normal speed and sound again")
+	await _start_screen()
 	print("CHECKS %d  FAILURES %d" % [checks, failures.size()])
 	for f in failures:
 		print("  - " + f)
 	get_tree().quit(0 if failures.is_empty() else 1)
+
+
+## The start screen (docs/ui-design.md §2a): free play's game is made under
+## the black, the bar only goes forward and is full before the fade; a seed
+## whose every try fails gives up with a notice, the bar never full.
+func _start_screen() -> void:
+	var was_seed := Settings.map_seed
+	Settings.map_seed = 4242
+	var seen: Array[float] = []
+	var watch := func() -> void:
+		if Loading.active:
+			seen.append(Loading.value())
+	get_tree().process_frame.connect(watch)
+	Loading.begin(true)
+	check(Loading.covering() and Loading.value() == 0.0, "Play: black at once, the bar empty")
+	var g: Game = load(Net.GAME_SCENE).instantiate()
+	add_child(g)
+	check(await wait_until(func() -> bool: return not Loading.active, 300.0), "the game is made, then it fades in")
+	get_tree().process_frame.disconnect(watch)
+	check(_forward(seen) and seen.any(func(f: float) -> bool: return f > 0.0 and f < 1.0), "the bar fills, never backwards (%d steps, %s)" % [seen.size(), _ends(seen)])
+	check(not seen.is_empty() and seen[-1] == 1.0, "and is full before the fade")
+	check(Loading.covering() and g.world.map != null, "fading in over the made map")
+	await wait(float(Config.LOADING["fade"]) + 0.5)
+	check(not Loading.covering(), "then the black is gone")
+	g.queue_free()
+	await frames(2)
+	# Every try fails: no game, the title says why.
+	seen.clear()
+	get_tree().process_frame.connect(watch)
+	MapGenerator.fail_for_test = true
+	var gave_up := [false]
+	Game.give_up_for_test = func() -> void: gave_up[0] = true
+	Loading.begin(true)
+	g = load(Net.GAME_SCENE).instantiate()
+	add_child(g)
+	check(await wait_until(func() -> bool: return gave_up[0], 300.0), "a map that fails every try gives the start up")
+	get_tree().process_frame.disconnect(watch)
+	MapGenerator.fail_for_test = false
+	Game.give_up_for_test = Callable()
+	var last := float(Config.MAP_TRIES) / float(Config.MAP_TRIES + 1)
+	check(_forward(seen) and not seen.is_empty() and seen.max() <= last + 0.001 and seen.max() > last - 0.05, "after %d tries, the bar at most %.2f (%s)" % [Config.MAP_TRIES, last, _ends(seen)])
+	check(Loading.notice.contains("seed 4242"), "with a notice for the title: %s" % Loading.notice)
+	Loading.notice = ""
+	Loading.cancel()
+	g.queue_free()
+	Settings.map_seed = was_seed
+	await frames(2)
+
+
+func _forward(seen: Array[float]) -> bool:
+	for i in range(1, seen.size()):
+		if seen[i] < seen[i - 1]:
+			return false
+	return true
+
+
+func _ends(seen: Array[float]) -> String:
+	return "-" if seen.is_empty() else "%.2f .. %.2f" % [seen[0], seen[-1]]
 
 
 func _input_check() -> void:

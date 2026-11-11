@@ -103,11 +103,11 @@ state, the tile under the pointer).
 ### 4.2 Stage 1: inspect
 
 - **New / Generate:** size, map type (Temperate ... Random), seed (empty:
-  random), village count (up to the size's slots). Runs the full generator
-  (with a progress bar; big maps take seconds). The result has the standard
-  village layout. Its checks' failures and warnings land in the problems list
-  instead of retrying silently, so the author sees what the generator would
-  have hidden.
+  random), village count (up to the size's slots). Runs the full generator,
+  with its retries on other seeds (`Config.MAP_TRIES`), while the status line
+  says "Making the map..." (big maps take seconds). The result has the
+  standard village layout. The map checks (`MapChecks`) then fill the problems
+  list.
 - **Overlays** (Layers panel, each on/off; `EditorOverlay`): zones, slices,
   grid lines, passability, buildable land, a picked village's road steps,
   spawns, villages, objects, camp rings and lair / mine fronts, and the

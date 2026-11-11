@@ -75,6 +75,9 @@ func _test_config() -> void:
 		var buy_each := float(mk["buy"][good]["gold"]) / float(mk["buy"][good]["amount"])
 		var sell_each := float(mk["sell"][good]) / float(mk["lot"])
 		check(sell_each < buy_each, "%s sells for less than it costs to buy (%.2f < %.2f gold each)" % [good, sell_each, buy_each])
+		var et: Dictionary = Config.EMERGENCY_TRADE[good]
+		var emergency_each := float(et["gold"]) / float(et["amount"])
+		check(emergency_each > buy_each, "%s: emergency trading costs more than the marketplace (%.2f > %.2f gold each)" % [good, emergency_each, buy_each])
 	check(Config.CIVILIANS["trader"]["works_at"] == "market" and int(Config.CIVILIANS["trader"]["max"]) == 1, "the trader works at the market, one per village")
 	for art in ["market", "market_2", "market_3", "unit_trader", "unit_trade_cart", "unit_trade_cart_c0", "salvage"]:
 		check(ResourceLoader.exists("res://art/%s.svg" % art), "art: %s" % art)

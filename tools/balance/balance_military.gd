@@ -48,20 +48,38 @@ func _posts() -> Array[MilitaryPost]:
 	return out
 
 
-## Finished posts with a free slot (a bench, a tower nobody mans).
+## Finished posts with a free slot (a bench, a tower nobody mans). The town
+## hall's posts don't count: they are extra, manned only when wanted (_wanted).
 func _free_posts() -> int:
 	var n := 0
 	for post in _posts():
-		if not (post is TrainingGrounds) and post.free_slot() >= 0 and not _held.has(post.nid):
+		if not (post is TrainingGrounds) and not _is_hall(post) and post.free_slot() >= 0 and not _held.has(post.nid):
 			n += 1
 	return n
+
+
+func _is_hall(post: Building) -> bool:
+	return post is TownHall or post is HallBench
+
+
+## Whether `post` is to be manned now. The town hall's tower post only once
+## every other tower post is manned; its bench only once enemies have been
+## inside the walls (that is what it is for).
+func _wanted(post: MilitaryPost) -> bool:
+	if post is HallBench:
+		return p.breached_once
+	if post is TownHall:
+		for o in _posts():
+			if o is Tower and not (o is TownHall) and o.free_slot() >= 0 and not _held.has(o.nid):
+				return false
+	return true
 
 
 # --- defence buildings -----------------------------------------------------------------------
 
 func _defence_buildings() -> void:
-	if p.no_farm or p.repair_wanted or p.economy.economy_first() or p.economy.site_open():
-		return
+	if p.no_farm or p.repair_wanted or p.want_materials > 0 or p.economy.economy_first() or p.economy.site_open():
+		return  # (want_materials: what the economy, the marketplace or the town hall waits for comes first)
 	if _training_due():
 		_place("training")  # (before the towers: they would keep taking the material)
 		return
@@ -206,20 +224,22 @@ func _supports_barracks(t: Tower) -> bool:
 
 func _fill_posts() -> void:
 	for post in _posts():
-		if post.free_slot() < 0 or post is TrainingGrounds or _held.has(post.nid):
+		if post.free_slot() < 0 or post is TrainingGrounds or _held.has(post.nid) or not _wanted(post):
 			continue
 		var cls := _post_class(post)
 		var u := _reserve_unit_for(post)
 		if u == null:
 			var kind := _next_kind(cls)
-			if kind == "" or not _can_afford(Config.MILITARY[kind]["cost"]):
+			if kind == "" or not _can_afford_after_claims(Config.MILITARY[kind]["cost"]):
 				continue
 			var r := _cmd("recruit_unit", {"kind": kind})
 			if not r["ok"]:
 				continue
 			_turn[cls] += 1  # (only once bought: the dearer kind waits for its gold)
 			u = game.entity(int(r["id"]))
-		_cmd("station_unit", {"unit": u.nid, "post": post.nid})
+		if _cmd("station_unit", {"unit": u.nid, "post": post.nid})["ok"] and _is_hall(post):
+			p.decide("military", "%s to the town hall's %s (%s)" % [u.kind, "bench" if post is HallBench else "tower post",
+				"enemies have been inside the walls" if post is HallBench else "every other tower post is manned"])
 
 
 func _post_class(post: MilitaryPost) -> String:
@@ -360,7 +380,7 @@ func _tower_upgrades() -> void:
 	var want_barracks := _scheduled(_profile["barracks_levels"], 1)
 	var order: Array[Building] = []
 	for b in village.buildings():
-		if b is Tower or b is Barracks:
+		if (b is Tower or b is Barracks) and not _is_hall(b):  # (the town hall: BalanceResearch's)
 			order.append(b)
 	if _params["barracks_support"]:
 		# Towers over a barracks' ground first, then the other towers, the
@@ -392,7 +412,7 @@ func _unit_upgrades() -> void:
 		if u.is_available():
 			order.append(u)
 	order.sort_custom(func(a: MilitaryUnit, b: MilitaryUnit) -> bool: return a.level < b.level)
-	var spare := _gold() - float(_params["gold_reserve"]) - float(_next_unit_cost()) - float(_training_reserve())
+	var spare := _gold() - float(_params["gold_reserve"]) - float(_next_unit_cost()) - float(_training_reserve()) - float(maxi(p.claim_gold, p.save_gold))
 	for u in order:
 		var to := _upgrade_choice(u)
 		if to == "<none>":
@@ -443,11 +463,17 @@ func _training_reserve() -> int:
 	return int(Config.BUILDINGS["training"]["cost"].get("gold", 0)) if _training_due() else 0
 
 
+## Gold that other spending leaves alone: the unit an empty post waits for,
+## the training grounds due (research, equipment and relics wait behind it).
+func reserved_gold() -> int:
+	return _next_unit_cost() + _training_reserve()
+
+
 ## Gold of the unit an empty post waits for (0: none waits): upgrades
 ## leave it alone, or the dearer kinds would never be bought.
 func _next_unit_cost() -> int:
 	for post in _posts():
-		if post is TrainingGrounds or post.free_slot() < 0 or _reserve_unit_for(post) != null:
+		if post is TrainingGrounds or post.free_slot() < 0 or not _wanted(post) or _reserve_unit_for(post) != null:
 			continue
 		var kind := _next_kind(_post_class(post))
 		if kind != "":

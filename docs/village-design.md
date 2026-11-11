@@ -36,8 +36,10 @@ Each resource has a clear source and sink (`START_RESOURCES`, `CIVILIANS`, `BUIL
 
 - **Upkeep:** every villager eats (`FOOD_UPKEEP`), the miner and the Spatial Archmage too. The
   army eats as well (§2a); the hero never.
-- **Buying material** (tap the material counter, `MATERIALS_TRADE`): a deliberately poor rate,
-  an emergency valve rather than an economy. Command `buy_materials`.
+- **Emergency trading** (tap the food or the material counter, `EMERGENCY_TRADE`): gold for
+  food or material with no marketplace, at a deliberately poor rate, an emergency valve rather
+  than an economy. It always costs more per unit than buying at a marketplace, or the
+  marketplace would be pointless (market_bot checks it). Command `emergency_buy`.
 - **Calling a wave early** pays gold per second left on the countdown (`EARLY_CALL_GOLD_PER_SECOND`)
   to every village: a reward for confidence, which also shortens the game.
 - **Food flow** next to the food counter: worked farms' average output minus villagers' and

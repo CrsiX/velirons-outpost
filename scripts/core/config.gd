@@ -416,8 +416,28 @@ const BALANCE_BOT := {
 ##                      material per minute, up to max_camps;
 ##   "retire_explorer_wave": from this wave the explorer retires, to free a hut
 ##                      (0 = never);
-##   "buy_materials":  trades gold for building material, only for what
-##                      can't wait: a repair, a ruined hut, the farm.
+##   "buy_materials":  buys building material with gold, only for what
+##                      can't wait: a repair, a ruined hut, the farm; and food
+##                      below "buy_food_below" while the food runs out. At the
+##                      marketplace when it sells and is cheaper, else by
+##                      emergency trading (EMERGENCY_TRADE);
+##   "market":         builds a marketplace once the economy is steady: every
+##                      farm and camp the schedule wants by now stands and is
+##                      worked, nothing waits for material, the food has grown
+##                      for "market_steady" s, and wave "market_from_wave" has
+##                      come (false: never);
+##   "keep_food_s", "keep_materials": what is never sold: this many seconds of
+##                      food upkeep (at least "min_food"), this much material
+##                      (plus what waits for it); the rest is sold in MARKET
+##                      "lot"s while a trader works the market;
+##   "relic_spare":    a relic on offer is bought with gold beyond this much
+##                      (over BALANCE_BOT "gold_reserve" and the next unit);
+##                      spare gold is also a reason to keep a trader (he brings
+##                      the relics);
+##   "trader_swap":    roles a full village lets go (first that has more than
+##                      its "trader_keep") to make room for a trader; a trader
+##                      with nothing to do for "trader_idle" s is let go again,
+##                      and the economy recruits the missing role back.
 ## A second forester and farm in the first waves, a third forester soon after:
 ## the economy is what the late game is built on.
 const BALANCE_ECONOMY := {
@@ -429,6 +449,16 @@ const BALANCE_ECONOMY := {
 	"material_rate": 20.0,
 	"retire_explorer_wave": 6,
 	"buy_materials": true,
+	"buy_food_below": 15.0,
+	"market": true,
+	"market_from_wave": 3,
+	"market_steady": 60.0,
+	"keep_food_s": 120.0,
+	"keep_materials": 150,
+	"relic_spare": 100.0,
+	"trader_swap": ["gatherer", "explorer", "forester", "farmer"],
+	"trader_keep": {"gatherer": 1, "explorer": 0, "forester": 2, "farmer": 2},
+	"trader_idle": 60.0,
 }
 
 ## The hero of the balancing bot's player: the same for every policy
@@ -468,10 +498,28 @@ const BALANCE_HERO := {
 	"train_levels": 2,
 }
 
-## The policies the balancing bot plays (--policy=<name>): only the military
-## differs (the economy and the hero are the same for all, see above). All
-## counts are targets it works towards as resources allow:
+## The policies the balancing bot plays (--policy=<name>): the military
+## differs, and what a policy adds on top of it (research, equipment); the
+## economy and the hero are the same for all (see above), but for the hero
+## keys a policy overrides. All counts are targets it works towards as
+## resources allow:
 ##   "desc":           what the policy is;
+##   "like":           another policy whose keys it takes, overriding some;
+##   "research":       researches advancements (tools/balance/balance_research.gd):
+##                      "hall_levels" [[from wave, level], ...] the town hall
+##                      is upgraded to (once the economy is steady, as for
+##                      the marketplace); it picks one of the advancements it
+##                      can take now at random, waits until the gold covers it
+##                      and "reserve" more (over BALANCE_BOT "gold_reserve" and
+##                      the next unit), and picks again after each one and
+##                      after each town hall level. Without it the town hall
+##                      stays at level 1;
+##   "equipment":      equips the hero (tools/balance/balance_items.gd): the
+##                      first item for a slot still on its default goes on,
+##                      then she keeps what she wears; equipment on offer at
+##                      the marketplace for such a slot is bought with gold
+##                      beyond "reserve";
+##   "hero":           BALANCE_HERO keys this policy plays differently;
 ##   "towers":         [at start, more per wave, at most] watchtowers;
 ##   "tower_levels":   [[from wave, level], ...] the level every tower is
 ##                      upgraded to (wall towers too);
@@ -551,7 +599,28 @@ const BALANCE_PROFILES := {
 		"upgrade_order": "lowest",
 		"call_early": false, "cheats": ["unlock"],
 	},
+	"research": {
+		"desc": "The balanced military, and research at the town hall: it upgrades the hall and takes advancements picked at random.",
+		"like": "balanced",
+		"research": {"hall_levels": [[3, 2], [7, 3]], "reserve": 40.0},
+	},
+	"equipment": {
+		"desc": "The balanced military, and a better-equipped hero who goes after monster camps for their items and buys equipment at the marketplace.",
+		"like": "balanced",
+		"equipment": {"reserve": 60.0},
+		"hero": {"attack_camps": 5},
+	},
 }
+
+
+## Policy `name` with what it takes from the one it is "like" filled in.
+static func balance_profile(name: String) -> Dictionary:
+	var own: Dictionary = BALANCE_PROFILES[name]
+	if not own.has("like"):
+		return own
+	var out: Dictionary = balance_profile(str(own["like"])).duplicate(true)
+	out.merge(own, true)
+	return out
 
 ## World generation (docs/world-design.md). The map is cut into one equal-area
 ## slice per player around its centre; each village sits near its slice's
@@ -660,6 +729,17 @@ const VOLCANO_NO_BUILD := 3.0  # tiles from the crater's centre tile
 const VOLCANO_SLICE_DIST := 26.0  # from every slice centre (villages keep VILLAGE_VOLCANO_DIST)
 ## Tries with the next seed when a generated map fails its checks.
 const MAP_TRIES := 5
+## The start screen (docs/ui-design.md §2a, LoadingScreen): its fade into the
+## game (real seconds), and how long a co-op host waits for every client to
+## have built the level before all start together, and how long the title shows
+## why a start gave up (real seconds).
+const LOADING := {"fade": 1.0, "wait_clients": 10.0, "notice_time": 4.0}
+## How long each generator stage takes, relative (measured with GEN_PROFILE):
+## the start screen's bar moves by these (docs/ui-design.md §2a).
+const MAP_STAGE_WEIGHTS := {
+	"slices": 1.0, "fields": 2.0, "water": 10.0, "relief": 10.0, "zones": 15.0, "villages": 9.0,
+	"aqua": 1.0, "roads": 10.0, "fixes": 1.0, "objects": 32.0, "checks": 9.0,
+}
 
 ## Special objects (docs/world-design.md §9). Treasures: per slice (the same
 ## number and tiers for every slice), looted by the hero in Explore mode.
@@ -696,7 +776,7 @@ const RELIC_MAX := 2  # per map
 ## "coop": only comes in games of two villages or more. Effects (shares):
 ##   tower_range .. towers (and the town hall) reach this share farther
 ##   revive ....... downed units come back this share sooner (negative: less time)
-##   hero_rest .... HP per second more for the hero resting in the town hall
+##   hero_rest .... HP per second more for the hero healing at home (centre or hall)
 ##   food ......... farms yield this share more
 ##   chop ......... foresters chop this share faster (they carry no more)
 ##   repair_cost .. repairs cost this share less (with Cheaper repairs)
@@ -712,7 +792,7 @@ const RELICS := {
 	# Owned.
 	"hawkeye": {"reach": "village", "name": "Hawk-eye relic", "desc": "+10 % tower range", "tower_range": 0.1},
 	"phoenix": {"reach": "village", "name": "Phoenix feather", "desc": "units revive 20 % faster", "revive": -0.2},
-	"hearth": {"reach": "village", "name": "Hearth stone", "desc": "+1 hero HP per second while resting", "hero_rest": 1.0},
+	"hearth": {"reach": "village", "name": "Hearth stone", "desc": "+1 hero HP per second while resting at home", "hero_rest": 1.0},
 	"harvest": {"reach": "village", "name": "Harvest idol", "desc": "+10 % food from farms", "food": 0.1},
 	"woodcutters_axe": {"reach": "village", "name": "Woodcutter's axe", "desc": "foresters chop 25 % faster", "chop": 0.25},
 	"masons_seal": {"reach": "village", "name": "Mason's seal", "desc": "repairs cost 20 % less", "repair_cost": 0.2},
@@ -2040,7 +2120,16 @@ const SUMMON := {
 	"regen_delay": 2.0,  # seconds after its last blow or hurt before it heals (SUMMONS "regen")
 }
 
-const MATERIALS_TRADE := {"materials": 10, "gold": 15}
+## Emergency trading (docs/village-design.md §2): gold for food or building
+## material from the top bar, no marketplace needed, `amount` for `gold` a
+## bundle, bought `bundles` at a time. Always dearer per unit than the
+## marketplace's buying (MARKET "buy"), or the marketplace would be pointless:
+## market_bot checks it.
+const EMERGENCY_TRADE := {
+	"food": {"amount": 10, "gold": 17},
+	"materials": {"amount": 10, "gold": 20},
+	"bundles": [1, 5],
+}
 
 ## Phones: how often (seconds) the screen's safe area (a camera cutout or
 ## notch the UI keeps clear of, see Layout.insets) is read again.

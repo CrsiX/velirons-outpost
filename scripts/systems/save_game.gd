@@ -103,7 +103,7 @@ static func start(path: String, tree: SceneTree) -> String:
 	Settings.editor_play = false
 	Engine.time_scale = 1.0
 	tree.paused = false
-	tree.change_scene_to_file(Net.GAME_SCENE)
+	Loading.change_scene(Net.GAME_SCENE, false)  # (black, then the fade in: docs/ui-design.md §2a)
 	return ""
 
 

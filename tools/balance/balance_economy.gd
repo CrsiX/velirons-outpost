@@ -199,7 +199,7 @@ func _villagers() -> void:
 				break
 		want = want.duplicate()
 		want["explorer"] = 0
-	if p.no_farm:
+	if p.no_farm or p.hut_for_trader:
 		return
 	# A farm without its farmer comes first, as soon as the food pays for one
 	# (min_food doesn't hold it back: the farmer is what brings food in).
@@ -336,6 +336,19 @@ func _log_materials() -> void:
 		_material_log.pop_front()
 
 
+## The economy is where the schedule wants it by now (BalanceMarket.steady,
+## BalanceResearch): its farms and camps stand and are worked, and nothing
+## that can't wait (a repair, a hut, the farm) waits for material. (The
+## military always wants more material: that doesn't count.)
+func schedule_met() -> bool:
+	if p.no_farm or p.farm_unmanned or p.repair_wanted or p.want_critical:
+		return false
+	if _farms().size() < _scheduled(_eco["farms"]) or _buildings_of("camp").size() < _camps():
+		return false
+	var pop := village.population
+	return pop.vacant_workplaces("farmer").is_empty() and pop.vacant_workplaces("forester").is_empty()
+
+
 ## Before the first wave the economy comes first: the camps the schedule
 ## wants and their foresters before any new post.
 func economy_first() -> bool:
@@ -382,17 +395,41 @@ func _trees_near(t: Vector2i, r: int) -> int:
 	return n
 
 
-# --- trading ----------------------------------------------------------------------------------
+# --- buying goods ----------------------------------------------------------------------------
 
 ## Gold into building material, only for what can't wait (a repair, a ruined
-## hut, the farm).
+## hut, the farm), and into food while it runs out ("buy_food_below"): at the
+## marketplace when it sells the good and is cheaper per unit, else by
+## emergency trading.
 func trade() -> void:
-	if not bool(_eco.get("buy_materials", false)) or not p.want_critical:
+	if not bool(_eco.get("buy_materials", false)):
 		return
-	var per: int = Config.MATERIALS_TRADE["materials"]
-	var bundles := ceili(float(p.critical_lack) / float(per))
-	var gold_per: int = Config.MATERIALS_TRADE["gold"]
+	if p.want_critical:
+		_buy("materials", p.critical_lack)
+	var food := village.economy.amount("food")
+	if food < float(_eco["buy_food_below"]) and village.population.food_per_second() < 0.0:
+		_buy("food", ceili(float(_eco["buy_food_below"]) - food))
+
+
+## Buys at least `lack` of `good` (as gold allows) the cheaper way.
+func _buy(good: String, lack: int) -> void:
 	var spare := int(_gold() - float(_params["gold_reserve"]))
-	bundles = mini(bundles, spare / gold_per)
+	var em: Dictionary = Config.EMERGENCY_TRADE[good]
+	var m := village.market()
+	var lot: Dictionary = Config.MARKET["buy"].get(good, {})
+	var market_ok := m != null and not lot.is_empty() and m.buy_error(good) == "" \
+			and float(lot["gold"]) / float(lot["amount"]) < float(em["gold"]) / float(em["amount"])
+	if market_ok:
+		var got := 0
+		while got < lack and spare >= int(lot["gold"]) and m.buy_error(good) == "":
+			var r := _cmd("market_buy", {"building": m.nid, "good": good})
+			if not r["ok"]:
+				break
+			got += int(r.get("amount", lot["amount"]))
+			spare -= int(lot["gold"])
+		if got >= lack:
+			return
+		lack -= got
+	var bundles := mini(ceili(float(lack) / float(em["amount"])), spare / int(em["gold"]))
 	if bundles >= 1:
-		_cmd("buy_materials", {"bundles": bundles})
+		_cmd("emergency_buy", {"good": good, "bundles": bundles})

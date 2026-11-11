@@ -19,8 +19,9 @@ the *merchant*, Pell.
 ## 1. Why a market
 
 - **Surpluses go nowhere without it.** A village with plenty of food and too little gold has
-  no outlet; the only other trade is the material counter's emergency buy (`MATERIALS_TRADE`),
-  a deliberately poor rate in one direction. A market turns a surplus into what the village
+  no outlet; the only other trade is emergency trading at the food and material counters
+  (`EMERGENCY_TRADE`), a deliberately poor rate in one direction, always dearer than the
+  market's (docs/village-design.md §2). A market turns a surplus into what the village
   lacks, and gives co-op players a reason to trade instead of only gifting.
 - **Gold must stay hard to get.** Gold pays for the army; if food or material turn into gold
   freely the gold economy (kills, corpses, mines, treasures) stops mattering. So selling has
@@ -154,7 +155,8 @@ with its own rules; the two must never be confused.
   **other players' for-sale piles first**: the seller's trader packs it, a trade caravan walks
   village to village, and the seller is paid on arrival. The buyer pays when buying (the gold
   is held until the caravan arrives). Only a seller with a trader counts: without one nothing
-  leaves. Only if no player sells that good does it come from the guild's buying stock.
+  leaves, and a fallen village sells nothing. Only if no player sells that good does it come from the
+  guild's buying stock.
 - **Zero tax between players.** No gold is created when one player buys from another, so there
   is nothing to brake; the costs are the trader's rate and the walk. This is what makes co-op
   trade clearly better than the guild, and it is the trader's co-op job. Sales to the guild
@@ -185,7 +187,7 @@ with its own rules; the two must never be confused.
   the next one may be a better fit. A new equipment offer never brings a relic: the relic is
   the trader's, so a market without a trader never offers one, and keeping a trader at work
   is what earns it. The panel says how much of his time is left. A duplicate may be bought
-  (the offer says so), but its effect counts once.
+  (the offer says so), but its effect counts once. Like equipment offers, only where items are on.
 
 ### 8.1 Selling an item
 
@@ -241,8 +243,9 @@ with its own rules; the two must never be confused.
 - **Tests:** `market_bot` (buying, selling through the trader, caravan departure rule,
   turning back, robbery and salvage, a destroyed guild caravan, restocking, the save, order
   book in a two-village game, selling items to the guild and to another player, a cart home to
-  a torn-down market); `advancement_bot` (the market's advancements). The balancing bot learns
-  to sell surpluses later (docs/balance-bot-design.md).
+  a torn-down market); `advancement_bot` (the market's advancements). Every balancing
+  bot policy builds a marketplace once its economy is steady and sells surpluses
+  (docs/balance-bot-design.md §3).
 
 ## 10. Open for later
 

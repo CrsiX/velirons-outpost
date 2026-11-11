@@ -40,7 +40,7 @@ MAPGEN_RE = re.compile(r"^MAPGEN (type=.*)$")
 MAPGEN_WHY_RE = re.compile(r"^MAPGEN-(FAIL|SOFT) type=(\S+) players=(\d+) seed=(\d+) \| (.*)$")
 MAPGEN_FAULT_RE = re.compile(r"^MAPGEN-FAULT (.*?) \| (.*)$")
 # MapGenerator.run()'s own timings, printed when GEN_PROFILE is set.
-STAGES = ["slices", "fields", "water", "relief", "zones", "villages", "roads", "fixes", "objects"]
+STAGES = ["slices", "fields", "water", "relief", "zones", "villages", "aqua", "roads", "fixes", "objects", "checks"]
 PROFILE_RE = re.compile(r"^" + ", ".join(r"%s (\d+)" % s for s in STAGES) + r"\s*$")
 # A format placeholder in a GDScript string: %d, %.2f, %s, %%, ...
 FORMAT_RE = re.compile(r"%[-+ #0-9.*]*[a-zA-Z%]")

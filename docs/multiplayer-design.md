@@ -43,7 +43,7 @@ the rules unchanged.
   through a server-based transport (§8.2). Nothing in this design may rule
   that out.
 - Joining a running game (§8.6).
-- PvP, trading between players, chat. Chat is a candidate for later.
+- PvP and chat. Chat is a candidate for later. (Trading between players is built: §7.1a.)
 - Host migration. (Saving and resuming a co-op game: docs/save-design.md.)
 
 ## 3. Player flow
@@ -102,9 +102,14 @@ map areas and for colour-blind players.
 2. The host sends every client the **game setup** (what it needs to build the
    world and know which village is theirs) and the **map** (§5.6).
 3. Each client builds its world and reports *loaded*; from then on it gets
-   snapshots, the first one complete. The host's clock doesn't wait for
-   anyone: the first wave's delay is long enough, and the peer timeout is
-   generous so nobody drops while a level is being built.
+   snapshots, the first one complete. Everyone is on the start screen
+   meanwhile (docs/ui-design.md §2a): black from the host's start, with the
+   host's generator bar. The host waits paused for every client, at most
+   `Config.LOADING` "wait_clients", then sends one "go" and all fade in
+   together; a client still building gets "go" once it is ready. The peer
+   timeout is generous so nobody drops while a level is being built.
+4. A map that fails every try sends everyone back to the lobby, told why,
+   to press Ready again.
 
 ## 4. Game rules in multiplayer
 
@@ -308,11 +313,12 @@ units and heroes arrive whole.
   recalled or redirected.
 - **If the receiver falls meanwhile,** the caravan still delivers.
 - **If no path exists** at the moment of sending, Send is refused.
-- *(Designed, not built:)* help caravans are drawn as a **covered wagon in the
-  sender's colour**, so they can't be mistaken for trade caravans, which can be
-  attacked. Help stays immune; trade is a different thing with different rules.
+- Help caravans are drawn as a **covered wagon in the sender's colour**
+  (`unit_caravan_c<n>`, by `Village.color_slot`), so they can't be mistaken for
+  the open trade carts, which can be attacked. Help stays immune; trade is a
+  different thing with different rules.
 
-### 7.1a Trade between villages *(designed, not built)*
+### 7.1a Trade between villages
 
 Separate from help: the marketplace's **order book** (docs/market-design.md).
 A purchase at one village's marketplace is filled from other players' goods

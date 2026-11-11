@@ -36,6 +36,7 @@ func _run() -> void:
 	await _play_materials()
 	two = MapGenerator.generate(12, 2, "temperate")
 	two.meta = {"name": "Two villages"}
+	_village_bounds(two)
 	await _play_ownerless(MapJson.read(MapJson.write(two))["map"])
 	Settings.custom_map = null
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
@@ -542,6 +543,27 @@ func _play_ownerless(m: MapData) -> void:
 	await frames(5)
 	check(get_tree().get_nodes_in_group("enemies").all(func(e: Enemy) -> bool: return e.target_village == v or e.behavior is CampBehavior), "its enemies all go for the played village")
 	await _end_game()
+
+
+## A village partly outside the map, and two villages on top of each other,
+## are errors (docs/map-editor-design.md §5.4).
+func _village_bounds(two: MapData) -> void:
+	check(MapChecks.errors(MapChecks.run(two)).is_empty(), "two generated villages pass the checks")
+	var over: MapData = MapJson.read(MapJson.write(two))["map"]
+	var shift: Vector2i = over.villages[0]["center"] - over.villages[1]["center"] + Vector2i(3, 2)
+	for q in over.village_layout:
+		if int(q.get("owner", 0)) == 1:
+			q["tile"] += shift
+	check(MapChecks.play_error(over).contains("overlap"), "two villages overlapping are refused: %s" % MapChecks.play_error(over))
+	var out: MapData = MapJson.read(MapJson.write(two))["map"]
+	var left := out.size
+	for q in out.village_pieces(0):
+		left = mini(left, (q["tile"] as Vector2i).x)
+	for q in out.village_layout:
+		if int(q.get("owner", 0)) == 0:
+			q["tile"] -= Vector2i(left + 1, 0)
+	var errs := MapChecks.errors(MapChecks.run(out)).map(func(e: Dictionary) -> String: return e["text"])
+	check(errs.any(func(t: String) -> bool: return t.contains("lies outside the map")), "a village partly outside the map is refused: %s" % str(errs))
 
 
 ## Format 6's town hall: written and read back as one 2x2 piece; a village

@@ -58,7 +58,7 @@ Each lair has its **own road** to the network, deliberately winding (bent waypoi
 
 **Waking** is staggered: per slice the first lair wakes late, so the early game stays simple, and each further one every few waves, in an order fixed by the seed. The slice's village gets a loud notice and the warning lights mark the new road (also after the usual early waves); a village that hasn't found it gets only a rough direction.
 
-- An awake lair is **one more spawn point** for its slice's share: the wave keeps its size and mix, and the lair's entries swap kinds with edge entries so it sends only its **theme's** kinds (a crypt the undead, a hollow tree goblins and rats), limited to kinds whose wave has come. No extra enemies, so lairs change where, not how hard. In co-op a lair's enemies go for its own slice's village.
+- An awake lair is **one more spawn point** for its slice's share: the wave keeps its size and mix, and the lair's entries swap kinds with edge entries so it sends only its **theme's** kinds (a crypt the undead, a hollow tree goblins, rats and spider mothers), limited to kinds whose wave has come. No extra enemies, so lairs change where, not how hard. In co-op a lair's enemies go for its own slice's village.
 - Awake lairs have guards, as strong as that wave's enemies.
 - **Clearing** is an order, like a camp. A cleared lair leaves a loot sack (growing with waves, sometimes a relic the village lacks) and sleeps a few waves, then wakes again with new guards: clearing is a reward and a respite, not a permanent fix.
 

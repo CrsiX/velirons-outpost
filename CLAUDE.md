@@ -60,7 +60,7 @@ scripts/
   units/      unit -> civilian -> roles; hero; soldier and military_unit (+ military/ behaviours); enemy (+ enemies/ behaviours); jobs/
   tutorial/   the guided first game
   scenarios/  the campaign: scenario base, scenario_<n>, campaign, scenario_runner, cutscene, journal, scenario helpers
-  ui/         title, campaign map, menus, hud, tactical map, library, statistics, camera, theme
+  ui/         title, start screen ("Loading" autoload), campaign map, menus, hud, tactical map, library, statistics, camera, theme
   net/        Net autoload (ENet session, lobby), lan_discovery, replicator
   editor/     the map editor
   game.gd     composition root: villages, command entry, entity ids, speed, selection, raids, defeat; `clock`

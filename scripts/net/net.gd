@@ -19,6 +19,8 @@ signal lobby_message(text: String)
 signal session_ended(reason: String)
 ## A command this client sent was refused by the host.
 signal command_refused(type: String, error: String)
+## Client: the host says everyone starts now (the start screen fades in).
+signal go
 
 enum Role { NONE, HOST, CLIENT }
 
@@ -69,6 +71,10 @@ var map: MapData
 ## The running game (set by Game on the host and on clients).
 var game: Game
 var discovery: LanDiscovery
+## Client: the host's "go" came (it may come before this client's level is built).
+var go_received := false
+## Host: "go" was sent; a client that loads later gets it at once.
+var _gone := false
 var _peer: MultiplayerPeer
 var _last_address := ""
 
@@ -169,6 +175,10 @@ func leave() -> void:
 	resume_seen = PackedByteArray()
 	resume_body = {}
 	_resume_path = ""
+	go_received = false
+	_gone = false
+	if Loading.active:
+		Loading.cancel()
 	lobby_changed.emit()
 
 
@@ -585,8 +595,75 @@ func start_game() -> bool:
 		setup["map_type"] = custom_map.map_type
 		setup["map_name"] = MapJson.map_name(custom_map)
 	Settings.difficulty = difficulty
-	get_tree().change_scene_to_file(GAME_SCENE)
+	_begin_start(custom_map == null)
 	return true
+
+
+## Host: black for everyone (the start screen, docs/ui-design.md §2a), with the
+## generator's bar when a map is made; then the level scene.
+func _begin_start(bar: bool) -> void:
+	_gone = false
+	_starting.rpc(bar)
+	Loading.change_scene(GAME_SCENE, bar)
+
+
+@rpc("authority", "reliable")
+func _starting(bar: bool) -> void:
+	go_received = false
+	Loading.begin(bar)
+
+
+## Host: the generator's progress, for the clients' bars.
+func send_progress(f: float) -> void:
+	_progress.rpc(f)
+
+
+@rpc("authority", "unreliable_ordered")
+func _progress(f: float) -> void:
+	Loading.progress(f)
+
+
+## Host: whether every connected client has built the level.
+func clients_loaded() -> bool:
+	for id in players:
+		if id != 1 and players[id]["online"] and not players[id]["loaded"]:
+			return false
+	return true
+
+
+## Host: everyone starts (clients still loading get it when they are done).
+func send_go() -> void:
+	_gone = true
+	_go.rpc()
+
+
+@rpc("authority", "reliable")
+func _go() -> void:
+	go_received = true
+	go.emit()
+
+
+## Host: the map couldn't be made (Game.give_up_start). Everyone goes back to
+## the lobby with `text` and presses Ready again.
+func back_to_lobby(text: String) -> void:
+	in_game = false
+	game = null
+	for id in players.keys():
+		if not players[id]["online"]:
+			players.erase(id)
+			continue
+		players[id]["ready"] = id == 1
+		players[id]["loaded"] = id == 1
+	_back.rpc(text)
+	_broadcast_lobby()
+	get_tree().change_scene_to_file(TITLE_SCENE)
+
+
+@rpc("authority", "reliable")
+func _back(text: String) -> void:
+	in_game = false
+	Loading.cancel()
+	lobby_message.emit(text)
 
 
 ## Host: the save goes on with these players (docs/save-design.md §6.2):
@@ -613,7 +690,7 @@ func _start_resumed() -> bool:
 	if resume.has("map_name"):
 		setup["map_name"] = resume["map_name"]
 	Settings.difficulty = difficulty as Settings.Difficulty
-	get_tree().change_scene_to_file(GAME_SCENE)
+	_begin_start(false)
 	return true
 
 
@@ -637,6 +714,8 @@ func _start(p_setup: Dictionary, map_bytes: PackedByteArray) -> void:
 	map = MapData.from_bytes(map_bytes)
 	in_game = true
 	Settings.difficulty = int(setup.get("difficulty", 1))
+	if not Loading.active:
+		Loading.begin(false)  # (a client rejoining a running game: no _starting came)
 	get_tree().change_scene_to_file(GAME_SCENE)
 
 
@@ -652,6 +731,8 @@ func _loaded() -> void:
 	if is_host() and players.has(id) and game and game.replicator:
 		players[id]["loaded"] = true
 		game.replicator.reset_peer(id)
+		if _gone:
+			_go.rpc_id(id)  # (loaded after the others started)
 
 
 ## The village a peer plays (host side).

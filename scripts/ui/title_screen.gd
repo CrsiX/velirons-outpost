@@ -156,6 +156,40 @@ func _ready() -> void:
 	_layout()
 	if Settings.take_campaign():  # (the campaign's last scenario won: Show campaign map)
 		open_campaign()
+	_after_start_screen()
+
+
+## Back from a start that gave up (docs/ui-design.md §2a): no more black, and
+## why, in the lobby's status line or as a toast.
+func _after_start_screen() -> void:
+	if Loading.active:
+		Loading.cancel()
+	var text := Loading.notice
+	Loading.notice = ""
+	if text == "":
+		return
+	if mp_menu.visible:
+		mp_menu.lobby_status.text = text
+		return
+	var l := Label.new()
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_size_override("font_size", 22)
+	l.add_theme_color_override("font_color", UiTheme.BAD)
+	l.add_theme_color_override("font_outline_color", UiTheme.INK)
+	l.add_theme_constant_override("outline_size", 8)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.anchor_left = 0.1
+	l.anchor_right = 0.9
+	l.anchor_top = 0.88
+	l.anchor_bottom = 0.88
+	l.name = "StartNotice"
+	add_child(l)
+	var tw := l.create_tween()
+	tw.tween_interval(float(Config.LOADING["notice_time"]))
+	tw.tween_property(l, "modulate:a", 0.0, 0.8)
+	tw.tween_callback(l.queue_free)
 
 
 ## The version in small letters, right-aligned in the very bottom right (inside
@@ -300,7 +334,14 @@ func _update_sp_buttons() -> void:
 	seed_edit.visible = custom == null
 
 
+## Free play: the start screen first (docs/ui-design.md §2a), with its bar
+## unless the map comes from a file.
 func _play() -> void:
+	Loading.change_scene(Net.GAME_SCENE, Settings.custom_map == null)
+
+
+## A scenario or the tutorial (their own start).
+func _play_story() -> void:
 	get_tree().change_scene_to_file(Net.GAME_SCENE)
 
 
@@ -328,13 +369,13 @@ func open_campaign() -> void:
 ## Scenario `n` of the campaign (docs/scenarios-design.md): its own map, village and story.
 func play_scenario(n: int) -> void:
 	Settings.scenario_next = n
-	_play()
+	_play_story()
 
 
 ## The guided tutorial (docs/tutorial-design.md): its own map and village.
 func play_tutorial() -> void:
 	Settings.tutorial_next = true
-	_play()
+	_play_story()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

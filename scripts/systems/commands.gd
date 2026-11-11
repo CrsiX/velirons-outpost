@@ -36,7 +36,7 @@ const HANDLERS := {
 	"withdraw_unit": "_withdraw_unit",
 	"move_unit": "_move_unit",
 	"swap_units": "_swap_units",
-	"buy_materials": "_buy_materials",
+	"emergency_buy": "_emergency_buy",
 	"trade": "_trade",
 	"market_buy": "_market_buy",
 	"market_buy_item": "_market_buy_item",
@@ -526,13 +526,18 @@ func _swap_units(v: Village, a: Dictionary) -> Dictionary:
 
 # --- other ---------------------------------------------------------------------------
 
-func _buy_materials(v: Village, a: Dictionary) -> Dictionary:
+## Emergency trading: {"good": "food" | "materials", "bundles"}.
+func _emergency_buy(v: Village, a: Dictionary) -> Dictionary:
+	var good := str(a.get("good", ""))
 	var n := int(a.get("bundles", 0))
+	if good != "food" and good != "materials":
+		return fail("Pick food or building material")
 	if n < 1 or n > 100:
 		return fail("Pick how much to buy")
-	if not v.economy.buy_materials(n):
+	if not v.economy.emergency_buy(good, n):
 		return fail("Not enough gold")
-	v.events.debug("buy %d building material for %d gold" % [Config.MATERIALS_TRADE["materials"] * n, Config.MATERIALS_TRADE["gold"] * n])
+	var rate: Dictionary = Config.EMERGENCY_TRADE[good]
+	v.events.debug("emergency trading: %d %s for %d gold" % [int(rate["amount"]) * n, "food" if good == "food" else "building material", int(rate["gold"]) * n])
 	return ok()
 
 

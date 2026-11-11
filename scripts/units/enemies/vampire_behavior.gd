@@ -9,7 +9,7 @@ extends MeleeBehavior
 ## `bat_gate_heal` of its max HP and flies back the way it came. Landed, the
 ## vampire takes the road to the village again (and breaks in, if it gets
 ## there, like any enemy).
-## (Flying allied units, should they come, would be the bat's to fight.)
+## (Allied flyers, the fire elemental, fight the bat like any flyer.)
 
 var bat_left := 0.0
 var bat_used := false

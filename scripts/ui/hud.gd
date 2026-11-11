@@ -42,7 +42,7 @@ var game: Game
 var _root: Control
 var _topbar: PanelContainer
 var _gold_label: Label
-var _food_label: Label
+var _food_button: Button
 ## "(+12/min)" next to the food, smaller and grey.
 var _food_rate_label: Label
 var _materials_button: Button
@@ -291,6 +291,10 @@ var _mode_label: Label
 var _toasts: VBoxContainer
 var _trade_panel: PanelContainer
 var _trade_buttons: Array[Button] = []
+var _trade_title: Label
+var _trade_rate: Label
+## The good the emergency trading panel shows: "food" or "materials".
+var _trade_good := "materials"
 var _overlay: ColorRect
 var _overlay_title: Label
 var _overlay_sub: Label
@@ -608,13 +612,20 @@ func _build_topbar() -> void:
 	_gold_label = gold[1]
 	_gold_label.custom_minimum_size.x = 44
 	row.add_child(gold[0])
-	var food := _chip("icon_food", "Food: recruits and feeds civilians. Farms produce it.")
-	_food_label = food[1]
-	_food_label.custom_minimum_size.x = 44
+	var food := HBoxContainer.new()
+	food.add_theme_constant_override("separation", 2)
+	_food_button = _button("0", Vector2(0, 44))
+	_food_button.icon = Art.tex("icon_food")
+	_food_button.expand_icon = false
+	_food_button.add_theme_constant_override("icon_max_width", 32)
+	_food_button.add_theme_font_size_override("font_size", 20)
+	_food_button.tooltip_text = "Food: recruits and feeds civilians. Farms produce it. Tap to buy more with gold"
+	_food_button.pressed.connect(func() -> void: toggle_trade("food"))
+	food.add_child(_food_button)
 	_food_rate_label = _label("", 15, UiTheme.MUTED)
 	_food_rate_label.custom_minimum_size.x = 66
-	food[0].add_child(_food_rate_label)
-	row.add_child(food[0])
+	food.add_child(_food_rate_label)
+	row.add_child(food)
 
 	_materials_button = _button("0", Vector2(0, 44))
 	_materials_button.icon = Art.tex("icon_materials")
@@ -622,10 +633,7 @@ func _build_topbar() -> void:
 	_materials_button.add_theme_constant_override("icon_max_width", 32)
 	_materials_button.add_theme_font_size_override("font_size", 20)
 	_materials_button.tooltip_text = "Building material: tap to buy more with gold"
-	_materials_button.pressed.connect(func() -> void:
-		_trade_panel.visible = not _trade_panel.visible
-		_hero_panel.visible = _hero_panel.visible and not _trade_panel.visible
-		_people_panel.visible = _people_panel.visible and not _trade_panel.visible)
+	_materials_button.pressed.connect(func() -> void: toggle_trade("materials"))
 	row.add_child(_materials_button)
 
 	_pop_button = _button("0 / 0", Vector2(0, 44))
@@ -2548,29 +2556,53 @@ func toast(text: String, color: Color = UiTheme.TEXT) -> void:
 	tw.tween_callback(l.queue_free)
 
 
+## Emergency trading (docs/village-design.md §2): one panel under the top
+## bar, for the good whose counter was tapped (`_trade_good`).
 func _build_trade_dialog() -> void:
 	_trade_panel = PanelContainer.new()
 	_root.add_child(_trade_panel)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	_trade_panel.add_child(v)
-	var title := _label("Buy building material", 20, UiTheme.GOLD)
-	v.add_child(title)
-	var rate := _label("%d material for %d gold" % [Config.MATERIALS_TRADE["materials"], Config.MATERIALS_TRADE["gold"]], 16, UiTheme.MUTED)
-	v.add_child(rate)
+	_trade_title = _label("", 20, UiTheme.GOLD)
+	v.add_child(_trade_title)
+	_trade_rate = _label("", 16, UiTheme.MUTED)
+	v.add_child(_trade_rate)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 6)
 	v.add_child(h)
-	for bundles in [1, 5]:
-		var b := _button("+%d {materials}  (%d {gold})" % [Config.MATERIALS_TRADE["materials"] * bundles, Config.MATERIALS_TRADE["gold"] * bundles], Vector2(0, 50))
+	for bundles: int in Config.EMERGENCY_TRADE["bundles"]:
+		var b := _button("", Vector2(0, 50))
 		b.pressed.connect(func() -> void:
-			_do("buy_materials", {"bundles": bundles}))
+			_do("emergency_buy", {"good": _trade_good, "bundles": bundles}))
 		h.add_child(b)
 		_trade_buttons.append(b)
 	var close := _button("Close", Vector2(0, 44))
 	close.pressed.connect(func() -> void: _trade_panel.visible = false)
 	v.add_child(close)
 	_trade_panel.visible = false
+	_show_trade("materials")
+
+
+## The emergency trading panel for `good` ("food" or "materials"): opens it,
+## or closes it when it already shows that good.
+func toggle_trade(good: String) -> void:
+	var open := not (_trade_panel.visible and _trade_good == good)
+	_show_trade(good)
+	_trade_panel.visible = open
+	_hero_panel.visible = _hero_panel.visible and not open
+	_people_panel.visible = _people_panel.visible and not open
+
+
+func _show_trade(good: String) -> void:
+	_trade_good = good
+	var rate: Dictionary = Config.EMERGENCY_TRADE[good]
+	var what := "food" if good == "food" else "building material"
+	_trade_title.text = "Emergency trading: %s" % what
+	_trade_rate.text = "%d %s for %d gold" % [int(rate["amount"]), what, int(rate["gold"])]
+	var bundles: Array = Config.EMERGENCY_TRADE["bundles"]
+	for i in _trade_buttons.size():
+		set_rich_text(_trade_buttons[i], "+%d {%s}  (%d {gold})" % [int(rate["amount"]) * int(bundles[i]), good, int(rate["gold"]) * int(bundles[i])])
 
 
 # --- co-op help: send resources, send units ---------------------------------------------
@@ -3303,7 +3335,7 @@ const KEYS_HELP: Array[Array] = [
 	["R", "Withdraw the selected unit (otherwise: hero rests)"],
 	["Q", "Repair the selected building"],
 	["Shift+Q", "Repair all damaged buildings"],
-	["P / B / E / G / Y / R", "Hero: Defend (P), Build (B), Explore (E), Gather (G), Train (T), Rest (R)"],
+	["P / B / E / G / Y / R", "Hero: Defend (P), Build (B), Explore (E), Gather (G), Train (Y), Rest (R)"],
 	["X", "Hero panel"],
 	["Shift+X", "Hero: level up now"],
 	["V", "Villager list"],
@@ -4291,8 +4323,9 @@ func _refresh_dialogs() -> void:
 				b.disabled = not game.economy.can_afford(b.get_meta("cost")) or not _upgrade_unit.is_available()
 	if _confirm_panel.visible and _confirm_ready.is_valid():
 		_confirm_yes.disabled = not _confirm_ready.call()
+	var bundles: Array = Config.EMERGENCY_TRADE["bundles"]
 	for i in _trade_buttons.size():
-		_trade_buttons[i].disabled = not game.economy.can_afford({"gold": Config.MATERIALS_TRADE["gold"] * [1, 5][i]})
+		_trade_buttons[i].disabled = not game.economy.can_afford({"gold": int(Config.EMERGENCY_TRADE[_trade_good]["gold"]) * int(bundles[i])})
 
 
 func _refresh_resources() -> void:
@@ -4300,9 +4333,10 @@ func _refresh_resources() -> void:
 	var p := game.population
 	_gold_label.text = str(int(e.amount("gold")))
 	var rate := p.food_per_second() * 60.0
-	_food_label.text = str(int(e.amount("food")))
+	_food_button.text = str(int(e.amount("food")))
 	_food_rate_label.text = "(%+d/min)" % roundi(rate)
-	_food_label.add_theme_color_override("font_color", UiTheme.BAD if p.starving else UiTheme.TEXT)
+	for c in ["font_color", "font_hover_color", "font_pressed_color"]:
+		_food_button.add_theme_color_override(c, UiTheme.BAD if p.starving else UiTheme.TEXT)
 	_materials_button.text = str(int(e.amount("materials")))
 	_pop_button.text = "%d / %d" % [p.count(), p.cap()]
 

@@ -1,13 +1,14 @@
 class_name BalanceHero
 extends BalancePart
 ## The hero part of the balancing bot's player: the same for every policy
-## (Config.BALANCE_HERO). She spends her XP on levels, explores in the first
+## (Config.BALANCE_HERO; a policy may override some of its keys, "hero"). She spends her XP on levels, explores in the first
 ## waves (between them, and during them while no enemy is near the walls),
 ## then trains the unit at the grounds, defends during waves, rests when she
 ## is nearly downed (she would lose all her XP) and may be sent against known
 ## monster camps. What she does is recorded by the ledger (BalanceLedger:
 ## seconds per mode, XP by source, kills, how often she fell).
 
+## BALANCE_HERO with the policy's own "hero" keys over it.
 var _plan: Dictionary = Config.BALANCE_HERO
 ## The hero was sent to rest at low HP and stays there until healed
 ## ("rest_below" / "rest_until").
@@ -17,6 +18,12 @@ var _resting := false
 var _train_to := -1
 ## The unit whose run is over: she doesn't train it again while it is there.
 var finished_unit := -1
+
+
+func _init(p_player: BalancePlayer) -> void:
+	super(p_player)
+	_plan = Config.BALANCE_HERO.duplicate()
+	_plan.merge(p_player.profile.get("hero", {}), true)
 
 
 ## She is passing her XP on to the unit at the grounds right now.
@@ -54,7 +61,10 @@ func think() -> void:
 	if int(_plan["attack_camps"]) > 0 and not _resting and h.level + 1 >= int(_plan["attack_camps"]) and not _in_wave() and not h.dead:
 		var camp := _camp_to_attack()
 		if camp != null and h.camp_target == null:
-			_cmd("attack_camp", {"camp": camp.nid})
+			if _cmd("attack_camp", {"camp": camp.nid})["ok"]:
+				p.decide("hero", "sent against the monster camp at %s (hero level %d)" % [str(camp.tile), h.level + 1])
+	if h.camp_target != null and not _resting and not _in_wave():
+		return  # (a new mode would call her back from the camp; a wave does)
 	if h.mode != want:
 		_cmd("hero_mode", {"mode": want})
 
@@ -163,7 +173,7 @@ func _unexplored_share() -> float:
 func _camp_to_attack() -> MonsterCamp:
 	var best: MonsterCamp = null
 	for o in game.world.map_objects:
-		if o is MonsterCamp and o.attackable() and o.is_found_by(village):
+		if o is MonsterCamp and not (o is MonsterLair) and o.attackable() and o.is_found_by(village):  # (a lair woken is one more spawn)
 			if best == null or Vector2(o.tile).distance_to(Vector2(village.center)) < Vector2(best.tile).distance_to(Vector2(village.center)):
 				best = o
 	return best

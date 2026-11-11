@@ -16,7 +16,7 @@ extends Node
 ##                                            override Config.BALANCE_BOT
 ##   --out=<file>      results, appended (default balance_runs/runs.jsonl)
 ##   --label=<text>    names the variant being tested (kept in every record)
-##   --overrides=<text> what was changed in config (kept; tools/balance_variant.py)
+##   --overrides=<text> what was changed in config (kept; tools/balance/variant.py)
 ##   --rev=<text>      the code revision to record (default: git, if there is one)
 ##   --shard=i/n       runs only every n-th case from i (to share a sweep)
 ##   --no-detail       leave the timeline and the per-wave rows out
@@ -24,7 +24,7 @@ extends Node
 ## Exits 0 when every case ran (survived waves are the result, not a pass / fail,
 ## unless --require-waves says otherwise).
 
-const SCHEMA := 1
+const SCHEMA := 2
 
 var _args := {}
 var _out_path := ""
@@ -277,6 +277,11 @@ func _record(c: Dictionary, game: Game, player: BalancePlayer, rec: BalanceRecor
 		"buildings": player.ledger.buildings(),
 		"hero": player.ledger.hero(),
 		"important_log": important.slice(maxi(important.size() - 12, 0)),
+		"decisions": player.decisions,
+		"purchases": player.purchases,
+		"research": _research_record(player),
+		"market": _market_record(player),
+		"items": _items_record(player),
 	}
 	if not _args.has("no-detail"):
 		out["waves"] = rec.waves
@@ -286,6 +291,37 @@ func _record(c: Dictionary, game: Game, player: BalancePlayer, rec: BalanceRecor
 			series[k] = Array(game.stats.series(0, k))
 		series["t"] = Array(game.stats.times)
 		out["stats_series"] = series
+	return out
+
+
+## What the town hall researched (the picks and starts: a "research" policy's).
+func _research_record(player: BalancePlayer) -> Dictionary:
+	var v := player.village
+	var hall := v.town_hall()
+	var out := {"hall_level": hall.level if hall != null else 0, "done": Array(v.research.done)}
+	if player.research != null:
+		out["picks"] = player.research.picks
+		out["started"] = player.research.started
+	return out
+
+
+func _market_record(player: BalancePlayer) -> Dictionary:
+	var m := player.village.market()
+	var bm := player.market
+	return {
+		"built": m != null and m.complete, "put_up": bm.put_up, "lots_sold": m.sold if m != null else 0,
+		"lots_bought": m.bought if m != null else 0, "relics": bm.relics,
+		"trader_hires": bm.trader_hires, "trader_retires": bm.trader_retires,
+	}
+
+
+## What the hero wore at the end, and (an "equipment" policy) what she put on and bought.
+func _items_record(player: BalancePlayer) -> Dictionary:
+	var h := player.village.hero
+	var out := {"worn": h.equipped.duplicate() if is_instance_valid(h) else {}, "relics": Array(player.village.relics)}
+	if player.items != null:
+		out["put_on"] = player.items.worn
+		out["bought"] = player.items.bought
 	return out
 
 
@@ -314,7 +350,7 @@ func _config_hash() -> String:
 		"civilians": Config.CIVILIANS, "hero": Config.HERO, "hero_levels": Config.HERO_LEVELS, "tower_levels": Config.TOWER_LEVELS,
 		"barracks_levels": Config.BARRACKS_LEVELS, "wave_mix": Config.WAVE_MIX, "start": Config.START_RESOURCES,
 		"scalars": [Config.WAVE_HP_GROWTH, Config.FIRST_WAVE_DELAY, Config.WAVE_BUFFER, Config.FARM_RATE, Config.FOOD_UPKEEP,
-			Config.MINE_GOLD_RATE, Config.CIVILIAN_HP, Config.UNIT_REGEN, Config.TREE_CHOP_TIME, Config.MATERIALS_TRADE,
+			Config.MINE_GOLD_RATE, Config.CIVILIAN_HP, Config.UNIT_REGEN, Config.TREE_CHOP_TIME, Config.EMERGENCY_TRADE, Config.MARKET,
 			Config.EARLY_CALL_GOLD_PER_SECOND, Config.WAVE_MIX_CAP, Config.TEARDOWN_REFUND],
 		"bot": [Config.BALANCE_BOT, Config.BALANCE_ECONOMY, Config.BALANCE_HERO, Config.BALANCE_PROFILES],
 	}
