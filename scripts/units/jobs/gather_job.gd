@@ -272,16 +272,16 @@ func _salvage_market() -> Market:
 	return _market_of(loot["salvage"]) if loot.has("salvage") else null
 
 
-## Salvage into the market: our goods back on the for-sale pile, the
-## merchants' into their stock for a finder's fee (Market.take_salvage).
+## Salvage into the market: our goods back on the for-sale pile, an item on
+## sale again, the guild's goods into its stock for a finder's fee (Market.take_salvage).
 func _deliver_salvage() -> void:
 	var m := _salvage_market()
 	var s: Dictionary = loot.get("salvage", {})
 	loot.erase("salvage")
 	if m == null:
 		return
-	var fee := m.take_salvage(s["goods"], bool(s["merchants"]))
-	w.village.events.info("%s brought salvage back to %s: %s%s" % [w.label().capitalize(), m.label(), Market._goods_text(s["goods"]), (", +%d gold finder's fee" % fee) if fee > 0 else ""])
+	var fee := m.take_salvage(s["goods"], bool(s["merchants"]), str(s.get("item", "")), int(s.get("price", -1)))
+	w.village.events.info("%s brought salvage back to %s: %s%s" % [w.label().capitalize(), m.label(), TradeCaravan.salvage_text(s), (", +%d gold finder's fee" % fee) if fee > 0 else ""])
 	w.float_text("+%d {gold}" % fee if fee > 0 else "Salvage back", UiTheme.GOLD)
 	w.on_action("salvage")
 	w.village.sound("coin")

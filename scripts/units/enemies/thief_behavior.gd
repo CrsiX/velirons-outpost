@@ -99,7 +99,7 @@ func on_path_end(enemy: Enemy) -> bool:
 		if not enemy.loot_cargo.is_empty():
 			var m := enemy.game.entity(int(enemy.loot_cargo["market"])) as Market
 			if m != null:
-				m.village.events.info("%s got away with %s" % [enemy.label().capitalize(), Market._goods_text(enemy.loot_cargo["goods"])])
+				m.village.events.info("%s got away with %s" % [enemy.label().capitalize(), TradeCaravan.salvage_text(enemy.loot_cargo)])
 			enemy.loot_cargo = {}
 		enemy.vanish()
 		return true

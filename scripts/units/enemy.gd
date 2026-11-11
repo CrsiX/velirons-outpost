@@ -72,7 +72,7 @@ var hp_scale := 1.0
 ## Gold a thief stole; its corpse holds it too.
 var loot_gold := 0
 ## A trade caravan's cargo a thief took (TradeCaravan.rob): {"goods",
-## "market", "merchants"}; killed, it leaves it as salvage.
+## "market", "merchants": the guild's goods, "item", "price"}; killed, it leaves it as salvage.
 var loot_cargo: Dictionary = {}
 ## An item it carries (a Config.ITEMS key, "" for none; docs/items-design.md
 ## §5, ItemDrops): killed, it drops it in a sack. Shown by a glint (fx "glint").

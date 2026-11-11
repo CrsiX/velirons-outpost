@@ -7,8 +7,8 @@ equipment comes from** (§5: `ItemDrops`, `Config.ITEM_SOURCES`; the market's eq
 `MARKET` "item_offer"), and so are **relics** (§7: `Config.RELICS`, `Relics`; village-wide and
 map-wide relics in `Village.relics` and the armoury's Relics tab; the market's relic offer,
 brought by its trader, `MARKET` "relic_after"; the library's Relics page; the tactical map's
-rumours). **Not built yet:** selling and trading items and relics
-(docs/market-design.md §8). Numbers live in
+rumours), and so is **selling them** at the market, to the guild or another player
+(docs/market-design.md §8.1). Numbers live in
 `scripts/core/config.gd`, never here.
 Scope: items (equipment and relics), the hero's slots, the armoury, where items come from,
 the item list. Buying and selling items is in docs/market-design.md; the town hall (home of the
@@ -77,7 +77,7 @@ nothing changes in balance until something is equipped.
   capped at a number of both together (`ARMOURY`, `Armoury.count`). Taken-off items go there;
   nothing is lost by swapping. The armoury dialog has a Relics tab next to the four slots: what
   the village holds, a duplicate with its count. Why relics take room: a relic is a thing the
-  village keeps like any item, and a full armoury is a reason to sell (later) or leave one
+  village keeps like any item, and a full armoury is a reason to sell one or leave one
   lying; uncapped, duplicates would pile up for free.
 - Items leave it by being worn, sold (docs/market-design.md §8) or traded to another player.
 - A devastated town hall closes the armoury (no swaps), but its relics **keep working**:
@@ -265,7 +265,7 @@ the kind of thing one wants to sell on.
   tutorial and the title backdrop (`Game.items_enabled`). Relics don't need items: a map's
   relic treasure or a lair still gives one where items are off. No scenario names a relic.
 - **Co-op:** items and relics are sold between players at an asking price
-  (docs/market-design.md §7); each hero has her own slots and each village its armoury.
+  (docs/market-design.md §8.1); each hero has her own slots and each village its armoury.
 - **Save:** the hero's slots and the armoury are saved (built), and so are the items' own
   timers (the net's cooldown): unlike an AI's cooldowns
   they outlast a wave (a camp fight between waves), so every future item with a cooldown or a
@@ -274,7 +274,8 @@ the kind of thing one wants to sell on.
   is saved too, its relic offer and the trader's time since he brought it as well (`"ro"`,
   `"st"`). A wave's carriers are not: nothing of a
   running wave is saved. A village's relics are saved as a list, duplicates kept.
-- **Commands:** equip and unequip are `Commands` (built); sell will be one.
+- **Commands:** equip and unequip are `Commands`, and so are selling an item, taking it back and
+  buying another player's (docs/market-design.md §9).
 - **Library:** a page per slot (Weapons, Armour, Accessories, Movement) and a Relics page
   (village-wide, map-wide), built from `Config`; the Places page has one Relics entry pointing
   there.

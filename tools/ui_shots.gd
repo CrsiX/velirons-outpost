@@ -56,7 +56,8 @@ extends Node
 ##   DISPLAY=:0 godot --path . res://tools/ui_shots.tscn -- --out=/some/dir [--only=editor] [--max]
 ##
 ## `--max`: the window maximised (the display's size) instead of 1280x720 for
-## the landscape pictures; portrait is always 540x960.
+## the landscape pictures; `--size=WxH` another size (e.g. 1920x1080);
+## portrait is always 540x960.
 ##
 ## `--cutout=l,t,r,b`: pretend the screen has a camera cutout (unusable edges
 ## in canvas units, Layout.force_insets), drawn black like the real thing;
@@ -68,6 +69,7 @@ extends Node
 var out := ""
 var only := ""
 var maximize := false
+var landscape := Vector2i(1280, 720)
 var cutout := Vector4.ZERO
 var _cut_layer: CanvasLayer
 var _n := 0
@@ -81,6 +83,10 @@ func _ready() -> void:
 			only = a.trim_prefix("--only=")
 		if a == "--max":
 			maximize = true
+		if a.begins_with("--size="):
+			var wh := a.trim_prefix("--size=").split("x")
+			if wh.size() == 2:
+				landscape = Vector2i(int(wh[0]), int(wh[1]))
 		if a.begins_with("--cutout="):
 			var v := a.trim_prefix("--cutout=").split_floats(",")
 			if v.size() == 4:
@@ -189,7 +195,7 @@ func _landscape() -> void:
 		await _frames(20)
 		print("window %s" % str(get_window().size))
 	else:
-		await _size(Vector2i(1280, 720))
+		await _size(landscape)
 
 
 func _size(s: Vector2i) -> void:
@@ -1227,7 +1233,10 @@ func _town_hall() -> void:
 
 
 ## The marketplace (docs/market-design.md): its three levels with the trader,
-## trade caravans on the road (ours, the merchants'), salvage, and its panel.
+## trade caravans on the road (ours, the guild's), salvage, its panel with
+## items and a relic to sell and one on sale; then a co-op game: the other
+## player's items to buy, ours on sale (a countdown, one waiting, one sold)
+## and the sell dialog at two prices.
 func _market() -> void:
 	var g: Game = load("res://scenes/main.tscn").instantiate()
 	g.map_seed = 4242
@@ -1288,6 +1297,80 @@ func _market() -> void:
 	g.select(m)
 	await _frames(8)
 	await shot("market_panel")
+	var pool := ItemDrops.pool(g)
+	for id in pool.slice(0, 3):
+		v.armoury.add(id)
+	v.relics.append("harvest")
+	m.sell_item(pool[3], -1)
+	g.deselect()
+	g.select(m)
+	await _frames(8)
+	await shot("market_panel_items")
+	g.deselect()
+	g.queue_free()
+	await _frames(3)
+	await _market_coop()
+
+
+func _market_coop() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 12
+	g.test_villages = 2
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var ms: Array[Market] = []
+	for v: Village in g.villages:
+		v.economy.add("gold", 2000)
+		v.economy.add("materials", 2000)
+		v.economy.add("food", 2000)
+		var best := Vector2i(-1, -1)
+		var best_d := INF
+		for y in g.map.size:
+			for x in g.map.size:
+				var t := Vector2i(x, y)
+				var d := Vector2(t).distance_to(Vector2(v.center))
+				if d < best_d and d < 16.0 and v.construction.placement_error("market", t) == "":
+					best_d = d
+					best = t
+		var mk := v.construction._new_building("market", best, false) as Market
+		mk.finish()
+		v.population.recruit("trader")
+		ms.append(mk)
+	for i in 900:
+		await get_tree().process_frame
+		if ms[0].is_open() and ms[1].is_open():
+			break
+	var a := g.villages[0]
+	var b := g.villages[1]
+	var pool := ItemDrops.pool(g)
+	for id in pool.slice(0, 4):
+		a.armoury.add(id)
+		b.armoury.add(id)
+	a.relics.append("harvest")
+	b.relics.append("harvest")
+	b.relics.append("hawkeye")
+	ms[1].sell_item(pool[0], ms[1].guild_price(pool[0]))
+	ms[1].sell_item("harvest", 0)
+	ms[1].sell_item(pool[1], 400)
+	ms[0].sell_item(pool[2], ms[0].guild_price(pool[2]))
+	ms[0].sell_item(pool[3], 500)
+	ms[0].sell_item(pool[1], 0)
+	ms[1].buy_sale(ms[0].nid, int(ms[0].sales[2]["u"]))
+	g.camera.focus(ms[0].position + Vector2(0, -50))
+	g.select(ms[0])
+	await _frames(10)
+	await shot("market_coop_panel")
+	g.hud.open_sell_item(ms[0], pool[0])
+	await _frames(6)
+	await shot("market_sell_dialog")
+	g.hud._sell_price += 200
+	g.hud._refresh_sell()
+	await _frames(4)
+	await shot("market_sell_dialog_high")
+	g.hud._sell_panel.visible = false
 	g.deselect()
 	g.queue_free()
 	await _frames(3)

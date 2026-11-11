@@ -55,15 +55,35 @@ func effect(key: String, fallback: Variant = null) -> Variant:
 	return fallback
 
 
-## Every advancement this game offers (the co-op ones only with several villages), tier by tier.
+## Effects that make an advancement the marketplace's (docs/advancements-design.md).
+const MARKET_EFFECTS: Array[String] = ["caravans", "tax"]
+
+
+## Every advancement this game offers (the co-op ones only with several
+## villages, the market's only where a marketplace can be built), tier by tier.
 func offered() -> Array[String]:
 	var out: Array[String] = []
 	for tier in [1, 2]:
 		for id: String in Config.ADVANCEMENTS:
-			var a: Dictionary = Config.ADVANCEMENTS[id]
-			if int(a["tier"]) == tier and (not a.get("coop", false) or game.villages.size() > 1):
+			if int(Config.ADVANCEMENTS[id]["tier"]) == tier and _available(id):
 				out.append(id)
 	return out
+
+
+## Does this game have advancement `id` at all?
+func _available(id: String) -> bool:
+	var a: Dictionary = Config.ADVANCEMENTS[id]
+	if a.get("coop", false) and game.villages.size() < 2:
+		return false
+	return not is_market(id) or game.allows_building("market")
+
+
+## Is `id` one of the marketplace's advancements (a MARKET_EFFECTS key)?
+static func is_market(id: String) -> bool:
+	for k in MARKET_EFFECTS:
+		if (Config.ADVANCEMENTS[id] as Dictionary).has(k):
+			return true
+	return false
 
 
 ## Its unlock conditions: [[text, met]], in the panel's order.
@@ -100,6 +120,8 @@ func error(id: String) -> String:
 		return "Locked for good: you chose %s" % Config.ADVANCEMENTS[str(a["excludes"])]["name"]
 	if a.get("coop", false) and game.villages.size() < 2:
 		return "Only with other villages"
+	if not _available(id):
+		return "There is no marketplace here"
 	if current != "":
 		return "Already researching %s" % Config.ADVANCEMENTS[current]["name"]
 	var hall := village.town_hall()

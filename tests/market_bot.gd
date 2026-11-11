@@ -1,11 +1,14 @@
 extends "res://tests/bot_base.gd"
 ## Headless test of the marketplace, the trader and trade caravans
 ## (docs/market-design.md): placing (a road, one per village), buying from the
-## merchants' stock, selling through the trader and a caravan to the map edge
-## (gold on arrival, minus the tax), the departure rule, turning back, a thief
-## robbing a caravan and its salvage carried back, a destroyed merchants'
-## caravan (finder's fee), the merchants' restocking, the save, and the co-op
-## order book in a two-village game. Run with:
+## guild's stock, selling through the trader and a caravan to the map edge
+## (gold on arrival, minus the guild tax), the departure rule, turning back, a
+## thief robbing a caravan and its salvage carried back, a destroyed guild
+## caravan (finder's fee), the guild's restocking, the save, selling an item
+## and a relic to the guild, carts home to a torn-down market, and in a
+## two-village game the co-op order book and items sold to another player at
+## an asking price (the countdown, the guild after it, a price that waits,
+## taking one back). Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/market_bot.tscn
 ## Exits 0 when every check passes.
 
@@ -43,6 +46,8 @@ func _run() -> void:
 	await _test_destroyed()
 	await _test_restock()
 	_test_save()
+	await _test_item_sales()
+	await _test_home_to_nothing()
 	game.queue_free()
 	await frames(3)
 	await _test_order_book()
@@ -98,7 +103,7 @@ func _test_placing() -> void:
 	check(v.construction.placement_error("market", t2) == "The village has a marketplace already" or t2 == Vector2i(-1, -1), "one per village: a second one is refused (%s)" % v.construction.placement_error("market", t2))
 	m.finish()
 	v.construction.queue.erase(m)
-	check(m.working() and is_equal_approx(m.stock("food"), floorf(m.capacity() * float(Config.MARKET["start_stock"]))), "finished, the merchants' stock starts at %d each" % int(m.stock("food")))
+	check(m.working() and is_equal_approx(m.stock("food"), floorf(m.capacity() * float(Config.MARKET["start_stock"]))), "finished, the guild's stock starts at %d each" % int(m.stock("food")))
 
 
 func _test_trader() -> void:
@@ -127,7 +132,7 @@ func _test_buying() -> void:
 	var lot: Dictionary = Config.MARKET["buy"]["food"]
 	var r := game.command("market_buy", {"building": m.nid, "good": "food"})
 	check(r["ok"] and is_equal_approx(v.economy.amount("gold"), gold - int(lot["gold"])) and is_equal_approx(v.economy.amount("food"), food + int(lot["amount"])), "buying a lot of food: gold for food, at once")
-	check(is_equal_approx(m.stock("food"), stock - int(lot["amount"])), "it comes out of the merchants' stock")
+	check(is_equal_approx(m.stock("food"), stock - int(lot["amount"])), "it comes out of the guild's stock")
 	m.add_stock("materials", -m.stock("materials"))
 	check(not game.command("market_buy", {"building": m.nid, "good": "materials"})["ok"], "sold out: refused (%s)" % m.buy_error("materials"))
 	m.add_stock("materials", m.capacity() / 2.0)
@@ -253,24 +258,24 @@ func _salvage() -> Treasure:
 func _test_destroyed() -> void:
 	m.restock_timer = 0.0
 	m.add_stock("food", -m.stock("food"))
-	check(await wait_until(func() -> bool: return m.incoming() != null, 5.0), "the stock has room: the merchants send a caravan")
+	check(await wait_until(func() -> bool: return m.incoming() != null, 5.0), "the stock has room: the guild sends a caravan")
 	var tc := m.incoming()
 	if tc == null:
 		return
-	check(tc.trip == TradeCaravan.Trip.INCOMING and TradeCaravan.art_for(tc.trip, v) == "unit_trade_cart", "a neutral merchants' cart from the edge")
+	check(tc.trip == TradeCaravan.Trip.INCOMING and TradeCaravan.art_for(tc.trip, v) == "unit_trade_cart", "a neutral guild cart from the edge")
 	await wait(1.0)
 	var cargo := int(tc.cargo.get("food", 0))
 	tc.take_damage(1e6, null, "melee")
 	await frames(3)
 	var sack := _salvage()
-	check(sack != null and bool(sack.reward()["salvage"]["merchants"]), "destroyed, it leaves the merchants' goods as salvage")
+	check(sack != null and bool(sack.reward()["salvage"]["merchants"]), "destroyed, it leaves the guild's goods as salvage")
 	if sack == null:
 		return
 	var gold := v.economy.amount("gold")
 	var stock := m.stock("food")
 	var r := game.command("recruit_villager", {"role": "gatherer"})
 	check(r["ok"], "a gatherer is recruited")
-	check(await wait_until(func() -> bool: return m.stock("food") >= stock + cargo - 0.5, 150.0), "a gatherer carries it to the market: into the merchants' stock")
+	check(await wait_until(func() -> bool: return m.stock("food") >= stock + cargo - 0.5, 150.0), "a gatherer carries it to the market: into the guild's stock")
 	var fee := floori(cargo * float(Config.MARKET["buy"]["food"]["gold"]) / float(Config.MARKET["buy"]["food"]["amount"]) * float(Config.MARKET["finder_fee"]))
 	check(fee > 0 and v.economy.amount("gold") >= gold + fee - 0.5, "for a finder's fee (%d gold)" % fee)
 
@@ -279,7 +284,7 @@ func _test_restock() -> void:
 	m.restock_timer = 0.0
 	m.add_stock("materials", -m.stock("materials"))
 	var before := m.stock("materials")
-	check(await wait_until(func() -> bool: return m.incoming() != null, 5.0), "a merchants' caravan is sent")
+	check(await wait_until(func() -> bool: return m.incoming() != null, 5.0), "a guild caravan is sent")
 	check(await wait_until(func() -> bool: return m.stock("materials") > before, 200.0), "it arrives and refills the stock (%d material)" % int(m.stock("materials")))
 	check(m.incoming() == null or m.incoming().dead, "and is gone")
 
@@ -298,6 +303,68 @@ func _test_save() -> void:
 	var civs: Array = body["civilians"]
 	check(civs.any(func(d: Dictionary) -> bool: return d["r"] == "trader" and int(d.get("mkt", 0)) == m.nid), "and where the trader works")
 	m.orders.clear()
+
+
+## Single player: an item and a relic from the armoury sell to the guild (no
+## asking price), each a load of its own, paid on arrival minus the guild tax.
+func _test_item_sales() -> void:
+	m.sales.clear()
+	for good in m.pile:  # (the save test's goods: none of their gold in the way)
+		m.pile[good] = 0
+		m.packed[good] = 0
+	await wait_until(func() -> bool: return m.caravans_out().is_empty(), 200.0)
+	var id := ItemDrops.pool(game)[0]
+	v.armoury.add(id)
+	check(not m.others_can_buy(), "alone on the map: nobody else could buy")
+	var r := game.command("market_sell_item", {"building": m.nid, "item": id, "price": -1})
+	check(r["ok"] and not v.armoury.has(id), "an item sold: it leaves the armoury at once (%s)" % r.get("error", ""))
+	var it := m.sale(int(r.get("sale", 0)))
+	check(not it.is_empty() and bool(it["guild"]) and int(it["price"]) == -1, "no asking price: the guild buys it at once")
+	check(m.take_back_item_error(int(r.get("sale", 0))) != "", "sold to the guild: it can't be taken back")
+	var expect := floori(floori(Market.guild_value(id)) * (1.0 - m.tax()))
+	check(expect == m.guild_price(id) and expect < Market.offer_price(id), "the guild pays a share of its price, minus the guild tax (%d)" % expect)
+	var gold := v.economy.amount("gold")
+	var sold := game.stats.value(v.id, "trade.items_sold")
+	var found := func() -> bool: return m.caravans_out().any(func(c: TradeCaravan) -> bool: return c.item == id)
+	check(await wait_until(found, 60.0), "the trader packs it: a caravan leaves with it alone")
+	var tcs := m.caravans_out().filter(func(c: TradeCaravan) -> bool: return c.item == id)
+	if tcs.is_empty():
+		return
+	var tc: TradeCaravan = tcs[0]
+	check(tc.cargo.is_empty() and tc.trip == TradeCaravan.Trip.OUTGOING, "a load of its own, to the map edge")
+	check(await wait_until(func() -> bool: return tc.returning, 120.0), "it reaches the edge")
+	check(is_equal_approx(v.economy.amount("gold"), gold + expect) and game.stats.value(v.id, "trade.items_sold") == sold + 1, "paid on arrival: +%d gold (got %+d), counted as an item sold (%d)" % [expect, roundi(v.economy.amount("gold") - gold), int(game.stats.value(v.id, "trade.items_sold") - sold)])
+	# A relic: its effect stops the moment it leaves.
+	v.relics.append("harvest")
+	check(v.relic_bonus("food") > 0.0, "a relic works while the village has it")
+	r = game.command("market_sell_item", {"building": m.nid, "item": "harvest", "price": -1})
+	check(r["ok"] and not Relics.has_relic(v, "harvest") and v.relic_bonus("food") == 0.0, "a relic sold: its effect stops at once")
+	check(not game.command("market_sell_item", {"building": m.nid, "item": "harvest", "price": -1})["ok"], "one the village doesn't hold can't be sold")
+	await wait_until(func() -> bool: return m.sales.is_empty() and m.caravans_out().is_empty(), 200.0)
+
+
+## Carts that come home to a market torn down meanwhile lose nothing: goods
+## back into the village, an item into the armoury, an order's gold to its buyer.
+func _test_home_to_nothing() -> void:
+	var id := ItemDrops.pool(game)[0]
+	var goods: TradeCaravan = m._send(TradeCaravan.Trip.OUTGOING, {"food": 10}, m.edge_tile())
+	var thing: TradeCaravan = m._send(TradeCaravan.Trip.OUTGOING, {}, m.edge_tile(), id)
+	var order: TradeCaravan = m._send(TradeCaravan.Trip.ORDER, {"materials": 5}, m.edge_tile())
+	order.buyer = v
+	order.escrow = 30
+	var food := v.economy.amount("food")
+	var mats := v.economy.amount("materials")
+	var gold := v.economy.amount("gold")
+	var held := v.armoury.items.count(id)
+	v.construction._torn_down(m)
+	await frames(3)
+	for tc in [goods, thing, order]:
+		tc.returning = true
+		tc._home()
+	check(absf(v.economy.amount("food") - food - 10.0) < 2.0, "goods home to no market: back into the village (%+.1f food)" % (v.economy.amount("food") - food))
+	check(v.armoury.items.count(id) == held + 1, "an item: back into the armoury")
+	check(v.economy.amount("gold") >= gold + 30 - 0.5 and v.economy.amount("materials") >= mats + 5 - 0.5, "an order: the buyer's gold back, the goods to the seller")
+	m = null
 
 
 ## The co-op order book: a purchase is filled from another player's pile
@@ -341,8 +408,50 @@ func _test_order_book() -> void:
 	check(ms[1].orders.size() == 1, "an order on b's book")
 	check(await wait_until(func() -> bool: return a.economy.amount("food") >= a_food + int(lot["amount"]), 300.0), "b's trader packs it, the caravan reaches a")
 	check(b.economy.amount("gold") >= b_gold + int(lot["gold"]) - 0.5, "b is paid the full price: no tax between players")
+	await _test_coop_items(a, b, ms[0], ms[1])
 	game.queue_free()
 	await frames(3)
+
+
+## Co-op items (docs/market-design.md §8.1): b sells, a buys at the asking
+## price within the countdown; nobody buys one: the guild does; a price above
+## the guild's waits and can be taken back.
+func _test_coop_items(a: Village, b: Village, ma: Market, mb: Market) -> void:
+	var id := ItemDrops.pool(game)[0]
+	b.armoury.add(id)
+	b.armoury.add(id)
+	check(mb.others_can_buy(), "another village has a market: an asking price")
+	check(mb.sell_item_error(id, -5) != "", "no negative asking price (%s)" % mb.sell_item_error(id, -5))
+	var guild := mb.guild_price(id)
+	var r := game.commands.submit(b, "market_sell_item", {"building": mb.nid, "item": id, "price": guild})
+	var u := int(r.get("sale", 0))
+	var it := mb.sale(u)
+	check(r["ok"] and not it.is_empty() and is_equal_approx(float(it["wait"]), float(Config.MARKET["edge_delay"])), "at the guild's price: a countdown for the others first")
+	check(Market.offers_for(a).any(func(o: Dictionary) -> bool: return int(o["s"]["u"]) == u), "a sees it among the other players' items")
+	var a_gold := a.economy.amount("gold")
+	var b_gold := b.economy.amount("gold")
+	var room := a.armoury.cap() - a.armoury.count()
+	r = game.commands.submit(a, "market_buy_sale", {"building": ma.nid, "seller": mb.nid, "sale": u})
+	check(r["ok"] and is_equal_approx(a.economy.amount("gold"), a_gold - guild) and a.armoury.reserved == 1 and a.armoury.cap() - a.armoury.count() == room - 1, "a buys it: the gold is held, a slot in a's armoury reserved (%s)" % r.get("error", ""))
+	check(not game.commands.submit(a, "market_buy_sale", {"building": ma.nid, "seller": mb.nid, "sale": u})["ok"], "sold: nobody can buy it twice")
+	check(await wait_until(func() -> bool: return a.armoury.has(id), 300.0), "b's trader packs it, a caravan brings it into a's armoury")
+	check(a.armoury.reserved == 0 and b.economy.amount("gold") >= b_gold + guild - 0.5, "the slot is filled, b is paid on arrival")
+	# Asking 0: nobody takes it, so the guild buys it after the countdown.
+	r = game.commands.submit(b, "market_sell_item", {"building": mb.nid, "item": id, "price": 0})
+	u = int(r.get("sale", 0))
+	it = mb.sale(u)
+	check(r["ok"] and float(it.get("wait", -1.0)) > 0.0, "asking 0 (a gift): the countdown runs")
+	it["wait"] = 1.0
+	check(await wait_until(func() -> bool: return bool(it["guild"]), 10.0), "nobody took it: the guild buys it, at its own price")
+	await wait_until(func() -> bool: return not mb.sales.has(it), 60.0)
+	# Above the guild's price: it waits for a player; taken back.
+	b.armoury.add(id)
+	r = game.commands.submit(b, "market_sell_item", {"building": mb.nid, "item": id, "price": guild + 100})
+	u = int(r.get("sale", 0))
+	await wait(3.0)
+	check(r["ok"] and Market.sale_open(mb.sale(u)) and float(mb.sale(u)["wait"]) < 0.0, "above the guild's price: it waits for a player")
+	r = game.commands.submit(b, "market_take_back_item", {"building": mb.nid, "sale": u})
+	check(r["ok"] and b.armoury.has(id) and mb.sale(u).is_empty(), "and it can be taken back into the armoury")
 
 
 func _spot_for(vv: Village) -> Vector2i:

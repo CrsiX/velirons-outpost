@@ -11,15 +11,24 @@ signal changed
 
 var village: Village
 var items: Array[String] = []
+## Slots kept for items bought from other players that are still on the road
+## (docs/market-design.md §8.1): they count as taken until the item arrives.
+var reserved := 0
 
 
 func cap() -> int:
 	return int(Config.ARMOURY["cap"])
 
 
-## Items and relics it holds.
+## Items and relics it holds, and the slots reserved for items on the way.
 func count() -> int:
-	return items.size() + (village.relics.size() if village else 0)
+	return items.size() + (village.relics.size() if village else 0) + reserved
+
+
+## A reserved slot is no longer needed (the item arrived or the order was lost).
+func release() -> void:
+	reserved = maxi(reserved - 1, 0)
+	changed.emit()
 
 
 func full() -> bool:

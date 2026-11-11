@@ -79,6 +79,10 @@ why:
 - What comes with the start (starting villagers, farm, camp) isn't counted:
   the numbers show what the player did.
 
+**Trade** (shown only where a marketplace can be built, docs/market-design.md)
+- Purchases at the market, sales delivered (items and relics among them), guild tax paid and
+  salvage brought back: how much the village lived off trade, and what the guild took.
+
 **Hero**
 - Kills, XP, level, times downed, longest streak without being downed.
 

@@ -910,29 +910,35 @@ const STALL_LEVELS: Array[Dictionary] = [
 ## The marketplace (Market; docs/market-design.md): one per village, 3x3,
 ## touching a road. Gold is the only currency. "levels" (index = level - 1):
 ## the upgrade's "cost" and "work_time" (like towers), "stock": goods of each
-## kind the merchants' buying stock and the for-sale pile hold at most,
+## kind the guild's buying stock and the for-sale pile hold at most,
 ## "caravans": the village's own trade caravans on the road at once, "tax":
-## the share taken from sales at the map edge (none between players).
-## "buy": a lot bought for gold ({good: {"amount", "gold"}}, filled from other
-## players' for-sale piles first, then the merchants' stock); "sell": gold one
-## lot of a good fetches at the edge before the tax; "lot": goods put up for
+## the guild tax: the share taken from sales to the guild at the map edge (none
+## between players). "buy": a lot bought for gold ({good: {"amount", "gold"}},
+## filled from other players' for-sale piles first, then the guild's stock);
+## "sell": gold one lot of a good fetches at the edge before the tax; "lot": goods put up for
 ## sale (or taken back) per order. "start_stock": share of "stock" a new market
 ## has. The trader packs "pack_rate" goods per second into a load of at most
-## "load"; a load leaves when full or when the pile is empty. Merchants'
+## "load"; a load leaves when full or when the pile is empty. The guild's
 ## caravans: one at a time, every "restock_every" seconds while the stock has
 ## room, carrying "restock" x that level's "stock" of each good. Trade caravans
 ## have "hp" and walk at "speed"; out on the road they turn back when a
 ## visible enemy is within "blocked_radius" of the way ahead (looking
 ## "look_ahead" waypoints on); none sets off while one is that close to its
-## route. "finder_fee": gold for salvage of the merchants' goods brought back,
+## route. "finder_fee": gold for salvage of the guild's goods brought back,
 ## as a share of what the goods cost to buy. Equipment (docs/market-design.md
 ## §8, only where Game.items_enabled): "item_offer" random items on offer,
-## rolled anew by each merchants' caravan that arrives, each for "item_gold";
+## rolled anew by each guild caravan that arrives, each for "item_gold";
 ## buying one needs no trader, only room in the armoury. Relics
 ## (docs/market-design.md §8): every "relic_after" seconds of a trader tending
 ## the market (his stationed time; it pauses while he is away) he brings a new
 ## relic for sale (Relics.pool), for "relic_gold": one not bought by then is
-## gone, one bought leaves the offer empty until then.
+## gone, one bought leaves the offer empty until then. Selling an item or a
+## relic (§8.1, a trader needed): the guild pays "item_sell" x its buying
+## price ("item_gold" / "relic_gold"), minus the guild tax, on arrival. In
+## co-op an asking price at or below that waits "edge_delay" seconds of the
+## trader's time for another player, then the guild buys it; "price_steps":
+## the sell dialog's buttons for the asking price. An item is a load of its
+## own, packed in "item_pack_time" seconds.
 const MARKET := {
 	"levels": [
 		{"stock": 120, "caravans": 2, "tax": 0.3},
@@ -956,6 +962,10 @@ const MARKET := {
 	"item_gold": 160,
 	"relic_after": 300.0,
 	"relic_gold": 320,
+	"item_sell": 0.6,
+	"edge_delay": 15.0,
+	"price_steps": [-50, -10, 10, 50],
+	"item_pack_time": 6.0,
 }
 
 ## Tower range in tiles. Towers own the range; units own damage and speed.
@@ -1388,8 +1398,10 @@ const EXPLORER_BLOCKED_RADIUS := 4.0
 ##   repair_cost      repairs cost this share less building material
 ##   branch_cost      specialising costs this share less gold
 ##   recruit_cost     recruiting military units costs this share less gold
-## Not built yet (they need the marketplace): Trade charter; trader's price at
-## the edge or one more caravan.
+##   caravans         the marketplace may have this many more trade caravans on the road
+##   tax              the guild tax this share lower (adds to a Toll charter)
+## An advancement with a "caravans" or "tax" effect is the market's: offered only
+## where a marketplace can be built (Research.offered).
 const ADVANCEMENT_TIERS := {1: 2, 2: 3}
 const ADVANCEMENTS := {
 	"fortifications_4": {"name": "Fortifications IV", "tier": 1, "gold": 150, "time": 60.0, "wave": 6, "max_piece_level": 4,
@@ -1426,6 +1438,14 @@ const ADVANCEMENTS := {
 		"desc": "Specialising a unit costs 25 % less gold."},
 	"cheaper_recruits": {"name": "Cheaper base units", "tier": 2, "gold": 150, "time": 75.0, "excludes": "cheaper_specialising", "recruit_cost": 0.2,
 		"desc": "Recruiting military units costs 20 % less gold."},
+	"caravan_rights": {"name": "Caravan rights", "tier": 1, "gold": 120, "time": 60.0, "caravans": 1,
+		"desc": "Your marketplace may have one more trade caravan on the road."},
+	"guild_partners": {"name": "Guild partners", "tier": 2, "gold": 200, "time": 75.0, "excludes": "extra_caravan", "tax": 0.25,
+		"deed": {"stat": "trade.sold", "count": 10, "text": "sales delivered"},
+		"desc": "The guild tax is a quarter lower (adds to a Toll charter)."},
+	"extra_caravan": {"name": "One more caravan", "tier": 2, "gold": 200, "time": 75.0, "excludes": "guild_partners", "needs": ["caravan_rights"], "caravans": 1,
+		"deed": {"stat": "trade.sold", "count": 10, "text": "sales delivered"},
+		"desc": "One more trade caravan on the road (adds to Caravan rights)."},
 }
 ## Better targeting (docs/advancements-design.md §5): the rule per unit kind
 ## (and summon kind); anyone not listed keeps the default. Rules: "default"

@@ -225,7 +225,9 @@ Rules behind the table:
   equipment offer with the market; dropped items are sacks on the map (format 9).
   Relics (docs/items-design.md §7) are the village's `"relics"` list, duplicates kept, and the
   market's relic offer and its trader's stationed time (`"ro"`, `"st"`, read with defaults), so
-  they needed no format bump.
+  they needed no format bump; nor did selling items (docs/market-design.md §8.1): the market's
+  items on sale (`"sl"`), each armoury's slots reserved for items on the road (`"armr"`) and the
+  item a trade caravan carries (`"it"`, `"ip"`) are read with defaults too.
 
 ## 8. Files
 

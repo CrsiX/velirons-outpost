@@ -76,6 +76,8 @@ func _test_conditions() -> void:
 	check(r.error("faster_attacks").contains("Wave 10"), "a wave condition (%s)" % r.error("faster_attacks"))
 	check(r.error("skilled_looting").contains("gold earned"), "an earned-gold condition (%s)" % r.error("skilled_looting"))
 	check(r.error("vital_points").contains("melee kills"), "a deed (%s)" % r.error("vital_points"))
+	check(r.error("caravan_rights") == "", "Caravan rights: nothing but the tier")
+	check(Research.is_market("caravan_rights") and Research.is_market("guild_partners") and Research.is_market("extra_caravan") and not Research.is_market("drill_1"), "the market's three are known by their effects (offered only where a marketplace can be built)")
 	game.stats.count(v, "earn.gold", 500.0)
 	check(r.error("skilled_looting") == "", "500 gold earned: it opens")
 	game.stats.count(v, "kill_by.melee", 40.0)
@@ -87,6 +89,10 @@ func _test_conditions() -> void:
 	check(r.error("drill_2").contains("Wave 14"), "tier 2 at level 3, still its wave (%s)" % r.error("drill_2"))
 	game.waves.wave = 14
 	check(r.error("drill_2").contains("Drill I"), "and a prerequisite (%s)" % r.error("drill_2"))
+	check(r.error("guild_partners").contains("sales delivered"), "Guild partners: a deed of sales (%s)" % r.error("guild_partners"))
+	game.stats.count(v, "trade.sold", 10.0)
+	check(r.error("guild_partners") == "", "10 sales of any kind: it opens")
+	check(r.error("extra_caravan").contains("Caravan rights"), "One more caravan needs Caravan rights (%s)" % r.error("extra_caravan"))
 	game.waves.wave = 10
 
 
@@ -163,6 +169,26 @@ func _test_effects() -> void:
 	ar.level = Config.BRANCH_MIN_LEVEL - 1
 	var opts := ar.upgrade_options().filter(func(o: Dictionary) -> bool: return o["to"] != "archer")
 	check(not opts.is_empty() and int(opts[0]["cost"]["gold"]) == roundi(int(Config.MILITARY[opts[0]["to"]]["branch_cost"]["gold"]) * 0.75), "cheaper specialising: 25 % less")
+	# The market's: more caravans, a lower guild tax.
+	var spot := find_spot("market", v.center)
+	var mk := v.construction.place("market", spot) as Market if spot != Vector2i(-1, -1) else null
+	check(mk != null, "a marketplace for the market's advancements")
+	if mk != null:
+		mk.finish()
+		v.construction.queue.erase(mk)
+		var cap0 := mk.caravan_cap()
+		var tax0 := mk.tax()
+		grant("caravan_rights")
+		check(mk.caravan_cap() == cap0 + 1, "Caravan rights: one more caravan (%d)" % mk.caravan_cap())
+		grant("extra_caravan")
+		check(mk.caravan_cap() == cap0 + 2 and r.locked.has("guild_partners"), "One more caravan adds another; Guild partners locked")
+		r.done.erase("extra_caravan")
+		r.locked.erase("guild_partners")
+		grant("guild_partners")
+		check(is_equal_approx(mk.tax(), tax0 * 0.75) and mk.guild_price("hearth") > 0, "Guild partners: the guild tax a quarter lower (%.3f)" % mk.tax())
+		v.relics.append("toll_charter")
+		check(is_equal_approx(mk.tax(), tax0 * (1.0 - 0.25 - float(Config.RELICS["toll_charter"]["tax"]))), "and it adds to a Toll charter")
+		v.relics.erase("toll_charter")
 	# Eye for vital points.
 	grant("vital_points")
 	var crits := 0

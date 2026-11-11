@@ -16,12 +16,14 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Builder crew**: the builders (and the hero) working one site together; their work adds up, and a builder joins only if that saves more than its walk. `village-design.md`
 - **Tear down**: a builder dismantles a building outside the walls for a partial refund.
 - **Gatherer / forester / farmer / builder / explorer / miner / trader**: civilian roles. **Merchant** (Pell), **guild master, resident**: named campaign villagers who can't be recruited; Pell keeps the campaign's trade stall.
-- **Marketplace**: the trading building (`Market`), one per village by a road; buying works from the merchants' **buying stock**, selling from the village's **for-sale pile** needs a trader. Pell's stall is a separate campaign building for now. `market-design.md`
-- **Trader**: the villager who works a marketplace and sells the goods put up for sale. `market-design.md`
+- **Marketplace**: the trading building (`Market`), one per village by a road; buying works from the guild's **buying stock**, selling from the village's **for-sale pile** needs a trader. Pell's stall is a separate campaign building for now. `market-design.md`
+- **Trader**: the villager who works a marketplace and sells the goods, items and relics put up for sale. `market-design.md`
+- **Asking price**: what a seller in co-op asks for an item or relic; the first other player to accept pays it, and at or below the guild's price the guild buys it after a short wait. `market-design.md`
 - **Town hall**: every village's one building in its back quarter, placed by the map; the hero's home, research, the armoury (items and relics); level 2 adds a tower post, level 3 a barracks bench. `village-design.md`
 - **Last stand**: the countdown after a town hall is devastated; it must be fully repaired before it runs out or the village falls. `village-design.md`
 - **Salvage**: the cargo of a robbed or destroyed trade caravan; a gatherer or the hero carries it back to the marketplace. `market-design.md`
-- **Order book**: co-op trade; a purchase is filled from other players' goods for sale before the merchants at the map edge. `market-design.md`
+- **The guild**: the Silver Thread Guild as the outside trade partner: it fills a marketplace's buying stock by its caravans and buys what a village sells at the map edge, at its own fixed price, minus the **guild tax** (none between players). Not **Merchant** (Pell). `market-design.md`
+- **Order book**: co-op trade; a purchase is filled from other players' goods for sale before the guild's stock. `market-design.md`
 - **Caravan**: a cart. In co-op it carries help between villages; in the campaign a scripted guild cart; help caravans wear the sender's colour; a **trade caravan** carries a marketplace's goods to a buyer or the map edge, or brings stock in. `market-design.md`
 - **Starvation / hunger**: villagers die one by one while food is out; military units slow down and take more damage.
 

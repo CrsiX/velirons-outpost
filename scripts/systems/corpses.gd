@@ -60,7 +60,7 @@ func clear_salvage(n: int) -> void:
 	for o in game.world.map_objects.duplicate():
 		var t := o as Treasure
 		if t != null and t.reward().has("salvage") and int(t.reward()["salvage"].get("wave", 0)) < n and t.claimed_by == null:
-			game.log_for(game.entity(int(t.reward()["salvage"].get("market", 0))), EventLog.Level.INFO, "Salvage of %s was left too long and is gone" % Market._goods_text(t.reward()["salvage"]["goods"]))
+			game.log_for(game.entity(int(t.reward()["salvage"].get("market", 0))), EventLog.Level.INFO, "Salvage of %s was left too long and is gone" % TradeCaravan.salvage_text(t.reward()["salvage"]))
 			t.mark_looted()
 
 

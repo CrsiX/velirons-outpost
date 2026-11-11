@@ -1,7 +1,6 @@
 # Veliron's Outpost: advancements (design)
 
-Status: **built** except the three advancements that need the marketplace (Trade charter, and the
-trader's pair in tier 2: designed, not built). Tested by tests/advancement_bot.gd. Every number
+Status: **built**. Tested by tests/advancement_bot.gd. Every number
 lives in `scripts/core/config.gd` (`ADVANCEMENTS`, `ADVANCEMENT_TIERS`, `TARGETING_*`), never here.
 The research is `Research` (one per village), the effects are read where they apply through
 `Village` (`adv_bonus`, `max_piece_level`, `walk_bonus`, `targeting`, `kill_gold`, `crit`,
@@ -120,8 +119,8 @@ conditions are `Config` values (`ADVANCEMENTS`), agreed when built.
 - **Forester, farmer, gatherer and builder walk faster.**
 - **Drill I:** a unit's level-up (e.g. level 3 to 4) costs a share less, both the gold and the
   XP needed at the training grounds. Never a specialisation (that is §6 tier 2's own choice).
-- *(Designed, not built: needs the marketplace)* **Trade charter:** one more caravan in transit
-  at once (docs/market-design.md).
+- **Caravan rights:** one more trade caravan in transit at once (docs/market-design.md). No
+  condition beyond the tier.
 - **Skilled looting:** more gold per kill (what it is: better at taking what the fallen carry);
   only once the village has earned some gold this game.
 - **Shared vision** (co-op, one way, §4).
@@ -136,8 +135,15 @@ conditions are `Config` values (`ADVANCEMENTS`), agreed when built.
 - **Drill II:** as Drill I, adding to it.
 - **Master builders** (faster building) ***or*** **cheaper repairs.**
 - **Cheaper specialising *or* cheaper base units** (recruiting).
-- *(Designed, not built: needs the marketplace)* **Trader: better price at the edge *or* one more
-  caravan.**
+- **Guild partners** (a lower guild tax, adding to a Toll charter) ***or*** **One more caravan**
+  (needs Caravan rights). Both need a deed: sales delivered, of any kind (`trade.sold`: goods or
+  an item, to the guild or to a player; buying doesn't count), so they come to a village that
+  trades. Guild partners needs nothing else: the tax side of the pair is open without the
+  caravans.
+
+The market's three are there exactly where a marketplace can be built (`Game.market_enabled`):
+always in free play and co-op, in a scenario only if it allows a marketplace. Elsewhere they
+are left out of the list, not shown locked.
 
 ### Candidates for more exclusive pairs (proposed)
 

@@ -1820,7 +1820,7 @@ func _test_ghosts() -> void:
 		check(roam.mode == GhostBehavior.Mode.ROAM and roam.target == null and h2.faded, "its target %s: it fades and roams" % how)
 		var gone := await wait_until(when_gone(h2), float(gc["roam_time"]) + 8.0)
 		await frames(2)
-		check(gone and w._alive == left0 - 1 and game.economy.amount("gold") == gold0 and game.corpses.corpses.size() == corpses0, "it vanishes within %d s of it: no gold, no corpse, and the wave no longer counts it" % int(gc["roam_time"]))
+		check(gone and w._alive == left0 - 1 and game.economy.amount("gold") == gold0 and game.corpses.corpses.size() == corpses0, "it vanishes within %d s of it: no gold, no corpse, and the wave no longer counts it (gone %s, alive %d of %d, gold %+d, corpses %+d)" % [int(gc["roam_time"]), gone, w._alive, left0 - 1, game.economy.amount("gold") - gold0, game.corpses.corpses.size() - corpses0])
 	# A miner inside his mine is driven out when the ghost stands by it.
 	await clear_enemies()
 	var mines: Array = game.world.map_objects.filter(func(o: MapObject) -> bool: return o is Mine)

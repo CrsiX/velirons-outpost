@@ -49,7 +49,7 @@ func _run() -> void:
 	check(bd.modulate.v > 0.0 and bd.modulate.v < 1.0 - float(CFG["shade"]) + 0.01, "and it fades in")
 	await wait(float(CFG["fade_in"]) * float(CFG["speed"]) + 0.5)
 	check(is_equal_approx(bd.modulate.v, 1.0 - float(CFG["shade"])), "up to the shade (%.2f)" % bd.modulate.v)
-	check(is_equal_approx(Engine.time_scale, float(CFG["speed"])), "slow motion: speed %.2f" % Engine.time_scale)
+	check(is_equal_approx(Engine.time_scale, float(bd.value("speed"))), "slow motion: speed %.2f (the scene's %.2f)" % [Engine.time_scale, float(bd.value("speed"))])
 	check(Sfx.muted, "no sound")
 	await _input_check()
 	for i in (CFG["scenes"] as Array).size():

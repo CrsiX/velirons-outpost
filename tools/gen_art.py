@@ -10185,6 +10185,24 @@ def _price_tag(x, y):
   </g>'''
 
 
+def _cart(x=0, y=0):
+    """A small open trade cart (crates on a wooden bed, one wheel) for the market's advancements."""
+    return f'''
+  <g transform="translate({x} {y})">
+    <rect x="14" y="22" width="10" height="9" fill="#b08a58" stroke="{INK}" stroke-width="2"/>
+    <rect x="25" y="20" width="9" height="11" fill="#c8a46a" stroke="{INK}" stroke-width="2"/>
+    <path d="M10 31 L42 31 L40 37 L12 37Z" fill="{WOOD_L}" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M42 33 L50 30" stroke="{INK}" stroke-width="2.6" stroke-linecap="round"/>
+    <circle cx="24" cy="40" r="6" fill="#6a4a2a" stroke="{INK}" stroke-width="2.2"/>
+    <path d="M24 34 L24 46 M18 40 L30 40" stroke="#b08a58" stroke-width="1.5"/>
+  </g>'''
+
+
+def _plus(x, y):
+    return f'''
+  <path d="M{x - 6} {y} L{x + 6} {y} M{x} {y - 6} L{x} {y + 6}" stroke="{INK}" stroke-width="5.5" stroke-linecap="round"/>
+  <path d="M{x - 6} {y} L{x + 6} {y} M{x} {y - 6} L{x} {y + 6}" stroke="#5cc24a" stroke-width="3" stroke-linecap="round"/>'''
+
 ADV_ICONS = {
     "fortifications_4": (1, _battlement(STONE_T, STONE_L) + _numeral("IV")),
     "fortifications_5": (2, _battlement(GOLD, "#8f8a80") + f'''
@@ -10255,6 +10273,16 @@ ADV_ICONS = {
   <path d="M14 40 L50 40 L48 45 L16 45Z" fill="#6a727c" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
   <path d="M32 18 L32 40" stroke="#5a626c" stroke-width="2.4"/>
   <path d="M24 28 L28 28 L28 34 M36 28 L40 28" stroke="{INK}" stroke-width="2"/>''' + _price_tag(46, 18)),
+    "caravan_rights": (1, f'''
+  <path d="M30 10 L46 10 Q49 10 49 13 L49 20 L30 20 Q33 15 30 10Z" fill="#efe3c8" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="44" cy="20" r="3.5" fill="#c83a30" stroke="{INK}" stroke-width="1.5"/>''' + _cart(0, 4) + _plus(48, 40)),
+    "extra_caravan": (2, '\n  <g transform="translate(5 6) scale(0.82)">' + _cart(-2, -8) + _cart(8, 8) + "\n  </g>" + _plus(47, 17)),
+    "guild_partners": (2, f'''
+  <circle cx="26" cy="30" r="12" fill="{GOLD}" stroke="{INK}" stroke-width="2.6"/>
+  <circle cx="26" cy="30" r="7.5" fill="none" stroke="#8a5a26" stroke-width="1.8"/>
+  <path d="M12 44 Q22 38 30 44 Q38 50 50 42" fill="none" stroke="#d8dde4" stroke-width="3" stroke-linecap="round"/>
+  <path d="M44 14 L44 30 M38 24 L44 31 L50 24" fill="none" stroke="{INK}" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M44 14 L44 30 M38 24 L44 31 L50 24" fill="none" stroke="#5cc24a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'''),
 }
 
 

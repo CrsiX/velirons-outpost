@@ -55,6 +55,8 @@ var _hall: TownHall
 ## The village-wide and map-wide relics it has (Config.RELICS keys, duplicates kept:
 ## each counts once; docs/items-design.md §7). They take room in the armoury.
 var relics: Array[String] = []
+## Co-op client: the other players' items it can buy (Market.offers_for, from the host).
+var net_offers: Array[Dictionary] = []
 ## Campaign items brought home (a treasure's "item": scenario 9's relic sword).
 var items: Array[String] = []
 ## Corpses brought home so far (by gatherers or the hero).

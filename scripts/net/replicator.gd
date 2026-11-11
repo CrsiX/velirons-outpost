@@ -264,6 +264,8 @@ func _village_data(v: Village) -> Dictionary:
 		"unl": game.unlocks.keys(),
 		"rel": v.relics.duplicate(),
 		"arm": v.armoury.items.duplicate(),
+		"armr": v.armoury.reserved,
+		"offers": Market.offers_for(v),
 		"eco": [v.economy.amount("gold"), v.economy.amount("food"), v.economy.amount("materials")],
 		"starve": [v.population.starving, snappedf(v.population.starve_timer, 0.1)],
 		"stand": [snappedf(v.last_stand, 0.1), v.stand_unpaid, v.hall_lost],
@@ -462,6 +464,8 @@ func _apply_village(vd: Dictionary) -> void:
 			game.world.on_unlocked(key)
 			game.hud._queue_refresh()
 	v.relics.assign(vd.get("rel", []))
+	v.armoury.reserved = int(vd.get("armr", 0))
+	v.net_offers.assign(vd.get("offers", []))
 	if vd.get("arm", []) != v.armoury.items:
 		v.armoury.set_items(vd.get("arm", []))
 	game.world.sync_net_sacks(vd.get("sacks", []))

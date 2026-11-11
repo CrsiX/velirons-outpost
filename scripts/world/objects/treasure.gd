@@ -188,7 +188,7 @@ func info() -> Dictionary:
 		lines.append("Looted.")
 	elif reward().has("salvage"):
 		var sv: Dictionary = reward()["salvage"]
-		lines.append("The cargo of a lost trade caravan: %s." % Market._goods_text(sv.get("goods", {})))
+		lines.append("The cargo of a lost trade caravan: %s." % TradeCaravan.salvage_text(sv))
 		lines.append("A gatherer (or the hero gathering) carries it back to its marketplace. It lies here until the next wave is over.")
 	elif data.get("sack", false) and reward().has("relic"):
 		lines.append("Something that glints: a relic.")

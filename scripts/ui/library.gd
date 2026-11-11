@@ -792,15 +792,17 @@ static func _market_facts() -> PackedStringArray:
 	var f := PackedStringArray()
 	for good: String in mk["buy"]:
 		var word := "building material" if good == "materials" else good
-		f.append("Buy %d %s for %d gold; sold at the map edge %d fetch %d gold before tax" % [int(mk["buy"][good]["amount"]), word, int(mk["buy"][good]["gold"]), int(mk["lot"]), int(mk["sell"][good])])
+		f.append("Buy %d %s for %d gold; sold to the guild at the map edge %d fetch %d gold before the guild tax" % [int(mk["buy"][good]["amount"]), word, int(mk["buy"][good]["gold"]), int(mk["lot"]), int(mk["sell"][good])])
 	var lv: Array = mk["levels"]
 	for i in lv.size():
 		var l: Dictionary = lv[i]
 		var cost := " (%s)" % Config.cost_text(l["cost"]) if l.has("cost") else ""
-		f.append("Level %d%s: stock %d, %d trade caravan%s on the road, tax %d %%" % [i + 1, cost, int(l["stock"]), int(l["caravans"]), "" if int(l["caravans"]) == 1 else "s", roundi(float(l["tax"]) * 100.0)])
-	f.append("Merchants' caravans every %s s refill the stock; trade caravans have %d HP and turn back from enemies on the road" % [_n(mk["restock_every"]), int(mk["hp"])])
+		f.append("Level %d%s: stock %d, %d trade caravan%s on the road, guild tax %d %%" % [i + 1, cost, int(l["stock"]), int(l["caravans"]), "" if int(l["caravans"]) == 1 else "s", roundi(float(l["tax"]) * 100.0)])
+	f.append("The guild (the Silver Thread Guild) sends a caravan every %s s to refill the stock; trade caravans have %d HP and turn back from enemies on the road" % [_n(mk["restock_every"]), int(mk["hp"])])
 	f.append("Co-op: purchases come from other players' for-sale piles first, by caravan, with no tax")
-	f.append("Lost cargo lies as salvage: gatherers carry it back (finder's fee %d %% for the merchants' goods)" % roundi(float(mk["finder_fee"]) * 100.0))
+	f.append("Items and relics from the armoury sell to the guild for %d %% of their price, minus the guild tax; each one is a load of its own (a trader needed)" % roundi(float(mk["item_sell"]) * 100.0))
+	f.append("Co-op: an item has an asking price (0 or more); at or below the guild's, the others have %s s to buy it before the guild does" % _n(mk["edge_delay"]))
+	f.append("Lost cargo lies as salvage: gatherers carry it back (finder's fee %d %% for the guild's goods)" % roundi(float(mk["finder_fee"]) * 100.0))
 	return f
 
 

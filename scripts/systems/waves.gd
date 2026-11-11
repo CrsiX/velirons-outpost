@@ -878,7 +878,7 @@ func _on_enemy_killed(g: Enemy) -> void:
 		c.hp_scale = g.hp_scale
 	ItemDrops.drop_carried(game, g, v)
 	if not g.loot_cargo.is_empty():  # (a thief's haul from a trade caravan)
-		TradeCaravan.drop_salvage(game, g.current_tile(), game.entity(int(g.loot_cargo["market"])) as Market, g.loot_cargo["goods"], bool(g.loot_cargo["merchants"]))
+		TradeCaravan.drop_salvage(game, g.current_tile(), game.entity(int(g.loot_cargo["market"])) as Market, g.loot_cargo["goods"], bool(g.loot_cargo["merchants"]), str(g.loot_cargo.get("item", "")), int(g.loot_cargo.get("price", -1)))
 		g.loot_cargo = {}
 	_split(g)
 	_enemy_gone(g)

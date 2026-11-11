@@ -290,7 +290,7 @@ static func capture(game: Game) -> Dictionary:
 		vs.append({"name": v.village_name, "color": v.color.to_html(false), "fallen": v.fallen, "relics": Array(v.relics),
 			"stand": [v.last_stand, v.stand_retry, v.hall_lost, v.no_more_stands, v.stand_emptied],
 			"res": {"done": Array(v.research.done), "cur": v.research.current, "p": v.research.progress, "paid": v.research.paid, "locked": Array(v.research.locked)},
-			"cd": v.corpses_delivered, "log": int(v.events.shown_level), "queue": queue, "arm": Array(v.armoury.items),
+			"cd": v.corpses_delivered, "log": int(v.events.shown_level), "queue": queue, "arm": Array(v.armoury.items), "armr": v.armoury.reserved,
 			"eco": {"gold": v.economy.amount("gold"), "food": v.economy.amount("food"), "materials": v.economy.amount("materials")},
 			"hero": _hero_state(v.hero)})
 	b["villages"] = vs
@@ -320,7 +320,7 @@ static func capture(game: Game) -> Dictionary:
 	for n in world.objects.get_children():
 		var tc := n as TradeCaravan
 		if tc and not tc.dead and is_instance_valid(tc.market):
-			trade.append({"n": tc.nid, "u": tc.uid, "m": tc.market.nid, "tr": int(tc.trip), "cargo": tc.cargo.duplicate(),
+			trade.append({"n": tc.nid, "u": tc.uid, "m": tc.market.nid, "tr": int(tc.trip), "cargo": tc.cargo.duplicate(), "it": tc.item, "ip": tc.item_price,
 				"buyer": tc.buyer.id if tc.buyer else -1, "esc": tc.escrow, "dest": tc.dest, "orig": tc.origin,
 				"ret": tc.returning, "hp": tc.hp, "pos": tc.grid_pos})
 	b["trade"] = trade
@@ -351,7 +351,8 @@ static func _building_state(bd: Building) -> Dictionary:
 	if bd is Market:
 		var m := bd as Market
 		d["mk"] = {"sm": m.stock_materials, "pile": m.pile.duplicate(), "pk": m.packed.duplicate(), "ord": m.orders.duplicate(true),
-			"rt": m.restock_timer, "b": m.bought, "s": m.sold, "io": m.item_offer.duplicate(), "ro": m.relic_offer.duplicate(), "st": m.stationed}
+			"rt": m.restock_timer, "b": m.bought, "s": m.sold, "io": m.item_offer.duplicate(), "ro": m.relic_offer.duplicate(), "st": m.stationed,
+			"sl": m.sales.duplicate(true)}
 	if bd is TownHall and (bd as TownHall).bench != null:
 		d["bn"] = (bd as TownHall).bench.nid  # (its bench: the post its unit names)
 	if bd is Tower and (bd as Tower).targeting != "default":
@@ -503,6 +504,7 @@ static func restore_entities(game: Game, b: Dictionary) -> void:
 		v.research.reapply()
 		v.relics.assign(d["relics"])
 		v.armoury.set_items(d["arm"])
+		v.armoury.reserved = int(d.get("armr", 0))
 		v.corpses_delivered = int(d["cd"])
 		v.economy.set_amounts(d["eco"])
 		v.events.shown_level = int(d["log"]) as EventLog.Level
@@ -629,6 +631,7 @@ static func _apply_building(bd: Building, d: Dictionary) -> void:
 		m.item_offer.assign(mk["io"])
 		m.relic_offer.assign(mk.get("ro", []))
 		m.stationed = float(mk.get("st", 0.0))
+		m.sales.assign((mk.get("sl", []) as Array).duplicate(true))
 	if bd is Tower:
 		(bd as Tower).targeting = str(d.get("tg", "default"))
 	var q: Array = d.get("q", [0.0, 0])
@@ -864,6 +867,8 @@ static func _restore_trade_caravan(game: Game, d: Dictionary) -> void:
 	var bv := int(d["buyer"])
 	tc.buyer = game.villages[bv] if bv >= 0 and bv < game.villages.size() else null
 	tc.escrow = int(d["esc"])
+	tc.item = str(d.get("it", ""))
+	tc.item_price = int(d.get("ip", -1))
 	tc.dest = d["dest"]
 	tc.origin = d["orig"]
 	tc.returning = bool(d["ret"])

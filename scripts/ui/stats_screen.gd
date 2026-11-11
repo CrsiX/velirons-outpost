@@ -255,6 +255,14 @@ func summary_sections() -> Array[Dictionary]:
 	eco.append(hungry)
 	out.append({"title": "Economy", "rows": eco})
 
+	if game.market_enabled():
+		var trade: Array = [_row("Purchases at the market", "trade.bought", "", "market")]
+		trade.append(_row("Sales delivered", "trade.sold", "high"))
+		trade.append(_sub("of them items and relics", "trade.items_sold", "high"))
+		trade.append(_row("Guild tax paid", "trade.tax", "low", "icon_gold"))
+		trade.append(_row("Salvage brought back", "trade.salvage", "high"))
+		out.append({"title": "Trade", "rows": trade})
+
 	var vil: Array = [_row("Villagers recruited", "_recruited", "high", "icon_population")]
 	vil[0]["get"] = func(vid: int) -> float: return _sum_prefix(vid, "recruit.")
 	for role: String in Config.CIVILIANS:

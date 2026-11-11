@@ -265,8 +265,12 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
   (`Hud.open_research`): each advancement by tier with its icon, what it does, its conditions (met or
   not), its cost and time; exclusive choices ask before they are taken, saying what they lock
   for good (docs/advancements-design.md).
-- **Marketplace panel:** buying from its stock, putting goods up for sale, caravans out, the
-  equipment and relic offers, and in co-op the order book (docs/market-design.md).
+- **Marketplace panel:** buying from the guild's stock, putting goods up for sale, caravans out,
+  the equipment and relic offers, a Sell action per item in the armoury and relic (each saying
+  what the guild pays), what is on sale with its countdown, and in co-op the order book and the
+  other players' items to buy (docs/market-design.md). In co-op, Sell opens a small dialog for
+  the asking price (steps of `MARKET` "price_steps", a button back to the guild's price, a line
+  saying what happens at that price); alone, Sell goes straight to the guild.
 - **Tower panel:** with the manual-targeting advancement, a targeting switch per tower (nearest
   the village centre, weakest, strongest, fastest, support first): its current rule and a button
   to the next (`Tower.add_targeting_info`).

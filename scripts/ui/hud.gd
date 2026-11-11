@@ -120,6 +120,15 @@ var _send_tax_label: Label
 var _send_button: Button
 var _send_entry: Dictionary = {}
 var _send_unit_panel: PanelContainer
+# selling an item or relic at the market (co-op: its asking price; docs/market-design.md §8.1)
+var _sell_panel: PanelContainer
+var _sell_title: Label
+var _sell_price_label: Label
+var _sell_note: Label
+var _sell_button: Button
+var _sell_market: Market
+var _sell_item := ""
+var _sell_price := 0
 var _send_unit_title: Label
 var _send_unit_target := -1
 var _send_unit_target_button: Button
@@ -320,6 +329,7 @@ func setup(p_game: Game) -> void:
 	_stand_warning.visible = false
 	_build_trade_dialog()
 	_build_send_dialog()
+	_build_sell_dialog()
 	await game.build_step()
 	_build_upgrade_dialogs()
 	_build_research_dialog()
@@ -1095,6 +1105,7 @@ func _register_popups() -> void:
 	register_popup(_trade_panel, func() -> void: _trade_panel.visible = false)
 	register_popup(_send_panel, func() -> void: _send_panel.visible = false)
 	register_popup(_send_unit_panel, func() -> void: _send_unit_panel.visible = false)
+	register_popup(_sell_panel, func() -> void: _sell_panel.visible = false)
 	register_popup(_upgrade_panel, func() -> void: _upgrade_panel.visible = false)
 	register_popup(_research_panel, func() -> void: _research_panel.visible = false)
 	register_popup(_armoury_panel, func() -> void: _armoury_panel.visible = false)
@@ -1801,7 +1812,7 @@ func _relayout() -> void:
 	_people_scroll.custom_minimum_size.y = clampf(_root.size.y - _top_h - (_sheet_h if _portrait else 0.0) - 110.0, 120.0, 460.0)
 	_trade_panel.offset_top = _top_h + 6.0
 	_trade_panel.offset_left = 10.0 if _portrait else 330.0
-	for p in [_send_panel, _send_unit_panel]:
+	for p in [_send_panel, _send_unit_panel, _sell_panel]:
 		p.offset_top = _top_h + 6.0
 		p.offset_left = 10.0 if _portrait else 330.0
 	_toasts.offset_top = _top_h + 70.0
@@ -2604,6 +2615,85 @@ func _build_send_dialog() -> void:
 	close_u.pressed.connect(func() -> void: _send_unit_panel.visible = false)
 	hu.add_child(close_u)
 	_send_unit_panel.visible = false
+
+
+## The sell dialog: an asking price for item or relic `id`, prefilled with
+## what the guild pays (docs/market-design.md §8.1).
+func _build_sell_dialog() -> void:
+	_sell_panel = PanelContainer.new()
+	_root.add_child(_sell_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	v.custom_minimum_size = Vector2(380, 0)
+	_sell_panel.add_child(v)
+	_sell_title = _label("", 20, UiTheme.GOLD)
+	v.add_child(_sell_title)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	v.add_child(row)
+	row.add_child(_icon(Art.tex("icon_gold"), 30))
+	_sell_price_label = _label("0", 18)
+	_sell_price_label.custom_minimum_size.x = 64
+	row.add_child(_sell_price_label)
+	for step: int in Config.MARKET["price_steps"]:
+		var b := _button("%+d" % step, Vector2(50, 44))
+		b.add_theme_font_size_override("font_size", 15)
+		b.pressed.connect(func() -> void:
+			_sell_price = maxi(_sell_price + step, 0)
+			_refresh_sell())
+		row.add_child(b)
+	var guild := _button("Guild's", Vector2(70, 44))
+	guild.add_theme_font_size_override("font_size", 15)
+	guild.tooltip_text = "What the guild pays"
+	guild.pressed.connect(func() -> void:
+		if is_instance_valid(_sell_market):
+			_sell_price = _sell_market.guild_price(_sell_item)
+		_refresh_sell())
+	row.add_child(guild)
+	_sell_note = _label("", 15)
+	_sell_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_sell_note)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	v.add_child(h)
+	_sell_button = _button("Sell", Vector2(0, 50))
+	_sell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiTheme.style_good(_sell_button)
+	_sell_button.pressed.connect(func() -> void:
+		if is_instance_valid(_sell_market) and _do("market_sell_item", {"building": _sell_market.nid, "item": _sell_item, "price": _sell_price})["ok"]:
+			_sell_panel.visible = false
+		_queue_refresh())
+	h.add_child(_sell_button)
+	var close := _button("Close", Vector2(0, 50))
+	close.pressed.connect(func() -> void: _sell_panel.visible = false)
+	h.add_child(close)
+	_sell_panel.visible = false
+
+
+## Opens the sell dialog for item or relic `id` at `market` (Market._sell_action).
+func open_sell_item(market: Market, id: String) -> void:
+	_sell_market = market
+	_sell_item = id
+	_sell_price = market.guild_price(id)
+	_trade_panel.visible = false
+	_send_panel.visible = false
+	_send_unit_panel.visible = false
+	_sell_panel.visible = true
+	_refresh_sell()
+
+
+func _refresh_sell() -> void:
+	if _sell_panel == null or not is_instance_valid(_sell_market):
+		return
+	var guild := _sell_market.guild_price(_sell_item)
+	var name := Relics.name_of(_sell_item) if Relics.is_relic(_sell_item) else str(Config.ITEMS.get(_sell_item, {}).get("name", _sell_item))
+	_sell_title.text = "Sell the %s" % name
+	_sell_price_label.text = str(_sell_price)
+	if _sell_price <= guild:
+		_sell_note.text = "The guild pays %d. At %d gold the other players have %d s to buy it; then the guild buys it for %d." % [guild, _sell_price, roundi(float(Config.MARKET["edge_delay"])), guild]
+	else:
+		_sell_note.text = "The guild pays %d. At %d gold it waits for another player to buy it; you can take it back until then." % [guild, _sell_price]
+	_sell_button.disabled = _sell_market.sell_item_error(_sell_item, _sell_price) != ""
 
 
 func open_send_dialog() -> void:

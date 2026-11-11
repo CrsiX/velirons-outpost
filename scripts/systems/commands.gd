@@ -42,6 +42,9 @@ const HANDLERS := {
 	"market_buy_item": "_market_buy_item",
 	"market_sell": "_market_sell",
 	"market_take_back": "_market_take_back",
+	"market_sell_item": "_market_sell_item",
+	"market_take_back_item": "_market_take_back_item",
+	"market_buy_sale": "_market_buy_sale",
 	"post_demand": "_post_demand",
 	"hero_mode": "_hero_mode",
 	"hero_level_up": "_hero_level_up",
@@ -195,7 +198,7 @@ func _trade(v: Village, a: Dictionary) -> Dictionary:
 
 
 ## Buys a lot of `good` at the village's marketplace (Market.buy): from
-## another player's pile first, else the merchants' stock.
+## another player's pile first, else the guild's stock.
 func _market_buy(v: Village, a: Dictionary) -> Dictionary:
 	var b := _building(v, a)
 	if not (b is Market):
@@ -245,6 +248,46 @@ func _market_take_back(v: Village, a: Dictionary) -> Dictionary:
 	if err != "":
 		return fail(err)
 	return ok({"amount": (b as Market).take_back(good, amount)})
+
+
+## Sells item or relic `item` from the armoury (Market.sell_item): at
+## `price` in co-op (0 or more), to the guild (-1) where nobody else can buy.
+func _market_sell_item(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if not (b is Market):
+		return fail("That isn't your marketplace")
+	var id := str(a.get("item", ""))
+	var price := int(a.get("price", -1))
+	var err := (b as Market).sell_item_error(id, price)
+	if err != "":
+		return fail(err)
+	return ok({"sale": (b as Market).sell_item(id, price)})
+
+
+## Takes item sale `sale` back into the armoury while nobody bought it.
+func _market_take_back_item(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if not (b is Market):
+		return fail("That isn't your marketplace")
+	var err := (b as Market).take_back_item_error(int(a.get("sale", 0)))
+	if err != "":
+		return fail(err)
+	(b as Market).take_back_item(int(a.get("sale", 0)))
+	return ok()
+
+
+## Buys another player's item sale `sale` at their market `seller` (an id),
+## through our own marketplace `building` (Market.buy_sale).
+func _market_buy_sale(v: Village, a: Dictionary) -> Dictionary:
+	var b := _building(v, a)
+	if not (b is Market):
+		return fail("That isn't your marketplace")
+	var seller := int(a.get("seller", 0))
+	var err := (b as Market).buy_sale_error(seller, int(a.get("sale", 0)))
+	if err != "":
+		return fail(err)
+	(b as Market).buy_sale(seller, int(a.get("sale", 0)))
+	return ok()
 
 
 ## A demand ("wants to buy 100 food"): an Info line in every player's log
