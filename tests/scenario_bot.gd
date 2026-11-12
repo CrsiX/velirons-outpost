@@ -2351,6 +2351,7 @@ func _scenario_10() -> void:
 	var einar := game.population.civilians.filter(func(c: Civilian) -> bool: return c.given_name == "Einar")
 	check(einar.size() == 1 and (einar[0] as Civilian).role == "forester", "Einar is the forester")
 	check(h.level == 15 and not sc.spec.hero_revives, "Brenna at level 16, no revive even at home")
+	check(Array(v.items) == ["first_kings_hand"] and v.armoury.items.is_empty(), "the First King's Hand from scenario 9, handed over in the setup, not in the armoury")
 	await wait(1.0)
 	var said := await _watch(sc.cutscene)
 	check(said.has("einar") and said.has("pell") and said.has("brenna"), "the intro: torches on the horizon, Einar's greeting (%s)" % str(said))
@@ -2473,6 +2474,7 @@ func _scenario_11() -> void:
 	var v := game.player_village
 	var h := game.hero
 	check(sc != null and sc.error == "" and MapJson.map_name(game.map) == "The Capital", "scenario 11 runs on the capital's map")
+	check(Array(v.items) == ["first_kings_hand"], "the First King's Hand from scenario 9, handed over in the setup")
 	var city := 0
 	var houses := 0
 	var farmable := 0

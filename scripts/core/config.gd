@@ -2010,6 +2010,9 @@ const HERO_XP_PER_ACTION := {
 ##                 roots, nets; terrain still slows her
 ## "name", "desc" (the library's and the armoury's text; no numbers), "slot".
 ## Equipment works only while worn; it is never a relic (docs/items-design.md §2).
+## "campaign": a campaign item (docs/items-design.md §5): only a scenario gives
+## it, kept in Village.items; never worn, never in the armoury, a random
+## source, a market, a sale or a map file (Config.ordinary_item).
 const ITEM_SLOTS: Array[String] = ["weapon", "armour", "accessory", "movement"]
 const ITEM_SLOT_NAMES := {"weapon": "Weapon", "armour": "Armour", "accessory": "Accessory", "movement": "Movement"}
 const ITEM_DEFAULTS := {"weapon": "longsword", "armour": "leather_armour", "accessory": "soldiers_helmet", "movement": "soldiers_boots"}
@@ -2098,7 +2101,21 @@ const ITEMS := {
 		"desc": "Slower, but nothing moves or holds her: no song, grapple, roots or net. Swamp and shallow water still slow her."},
 	"pathfinders_boots": {"slot": "movement", "name": "Pathfinder's boots", "explore": 1.5,
 		"desc": "She sees a wider area when exploring."},
+	# Campaign items.
+	"first_kings_hand": {"slot": "weapon", "name": "First King's Hand", "campaign": true,
+		"desc": "The sword of the first king, who founded the Wardline: a relic, not a weapon for battle. Only House Aldmoor wields it."},
 }
+## Can a game hand `id` out, sell or trade it: an ITEMS key that is neither a
+## slot's default nor a campaign item.
+static func ordinary_item(id: String) -> bool:
+	return ITEMS.has(id) and not ITEM_DEFAULTS.values().has(id) and not ITEMS[id].get("campaign", false)
+
+
+## Is `id` a campaign item (ITEMS "campaign": the First King's Hand)?
+static func campaign_item(id: String) -> bool:
+	return bool(ITEMS.get(id, {}).get("campaign", false))
+
+
 ## An item's icon (art name; tools/art/icons.py, ITEM_ICONS, draws one for each).
 static func item_icon(id: String) -> String:
 	return "item_" + id

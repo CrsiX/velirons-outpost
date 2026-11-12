@@ -732,6 +732,12 @@ ITEM_ICONS = {
     <path d="M32 6 L35 10 L32 13 L29 10Z" fill="{STEEL}" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round"/>
   </g>'''),
     "blessed_blade": ("weapon", _item_glow("bg", "#fff0a0", 23) + _rays(32, 32, 11, 22, 12, "#ffe070", 2.4, 0.26) + _sword(blade="#fff4cc", edge="#ffffff", guard=GOLD, pommel=GOLD) + _sparkle(16, 18, 4.5, "#fff6c0") + _sparkle(48, 46, 3.5, "#fff6c0")),
+    # ---- campaign items (Config.ITEMS "campaign"): the First King's Hand, upright,
+    # ornate, glowing like a coal under ash
+    "first_kings_hand": ("weapon", _item_glow("kh", "#ff8a3a", 24, op=0.6) + _sword(blade="#dfe3ea", edge="#ffffff", guard=GOLD, grip="#7a1c1c", pommel=GOLD, angle=0, behind=f'''
+    <path d="M20 41.5 L16 36 L22 39Z M44 41.5 L48 36 L42 39Z" fill="{GOLD}" stroke="{INK}" stroke-width="1.6" stroke-linejoin="round"/>''') + f'''
+  <path d="M30.6 26 L32 21 L33.4 26 L32 31Z" fill="#f4d68a" stroke="{GOLD_D}" stroke-width="0.8"/>
+  <circle cx="32" cy="41.5" r="2.4" fill="#c8202a" stroke="{INK}" stroke-width="1.2"/>''' + _sparkle(17, 16, 4, "#ffe0b0") + _sparkle(47, 22, 3, "#ffe0b0")),
     "throwing_axes": ("weapon", f'''
   <path d="M8 22 L16 22 M6 30 L14 30 M9 38 L15 38" stroke="#e8e0cc" stroke-width="2.4" stroke-linecap="round" opacity="0.75"/>''' + _hatchet(27, 35, -38) + _hatchet(39, 35, 38, flip=True)),
     # ---- armour

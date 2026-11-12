@@ -18,7 +18,7 @@ const UNDER := {"water": MapData.Terrain.WATER, "shallow": MapData.Terrain.SHALL
 ## (format 6 added the town hall: one per village, 2x2, "tile" its top-left;
 ## older files have none, which MapChecks refuses outside a campaign scenario; format 7
 ## added a treasure's "equipment" reward, a Config.ITEMS key that isn't a
-## default: older files simply have none. A "relic" is any relic,
+## default or a campaign item (Config.ordinary_item): older files simply have none. A "relic" is any relic,
 ## Relics.is_relic; a game that can't use it gets another, Relics.usable.)
 const PIECE_KINDS: Array[String] = ["wall", "gate", "wall_tower", "hut", "town_hall"]
 const OBJECT_KINDS: Array[String] = ["treasure", "camp", "unlock", "ruin", "lair", "mine"]
@@ -836,7 +836,7 @@ class _Reader:
 					err(where + ".relic", "unknown relic \"%s\"" % str(v[k]))
 				out[k] = v[k]
 			elif k == "equipment":
-				if not Config.ITEMS.has(v[k]) or Config.ITEM_DEFAULTS.values().has(v[k]):
+				if not Config.ordinary_item(str(v[k])):
 					err(where + ".equipment", "unknown item \"%s\"" % str(v[k]))
 				out[k] = v[k]
 			else:

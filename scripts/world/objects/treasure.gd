@@ -32,8 +32,7 @@ func display_name() -> String:
 		if reward().has("salvage"):
 			return "Salvage"
 		if reward().has("item"):
-			var item := str(reward()["item"])
-			return item.substr(0, 1).to_upper() + item.substr(1)
+			return Treasure.item_name(str(reward()["item"]))
 		if reward().has("equipment"):
 			return "Dropped item"
 		if reward().has("relic"):
@@ -106,6 +105,9 @@ func _a_name() -> String:
 
 ## "a buried chest", "an old ...", but "overgrown ruins", "dragon bones" (plurals).
 static func with_article(name: String) -> String:
+	for id: String in Config.ITEMS:
+		if Config.campaign_item(id) and str(Config.ITEMS[id]["name"]) == name:
+			return "the " + name  # (one of a kind: the First King's Hand)
 	if name.ends_with("s"):
 		return name
 	return ("an " if name.substr(0, 1) in ["a", "e", "i", "o", "u"] else "a ") + name
@@ -143,11 +145,11 @@ static func pay(v: Village, r: Dictionary) -> String:
 					v.hero.hp = v.hero.max_hp
 					v.hero.changed.emit()
 				parts.append("units healed")
-			"item":  # (a campaign's: the relic sword)
+			"item":  # (a campaign item: the First King's Hand)
 				if not v.items.has(str(r[k])):
 					v.items.append(str(r[k]))
-				v.events.important("%s is home with %s." % [v.hero.label() if v.hero else "The hero", r[k]])
-				parts.append(str(r[k]))
+				v.events.important("%s is home with the %s." % [v.hero.label() if v.hero else "The hero", Treasure.item_name(str(r[k]))])
+				parts.append(Treasure.item_name(str(r[k])))
 			"equipment":
 				var got := ItemDrops.bring_home(v, str(r[k]))
 				if got != "":
@@ -175,8 +177,13 @@ static func reward_text(r: Dictionary) -> String:
 			"equipment":
 				parts.append("an item")
 			"item":
-				parts.append(str(r[k]))
+				parts.append(Treasure.item_name(str(r[k])))
 	return ", ".join(parts)
+
+
+## A campaign item's name (a treasure's "item", a Config.ITEMS key).
+static func item_name(id: String) -> String:
+	return str(Config.ITEMS.get(id, {}).get("name", id))
 
 
 func info() -> Dictionary:

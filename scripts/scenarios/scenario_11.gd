@@ -25,6 +25,7 @@ func _init() -> void:
 	difficulty = "easy"
 	enemy_scale = {"hp": 1.25, "damage": 1.2, "spell_damage": 1.2}
 	resources = {"gold": 520, "food": 240, "materials": 380}
+	campaign_items = ["first_kings_hand"]  # (from scenario 9; Brenna gives it to Fiona in the intro)
 	civilians = ["builder", "builder", "forester", "forester", "gatherer", "gatherer", "merchant", "princess"]
 	names = {"merchant": "Pell", "princess": "Fiona"}
 	homes = {"Fiona": {"art": "fiona_house", "name": "Fiona's House"}}

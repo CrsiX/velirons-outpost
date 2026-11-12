@@ -72,6 +72,11 @@ var piece_levels := {}
 var prebuilt: Array[Dictionary] = []
 ## Units waiting in the reserve at the start: [{"kind", "level"}] (scenario 8's band).
 var reserve: Array[Dictionary] = []
+## Campaign items (Config.ITEMS "campaign") the village holds from the start
+## (Village.items): nothing carries over between scenarios, so a scenario hands
+## over what the story passed on as if it came from the one before (10 and 11:
+## the First King's Hand from 9).
+var campaign_items: Array[String] = []
 ## The hero: a name, the level (1 = the first), and where she starts (a tile;
 ## (-1, -1): the village centre; from there she walks to the village after
 ## the intro). A tent stands on `tent_tile` ((-1, -1): none).

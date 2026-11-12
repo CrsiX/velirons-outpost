@@ -23,6 +23,7 @@ func _init() -> void:
 	difficulty = "easy"
 	enemy_scale = {"hp": 1.15, "damage": 1.15, "spell_damage": 1.15}
 	resources = {"gold": 450, "food": 320, "materials": 360}
+	campaign_items = ["first_kings_hand"]  # (from scenario 9)
 	civilians = ["builder", "builder", "farmer", "farmer", "forester", "gatherer", "gatherer", "merchant"]
 	names = {"forester": "Einar", "merchant": "Pell"}
 	buildings = ["farm", "camp"]

@@ -568,7 +568,7 @@ func _hero_mode(v: Village, a: Dictionary) -> Dictionary:
 ## in its slot goes back there (docs/items-design.md §3).
 func _equip(v: Village, a: Dictionary) -> Dictionary:
 	var id := str(a.get("item", ""))
-	if not Config.ITEMS.has(id) or Config.ITEM_DEFAULTS.values().has(id):
+	if not Config.ordinary_item(id):
 		return fail("Unknown item")
 	var err := v.hero.swap_error()
 	if err != "":
@@ -717,7 +717,7 @@ func _debug(v: Village, a: Dictionary) -> Dictionary:
 			var id := str(a.get("kind", ""))
 			if not game.items_enabled():
 				return fail("There is no equipment here")
-			if not Config.ITEMS.has(id) or Config.ITEM_DEFAULTS.values().has(id):
+			if not Config.ordinary_item(id):
 				return fail("Unknown item '%s'" % id)
 			if not v.armoury.add(id):
 				return fail("The armoury is full (%d)" % v.armoury.cap())

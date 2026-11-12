@@ -10,7 +10,7 @@ Part of the scenario design; index in scenarios-design.md. The code is the sourc
 - **A baseline is placed meaningfully:** prebuilt posts go by a road, a fixed tile or a map object, so the spot means something to the player.
 - **Waves are scripted** and may end ("N waves") or repeat and grow until the objectives are met ("until done"). Wave 1 can wait for the player or for the scenario. Repeated waves can pile up a cycle of extras (`repeat_steps`, on a chosen listed wave: `repeat_base`), so the mix changes as well as the size. A scripted wave can split itself between groups of spawns (`spawn_shares`), for a hand-made map whose story says where the enemy comes from. The groups name spawns by tile, not by number: spawns are sorted by position, so a number would shift silently when one is added in the editor.
 - **Between waves** a scenario can play short scenes, show a found journal page over the paused game, and hold a card back until the player can act on it, so a lesson only shows when it is usable.
-- **Not built, by design:** saving a scenario (its campaign-only buildings and people are not in saves), carrying anything between scenarios, and upgrading the stall in play (no command does it; its stage is set by the scenario).
+- **Not built, by design:** saving a scenario (its campaign-only buildings and people are not in saves), carrying anything between scenarios (a scenario hands over what the story passed on in its own setup instead: `Scenario.campaign_items`), and upgrading the stall in play (no command does it; its stage is set by the scenario).
 
 ## Rules every scenario must respect
 

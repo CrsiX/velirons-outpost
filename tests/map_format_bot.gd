@@ -281,6 +281,7 @@ func _refusals(m: MapData) -> void:
 		["an unknown relic", func(d: Dictionary) -> Variant: _treasure(d)["reward"] = {"relic": "holy_grail"}; return d, "unknown relic \"holy_grail\""],
 		["an item as a relic", func(d: Dictionary) -> Variant: _treasure(d)["reward"] = {"relic": "net"}; return d, "unknown relic \"net\""],
 		["a relic as an item", func(d: Dictionary) -> Variant: _treasure(d)["reward"] = {"equipment": "hawkeye"}; return d, "unknown item \"hawkeye\""],
+		["a campaign item", func(d: Dictionary) -> Variant: _treasure(d)["reward"] = {"equipment": "first_kings_hand"}; return d, "unknown item \"first_kings_hand\""],
 	]
 	for c in cases:
 		var d: Dictionary = JSON.parse_string(text)

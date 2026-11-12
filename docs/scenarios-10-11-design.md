@@ -48,6 +48,7 @@ Beats:
 
 - Commanders (`CommanderBehavior`): an aura for Legion soldiers, a rally, and the king's `"downed"` retreat (he keeps 1 HP, is untargetable, falls back faster than he came and vanishes at the road's end with no release). The strongest banner or commander counts, with no stacking.
 - A restored ruin as a prebuilt post; reinforcement units into the reserve.
+- Items handed over in the setup (`Scenario.campaign_items`): both start with the First King's Hand from scenario 9, since nothing carries over.
 - Scripted caravans (`ScenarioCaravan`): they halt when an enemy comes near and go on only once it is farther off (hysteresis), so a cart does not stutter at the edge.
 - The city zone with its own `"peaks"` houses, and landmark treasures.
 - The `curse` burst and the portraits of Halvard and the cursed Fiona.

@@ -120,9 +120,17 @@ rarity would push every game towards the same few rare "best" items.
   `Scenario.item_pool` (the items random sources may give) and `Scenario.item_carriers`
   (random carriers at all; off by default, so a scenario only has what it scripts: a wave
   entry's `"item"` in `Waves.add_to_wave`, `ItemDrops.give` / `drop`, a map treasure's
-  `"equipment"`). A scenario can script a carry-over itself, as scenarios 9 to 11 will do
-  with the rescued sword. Equipment is introduced around scenario 4
+  `"equipment"`). Equipment is introduced around scenario 4
   (docs/scenarios-design.md); no scenario uses it yet.
+- **Campaign items** (`Config.ITEMS` `"campaign"`, `Config.campaign_item`): story items only a
+  scenario gives, today the First King's Hand (rescued in scenario 9). Scenario 9 gives it as
+  its abbey's `"item"` reward; scenarios 10 and 11 hand it over in their setup as if it came
+  from 9 (`Scenario.campaign_items`), since nothing carries over. A village keeps them in
+  `Village.items`, never in the armoury, so they can't be worn, sold or traded; no random source,
+  market offer, map file, the editor or the debug page gives one, and the library doesn't list
+  them (`Config.ordinary_item` is the one check). Why: a story relic bought in a skirmish would
+  cheapen it, and the Hand isn't Brenna's to wield (only House Aldmoor's). Why an `ITEMS`
+  entry at all: one name, text and icon for it, where a bare string was before.
 
 ## 6. Equipment list
 
@@ -265,6 +273,7 @@ the kind of thing one wants to sell on.
   (`Scenario.town_hall`, docs/village-design.md §3c: no hall, no armoury); off in the
   tutorial and the title backdrop (`Game.items_enabled`). Relics don't need items: a map's
   relic treasure or a lair still gives one where items are off. No scenario names a relic.
+  Campaign items (§5) need neither: they never go through the armoury.
 - **Co-op:** items and relics are sold between players at an asking price
   (docs/market-design.md §8.1); each hero has her own slots and each village its armoury.
 - **Save:** the hero's slots and the armoury are saved (built), and so are the items' own

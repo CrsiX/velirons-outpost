@@ -66,6 +66,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Hero modes**: Defend, Build, Explore, Gather, Train, Rest, Support (co-op). **Attack a camp** is an order that overrides the mode. `hero-design.md`
 - **Training grounds**: where the hero in Train mode passes her XP to a stationed unit.
 - **Equipment / slot**: an item that works only while the hero wears it, in one of her four slots: weapon (how she attacks), armour (how she takes hits), accessory (the catch-all slot), movement (how she moves). The default items are the plain hero. `items-design.md`
+- **Campaign item**: a story item only a scenario gives (`Config.ITEMS` `"campaign"`: the First King's Hand), kept in `Village.items`; never worn, sold, traded or in the armoury. `items-design.md` §5
 - **Armoury**: the town hall's store of the village's relics and of equipment not worn (`Armoury`, capped).
 - **Carrier / glint**: an enemy carrying an item (`Enemy.carried_item`), marked by a drawn glint (`ItemDrops.draw_glint`; a dropped item's sack glints too); killed, it drops the item in a sack. `items-design.md`
 - **Dropped item**: an item lying on the map in a sack (`"equipment"` in a dropped-loot reward) until a gatherer or the hero brings it to the armoury. `items-design.md`

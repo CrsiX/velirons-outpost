@@ -280,7 +280,8 @@ takes precedence. The table below is a short summary:
 | 11 | The Crown | The capital | The final fight. Fiona beheads Rhodri, the crown breaks and the curse passes to her. An open end. | All, the Dread Legion in force |
 
 **Nothing carries over between scenarios** (no units, relics, hero levels or market stage). Every scenario starts from its own scripted baseline,
-so any one of them can be replayed on its own. The story carries over, not the game state.
+so any one of them can be replayed on its own. The story carries over, not the game state: what it passes on, a scenario hands over in its
+own setup (scenarios 10 and 11 start with the First King's Hand).
 
 **Deaths.** In scenarios 1 to 3, at the home village, Brenna revives as in the normal game (her people bring her back). In **all other scenarios
 her being downed is a defeat**, and the player can try again. This includes scenario 10, although it is at home: there is no one left to bring her

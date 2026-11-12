@@ -280,12 +280,13 @@ static func entries(key: String) -> Array[Dictionary]:
 
 
 ## The hero's equipment for `slot` (Config.ITEMS): the default first, then the
-## rest, each with what it does in numbers (item_facts).
+## rest, each with what it does in numbers (item_facts). Never a campaign item:
+## no game can give one but its scenario.
 static func _items(slot: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var ids: Array[String] = [str(Config.ITEM_DEFAULTS[slot])]
 	for id: String in Config.ITEMS:
-		if str(Config.ITEMS[id]["slot"]) == slot and not ids.has(id):
+		if str(Config.ITEMS[id]["slot"]) == slot and not ids.has(id) and not Config.campaign_item(id):
 			ids.append(id)
 	for id in ids:
 		var it: Dictionary = Config.ITEMS[id]

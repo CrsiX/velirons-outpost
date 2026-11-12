@@ -107,8 +107,9 @@ const CAMP_GUARD_HP := 4.0
 ## one, whom the octopus catches.
 const ELDEST := "Eldest priest"
 const YOUNGER := "Priest"
-## The relic, as the treasure's item.
-const RELIC := "the First King's Hand"
+## The relic (the sword rescued here), as the treasure's item (a Config.ITEMS
+## campaign item; scenarios 10 and 11 start with it, Scenario.campaign_items).
+const RELIC := "first_kings_hand"
 ## The map's church (its centre: data/maps/drowned_abbey.json, tools/abbey_map.gd).
 const CHURCH_TILE := Vector2i(34, 45)
 ## Wave 1's countdown, started the moment a watchtower of the player's by the shore stands.

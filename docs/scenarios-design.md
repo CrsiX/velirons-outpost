@@ -52,9 +52,11 @@ open. The story it tells is in `story-design.md` (read that first: names, places
   balanced as they are. No scenario switches them on yet. *(Designed, not built:)* Pell's stall becomes the campaign form of the
   marketplace (one building kind, Pell as its fixed trader, the level set by the scenario). **Equipment** is taught around scenario 4 and
   is set per scenario (its offers and carriers in `scenario_<n>.gd`).
-- **Nothing carries over between scenarios**, so a scenario plays the same however the one before it went. What the story passes on, a
-  scenario hands over in its own setup as if it came from the one before: the First King's Hand and the sword rescued in scenario 9
-  are items scenarios 10 and 11 start with *(designed, not built)*.
+- **Nothing carries over between scenarios**, so a scenario plays the same however the one before it went: there is no scripted
+  carry-over. What the story passes on, a scenario hands over in its own setup as if it came from the one before
+  (`Scenario.campaign_items`): the First King's Hand, the sword rescued in scenario 9, is an item scenarios 10 and 11 start with.
+  It is a campaign item (`Config.ITEMS`, `"campaign"`): only a scenario gives it; it is never sold, traded, dropped, worn or kept in
+  the armoury (docs/items-design.md §5).
 - **Scenario maps are drawn by hand**, never regenerated: the 7×7 village or the old 5×5 one. A scenario has a town hall only if it
   switches it on (`Scenario.town_hall`) and its map has one; some early scenarios and scenario 5 have none (docs/village-design.md §3c).
 - **Monsters arrive by category** (`story-design.md`), so the campaign also introduces the library's categories one after another: Wilderness

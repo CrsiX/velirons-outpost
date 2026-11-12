@@ -99,7 +99,9 @@ func _test_config() -> void:
 		var d: Dictionary = Config.ITEMS[Config.ITEM_DEFAULTS[slot]]
 		defaults_ok = defaults_ok and str(d["slot"]) == slot and d.keys().all(func(k: String) -> bool: return k in ["slot", "name", "desc"])
 	check(defaults_ok, "each slot has its default item there, with no effect at all")
-	check(Config.ITEMS.size() == 28, "the full list of docs/items-design.md §6: 28 items (%d)" % Config.ITEMS.size())
+	var campaign: Array = Config.ITEMS.keys().filter(func(id: String) -> bool: return Config.campaign_item(id))
+	check(Config.ITEMS.size() - campaign.size() == 28, "the full list of docs/items-design.md §6: 28 items (%d)" % (Config.ITEMS.size() - campaign.size()))
+	check(campaign == ["first_kings_hand"], "one campaign item: the First King's Hand (%s)" % str(campaign))
 	check(ResourceLoader.exists("res://art/throwing_axe.svg") and ResourceLoader.exists("res://art/net_pin.svg"), "art for the thrown axe and the net")
 
 
@@ -458,7 +460,15 @@ func _test_sources() -> void:
 	v.armoury.set_items([])
 	# Which items, who may carry.
 	var pool := ItemDrops.pool(game)
-	check(not pool.has("longsword") and not pool.has("soldiers_boots") and pool.has("flame_sword") and pool.size() == Config.ITEMS.size() - Config.ITEM_DEFAULTS.size(), "every item but the defaults can come from a source (%d)" % pool.size())
+	check(not pool.has("longsword") and not pool.has("soldiers_boots") and pool.has("flame_sword") and not pool.has("first_kings_hand") and pool.size() == Config.ITEMS.size() - Config.ITEM_DEFAULTS.size() - 1, "every item but the defaults and the campaign's can come from a source (%d)" % pool.size())
+	# A campaign item: only its scenario gives it, nothing hands it out or trades it.
+	var hand := "first_kings_hand"
+	check(not v.armoury.add(hand) and not v.armoury.has(hand), "the armoury never takes a campaign item")
+	check(not game.command("debug", {"what": "item", "kind": hand})["ok"] and not game.command("equip", {"item": hand})["ok"], "nor the debug page, nor can she wear it")
+	var probe := spawn("goblin", Vector2(v.center) + Vector2(6, 0))
+	ItemDrops.give(probe, hand)
+	check(probe.carried_item == "", "no enemy carries one")
+	probe.queue_free()
 	var never := true
 	for kind: String in Config.ENEMIES:
 		var sp: Dictionary = Config.ENEMIES[kind]

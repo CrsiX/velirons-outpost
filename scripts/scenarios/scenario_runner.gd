@@ -356,9 +356,13 @@ func _man_prebuilt() -> void:
 	army.changed.emit()
 
 
-## The scenario's units in the reserve at the start (Scenario.reserve).
+## The scenario's units in the reserve at the start (Scenario.reserve), and
+## its campaign items (Scenario.campaign_items).
 func _fill_reserve() -> void:
 	give_units(spec.reserve)
+	for id in spec.campaign_items:
+		if Config.campaign_item(id) and not game.player_village.items.has(id):
+			game.player_village.items.append(id)
 
 
 ## Units into the reserve: [{"kind", "level"}] (a scenario's band,

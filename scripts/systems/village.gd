@@ -57,7 +57,9 @@ var _hall: TownHall
 var relics: Array[String] = []
 ## Co-op client: the other players' items it can buy (Market.offers_for, from the host).
 var net_offers: Array[Dictionary] = []
-## Campaign items brought home (a treasure's "item": scenario 9's relic sword).
+## Campaign items it holds (Config.ITEMS "campaign" keys: the First King's Hand),
+## brought home as a treasure's "item" or given by the scenario
+## (Scenario.campaign_items). Never in the armoury.
 var items: Array[String] = []
 ## Corpses brought home so far (by gatherers or the hero).
 var corpses_delivered := 0

@@ -7,15 +7,15 @@ class_name ItemDrops
 ## the town hall's armoury. Numbers: Config.ITEM_SOURCES.
 
 
-## The items a random source may give: every item that isn't a default (a
-## scenario's Scenario.item_pool narrows them).
+## The items a random source may give: every item that isn't a default or a
+## campaign item (a scenario's Scenario.item_pool narrows them).
 static func pool(game: Game) -> Array[String]:
 	var out: Array[String] = []
 	var only: Array[String] = []
 	if game != null and game.scenario != null:
 		only = game.scenario.spec.item_pool
 	for id: String in Config.ITEMS:
-		if Config.ITEM_DEFAULTS.values().has(id):
+		if not Config.ordinary_item(id):
 			continue
 		if only.is_empty() or only.has(id):
 			out.append(id)
@@ -44,7 +44,7 @@ static func can_carry(kind: String, given_name: String = "") -> bool:
 
 ## `e` carries `id` from now on (shown by its glint).
 static func give(e: Enemy, id: String) -> void:
-	if id == "" or not Config.ITEMS.has(id):
+	if not Config.ordinary_item(id):
 		return
 	e.carried_item = id
 	e.fx["glint"] = true

@@ -45,9 +45,10 @@ func is_open() -> bool:
 	return is_instance_valid(h) and not h.devastated
 
 
-## Puts `id` in (false when full or not an item).
+## Puts `id` in (false when full, or not an item it can hold: never a
+## default or a campaign item, Config.ordinary_item).
 func add(id: String) -> bool:
-	if full() or not Config.ITEMS.has(id) or Config.ITEM_DEFAULTS.values().has(id):
+	if full() or not Config.ordinary_item(id):
 		return false
 	items.append(id)
 	changed.emit()

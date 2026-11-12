@@ -3753,7 +3753,7 @@ func _build_debug(center: Control) -> void:
 	igrid.add_theme_constant_override("v_separation", 10)
 	iscroll.add_child(igrid)
 	for id: String in Config.ITEMS:
-		if Config.ITEM_DEFAULTS.values().has(id):
+		if not Config.ordinary_item(id):
 			continue
 		var b := _button(str(Config.ITEMS[id]["name"]), Vector2(180, 52))
 		b.icon = Art.tex(Config.item_icon(id))
