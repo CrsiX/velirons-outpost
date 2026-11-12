@@ -17,6 +17,7 @@ func _init() -> void:
 	title = "The Split"
 	blurb = "The Silver Thread Merchant Guild's last market town is under pressure. Hold it, and its harbour warehouse, until the convoy is loaded and away."
 	map_path = "res://data/maps/guildtown.json"
+	town_hall = false
 	place = "guild_town"
 	portrait = "portrait_wenna"
 

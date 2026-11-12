@@ -30,6 +30,13 @@ var phase := Phase.INTRO
 ## Why the map file couldn't be used ("" if it could): the game then runs on a
 ## generated map, and the scenario says so.
 var error := ""
+## Why the scenario can't be played at all ("" if it can): its town hall
+## switch and its map disagree (hall_error), a programmer's mistake. The game
+## gives up its start with it (Game.refuse_start).
+var refusal := ""
+## The map checks' findings (MapChecks, without the town hall rule): only
+## written to the event log at Debug level once the game runs.
+var map_problems: Array[Dictionary] = []
 var spots: RoadSpots
 var highlight: TutorialHighlight
 var card: ScenarioCard
@@ -96,6 +103,10 @@ func prepare(p_game: Game, p_spec: Scenario) -> void:
 		push_error(error)
 	else:
 		var m: MapData = r["map"]
+		refusal = hall_error(spec, m)
+		if refusal != "":
+			push_error(refusal)
+		map_problems = MapChecks.run(m, false)
 		game.preset_map = m.for_game([clampi(spec.village, 0, m.villages.size() - 1)])
 	game.disable_fog = false
 	game.start_resources = spec.resources.duplicate()
@@ -104,6 +115,20 @@ func prepare(p_game: Game, p_spec: Scenario) -> void:
 	_old_difficulty = Settings.difficulty
 	Settings.difficulty = Settings.difficulty_of(spec.difficulty)
 	Settings.enemy_scale = spec.enemy_scale.duplicate()
+
+
+## Why `spec`'s town hall switch and map `m` disagree, or "" (docs/village-design.md
+## §3c): with the switch on, the played village needs exactly one hall; off, none.
+static func hall_error(p_spec: Scenario, m: MapData) -> String:
+	if m.villages.is_empty():
+		return ""  # (MapChecks says so)
+	var i := clampi(p_spec.village, 0, m.villages.size() - 1)
+	var halls := m.village_pieces(i).filter(func(p: Dictionary) -> bool: return p["kind"] == "town_hall").size()
+	if p_spec.town_hall and halls != 1:
+		return "Scenario %d has a town hall (Scenario.town_hall), but its map's village has %d" % [p_spec.number, halls]
+	if not p_spec.town_hall and halls != 0:
+		return "Scenario %d has no town hall (Scenario.town_hall), but its map's village has %d" % [p_spec.number, halls]
+	return ""
 
 
 func _exit_tree() -> void:
@@ -446,6 +471,8 @@ func start() -> void:
 	card.set_objectives(objectives)
 	spec.on_start(self)
 	game.events.debug("scenario %d (%s): %d waves, the hero starts at %s" % [spec.number, spec.title, spec.waves.size(), spec.hero_start])
+	for p in map_problems:  # (for the map's author: never shown by default)
+		game.events.debug("map check, %s: %s" % [p["level"], p["text"]])
 	if error != "":
 		v.toast(error, UiTheme.BAD)
 	_play(spec.intro(self), _after_intro)

@@ -32,6 +32,8 @@ The user edits scenario maps in the map editor. **Never regenerate those** (`too
 - A map file can be played in single player and co-op. `MapData.for_game` turns villages nobody plays into ownerless ruins.
 - In portrait the panels are a bottom sheet, like the game's dock.
 
-## The 7×7 village and the town hall
-- Built: map format 6 has the `town_hall` piece, and a map without one per village is refused for play (`MapChecks`). The nine files in `data/maps` need the 7×7 village and a town hall per village (`docs/village-design.md` §3.1). The user reworks them **by hand**; never regenerate or convert them. Until they are reworked, bots loading them (scenario_bot and others using built-in maps) are expected to fail.
-- Marketplace, items and advancements are off in a scenario unless it switches them on (`docs/scenarios-design.md`).
+## The village layout and the town hall
+- Map format 6 has the `town_hall` piece. Outside the campaign a map without exactly one per village is refused for play (`MapChecks`).
+- Scenario maps are hand-made, the 7×7 village or the old 5×5 one (a non-standard layout is only a warning). A scenario has a town hall only with `Scenario.town_hall` on (the default); `ScenarioRunner.hall_error` checks the map agrees both ways, and a mismatch refuses the start (`Game.refuse_start`). Every scenario has it off today, as none of the maps has a hall; flip it when a hall is added to the map. scenario_bot fails on a mismatch (docs/village-design.md §3c).
+- A scenario's other map checks (`MapChecks.run(m, false)`) never stop it: they go to the event log at Debug level at the start.
+- Marketplace, items and advancements are off in a scenario unless it switches them on; advancements and items also need the town hall (`docs/scenarios-design.md`).

@@ -16,7 +16,7 @@ const ZONE_CODES := "mophswac"
 const PALETTE_LETTERS := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const UNDER := {"water": MapData.Terrain.WATER, "shallow": MapData.Terrain.SHALLOW, "lava": MapData.Terrain.LAVA}
 ## (format 6 added the town hall: one per village, 2x2, "tile" its top-left;
-## older files have none and are refused for play by MapChecks; format 7
+## older files have none, which MapChecks refuses outside a campaign scenario; format 7
 ## added a treasure's "equipment" reward, a Config.ITEMS key that isn't a
 ## default: older files simply have none. A "relic" is any relic,
 ## Relics.is_relic; a game that can't use it gets another, Relics.usable.)

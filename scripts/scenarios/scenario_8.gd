@@ -16,6 +16,7 @@ func _init() -> void:
 	title = "The Pale Court"
 	blurb = "In the burned capital's ruins the Evil gathers in three crypts under the old court. Clear them with the little band that followed you."
 	map_path = "res://data/maps/pale_court.json"
+	town_hall = false
 	place = "capital"
 	portrait = "portrait_lothar"
 

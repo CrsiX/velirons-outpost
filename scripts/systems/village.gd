@@ -248,7 +248,6 @@ func workers() -> Array[Civilian]:
 	return out
 
 
-## Its town hall (null on a map without one: such a map is refused for play).
 ## Its marketplace (finished or not), or null: one per village.
 func market() -> Market:
 	for b in buildings():
@@ -257,6 +256,8 @@ func market() -> Market:
 	return null
 
 
+## Its town hall, or null: only a campaign scenario may have none
+## (Scenario.town_hall, docs/village-design.md §3c).
 func town_hall() -> TownHall:
 	if not is_instance_valid(_hall):
 		_hall = null
@@ -267,7 +268,8 @@ func town_hall() -> TownHall:
 	return _hall
 
 
-## Standing needs at least one villager and a town hall that hasn't fallen.
+## Standing needs at least one villager and a town hall that hasn't fallen
+## (without a hall, just the villager).
 func is_standing() -> bool:
 	return population.count() > 0 and not hall_lost
 

@@ -19,6 +19,7 @@ func _init() -> void:
 	title = "The Betrayal"
 	blurb = "Brenna goes back to the fort in the pass where her company was left to its fate. Find out what happened there, and hold the pass while you do."
 	map_path = "res://data/maps/old_fort.json"
+	town_hall = false
 	place = "old_fort"
 	portrait = "portrait_sigmund"
 

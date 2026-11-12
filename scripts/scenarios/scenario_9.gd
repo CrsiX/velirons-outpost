@@ -25,6 +25,7 @@ func _init() -> void:
 	title = "The Drowned Abbey"
 	blurb = "The church's old abbey stands half-sunk in the river, and in its crypt lies the First King's Hand. The Legion wants it too."
 	map_path = "res://data/maps/drowned_abbey.json"
+	town_hall = false
 	place = "abbey"
 	portrait = "portrait_eldest_priest"
 

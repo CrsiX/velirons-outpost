@@ -1489,6 +1489,11 @@ func _scenario() -> void:
 	await _frames(5)
 	await shot("scenario_hint")
 	sc.card.show_hint("")
+	# No town hall in scenario 1 (docs/village-design.md §3c): she snores in the centre.
+	g.hero.set_mode(Hero.Mode.REST)
+	g.camera.focus(Iso.to_world(Vector2(g.player_village.center)))
+	await _frames(150)
+	await shot("scenario_snore_no_hall")
 	# Straight to the end: the objectives met, the outro.
 	var v := g.player_village
 	for h: Hut in v.huts():

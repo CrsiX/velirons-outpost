@@ -20,6 +20,10 @@ var blurb := ""
 var map_path := ""
 ## Which of the map's villages is played.
 var village := 0
+## The village has a town hall (docs/village-design.md §3c): the map must agree
+## (exactly one with it on, none with it off), or the scenario won't start
+## (ScenarioRunner.hall_error). Off: no last stand, no research, no armoury.
+var town_hall := true
 ## Where it is on the campaign map (a place in Campaign.places(): data/campaign_map.json), and the portrait
 ## its card there shows (an art name).
 var place := "outpost"
@@ -94,13 +98,13 @@ var build: Array[String] = []
 ## road (scenario 5's fort, where barracks and training grounds stand inside).
 var build_inside := false
 ## Advancements at the town hall (docs/advancements-design.md §7): off in the
-## campaign unless a scenario switches them on.
+## campaign unless a scenario switches them on (and has a town hall).
 var advancements := false
 ## The marketplace and the trader (docs/market-design.md §9): off in the
 ## campaign unless a scenario switches them on.
 var market := false
 ## Hero equipment and the armoury (docs/items-design.md §8): off in the
-## campaign unless a scenario switches them on.
+## campaign unless a scenario switches them on (and has a town hall).
 var items := false
 ## Where items come from in this scenario (docs/items-design.md §5): the items
 ## any random source may give ([]: every one), and whether random carriers

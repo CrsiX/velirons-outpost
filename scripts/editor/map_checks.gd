@@ -8,7 +8,9 @@ extends RefCounted
 const NO_TILE := Vector2i(-1, -1)
 
 
-static func run(m: MapData) -> Array[Dictionary]:
+## `halls` off: the one-town-hall-per-village rule is left out (a campaign
+## scenario's map, checked against its own switch instead: ScenarioRunner.hall_error).
+static func run(m: MapData, halls := true) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var slots := int(Config.MAP_SIZE_SLOTS.get(m.size, Config.MAX_PLAYERS))
 	if m.villages.is_empty():
@@ -19,7 +21,7 @@ static func run(m: MapData) -> Array[Dictionary]:
 	var objects := MapTidy.object_tiles(m)
 	var walk := _walkable(m, pieces, objects)
 	for i in m.villages.size():
-		_village(out, m, i, objects, walk)
+		_village(out, m, i, objects, walk, halls)
 	_overlaps(out, m)
 	for t in m.edge_spawns:
 		if not m.is_edge(t) or not m.is_road(t):
@@ -61,7 +63,7 @@ static func _add(out: Array[Dictionary], level: String, text: String, tile: Vect
 	out.append({"level": level, "text": text, "tile": tile})
 
 
-static func _village(out: Array[Dictionary], m: MapData, i: int, objects: Dictionary, walk: PackedByteArray) -> void:
+static func _village(out: Array[Dictionary], m: MapData, i: int, objects: Dictionary, walk: PackedByteArray, halls: bool) -> void:
 	var v: Dictionary = m.villages[i]
 	var center: Vector2i = v["center"]
 	var name := "Village %d" % (i + 1)
@@ -78,11 +80,11 @@ static func _village(out: Array[Dictionary], m: MapData, i: int, objects: Dictio
 	if not own.any(func(p: Dictionary) -> bool: return p["kind"] == "hut"):
 		_add(out, "error", "%s has no hut" % name, center)
 	# Exactly one town hall (docs/village-design.md §3a): never added by the game.
-	var halls := own.filter(func(p: Dictionary) -> bool: return p["kind"] == "town_hall")
-	if halls.is_empty():
+	var own_halls := own.filter(func(p: Dictionary) -> bool: return p["kind"] == "town_hall")
+	if halls and own_halls.is_empty():
 		_add(out, "error", "%s has no town hall: place one in the map editor" % name, center)
-	elif halls.size() > 1:
-		_add(out, "error", "%s has %d town halls (one per village)" % [name, halls.size()], halls[1]["tile"])
+	elif halls and own_halls.size() > 1:
+		_add(out, "error", "%s has %d town halls (one per village)" % [name, own_halls.size()], own_halls[1]["tile"])
 	for p in own:
 		if MapData.piece_footprint(p).any(func(t: Vector2i) -> bool: return objects.has(t)):
 			_add(out, "error", "%s: a %s stands on an object" % [name, str(p["kind"]).replace("_", " ")], p["tile"])

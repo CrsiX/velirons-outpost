@@ -42,6 +42,7 @@ func _run() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--only="):
 			only = a.trim_prefix("--only=").split(",")
+	_town_halls()
 	if only.is_empty() or "1" in only:
 		_map_file()
 		await _play_through()
@@ -167,6 +168,54 @@ func _map_file() -> void:
 	check(m.is_passable(spec.hero_start) and m.is_passable(spec.tent_tile) and not m.is_road(spec.tent_tile), "Brenna's start and her tent are on open land by the road")
 
 
+## Every scenario's town hall switch matches its map (docs/village-design.md
+## §3c): a mismatch would refuse the scenario's start. The other map checks
+## only go to the Debug log, so they aren't counted here.
+func _town_halls() -> void:
+	print("-- town halls")
+	for n in range(1, Campaign.count() + 1):
+		var spec := Campaign.scenario(n)
+		var r := MapLibrary.load_file(spec.map_path)
+		if r["map"] == null:
+			check(false, "scenario %d: its map file reads %s" % [n, str(r["errors"])])
+			continue
+		var m: MapData = r["map"]
+		var why := ScenarioRunner.hall_error(spec, m)
+		check(why == "", "scenario %d: its town hall switch (%s) matches its map %s" % [n, spec.town_hall, why])
+		spec.town_hall = not spec.town_hall
+		check(ScenarioRunner.hall_error(spec, m) != "", "scenario %d: the other switch would be refused" % n)
+		spec.town_hall = not spec.town_hall
+		if not spec.town_hall:
+			var texts := MapChecks.run(m, false).map(func(p: Dictionary) -> String: return str(p["text"]))
+			check(not texts.any(func(t: String) -> bool: return "town hall" in t), "scenario %d: its map checks leave the hall to the switch" % n)
+
+
+## A scenario without a town hall: no hall, no research, no armoury, even
+## with its advancements and items switched on.
+func _no_hall(v: Village) -> void:
+	if sc.spec.town_hall:
+		return
+	check(v.town_hall() == null, "no town hall in a scenario without one")
+	var adv := sc.spec.advancements
+	var items := sc.spec.items
+	sc.spec.advancements = true
+	sc.spec.items = true
+	check(not v.research.enabled() and not game.items_enabled(), "no research, no equipment without a hall, whatever the scenario's own switches")
+	var adv_id := str(Config.ADVANCEMENTS.keys()[0])
+	check(not game.command("research", {"id": adv_id})["ok"], "research is refused")
+	var item_id := ""
+	for id: String in Config.ITEMS:
+		if not Config.ITEM_DEFAULTS.values().has(id):
+			item_id = id
+			break
+	v.armoury.add(item_id)
+	check(not game.command("equip", {"item": item_id})["ok"], "an armoury swap is refused")
+	v.armoury.items.erase(item_id)
+	sc.spec.advancements = adv
+	sc.spec.items = items
+	check(v.is_standing() and not v.hall_lost and v.last_stand_left() < 0.0, "it stands without a hall, no last stand")
+
+
 func _play_through() -> void:
 	print("-- setup")
 	await _new_game()
@@ -174,6 +223,8 @@ func _play_through() -> void:
 	check(sc != null and sc.spec.number == 1, "scenario 1 runs (from Settings.scenario_next)")
 	check(Settings.scenario_next == 0, "the request is used up")
 	check(sc.error == "" and MapJson.map_name(game.map) == "Brenna's Home", "its map comes from its file (%s)" % sc.error)
+	check(sc.refusal == "", "its start isn't refused (%s)" % sc.refusal)
+	_no_hall(v)
 	check(Settings.difficulty == Settings.Difficulty.EASY and is_equal_approx(Config.enemy_stat("goblin", "hp"), 10.0), "Easy, with goblins at half HP (weaker than Easy)")
 	check(is_equal_approx(Config.enemy_stat("goblin", "speed"), 1.1 * 0.67), "speed as on Easy")
 	var roles := v.population.civilians.map(func(c: Civilian) -> String: return c.role)

@@ -15,6 +15,7 @@ func _init() -> void:
 	title = "The Crown"
 	blurb = "The final camp in the capital's streets, before the throne hall. Hold until Rhodri himself comes out, and beat him."
 	map_path = "res://data/maps/capital.json"
+	town_hall = false
 	place = "capital"
 	portrait = "portrait_rhodri"
 

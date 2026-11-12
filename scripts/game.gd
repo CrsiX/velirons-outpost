@@ -151,6 +151,10 @@ func _ready() -> void:
 			scenario.name = "Scenario"
 			scenario.prepare(self, spec)  # (its map, village and enemy strength)
 			add_child(scenario)
+			if scenario.refusal != "":
+				process_mode = Node.PROCESS_MODE_DISABLED
+				refuse_start(scenario.refusal)
+				return
 	if scenario == null:
 		scenario_number = 0
 	if backdrop:
@@ -324,7 +328,11 @@ func start_progress(f: float) -> void:
 ## Every try of the map failed its checks: back to the title (free play) or
 ## the lobby (co-op, everyone ready again), saying so.
 func give_up_start(seed_value: int) -> void:
-	var text := "Couldn't make a map from seed %d. Try another seed." % seed_value
+	refuse_start("Couldn't make a map from seed %d. Try another seed." % seed_value)
+
+
+## The game can't start: back to the title (or a co-op lobby) with `text`.
+func refuse_start(text: String) -> void:
 	game_over = true
 	Engine.time_scale = 1.0
 	get_tree().paused = false
@@ -1204,9 +1212,9 @@ func market_enabled() -> bool:
 
 ## Hero equipment and the armoury (docs/items-design.md §8): not in the
 ## title backdrop or the tutorial; in the campaign only where the scenario
-## switches it on (Scenario.items).
+## switches it on (Scenario.items) and has a town hall (Scenario.town_hall).
 func items_enabled() -> bool:
-	return backdrop == null and not tutorial_mode and (scenario == null or scenario.spec.items)
+	return backdrop == null and not tutorial_mode and (scenario == null or (scenario.spec.items and scenario.spec.town_hall))
 
 
 ## Can `kind` be built (a scenario may allow only some buildings; the

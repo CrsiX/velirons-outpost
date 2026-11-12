@@ -15,6 +15,7 @@ func _init() -> void:
 	title = "The Dead"
 	blurb = "On the plain where the armies met, the dead were never buried, and something is raising them. Help the old priest lay them to rest."
 	map_path = "res://data/maps/battlefield.json"
+	town_hall = false
 	place = "battlefield"
 	portrait = "portrait_anselm"
 

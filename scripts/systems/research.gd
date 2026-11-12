@@ -28,9 +28,9 @@ func setup(p_village: Village) -> void:
 
 
 ## Are advancements in this game at all? Not in the title backdrop, and in
-## the campaign only where the scenario switches them on.
+## the campaign only where the scenario switches them on and has a town hall.
 func enabled() -> bool:
-	return game.backdrop == null and (game.scenario == null or game.scenario.spec.advancements)
+	return game.backdrop == null and (game.scenario == null or (game.scenario.spec.advancements and game.scenario.spec.town_hall))
 
 
 func has(id: String) -> bool:

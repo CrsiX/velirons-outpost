@@ -15,6 +15,7 @@ func _init() -> void:
 	title = "The Wardline"
 	blurb = "The road to the border is cut where the Wardline's towers stood. Restore and man the ruined towers and the old barracks, and light the road between them."
 	map_path = "res://data/maps/wardline.json"
+	town_hall = false
 	place = "outpost"
 	portrait = "portrait_brenna"
 
