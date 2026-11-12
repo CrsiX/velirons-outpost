@@ -3,8 +3,9 @@ extends CanvasLayer
 ## The start screen (autoload "Loading"; docs/ui-design.md §2a): black over
 ## everything from the moment a game is started (free play's Play, a loaded
 ## save, a co-op start), a bar while a map is generated, "Waiting for
-## clients..." while a co-op start waits for everyone, then a fade into the
-## game (Config.LOADING "fade", real time). It lives across the scene change
+## clients..." while a co-op start waits for everyone, then plain black for a
+## moment (Config.LOADING "black") and a fade into the game (LOADING "fade",
+## real time), so the game never fades in over the bar. It lives across the scene change
 ## from the title to the game. Clicks and keys don't reach the game under it.
 
 ## Black, and not yet fading in.
@@ -87,14 +88,17 @@ func set_waiting(on: bool) -> void:
 	_waiting.visible = on and active
 
 
-## The game is ready: fade into it (Config.LOADING "fade" real seconds).
+## The game is ready: the bar goes, plain black for Config.LOADING "black",
+## then a fade into the game over LOADING "fade" (real seconds).
 func finish() -> void:
 	if not active:
 		return
 	active = false
+	_bar.visible = false
 	_waiting.visible = false
 	_fade = create_tween()
 	_fade.set_ignore_time_scale(true)
+	_fade.tween_interval(float(Config.LOADING["black"]))
 	_fade.tween_property(_black, "modulate:a", 0.0, float(Config.LOADING["fade"]))
 	_fade.tween_callback(_hide)
 

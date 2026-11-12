@@ -113,7 +113,9 @@ live in `scripts/core/config.gd`. This document does not copy either: it says wh
 ## 2a. The start screen (`loading_screen.gd`, autoload `Loading`)
 
 Free play's *Play*, a loaded save and a co-op start go **black at once**, before the level scene
-even loads, and the game **fades in** over `Config.LOADING` "fade" once its first frame is drawn.
+even loads. Once the game's first frame is drawn the bar goes, the screen stays **plain black** for
+`Config.LOADING` "black", and the game **fades in** over "fade". The game never fades in over the
+bar: a half-faded bar on top of the map looks broken.
 Why: a level takes a moment to make, and a black screen that fades into the map reads as a
 deliberate start instead of a frozen menu. Scenarios, the tutorial and the map editor's Play have
 their own starts and don't use it. The black catches clicks and keys, so nothing reaches the game

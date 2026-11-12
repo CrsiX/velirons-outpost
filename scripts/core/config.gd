@@ -729,11 +729,12 @@ const VOLCANO_NO_BUILD := 3.0  # tiles from the crater's centre tile
 const VOLCANO_SLICE_DIST := 26.0  # from every slice centre (villages keep VILLAGE_VOLCANO_DIST)
 ## Tries with the next seed when a generated map fails its checks.
 const MAP_TRIES := 5
-## The start screen (docs/ui-design.md §2a, LoadingScreen): its fade into the
-## game (real seconds), and how long a co-op host waits for every client to
+## The start screen (docs/ui-design.md §2a, LoadingScreen): how long it stays
+## plain black (bar gone) once the game is ready, its fade into the game after
+## that (real seconds), and how long a co-op host waits for every client to
 ## have built the level before all start together, and how long the title shows
 ## why a start gave up (real seconds).
-const LOADING := {"fade": 1.0, "wait_clients": 10.0, "notice_time": 4.0}
+const LOADING := {"black": 0.1, "fade": 1.0, "wait_clients": 10.0, "notice_time": 4.0}
 ## How long each generator stage takes, relative (measured with GEN_PROFILE):
 ## the start screen's bar moves by these (docs/ui-design.md §2a).
 const MAP_STAGE_WEIGHTS := {
