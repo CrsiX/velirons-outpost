@@ -91,3 +91,23 @@ func kill(e: Enemy, source: Node = null) -> void:
 		if not is_instance_valid(e) or e.dead:
 			return
 		e.take_damage(1e9, source)
+
+
+## Banner cloth (docs/village-design.md §12) on `vs`' buildings: "shown" pieces
+## flying a tinted flag, "wrong" ones whose tint isn't Village.banner_tint,
+## "missing" ones whose art has cloth but shows no flag where a tint is due.
+func banner_flags(vs: Array[Village]) -> Dictionary:
+	var out := {"shown": 0, "wrong": 0, "missing": 0}
+	for v in vs:
+		for b in v.buildings():
+			if b.sprite == null or b.sprite.texture == null or not b.sprite.visible:
+				continue
+			var f := Art.flag_of(b.sprite)
+			var shown := f != null and f.visible
+			if shown:
+				out["shown"] += 1
+				if f.modulate != v.banner_tint():
+					out["wrong"] += 1
+			elif v.banner_tint().a > 0.0 and Art.has_flag(b.sprite.texture.resource_path.get_file().get_basename()):
+				out["missing"] += 1
+	return out

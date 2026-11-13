@@ -594,7 +594,7 @@ are silent failures: nothing visibly breaks, the village just stops progressing 
   - The campaign's merchant and residents never retire.
 
 
-## 12. Banners and the village colour *(designed, not built)*
+## 12. Banners and the village colour
 
 **What.** Every piece of cloth on a village's fortifications and its two civic buildings shows whose
 village it is: walls, gates and wall towers (with their front sprites) in every piece material and
@@ -612,21 +612,23 @@ single player there is nothing to tell apart, so the cloth is the outpost's own 
 - **Crimson is the one base colour.** The materials used to colour their banners themselves
   (sandstone and ice blue, granite a tartan check); they don't any more. A material shows in its
   stone, timber and trim, never in the cloth. Granite's banners are plain crimson.
-- **Emblems stay gold.** The gold village's banners then carry a faint emblem; accepted, since a
-  second tinted layer for the emblem isn't worth it.
+- **Emblems are never tinted** (gold, or the material's metal on ice and the town hall). The gold
+  village's banners then carry a faint emblem; accepted, since a second tinted layer for the
+  emblem isn't worth it.
 - **Cloth only.** Shields (the town hall's at level 3, those of walls at levels 4 and 5) keep the
   material's accent colour. A heraldic shield in the village colour may come with a later redesign
   of levels 4 and 5.
 - **Ruins keep their torn crimson rag**, untinted: a ruin is also a neutral map object
   (`watchtower_ruin`). A grey rag may replace it later.
 - **Huts get no flag.** A hut is only ever inside a village whose other pieces already carry its
-  colour.
+  colour. Nor do pieces whose art has no cloth (level 1 walls of most materials, basalt and wood
+  walls): their gates and towers carry it.
 - **New cloth:** the barracks shows its back hut's pennant from level 1 (smaller at level 1), and
   the town hall gets a small pennant on its ridge at level 1. The barracks pennant is drawn before
   any other banner change.
-- **Outside the live map:** the build dock and the library show the viewer's own colour (crimson
-  when opened from the title), the stats screen each village's colour in its own column, the map
-  editor crimson (its village slots have no colour).
+- **Outside the live map:** the placement preview, the build dock and the library show the
+  viewer's own colour (crimson when opened from the title), the stats screen's "Deadliest tower"
+  its village's colour, the map editor crimson (its village slots have no colour).
 
 **How (a tint overlay).** The art isn't drawn once per colour, as the co-op hero and carts are:
 the pieces have about 150 sprites, and eight coloured copies of each would roughly double the
@@ -640,21 +642,23 @@ crimson codes are shared with details that aren't cloth.
   mask hides every part of the cloth that something drawn after it covers (a merlon, a torch, the
   level 4 and 5 `fort_marks`), so the companion never paints over what stands in front of the cloth.
   The manifest marks such a sprite (`"flag"`). A redesign of any level keeps this for free as long
-  as its cloth goes through the helper.
+  as its cloth goes through the helper (`Art.cloth`; `hanging_banner` uses it). The generator stops
+  when a companion doesn't line up with its sprite and removes one whose sprite lost its cloth.
 - **Runtime.** `Art.apply` takes an optional tint. With one, and when the art has a companion,
   the sprite gets a child sprite holding the companion with `modulate` set to the tint; without
   one, that child is hidden. `modulate` multiplies, so white gives the village colour exactly,
   the grey folds a darker shade of it, and the black outline stays black. Being a child, it is drawn
   right after its sprite (before a tower's unit and front sprite), inherits the sprite's damage
   flash, fog and visibility, and follows every art swap (an upgrade, devastation: a ruin has no
-  companion, so it hides). A building asks its village for its banner tint: none with one village.
-  UI icons (`TextureRect`) get the same through `Art.tint_rect`.
+  companion, so it hides). The hit flash flashes the cloth too. A building asks its village for its
+  banner tint (`Building.banner_tint`, `Village.banner_tint`): none with one village. UI icons
+  (`TextureRect`) get the same through `Art.tint_rect`.
 - **Where it can go wrong.** A place that forgets the tint shows crimson, which still looks right;
   a pixel of crimson may show at the cloth's soft edge, under the black outline.
 
-**Tests.** The generator stops when a companion's size or anchor differs from its sprite's, or a
-sprite with cloth has none. coop_bot checks that a built piece's flag child carries its village's
-colour; sim_bot that a single-player building has none visible. A ui-screenshots pass shows every
+**Tests.** coop_bot checks that every piece with cloth flies its village's colour, and so do the
+placement preview and the build dock (`banner_flags` in tests/bot_base.gd); sim_bot that a
+single-player building flies none. A ui-screenshots pass shows every
 one of the nine colours (crimson and the eight village colours) at least once, over every
 material at levels 1 to 5, and compares sampled cloth pixels with the expected colour; the same
 shots show any cloth drawn over what should cover it.

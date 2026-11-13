@@ -25,8 +25,8 @@ func has_ruin_art() -> bool:
 
 func refresh() -> void:
 	if sprite:
-		Art.apply(sprite, _look())
 		sprite.flip_h = flip
+		Art.apply(sprite, _look(), banner_tint())
 	queue_redraw()
 
 

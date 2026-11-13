@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="514" height="500" viewBox="-128.44 -184.2 257 250">
+  <defs><mask id="cloth" maskUnits="userSpaceOnUse" x="-128.44" y="-184.2" width="257" height="250">
+    <polygon points="-85.12,-56.56 -76.16,-52.08 -76.16,-28.08 -80.64,-36.32 -85.12,-32.56" fill="#fff" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+    <ellipse cx="-80.64" cy="-44.32" rx="2.6" ry="2.6" fill="#000" stroke="#000" stroke-width="0.8"/>
+    <polygon points="3.2,-12.4 12.16,-7.92 12.16,16.08 7.68,7.84 3.2,11.6" fill="#fff" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+    <ellipse cx="7.68" cy="-0.16" rx="2.6" ry="2.6" fill="#000" stroke="#000" stroke-width="0.8"/>
+  </mask></defs>
+  <g mask="url(#cloth)">
+    <polygon points="-85.12,-56.56 -76.16,-52.08 -76.16,-28.08 -80.64,-36.32 -85.12,-32.56" fill="#ffffff" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+    <polygon points="3.2,-12.4 12.16,-7.92 12.16,16.08 7.68,7.84 3.2,11.6" fill="#ffffff" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  </g>
+</svg>

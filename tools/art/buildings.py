@@ -1033,10 +1033,11 @@ def barracks(level):
     roof = "#6a2a24" if level >= 2 else "#4a3b24"
     a.poly([P(hx - w - e, hy - 0.22 - e, 18), P(hx + w + e, hy - 0.22 - e, 18), P(hx + w + e, hy, 34), P(hx - w - e, hy, 34)], roof)
     a.poly([P(hx - w - e, hy, 34), P(hx + w + e, hy, 34), P(hx + w + e, hy + 0.22 + e, 18), P(hx - w - e, hy + 0.22 + e, 18)], "#7a3a30" if level >= 2 else "#5b4a2e")
-    if level >= 3:  # a banner on the hut
-        bx, by = P(hx + w, hy - 0.22, 34)
-        a.line([(bx, by), (bx, by - 18)], WOOD_D, 1.6)
-        a.poly([(bx, by - 18), (bx + 11, by - 15), (bx, by - 12)], CRIMSON, INK, 0.8)
+    # a pennant on the hut, smaller at the lower levels
+    k = (0.7, 0.85, 1.0)[min(level, 3) - 1]
+    bx, by = P(hx + w, hy - 0.22, 34)
+    a.line([(bx, by), (bx, by - 18 * k)], WOOD_D, 1.6)
+    a.cloth([(bx, by - 18 * k), (bx + 11 * k, by - 15 * k), (bx, by - 12 * k)], sw=0.8)
     # benches (the game seats the units on them)
     for (gx, gy) in [(-0.35, 0.45), (0.45, 0.35), (0.1, -0.25)][:level]:
         a.box(gx - 0.2, gx + 0.2, gy - 0.07, gy + 0.07, 0, 5, WOOD_L, WOOD, WOOD_D)
@@ -1139,7 +1140,7 @@ def training_grounds():
 
 # Per material (Config.PIECE_MATERIALS): wall faces (top, lit left, shaded right),
 # joints, roof (lit front slope, shaded hip, ridge/eave trim), window light,
-# door, accent (banners, trim).
+# door, accent (shields, trim; banners are cloth, always crimson: Art.cloth).
 HALL_PALETTES = {
     "stone": {"t": STONE_T, "l": STONE_L, "r": STONE_R, "j": STONE_D, "roof": "#3e4c58", "roof_r": "#2e3a44", "trim": WOOD_D,
               "glow": GLOW, "door": "#3b2a1d", "accent": CRIMSON, "accent_d": CRIMSON_D, "metal": GOLD},
@@ -1222,7 +1223,8 @@ def town_hall(material, level=1, front=False):
     material with a hip roof, arched lit windows, a gabled porch with a large
     front door on its left face, a clock in the porch's gable. Level 2 adds
     a podium on the ridge (the tower post; `front`: its front merlons,
-    drawn over the unit), level 3 banners, gilding and a brazier."""
+    drawn over the unit), level 3 banners, gilding and a brazier; level 1 a
+    small pennant on the ridge."""
     pal = HALL_PALETTES[material]
     wood = material == "wood"
     a = Art()
@@ -1281,8 +1283,11 @@ def town_hall(material, level=1, front=False):
     a.line([P(ra, ym, ridge), P(rb, ym, ridge)], pal["trim"], 3)  # ridge
     a.line([P(rb, ym, ridge), P(x1 + ey, y1 + ey, eave)], pal["trim"], 2.2)  # hip edge
     a.line([P(x0 - ey, y1 + ey, eave), P(x1 + ey, y1 + ey, eave), P(x1 + ey, y0 - ey, eave)], INK, 1.6)
-    if level < 2:  # a chimney at the back
+    if level < 2:  # a chimney at the back, a small pennant on the ridge's end
         a.box(0.38, 0.5, -0.5, -0.38, ridge - 26, ridge + 8, pal["t"], pal["l"], pal["r"])
+        x, y = P(ra, ym, ridge)
+        a.line([(x, y), (x, y - 22)], INK, 2)
+        a.cloth([(x, y - 22), (x + 13, y - 19), (x, y - 15)], sw=0.8)
     else:
         _hall_podium(a, pal, ts, deck, level, lambda gy: _hall_roof_z(gy, y0 - ey, y1 + ey, ym, eave, ridge))
     # The porch: a gabled bay on the long face, its ridge across the hall, the big door in it.
@@ -1298,9 +1303,9 @@ def town_hall(material, level=1, front=False):
         a.ellipse(x - 3, y, 1.8, 2.2, pal["metal"])
     if level >= 3:  # banners at the corners of the long face
         for u in (-0.76, 0.62):
-            hanging_banner(a, ("left", y1), u - 0.07, u + 0.07, h - 6, h - 30, pal["accent"], pal["metal"])
+            hanging_banner(a, ("left", y1), u - 0.07, u + 0.07, h - 6, h - 30, pal["metal"])
     elif level == 2:
-        hanging_banner(a, ("right", x1), 0.02, 0.16, h - 6, h - 28, pal["accent"], pal["metal"])
+        hanging_banner(a, ("right", x1), 0.02, 0.16, h - 6, h - 28, pal["metal"])
     return a
 
 

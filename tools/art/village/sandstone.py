@@ -4,7 +4,7 @@ import math
 import random
 
 from ..core import (
-    Art, BRASS, diamond, GLOW, GOLD, GOLD_D, hanging_banner, INK, IRON_L, _merlon_spots, _opening,
+    Art, BRASS, CRIMSON_D, diamond, GLOW, GOLD, GOLD_D, hanging_banner, INK, IRON_L, _merlon_spots, _opening,
     P,
 )
 
@@ -79,7 +79,7 @@ def sand_wall(level=1):
     a.box(x0, x1, y0 - 0.02, y1 + 0.02, h, h + 3, SAND_T, SAND_B, SAND_R)
     if level >= 2:
         _tile_band(a, x0, x1, y1, h - 6, h - 1)
-        hanging_banner(a, ("left", y1), -0.07, 0.07, h - 7, 10, colour=TILE_BLUE)
+        hanging_banner(a, ("left", y1), -0.07, 0.07, h - 7, 10)
     for gx in (-0.44, -0.11, 0.22):
         _sand_merlon(a, gx, y0, 0.2, y1 - y0, h + 3, gold=level >= 3)
     if level >= 3:
@@ -153,9 +153,9 @@ def sand_gate(level=1):
                 x, y = P(gx, y1, z)
                 a.ellipse(x, y, 1.2, 1.2, BRASS)
         _tile_band(a, -0.22, 0.22, y1, 38, 43)
-    # Veliron's banners on the towers: blue in sandstone
-    hanging_banner(a, ("left", y1), -0.4, -0.3, 46, 20, colour=TILE_BLUE)
-    hanging_banner(a, ("left", y1), 0.3, 0.4, 46, 20, colour=TILE_BLUE)
+    # Veliron's banners on the towers
+    hanging_banner(a, ("left", y1), -0.4, -0.3, 46, 20)
+    hanging_banner(a, ("left", y1), 0.3, 0.4, 46, 20)
     for gx in (x0, 0.26):
         _sand_merlon(a, gx, y0, 0.12, y1 - y0, 53, gold=level >= 3)
         _sand_merlon(a, gx + 0.12, y0, 0.12, y1 - y0, 53, gold=level >= 3)
@@ -182,7 +182,7 @@ def sand_gate_ruin():
     a.poly([P(-0.18, y1 + 0.04, 0), P(0.14, y1 + 0.06, 0), P(0.18, y1 + 0.32, 0), P(-0.14, y1 + 0.28, 0)], "#3a2818", INK, 1.2)
     _sand_drift(a, rng, 3, -0.4, 0.4, 0.2, 0.42)
     _sand_rubble(a, rng, 9, -0.45, 0.45, 0.2, 0.45)
-    a.poly([P(-0.4, y1, 28), P(-0.3, y1, 28), P(-0.31, y1, 14), P(-0.35, y1, 18), P(-0.39, y1, 12)], TILE_BLUE_D, INK, 0.9)
+    a.poly([P(-0.4, y1, 28), P(-0.3, y1, 28), P(-0.31, y1, 14), P(-0.35, y1, 18), P(-0.39, y1, 12)], CRIMSON_D, INK, 0.9)
     a.save("sandstone_gate_ruin")
 
 
@@ -211,15 +211,15 @@ def sand_wall_tower(front=False, level=1):
     a.box(-s - 0.04, s + 0.04, -s - 0.04, s + 0.04, h, h + 4, SAND_T, SAND_B, SAND_R)
     a.line([P(-s + 0.06, -s + 0.06, h + 4), P(-s + 0.06, -s + 0.06, h + 44)], INK, 3)
     x, y = P(-s + 0.06, -s + 0.06, h + 44)
-    a.poly([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], TILE_BLUE)
+    a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
     for gx, gy in _merlon_spots(s + 0.04, False, k):
         _sand_merlon(a, gx, gy, k, k, h + 4, gold=level >= 3)
     if level >= 2:
         _tile_band(a, -s, s, s, h - 7, h - 1)
         _tile_band_right(a, s, -s, s, h - 7, h - 1)
-        hanging_banner(a, ("left", s), -0.22, -0.02, h - 8, h - 36, colour=TILE_BLUE)
+        hanging_banner(a, ("left", s), -0.22, -0.02, h - 8, h - 36)
     if level >= 3:
-        hanging_banner(a, ("right", s), -0.12, 0.08, h - 8, h - 36, colour=TILE_BLUE)
+        hanging_banner(a, ("right", s), -0.12, 0.08, h - 8, h - 36)
         a.line([P(-s - 0.04, s + 0.04, h + 4), P(s + 0.04, s + 0.04, h + 4), P(s + 0.04, -s - 0.04, h + 4)], GOLD, 2)
         bx, by = P(0.16, -0.16, h + 4)  # inside, between the back and front merlons
         a.ellipse(bx, by - 14, 16, 12, GLOW, opacity=0.35)

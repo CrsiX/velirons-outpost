@@ -171,8 +171,6 @@
   <polyline points="26.88,-83.76 -11.52,-64.56" fill="none" stroke="#665d59" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
   <polyline points="0,-94.64 0,-134.64" fill="none" stroke="#15110d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
   <polygon points="0,-134.64 20,-130.64 14,-125.64 20,-120.64 0,-118.64" fill="#8c1c2b" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
-  <polyline points="6,-133.14 6,-120.64" fill="none" stroke="#2f5a3a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="1,-126.64 16,-126.64" fill="none" stroke="#2f5a3a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
   <polygon points="-2.58,-94.09 5.1,-90.25 5.1,-99.25 -2.58,-103.09" fill="#8a7f79" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
   <polygon points="5.1,-90.25 12.78,-94.09 12.78,-103.09 5.1,-99.25" fill="#665d59" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>
   <polygon points="5.1,-106.93 12.78,-103.09 5.1,-99.25 -2.58,-103.09" fill="#a89c95" stroke="#15110d" stroke-width="1.1" stroke-linejoin="round"/>

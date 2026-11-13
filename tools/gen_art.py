@@ -10,7 +10,7 @@ The art itself is in tools/art/, by kind; this is the entry point.
 """
 import os
 
-from art.core import ART, CRIMSON, CRIMSON_D, MANIFEST, manifest, write_manifest
+from art.core import ART, check_flags, CRIMSON, CRIMSON_D, MANIFEST, manifest, write_manifest
 from art.buildings import (
     abbey, barracks, barracks_ruin, campaign_houses, church, city_houses, farm_field, farm_shed,
     graveyard, grove, guild_house, legion_camp, light_halo, light_stone, market, rubble, site,
@@ -267,6 +267,7 @@ def main():
     horse()
     corpse_horse()
     riders()  # (after the riders' own sprites: it seats them)
+    check_flags()
     write_manifest()
     print("generated %d sprites" % len(manifest))
 

@@ -265,6 +265,11 @@ func material_factor() -> float:
 	return float(Config.PIECE_MATERIALS[made_of]["factor"]) if Config.PIECE_MATERIAL_SCALED.has(kind) else 1.0
 
 
+## The colour its banner cloth wears (Village.banner_tint; Art.apply's `tint`).
+func banner_tint() -> Color:
+	return village.banner_tint() if village else Color.TRANSPARENT
+
+
 ## Its art name `art` in its material: "wall_2" -> "wood_wall_2".
 func material_art(art: String) -> String:
 	return Config.piece_art(made_of, art)
@@ -300,8 +305,10 @@ func take_damage(amount: float, source: Node = null, category: String = "pure") 
 	game.siege.on_damaged(self, source, before - hp)
 	queue_redraw()
 	if sprite:
-		sprite.self_modulate = Color(1.0, 0.55, 0.5)
-		create_tween().tween_property(sprite, "self_modulate", Color.WHITE, 0.2)
+		for s: Sprite2D in [sprite, Art.flag_of(sprite)]:
+			if s:
+				s.self_modulate = Color(1.0, 0.55, 0.5)
+				create_tween().tween_property(s, "self_modulate", Color.WHITE, 0.2)
 	if hp <= 0.0:
 		village.construction.on_devastated(self, source)
 

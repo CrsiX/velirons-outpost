@@ -3,7 +3,7 @@
 import random
 
 from ..core import (
-    Art, CRIMSON, CRIMSON_D, diamond, GLOW, hanging_banner, INK, IRON, IRON_L, _merlon_spots,
+    Art, CRIMSON_D, diamond, GLOW, hanging_banner, INK, IRON, IRON_L, _merlon_spots,
     _opening, P,
 )
 
@@ -195,7 +195,7 @@ def bas_wall_tower(front=False, level=1):
     a.box(-s - 0.03, s + 0.03, -s - 0.03, s + 0.03, h, h + 4, "#3a3644", OBSIDIAN, "#16141c")
     a.line([P(-s + 0.06, -s + 0.06, h + 4), P(-s + 0.06, -s + 0.06, h + 44)], INK, 3)
     x, y = P(-s + 0.06, -s + 0.06, h + 44)
-    a.poly([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], CRIMSON)
+    a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
     _bas_merlons(a, random.Random(1011), s + 0.03, h + 4, False, level)
     if level >= 2:
         a.line([P(-s, s, h - 3), P(s, s, h - 3), P(s, -s, h - 3)], IRON, 3)

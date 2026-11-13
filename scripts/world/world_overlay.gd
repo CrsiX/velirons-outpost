@@ -82,13 +82,14 @@ func show_selection(tiles: Array[Vector2i], range_center: Vector2 = Vector2.ZERO
 	queue_redraw()
 
 
-## Placement preview for `art_name` anchored on `anchor_world`.
-func show_ghost(art_name: String, anchor_world: Vector2, tiles: Array[Vector2i], ok: bool, range_center: Vector2 = Vector2.ZERO, range_tiles: float = 0.0) -> void:
+## Placement preview for `art_name` anchored on `anchor_world`, its banner cloth
+## in `tint` (Village.banner_tint).
+func show_ghost(art_name: String, anchor_world: Vector2, tiles: Array[Vector2i], ok: bool, range_center: Vector2 = Vector2.ZERO, range_tiles: float = 0.0, tint := Color.TRANSPARENT) -> void:
 	_footprint = tiles
 	_footprint_color = OK_COLOR if ok else BAD_COLOR
 	_range_center = range_center
 	_range = range_tiles
-	Art.apply(_ghost, art_name)
+	Art.apply(_ghost, art_name, tint)
 	_ghost.position = anchor_world
 	_ghost.modulate = Color(OK_COLOR, 0.7) if ok else Color(BAD_COLOR, 0.6)
 	_ghost.visible = true

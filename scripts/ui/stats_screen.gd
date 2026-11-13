@@ -604,7 +604,9 @@ func awards() -> Array[Dictionary]:
 		var detail := "Level %d tower" % int(best[2])
 		if str(best[3]) != "":
 			detail += ", %s" % best[3]
+		# (its banner in its village's colour with several villages, as Village.banner_tint)
 		out.append({"title": "Deadliest tower", "art": "watchtower" if int(best[2]) <= 1 else "watchtower_%d" % mini(int(best[2]), 3),
+			"tint": st.villages[best_v]["color"] if st.villages.size() > 1 else Color.TRANSPARENT,
 			"text": "%s%s: %d kills" % [str(best[0]).capitalize(), _of(best_v, coop), int(best[1])], "detail": detail})
 	var g := _top(st, "gatherers")
 	if not g.is_empty():
@@ -691,7 +693,9 @@ func _build_awards() -> void:
 		h.add_theme_constant_override("separation", 12)
 		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_child(h)
-		h.add_child(_icon(a["art"], 64))
+		var pic := _icon(a["art"], 64)
+		Art.tint_rect(pic, a["art"], a.get("tint", Color.TRANSPARENT))
+		h.add_child(pic)
 		var v := VBoxContainer.new()
 		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL

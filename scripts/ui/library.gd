@@ -46,6 +46,9 @@ const LAIR_ZONE_WORDS := {"mountain": "in the mountains", "pine": "in the pine f
 static var _last_tab := "enemies"
 
 var tab := ""
+## What the pictures' banner cloth wears (Art.tint_rect): the viewer's village
+## colour in a game with several villages, else transparent (the art's crimson).
+var banner_tint := Color.TRANSPARENT
 var _panel: PanelContainer
 var _tab_buttons := {}
 var _note: Label
@@ -116,8 +119,10 @@ func _ready() -> void:
 	_fit()
 
 
-## Shows the dialog on `p_tab` (empty: the tab shown last).
-func open(p_tab := "") -> void:
+## Shows the dialog on `p_tab` (empty: the tab shown last), the pictures'
+## banner cloth in `tint` (banner_tint).
+func open(p_tab := "", tint := Color.TRANSPARENT) -> void:
+	banner_tint = tint
 	visible = true
 	show_tab(p_tab if p_tab in TABS else _last_tab)
 	_fit()
@@ -187,6 +192,7 @@ func _entry(e: Dictionary) -> Control:
 	box.add_child(h)
 	var art := str(e.get("art", ""))
 	var pic := _icon(art, 72)
+	Art.tint_rect(pic, art, banner_tint)
 	pic.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	h.add_child(pic)
 	var v := VBoxContainer.new()

@@ -26,7 +26,7 @@
   <polygon points="7.04,-18.22 9.24,-16.02 7.04,-13.82 4.84,-16.02" fill="#3a8a8a"/>
   <polygon points="13.44,-15.02 15.64,-12.82 13.44,-10.62 11.24,-12.82" fill="#c9a24a"/>
   <polygon points="19.84,-11.82 22.04,-9.62 19.84,-7.42 17.64,-9.62" fill="#3a8a8a"/>
-  <polygon points="-13.44,-22.76 -4.48,-18.28 -4.48,-3.28 -8.96,-11.52 -13.44,-7.76" fill="#2c5a86" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="-13.44,-22.76 -4.48,-18.28 -4.48,-3.28 -8.96,-11.52 -13.44,-7.76" fill="#8c1c2b" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
   <ellipse cx="-8.96" cy="-15.02" rx="2.6" ry="2.6" fill="#c9a24a" stroke="#15110d" stroke-width="0.8"/>
   <polygon points="-37.12,-44.6 -24.32,-38.2 -24.32,-44.2 -37.12,-50.6" fill="#c8a46e" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
   <polygon points="-24.32,-38.2 -6.4,-47.16 -6.4,-53.16 -24.32,-44.2" fill="#a5824f" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>

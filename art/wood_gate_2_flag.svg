@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="171" height="183" viewBox="-42.68 -70.14 85.5 91.5">
+  <defs><mask id="cloth" maskUnits="userSpaceOnUse" x="-42.68" y="-70.14" width="85.5" height="91.5">
+    <polygon points="-8.84,-35.08 1.16,-33.08 -0.84,-21.08 -3.84,-25.08 -6.84,-22.08" fill="#fff" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>
+    <polygon points="13,14.48 13.98,-21.85 18.58,-28.83 23.18,-21.85 22.2,14.48" fill="#000" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/>
+    <polygon points="13,14.48 13.98,-21.85 17.43,-27.08 16.45,13.56" fill="#000" opacity="0.75"/>
+    <polygon points="13.98,-21.85 18.58,-28.83 19.04,-19.85" fill="#000" stroke="#000" stroke-width="0.9" stroke-linejoin="round"/>
+    <polyline points="19.21,9.64 20.19,-6.33" fill="none" stroke="#000" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+    <polygon points="20.04,18 21.21,-16.13 25.81,-21.87 30.41,-16.13 29.24,18" fill="#000" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/>
+    <polygon points="20.04,18 21.21,-16.13 24.66,-20.43 23.49,17.08" fill="#000" opacity="0.75"/>
+    <polygon points="21.21,-16.13 25.81,-21.87 26.27,-14.13" fill="#000" stroke="#000" stroke-width="0.9" stroke-linejoin="round"/>
+    <polyline points="26.25,13.16 27.42,-1.6" fill="none" stroke="#000" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+  </mask></defs>
+  <g mask="url(#cloth)">
+    <polygon points="-8.84,-35.08 1.16,-33.08 -0.84,-21.08 -3.84,-25.08 -6.84,-22.08" fill="#ffffff" stroke="#15110d" stroke-width="1" stroke-linejoin="round"/>
+  </g>
+</svg>

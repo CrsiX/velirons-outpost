@@ -113,7 +113,7 @@ def wall(level=1):
             for z in (5, h - 3):
                 x, y = P(gx, y1, z)
                 a.ellipse(x, y, 1.3, 1.3, "#8a8a8a")
-        a.poly([P(-0.08, y1, h - 2), P(0.08, y1, h - 2), P(0.08, y1, 12), P(0.0, y1, 16), P(-0.08, y1, 12)], CRIMSON, INK, 1.1)
+        a.cloth([P(-0.08, y1, h - 2), P(0.08, y1, h - 2), P(0.08, y1, 12), P(0.0, y1, 16), P(-0.08, y1, 12)], sw=1.1)
     for gx in (-0.42, -0.08, 0.26):
         a.box(gx, gx + 0.16, y0, y1, h, h + 8, STONE_T, STONE_L, STONE_R)
         if level >= 3:  # gilded merlon caps
@@ -169,8 +169,8 @@ def gate(level=1):
         if level >= 3:
             a.line([P(gx, y1, 54), P(gx + 0.14, y1, 54), P(gx + 0.14, y0, 54)], GOLD, 1.6)
     # Veliron banner
-    a.poly([P(-0.36, y1, 44), P(-0.26, y1, 44), P(-0.26, y1, 18), P(-0.31, y1, 23), P(-0.36, y1, 18)], CRIMSON)
-    a.poly([P(0.26, y1, 44), P(0.36, y1, 44), P(0.36, y1, 18), P(0.31, y1, 23), P(0.26, y1, 18)], CRIMSON)
+    a.cloth([P(-0.36, y1, 44), P(-0.26, y1, 44), P(-0.26, y1, 18), P(-0.31, y1, 23), P(-0.36, y1, 18)], sw=1.4)
+    a.cloth([P(0.26, y1, 44), P(0.36, y1, 44), P(0.36, y1, 18), P(0.31, y1, 23), P(0.26, y1, 18)], sw=1.4)
     x, y = P(-0.31, y1, 34)
     a.ellipse(x, y, 2.2, 2.2, GOLD)
     x, y = P(0.31, y1, 34)
@@ -262,7 +262,7 @@ def wall_tower(front=False, level=1):
         # banner pole at the back
         a.line([P(-s + 0.06, -s + 0.06, h + 4), P(-s + 0.06, -s + 0.06, h + 44)], INK, 3)
         x, y = P(-s + 0.06, -s + 0.06, h + 44)
-        a.poly([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], CRIMSON)
+        a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
         merlons(a, s + 0.03, h + 4, False)
         if level >= 2:  # crimson banner and an iron ring below the parapet
             hanging_banner(a, ("left", s), -0.22, -0.02, h - 4, h - 34)
@@ -307,18 +307,18 @@ def watchtower(front=False, level=1):
             a.box(gx, gx + 0.05, gy, gy + 0.05, post_h + 6, post_h + 20, WOOD_L, WOOD, WOOD_D, sw=1)
         a.line([P(-plat, -plat, post_h + 18), P(plat, -plat, post_h + 18)], WOOD_D, 2.4)
         a.line([P(-plat, -plat, post_h + 18), P(-plat, plat, post_h + 18)], WOOD_D, 2.4)
-        # little crimson pennant
+        # little pennant
         a.line([P(plat - 0.03, -plat, post_h + 18), P(plat - 0.03, -plat, post_h + 44)], INK, 2.2)
         x, y = P(plat - 0.03, -plat, post_h + 44)
-        a.poly([(x, y), (x + 16, y + 4), (x, y + 9)], CRIMSON)
+        a.cloth([(x, y), (x + 16, y + 4), (x, y + 9)], sw=1.4)
         if level >= 2:  # iron-banded stone base
             for z in (5, base_h - 4):
                 a.line([P(-s, s, z), P(s, s, z), P(s, -s, z)], "#3a3632", 2.4)
-        if level >= 3:  # gold trim on the platform and a second, golden pennant
+        if level >= 3:  # gold trim on the platform and a second pennant
             a.line([P(-plat, plat, post_h + 6), P(plat, plat, post_h + 6), P(plat, -plat, post_h + 6)], GOLD, 2)
             a.line([P(-plat + 0.02, -plat, post_h + 18), P(-plat + 0.02, -plat, post_h + 40)], INK, 2.2)
             x, y = P(-plat + 0.02, -plat, post_h + 40)
-            a.poly([(x, y), (x + 14, y + 4), (x, y + 8)], GOLD, INK, 0.8)
+            a.cloth([(x, y), (x + 14, y + 4), (x, y + 8)], sw=0.8)
     else:
         a._track([P(-plat, plat, 0), P(plat, -plat, 0), P(-plat, -plat, post_h + 60), P(plat, plat, 0)])
         for gx, gy in [(-plat, plat - 0.05), (plat - 0.05, plat - 0.05), (plat - 0.05, 0)]:

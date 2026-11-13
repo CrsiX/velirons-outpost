@@ -106,6 +106,13 @@ func color_slot() -> int:
 	return i if i >= 0 else id % Config.VILLAGE_COLORS.size()
 
 
+## The colour its banner cloth wears (docs/village-design.md §12): transparent
+## (the art's own crimson) in a game with one village, else its colour, as the
+## hero's art does (Hero.art_name).
+func banner_tint() -> Color:
+	return color if game.villages.size() > 1 else Color.TRANSPARENT
+
+
 func relic_bonus(key: String) -> float:
 	return Relics.bonus(self, key)
 

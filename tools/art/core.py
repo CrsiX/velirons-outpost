@@ -4,6 +4,7 @@ write_manifest(), and every helper more than one art module uses."""
 
 import math
 import os
+import re
 
 
 
@@ -42,10 +43,24 @@ def fmt(v):
     return ("%.2f" % v).rstrip("0").rstrip(".")
 
 
+# Banner cloth (docs/village-design.md §12): drawn crimson in the sprite; its grey companion
+# `<name>_flag` has the main face white and the folds this share of it, so the game's tint gives
+# the village colour and a darker shade of it (the share the co-op hero's cape uses).
+CLOTH_FOLD = 0.68
+_CLOTH_GREY = {CRIMSON: "#ffffff", CRIMSON_D: "#%02x%02x%02x" % ((round(255 * CLOTH_FOLD),) * 3)}
+
+
 class Art:
     def __init__(self):
         self.els = []
         self.pts = []
+        self.cloth_at = []  # indices into els of the banner cloth
+
+    def cloth(self, pts, dark=False, stroke=INK, sw=1.2):
+        """Banner cloth: crimson (`dark`: its fold), with a grey copy in the `_flag` companion
+        the game tints with the village colour. The only way to draw cloth on a village piece."""
+        self.cloth_at.append(len(self.els))
+        self.poly(pts, CRIMSON_D if dark else CRIMSON, stroke, sw)
 
     def _track(self, pts):
         self.pts.extend(pts)
@@ -92,15 +107,46 @@ class Art:
             ys = [p[1] for p in self.pts]
             minx, miny, maxx, maxy = min(xs) - pad, min(ys) - pad, max(xs) + pad, max(ys) + pad
         w, h = maxx - minx, maxy - miny
-        body = "\n  ".join(self.els)
-        svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="%s %s %s %s">\n  %s\n</svg>\n'
-               % (math.ceil(w * 2), math.ceil(h * 2), fmt(minx), fmt(miny), fmt(math.ceil(w * 2) / 2), fmt(math.ceil(h * 2) / 2), body))
+        head = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="%s %s %s %s">\n  '
+                % (math.ceil(w * 2), math.ceil(h * 2), fmt(minx), fmt(miny), fmt(math.ceil(w * 2) / 2), fmt(math.ceil(h * 2) / 2)))
+        svg = head + "\n  ".join(self.els) + "\n</svg>\n"
         with open(os.path.join(ART, name + ".svg"), "w") as f:
             f.write(svg)
         entry = {"ax": -minx, "ay": -miny, "w": math.ceil(w * 2) / 2, "h": math.ceil(h * 2) / 2}
         if extra:
             entry.update(extra)
+        if self.cloth_at:
+            body = self._flag_body((minx, miny, math.ceil(w * 2) / 2, math.ceil(h * 2) / 2))
+            with open(os.path.join(ART, name + "_flag.svg"), "w") as f:
+                f.write(head + body + "\n</svg>\n")
+            entry["flag"] = True
         manifest[name] = entry
+
+    def _flag_body(self, view):
+        """The companion's content: the cloth in grey, masked so that whatever was drawn after
+        a piece of cloth over it (a merlon, the fort marks) still hides it. A raw element (a
+        gradient glow) is left out of the mask: the cloth shows through it."""
+        first = self.cloth_at[0]
+        grey, mask, later = [], [], False
+        for i in range(first, len(self.els)):
+            el = self.els[i]
+            if i in self.cloth_at:
+                fill = re.search(r' fill="([^"]*)"', el).group(1)
+                grey.append(el.replace(' fill="%s"' % fill, ' fill="%s"' % _CLOTH_GREY[fill], 1))
+                mask.append(_recolour(el, "#fff"))
+            elif not el.startswith("<defs") and "url(#" not in el:
+                mask.append(_recolour(el, "#000"))
+                later = True
+        if not later:
+            return "\n  ".join(grey)
+        x, y, w, h = view
+        return ('<defs><mask id="cloth" maskUnits="userSpaceOnUse" x="%s" y="%s" width="%s" height="%s">\n    %s\n  </mask></defs>\n'
+                '  <g mask="url(#cloth)">\n    %s\n  </g>' % (fmt(x), fmt(y), fmt(w), fmt(h), "\n    ".join(mask), "\n    ".join(grey)))
+
+
+def _recolour(el, colour):
+    """An element with every fill and stroke (but none) in one colour: a mask's black or white."""
+    return re.sub(r' (fill|stroke)="(?!none)[^"]*"', lambda m: ' %s="%s"' % (m.group(1), colour), el)
 
 
 def diamond(scale_x=1.0, scale_y=None, cx=0, cy=0):
@@ -133,12 +179,13 @@ def _ring(r, z, t0, t1, n=12):
     return [P(r * math.cos(math.radians(t0 + (t1 - t0) * k / n)), r * math.sin(math.radians(t0 + (t1 - t0) * k / n)), z) for k in range(n + 1)]
 
 
-def hanging_banner(a, face, u0, u1, z_top, z_bot, colour=CRIMSON, emblem=GOLD):
-    """Swallow-tailed banner on a visible face ('left' = gy+, 'right' = gx+)."""
+def hanging_banner(a, face, u0, u1, z_top, z_bot, emblem=GOLD):
+    """Swallow-tailed banner (cloth, Art.cloth) on a visible face ('left' = gy+, 'right' = gx+),
+    with an emblem disc (gold, or the material's metal) that is never tinted."""
     def at(u, z):
         return P(u, face[1], z) if face[0] == "left" else P(face[1], -u, z)
     um = (u0 + u1) / 2
-    a.poly([at(u0, z_top), at(u1, z_top), at(u1, z_bot), at(um, z_bot + 6), at(u0, z_bot)], colour, INK, 1.2)
+    a.cloth([at(u0, z_top), at(u1, z_top), at(u1, z_bot), at(um, z_bot + 6), at(u0, z_bot)])
     x, y = at(um, (z_top + z_bot) / 2 + 2)
     a.ellipse(x, y, 2.6, 2.6, emblem, INK, 0.8)
 
@@ -254,6 +301,23 @@ def _bone(a, x0, y0, x1, y1, w=1.8):
     a.line([(x0, y0), (x1, y1)], BONE, w)
     for (x, y) in ((x0, y0), (x1, y1)):
         a.ellipse(x, y, w * 0.8, w * 0.65, BONE, INK, 0.7)
+
+
+def check_flags():
+    """Stops the generator when a banner companion (Art.cloth) doesn't line up with its sprite;
+    removes a companion whose sprite no longer has cloth."""
+    def view(name):
+        with open(os.path.join(ART, name + ".svg")) as f:
+            return re.search(r'<svg [^>]*>', f.read()).group(0)
+    for name, e in manifest.items():
+        if e.get("flag") and view(name + "_flag") != view(name):
+            raise SystemExit("banner companion %s_flag doesn't match its sprite's size and anchor" % name)
+    for fn in os.listdir(ART):
+        if fn.endswith("_flag.svg") and not manifest.get(fn[:-len("_flag.svg")], {}).get("flag"):
+            for stale in (fn, fn + ".import"):
+                if os.path.exists(os.path.join(ART, stale)):
+                    os.remove(os.path.join(ART, stale))
+            print("removed stale banner companion %s" % fn)
 
 
 def write_manifest():

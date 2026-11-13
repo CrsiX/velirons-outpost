@@ -79,11 +79,11 @@ func _front_art() -> String:
 
 
 func refresh() -> void:
-	Art.apply(sprite, _look())
+	Art.apply(sprite, _look(), banner_tint())
 	var post := has_post()
 	_front.visible = post and not devastated
 	if post:
-		Art.apply(_front, _front_art())
+		Art.apply(_front, _front_art(), banner_tint())
 	_site_sprite.visible = false
 	_unit_sprite.visible = post and garrison != null and not devastated
 	if garrison and post:

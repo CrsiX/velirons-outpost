@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="189" height="209" viewBox="-49.08 -78.12 94.5 104.5">
+  <defs><mask id="cloth" maskUnits="userSpaceOnUse" x="-49.08" y="-78.12" width="94.5" height="104.5">
+    <polygon points="-33.28,-50.4 -26.88,-47.2 -26.88,-21.2 -30.08,-27.8 -33.28,-24.4" fill="#fff" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>
+    <polygon points="6.4,-30.56 12.8,-27.36 12.8,-1.36 9.6,-7.96 6.4,-4.56" fill="#fff" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>
+    <ellipse cx="-30.08" cy="-38.8" rx="2.2" ry="2.2" fill="#000"/>
+    <ellipse cx="9.6" cy="-18.96" rx="2.2" ry="2.2" fill="#000"/>
+    <polyline points="-24.32,-43.92 3.84,-29.84" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="-24.32" cy="-28.64" rx="7" ry="7" fill="#000" opacity="0.3"/>
+    <polygon points="-26.82,-32.14 -21.82,-32.14 -21.82,-25.14 -26.82,-25.14" fill="#000" stroke="#000" stroke-width="0.9" stroke-linejoin="round"/>
+    <ellipse cx="1.28" cy="-15.84" rx="7" ry="7" fill="#000" opacity="0.3"/>
+    <polygon points="-1.22,-19.34 3.78,-19.34 3.78,-12.34 -1.22,-12.34" fill="#000" stroke="#000" stroke-width="0.9" stroke-linejoin="round"/>
+    <polygon points="-46.08,-8.96 -28.16,0 -28.16,-8 -46.08,-16.96" fill="#000" stroke="#000" stroke-width="1.1" stroke-linejoin="round"/>
+    <polygon points="-28.16,0 -24.32,-1.92 -24.32,-9.92 -28.16,-8" fill="#000" stroke="#000" stroke-width="1.1" stroke-linejoin="round"/>
+    <polygon points="-42.24,-18.88 -24.32,-9.92 -28.16,-8 -46.08,-16.96" fill="#000" stroke="#000" stroke-width="1.1" stroke-linejoin="round"/>
+    <ellipse cx="-41.6" cy="-10.72" rx="1.4" ry="1.4" fill="#000" stroke="#000" stroke-width="0.5"/>
+    <ellipse cx="-32.64" cy="-6.24" rx="1.4" ry="1.4" fill="#000" stroke="#000" stroke-width="0.5"/>
+    <polygon points="0,14.08 17.92,23.04 17.92,15.04 0,6.08" fill="#000" stroke="#000" stroke-width="1.1" stroke-linejoin="round"/>
+    <polygon points="17.92,23.04 21.76,21.12 21.76,13.12 17.92,15.04" fill="#000" stroke="#000" stroke-width="1.1" stroke-linejoin="round"/>
+    <polygon points="3.84,4.16 21.76,13.12 17.92,15.04 0,6.08" fill="#000" stroke="#000" stroke-width="1.1" stroke-linejoin="round"/>
+    <ellipse cx="4.48" cy="12.32" rx="1.4" ry="1.4" fill="#000" stroke="#000" stroke-width="0.5"/>
+    <ellipse cx="13.44" cy="16.8" rx="1.4" ry="1.4" fill="#000" stroke="#000" stroke-width="0.5"/>
+  </mask></defs>
+  <g mask="url(#cloth)">
+    <polygon points="-33.28,-50.4 -26.88,-47.2 -26.88,-21.2 -30.08,-27.8 -33.28,-24.4" fill="#ffffff" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
+    <polygon points="6.4,-30.56 12.8,-27.36 12.8,-1.36 9.6,-7.96 6.4,-4.56" fill="#ffffff" stroke="#15110d" stroke-width="1.4" stroke-linejoin="round"/>
+  </g>
+</svg>

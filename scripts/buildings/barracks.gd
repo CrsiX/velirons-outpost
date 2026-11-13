@@ -78,7 +78,7 @@ func yard_distance(p: Vector2) -> float:
 
 func refresh() -> void:
 	fit_slots()
-	Art.apply(sprite, _art())
+	Art.apply(sprite, _art(), banner_tint())
 	sprite.visible = complete
 	_site_sprite.visible = not complete
 	for i in _bench_sprites.size():

@@ -43,6 +43,9 @@ extends Node
 ## (`--only=relics`) relics: the library's Relics page, the armoury's Relics
 ## tab, the tactical map's rumours, the market's relic offer,
 ## a dropped relic;
+## (`--only=banners`) banner cloth in all nine colours (docs/village-design.md §12):
+## one village in crimson per material, then eight villages in their colours,
+## levels 1 to 5 round each village, cloth pixels compared with the colour;
 ## (`--only=map`) the tactical map (M): manned towers with their rings, a hurt
 ## wall, the hero and units out, goblins on the roads, zoomed, toggles off,
 ## portrait;
@@ -144,6 +147,8 @@ func _run() -> void:
 		await _market()
 	if only in ["", "fortifications"]:
 		await _fortifications()
+	if only in ["", "banners"]:
+		await _banners()
 	if only in ["", "research"]:
 		await _research()
 	if only in ["", "items"]:
@@ -3230,3 +3235,131 @@ func _store_calm() -> void:
 	await shot("store_calm_later")
 	g.queue_free()
 	await _frames(3)
+
+
+# --- banner cloth (docs/village-design.md §12) ---------------------------------------------
+
+## Every material in crimson (one village), then eight villages in their colours
+## (each a material), levels 1 to 5 spread round each village's pieces, a
+## barracks and a watchtower by each. Cloth pixels on screen are compared with
+## the colour the cloth should wear; the counts are printed as "banners".
+func _banners() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	_banner_village(g.player_village, "stone")
+	for mat: String in Config.PIECE_MATERIAL_ORDER:
+		_banner_village(g.player_village, mat)
+		await _banner_shot(g, g.player_village, "banners_crimson_%s" % mat)
+	g.queue_free()
+	await _frames(3)
+	g = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	g.test_villages = Config.VILLAGE_COLORS.size()
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	for v in g.villages:
+		_banner_village(v, Config.PIECE_MATERIAL_ORDER[v.id % Config.PIECE_MATERIAL_ORDER.size()])
+	for v in g.villages:  # (playing as each in turn: the others' villages lie in the fog)
+		g.player_village = v
+		g.fog.set_local(v.id)
+		g.fog.reveal_all()
+		g.world.refresh_props()
+		g.hud.bind_village(v)
+		g.world.refresh_village_labels()
+		await _banner_shot(g, v, "banners_c%d_%s" % [v.id, v.buildings()[0].made_of])
+	g.queue_free()
+	await _frames(3)
+
+
+## `v` in `mat`, a barracks and a watchtower added (once), every piece at a level
+## from 1 to its top in turn round the village.
+func _banner_village(v: Village, mat: String) -> void:
+	if v.buildings().filter(func(b: Building) -> bool: return b.kind == "barracks").is_empty():
+		for kind: String in ["barracks", "tower"]:
+			var t := v.center + (Vector2i(6, -2) if kind == "barracks" else Vector2i(5, 3))
+			var b := v.construction.place(kind, _free_spot_for(v, kind, t))
+			if b:
+				b.progress = b.build_time
+				v.construction.complete(b)
+	var i := 0
+	for b in v.buildings():
+		if World.PIECE_SCRIPTS.has(b.kind):
+			b.made_of = mat
+		if b is StaticPiece or b is Tower or b is Barracks:
+			# (walls, gates and towers up to 5, as with the Fortifications advancements)
+			var top: int = b.max_level() if b is TownHall or b is Barracks else 5
+			b.level = 1 + i % top
+			b.hp = b.max_hp()
+			i += 1
+		b.refresh()
+
+
+func _free_spot_for(v: Village, kind: String, near: Vector2i) -> Vector2i:
+	for r in 12:
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				var t := near + Vector2i(dx, dy)
+				if v.construction.placement_error(kind, t) == "":
+					return t
+	return near
+
+
+func _banner_shot(g: Game, v: Village, name: String) -> void:
+	g.camera.focus(Iso.tile_to_world(v.center + Vector2i(2, 0)))
+	g.camera.zoom = Vector2(0.9, 0.9)
+	await _frames(8)
+	await shot(name)
+	var img := get_viewport().get_texture().get_image()
+	var want := Color("8c1c2b") if v.banner_tint().a <= 0.0 else v.banner_tint()
+	var sampled := 0
+	var matched := 0
+	var worst := ""
+	for b in v.buildings():
+		for s: Sprite2D in [b.sprite, b.get("_front")]:
+			var p := _cloth_point(s)
+			if p.x < 0.0:
+				continue
+			var got := img.get_pixelv(Vector2i(p))
+			var d := absf(got.r - want.r) + absf(got.g - want.g) + absf(got.b - want.b)
+			sampled += 1
+			if d < 0.12:
+				matched += 1
+			elif worst == "":
+				worst = "%s %s got %s" % [b.kind, s.texture.resource_path.get_file(), got.to_html(false)]
+	print("banners %s: %d of %d cloth pixels match %s %s" % [name, matched, sampled, want.to_html(false), worst])
+
+
+## A screen point well inside the main face of `s`' cloth, or (-1, -1): none
+## (no cloth, flipped, off screen, or under the HUD's sidebar).
+func _cloth_point(s: Sprite2D) -> Vector2:
+	if s == null or not s.is_visible_in_tree() or s.texture == null or s.flip_h:
+		return Vector2(-1, -1)
+	var art := s.texture.resource_path.get_file().get_basename()
+	if not Art.has_flag(art):
+		return Vector2(-1, -1)
+	var img := Art.tex(art + "_flag").get_image()
+	if img.is_compressed():
+		img.decompress()
+	var sz := img.get_size()
+	var vp := get_viewport().get_visible_rect().size
+	for y in range(2, sz.y - 2, 2):
+		for x in range(2, sz.x - 2, 2):
+			var ok := true
+			for d: Vector2i in [Vector2i(0, 0), Vector2i(-2, 0), Vector2i(2, 0), Vector2i(0, -2), Vector2i(0, 2)]:
+				var c := img.get_pixel(x + d.x, y + d.y)
+				ok = ok and c.a > 0.99 and c.r > 0.97
+			if not ok:
+				continue
+			var local := s.offset - Vector2(sz) / 2.0 + Vector2(x, y) + Vector2(0.5, 0.5)
+			var p := s.get_global_transform_with_canvas() * local
+			if p.x > 10.0 and p.y > 60.0 and p.x < vp.x * 0.7 and p.y < vp.y - 10.0:
+				return p
+	return Vector2(-1, -1)

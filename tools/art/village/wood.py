@@ -178,7 +178,7 @@ def wood_gate(level=1):
         a.line([(x + 3, y - 4), (x - 3, y + 4)], ROPE, 2.2)
     # a crimson rag of Veliron tied to the lintel
     x, y = P(0.0, y1, lz - 3)
-    a.poly([(x - 5, y), (x + 5, y + 2), (x + 3, y + 14), (x, y + 10), (x - 3, y + 13)], CRIMSON, INK, 1)
+    a.cloth([(x - 5, y), (x + 5, y + 2), (x + 3, y + 14), (x, y + 10), (x - 3, y + 13)], sw=1)
     _logs(a, rng, 0.28, 0.5, y1, h, n=2)
     if level >= 3:
         _hides(a, rng, -0.5, -0.29, y1 + 0.02, h + 1)
@@ -301,7 +301,7 @@ def wood_wall_tower(front=False, level=1):
     x, y = P(-s + 0.02, -s + 0.02, z + 2)
     a.line([(x, y), (x + 1, y - 40)], INK, 3)
     a.line([(x, y), (x + 1, y - 40)], LOG, 1.6)
-    a.poly([(x + 1, y - 40), (x + 17, y - 36), (x + 12, y - 31), (x + 16, y - 26), (x + 1, y - 27)], CRIMSON, INK, 1)
+    a.cloth([(x + 1, y - 40), (x + 17, y - 36), (x + 12, y - 31), (x + 16, y - 26), (x + 1, y - 27)], sw=1)
     if level >= 3:
         x, y = P(s, -s, z + 2)
         _lantern(a, x, y, 26)

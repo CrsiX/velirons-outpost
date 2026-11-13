@@ -239,6 +239,8 @@ func _run() -> void:
 	print("viewport ", get_viewport().get_visible_rect().size)
 
 	check(not hud._overlay.visible and not get_tree().paused, "no pop-up over the level; it starts right away")
+	var flags := banner_flags(game.villages)
+	check(flags["shown"] == 0 and game.player_village.banner_tint().a == 0.0, "one village: its banners keep the art's crimson, no tinted flag (%s)" % str(flags))
 
 	# --- camera, sidebar, fullscreen -----------------------------------------------
 	var cam := game.camera

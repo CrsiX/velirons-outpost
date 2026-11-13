@@ -4,7 +4,7 @@ import math
 import random
 
 from ..core import (
-    Art, CRIMSON, CRIMSON_D, diamond, GLOW, GOLD, hanging_banner, INK, IRON, IRON_L, _opening, P,
+    Art, CRIMSON_D, diamond, GLOW, GOLD, hanging_banner, INK, IRON, IRON_L, _opening, P,
     _ring, ROPE_D, _tuft,
 )
 
@@ -14,7 +14,7 @@ THATCH, THATCH_L, THATCH_D = "#b8954e", "#cfae66", "#8a6c34"
 
 # Granite (Highlands): rough dry-stone of rounded, speckled blocks without
 # mortar, moss in the joints, overhanging slate coping; the wall towers round
-# brochs. Level 2 a tartan banner, level 3 gilt and a peat
+# brochs. Level 2 a banner, level 3 gilt and a peat
 # brazier.
 
 GRAN_T, GRAN_L, GRAN_R, GRAN_D = "#a89c95", "#8a7f79", "#665d59", "#3e3835"
@@ -67,19 +67,6 @@ def _gran_merlon(a, rng, gx, gy, kx, ky, z, hgt=8, gold=False):
         a.line([P(gx - 0.015, gy + ky + 0.015, z + hgt + 2.4), P(gx + kx + 0.015, gy + ky + 0.015, z + hgt + 2.4), P(gx + kx + 0.015, gy - 0.015, z + hgt + 2.4)], GOLD, 1.5)
 
 
-def _tartan_banner(a, face, u0, u1, z_top, z_bot):
-    """Veliron's crimson with a green and gold check (a hanging banner)."""
-    hanging_banner(a, face, u0, u1, z_top, z_bot)
-    def at(u, z):
-        return P(u, face[1], z) if face[0] == "left" else P(face[1], -u, z)
-    um = (u0 + u1) / 2
-    for z in (z_top - (z_top - z_bot) * 0.3, z_top - (z_top - z_bot) * 0.65):
-        a.line([at(u0, z), at(u1, z)], TARTAN, 2.2, opacity=0.85)
-    for u in (u0 + (u1 - u0) * 0.25, u0 + (u1 - u0) * 0.75):
-        a.line([at(u, z_top), at(u, z_bot + 3)], TARTAN, 2, opacity=0.85)
-    a.line([at(um, z_top), at(um, z_bot + 6)], GOLD, 0.8, opacity=0.8)
-
-
 def _peat_brazier(a, x, y):
     a.ellipse(x, y - 14, 16, 12, GLOW, opacity=0.35)
     a.poly([(x - 6, y - 6), (x + 6, y - 6), (x + 4, y), (x - 4, y)], IRON, INK, 1)
@@ -95,7 +82,7 @@ def gran_wall(level=1):
     _dry_face(a, rng, "front", y1, x0, x1, 0, h, 4)
     _slate_cap(a, x0, x1, y0, y1, h)
     if level >= 2:
-        _tartan_banner(a, ("left", y1), -0.07, 0.07, h - 2, 6)
+        hanging_banner(a, ("left", y1), -0.07, 0.07, h - 2, 6)
     for gx in (-0.44, -0.1, 0.24):
         _gran_merlon(a, rng, gx, y0, 0.2, y1 - y0, h + 3, gold=level >= 3)
     for gx in (-0.2, 0.36):
@@ -158,8 +145,8 @@ def gran_gate(level=1):
     for gx in (-0.13, 0.09):
         x, y = P(gx, y1 + 0.01, 31.5)
         a.ellipse(x, y, 0.8, 0.8, GRAN_FL)
-    _tartan_banner(a, ("left", y1), -0.42, -0.3, 44, 18)
-    _tartan_banner(a, ("left", y1), 0.3, 0.42, 44, 18)
+    hanging_banner(a, ("left", y1), -0.42, -0.3, 44, 18)
+    hanging_banner(a, ("left", y1), 0.3, 0.42, 44, 18)
     for gx in (x0, 0.26):
         _gran_merlon(a, rng, gx, y0, 0.11, y1 - y0, 51, gold=level >= 3)
         _gran_merlon(a, rng, gx + 0.13, y0, 0.11, y1 - y0, 51, gold=level >= 3)
@@ -273,21 +260,15 @@ def gran_wall_tower(front=False, level=1):
         a.line([P(k, -0.3, h + 4), P(k, 0.3, h + 4)], GRAN_R, 0.8, opacity=0.7)
     a.line([P(-s + 0.1, -s + 0.1, h + 4), P(-s + 0.1, -s + 0.1, h + 44)], INK, 3)
     x, y = P(-s + 0.1, -s + 0.1, h + 44)
-    a.poly([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], CRIMSON)
-    a.line([(x + 6, y + 1.5), (x + 6, y + 14)], TARTAN, 1.6)
-    a.line([(x + 1, y + 8), (x + 16, y + 8)], TARTAN, 1.6)
+    a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
     _broch_merlons(a, random.Random(1348), r - 0.04, h + 4, False, level)
     if level >= 2:
-        # a tartan banner down the front, an iron ring round the top
+        # a banner down the front, an iron ring round the top
         t0, t1 = 70, 100
         z_top, z_bot = h - 4, h - 36
         tm = (t0 + t1) / 2
         pts = _ring(r + 0.005, z_top, t0, t1, 4) + [_ring(r + 0.005, z_bot, t1, t1, 1)[0], _ring(r + 0.005, z_bot + 6, tm, tm, 1)[0], _ring(r + 0.005, z_bot, t0, t0, 1)[0]]
-        a.poly(pts, CRIMSON, INK, 1.2)
-        for z in (z_top - 10, z_top - 21):
-            a.line(_ring(r + 0.006, z, t0, t1, 4), TARTAN, 2.2, opacity=0.85)
-        for tt in (t0 + 8, t1 - 8):
-            a.line([_ring(r + 0.006, z_top, tt, tt, 1)[0], _ring(r + 0.006, z_bot + 3, tt, tt, 1)[0]], TARTAN, 2, opacity=0.85)
+        a.cloth(pts)
         a.line(_ring(r + 0.004, h - 2, -45, 135, 24), IRON, 3)
     if level >= 3:
         a.line(_ring(r + 0.03, h + 4, -45, 135, 24), GOLD, 2)

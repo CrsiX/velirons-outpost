@@ -1884,7 +1884,8 @@ func _entry_grid(parent: Control) -> GridContainer:
 
 
 ## Dock entry: icon, title, description and an action button.
-func _entry(icon_tex: Texture2D, title: String, desc: String, action_text: String, action: Callable) -> Dictionary:
+## `art`: the icon's art name when its banner cloth wears this player's colour (Art.tint_rect).
+func _entry(icon_tex: Texture2D, title: String, desc: String, action_text: String, action: Callable, art := "") -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UiTheme.box(Color(1, 1, 1, 0.04), Color("3a3024"), 1, 6, 6))
 	var v := VBoxContainer.new()
@@ -1892,7 +1893,10 @@ func _entry(icon_tex: Texture2D, title: String, desc: String, action_text: Strin
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
 	v.add_child(h)
-	h.add_child(_icon(icon_tex, 52))
+	var ic := _icon(icon_tex, 52)
+	if art != "":
+		Art.tint_rect(ic, art, game.player_village.banner_tint())
+	h.add_child(ic)
 	var tv := VBoxContainer.new()
 	tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(tv)
@@ -1917,7 +1921,7 @@ func _build_page_build() -> Control:
 	for kind in ["tower", "barracks", "farm", "camp", "lightstone", "training", "market", "stall"]:
 		var spec: Dictionary = Config.BUILDINGS[kind]
 		var icon := Art.tex(spec["art"])
-		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_icons(spec["cost"]), _on_build_pressed.bind(kind))
+		var e := _entry(icon, spec["name"], spec["desc"], "Place  (%s)" % Config.cost_icons(spec["cost"]), _on_build_pressed.bind(kind), spec["art"])
 		grid.add_child(e["panel"])
 		_build_buttons[kind] = e["button"]
 		_build_panels[kind] = e["panel"]
@@ -3860,7 +3864,7 @@ func open_library(tab := "") -> void:
 		get_tree().paused = true
 	_lib_gray.visible = _lib_paused
 	_trade_panel.visible = false
-	library.open(tab)
+	library.open(tab, game.player_village.banner_tint())
 	game.events.debug("open library" + (" (game paused)" if _lib_paused else ""))
 
 

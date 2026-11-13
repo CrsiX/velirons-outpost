@@ -112,8 +112,8 @@ func _build_visuals() -> void:
 
 
 func refresh() -> void:
-	Art.apply(sprite, _look())
-	Art.apply(_front, _front_art())
+	Art.apply(sprite, _look(), banner_tint())
+	Art.apply(_front, _front_art(), banner_tint())
 	sprite.visible = complete
 	_front.visible = complete and not devastated
 	_site_sprite.visible = not complete

@@ -138,6 +138,16 @@ func _test_villages() -> void:
 		var start := v.buildings().filter(func(b: Building) -> bool: return b is Workplace)
 		own_ok = own_ok and start.size() == 2 and start.all(func(b: Building) -> bool: return b.complete and b.worker != null and Vector2(b.tile).distance_to(Vector2(v.center)) < 10.0)
 	check(own_ok, "every village has its own walls, villagers, hero, and a staffed farm and camp nearby")
+	var flags := banner_flags(vs)
+	check(flags["shown"] > 0 and flags["wrong"] == 0 and flags["missing"] == 0, "every piece with banner cloth flies its village's colour (%s)" % str(flags))
+	game.build_kind = "tower"
+	game._preview(vs[0].center + Vector2i(9, 0))
+	var ghost_flag := Art.flag_of(game.world.overlay._ghost)
+	game.build_kind = ""
+	check(ghost_flag != null and ghost_flag.visible and ghost_flag.modulate == game.player_village.color, "the placement preview flies the player's colour")
+	game.world.overlay.clear()
+	var dock_flag := (hud._build_panels["tower"] as Node).find_children("Flag", "TextureRect", true, false)
+	check(dock_flag.size() == 1 and (dock_flag[0] as TextureRect).modulate == game.player_village.color, "the build dock's watchtower flies the player's colour")
 	var labels: Dictionary = game.world._village_labels
 	check(labels.size() == 3 and not labels[0].visible and labels[1].visible and labels[1].text == vs[1].village_name and labels[2].get_theme_color("font_color") == vs[2].color, "the other villages' names float over them in their colour")
 

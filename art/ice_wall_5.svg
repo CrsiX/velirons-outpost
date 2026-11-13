@@ -65,7 +65,7 @@
   <polyline points="35.1,-11.65 35.49,-8.46" fill="none" stroke="#f6fcff" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
   <polygon points="26.87,-8.58 29.85,-8.58 28.66,-1.9" fill="#d6eef8" stroke="#3d6987" stroke-width="0.6" stroke-linejoin="round"/>
   <polyline points="27.91,-8.08 28.36,-4.57" fill="none" stroke="#f6fcff" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
-  <polygon points="-14.08,-23.44 -5.12,-18.96 -5.12,-0.96 -9.6,-9.2 -14.08,-5.44" fill="#2f5f8a" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
+  <polygon points="-14.08,-23.44 -5.12,-18.96 -5.12,-0.96 -9.6,-9.2 -14.08,-5.44" fill="#8c1c2b" stroke="#15110d" stroke-width="1.2" stroke-linejoin="round"/>
   <ellipse cx="-9.6" cy="-14.2" rx="2.6" ry="2.6" fill="#e3f3fa" stroke="#15110d" stroke-width="0.8"/>
   <ellipse cx="-32.64" cy="-48.74" rx="10" ry="10" fill="#7fd0ff" opacity="0.25"/>
   <polygon points="-36.16,-45.12 -32.64,-43.36 -32.64,-54.12" fill="#b9ecff" stroke="#3d6987" stroke-width="0.9" stroke-linejoin="round"/>

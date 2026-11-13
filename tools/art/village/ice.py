@@ -4,13 +4,13 @@ import math
 import random
 
 from ..core import (
-    Art, diamond, GLOW, GOLD, hanging_banner, INK, IRON, IRON_L, _merlon_spots, _opening, P, _ring,
+    Art, CRIMSON_D, diamond, GLOW, GOLD, hanging_banner, INK, IRON, IRON_L, _merlon_spots, _opening, P, _ring,
 )
 
 
 # Ice (the cold north): blocks of glacier ice, pale blue and a little see-through,
 # with snow heaped on every coping and ledge and icicles hanging from them; the
-# wall towers square, the huts igloos. Level 2 a frost-blue banner and walrus
+# wall towers square, the huts igloos. Level 2 a banner and walrus
 # tusks over the gate, level 3 gilt and a cold blue fire.
 
 ICE_T, ICE_L, ICE_R, ICE_D = "#e3f3fa", "#a6cfe2", "#7aa5c3", "#3d6987"
@@ -190,7 +190,7 @@ def ice_wall(level=1):
     _ice_panels(a, rng, "side", x1, y0, y1, 6, h, side_shade=True)
     _ice_cap(a, rng, x0, x1, y0, y1, h)
     if level >= 2:
-        hanging_banner(a, ("left", y1), -0.07, 0.07, h - 2, 8, FROST, ICE_T)
+        hanging_banner(a, ("left", y1), -0.07, 0.07, h - 2, 8, emblem=ICE_T)
     for i, gx in enumerate((-0.4, -0.15, 0.1, 0.35)):
         _spikes(a, rng, gx, 0.0, 0.1, h + 2.4, glow=level >= 3 and i % 2 == 0, tall=1.0 if level < 2 else 1.25)
     if level >= 3:
@@ -254,8 +254,8 @@ def ice_gate(level=1):
         a.poly([(x - 1.2, y), (x + 1.2, y), (x, y + rng.uniform(5, 9))], "#d6eef8", ICE_D, 0.6)
     if level >= 3:
         _ice_lantern(a, -0.285, y1, 40)
-    hanging_banner(a, ("left", y1), -0.43, -0.31, 44, 18, FROST, ICE_T)
-    hanging_banner(a, ("left", y1), 0.31, 0.43, 44, 18, FROST, ICE_T)
+    hanging_banner(a, ("left", y1), -0.43, -0.31, 44, 18, emblem=ICE_T)
+    hanging_banner(a, ("left", y1), 0.31, 0.43, 44, 18, emblem=ICE_T)
     spots = [(-0.4, 0.0, 0.1, False), (-0.28, 0.0, 0.08, level >= 3), (0.28, 0.0, 0.08, level >= 3), (0.4, 0.0, 0.1, False)]
     for cx, cy, k, gl in spots:
         _spikes(a, rng, cx, cy, k, 50.4, glow=gl, tall=1.0 if level < 2 else 1.3)
@@ -284,7 +284,7 @@ def ice_gate_ruin():
     a.line([P(-0.03, y1 + 0.04, 0), P(0.01, y1 + 0.29, 0)], "#242f38", 1.2)
     _ice_shards(a, rng, 10, -0.45, 0.45, 0.24, 0.46)
     _drifts(a, rng, 5, -0.45, 0.45, 0.2, 0.44)
-    a.poly([P(-0.42, y1, 16), P(-0.32, y1, 16), P(-0.33, y1, 7), P(-0.37, y1, 10), P(-0.41, y1, 6)], FROST, INK, 0.9)
+    a.poly([P(-0.42, y1, 16), P(-0.32, y1, 16), P(-0.33, y1, 7), P(-0.37, y1, 10), P(-0.41, y1, 6)], CRIMSON_D, INK, 0.9)
     a.save("ice_gate_ruin")
 
 
@@ -330,14 +330,14 @@ def ice_wall_tower(front=False, level=1):
         a.ellipse(x, y, 7, 2.6, SNOW, opacity=0.9)
     a.line([P(-p + 0.07, -p + 0.07, h + 4), P(-p + 0.07, -p + 0.07, h + 44)], INK, 3)
     x, y = P(-p + 0.07, -p + 0.07, h + 44)
-    a.poly([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], FROST)
+    a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
     for i, (gx, gy) in enumerate(spots):
         _spikes(a, rng, gx + k / 2, gy + k / 2, k * 0.9, h + 4, glow=level >= 3 and i % 2 == 0, tall=1.0 if level < 2 else 1.2, skip_right=gy == -p and gx == p - k)
     if level >= 2:
-        hanging_banner(a, ("left", s), -0.24, -0.04, h - 6, h - 34, FROST, ICE_T)
+        hanging_banner(a, ("left", s), -0.24, -0.04, h - 6, h - 34, emblem=ICE_T)
         a.line([P(-s, s, h - 6), P(s, s, h - 6), P(s, -s, h - 6)], "#3a3632", 3)
     if level >= 3:
-        hanging_banner(a, ("right", s), -0.06, 0.14, h - 6, h - 34, FROST, ICE_T)
+        hanging_banner(a, ("right", s), -0.06, 0.14, h - 6, h - 34, emblem=ICE_T)
     return a
 
 

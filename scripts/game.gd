@@ -673,7 +673,7 @@ func _preview(tile: Vector2i) -> void:
 	var rng := Config.TOWER_RANGE.get(build_kind, 0.0) as float
 	if build_kind == "lightstone":
 		rng = Config.LIGHTSTONE_SIGHT
-	world.overlay.show_ghost(art, Building.anchor_world(tile, size), tiles, ok, Vector2(tile), rng)
+	world.overlay.show_ghost(art, Building.anchor_world(tile, size), tiles, ok, Vector2(tile), rng, player_village.banner_tint())
 
 
 func _highlight_towers() -> void:
