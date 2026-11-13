@@ -8,6 +8,8 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Standing / fallen**: a village stands while it has a villager and, if it has a town hall, that hall hasn't fallen; otherwise it has fallen (single player: defeat; co-op: it can stand again). `village-design.md`
 - **Hut**: houses exactly one villager; intact huts cap the population. A burned hut is a ruin and can be rebuilt.
 - **Wall tower / watchtower**: towers hold one military unit. Wall towers are part of the village walls; watchtowers are built outside.
+- **Piece material**: what a village's walls, gates, wall towers and town hall are built of (stone, sandstone, basalt, limestone, granite, ice, wood); it sets their look and, through its factor, their cost and HP. Huts follow it in look only; watchtowers have one look. Not "art style". `siege-design.md`
+- **Village colour**: the colour a co-op player picks in the lobby; their hero, carts and caravans wear it. A game with one village wears Veliron's crimson instead. `multiplayer-design.md`
 - **Post**: a slot a military unit can be stationed in (tower, training grounds). **Bench**: a barracks' slot. **Reserve**: where bought or withdrawn units wait at home.
 - **Sortie**: a barracks' units turning out to fight when enemies come in range.
 - **Downed**: at 0 HP a unit or the hero is out until it revives (in the reserve, on its bench, or in the village centre).
