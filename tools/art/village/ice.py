@@ -328,9 +328,6 @@ def ice_wall_tower(front=False, level=1):
     for gx, gy in ((0.0, 0.1), (-0.12, -0.05), (0.14, -0.1)):
         x, y = P(gx, gy, h + 4)
         a.ellipse(x, y, 7, 2.6, SNOW, opacity=0.9)
-    a.line([P(-p + 0.07, -p + 0.07, h + 4), P(-p + 0.07, -p + 0.07, h + 44)], INK, 3)
-    x, y = P(-p + 0.07, -p + 0.07, h + 44)
-    a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
     for i, (gx, gy) in enumerate(spots):
         _spikes(a, rng, gx + k / 2, gy + k / 2, k * 0.9, h + 4, glow=level >= 3 and i % 2 == 0, tall=1.0 if level < 2 else 1.2, skip_right=gy == -p and gx == p - k)
     if level >= 2:

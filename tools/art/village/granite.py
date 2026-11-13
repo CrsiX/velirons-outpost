@@ -258,9 +258,6 @@ def gran_wall_tower(front=False, level=1):
     for k in (-0.12, 0.12):
         a.line([P(-0.3, k, h + 4), P(0.3, k, h + 4)], GRAN_R, 0.8, opacity=0.7)
         a.line([P(k, -0.3, h + 4), P(k, 0.3, h + 4)], GRAN_R, 0.8, opacity=0.7)
-    a.line([P(-s + 0.1, -s + 0.1, h + 4), P(-s + 0.1, -s + 0.1, h + 44)], INK, 3)
-    x, y = P(-s + 0.1, -s + 0.1, h + 44)
-    a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
     _broch_merlons(a, random.Random(1348), r - 0.04, h + 4, False, level)
     if level >= 2:
         # a banner down the front, an iron ring round the top

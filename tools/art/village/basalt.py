@@ -193,9 +193,6 @@ def bas_wall_tower(front=False, level=1):
             a.line([P(u - 0.02, s, z), P(u + 0.03, s, z + 8)], SHEEN, 1.2, opacity=0.75)
     a.poly([P(-0.05, s, 34), P(0.05, s, 34), P(0.05, s, 48), P(-0.05, s, 48)], "#0e0c10")
     a.box(-s - 0.03, s + 0.03, -s - 0.03, s + 0.03, h, h + 4, "#3a3644", OBSIDIAN, "#16141c")
-    a.line([P(-s + 0.06, -s + 0.06, h + 4), P(-s + 0.06, -s + 0.06, h + 44)], INK, 3)
-    x, y = P(-s + 0.06, -s + 0.06, h + 44)
-    a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
     _bas_merlons(a, random.Random(1011), s + 0.03, h + 4, False, level)
     if level >= 2:
         a.line([P(-s, s, h - 3), P(s, s, h - 3), P(s, -s, h - 3)], IRON, 3)

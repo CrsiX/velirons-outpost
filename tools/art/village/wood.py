@@ -297,11 +297,6 @@ def wood_wall_tower(front=False, level=1):
         zz = z * k / 8
         a.line([P(-0.12, s + 0.09, zz), P(0.04, s + 0.09, zz)], "#8a6644", 1.6)
     _wood_rail(a, rng, s, z + 2, False, level)
-    # Veliron's rag on a pole at the back
-    x, y = P(-s + 0.02, -s + 0.02, z + 2)
-    a.line([(x, y), (x + 1, y - 40)], INK, 3)
-    a.line([(x, y), (x + 1, y - 40)], LOG, 1.6)
-    a.cloth([(x + 1, y - 40), (x + 17, y - 36), (x + 12, y - 31), (x + 16, y - 26), (x + 1, y - 27)], sw=1)
     if level >= 3:
         x, y = P(s, -s, z + 2)
         _lantern(a, x, y, 26)

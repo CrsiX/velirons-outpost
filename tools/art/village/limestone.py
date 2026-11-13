@@ -281,9 +281,6 @@ def lime_wall_tower(front=False, level=1):
     for t in (-0.12, 0.12):
         a.line([P(-p + 0.04, t, h + 4), P(p - 0.04, t, h + 4)], LIME_J, 0.8, opacity=0.8)
         a.line([P(t, -p + 0.04, h + 4), P(t, p - 0.04, h + 4)], LIME_J, 0.8, opacity=0.8)
-    a.line([P(-p + 0.07, -p + 0.07, h + 4), P(-p + 0.07, -p + 0.07, h + 44)], INK, 3)
-    x, y = P(-p + 0.07, -p + 0.07, h + 44)
-    a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
     for gx, gy in _merlon_spots(p, False, k):
         _lime_merlon(a, gx, gy, k, k, h + 4, hgt=8, gold=level >= 3)
     if level >= 2:

@@ -622,7 +622,7 @@ single player there is nothing to tell apart, so the cloth is the outpost's own 
   (`watchtower_ruin`). A grey rag may replace it later.
 - **Huts get no flag.** A hut is only ever inside a village whose other pieces already carry its
   colour. Nor do pieces whose art has no cloth (level 1 walls of most materials, basalt and wood
-  walls): their gates and towers carry it.
+  walls, level 1 wall towers, wood wall towers): their gates and other pieces carry it.
 - **New cloth:** the barracks shows its back hut's pennant from level 1 (smaller at level 1), and
   the town hall gets a small pennant on its ridge at level 1. The barracks pennant is drawn before
   any other banner change.

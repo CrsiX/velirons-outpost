@@ -259,10 +259,6 @@ def wall_tower(front=False, level=1):
         _stone_bricks(a, rng, "side", -s, s, s, 0, h, faint=6)
         a.poly([P(-0.05, s, 34), P(0.05, s, 34), P(0.05, s, 48), P(-0.05, s, 48)], "#1a1612")
         a.box(-s - 0.03, s + 0.03, -s - 0.03, s + 0.03, h, h + 4, STONE_T, STONE_L, STONE_R)
-        # banner pole at the back
-        a.line([P(-s + 0.06, -s + 0.06, h + 4), P(-s + 0.06, -s + 0.06, h + 44)], INK, 3)
-        x, y = P(-s + 0.06, -s + 0.06, h + 44)
-        a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
         merlons(a, s + 0.03, h + 4, False)
         if level >= 2:  # crimson banner and an iron ring below the parapet
             hanging_banner(a, ("left", s), -0.22, -0.02, h - 4, h - 34)

@@ -209,9 +209,6 @@ def sand_wall_tower(front=False, level=1):
         a.poly([P(u, s, 36), P(u + 0.04, s, 36), P(u + 0.04, s, 48), P(u + 0.02, s, 50), P(u, s, 48)], "#2a1e12", INK, 0.8)
     a.poly([P(s, -0.02, 38), P(s, -0.06, 38), P(s, -0.06, 48), P(s, -0.04, 50), P(s, -0.02, 48)], "#2a1e12", INK, 0.8)
     a.box(-s - 0.04, s + 0.04, -s - 0.04, s + 0.04, h, h + 4, SAND_T, SAND_B, SAND_R)
-    a.line([P(-s + 0.06, -s + 0.06, h + 4), P(-s + 0.06, -s + 0.06, h + 44)], INK, 3)
-    x, y = P(-s + 0.06, -s + 0.06, h + 44)
-    a.cloth([(x, y), (x + 20, y + 4), (x + 14, y + 9), (x + 20, y + 14), (x, y + 16)], sw=1.4)
     for gx, gy in _merlon_spots(s + 0.04, False, k):
         _sand_merlon(a, gx, gy, k, k, h + 4, gold=level >= 3)
     if level >= 2:
