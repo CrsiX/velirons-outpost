@@ -266,6 +266,8 @@ def gran_wall_tower(front=False, level=1):
         tm = (t0 + t1) / 2
         pts = _ring(r + 0.005, z_top, t0, t1, 4) + [_ring(r + 0.005, z_bot, t1, t1, 1)[0], _ring(r + 0.005, z_bot + 6, tm, tm, 1)[0], _ring(r + 0.005, z_bot, t0, t0, 1)[0]]
         a.cloth(pts)
+        x, y = _ring(r + 0.006, (z_top + z_bot) / 2 + 2, tm, tm, 1)[0]  # the emblem, as hanging_banner's
+        a.ellipse(x, y, 2.6, 2.6, GOLD, INK, 0.8)
         a.line(_ring(r + 0.004, h - 2, -45, 135, 24), IRON, 3)
     if level >= 3:
         a.line(_ring(r + 0.03, h + 4, -45, 135, 24), GOLD, 2)
