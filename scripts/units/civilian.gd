@@ -20,7 +20,12 @@ var village: Village
 var hut: Hut = null
 var at_home := true
 var dead := false
-var max_hp := Config.CIVILIAN_HP
+## Its max HP: its own times what its village's advancements add (Thick-skinned;
+## never for the hero, see hp_share). Researching it raises only the max: the
+## current HP stays and heals at home.
+var max_hp := Config.CIVILIAN_HP:
+	get:
+		return max_hp * (1.0 + hp_share())
 var hp := Config.CIVILIAN_HP
 var rest_timer := 0.0
 var evading := false
@@ -36,6 +41,11 @@ func walk_speed() -> float:
 	return float(Config.CIVILIANS[role]["speed"]) * (1.0 + (village.walk_bonus(role) if village else 0.0))
 
 
+## The share its max HP is raised by (Thick-skinned: "civilian_hp").
+func hp_share() -> float:
+	return village.adv_bonus("civilian_hp") if village else 0.0
+
+
 func setup(p_game: Game, p_role: String) -> void:
 	game = p_game
 	role = p_role
@@ -43,6 +53,7 @@ func setup(p_game: Game, p_role: String) -> void:
 	_init_sprite("unit_" + role)
 	set_grid_pos(Vector2(village.center))
 	_set_home(true)
+	hp = max_hp
 	rest_timer = randf_range(0.2, 1.5)
 	add_to_group("observers")
 	add_to_group("villagers")  # (enemies can hurt them; see take_damage)

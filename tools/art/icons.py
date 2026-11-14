@@ -444,6 +444,18 @@ ADV_ICONS = {
   <path d="M20 44 L49 44" stroke="#5a3e26" stroke-width="2"/>
   <path d="M34 20 Q46 12 54 16 Q48 18 52 22 Q44 22 47 26 Q40 26 34 30Z" fill="#efe3c8" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
   <path d="M8 30 L16 30 M6 37 L16 37 M10 44 L16 44" stroke="#ffd27a" stroke-width="2.4" stroke-linecap="round"/>'''),
+    "thick_skinned": (1, f'''
+  <path d="M15 50 Q16 40 32 38 Q48 40 49 50 Q32 58 15 50Z" fill="#7a5a38" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M28 38 L32 44 L36 38" fill="none" stroke="#5a3e26" stroke-width="2"/>
+  <circle cx="30" cy="24" r="12" fill="#e8b98a" stroke="{INK}" stroke-width="2.8"/>
+  <path d="M18 22 Q19 10 31 10 Q42 10 42 21 Q36 15 30 17 Q24 15 18 22Z" fill="#8a5a2a" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M23 23 Q25.5 20.5 28 23 M32 23 Q34.5 20.5 37 23" fill="none" stroke="{INK}" stroke-width="2" stroke-linecap="round"/>
+  <path d="M24 28 Q30 35 37 28" fill="#9a3a2a" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="21.5" cy="28" r="2" fill="#e88a7a" opacity="0.7"/>
+  <circle cx="38.5" cy="28" r="2" fill="#e88a7a" opacity="0.7"/>
+  <circle cx="41.5" cy="42.5" r="8.8" fill="#a06a3a" stroke="{INK}" stroke-width="2.6"/>
+  <circle cx="41.5" cy="42.5" r="5.4" fill="none" stroke="#6a4424" stroke-width="1.6" stroke-dasharray="2 1.6"/>
+  <circle cx="41.5" cy="42.5" r="2.3" fill="#c9ced6" stroke="{INK}" stroke-width="1.2"/>'''),
     "drill_1": (1, _chevrons(1) + _numeral("I")),
     "drill_2": (2, _chevrons(2) + _numeral("II")),
     "skilled_looting": (1, f'''

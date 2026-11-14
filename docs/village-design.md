@@ -327,7 +327,8 @@ farm (docs/market-design.md). Roles that don't work from a recruit button: the *
 three are `Resident`s who stay home), the **miner** is locked until anyone walks up to a mine
 (`LOCKED.miner`), and the **Spatial Archmage** can't be recruited.
 
-- **Every villager** has HP (`CIVILIAN_HP`) and heals at home (`CIVILIAN_REGEN`).
+- **Every villager** has HP (`CIVILIAN_HP`) and heals at home (`CIVILIAN_REGEN`). The advancement
+  Thick-skinned raises every villager's max HP, never the hero's (docs/advancements-design.md §6).
   - Outside, any enemy that gets at them hurts them; they never fight back. At 0 HP they die
     (Important, with the cause).
   - **Fleeing:** outside the walls, a villager looks several times a second for an enemy within

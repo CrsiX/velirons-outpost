@@ -117,6 +117,8 @@ conditions are `Config` values (`ADVANCEMENTS`), agreed when built.
 - **Better targeting *or* manual targeting** (§5).
 - **Faster attacks** for every unit (a share). "Every unit" is the army, not the hero.
 - **Forester, farmer, gatherer and builder walk faster.**
+- **Thick-skinned:** +100 % max HP for every villager, never the hero or the army. Only the
+  max rises: a hurt villager keeps its HP and heals the rest at home at the usual rate.
 - **Drill I:** a unit's level-up (e.g. level 3 to 4) costs a share less, both the gold and the
   XP needed at the training grounds. Never a specialisation (that is §6 tier 2's own choice).
 - **Caravan rights:** one more trade caravan in transit at once (docs/market-design.md). No

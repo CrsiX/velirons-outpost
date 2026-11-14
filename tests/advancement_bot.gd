@@ -33,8 +33,7 @@ func _run() -> void:
 	await _test_research()
 	_test_effects()
 	await _test_targeting()
-	_test_save()
-	game.queue_free()
+	await _test_save()
 	await frames(3)
 	await _test_shared_vision()
 	Engine.time_scale = 1.0
@@ -196,6 +195,20 @@ func _test_effects() -> void:
 		if Combat.critical(game, v, null) > 1.0:
 			crits += 1
 	check(crits > 120 and crits < 280 and game.hero.has_melee_weapon(), "Eye for vital points: about 10 %% of melee blows are critical (%d of 2000)" % crits)
+	# Thick-skinned: villagers' max HP rises, their current HP stays; the hero and the army keep theirs.
+	var tough := Config.CIVILIAN_HP * (1.0 + float(Config.ADVANCEMENTS["thick_skinned"]["civilian_hp"]))
+	var farmer: Civilian = game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "farmer")[0]
+	farmer.hp = 12.0
+	var hero_max := game.hero.max_hp
+	var unit_max := ar.max_hp()
+	grant("thick_skinned")
+	check(is_equal_approx(farmer.max_hp, tough) and is_equal_approx(farmer.hp, 12.0), "Thick-skinned: a villager's max HP doubles, its HP stays (%.0f / %.0f)" % [farmer.hp, farmer.max_hp])
+	check(is_equal_approx(game.hero.max_hp, hero_max) and is_equal_approx(ar.max_hp(), unit_max), "not the hero's, not the army's")
+	var newborn: Civilian = Population.ROLE_SCRIPTS["gatherer"].new()
+	newborn.village = v
+	newborn.setup(game, "gatherer")
+	check(is_equal_approx(newborn.hp, tough), "a new villager starts with the doubled HP (%.0f)" % newborn.hp)
+	newborn.free()
 
 
 ## Better targeting by unit kind, manual by the tower's switch.
@@ -247,6 +260,22 @@ func _test_save() -> void:
 	check(res["done"].size() == r.done.size() and res["cur"] == "shared_vision" and is_equal_approx(float(res["p"]), 12.0) and res["locked"] == Array(r.locked), "a save holds what was researched, the research under way and the locks")
 	check(saved.size() == 1 and saved[0].get("tg", "") == "fastest", "and each tower's targeting")
 	r.current = ""
+	# Loaded, a villager hurt less than Thick-skinned's extra keeps its HP above the base max.
+	var civ: Civilian = v.population.civilians[0]
+	civ.hp = Config.CIVILIAN_HP * 1.5
+	var civ_id := civ.nid
+	body = SaveGame.capture(game)
+	game.queue_free()
+	await frames(3)
+	Settings.pending_save = body
+	game = load("res://scenes/main.tscn").instantiate()
+	add_child(game)
+	get_tree().paused = true
+	await frames(3)
+	var loaded := game.entity(civ_id) as Civilian
+	check(loaded != null and is_equal_approx(loaded.hp, Config.CIVILIAN_HP * 1.5), "loaded: Thick-skinned's villager keeps its HP (%s)" % (str(loaded.hp) if loaded else "missing"))
+	get_tree().paused = false
+	game.queue_free()
 
 
 ## Shared vision (co-op, one way): the researcher sees what the others watch.

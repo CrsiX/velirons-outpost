@@ -1298,7 +1298,8 @@ const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explore
 const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "acolyte": "chapel", "miner": "mine"}
 
 ## Villagers have HP: any enemy can hurt them (they flee, never fight); at 0
-## they die. At home they heal CIVILIAN_REGEN per second.
+## they die. At home they heal CIVILIAN_REGEN per second. Thick-skinned
+## (ADVANCEMENTS "civilian_hp") raises the max HP, never the regen.
 const CIVILIAN_HP := 20.0
 const CIVILIAN_REGEN := 2.0
 const FOOD_UPKEEP := 0.05  # food per civilian per second
@@ -1470,6 +1471,8 @@ const EXPLORER_BLOCKED_RADIUS := 4.0
 ##   targeting        "better" (a rule per unit kind: TARGETING_BETTER) or "manual" (a switch per tower)
 ##   attack_rate      every unit's attack, cast, summon and heal timers this share faster
 ##   walk             {role: share}: these villagers walk this share faster
+##   civilian_hp      every villager's max HP this share more (1.0 = +100 %, double);
+##                    never the hero's. Current HP stays: they heal the rest at home
 ##   drill            unit level-ups cost this share less gold and training XP
 ##   kill_gold        gold per kill this share more (at least +1)
 ##   shared_vision    see the other villages' surveillance (one way)
@@ -1496,6 +1499,8 @@ const ADVANCEMENTS := {
 	"quick_feet": {"name": "Quick feet", "tier": 1, "gold": 100, "time": 45.0,
 		"walk": {"forester": 0.15, "farmer": 0.15, "gatherer": 0.15, "builder": 0.15},
 		"desc": "Foresters, farmers, gatherers and builders walk 15 % faster."},
+	"thick_skinned": {"name": "Thick-skinned", "tier": 1, "gold": 120, "time": 60.0, "wave": 5, "civilian_hp": 1.0,
+		"desc": "Double every villager's max HP."},
 	"drill_1": {"name": "Drill I", "tier": 1, "gold": 150, "time": 60.0, "wave": 7, "drill": 0.15,
 		"desc": "A unit's level-up costs 15 % less gold and training XP."},
 	"skilled_looting": {"name": "Skilled looting", "tier": 1, "gold": 120, "time": 60.0, "earned_gold": 500, "kill_gold": 0.25,

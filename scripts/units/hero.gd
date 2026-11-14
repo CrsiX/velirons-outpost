@@ -193,6 +193,11 @@ func drown_proof() -> bool:
 	return eq_flag("free_walk")
 
 
+## Her max HP is her level's alone: Thick-skinned is for villagers only.
+func hp_share() -> float:
+	return 0.0
+
+
 ## Her walking speed (Config.HERO), times what she wears.
 func walk_speed() -> float:
 	return float(Config.HERO["speed"]) * eq("speed")

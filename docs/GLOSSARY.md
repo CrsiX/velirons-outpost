@@ -17,6 +17,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Build queue**: how builders (and the hero in Build mode) choose the next job. `village-design.md`
 - **Builder crew**: the builders (and the hero) working one site together; their work adds up, and a builder joins only if that saves more than its walk. `village-design.md`
 - **Tear down**: a builder dismantles a building outside the walls for a partial refund.
+- **Villager**: anyone in a village who is neither the hero nor in the army: the civilian roles and the named campaign villagers. In code, `Civilian`.
 - **Gatherer / forester / farmer / builder / explorer / miner / trader**: civilian roles. **Merchant** (Pell), **guild master, resident**: named campaign villagers who can't be recruited; Pell keeps the campaign's trade stall.
 - **Marketplace**: the trading building (`Market`), one per village by a road; buying works from the guild's **buying stock**, selling from the village's **for-sale pile** needs a trader. Pell's stall is a separate campaign building for now. `market-design.md`
 - **Emergency trading**: buying food or building material with gold from the top bar's counters, no marketplace needed; always dearer than a marketplace. `village-design.md`
