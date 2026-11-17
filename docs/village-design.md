@@ -194,6 +194,15 @@ build, tear down or move it: it is the village, not something in it. Numbers are
   (docs/items-design.md §4) and the relics the village holds (§7), together up to its cap.
 - **Research** of advancements, one at a time (`Research`, docs/advancements-design.md).
 
+**A wood hall is the Field Command:** an improvised war tent (a commander's long tent with rounded
+ends, as in medieval army camps, in patched canvas; from level 2 a lashed wooden lookout stands in
+its back half, its deck lower but further back, so it shows where any hall's tower post does),
+named so wherever the village's own hall is named (`PIECE_MATERIALS.wood.hall`,
+`TownHall.display_name`, `Village.hall_text`). Rules text about halls in general still says
+"town hall". **Why:** wood is the forward outpost's material, meant for scenarios, and a timber
+hall with a clock reads as a settled town; the tent tells the player the place is a camp. Its
+deck and bench stand where any hall's do, so units on it stand in the same spots.
+
 **Levels** (1 to 3, `TOWN_HALL.levels`), upgraded like towers with building material and a
 builder's time (the *Upgrade* command towers use):
 

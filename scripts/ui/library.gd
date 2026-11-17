@@ -727,6 +727,9 @@ static func _buildings() -> Array[Dictionary]:
 	var ls: Dictionary = th["last_stand"]
 	hf.append("Last stand: %s / %s / %s s (easy / normal / hard) to repair it once devastated, or the village falls" % [_n(ls["easy"]), _n(ls["normal"]), _n(ls["hard"])])
 	hf.append("Repairs count it as %s, a full repair takes a builder %s s" % [Config.cost_text(Config.PIECE_PRICES["town_hall"]["cost"]), _n(Config.PIECE_PRICES["town_hall"]["build_time"])])
+	for m in Config.PIECE_MATERIAL_ORDER:
+		if Config.PIECE_MATERIALS[m].has("hall"):
+			hf.append("A %s hall is the %s, a war tent: a town hall in all but its look and name" % [str(Config.PIECE_MATERIALS[m]["name"]).to_lower(), Config.PIECE_MATERIALS[m]["hall"]])
 	out.append({
 		"name": "Town Hall", "art": "town_hall",
 		"text": "The heart of the village, 2x2 in its back quarter; the hero rests there. Enemies inside the walls may go for it instead of a hut. Devastated, it must be repaired to full HP before the last stand runs out, or the village falls.",

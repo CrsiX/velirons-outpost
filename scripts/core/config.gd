@@ -1118,6 +1118,8 @@ const PIECE_LEVELS := {
 ## brochs for towers) in the highlands. Ice (blocks of glacier ice under
 ## snow, icicles, igloos for huts) has no map type: only hand-made maps have it. Wood is an improvised
 ## palisade with tents for forward outposts: only hand-made maps have it.
+## "hall": the name its town hall goes by instead (wood's is the Field Command,
+## a war tent; TownHall.display_name).
 const PIECE_MATERIALS := {
 	"stone": {"name": "Stone", "art": "", "factor": 1.0, "defense": "stone_defense"},
 	"sandstone": {"name": "Sandstone", "art": "sandstone_", "factor": 1.0, "defense": "stone_defense"},
@@ -1125,7 +1127,7 @@ const PIECE_MATERIALS := {
 	"limestone": {"name": "Limestone", "art": "limestone_", "factor": 1.0, "defense": "stone_defense"},
 	"granite": {"name": "Granite", "art": "granite_", "factor": 1.0, "defense": "stone_defense"},
 	"ice": {"name": "Ice", "art": "ice_", "factor": 1.0, "defense": "stone_defense"},
-	"wood": {"name": "Wood", "art": "wood_", "factor": 0.6, "defense": "wood_defense"},
+	"wood": {"name": "Wood", "art": "wood_", "factor": 0.6, "defense": "wood_defense", "hall": "Field Command"},
 }
 const PIECE_MATERIAL_ORDER: Array[String] = ["stone", "sandstone", "basalt", "limestone", "granite", "ice", "wood"]
 ## The pieces whose HP, costs and times the material's factor scales.

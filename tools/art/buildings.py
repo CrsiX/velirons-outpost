@@ -1138,7 +1138,8 @@ def training_grounds():
 
 # ------------------------------------------------------------ the town hall
 
-# Per material (Config.PIECE_MATERIALS): wall faces (top, lit left, shaded right),
+# Per material (Config.PIECE_MATERIALS; the fortification marks use them too;
+# wood's hall is the Field Command tent, tools/art/field_command.py): wall faces (top, lit left, shaded right),
 # joints, roof (lit front slope, shaded hip, ridge/eave trim), window light,
 # door, accent (shields, trim; banners are cloth, always crimson: Art.cloth).
 HALL_PALETTES = {
@@ -1173,18 +1174,16 @@ def _hall_face(face, at, u0, u1, z0, z1):
     return [P(at, u0, z0), P(at, u1, z0), P(at, u1, z1), P(at, u0, z1)]
 
 
-def _hall_courses(a, pal, face, at, u0, u1, z0, z1, wood=False, step=11):
-    """Brick courses (or log seams) across a face, joints staggered."""
+def _hall_courses(a, pal, face, at, u0, u1, z0, z1, step=11):
+    """Brick courses across a face, joints staggered."""
     def pt(u, z):
         return P(u, at, z) if face == "left" else P(at, u, z)
     z = z0 + step
     row = 0
     while z < z1 - 3:
-        a.line([pt(u0, z), pt(u1, z)], pal["j"], 1.0 if not wood else 1.4, opacity=0.8)
+        a.line([pt(u0, z), pt(u1, z)], pal["j"], 1.0, opacity=0.8)
         row += 1
         z += step
-    if wood:
-        return
     z = z0
     row = 0
     while z < z1 - 3:
@@ -1226,7 +1225,6 @@ def town_hall(material, level=1, front=False):
     drawn over the unit), level 3 banners, gilding and a brazier; level 1 a
     small pennant on the ridge."""
     pal = HALL_PALETTES[material]
-    wood = material == "wood"
     a = Art()
     x0, x1, y0, y1 = HALL_BODY
     h, ridge = HALL_H, HALL_RIDGE
@@ -1235,7 +1233,7 @@ def town_hall(material, level=1, front=False):
     deck = HALL_DECK.get(level, 0)
     ts = HALL_PODIUM
     if front:
-        a._track(_hall_extent())
+        a._track(hall_extent())
         if level >= 2:
             _hall_merlons(a, pal, ts + 0.03, deck, True, level)
         return a
@@ -1245,8 +1243,8 @@ def town_hall(material, level=1, front=False):
     # Footing and walls.
     a.box(x0 - 0.04, x1 + 0.04, y0 - 0.04, y1 + 0.04, 0, 7, pal["t"], pal["j"], pal["j"])
     a.box(x0, x1, y0, y1, 7, h, pal["t"], pal["l"], pal["r"])
-    _hall_courses(a, pal, "left", y1, x0, x1, 7, h, wood)
-    _hall_courses(a, pal, "right", x1, y0, y1, 7, h, wood)
+    _hall_courses(a, pal, "left", y1, x0, x1, 7, h)
+    _hall_courses(a, pal, "right", x1, y0, y1, 7, h)
     a.poly(_hall_face("left", y1, x0, x1, 7, h), "none")
     a.poly(_hall_face("right", x1, y0, y1, 7, h), "none")
     # Windows: two rows on the long face (the porch in the middle), two on the end.
@@ -1258,10 +1256,10 @@ def town_hall(material, level=1, front=False):
         _hall_window(a, pal, "right", x1, u, 36, w=0.05, h=8, arch=False)
     for u in (-0.56, -0.36, 0.3, 0.46):
         _hall_window(a, pal, "left", y1, u, 36, w=0.05, h=8, arch=False)
-    # Corner quoins (stone) or posts (wood) and a string course under the eaves.
+    # Corner quoins and a string course under the eaves.
     for (face, at, u) in [("left", y1, x0), ("left", y1, x1), ("right", x1, y0)]:
         for z in range(7, h - 4, 9):
-            a.poly(_hall_face(face, at, u - 0.035, u + 0.035, z, z + 5), pal["t"] if not wood else pal["j"], INK, 0.8)
+            a.poly(_hall_face(face, at, u - 0.035, u + 0.035, z, z + 5), pal["t"], INK, 0.8)
     a.line([P(x0, y1, h - 2), P(x1, y1, h - 2), P(x1, y0, h - 2)], pal["trim"], 3)
     # The roof: front slope and right hip (the back one is hidden), the podium on its ridge.
     ey = 0.08
@@ -1291,16 +1289,9 @@ def town_hall(material, level=1, front=False):
     else:
         _hall_podium(a, pal, ts, deck, level, lambda gy: _hall_roof_z(gy, y0 - ey, y1 + ey, ym, eave, ridge))
     # The porch: a gabled bay on the long face, its ridge across the hall, the big door in it.
-    _hall_porch(a, pal, wood, level, h)
-    if level >= 3:  # the bench by the door (HallBench), with a shield hung on the post at its end
-        bx, by = HALL_BENCH
-        for gy in (by - 0.12, by + 0.12):  # legs
-            a.box(bx - 0.04, bx + 0.04, gy - 0.015, gy + 0.015, 0, 6, WOOD_D, WOOD_D, WOOD_D, sw=1.0)
-        a.box(bx - 0.05, bx + 0.05, by - 0.15, by + 0.15, 6, 9, WOOD_L, WOOD, WOOD_D)
-        a.box(bx - 0.015, bx + 0.015, by + 0.17, by + 0.2, 0, 26, WOOD, WOOD, WOOD_D, sw=1.0)  # a post at its front end
-        x, y = P(bx, by + 0.2, 18)
-        a.ellipse(x - 3, y, 5.5, 7, pal["accent"], INK, 1.1)
-        a.ellipse(x - 3, y, 1.8, 2.2, pal["metal"])
+    _hall_porch(a, pal, level, h)
+    if level >= 3:
+        hall_bench(a, pal["accent"], pal["metal"])
     if level >= 3:  # banners at the corners of the long face
         for u in (-0.76, 0.62):
             hanging_banner(a, ("left", y1), u - 0.07, u + 0.07, h - 6, h - 30, pal["metal"])
@@ -1309,20 +1300,32 @@ def town_hall(material, level=1, front=False):
     return a
 
 
-def _hall_extent():
+def hall_bench(a, accent, metal):
+    """Level 3's bench by the door (HallBench, at HALL_BENCH), with a shield hung on the post at its end."""
+    bx, by = HALL_BENCH
+    for gy in (by - 0.12, by + 0.12):  # legs
+        a.box(bx - 0.04, bx + 0.04, gy - 0.015, gy + 0.015, 0, 6, WOOD_D, WOOD_D, WOOD_D, sw=1.0)
+    a.box(bx - 0.05, bx + 0.05, by - 0.15, by + 0.15, 6, 9, WOOD_L, WOOD, WOOD_D)
+    a.box(bx - 0.015, bx + 0.015, by + 0.17, by + 0.2, 0, 26, WOOD, WOOD, WOOD_D, sw=1.0)  # a post at its front end
+    x, y = P(bx, by + 0.2, 18)
+    a.ellipse(x - 3, y, 5.5, 7, accent, INK, 1.1)
+    a.ellipse(x - 3, y, 1.8, 2.2, metal)
+
+
+def hall_extent():
     """Every town hall picture of a material shares one canvas (the level-3 podium's)."""
     s = 0.98
     return [P(-s, -s, 0), P(s, -s, 0), P(s, s, 0), P(-s, s, 0), P(-0.3, -0.3, HALL_DECK[3] + 50), P(0.3, 0.3, HALL_DECK[3] + 50),
             (-112, 34), (112, 34)]
 
 
-def _hall_porch(a, pal, wood, level, h):
+def _hall_porch(a, pal, level, h):
     _, _, _, y1 = HALL_BODY
     px0, px1, py1 = -0.2, 0.2, y1 + 0.3
     ph, pr = h - 4, h + 22
     a.box(px0, px1, y1 - 0.1, py1, 0, ph, pal["t"], pal["l"], pal["r"])
-    _hall_courses(a, pal, "left", py1, px0, px1, 0, ph, wood)
-    _hall_courses(a, pal, "right", px1, y1, py1, 0, ph, wood)
+    _hall_courses(a, pal, "left", py1, px0, px1, 0, ph)
+    _hall_courses(a, pal, "right", px1, y1, py1, 0, ph)
     a.poly(_hall_face("left", py1, px0, px1, 0, ph), "none")
     # the gable over it, facing out (ridge along gy)
     pm = (px0 + px1) / 2
@@ -1444,27 +1447,35 @@ def town_hall_ruin(material):
     return a
 
 
+def hall_extra(level):
+    """A hall picture's manifest keys: "roof" (where its labels float) and, with
+    a tower post, "platform" (where the unit stands)."""
+    extra = {"roof": HALL_RIDGE if level == 1 else HALL_DECK[level] + 30}
+    if level >= 2:
+        # (the unit stands on the deck, which is HALL_TOWER_BACK back: that much higher on screen)
+        extra["platform"] = HALL_DECK[level] + 6 + 2 * HALL_TOWER_BACK * TH
+    return extra
+
+
 def town_halls():
-    """Every material's town hall, its three levels on one canvas (so the
-    picture doesn't jump on an upgrade), the tower post's front merlons, and
-    the ruin."""
+    """Every material's town hall but wood's (the Field Command, field_commands()),
+    its three levels on one canvas (so the picture doesn't jump on an upgrade),
+    the tower post's front merlons, and the ruin."""
     for mat in HALL_PALETTES:
+        if mat == "wood":
+            continue
         prefix = Config_piece_prefix(mat)
         for lvl in (1, 2, 3):
             name = prefix + ("town_hall" if lvl == 1 else "town_hall_%d" % lvl)
             th = town_hall(mat, lvl)
-            th._track(_hall_extent())
-            extra = {"roof": HALL_RIDGE if lvl == 1 else HALL_DECK[lvl] + 30}
-            if lvl >= 2:
-                # (the unit stands on the deck, which is HALL_TOWER_BACK back: that much higher on screen)
-                extra["platform"] = HALL_DECK[lvl] + 6 + 2 * HALL_TOWER_BACK * TH
-            th.save(name, extra=extra)
+            th._track(hall_extent())
+            th.save(name, extra=hall_extra(lvl))
             if lvl >= 2:
                 fr = town_hall(mat, lvl, front=True)
                 fr.pts = th.pts[:]
                 fr.save(prefix + "town_hall_front_%d" % lvl)
         ru = town_hall_ruin(mat)
-        ru._track(_hall_extent())
+        ru._track(hall_extent())
         ru.save(prefix + "town_hall_ruin")
 
 

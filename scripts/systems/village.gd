@@ -265,6 +265,13 @@ func market() -> Market:
 	return null
 
 
+## Its town hall's name inside a sentence ("town hall", or its material's
+## name for it: TownHall.name_in_text).
+func hall_text() -> String:
+	var h := town_hall()
+	return h.name_in_text() if h != null else "town hall"
+
+
 ## Its town hall, or null: only a campaign scenario may have none
 ## (Scenario.town_hall, docs/village-design.md §3c).
 func town_hall() -> TownHall:
@@ -310,7 +317,7 @@ func _start_last_stand(retry: bool) -> void:
 	stand_retry = retry
 	stand_emptied = false
 	_order_hall_repair()
-	events.important("The town hall has fallen: repair it to full HP within %d s, or %s falls" % [ceili(secs), village_name])
+	events.important("The %s has fallen: repair it to full HP within %d s, or %s falls" % [hall_text(), ceili(secs), village_name])
 	sound("raid")
 	for v in game.villages:
 		if v != self:
@@ -335,8 +342,8 @@ func _end_last_stand(saved: bool) -> void:
 		hall_lost = false
 		no_more_stands = false
 		stand_emptied = false
-		events.important("The town hall is repaired: %s stands" % village_name)
-		toast("The town hall stands again!", Color("9fe07a"))
+		events.important("The %s is repaired: %s stands" % [hall_text(), village_name])
+		toast("The %s stands again!" % hall_text(), Color("9fe07a"))
 	else:
 		hall_lost = true
 		if stand_retry:
@@ -362,7 +369,7 @@ func _process(delta: float) -> void:
 			_order_hall_repair()
 			last_stand -= delta
 			if last_stand <= 0.0:
-				events.important("The town hall wasn't repaired in time: %s has fallen" % village_name)
+				events.important("The %s wasn't repaired in time: %s has fallen" % [hall_text(), village_name])
 				_end_last_stand(false)
 		return
 	if hall_lost and whole:

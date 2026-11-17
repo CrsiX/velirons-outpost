@@ -614,7 +614,7 @@ static func _put_in(v: Village, id: String) -> void:
 	var t := ItemDrops.free_tile(v.game, hall.tile if hall != null else v.center)
 	if t.x >= 0:
 		v.game.world.add_dropped_loot(t, {"relic": id} if Relics.is_relic(id) else {"equipment": id})
-		v.events.info("The armoury is full: the %s waits by the town hall." % item_name(id))
+		v.events.info("The armoury is full: the %s waits by the %s." % [item_name(id), v.hall_text()])
 	else:
 		v.events.info("The armoury is full: the %s is lost." % item_name(id))
 

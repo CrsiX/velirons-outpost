@@ -155,7 +155,7 @@ static func bring_home(v: Village, id: String) -> String:
 	var hall := v.town_hall()
 	var sack := drop(v.game, hall.tile if hall != null else v.center, id)
 	if sack != null:
-		v.events.info("The armoury is full: the %s waits by the town hall." % name.to_lower())
+		v.events.info("The armoury is full: the %s waits by the %s." % [name.to_lower(), v.hall_text()])
 	else:
 		v.events.info("The armoury is full: the %s is lost." % name.to_lower())
 	return ""

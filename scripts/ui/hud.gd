@@ -2542,7 +2542,7 @@ func _refresh_food_warning() -> void:
 ## The last stand's countdown, and what to do when the repair can't be paid.
 func stand_warning_text() -> String:
 	var v := game.player_village
-	var t := "Last stand: repair the town hall within %d s, or the village falls." % maxi(ceili(v.last_stand_left()), 1)
+	var t := "Last stand: repair the %s within %d s, or the village falls." % [v.hall_text(), maxi(ceili(v.last_stand_left()), 1)]
 	if v.stand_unpaid:
 		t += " Not enough building material for the repair: buy some (tap the material counter)."
 	return t

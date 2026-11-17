@@ -69,7 +69,8 @@ village should look like a Highlands village.
   gameplay meaning: an improvised palisade for forward outposts, cheaper and weaker by one
   factor that scales HP, price, upgrade costs and build / repair / upgrade times together
   (`PIECE_MATERIAL_SCALED`, `Config.material_cost`), so it stays internally consistent
-  instead of needing its own tables.
+  instead of needing its own tables. Its town hall is the Field Command, a tent
+  (docs/village-design.md §3a), the same in play.
 - Each material has its own art for every level and its ruin; the name is the stone name
   with a prefix (`Config.piece_art`). Look descriptions live in `tools/art/village/` (a module per material).
 - Huts have a material for their look only; the factor never touches them. The generator

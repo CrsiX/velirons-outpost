@@ -39,7 +39,7 @@ func refresh() -> void:
 
 
 func display_name() -> String:
-	return "Town Hall Bench"
+	return "%s Bench" % (hall.display_name() if hall != null else "Town Hall")
 
 
 ## Its tiles are the hall's: it registers none of its own on the map.

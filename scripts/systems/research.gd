@@ -126,7 +126,7 @@ func error(id: String) -> String:
 		return "Already researching %s" % Config.ADVANCEMENTS[current]["name"]
 	var hall := village.town_hall()
 	if hall == null or not hall.working():
-		return "The town hall is devastated" if hall != null else "No town hall"
+		return "The %s is devastated" % hall.name_in_text() if hall != null else "No town hall"
 	for c in conditions(id):
 		if not c[1]:
 			return "Needs: %s" % c[0]

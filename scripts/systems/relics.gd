@@ -135,7 +135,7 @@ static func bring_home(v: Village, id: String) -> String:
 	if t.x >= 0:
 		sack = v.game.world.add_dropped_loot(t, {"relic": id})
 	if sack != null:
-		v.events.info("The armoury is full: the %s waits by the town hall." % name_of(id))
+		v.events.info("The armoury is full: the %s waits by the %s." % [name_of(id), v.hall_text()])
 	else:
 		v.events.info("The armoury is full: the %s is lost." % name_of(id))
 	return ""

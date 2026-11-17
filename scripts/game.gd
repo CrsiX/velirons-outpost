@@ -1031,8 +1031,9 @@ func check_defeat() -> void:
 	if not villages.all(func(v: Village) -> bool: return v.fallen):
 		return
 	var no_people := population.count() == 0
-	var why := "No villagers are left." if no_people else "The town hall wasn't repaired in time."
-	events.important("Veliron's Outpost has fallen: %s" % why.to_lower().trim_suffix("."))
+	var hall := player_village.hall_text() if player_village != null else "town hall"
+	var why := "No villagers are left." if no_people else "The %s wasn't repaired in time." % hall
+	events.important("Veliron's Outpost has fallen: %s" % (why.left(1).to_lower() + why.substr(1)).trim_suffix("."))
 	if scenario:
 		scenario.lose(why.trim_suffix("."))
 		return
@@ -1169,7 +1170,7 @@ func apply_speed(i: int) -> void:
 ## A building's panel; another village's buildings can be looked at, not ordered.
 func building_info(b: Building) -> Dictionary:
 	if b.has_meta("abandoned"):  # (a village of the map nobody plays)
-		var title := "Ruined Hut" if b is Hut else ("Ruined Town Hall" if b is TownHall else b.display_name())
+		var title := "Ruined Hut" if b is Hut else ("Ruined " + b.display_name() if b is TownHall else b.display_name())
 		return {"title": title, "lines": ["An abandoned village: nobody lives here,", "and its ruins can't be rebuilt."], "actions": [] as Array[Dictionary]}
 	var d := b.info()
 	if not (b is Hut) and not b.tearing_down:

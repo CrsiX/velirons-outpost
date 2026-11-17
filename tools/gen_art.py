@@ -28,6 +28,7 @@ from art.enemies import (
 from art.icons import (
     advancement_icons, app_icon, campaign_icon, flags, icons, item_icons, relic_icons, title_icons,
 )
+from art.field_command import field_commands
 from art.misc import arrow, biome_art, net_pin, sack, salvage, throwing_axe
 from art.portraits import portraits, portraits_1011, portraits_67, portraits_89, portraits_away
 from art.props import (
@@ -104,6 +105,7 @@ def main():
     item_icons()
     relic_icons()
     town_halls()
+    field_commands()
     tile_village_path()
     site()
     farm_field("field")

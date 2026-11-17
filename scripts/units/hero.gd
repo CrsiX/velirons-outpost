@@ -1213,7 +1213,7 @@ func swap_error() -> String:
 	if dead:
 		return "The hero is down"
 	if not village.armoury.is_open():
-		return "The town hall is devastated: the armoury is closed"
+		return "The %s is devastated: the armoury is closed" % village.hall_text()
 	if camp_target != null or evading or is_instance_valid(target) or base() != village \
 			or not at_home or grid_pos.distance_to(Vector2(home())) > 0.3:
 		return "She changes equipment only while idle at her post in the village"

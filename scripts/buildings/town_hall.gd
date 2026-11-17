@@ -8,7 +8,8 @@ extends Tower
 ## (Village.last_stand, §3b): it must be repaired to full HP in time. It
 ## follows the village's piece material like the walls. From level
 ## "bench_from" its bench (HallBench, a one-bench barracks on its front tile)
-## takes a unit too.
+## takes a unit too. A material may name it otherwise (PIECE_MATERIALS "hall":
+## wood's is the Field Command, a war tent): display_name, name_in_text.
 
 ## Its door (grid, from its tile): the middle of its two front tiles, the long
 ## face the porch and the big door are drawn on (tools/art/buildings.py, town_hall).
@@ -63,7 +64,13 @@ func post_for(unit: MilitaryUnit, ok: Callable) -> MilitaryPost:
 
 
 func display_name() -> String:
-	return "Town Hall"
+	return str(Config.PIECE_MATERIALS[made_of].get("hall", "Town Hall"))
+
+
+## Its name inside a sentence ("the town hall", "the Field Command").
+func name_in_text() -> String:
+	var own := display_name()
+	return own.to_lower() if own == "Town Hall" else own
 
 
 func _art() -> String:
@@ -159,12 +166,12 @@ func info() -> Dictionary:
 	var actions: Array[Dictionary] = []
 	var d := {"title": "%s  ·  Level %d/%d" % [display_name(), level, max_level()], "lines": lines, "actions": actions}
 	if village == null:
-		d["title"] = "Ruined Town Hall"
+		d["title"] = "Ruined %s" % display_name()
 		lines.append("Nobody lives here.")
 		return d
 	var stand := village.last_stand_left()
 	if devastated:
-		d["title"] = "Devastated Town Hall"
+		d["title"] = "Devastated %s" % display_name()
 	if stand >= 0.0:
 		lines.append("Last stand: repair it to full {hp} within %d s, or %s falls." % [ceili(stand), village.village_name])
 	elif devastated and village.hall_lost:
@@ -182,7 +189,7 @@ func info() -> Dictionary:
 			adds = ", a barracks bench by its door"
 		lines.append("Next level: {hp} %d%s" % [roundi(hp_at(level + 1)), adds])
 		actions.append({
-			"label": "Upgrade town hall (%s)" % Config.cost_icons(upgrade_cost()),
+			"label": "Upgrade %s (%s)" % [name_in_text(), Config.cost_icons(upgrade_cost())],
 			"disabled": not can_upgrade() or not village.economy.can_afford(upgrade_cost()),
 			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
 		})
@@ -202,7 +209,7 @@ func info() -> Dictionary:
 		lines.append("%s marching here." % incoming.display_name())
 		actions.append({"label": "Withdraw", "action": func() -> void: game.command("withdraw_unit", {"unit": incoming.nid})})
 	else:
-		lines.append("Unmanned. Drag a unit from the Army tab onto the town hall.")
+		lines.append("Unmanned. Drag a unit from the Army tab onto the %s." % name_in_text())
 	add_targeting_info(lines, actions)
 	if has_bench() and bench != null:
 		_bench_info(lines, actions)
@@ -241,7 +248,7 @@ func _bench_info(lines: Array[String], actions: Array[Dictionary]) -> void:
 	elif inc:
 		lines.append("Bench: %s marching here." % inc.display_name())
 	else:
-		lines.append("Bench: free. Drag a unit that fights in barracks onto the town hall.")
+		lines.append("Bench: free. Drag a unit that fights in barracks onto the %s." % name_in_text())
 
 
 ## Its HP line and repair; devastated, it says what that costs the village,
