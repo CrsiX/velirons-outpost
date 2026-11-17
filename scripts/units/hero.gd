@@ -19,7 +19,8 @@ extends Civilian
 ## back: Config.HERO "rest_regen" per second after "rest_delay" seconds; inside
 ## the town hall (Rest) faster (hall_regen).
 ## Every action except training earns XP (Config.HERO_XP_PER_ACTION; the
-## blow that kills an enemy earns a "kill" bonus on top). When her
+## blow that kills an enemy earns a "kill" bonus on top; both pay more while
+## she is badly hurt, combat_xp_factor). XP is a float, shown rounded down. When her
 ## HP runs out she is downed: all XP is lost, she leaves no corpse, and she revives
 ## in the village centre when the wave is over (downed between waves: when the
 ## next one begins), still in the same mode.
@@ -41,7 +42,7 @@ const MODE_WORDS: Array[String] = ["defending", "building", "exploring", "gather
 const MODE_ICONS: Array[String] = ["mode_defend", "mode_build", "mode_explore", "mode_gather", "mode_train", "mode_rest", "mode_support"]
 
 var mode := Mode.DEFEND
-var xp := 0
+var xp := 0.0
 ## 0-based: level 1 ... Config.HERO_MAX_LEVEL. Bought with her own XP; kept when downed.
 var level := 0
 var target: Enemy = null
@@ -307,12 +308,23 @@ func wants_to_evade() -> bool:
 	return camp_target == null and effective_mode() in [Mode.BUILD, Mode.EXPLORE, Mode.GATHER]
 
 
-func on_action(kind: String) -> void:
-	var n := roundi(int(Config.HERO_XP_PER_ACTION.get(kind, 0)) * eq("xp"))  # (a scholar's tome)
+## Pays the XP for one `kind` of action, times `factor` (combat_xp_factor).
+func on_action(kind: String, factor: float = 1.0) -> void:
+	var n := float(Config.HERO_XP_PER_ACTION.get(kind, 0)) * eq("xp") * factor  # (a scholar's tome)
 	xp += n
 	game.stats.count(village, "hero.xp", n)
 	game.stats.count(village, "hero.xp." + kind, n)
 	changed.emit()
+
+
+## Her "hit" / "kill" XP factor at her HP now: x1 from HERO "low_hp_xp_below"
+## of her max HP up, rising in a straight line to "low_hp_xp_top" at 0 HP.
+func combat_xp_factor() -> float:
+	var below := float(Config.HERO["low_hp_xp_below"])
+	var share := hp / maxf(max_hp, 0.001)
+	if share >= below or below <= 0.0:
+		return 1.0
+	return lerpf(float(Config.HERO["low_hp_xp_top"]), 1.0, clampf(share / below, 0.0, 1.0))
 
 
 func exploring_target() -> Vector2i:
@@ -874,7 +886,7 @@ func _train(g: TrainingGrounds, delta: float) -> void:
 	_bob += delta * 9.0
 	sprite.rotation = sin(_bob) * 0.2  # sparring
 	_train_acc += Config.HERO["train_rate"] * delta
-	var n := mini(int(_train_acc), xp)
+	var n := minf(floorf(_train_acc), xp)  # (the last fraction of her XP goes too)
 	if n > 0:
 		_train_acc -= n
 		var unit := g.trainable_unit()
@@ -932,7 +944,7 @@ func _downed(source = null) -> void:
 	evading = false
 	in_hall = false
 	_door_walk = 0
-	xp = 0
+	xp = 0.0
 	hp = 0.0
 	remove_from_group("melee_defenders")
 	visible = false
@@ -1113,6 +1125,7 @@ func _land_blow(foe: Enemy, dmg: float) -> void:
 		if b != null:
 			hits.append([b, dmg * float(behind[0])])
 	var dealt := 0.0
+	var xp_factor := combat_xp_factor()  # (before the lifesteal below heals her)
 	for h in hits:
 		var e: Enemy = h[0]
 		if e.dead:
@@ -1122,9 +1135,9 @@ func _land_blow(foe: Enemy, dmg: float) -> void:
 		dealt += before - maxf(e.hp, 0.0) - maxf(e.mount_hp, 0.0)
 		if eq("poison", 0.0) > 0.0 and not e.dead:
 			Poison.give(e, float(h[1]) * eq("poison", 0.0), self)
-		on_action("hit")
+		on_action("hit", xp_factor)
 		if e.dead:  # the last hit: a bonus
-			on_action("kill")
+			on_action("kill", xp_factor)
 	if eq("lifesteal", 0.0) > 0.0 and dealt > 0.0:
 		hp = minf(max_hp, hp + dealt * eq("lifesteal", 0.0))
 		queue_redraw()
@@ -1163,9 +1176,10 @@ func _throw(foe: Enemy, dmg: float) -> void:
 			return
 		(t as Enemy).take_damage(dmg, self if is_instance_valid(self) else null, str(a["category"]))
 		if is_instance_valid(self) and not dead:
-			on_action("hit")
+			var xp_factor := combat_xp_factor()
+			on_action("hit", xp_factor)
 			if t.dead:
-				on_action("kill"))
+				on_action("kill", xp_factor))
 	if game.replicator and game.replicator.hosting:
 		game.replicator.shot(str(Config.ITEMS[worn("weapon")]["attack"]), from, foe.hit_point())
 

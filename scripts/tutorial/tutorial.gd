@@ -163,7 +163,7 @@ func _build_steps() -> void:
 		{"title": "Your hero",
 			"text": "This is your hero. Tap her in the top bar and send her exploring: she uncovers the fog and earns XP.",
 			"start": func() -> void: _mark = {"xp": game.hero.xp, "level": game.hero.level},
-			"done": func() -> bool: return game.hero.mode == Hero.Mode.EXPLORE and (game.hero.xp > int(_mark["xp"]) or game.hero.level > int(_mark["level"])),
+			"done": func() -> bool: return game.hero.mode == Hero.Mode.EXPLORE and (game.hero.xp > float(_mark["xp"]) or game.hero.level > int(_mark["level"])),
 			"point": func() -> Dictionary: return {} if game.hero.mode == Hero.Mode.EXPLORE else {"hud": ["hero_mode:%d" % Hero.Mode.EXPLORE, "hero"]}},
 		{"title": "Hero levels",
 			"text": "She has enough XP for a level: more HP and a harder sword. Level her up.",

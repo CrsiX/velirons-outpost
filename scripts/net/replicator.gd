@@ -345,7 +345,8 @@ func _describe(n: Node) -> Array:
 		vid = v.id
 	if n is Hero:
 		var h := n as Hero
-		return [h.nid, "h", {"v": vid}, _unit_state(h).merged({"h": h.at_home, "m": h.mode, "xp": h.xp, "lv": h.level, "hp": snappedf(h.hp, 0.5), "mhp": h.max_hp, "d": h.dead, "st": h.support_target.id if h.support_target else -1, "s": h.status_text(), "ih": h.in_hall, "eq": h.equipped.duplicate()}), h.current_tile(), vid, false]
+		# (Her XP rounded down: clients only show it.)
+		return [h.nid, "h", {"v": vid}, _unit_state(h).merged({"h": h.at_home, "m": h.mode, "xp": floorf(h.xp), "lv": h.level, "hp": snappedf(h.hp, 0.5), "mhp": h.max_hp, "d": h.dead, "st": h.support_target.id if h.support_target else -1, "s": h.status_text(), "ih": h.in_hall, "eq": h.equipped.duplicate()}), h.current_tile(), vid, false]
 	if n is Civilian:
 		var c := n as Civilian
 		if c.dead:
@@ -669,7 +670,7 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 	if o is Hero:
 		var h := o as Hero
 		h.mode = st["m"]
-		h.xp = st["xp"]
+		h.xp = float(st["xp"])
 		if h.has_meta("lv_seen") and int(st.get("lv", 0)) > h.level and h.visible:
 			h.play_level_up_fx()  # (not for the level she already had when we joined)
 		h.set_meta("lv_seen", true)

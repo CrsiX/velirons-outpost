@@ -724,7 +724,7 @@ static func _restore_hero(game: Game, h: Hero, d: Dictionary, field: Array[Civil
 	game.register_as(h, h.nid)
 	h.level = int(d["lvl"])
 	h.max_hp = Config.hero_stat("hp", h.level)
-	h.xp = int(d["xp"])
+	h.xp = float(d["xp"])
 	h.mode = int(d["mode"]) as Hero.Mode
 	var sup := int(d["sup"])
 	h.support_target = game.villages[sup] if sup >= 0 and sup < game.villages.size() else null

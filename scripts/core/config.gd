@@ -1944,8 +1944,14 @@ const HERO := {
 	"hall_regen_min": 8.0,
 	"rest_delay": 3.0,  # seconds of idling there before the HP starts coming back
 	"camp_give_up": 3.0,  # seconds with none of an ordered camp's monsters she can get to: she gives the order up
+	# Fighting hurt: below this share of her max HP her "hit" and "kill" XP is
+	# multiplied, rising in a straight line from x1 at the share to
+	# "low_hp_xp_top" at 0 HP (her HP as the blow lands, before any healing from it).
+	"low_hp_xp_below": 0.5,
+	"low_hp_xp_top": 3.0,
 }
-## XP the hero earns per action (training earns none).
+## XP the hero earns per action (training earns none). Her XP is a float:
+## fractions add up, and it is always shown as whole XP rounded down.
 ## The hero spends her own XP on levels (the level-up button in her panel).
 ## HP and sword damage run from level 1 (HERO "hp" / "damage") to
 ## HERO_MAX_LEVEL; "xp_cost" is the XP from level 1 to 2 ... up to the last
@@ -1969,9 +1975,9 @@ static func hero_level_cost(level: int) -> int:
 
 
 const HERO_XP_PER_ACTION := {
-	"hit": 2,  # a melee hit in combat
+	"hit": 2,  # a hit in combat (more when she is hurt: HERO "low_hp_xp_below")
 	"kill": 10,  # extra, for the blow that kills the enemy (on top of its "hit")
-	"build_second": 1,  # each second of construction work
+	"build_second": 1.5,  # each second of building work (construction, upgrade, tear-down, repair)
 	"explore": 1,  # each exploring step that uncovers new tiles
 	"corpse": 4,  # each corpse picked up
 	"loot": 10,  # each treasure looted (not for picking up dropped loot)

@@ -404,10 +404,10 @@ func revive(unit: MilitaryUnit) -> void:
 ## Passes up to `amount` of the hero's XP on to `unit` (training grounds).
 ## When the unit has collected enough it levels up for free (never into a
 ## specialisation). Returns the XP used.
-func train(unit: MilitaryUnit, amount: int) -> int:
-	if amount <= 0 or not unit.can_train():
-		return 0
-	var used := clampi(ceili(unit.train_xp_needed() - unit.train_xp), 0, amount)
+func train(unit: MilitaryUnit, amount: float) -> float:
+	if amount <= 0.0 or not unit.can_train():
+		return 0.0
+	var used := clampf(unit.train_xp_needed() - unit.train_xp, 0.0, amount)
 	unit.train_xp += used
 	if unit.train_xp >= unit.train_xp_needed() - 0.001:
 		_set_level(unit, unit.kind, unit.level + 1)

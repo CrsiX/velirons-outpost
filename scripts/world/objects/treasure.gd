@@ -135,7 +135,7 @@ static func pay(v: Village, r: Dictionary) -> String:
 				parts.append("+%d {%s}" % [int(r[k]), k])
 			"hero_xp":
 				if v.hero:
-					v.hero.xp += int(r[k])
+					v.hero.xp += float(r[k])
 					v.hero.changed.emit()
 				parts.append("+%d {xp}" % int(r[k]))
 			"heal_units":

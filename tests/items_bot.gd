@@ -340,7 +340,7 @@ func _test_accessories() -> void:
 	wear(["scholars_tome"])
 	var xp := h.xp
 	h.on_action("kill")
-	check(h.xp - xp == roundi(int(Config.HERO_XP_PER_ACTION["kill"]) * float(Config.ITEMS["scholars_tome"]["xp"])), "scholar's tome: more XP (%d)" % (h.xp - xp))
+	check(is_equal_approx(h.xp - xp, float(Config.HERO_XP_PER_ACTION["kill"]) * float(Config.ITEMS["scholars_tome"]["xp"])), "scholar's tome: more XP (%.2f)" % (h.xp - xp))
 	reset_hero()
 	# Lantern: ghosts near her show themselves.
 	var ghost := spawn("ghost", home + Vector2(2, 0))

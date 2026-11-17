@@ -863,7 +863,8 @@ static func _hero() -> Array[Dictionary]:
 		out.append({"name": name, "art": Hero.MODE_ICONS[i], "text": Hud.HERO_MODE_HINTS[i], "facts": PackedStringArray()})
 	var xp := PackedStringArray()
 	for k: String in Config.HERO_XP_PER_ACTION:
-		xp.append("%d XP %s" % [Config.HERO_XP_PER_ACTION[k], XP_WORDS.get(k, k)])
+		xp.append("%s XP %s" % [str(Config.HERO_XP_PER_ACTION[k]), XP_WORDS.get(k, k)])
+	xp.append("Below %d %% of her HP, a fight's XP grows, up to %s times as much near death" % [roundi(float(Config.HERO["low_hp_xp_below"]) * 100.0), str(Config.HERO["low_hp_xp_top"])])
 	xp.append("A shrine's blessing: %s XP" % _range(Config.TREASURES["shrine"]["reward"]["hero_xp"]))
 	xp.append("Training a unit earns nothing: she passes her XP on")
 	out.append({"name": "Earning XP", "art": "icon_xp", "text": "Everything the hero does earns XP, except training.", "facts": xp})

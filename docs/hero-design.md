@@ -224,6 +224,16 @@ seconds of building; reveals of fog; claims; corpses picked up; treasures looted
 mode makes her stronger and Explore, Gather and Build are not a sacrifice. The weights are in
 `HERO_XP_PER_ACTION`.
 
+- **XP is a fraction, shown whole.** Every amount is a float, so small rates and factors
+  add up exactly instead of being rounded away per action. Everything the player sees
+  shows it rounded down, so the *Level up* button only lights up once the full cost is there.
+  Co-op clients only get the rounded-down value: they only show it.
+- **Fighting hurt pays more** (`HERO` "low_hp_xp_below", "low_hp_xp_top"): below a share of her
+  max HP, her `hit` and `kill` XP is multiplied, rising in a straight line from x1 at that share
+  to the top factor at 0 HP (`Hero.combat_xp_factor`). Why: being downed loses all unspent XP,
+  so keeping her in the fight while badly hurt is a gamble the player can choose to take,
+  and this makes the gamble pay. Only fighting gets it: uncovering fog or picking up corpses
+  while hurt is not a risk worth rewarding.
 - **Uncovering fog, always:** whenever she uncovers new tiles she earns `explore` XP, in every
   mode and whatever she is doing. Like every unit outside she explores the fog around her
   (`UNIT_REVEAL`, `FogLayer._unit_reveal`); in Explore her job reveals as well. A tile is new only

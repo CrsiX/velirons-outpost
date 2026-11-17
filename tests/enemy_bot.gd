@@ -81,13 +81,31 @@ func _test_kill_xp() -> void:
 	var bonus := int(Config.HERO_XP_PER_ACTION["kill"])
 	check(bonus == 10, "the kill bonus is 10 XP")
 	var g := spawn("goblin", Vector2(game.player_village.center) + Vector2(1, 0), 1000.0)
-	var xp0: int = hero.xp
+	var hp0 := hero.hp
+	hero.hp = hero.max_hp
+	var xp0: float = hero.xp
 	hero._strike(g)
 	check(not g.dead and hero.xp - xp0 == per_hit, "a hit that doesn't kill: %d XP (+%d)" % [per_hit, hero.xp - xp0])
 	g.hp = 0.1
 	xp0 = hero.xp
 	hero._strike(g)
 	check(g.dead and hero.xp - xp0 == per_hit + bonus, "the last hit: %d + %d XP (+%d)" % [per_hit, bonus, hero.xp - xp0])
+	# Badly hurt, a fight pays more: x1 at HERO "low_hp_xp_below", the top factor at 0 HP.
+	var below := float(Config.HERO["low_hp_xp_below"])
+	var top := float(Config.HERO["low_hp_xp_top"])
+	hero.hp = hero.max_hp * below
+	check(is_equal_approx(hero.combat_xp_factor(), 1.0), "at %d %% HP a fight's XP is as usual" % roundi(below * 100.0))
+	hero.hp = hero.max_hp * below * 0.5
+	var mid := (1.0 + top) * 0.5
+	check(is_equal_approx(hero.combat_xp_factor(), mid), "halfway down from there: x%.2f (x%.2f)" % [mid, hero.combat_xp_factor()])
+	var g2 := spawn("goblin", Vector2(game.player_village.center) + Vector2(1, 0), 1000.0)
+	xp0 = hero.xp
+	hero._strike(g2)
+	check(not g2.dead and is_equal_approx(hero.xp - xp0, per_hit * mid), "a hit while hurt: %.2f XP (+%.2f)" % [per_hit * mid, hero.xp - xp0])
+	hero.hp = hero.max_hp * 0.001
+	check(hero.combat_xp_factor() > top - 0.01 and hero.combat_xp_factor() <= top, "near death: about x%.1f" % top)
+	kill(g2)
+	hero.hp = hp0
 	await frames(2)
 
 
