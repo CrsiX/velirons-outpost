@@ -27,6 +27,8 @@ docs/village-design.md.
 - **Food and building material** may be part of the price too, beside
   the gold (any mix of the three, per advancement). Paid together when the research starts; a
   research that can't pay all of it can't start. Cancelling gives back the same share of each.
+- While research runs, a **golden bar** over the town hall fills with it (like a construction
+  site's progress bar), so it can be followed without opening the hall's panel.
 - The hall's panel shows the research under way and opens the list (*Research...*): every
   advancement with what it does, its conditions (met or not), its cost and time.
 - **Icons:** every advancement has its own (`Config.advancement_icon`, drawn by

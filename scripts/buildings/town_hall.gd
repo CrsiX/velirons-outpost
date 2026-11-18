@@ -17,11 +17,15 @@ extends Tower
 ## face the porch and the big door are drawn on (tools/art/buildings.py, town_hall).
 ## The resting hero goes in and comes out there.
 const DOOR := Vector2(0.5, 1.0)
+## Its research bar's colour (own_bar_color): brighter than a construction site's ochre.
+const RESEARCH_COLOR := Color("f2c53d")
 
 ## Its bench (a post of its own for the army; made when the hall enters the world).
 var bench: HallBench
 ## The villager living here (Hall quarters), or null.
 var resident: Civilian = null
+## Whether the research bar was drawn last frame (one redraw more to clear it).
+var _research_shown := false
 
 
 func setup(p_game: Game, p_kind: String, p_tile: Vector2i, p_complete: bool) -> void:
@@ -276,6 +280,28 @@ func add_hp_info(lines: Array[String], actions: Array[Dictionary]) -> void:
 		for k in range(lines.size() - 1, -1, -1):
 			if lines[k].ends_with("back if you cancel now") or lines[k] == "Too far along to get anything back":
 				lines.remove_at(k)
+
+
+## Its research bar (golden, between the work bar and the HP bar): while an
+## advancement is under research, its share done.
+func own_bar_fraction() -> float:
+	if village == null or village.research == null or village.research.current == "":
+		return -1.0
+	return village.research.progress / float(Config.ADVANCEMENTS[village.research.current]["time"])
+
+
+func own_bar_color() -> Color:
+	return RESEARCH_COLOR
+
+
+## Redrawn every frame while research runs (on a co-op client too, from the
+## host's snapshots), and once more when it stops, so the bar goes.
+func _process(delta: float) -> void:
+	super._process(delta)
+	var researching := own_bar_fraction() >= 0.0
+	if researching or _research_shown:
+		queue_redraw()
+	_research_shown = researching
 
 
 func _bar_y() -> float:

@@ -641,23 +641,42 @@ func _draw() -> void:
 	_draw_bars()
 
 
-## The HP bar (hurt) and the work progress bar (a kind that draws itself
-## differently, like the stall, still calls it).
+## The work progress bar, a kind's own bar (`own_bar_fraction`: the town
+## hall's research) and the HP bar (hurt), stacked downwards from `_bar_y` in
+## that order, each only when it shows (a kind that draws itself differently,
+## like the stall, still calls it).
 func _draw_bars() -> void:
-	var w := 60.0
+	var y := _bar_y()
+	if has_work():
+		_draw_bar(y, 7.0, bar_fraction(), work_color())
+		y += 11.0
+	var own := own_bar_fraction()
+	if own >= 0.0:
+		_draw_bar(y, 7.0, own, own_bar_color())
+		y += 11.0
 	if complete and not devastated and hp < max_hp() and village != null:
 		var share := hp_share()
-		var col := Color("5fbf4a") if share >= 0.5 else (Color("e0c040") if share >= 0.25 else Color("d04a3a"))
-		var hr := Rect2(-w / 2.0, _bar_y() + (11.0 if has_work() else 0.0), w, 5.0)
-		draw_rect(hr.grow(2.0), Color("15110d"))
-		draw_rect(hr, Color("3a2e22"))
-		draw_rect(Rect2(hr.position, Vector2(w * share, hr.size.y)), col)
-	if not has_work():
-		return
-	var r := Rect2(-w / 2.0, _bar_y(), w, 7.0)
+		_draw_bar(y, 5.0, share, Color("5fbf4a") if share >= 0.5 else (Color("e0c040") if share >= 0.25 else Color("d04a3a")))
+
+
+## One bar over the building: framed, `fraction` of it filled with `col`.
+func _draw_bar(y: float, height: float, fraction: float, col: Color) -> void:
+	var w := 60.0
+	var r := Rect2(-w / 2.0, y, w, height)
 	draw_rect(r.grow(2.0), Color("15110d"))
 	draw_rect(r, Color("3a2e22"))
-	draw_rect(Rect2(r.position, Vector2(w * bar_fraction(), r.size.y)), work_color())
+	draw_rect(Rect2(r.position, Vector2(w * clampf(fraction, 0.0, 1.0), height)), col)
+
+
+## A bar of the kind's own between the work bar and the HP bar: its fill
+## (0..1), or below 0 for none. The town hall shows its research here.
+func own_bar_fraction() -> float:
+	return -1.0
+
+
+## The colour of that bar.
+func own_bar_color() -> Color:
+	return Color.WHITE
 
 
 ## Progress bar fill: a tear-down empties it.
