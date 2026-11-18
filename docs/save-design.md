@@ -216,7 +216,8 @@ Rules behind the table:
   its last stand (seconds left, whether it is a second chance, a fallen hall, no more stands,
   emptied since it fell), and the raids' random generator goes on from where it was; format 6.
 - Advancements (format 7): each village saves what it researched, the research under way with
-  its progress and the gold paid, and the exclusive halves it locked; each tower its
+  its progress and the gold paid (*(designed, not built)* every resource paid, food and
+  material too, in a later format), and the exclusive halves it locked; each tower its
   manual-targeting setting. The deed counters are the statistics', which the save holds already.
 - The hero's slots (`equipped`) and each village's armoury are saved, and her items' timers
   (`"eqt"`: the net's cooldown) are the exception to "no

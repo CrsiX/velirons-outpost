@@ -6,7 +6,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Outpost / village**: the walled block of huts, walls, gates, wall towers and (usually) the town hall a player runs. `village-design.md`
 - **Village centre**: the path crossing in the middle of the village; enemies head for it, "nearest" in targeting means nearest to it, and the hero stands there when idle. Never a building. `village-design.md`
 - **Standing / fallen**: a village stands while it has a villager and, if it has a town hall, that hall hasn't fallen; otherwise it has fallen (single player: defeat; co-op: it can stand again). `village-design.md`
-- **Hut**: houses exactly one villager; intact huts cap the population. A burned hut is a ruin and can be rebuilt.
+- **Hut**: houses exactly one villager; intact huts cap the population (with Hall quarters, the town hall is one more home). A burned hut is a ruin and can be rebuilt.
 - **Wall tower / watchtower**: towers hold one military unit. Wall towers are part of the village walls; watchtowers are built outside.
 - **Piece material**: what a village's walls, gates, wall towers and town hall are built of (stone, sandstone, basalt, limestone, granite, ice, wood); it sets their look and, through its factor, their cost and HP. Huts follow it in look only; watchtowers have one look. Not "art style". `siege-design.md`
 - **Village colour**: the colour a co-op player picks in the lobby; their hero, carts, caravans and banner cloth wear it. A game with one village wears Veliron's crimson instead. `multiplayer-design.md`
@@ -23,7 +23,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Emergency trading**: buying food or building material with gold from the top bar's counters, no marketplace needed; always dearer than a marketplace. `village-design.md`
 - **Trader**: the villager who works a marketplace and sells the goods, items and relics put up for sale. `market-design.md`
 - **Asking price**: what a seller in co-op asks for an item or relic; the first other player to accept pays it, and at or below the guild's price the guild buys it after a short wait. `market-design.md`
-- **Town hall**: a village's one building in its back quarter, placed by the map; every village has one except in campaign scenarios whose map leaves it out (no hall: no last stand, advancements or equipment); the hero's home, research, the armoury (items and relics); level 2 adds a tower post, level 3 a barracks bench. `village-design.md`
+- **Town hall**: a village's one building in its back quarter, placed by the map; every village has one except in campaign scenarios whose map leaves it out (no hall: no last stand, advancements or equipment); the hero's home, research, the armoury (items and relics), with Hall quarters one villager's home; level 2 adds a tower post, level 3 a barracks bench. `village-design.md`
 - **Last stand**: the countdown after a town hall is devastated; it must be fully repaired before it runs out or the village falls. `village-design.md`
 - **Salvage**: the cargo of a robbed or destroyed trade caravan; a gatherer or the hero carries it back to the marketplace. `market-design.md`
 - **The guild**: the Silver Thread Guild as the outside trade partner: it fills a marketplace's buying stock by its caravans and buys what a village sells at the map edge, at its own fixed price, minus the **guild tax** (none between players). Not **Merchant** (Pell). `market-design.md`
