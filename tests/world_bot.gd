@@ -474,7 +474,7 @@ func _test_game() -> void:
 	walker.head_home()
 	game.economy.add("food", 200)
 	# Room for two miners.
-	while game.population.free_huts().size() < 2:
+	while game.population.free_homes().size() < 2:
 		game.population.kill(game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "gatherer" or c.role == "builder").back())
 	var m1: Miner = game.population.recruit("miner")
 	check(m1 != null and m1.mine == mine and m1.state == Miner.State.TO_MINE, "a new miner goes to the found mine by himself")

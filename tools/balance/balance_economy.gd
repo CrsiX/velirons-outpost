@@ -206,7 +206,7 @@ func _villagers() -> void:
 	if (p.farm_unmanned or _role_ready("farmer")) and pop.count("farmer") < int(want.get("farmer", 0)):
 		if not pop.free_workers("farmer").is_empty():
 			return  # (_staff_workplaces sends them)
-		if pop.free_huts().is_empty():
+		if pop.free_homes().is_empty():
 			_make_room()
 		elif pop.recruit_error("farmer") == "":
 			_cmd("recruit_villager", {"role": "farmer"})
@@ -220,7 +220,7 @@ func _villagers() -> void:
 		if not _role_ready(role):
 			continue
 		var err := pop.recruit_error(role)
-		if err == "No free hut (%d/%d)" % [pop.count(), pop.cap()]:
+		if err == "No free home (%d/%d)" % [pop.count(), pop.cap()]:
 			return
 		if err != "" or village.economy.amount("food") < float(Config.CIVILIANS[role]["cost"]["food"]) + float(_params["min_food"]):
 			return

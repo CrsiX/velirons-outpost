@@ -481,8 +481,8 @@ func archmage_error(unit: MilitaryUnit) -> String:
 		return "Only a level %d spatial mage can become the Spatial Archmage" % Config.ARCHMAGE_LEVEL
 	if not unit.is_available():
 		return "Not now: it's downed or away"
-	if village.population.free_huts().is_empty():
-		return "The Spatial Archmage needs a free hut"
+	if village.population.free_homes().is_empty():
+		return "The Spatial Archmage needs a free home"
 	if not village.economy.can_afford(Config.ARCHMAGE_COST):
 		return "Not enough gold"
 	return ""

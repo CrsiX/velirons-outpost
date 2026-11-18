@@ -373,7 +373,7 @@ static func _advancements() -> Array[Dictionary]:
 				continue
 			var f := PackedStringArray()
 			f.append("Tier %d: town hall level %d" % [tier, int(Config.ADVANCEMENT_TIERS[tier])])
-			f.append("Research: %s, %s s" % [Config.cost_text({"gold": int(a["gold"])}), _n(a["time"])])
+			f.append("Research: %s, %s s" % [Config.cost_text(a["cost"]), _n(a["time"])])
 			if a.has("wave"):
 				f.append("From wave %d" % int(a["wave"]))
 			for n: String in a.get("needs", []):

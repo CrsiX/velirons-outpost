@@ -269,7 +269,7 @@ func _village_data(v: Village) -> Dictionary:
 		"eco": [v.economy.amount("gold"), v.economy.amount("food"), v.economy.amount("materials")],
 		"starve": [v.population.starving, snappedf(v.population.starve_timer, 0.1)],
 		"stand": [snappedf(v.last_stand, 0.1), v.stand_unpaid, v.hall_lost],
-		"res": [v.research.done.duplicate(), v.research.current, snappedf(v.research.progress, 0.1), v.research.locked.duplicate(), v.research.paid],
+		"res": [v.research.done.duplicate(), v.research.current, snappedf(v.research.progress, 0.1), v.research.locked.duplicate(), v.research.paid.duplicate()],
 		"army": army,
 		"fallen": game.villages.map(func(o: Village) -> bool: return o.fallen),
 		"wave": [w.wave, snappedf(w.countdown, 0.1), w.in_progress(), w.enemies_left(), w.can_call()],
@@ -351,7 +351,7 @@ func _describe(n: Node) -> Array:
 		var c := n as Civilian
 		if c.dead:
 			return []
-		return [c.nid, "c", {"r": c.role, "v": vid, "u": c.uid}, _unit_state(c).merged({"h": c.at_home, "s": c.status_text(), "hut": game.id_of(c.hut), "hp": snappedf(c.hp, 0.5)}), c.current_tile(), vid, false]
+		return [c.nid, "c", {"r": c.role, "v": vid, "u": c.uid}, _unit_state(c).merged({"h": c.at_home, "s": c.status_text(), "hut": game.id_of(c.home_building()), "hp": snappedf(c.hp, 0.5)}), c.current_tile(), vid, false]
 	if n is Enemy:
 		var e := n as Enemy
 		if e.dead and not e.shell:  # (a hatched egg's shell stays a while)
@@ -661,9 +661,11 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		var c := o as Civilian
 		c.at_home = st.get("h", c.at_home)
 		c.net_status = st.get("s", "")
-		var hut = game.entity(st.get("hut", 0))
-		if hut is Hut:
-			c.hut = hut
+		var home = game.entity(st.get("hut", 0))
+		if home is Hut:
+			c.hut = home
+		elif home is TownHall:
+			(home as TownHall).resident = c
 		if st.has("hp") and not (c is Hero):
 			c.hp = st["hp"]
 			c.queue_redraw()

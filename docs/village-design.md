@@ -126,7 +126,7 @@ farms and defended farms.
   stay safe, so the cap on losses is the hut, not the household.
 - **Huts:** every villager lives in exactly one intact hut (`Hut.resident`). Recruiting needs a
   free hut, so `Population.cap()` is the number of intact huts.
-  - *(designed, not built)* With the advancement **Hall quarters** the town hall is one more
+  - With the advancement **Hall quarters** the town hall is one more
     home (§3a): the cap is the intact huts plus one while the hall isn't devastated. Huts are
     filled first, the hall last.
 - **Raids:** an enemy that breaks in goes for the nearest intact hut or the nearest other target
@@ -196,13 +196,18 @@ build, tear down or move it: it is the village, not something in it. Numbers are
 - **The armoury** (`Armoury`, one per village): the equipment the hero isn't wearing
   (docs/items-design.md §4) and the relics the village holds (§7), together up to its cap.
 - **Research** of advancements, one at a time (`Research`, docs/advancements-design.md).
-- *(designed, not built)* **A home for one villager** once the village has researched **Hall
+- **A home for one villager** once the village has researched **Hall
   quarters** (any hall material, the Field Command too). A new villager moves in only when every
   intact hut is taken. The resident lives there like a hut's: rests and heals at home, hides there
   from an enemy, and the hall's panel names them. **Devastated**, the hall kills its resident
   wherever they are (as a burning hut does: the home and the household go together) and the cap
   drops by one; repaired, the room is free again for the next recruit. Enemies inside the walls
-  already go for the hall by the coin flip (§3), so nothing about raids changes.
+  already go for the hall by the coin flip (§3), so nothing about raids changes; a wolf that
+  mauls a villager at home (docs/enemies-design.md §10.12) only looks in huts.
+  - **How it is built:** `TownHall.resident`, `Village.hall_home` (the hall while it is a home),
+    `Population.free_homes` (huts, then the hall) and `cap`; a hall resident's `Civilian.hut` is
+    null and `home_building` names the hall (saves and co-op snapshots use it). Its death counts
+    as `lost.hall` in the statistics.
 
 **A wood hall is the Field Command:** an improvised war tent (a commander's long tent with rounded
 ends, as in medieval army camps, in patched canvas; from level 2 a lashed wooden lookout stands in
@@ -224,7 +229,7 @@ builder's time (the *Upgrade* command towers use):
   tools/art/buildings.py), so its unit is drawn centred over the hall but a bit in the background. It takes the same units as every tower
   (ranged, summoner, healer, support), with the range of a level-3 watchtower
   (`TOWER_RANGE.tower` plus the `TOWER_LEVELS` range bonus of `post_range_level`; the Hawk-eye
-  relic adds as everywhere, and *(designed, not built)* the advancement Raised platforms). It has no upgrades of its own: the hall's level is its level.
+  relic adds as everywhere, and the advancement Raised platforms). It has no upgrades of its own: the hall's level is its level.
 - **Level 3:** opens tier 2 and adds one **barracks bench** on the front
   (bottom-right) tile (`bench_from`). Its unit sorties with the activation range of a barracks at
   level `bench_range_level` (`BARRACKS_LEVELS`): the last line of defence against a breach and

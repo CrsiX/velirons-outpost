@@ -11,7 +11,7 @@ extends RefCounted
 ## length (u32) and the body (var_to_bytes, zstd). Plain values only: entities
 ## refer to each other by nid, villages by index, map objects by index.
 
-const FORMAT := 9
+const FORMAT := 10
 const MAGIC := "VOSV"
 const EXT := "vsave"
 const AUTO_PREFIX := "auto-"
@@ -361,7 +361,7 @@ static func _building_state(bd: Building) -> Dictionary:
 
 
 static func _civilian_state(c: Civilian) -> Dictionary:
-	var d := {"r": c.role, "v": c.village.id, "u": c.uid, "n": c.nid, "hut": c.hut.nid if is_instance_valid(c.hut) else 0,
+	var d := {"r": c.role, "v": c.village.id, "u": c.uid, "n": c.nid, "hut": c.home_building().nid if c.home_building() != null else 0,
 		"hp": c.hp, "home": c.at_home, "pos": c.grid_pos, "po": Poison.capture(c)}
 	if c is Farmer:
 		var fa := c as Farmer
@@ -499,7 +499,7 @@ static func restore_entities(game: Game, b: Dictionary) -> void:
 		v.research.done.assign(res["done"])
 		v.research.current = str(res["cur"])
 		v.research.progress = float(res["p"])
-		v.research.paid = int(res["paid"])
+		v.research.paid = (res["paid"] as Dictionary).duplicate()
 		v.research.locked.assign(res["locked"])
 		v.research.reapply()
 		v.relics.assign(d["relics"])
@@ -653,10 +653,9 @@ static func _restore_civilian(game: Game, d: Dictionary, field: Array[Civilian])
 	civ.uid = int(d["u"])
 	civ.nid = int(d["n"])
 	game.register_as(civ, civ.nid)
-	var hut := game.entity(int(d["hut"])) as Hut
-	if hut and hut.resident == null:
-		hut.resident = civ
-		civ.hut = hut
+	var lives := game.entity(int(d["hut"])) as Building
+	if (lives is Hut and (lives as Hut).resident == null) or (lives is TownHall and (lives as TownHall).resident == null):
+		Population.move_in(civ, lives)
 	game.world.objects.add_child(civ)
 	v.population.civilians.append(civ)
 	civ.hp = clampf(float(d["hp"]), 1.0, civ.max_hp)

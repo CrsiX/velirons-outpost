@@ -380,7 +380,7 @@ func _test_loot() -> void:
 	_bench_hero(true)
 	# A gatherer picks it up and brings it home.
 	game.economy.add("food", 200)
-	while game.population.free_huts().is_empty():
+	while game.population.free_homes().is_empty():
 		game.population.kill(game.population.civilians.back())
 	var ga: Civilian = game.population.recruit("gatherer")
 	for o in game.world.map_objects.duplicate():  # (an item a camp guard killed earlier dropped: not this test's)
@@ -416,7 +416,7 @@ func ensure_role(role: String) -> void:
 	if game.population.count(role) > 0:
 		return
 	game.economy.add("food", 100)
-	while game.population.free_huts().is_empty():
+	while game.population.free_homes().is_empty():
 		var spare := game.population.civilians.filter(func(c: Civilian) -> bool: return c.role in ["gatherer", "explorer", "miner"])
 		game.population.kill(spare.back() if not spare.is_empty() else game.population.civilians.back())
 	game.population.recruit(role)

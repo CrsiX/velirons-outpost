@@ -107,7 +107,7 @@ func _trader(m: Market) -> void:
 	if why == "":
 		p.hut_for_trader = false
 		return
-	if pop.free_huts().is_empty():
+	if pop.free_homes().is_empty():
 		var out := _swap_out()
 		if out != null and _cmd("retire_villager", {"civilian": out.nid})["ok"]:
 			p.hut_for_trader = true  # (the economy leaves the hut for him)

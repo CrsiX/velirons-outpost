@@ -1984,7 +1984,7 @@ func _test_flee_resume() -> void:
 			game.construction.queue.erase(camp)
 			camp.progress = camp.build_time
 			game.construction.complete(camp)
-		if game.population.free_huts().is_empty():
+		if game.population.free_homes().is_empty():
 			var spare := game.population.civilians.filter(func(c: Civilian) -> bool: return c.role in ["gatherer", "explorer", "builder"])
 			game.population.retire(spare.back() if not spare.is_empty() else game.population.civilians.back())
 		game.economy.add("food", 200)

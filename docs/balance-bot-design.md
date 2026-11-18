@@ -115,8 +115,9 @@ reasoning:
   really paid are recorded per way, because emergency trading must stay dearer than the market
   or the market is pointless.
 - **Research** (`research` policy): of the advancements it can take now it picks one **at
-  random** and saves up for it, keeping the army's gold (*(designed, not built)* and for
-  its food and material price, keeping what the village needs to eat and build); it picks again after each one and after
+  random** and saves up for it, keeping the army's gold (and
+  for its food and material: food beyond BALANCE_BOT `min_food`, material claimed as for the
+  economy's buildings); it picks again after each one and after
   each town hall level. Random, because the bot's survival should show what research is worth
   on average, not what one opinion about the best order is worth.
 - **Equipment** (`equipment` policy): the first item for a slot still on its default goes on,

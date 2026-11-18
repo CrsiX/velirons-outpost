@@ -3296,7 +3296,7 @@ func _research_row(id: String, w: float) -> Control:
 		b.text = "Under research"
 		b.disabled = true
 	else:
-		set_rich_text(b, "Research  (%s, %d s)" % [Config.cost_icons({"gold": int(a["gold"])}), int(a["time"])])
+		set_rich_text(b, "Research  (%s, %d s)" % [Config.cost_icons(a["cost"]), int(a["time"])])
 		var why := r.error(id)
 		b.disabled = why != ""
 		b.tooltip_text = why
@@ -3316,7 +3316,7 @@ func _start_research(id: String) -> void:
 		return
 	var other := str(Config.ADVANCEMENTS[str(a["excludes"])]["name"])
 	_ask("A final choice", UiTheme.GOLD, "Researching %s locks %s for the rest of this game. This can't be undone. Research it?" % [a["name"], other],
-		"Research %s  (%s)" % [a["name"], Config.cost_icons({"gold": int(a["gold"])})], false, func() -> void:
+		"Research %s  (%s)" % [a["name"], Config.cost_icons(a["cost"])], false, func() -> void:
 			if _do("research", {"id": id})["ok"]:
 				_confirm_panel.visible = false
 				_refresh_research(),

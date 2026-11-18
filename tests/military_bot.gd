@@ -661,11 +661,11 @@ func _test_branching() -> void:
 	sp.level = Config.ARCHMAGE_LEVEL - 1
 	check(sp.upgrade_options().any(func(o: Dictionary) -> bool: return o["archmage"]), "a level %d spatial mage can become the Spatial Archmage" % Config.ARCHMAGE_LEVEL)
 	# Needs a free hut.
-	while game.population.free_huts().size() > 0 and game.population.recruit("farmer") != null:
+	while game.population.free_homes().size() > 0 and game.population.recruit("farmer") != null:
 		pass
 	var no_hut := game.army.archmage_error(sp)
-	check(game.population.free_huts().is_empty() == (no_hut == "The Spatial Archmage needs a free hut"), "the Spatial Archmage needs a free hut")
-	if game.population.free_huts().is_empty():
+	check(game.population.free_homes().is_empty() == (no_hut == "The Spatial Archmage needs a free home"), "the Spatial Archmage needs a free home")
+	if game.population.free_homes().is_empty():
 		game.population.kill_random(1)
 		await frames(2)
 	game.economy.add("gold", 1000)

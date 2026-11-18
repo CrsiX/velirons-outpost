@@ -1,7 +1,8 @@
 extends "res://tests/bot_base.gd"
 ## Headless test of the advancements (docs/advancements-design.md): research at
-## the town hall (conditions, gold and time, cancelling, a devastated hall
-## pausing it, exclusive locks), each effect, both targeting advancements, the
+## the town hall (conditions, its price and time, a price in food, cancelling,
+## a devastated hall pausing it, exclusive locks), each effect (Hall quarters'
+## home and its resident's death too), both targeting advancements, the
 ## save, and shared vision in a two-village game. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/advancement_bot.tscn
 ## Exits 0 when every check passes.
@@ -53,7 +54,7 @@ func _test_config() -> void:
 	var ok := true
 	for id: String in Config.ADVANCEMENTS:
 		var a: Dictionary = Config.ADVANCEMENTS[id]
-		ok = ok and a.has("name") and a.has("desc") and int(a["tier"]) in [1, 2] and int(a["gold"]) > 0 and float(a["time"]) > 0.0
+		ok = ok and a.has("name") and a.has("desc") and int(a["tier"]) in [1, 2] and int((a["cost"] as Dictionary).get("gold", 0)) + int(a["cost"].get("food", 0)) + int(a["cost"].get("materials", 0)) > 0 and float(a["time"]) > 0.0
 		for n: String in a.get("needs", []):
 			ok = ok and Config.ADVANCEMENTS.has(n)
 		if a.has("excludes"):
@@ -100,11 +101,28 @@ func _test_research() -> void:
 	var res := game.command("research", {"id": "quick_feet"})
 	check(res["ok"] and r.current == "quick_feet" and v.economy.amount("gold") == gold - 100, "research starts and is paid in gold")
 	check(not game.command("research", {"id": "drill_1"})["ok"], "one research at a time")
-	check(r.cancel_refund() == 100, "cancelled before any research: all of it back")
+	check(r.cancel_refund() == {"gold": 100}, "cancelled before any research: all of it back")
 	r.progress = float(Config.ADVANCEMENTS["quick_feet"]["time"]) * 0.5
-	check(r.cancel_refund() == 50, "half done: half back")
+	check(r.cancel_refund() == {"gold": 50}, "half done: half back")
 	game.command("cancel_research")
 	check(r.current == "" and v.economy.amount("gold") == gold - 50, "cancelled: the rest comes back")
+	# A price in food too (Thick-skinned): paid together, the same share of each back.
+	game.economy.add("food", 1000)
+	var price: Dictionary = Config.ADVANCEMENTS["thick_skinned"]["cost"]
+	gold = v.economy.amount("gold")
+	var food := v.economy.amount("food")
+	check(int(price.get("food", 0)) > 0 and game.command("research", {"id": "thick_skinned"})["ok"]
+		and is_equal_approx(v.economy.amount("gold"), gold - float(price["gold"])) and is_equal_approx(v.economy.amount("food"), food - float(price["food"])),
+		"a research paid in gold and food (%s)" % Config.cost_text(price))
+	r.progress = float(Config.ADVANCEMENTS["thick_skinned"]["time"]) * 0.5
+	var half := {"gold": floori(float(price["gold"]) * 0.5), "food": floori(float(price["food"]) * 0.5)}
+	check(r.cancel_refund() == half, "half done: half of each back (%s)" % str(r.cancel_refund()))
+	game.command("cancel_research")
+	check(is_equal_approx(v.economy.amount("gold"), gold - float(price["gold"]) + half["gold"]) and is_equal_approx(v.economy.amount("food"), food - float(price["food"]) + half["food"]),
+		"cancelled: gold and food come back")
+	v.economy.spend({"food": v.economy.amount("food") - 1.0})
+	check(r.error("thick_skinned") == "Not enough food", "too little food: it can't start (%s)" % r.error("thick_skinned"))
+	game.economy.add("food", 1000)
 	game.command("research", {"id": "quick_feet"})
 	var hall := v.town_hall()
 	hall.devastated = true
@@ -131,6 +149,14 @@ func _test_effects() -> void:
 	check(wall.max_level() == 4 and wt.max_level() == 4 and v.town_hall().max_level() == 3, "Fortifications IV: level 4 (the hall keeps its own levels)")
 	grant("fortifications_5")
 	check(wall.max_level() == 5 and ResourceLoader.exists("res://art/wall_5.svg") and ResourceLoader.exists("res://art/wood_wall_tower_front_5.svg"), "Fortifications V: level 5, with its art")
+	# Raised platforms: every tower and the hall's post reach a share farther.
+	var hall := v.town_hall()
+	var wt_range := wt.range_tiles()
+	var hall_range := hall.range_tiles()
+	grant("raised_platforms")
+	var reach := 1.0 + float(Config.ADVANCEMENTS["raised_platforms"]["tower_range"])
+	check(is_equal_approx(wt.range_tiles(), wt_range * reach) and is_equal_approx(hall.range_tiles(), hall_range * reach),
+		"Raised platforms: wall towers and the hall's post reach farther (%.2f -> %.2f)" % [wt_range, wt.range_tiles()])
 	# Quick feet (researched above).
 	var forester: Civilian = game.population.civilians.filter(func(c: Civilian) -> bool: return c.role == "forester")[0]
 	check(is_equal_approx(forester.speed, float(Config.CIVILIANS["forester"]["speed"]) * 1.15), "Quick feet: foresters walk 15 % faster")
@@ -209,6 +235,40 @@ func _test_effects() -> void:
 	newborn.setup(game, "gatherer")
 	check(is_equal_approx(newborn.hp, tough), "a new villager starts with the doubled HP (%.0f)" % newborn.hp)
 	newborn.free()
+	_test_hall_quarters()
+
+
+## Hall quarters: the hall is one more home, filled after the huts; devastated,
+## it kills its resident and is no home until repaired.
+func _test_hall_quarters() -> void:
+	var hall := v.town_hall()
+	var pop := v.population
+	var cap0 := pop.cap()
+	check(pop.free_homes().all(func(b: Building) -> bool: return b is Hut), "without Hall quarters the hall is no home")
+	grant("hall_quarters")
+	check(pop.cap() == cap0 + 1, "Hall quarters: one more home (%d -> %d)" % [cap0, pop.cap()])
+	var homes := pop.free_homes()
+	check(not homes.is_empty() and homes[-1] == hall and homes.slice(0, -1).all(func(b: Building) -> bool: return b is Hut), "huts first, the hall last")
+	while pop.free_homes().size() > 1:
+		pop.spawn("gatherer")
+	var guest := pop.spawn("gatherer")
+	check(guest != null and hall.resident == guest and guest.hut == null and guest.home_building() == hall and pop.free_homes().is_empty(),
+		"the last one in lives in the hall; then every home is taken")
+	check(str(hall.info()["lines"]).contains("Home of a gatherer"), "the hall's panel names its resident")
+	check(int(SaveGame._civilian_state(guest)["hut"]) == hall.nid, "a save names the hall as its home")
+	var lost0 := game.stats.value(v.id, "lost.hall")
+	v.construction.on_devastated(hall, null)
+	check(not pop.civilians.has(guest) and hall.resident == null and game.stats.value(v.id, "lost.hall") == lost0 + 1.0,
+		"the hall devastated: its resident dies with it")
+	check(pop.cap() == cap0 and pop.free_homes().is_empty(), "and it is no home while devastated")
+	hall.repair_hp = hall.max_hp()
+	hall.finish_repair()
+	v.construction.queue.erase(hall)
+	v._end_last_stand(true)
+	var free := pop.free_homes()
+	check(not hall.devastated and pop.cap() == cap0 + 1 and free.size() == 1 and free[0] == hall, "repaired: the room is free again")
+	var again := pop.spawn("gatherer")
+	check(again != null and hall.resident == again, "a new villager moves in")
 
 
 ## Better targeting by unit kind, manual by the tower's switch.
@@ -263,6 +323,8 @@ func _test_save() -> void:
 	# Loaded, a villager hurt less than Thick-skinned's extra keeps its HP above the base max.
 	var civ: Civilian = v.population.civilians[0]
 	civ.hp = Config.CIVILIAN_HP * 1.5
+	r.current = "shared_vision"
+	r.paid = {"gold": 7, "food": 3}
 	var civ_id := civ.nid
 	body = SaveGame.capture(game)
 	game.queue_free()
@@ -274,6 +336,9 @@ func _test_save() -> void:
 	await frames(3)
 	var loaded := game.entity(civ_id) as Civilian
 	check(loaded != null and is_equal_approx(loaded.hp, Config.CIVILIAN_HP * 1.5), "loaded: Thick-skinned's villager keeps its HP (%s)" % (str(loaded.hp) if loaded else "missing"))
+	var lhall := game.player_village.town_hall()
+	check(lhall != null and is_instance_valid(lhall.resident) and lhall.resident.home_building() == lhall, "loaded: the hall's resident lives there still")
+	check(game.player_village.research.paid == {"gold": 7, "food": 3}, "loaded: what the research under way was paid with (%s)" % str(game.player_village.research.paid))
 	get_tree().paused = false
 	game.queue_free()
 

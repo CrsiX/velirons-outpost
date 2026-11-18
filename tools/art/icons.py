@@ -456,8 +456,30 @@ ADV_ICONS = {
   <circle cx="41.5" cy="42.5" r="8.8" fill="#a06a3a" stroke="{INK}" stroke-width="2.6"/>
   <circle cx="41.5" cy="42.5" r="5.4" fill="none" stroke="#6a4424" stroke-width="1.6" stroke-dasharray="2 1.6"/>
   <circle cx="41.5" cy="42.5" r="2.3" fill="#c9ced6" stroke="{INK}" stroke-width="1.2"/>'''),
+    # A timber lookout on tall stilts, a gold arrow pointing up beside it.
+    "raised_platforms": (1, f'''
+  <path d="M22 52 L26 30 M38 52 L34 30" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>
+  <path d="M22 52 L26 30 M38 52 L34 30" stroke="{WOOD_L}" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M23.5 47 L35.5 37 M36.5 47 L24.5 37" stroke="{WOOD_D}" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M17 30 L43 30 L43 25 L17 25Z" fill="{WOOD}" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M20 25 L20 15 L24 15 L24 18 L28 18 L28 15 L32 15 L32 18 L36 18 L36 15 L40 15 L40 25Z" fill="{STONE_T}" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M29 25 L29 21 Q30 19.5 31 21 L31 25Z" fill="{INK}"/>
+  <path d="M50 46 L50 18" stroke="{INK}" stroke-width="5.5" stroke-linecap="round"/>
+  <path d="M50 46 L50 18" stroke="{GOLD}" stroke-width="3" stroke-linecap="round"/>
+  <path d="M44 22 L50 13 L56 22Z" fill="{GOLD}" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>'''),
     "drill_1": (1, _chevrons(1) + _numeral("I")),
     "drill_2": (2, _chevrons(2) + _numeral("II")),
+    # A bed with a red blanket under a hall's gable roof.
+    "hall_quarters": (2, f'''
+  <path d="M10 30 L32 13 L54 30" fill="none" stroke="{INK}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 30 L32 13 L54 30" fill="none" stroke="{CRIMSON_D}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M16 29 L16 50 M48 29 L48 50" stroke="{INK}" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M16 29 L16 50 M48 29 L48 50" stroke="{STONE_L}" stroke-width="2" stroke-linecap="round"/>
+  <path d="M20 50 L20 32 L25 32 L25 41 M44 50 L44 41" fill="none" stroke="{INK}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M20 50 L20 32 L25 32 L25 41 M44 50 L44 41" fill="none" stroke="{WOOD_L}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="21" y="36" width="9" height="5" rx="2.2" fill="#efe3c8" stroke="{INK}" stroke-width="2"/>
+  <path d="M28 41 L45 41 L45 46 L21 46 L21 41Z" fill="{CRIMSON}" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M30 41 Q34 38 38 41" fill="none" stroke="{CRIMSON_D}" stroke-width="1.8"/>'''),
     "skilled_looting": (1, f'''
   <path d="M22 26 Q14 34 16 44 Q18 52 32 52 Q46 52 48 44 Q50 34 42 26Z" fill="#b89a60" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
   <path d="M22 26 Q32 21 42 26" fill="none" stroke="#6a5230" stroke-width="2.4"/>

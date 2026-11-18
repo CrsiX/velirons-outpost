@@ -306,7 +306,7 @@ func _play_through() -> void:
 
 	print("-- card 7: gatherers")
 	check(await _at_card(6, 120.0), "card 7 once wave 1 left a corpse")
-	await wait_until(func() -> bool: return not game.population.free_huts().is_empty(), 120.0)
+	await wait_until(func() -> bool: return not game.population.free_homes().is_empty(), 120.0)
 	check(cmd("recruit_villager", {"role": "gatherer"})["ok"], "a gatherer is recruited")
 	check(await _at_card(7, 240.0), "card 8 once a corpse is home")
 	check(game.corpses.rot, "corpses rot again")
@@ -1193,7 +1193,7 @@ func _scenario_5() -> void:
 	print("-- scenario 5: Sigmund, the huts full")
 	for role in ["farmer", "forester", "gatherer"]:
 		cmd("recruit_villager", {"role": role})
-	check(game.population.count() == 4 and game.population.free_huts().is_empty(), "three recruits fill the fort")
+	check(game.population.count() == 4 and game.population.free_homes().is_empty(), "three recruits fill the fort")
 	check(await wait_until(func() -> bool: return sc.card.lesson_title() == "Man the fort", 5.0), "then: man the fort")
 	game.fog.reveal(Vector2(tent), 2.0, v.id)
 	check(await wait_until(func() -> bool: return sc.mark.has("sigmund found"), 3.0), "his tent uncovered: Sigmund is found")

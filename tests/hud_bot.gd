@@ -220,7 +220,7 @@ func _test_people() -> void:
 	# A new villager shows up in the list.
 	var n := list.size()
 	game.economy.add("food", 100)
-	if game.population.free_huts().is_empty():
+	if game.population.free_homes().is_empty():
 		game.population.kill(list[-1])
 	game.population.recruit("builder")
 	hud._refresh_people()
@@ -279,7 +279,7 @@ func _test_retire() -> void:
 	hud._confirm_yes.pressed.emit()
 	await frames(2)
 	check(not hud._confirm_panel.visible and game.population.count() == n - 1 and game.population.civilians.all(func(x: Civilian) -> bool: return x.label() != label), "confirmed: %s leaves the village" % label)
-	check(is_instance_valid(hut) and hut.resident == null and game.population.free_huts().has(hut), "and their hut is free again")
+	check(is_instance_valid(hut) and hut.resident == null and game.population.free_homes().has(hut), "and their hut is free again")
 	check(game.player_village.events.entries.any(func(e: Dictionary) -> bool: return e["text"] == "%s retired and left the village" % label), "and it's logged")
 	check(hud._people_list.get_child_count() == hud.people().size() and hud._people_rows.keys().all(func(x: Object) -> bool: return is_instance_valid(x)), "the list drops them")
 	check(not game.player_village.fallen, "the village stands")

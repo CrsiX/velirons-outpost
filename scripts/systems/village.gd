@@ -124,6 +124,21 @@ func adv_bonus(key: String) -> float:
 	return research.bonus(key) if research else 0.0
 
 
+## Its town hall while it is a home (the advancement Hall quarters, a working
+## hall), else null.
+func hall_home() -> TownHall:
+	var h := town_hall()
+	if h == null or not h.working() or research == null or not research.effect("hall_home", false):
+		return null
+	return h
+
+
+## How much farther its towers reach (watchtowers, wall towers, the hall's
+## post): relics and the advancement Raised platforms add up.
+func tower_range_factor() -> float:
+	return 1.0 + relic_bonus("tower_range") + adv_bonus("tower_range")
+
+
 ## The highest level its walls, gates, wall towers and watchtowers may reach.
 func max_piece_level() -> int:
 	var lv := Config.PIECE_BASE_MAX_LEVEL
@@ -297,11 +312,15 @@ func last_stand_left() -> float:
 	return last_stand
 
 
-## Its town hall was devastated (Construction.on_devastated): the last stand
-## starts while anyone lives here; with nobody left the hall has fallen.
+## Its town hall was devastated (Construction.on_devastated): whoever lived in
+## it dies (Hall quarters, as with a burning hut); the last stand starts while
+## anyone lives here; with nobody left the hall has fallen.
 func on_hall_devastated() -> void:
 	if game.backdrop or game.is_client:
 		return
+	var h := town_hall()
+	if h != null and is_instance_valid(h.resident):
+		population.kill(h.resident, "when the %s, their home, was devastated" % hall_text(), "hall")
 	if population.count() == 0:
 		hall_lost = true
 		stand_emptied = true

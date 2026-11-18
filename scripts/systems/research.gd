@@ -1,7 +1,8 @@
 class_name Research
 extends Node
 ## One village's advancements (docs/advancements-design.md): researched at its
-## town hall, one at a time, for gold and research time (Config.ADVANCEMENTS),
+## town hall, one at a time, for its price (gold, food, material) and research
+## time (Config.ADVANCEMENTS),
 ## lasting for this game only. Tier 1 opens with the hall at level
 ## ADVANCEMENT_TIERS[1], tier 2 at [2]; a devastated hall pauses the research.
 ## Researching one half of an exclusive pair locks the other for good. The
@@ -14,10 +15,11 @@ var village: Village
 var game: Game
 ## Researched, in order.
 var done: Array[String] = []
-## Under research ("": nothing), its seconds of research so far and the gold paid.
+## Under research ("": nothing), its seconds of research so far and what was paid
+## for it (a cost: {"gold": n, "food": n, ...}).
 var current := ""
 var progress := 0.0
-var paid := 0
+var paid := {}
 ## Exclusive halves locked for good by the choice of the other half.
 var locked: Array[String] = []
 
@@ -130,43 +132,59 @@ func error(id: String) -> String:
 	for c in conditions(id):
 		if not c[1]:
 			return "Needs: %s" % c[0]
-	if not village.economy.can_afford({"gold": int(a["gold"])}):
-		return "Not enough gold"
+	if not village.economy.can_afford(a["cost"]):
+		return "Not enough %s" % _lacking(a["cost"])
 	return ""
 
 
-## Starts researching `id`: its gold is paid now.
+## What of `cost` the village can't pay now ("gold", "gold and food").
+func _lacking(cost: Dictionary) -> String:
+	var out := PackedStringArray()
+	for res in ["gold", "food", "materials"]:
+		if cost.has(res) and village.economy.amount(res) < float(cost[res]):
+			out.append("building material" if res == "materials" else res)
+	return " and ".join(out)
+
+
+## Starts researching `id`: its price is paid now.
 func start(id: String) -> bool:
 	if error(id) != "":
 		return false
-	paid = int(Config.ADVANCEMENTS[id]["gold"])
-	village.economy.spend({"gold": paid}, "research")
+	paid = (Config.ADVANCEMENTS[id]["cost"] as Dictionary).duplicate()
+	village.economy.spend(paid, "research")
 	current = id
 	progress = 0.0
-	village.events.info("Research of %s begins (%d gold, %d s)" % [Config.ADVANCEMENTS[id]["name"], paid, int(Config.ADVANCEMENTS[id]["time"])])
+	village.events.info("Research of %s begins (%s, %d s)" % [Config.ADVANCEMENTS[id]["name"], Config.cost_text(paid), int(Config.ADVANCEMENTS[id]["time"])])
 	village.sound("place")
 	changed.emit()
 	return true
 
 
-## Gold that cancelling now gives back: all of it before any research, then
-## less as the research goes on (as for a construction site).
-func cancel_refund() -> int:
+## What cancelling now gives back (a cost, only what is more than 0): all of
+## the price before any research, then less of each part as the research goes
+## on (as for a construction site).
+func cancel_refund() -> Dictionary:
+	var out := {}
 	if current == "":
-		return 0
-	return floori(paid * (1.0 - clampf(progress / float(Config.ADVANCEMENTS[current]["time"]), 0.0, 1.0)))
+		return out
+	var share := 1.0 - clampf(progress / float(Config.ADVANCEMENTS[current]["time"]), 0.0, 1.0)
+	for res in paid:
+		var back := floori(float(paid[res]) * share)
+		if back > 0:
+			out[res] = back
+	return out
 
 
 func cancel() -> void:
 	if current == "":
 		return
 	var back := cancel_refund()
-	if back > 0:
-		village.economy.refund({"gold": back}, "research")
-	village.events.info("Research of %s called off: %d gold back" % [Config.ADVANCEMENTS[current]["name"], back])
+	if not back.is_empty():
+		village.economy.refund(back, "research")
+	village.events.info("Research of %s called off: %s back" % [Config.ADVANCEMENTS[current]["name"], Config.cost_text(back) if not back.is_empty() else "nothing"])
 	current = ""
 	progress = 0.0
-	paid = 0
+	paid = {}
 	changed.emit()
 
 
@@ -193,7 +211,7 @@ func _finish() -> void:
 	done.append(id)
 	current = ""
 	progress = 0.0
-	paid = 0
+	paid = {}
 	if a.has("excludes") and not locked.has(str(a["excludes"])):
 		locked.append(str(a["excludes"]))
 	game.stats.count(village, "advancements")

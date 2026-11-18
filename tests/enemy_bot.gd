@@ -120,7 +120,7 @@ func ensure_role(role: String) -> Civilian:
 		if c.role == role:
 			return c
 	game.economy.add("food", 100)
-	while game.population.free_huts().is_empty():
+	while game.population.free_homes().is_empty():
 		var spare := game.population.civilians.filter(func(c: Civilian) -> bool: return c.role in ["explorer", "miner"])
 		game.population.kill(spare.back() if not spare.is_empty() else game.population.civilians.back())
 	return game.population.recruit(role)
@@ -763,7 +763,7 @@ func _test_slimes() -> void:
 	# At the gate: a big slime burns a hut; the smaller ones may melt away.
 	# (Whoever lives in a burned hut dies: enough people, so the village stands.)
 	game.economy.add("food", 300)
-	while game.population.count() < 6 and not game.population.free_huts().is_empty():
+	while game.population.count() < 6 and not game.population.free_homes().is_empty():
 		game.population.recruit("builder")
 	for kind in ["slime1", "slime2", "slime3"]:
 		var huts := game.player_village.intact_huts().size()

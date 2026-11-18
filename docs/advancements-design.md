@@ -1,7 +1,6 @@
 # Veliron's Outpost: advancements (design)
 
-Status: **built**, except the parts marked *(designed, not built)*: Raised platforms, Hall
-quarters, food and material in a research's price. Tested by tests/advancement_bot.gd. Every number
+Status: **built**. Tested by tests/advancement_bot.gd. Every number
 lives in `scripts/core/config.gd` (`ADVANCEMENTS`, `ADVANCEMENT_TIERS`, `TARGETING_*`), never here.
 The research is `Research` (one per village), the effects are read where they apply through
 `Village` (`adv_bonus`, `max_piece_level`, `walk_bonus`, `targeting`, `kill_gold`, `crit`,
@@ -25,7 +24,7 @@ docs/village-design.md.
 - At the **town hall**, one research at a time, paid with **gold plus research time**
   (`Config`, per advancement). A single queue is easy to read. The gold is paid when it starts;
   cancelling gives back what is left of it by the research done, as for a construction site.
-- *(designed, not built)* **Food and building material** may be part of the price too, beside
+- **Food and building material** may be part of the price too, beside
   the gold (any mix of the three, per advancement). Paid together when the research starts; a
   research that can't pay all of it can't start. Cancelling gives back the same share of each.
 - The hall's panel shows the research under way and opens the list (*Research...*): every
@@ -123,8 +122,8 @@ conditions are `Config` values (`ADVANCEMENTS`), agreed when built.
 - **Forester, farmer, gatherer and builder walk faster.**
 - **Thick-skinned:** +100 % max HP for every villager, never the hero or the army. Only the
   max rises: a hurt villager keeps its HP and heals the rest at home at the usual rate.
-  *(designed, not built)* Costs food as well as gold (§2): it is about the villagers.
-- *(designed, not built)* **Raised platforms:** a share more range for every **tower**: the
+  Costs food as well as gold (§2): it is about the villagers.
+- **Raised platforms:** a share more range for every **tower**: the
   watchtowers, the wall towers and the town hall's tower post (the Field Command's too). What the
   tower's unit reaches grows (its shots, a healer's or High Priest's reach there), and with it what
   the tower sees (sight is range plus `TOWER_SIGHT_BONUS`). Never barracks sorties, units in the
@@ -150,7 +149,7 @@ conditions are `Config` values (`ADVANCEMENTS`), agreed when built.
 - **Drill II:** as Drill I, adding to it.
 - **Master builders** (faster building) ***or*** **cheaper repairs.**
 - **Cheaper specialising *or* cheaper base units** (recruiting).
-- *(designed, not built)* **Hall quarters:** the town hall becomes a home for **one villager**,
+- **Hall quarters:** the town hall becomes a home for **one villager**,
   so the population cap is one higher (docs/village-design.md §3a). Needs Thick-skinned. Costs
   food as well as gold (§2), a lot of it: a villager more is a lasting gain, paid in what grows
   villagers. Any role lives there; new villagers fill the huts first and the hall last, with no
@@ -186,15 +185,15 @@ Dropped: **shared exploration for all players** (tier 2): shared vision covers i
 
 - **Campaign:** off unless a scenario switches it on (`Scenario.advancements`) and has a town hall
   (`Scenario.town_hall`, docs/village-design.md §3c). Never in the title backdrop.
-- **Save:** researched advancements, the research in progress (with what was paid for it:
-  gold, and *(designed, not built)* food and material, a format bump), exclusive locks and the
-  manual targeting setting of every tower (`SaveGame.FORMAT` 7). The deed counters are the statistics',
+- **Save:** researched advancements, the research in progress (with what was paid for it, every
+  resource: format 10), exclusive locks and the manual targeting setting of every tower
+  (`SaveGame.FORMAT` 7), and the town hall's resident (a villager's home is its hut or the hall). The deed counters are the statistics',
   which the save holds already.
 - **Co-op:** the host researches; a client sees its own village's research (the snapshot) and
   its towers' settings.
 - **Commands:** `research`, `cancel_research`, `set_targeting`.
 - **Library:** an Advancements tab, tier by tier, built from `Config`.
 - **Tests:** `advancement_bot` (conditions, research and cancelling, a devastated hall pausing
-  it, exclusive locks, each effect, both targeting modes, the save, shared vision; *(designed,
-  not built)* a food and material price paid and refunded, the hall's resident and its death). The balancing
+  it, exclusive locks, each effect, both targeting modes, the save, shared vision, a food price paid
+  and refunded, the hall's resident, its death and its save). The balancing
   bot's `research` policy researches at random (docs/balance-bot-design.md §3).

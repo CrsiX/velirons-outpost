@@ -16,7 +16,8 @@ var role := ""
 var given_name := ""
 ## The village this villager (or hero) belongs to; set before setup().
 var village: Village
-## The hut this villager lives in (every villager has exactly one).
+## The hut this villager lives in (every villager has one home: this, or the
+## town hall with Hall quarters, then this is null; home_building).
 var hut: Hut = null
 var at_home := true
 var dead := false
@@ -316,6 +317,14 @@ func head_out_on(p: PackedVector2Array) -> bool:
 ## in some scenarios; a resident: a home of their own, scenario 9's church).
 func home_spot() -> Vector2i:
 	return village.center
+
+
+## The building it lives in: its hut, or the town hall (Hall quarters); null for none.
+func home_building() -> Building:
+	if is_instance_valid(hut):
+		return hut
+	var h := village.town_hall() if village != null else null
+	return h if h != null and h.resident == self else null
 
 
 func head_home() -> void:

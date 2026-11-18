@@ -4,8 +4,9 @@ extends Node
 ## Workers are assigned automatically: a new farmer / forester (any role with
 ## "works_at") goes to a vacant workplace of that kind, and a finished
 ## workplace takes an idle worker. The player can still unassign and assign.
-## Every villager lives in exactly one intact hut; when that hut is destroyed
-## the villager dies with it, so the hut count caps the population implicitly.
+## Every villager lives in exactly one home: an intact hut or, with Hall
+## quarters, the town hall (filled last). When the home is destroyed the
+## villager dies with it, so the homes cap the population implicitly.
 
 signal changed
 signal civilian_lost(civ: Civilian)
@@ -54,8 +55,9 @@ func count(role: String = "") -> int:
 	return civilians.filter(func(c: Civilian) -> bool: return c.role == role).size()
 
 
+## Homes: the intact huts, and the town hall while it is one (Village.hall_home).
 func cap() -> int:
-	return village.intact_huts().size()
+	return village.intact_huts().size() + (1 if village.hall_home() != null else 0)
 
 
 ## Net food flow: the average output of worked farms minus the villagers'
@@ -88,9 +90,13 @@ func starve_left() -> float:
 	return maxf(Config.STARVATION_INTERVAL - starve_timer, 0.0)
 
 
-## Intact huts nobody lives in yet.
-func free_huts() -> Array[Building]:
-	return village.intact_huts().filter(func(h: Hut) -> bool: return h.resident == null)
+## Homes nobody lives in yet: intact huts first, then the town hall.
+func free_homes() -> Array[Building]:
+	var out: Array[Building] = village.intact_huts().filter(func(h: Hut) -> bool: return h.resident == null)
+	var hall := village.hall_home()
+	if hall != null and not is_instance_valid(hall.resident):
+		out.append(hall)
+	return out
 
 
 ## Returns "" when recruiting is possible, else the reason why not.
@@ -103,8 +109,8 @@ func recruit_error(role: String) -> String:
 		return "Not here"
 	if Config.CIVILIANS[role].has("max") and count(role) >= int(Config.CIVILIANS[role]["max"]):
 		return "One %s per village" % Config.CIVILIANS[role]["name"].to_lower()
-	if free_huts().is_empty():
-		return "No free hut (%d/%d)" % [count(), cap()]
+	if free_homes().is_empty():
+		return "No free home (%d/%d)" % [count(), cap()]
 	if not village.economy.can_afford(Config.CIVILIANS[role]["cost"]):
 		return "Not enough resources"
 	return ""
@@ -124,9 +130,9 @@ func recruit(role: String) -> Civilian:
 	return civ
 
 
-## Creates a villager in a free hut. Returns null when every hut is taken.
+## Creates a villager in a free home (free_homes). Returns null when every home is taken.
 func spawn(role: String) -> Civilian:
-	var homes := free_huts()
+	var homes := free_homes()
 	if homes.is_empty():
 		return null
 	var civ: Civilian = ROLE_SCRIPTS[role].new()
@@ -134,12 +140,10 @@ func spawn(role: String) -> Civilian:
 	civ.setup(game, role)
 	civ.nid = game.register(civ)
 	civ.uid = game.next_id(role)
-	var hut: Hut = homes[0]
-	hut.resident = civ
-	civ.hut = hut
+	move_in(civ, homes[0])
 	game.world.objects.add_child(civ)
 	civilians.append(civ)
-	village.events.debug("%s moves into %s" % [civ.label(), hut.label()])
+	village.events.debug("%s moves into %s" % [civ.label(), homes[0].label()])
 	var vacant := vacant_workplaces(role)
 	if not vacant.is_empty():
 		_assign(civ, vacant[0], true)
@@ -151,16 +155,34 @@ func spawn(role: String) -> Civilian:
 	return civ
 
 
+## `civ` lives in `home` from now on: a hut or the town hall (Hall quarters).
+static func move_in(civ: Civilian, home: Building) -> void:
+	if home is Hut:
+		(home as Hut).resident = civ
+		civ.hut = home as Hut
+	elif home is TownHall:
+		(home as TownHall).resident = civ
+
+
+## Its home from now on is none (it died or left).
+func _move_out(civ: Civilian) -> void:
+	if is_instance_valid(civ.hut) and civ.hut.resident == civ:
+		civ.hut.resident = null
+	var hall := village.town_hall()
+	if hall != null and hall.resident == civ:
+		hall.resident = null
+
+
 ## `reason` completes "farmer 2 died ...", e.g. "by goblin 4 burning their hut".
-## `cause` is for the statistics: "enemies", "starved", "hut" (burned) or "other".
+## `cause` is for the statistics: "enemies", "starved", "hut" (burned), "hall"
+## (devastated, Hall quarters) or "other".
 func kill(civ: Civilian, reason: String = "of unknown causes", cause: String = "other") -> void:
 	if not civilians.has(civ):
 		return
 	game.stats.count(village, "lost." + cause)
 	village.events.important("%s died %s" % [civ.label(), reason])
 	civilians.erase(civ)
-	if is_instance_valid(civ.hut) and civ.hut.resident == civ:
-		civ.hut.resident = null
+	_move_out(civ)
 	civ.kill()
 	village.sound("death")
 	civilian_died.emit(civ, reason, cause)
@@ -180,14 +202,13 @@ func retire_error(civ: Civilian) -> String:
 	return ""
 
 
-## `civ` leaves the village for good, freeing its hut (and its workplace).
+## `civ` leaves the village for good, freeing its home (and its workplace).
 func retire(civ: Civilian) -> void:
 	if retire_error(civ) != "":
 		return
 	village.events.info("%s retired and left the village" % civ.label())
 	civilians.erase(civ)
-	if is_instance_valid(civ.hut) and civ.hut.resident == civ:
-		civ.hut.resident = null
+	_move_out(civ)
 	civ.kill("retired")
 	civilian_lost.emit(civ)
 	changed.emit()

@@ -34,7 +34,7 @@ const FOUND_NAMES := {
 	"treasure": "treasures", "ruin": "ruined watchtowers", "mine": "mines", "camp": "monster camps",
 	"lair": "monster lairs", "unlock": "unlock sites",
 }
-const LOST_NAMES := {"enemies": "killed by enemies", "starved": "starved", "hut": "hut burned", "other": "other causes"}
+const LOST_NAMES := {"enemies": "killed by enemies", "starved": "starved", "hut": "hut burned", "hall": "town hall devastated", "other": "other causes"}
 
 static var _last_tab := "summary"
 static var _last_metric := 0

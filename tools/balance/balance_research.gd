@@ -4,9 +4,10 @@ extends BalancePart
 ## (Config.BALANCE_PROFILES; docs/balance-bot-design.md §3). Once the economy
 ## is steady (BalanceMarket.steady) it upgrades the town hall by the policy's
 ## "hall_levels". Of the advancements it could take now (every condition met
-## but the gold) it picks one at random, and waits until the gold covers it
+## but the price) it picks one at random, and waits until the gold covers it
 ## with "reserve" to spare beyond the army's (BALANCE_BOT "gold_reserve", the
-## next unit). It picks again after each advancement it takes and after each
+## next unit), its food with BALANCE_BOT "min_food" left to eat, and its
+## material (which it claims, as the economy's buildings do). It picks again after each advancement it takes and after each
 ## town hall level, never in between: a random player who sticks to a plan.
 ## Every pick and purchase is a decision (BalancePlayer.decide).
 
@@ -46,14 +47,21 @@ func think() -> void:
 			return
 		pick = can[randi() % can.size()]
 		picks.append({"t": snappedf(game.clock, 0.1), "wave": _wave(), "id": pick, "from": can})
-		p.decide("research", "picked %s (%d gold) out of %s" % [pick, _gold_of(pick), ", ".join(can)])
-	var need := float(_gold_of(pick)) + float(_spec.get("reserve", 0.0)) + float(_params["gold_reserve"]) + float(p.military.reserved_gold())
+		p.decide("research", "picked %s (%s) out of %s" % [pick, Config.cost_text(_cost_of(pick)), ", ".join(can)])
+	var cost := _cost_of(pick)
+	var gold := int(cost.get("gold", 0))
+	var need := float(gold) + float(_spec.get("reserve", 0.0)) + float(_params["gold_reserve"]) + float(p.military.reserved_gold())
 	if _gold() < need:
-		p.save_gold = maxi(p.save_gold, _gold_of(pick) + int(_spec.get("reserve", 0.0)))  # (unit upgrades wait for it)
+		p.save_gold = maxi(p.save_gold, gold + int(_spec.get("reserve", 0.0)))  # (unit upgrades wait for it)
+		return
+	if village.economy.amount("food") < float(cost.get("food", 0)) + float(_params["min_food"]):
+		return
+	if _materials() < float(cost.get("materials", 0)):
+		_claim({"materials": cost["materials"]})
 		return
 	if _cmd("research", {"id": pick})["ok"]:
-		started.append({"t": snappedf(game.clock, 0.1), "wave": _wave(), "id": pick, "gold": _gold_of(pick)})
-		p.decide("research", "researching %s for %d gold" % [pick, _gold_of(pick)])
+		started.append({"t": snappedf(game.clock, 0.1), "wave": _wave(), "id": pick, "gold": gold, "cost": cost})
+		p.decide("research", "researching %s for %s" % [pick, Config.cost_text(cost)])
 		pick = ""  # (the dice again once it is done: research is one at a time)
 
 
@@ -70,8 +78,8 @@ func candidates() -> Array[String]:
 	return out
 
 
-func _gold_of(id: String) -> int:
-	return int(Config.ADVANCEMENTS[id]["gold"])
+func _cost_of(id: String) -> Dictionary:
+	return Config.ADVANCEMENTS[id]["cost"]
 
 
 ## The town hall up to the policy's level for this wave, once the economy is

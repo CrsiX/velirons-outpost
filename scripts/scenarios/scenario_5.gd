@@ -313,7 +313,7 @@ func on_poll(r: ScenarioRunner) -> void:
 ## he waits by his tent until the player frees a hut (the "roof" objective).
 func _house_sigmund(r: ScenarioRunner) -> void:
 	var pop := r.game.population
-	if pop.free_huts().is_empty():
+	if pop.free_homes().is_empty():
 		var builders := pop.civilians.filter(func(c: Civilian) -> bool: return c.role == "builder" and not c.dead)
 		if builders.is_empty():
 			return
@@ -405,7 +405,7 @@ func death_text(civ: Civilian, reason: String) -> String:
 
 ## Sigmund is found and waits for a hut: none free, no builder to make room.
 func _sigmund_waits(r: ScenarioRunner) -> bool:
-	return r.mark.has("sigmund found") and not r.mark.has("sigmund in") and r.game.population.free_huts().is_empty() \
+	return r.mark.has("sigmund found") and not r.mark.has("sigmund in") and r.game.population.free_homes().is_empty() \
 		and not r.game.population.civilians.any(func(c: Civilian) -> bool: return c.role == "builder")
 
 

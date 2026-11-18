@@ -10,6 +10,8 @@ extends Tower
 ## "bench_from" its bench (HallBench, a one-bench barracks on its front tile)
 ## takes a unit too. A material may name it otherwise (PIECE_MATERIALS "hall":
 ## wood's is the Field Command, a war tent): display_name, name_in_text.
+## With the advancement Hall quarters it is a home for one villager
+## (`resident`, Village.hall_home), filled after the huts.
 
 ## Its door (grid, from its tile): the middle of its two front tiles, the long
 ## face the porch and the big door are drawn on (tools/art/buildings.py, town_hall).
@@ -18,6 +20,8 @@ const DOOR := Vector2(0.5, 1.0)
 
 ## Its bench (a post of its own for the army; made when the hall enters the world).
 var bench: HallBench
+## The villager living here (Hall quarters), or null.
+var resident: Civilian = null
 
 
 func setup(p_game: Game, p_kind: String, p_tile: Vector2i, p_complete: bool) -> void:
@@ -117,7 +121,7 @@ func can_garrison() -> bool:
 ## A watchtower's range at level "post_range_level"; no upgrades of its own.
 func range_tiles() -> float:
 	var r: float = Config.TOWER_RANGE["tower"] + Config.TOWER_LEVELS[int(Config.TOWN_HALL["post_range_level"]) - 1]["range_bonus"]
-	return r * (1.0 + village.relic_bonus("tower_range")) if village else r
+	return r * village.tower_range_factor() if village else r
 
 
 ## Never in the way, like a hut: villagers go in and out, and the corner
@@ -194,6 +198,10 @@ func info() -> Dictionary:
 			"action": func() -> void: game.command("upgrade_tower", {"building": nid}),
 		})
 	_research_info(lines, actions)
+	if is_instance_valid(resident) and not resident.dead:
+		lines.append("Home of a %s (%s)." % [resident.display_name().to_lower(), resident.status_text()])
+	elif village.hall_home() == self:
+		lines.append("Room for one villager, once every hut is taken.")
 	if not has_post() or devastated:
 		return d
 	lines.append("Tower post: range %.1f tiles" % range_tiles())
@@ -225,7 +233,7 @@ func _research_info(lines: Array[String], actions: Array[Dictionary]) -> void:
 		var a: Dictionary = Config.ADVANCEMENTS[r.current]
 		lines.append("Researching {adv:%s} %s: %d%%, %d s left%s" % [r.current, a["name"], int(100.0 * r.progress / float(a["time"])), ceili(r.time_left()), "  (paused: devastated)" if devastated else ""])
 		var back := r.cancel_refund()
-		actions.append({"label": "Cancel research (+%s)" % Config.cost_icons({"gold": back}) if back > 0 else "Cancel research",
+		actions.append({"label": "Cancel research (+%s)" % Config.cost_icons(back) if not back.is_empty() else "Cancel research",
 			"action": func() -> void: game.command("cancel_research")})
 	elif level < int(Config.ADVANCEMENT_TIERS[1]):
 		lines.append("Advancements: from town hall level %d." % int(Config.ADVANCEMENT_TIERS[1]))
