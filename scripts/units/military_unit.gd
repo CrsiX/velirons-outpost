@@ -273,29 +273,24 @@ func trained_share() -> float:
 
 
 ## Every way to upgrade it now: the next level of its own kind; from
-## BRANCH_MIN_LEVEL on, level 1 of each specialisation it branches into; a
-## spatial mage of ARCHMAGE_LEVEL, the Spatial Archmage (a civilian).
-## [{"to": kind, "level": 0-based, "cost": {}, "archmage": bool}]
+## BRANCH_MIN_LEVEL on, level 1 of each specialisation it branches into.
+## [{"to": kind, "level": 0-based, "cost": {}}]
 func upgrade_options() -> Array[Dictionary]:
 	var out_opts: Array[Dictionary] = []
 	if fixed():
 		return out_opts
 	if can_upgrade():
-		out_opts.append({"to": kind, "level": level + 1, "cost": upgrade_cost(), "archmage": false})
+		out_opts.append({"to": kind, "level": level + 1, "cost": upgrade_cost()})
 	if level + 1 >= Config.BRANCH_MIN_LEVEL and (village == null or village.game.allows_branches()):
 		for b in spec().get("branches", []):
 			var branch := Config.scaled_cost(Config.MILITARY[b]["branch_cost"], 1.0 - (village.adv_bonus("branch_cost") if village else 0.0))
-			out_opts.append({"to": b, "level": 0, "cost": branch, "archmage": false})
-	if spec().get("archmage", false) and level + 1 >= Config.ARCHMAGE_LEVEL:
-		out_opts.append({"to": "spatial_archmage", "level": 0, "cost": Config.ARCHMAGE_COST, "archmage": true})
+			out_opts.append({"to": b, "level": 0, "cost": branch})
 	return out_opts
 
 
 ## A short stat line for an upgrade option ("Archer 6: 27 damage, every 0.62 s").
 ## `factor`: the game's upkeep_factor, for what the option eats.
 static func option_text(opt: Dictionary, factor := 1.0) -> String:
-	if opt["archmage"]:
-		return "Spatial Archmage: leaves the army and becomes a civilian"
 	var k: String = opt["to"]
 	var lv: int = opt["level"]
 	var sp: Dictionary = Config.MILITARY[k]

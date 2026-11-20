@@ -1488,7 +1488,6 @@ func _run() -> void:
 	check(game.population.recruit_error("builder") != "", "recruiting is blocked at the cap")
 	game.economy.add("gold", 1000)
 	game.population.kill_random(1)
-	check(game.population.recruit_error("spatial_archmage") != "", "the Spatial Archmage cannot be recruited (only promoted)")
 	check(game.population.recruit("farmer") != null, "a freed hut place can be filled again")
 
 	# --- starvation ----------------------------------------------------------------------------

@@ -29,13 +29,13 @@ Each resource has a clear source and sink (`START_RESOURCES`, `CIVILIANS`, `BUIL
 
 - **Gold:** earned from enemies (kills at once, corpses brought home), calling a wave early,
   treasures, lairs and mines. Spent on military units and upgrades, military buildings, buying
-  material, the Spatial Archmage.
+  material.
 - **Food:** grown by farms (carried home by farmers), from corpses and some treasures. Spent
   on recruiting villagers and on upkeep of villagers and army.
 - **Material:** chopped by foresters, bought, refunded by tear-down and cancel, found in
   treasures. Spent on buildings, upgrades, repairs and rebuilding huts.
 
-- **Upkeep:** every villager eats (`FOOD_UPKEEP`), the miner and the Spatial Archmage too. The
+- **Upkeep:** every villager eats (`FOOD_UPKEEP`), the miner too. The
   army eats as well (§2a); the hero never.
 - **Emergency trading** (tap the food or the material counter, `EMERGENCY_TRADE`): gold for
   food or material with no marketplace, at a deliberately poor rate, an emergency valve rather
@@ -67,8 +67,7 @@ farms and defended farms.
   reserve, downed), so a unit can't be "parked" to save food. Scenario units that take no
   orders (druids, Fiona's mages) eat too. A unit sent to another village (co-op) eats from its
   sender until it joins the other army.
-- **Who doesn't:** the hero (it would punish playing her), summons, caravans. The Spatial
-  Archmage is a villager and eats as one.
+- **Who doesn't:** the hero (it would punish playing her), summons, caravans.
 - **Shown:** in the Army tab's recruit entries, the unit's, tower's and reserve's panels
   (`MilitaryUnit.food_lines`), each upgrade option and the library, so the cost of an upgrade
   is visible before it is paid.
@@ -99,7 +98,7 @@ farms and defended farms.
   The death is logged (Important) with a toast.
 - **Who starves first** (`Population.starve_victim`): the lowest tier present, at random
   within it:
-  1. ordinary villagers (no `given_name`), the miner and the Spatial Archmage included;
+  1. ordinary villagers (no `given_name`), the miner included;
   2. named villagers no objective needs;
   3. villagers the scenario needs (`Scenario.must_live`). One of them starving loses the
      scenario.
@@ -348,8 +347,8 @@ constants. The **trader** works the marketplace and sells what the player puts u
 at most one per village (`"max"`), and without a marketplace he idles like a farmer without a
 farm (docs/market-design.md). Roles that don't work from a recruit button: the **merchant**, **guild master**,
 **priest** and **princess** exist only in the campaign (docs/scenarios-4-6-design.md, scenarios-7-9-design.md; the last
-three are `Resident`s who stay home), the **miner** is locked until anyone walks up to a mine
-(`LOCKED.miner`), and the **Spatial Archmage** can't be recruited.
+three are `Resident`s who stay home), and the **miner** is locked until anyone walks up to a mine
+(`LOCKED.miner`).
 
 - **Every villager** has HP (`CIVILIAN_HP`) and heals at home (`CIVILIAN_REGEN`). The advancement
   Thick-skinned raises every villager's max HP, never the hero's (docs/advancements-design.md §6).
@@ -466,8 +465,6 @@ three are `Resident`s who stay home), the **miner** is locked until anyone walks
   stays inside, safe (no fleeing); one miner per mine, the first to arrive; still lives in a hut
   and dies with it. Income is `MINE_GOLD_RATE`. Safe from everything but a ghost hunting him: it
   drives him out (`Miner.drive_out`), he runs home unassigned (docs/enemies-design.md §10.13).
-- **Spatial Archmage:** a level 10 spatial mage becomes one (`ARCHMAGE_COST`, needs a free hut;
-  docs/military-design.md §7). Decoration for now.
 - **Code:** `Unit` → `Civilian` (evasion, HP, home); one class per role in scripts/units/; the
   shared jobs in scripts/units/jobs/.
 

@@ -2,7 +2,7 @@ extends "res://tests/bot_base.gd"
 ## Headless test of the military expansion (docs/military-design.md): the
 ## config's tech tree and curves, barracks (benches, sorties, upgrades),
 ## unit HP, downing and reviving, healing, every attack effect, fire
-## elementals, specialising and the Spatial Archmage, and the acolyte line
+## elementals, specialising, and the acolyte line
 ## (holy damage, the Inquisitor's hunt, the High Priest's aura; docs/acolyte-design.md),
 ## and the shield bearer's branches (the warrior's war cry, the berserker's
 ## rage and lifesteal, the halberdier against flyers; §3a). Run with:
@@ -601,7 +601,7 @@ func _test_effects() -> void:
 	check(home and sbeh.summons.is_empty(), "back on its bench, its summons are dismissed")
 
 
-# --- specialising, the upgrade dialog, the Spatial Archmage --------------------------------
+# --- specialising, the upgrade dialog -----------------------------------------------------
 
 func _test_branching() -> void:
 	var hud := game.hud
@@ -654,45 +654,6 @@ func _test_branching() -> void:
 	var gold_before := game.economy.amount("gold")
 	game.army.upgrade(tr)
 	check(gold_before - game.economy.amount("gold") == part and tr.train_xp == 0.0 and tr.upgrade_cost()["gold"] == Config.unit_upgrade_cost("archer", tr.level)["gold"], "the upgrade charges the rest and resets the training")
-	# Training at the grounds only levels up (no specialising): train() keeps the kind.
-	var sp := game.army.recruit("apprentice")
-	sp.level = Config.BRANCH_MIN_LEVEL - 1
-	game.army.upgrade(sp, "spatial_mage")
-	sp.level = Config.ARCHMAGE_LEVEL - 1
-	check(sp.upgrade_options().any(func(o: Dictionary) -> bool: return o["archmage"]), "a level %d spatial mage can become the Spatial Archmage" % Config.ARCHMAGE_LEVEL)
-	# Needs a free hut.
-	while game.population.free_homes().size() > 0 and game.population.recruit("farmer") != null:
-		pass
-	var no_hut := game.army.archmage_error(sp)
-	check(game.population.free_homes().is_empty() == (no_hut == "The Spatial Archmage needs a free home"), "the Spatial Archmage needs a free home")
-	if game.population.free_homes().is_empty():
-		game.population.kill_random(1)
-		await frames(2)
-	game.economy.add("gold", 1000)
-	hud.open_upgrade(sp)
-	await frames(2)
-	var arch_btn: Button = null
-	for n in hud._upgrade_options.find_children("*", "Button", true, false):
-		if "Archmage" in Hud.button_text(n as Button):
-			arch_btn = n
-	check(arch_btn != null, "the dialog offers the Spatial Archmage")
-	if arch_btn:
-		await tap(arch_btn)
-		await frames(2)
-	check(hud._confirm_panel.visible and "600" in Hud.button_text(hud._confirm_yes), "it asks for confirmation first (600 gold)")
-	var gold_kept := game.economy.amount("gold")
-	game.economy.spend({"gold": gold_kept - (Config.ARCHMAGE_COST["gold"] - 1)})
-	await frames(2)
-	var no_gold := hud._confirm_yes.disabled
-	game.economy.add("gold", gold_kept - game.economy.amount("gold"))
-	await frames(2)
-	check(no_gold and not hud._confirm_yes.disabled, "short of gold its OK is greyed out, and turns on once the gold is there")
-	var g0 := game.economy.amount("gold")
-	check(on_screen(hud._confirm_panel), "the confirmation fits on screen")
-	await tap(hud._confirm_yes)
-	await frames(3)
-	check(not game.army.units.has(sp) and game.population.count("spatial_archmage") == 1, "confirmed: the mage leaves the army, the Spatial Archmage moves into a hut")
-	check(g0 - game.economy.amount("gold") == Config.ARCHMAGE_COST["gold"], "for 600 gold")
 
 
 # --- the acolyte line: holy damage, the Inquisitor, the High Priest ---------------------------

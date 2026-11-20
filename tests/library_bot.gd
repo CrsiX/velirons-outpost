@@ -74,7 +74,7 @@ func _pages() -> void:
 	check("specialisation of the Apprentice" in _facts("units", "Fire Mage"), "fire mage: an apprentice's specialisation")
 	check(("%s tiles" % Library._n(Config.TOWER_RANGE["tower"])) in _facts("buildings", "Watchtower"), "watchtower: its range")
 	check("3 benches" in _facts("buildings", "Barracks"), "barracks: its levels")
-	check("found first" in _facts("villagers", "Miner") and "Can't be recruited" in _facts("villagers", "Spatial Archmage"), "miner locked, archmage not recruited")
+	check("found first" in _facts("villagers", "Miner"), "miner locked")
 	check(("%d XP for level 2" % Config.hero_level_cost(0)) in _facts("hero", "Hero"), "hero: level cost")
 	var lair := _facts("places", "Monster lair")
 	check(("wave %d" % Config.LAIR_FROM_WAVE) in lair and "Crypt" in lair, "lairs: their wave and kinds\n%s" % lair)

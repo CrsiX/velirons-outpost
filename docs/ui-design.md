@@ -247,8 +247,8 @@ under it.
     on the map (docs/siege-design.md §7).
 - **Upgrade dialog** (`Hud.open_upgrade`): one button per `MilitaryUnit.upgrade_options()`, so the
   dialog and the rules can't disagree about what is offered.
-- **Confirmations** (`Hud._confirm_panel`): used where an action can't be undone cheaply (the Spatial
-  Archmage, retiring a villager). The confirm button is red when dangerous; Cancel is always there.
+- **Confirmations** (`Hud._confirm_panel`): used where an action can't be undone cheaply (retiring a
+  villager, leaving a game). The confirm button is red when dangerous; Cancel is always there.
 - **Buttons that cost something follow the resources while their popup is open:** what can't be paid
   is greyed out and turns on as soon as enough is earned. A dialog that only checked the money when
   it opened would make the player close and reopen it. The refresh paths are `Hud._refresh_dialogs`

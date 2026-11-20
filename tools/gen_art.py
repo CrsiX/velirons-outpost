@@ -42,11 +42,11 @@ from art.terrain import (
 )
 from art.trees import tree_dead, tree_oak, tree_pine, tree_spruce
 from art.units import (
-    acolytes, archer, archmage, builder, caravans, crossbowman, druid, earth_elemental,
+    acolytes, archer, builder, caravans, crossbowman, druid, earth_elemental,
     eldest_priest_person, explorer, farmer, fire_elemental, fire_summoner, forester, gatherer,
     guild_master, herald, hero, legion_archer, legion_banner, legion_captain, legion_champion,
     legion_footman, legion_guard, legion_king, legion_marshal, mages, merchant, priest_person,
-    princess, projectiles, shield_bearer, shield_bearer_branches, spatial_archmage, summoner,
+    princess, projectiles, shield_bearer, shield_bearer_branches, summoner,
     swiftbowman, thornling, trade_carts, trader,
 )
 from art.village import village_pieces_materials
@@ -114,7 +114,6 @@ def main():
     builder()
     farmer()
     explorer()
-    archmage()
     archer()
     goblin()
     rat()
@@ -146,7 +145,6 @@ def main():
     fire_elemental()
     mages()
     acolytes()
-    spatial_archmage()
     projectiles()
     for lv in (1, 2, 3):
         barracks(lv)

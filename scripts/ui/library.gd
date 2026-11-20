@@ -646,8 +646,6 @@ static func _units() -> Array[Dictionary]:
 			for b: String in m["branches"]:
 				names.append(str(Config.MILITARY[b]["name"]))
 			f.append("From level %d it can become: %s" % [Config.BRANCH_MIN_LEVEL, ", ".join(names)])
-		if m.get("archmage", false):
-			f.append("At level %d it can become the %s, for %s" % [Config.ARCHMAGE_LEVEL, Config.CIVILIANS["spatial_archmage"]["name"], Config.cost_text(Config.ARCHMAGE_COST)])
 		out.append({"name": m["name"], "art": "unit_" + kind, "text": m["desc"], "facts": f})
 	for s: String in Config.SUMMONS:
 		var sp: Dictionary = Config.SUMMONS[s]

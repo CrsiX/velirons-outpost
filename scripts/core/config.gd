@@ -1279,12 +1279,6 @@ const CIVILIANS := {
 		"desc": "The old king's daughter holds her court in her house and never leaves it. She dies if it burns.",
 		"stays_home": "holding her court",
 	},
-	# Can't be recruited: a spatial mage of level ARCHMAGE_LEVEL becomes one
-	# (docs/military-design.md §7). A key to ending the siege, later.
-	"spatial_archmage": {
-		"name": "Spatial Archmage", "cost": {}, "speed": 0.6, "recruit": false,
-		"desc": "Only a level %d spatial mage can become one. May one day break the siege of Veliron." % ARCHMAGE_LEVEL,
-	},
 }
 ## The role that works at buildings of `kind` ("" if none), from "works_at".
 static func worker_role(kind: String) -> String:
@@ -1294,7 +1288,7 @@ static func worker_role(kind: String) -> String:
 	return ""
 
 
-const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "trader", "merchant", "guildmaster", "priest", "princess", "spatial_archmage"]
+const CIVILIAN_ORDER: Array[String] = ["builder", "farmer", "forester", "explorer", "gatherer", "miner", "trader", "merchant", "guildmaster", "priest", "princess"]
 ## Unit kinds and villager roles that have to be unlocked first, and how
 ## (docs/world-design.md §9.4, §9.6). Unlocks are global: for every village.
 const LOCKED := {"summoner": "stone_circle", "apprentice": "mage_tower", "acolyte": "chapel", "miner": "mine"}
@@ -1590,9 +1584,6 @@ const TARGETING_GROUP_RADIUS := 1.5
 const MAX_UNIT_LEVEL := 10
 ## From this level a base unit can also turn into level 1 of a specialisation.
 const BRANCH_MIN_LEVEL := 3
-## A spatial mage of this level can become the Spatial Archmage (a civilian).
-const ARCHMAGE_LEVEL := 10
-const ARCHMAGE_COST := {"gold": 600}
 ## Seconds a downed unit needs to come back: level 1 / level 10 (linear between).
 const UNIT_REVIVE_TIME := [30.0, 45.0]
 ## HP per second a unit heals on a barracks bench, or unused in the reserve.
@@ -1721,10 +1712,9 @@ const MILITARY := {
 		"name": "Spatial Mage", "role": "ranged", "posts": ["tower", "barracks"], "recruit": false,
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "warp", "range": 2.8,
-		"desc": "An apprentice's damage, and the enemy hit is thrown back along its road. At level %d it can become the Spatial Archmage." % ARCHMAGE_LEVEL,
+		"desc": "An apprentice's damage, and the enemy hit is thrown back along its road.",
 		"stats": {"hp": [29.0, 65.0], "damage": [16.0, 42.0], "cooldown": [0.95, 0.55], "push": [1.5, 4.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
-		"archmage": true,
 	},
 	"acolyte": {
 		"name": "Acolyte", "role": "ranged", "posts": ["tower", "barracks"], "recruit": true,

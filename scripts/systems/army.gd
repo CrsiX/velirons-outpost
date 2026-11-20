@@ -427,7 +427,7 @@ func upgrade_error(unit: MilitaryUnit, to: String = "") -> String:
 		return "Not now: it's downed or away"
 	var kind := unit.kind if to == "" else to
 	for opt in unit.upgrade_options():
-		if opt["to"] == kind and not opt["archmage"]:
+		if opt["to"] == kind:
 			if not village.economy.can_afford(opt["cost"]):
 				return "Not enough gold"
 			return ""
@@ -472,44 +472,6 @@ func _set_level(unit: MilitaryUnit, kind: String, level: int) -> void:
 	unit.hp = unit.max_hp() * maxf(ratio, 0.0) if unit.is_downed() else unit.max_hp()
 	if is_instance_valid(unit.post):
 		unit.post.refresh()
-
-
-## "" if `unit` (a spatial mage of ARCHMAGE_LEVEL) can become the Spatial
-## Archmage now, else why not.
-func archmage_error(unit: MilitaryUnit) -> String:
-	if unit == null or not unit.upgrade_options().any(func(o: Dictionary) -> bool: return o["archmage"]):
-		return "Only a level %d spatial mage can become the Spatial Archmage" % Config.ARCHMAGE_LEVEL
-	if not unit.is_available():
-		return "Not now: it's downed or away"
-	if village.population.free_homes().is_empty():
-		return "The Spatial Archmage needs a free home"
-	if not village.economy.can_afford(Config.ARCHMAGE_COST):
-		return "Not enough gold"
-	return ""
-
-
-## The spatial mage leaves the army for good and moves into a hut as the
-## Spatial Archmage, a civilian.
-func promote_archmage(unit: MilitaryUnit) -> Civilian:
-	if archmage_error(unit) != "":
-		return null
-	village.economy.spend(Config.ARCHMAGE_COST, "upgrades")
-	match unit.state:
-		MilitaryUnit.State.STATIONED:
-			_leave_post(unit)
-		MilitaryUnit.State.MARCHING:
-			_free_reservation(unit)
-	if is_instance_valid(unit.walker):
-		unit.walker.queue_free()
-	unit.walker = null
-	units.erase(unit)
-	game.unregister(unit.nid)
-	var civ := village.population.spawn("spatial_archmage")
-	village.events.info("%s has become the Spatial Archmage" % unit.label().capitalize())
-	game.world.float_text("The Spatial Archmage!", Iso.tile_to_world(village.center) + Vector2(0, -60), Color("c9a8ff"))
-	village.sound("build")
-	changed.emit()
-	return civ
 
 
 # --- bodies --------------------------------------------------------------------------------

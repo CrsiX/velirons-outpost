@@ -492,7 +492,6 @@ func _test_teardown() -> void:
 	game.select(b)
 	check(is_equal_approx(game.world.overlay._range, b.activation_range()) and game.world.overlay._range_center == b.act_center(), "a selected barracks shows its range (%.1f)" % b.activation_range())
 	game.deselect()
-	check(not game.hud._recruit_rows.has("spatial_archmage"), "the Spatial Archmage isn't in the Village tab")
 
 
 ## A spot for `kind` near `near` with open ground all round it (trees may

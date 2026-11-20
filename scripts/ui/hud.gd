@@ -1940,7 +1940,7 @@ func _build_page_village() -> Control:
 	for role in Config.CIVILIAN_ORDER:
 		var spec: Dictionary = Config.CIVILIANS[role]
 		if not spec.get("recruit", true):
-			continue  # (the Spatial Archmage: promoted from the Army tab)
+			continue  # (the priest and the princess come with their scenarios)
 		var action := "Recruit  (%s)" % Config.cost_icons(spec["cost"])
 		var e := _entry(Art.tex("unit_" + role), spec["name"], spec["desc"], action, _recruit.bind(role))
 		grid.add_child(e["panel"])
@@ -2863,7 +2863,7 @@ func _refresh_send() -> void:
 	_send_unit_go.disabled = _selected_unit == null or _send_unit_target < 0
 
 
-# --- unit upgrades: next level, specialisations, the Spatial Archmage ----------------------
+# --- unit upgrades: next level, specialisations --------------------------------------------
 
 ## The upgrade dialog for `unit`: one button per option (MilitaryUnit.upgrade_options).
 func open_upgrade(unit: MilitaryUnit) -> void:
@@ -2875,16 +2875,13 @@ func open_upgrade(unit: MilitaryUnit) -> void:
 		c.queue_free()
 	for opt in unit.upgrade_options():
 		# (a wrapping button needs a width to wrap in, or it measures one word per line)
-		var trained := ", %d%% trained" % floori(100.0 * unit.trained_share()) if opt["to"] == unit.kind and not opt["archmage"] and unit.train_xp > 0.0 else ""
+		var trained := ", %d%% trained" % floori(100.0 * unit.trained_share()) if opt["to"] == unit.kind and unit.train_xp > 0.0 else ""
 		var b := _button("%s   (%s%s)" % [MilitaryUnit.option_text(opt, MilitaryUnit.upkeep_factor(game)), Config.cost_icons(opt["cost"]), trained], Vector2(_upgrade_width(), 52))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", 15)
 		b.set_meta("cost", opt["cost"])
 		b.disabled = not game.economy.can_afford(opt["cost"]) or not unit.is_available()
-		if opt["archmage"]:
-			b.add_theme_color_override("font_color", Color("d8c0ff"))
-			b.pressed.connect(func() -> void: _ask_archmage(unit))
-		elif opt["to"] != unit.kind:
+		if opt["to"] != unit.kind:
 			UiTheme.style_primary(b)
 			var to: String = opt["to"]
 			b.pressed.connect(func() -> void: _pick_upgrade(unit, to))
@@ -2916,19 +2913,6 @@ func _pick_upgrade(unit: MilitaryUnit, to: String) -> void:
 	if _do("upgrade_unit", {"unit": unit.nid, "to": to})["ok"]:
 		_upgrade_panel.visible = false
 		_queue_refresh()
-
-
-## The Spatial Archmage leaves the army for good: ask first.
-func _ask_archmage(unit: MilitaryUnit) -> void:
-	_ask("Spatial Archmage", Color("d8c0ff"), "This %s will leave your army for good and move into a hut as the Spatial Archmage, a civilian. Continue?" % unit.display_name().to_lower(),
-		"Become the Spatial Archmage  (%s)" % Config.cost_icons(Config.ARCHMAGE_COST), false, func() -> void:
-		if _do("promote_archmage", {"unit": unit.nid})["ok"]:
-			toast("The Spatial Archmage moves into a hut", Color("d8c0ff"))
-			_confirm_panel.visible = false
-			_upgrade_panel.visible = false
-			_selected_unit = null
-			_queue_refresh(),
-		func() -> bool: return game.economy.can_afford(Config.ARCHMAGE_COST))
 
 
 ## A villager leaves for good, freeing its hut: ask first.

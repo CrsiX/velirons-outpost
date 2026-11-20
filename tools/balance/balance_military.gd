@@ -417,7 +417,7 @@ func _unit_upgrades() -> void:
 		var to := _upgrade_choice(u)
 		if to == "<none>":
 			continue
-		var opts := u.upgrade_options().filter(func(o: Dictionary) -> bool: return o["to"] == to and not o["archmage"])
+		var opts := u.upgrade_options().filter(func(o: Dictionary) -> bool: return o["to"] == to)
 		if opts.is_empty():
 			continue
 		var cost: Dictionary = opts[0]["cost"]

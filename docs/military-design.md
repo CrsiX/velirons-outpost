@@ -1,10 +1,10 @@
 # Veliron's Outpost: military expansion (design)
 
 Status: **built** (decisions in §12 confirmed). Piercing (crossbowman) waits for shielded enemies.
-Scope: why units, levels, HP and downing, barracks, the tech tree of specialisations and the
-Spatial Archmage work as they do. Every number (stats, costs, ranges, timers, curves) lives in
+Scope: why units, levels, HP and downing, barracks and the tech tree of specialisations work as
+they do. Every number (stats, costs, ranges, timers, curves) lives in
 `scripts/core/config.gd` (`MILITARY`, `ATTACKS`, `SUMMONS`, `SUMMON`, `BARRACKS_LEVELS`,
-`UNIT_REVIVE_TIME`, `UNIT_REGEN`, `SORTIE_LEASH`, `ARCHMAGE_*`, `TOWER_RANGE`,
+`UNIT_REVIVE_TIME`, `UNIT_REGEN`, `SORTIE_LEASH`, `TOWER_RANGE`,
 `TOWER_LEVELS`) and is not repeated here; the docs/library page reads it from there.
 
 ## 1. Summary
@@ -28,8 +28,6 @@ Spatial Archmage work as they do. Every number (stats, costs, ranges, timers, cu
   **level 1 of a specialised unit** (the full tree is §2).
 - **Specialising never costs strength at the branch point:** a specialisation's level 1 is at
   least as strong as its base unit's level 3 (§3).
-- **Spatial Archmage:** at max level a spatial mage can become one. The unit leaves the army and
-  becomes a **civilian**; meant as a key piece of the game's future ending.
 
 ## 2. Tech tree
 
@@ -50,9 +48,6 @@ Apprentice ─────────┬──────►  Fire Mage       
   (ranged)          ├──────►  Ice Mage         (slows the target)
                     ├──────►  Healing Mage     (heals allies around it, no damage)
                     └──────►  Spatial Mage     (throws the target back)
-                                   │ level >= ARCHMAGE_LEVEL
-                                   ▼
-                              Spatial Archmage (becomes a CIVILIAN)
 
 Acolyte ────────────┬──────►  Inquisitor       (holy melee, barracks only)
   (ranged, holy)    └──────►  High Priest      (support: damage aura)
@@ -62,8 +57,7 @@ Acolyte ────────────┬──────►  Inquisitor
   own kind (paid in gold) and level 1 of each specialisation it branches into, for that
   specialisation's `branch_cost`. Example: archer 5 → archer 6, crossbowman 1 or swiftbowman 1.
   The branch is a real choice: it resets the level but opens a different role.
-- Specialised units level up like any unit and have no further branches, except the spatial
-  mage.
+- Specialised units level up like any unit and have no further branches.
 - Only the five base units (`MILITARY_ORDER`) can be recruited; specialisations come only from
   upgrades. The summoner, apprentice and acolyte must be unlocked first (`LOCKED`,
   docs/world-objects-design.md §9.4).
@@ -87,8 +81,8 @@ stats are in `Config.MILITARY` (the library shows them). Each unit's role in the
   along its road, away from the village, the same enemy only once per immunity window
   (`push_immunity`) so it can't be pinned in place.
 - **Acolyte line:** docs/acolyte-design.md.
-- **Spatial Archmage:** a civilian (from spatial mage at max level; lives in a hut; role in the
-  ending TBD).
+- A **Spatial Archmage** (a max-level spatial mage turning into a civilian) existed once; commit
+  `8397174` still had it.
 
 **The specialisation rule.** Upgrading a level 3 base unit into level 1 of a specialisation never
 lowers its HP or DPS: every specialisation's level 1 is at least as strong as its base unit's
@@ -294,7 +288,7 @@ branch price. Their level 1 is above the shield bearer's level 3 (the rule in §
   per unit kind for every tower, or a switch per tower (`Targeting`, docs/advancements-design.md
   §5); barracks sorties keep the default.
 
-## 7. Upgrading and the Spatial Archmage
+## 7. Upgrading
 
 - **Upgrade dialog.** *Upgrade* opens a small dialog with one button per option, from the reserve
   or from a unit's panel on its post. Each button shows the cost and the option's name, level and
@@ -307,15 +301,6 @@ branch price. Their level 1 is above the shield bearer's level 3 (the rule in §
   once (`Soldier.refresh_kind`; co-op clients too).
 - **Training grounds:** the hero can train a unit to its next level within its own kind only.
   Specialising always costs gold: training can't make a branch decision for the player.
-- **Spatial Archmage** (spatial mage at `ARCHMAGE_LEVEL`):
-  - The option says the unit "leaves the army and becomes a civilian" and asks for confirmation,
-    because it is irreversible.
-  - It needs a **free hut** and costs `ARCHMAGE_COST`. The unit is removed from the army, post and
-    reserve, and an archmage civilian moves into the hut.
-  - It can't be recruited (`"recruit": false` in `CIVILIANS`), so the Village tab doesn't list it;
-    its library entry says only a max-level spatial mage can become one.
-  - For now it is decoration: it strolls around the village walls, eats, and counts as a villager.
-    Its role in the ending comes later.
 
 ## 8. Config layout (`config.gd`)
 
@@ -360,7 +345,6 @@ art is in docs/acolyte-design.md.
 | D6 | Summoners in barracks | **Yes.** They step outside and summon there; enemies can attack both the summons and the summoner, which can go down. Summoners have little HP and no attack of their own |
 | D7 | Healing mage | Works from **towers and barracks** (from barracks when the barracks turn out for nearby enemies). Heals field units of any village and all heroes; not summons, not villagers |
 | D8 | Training into a specialisation | **No**, training only raises levels |
-| D9 | Spatial Archmage | Needs a **free hut** and gold (`ARCHMAGE_COST`), and asks for **confirmation** |
 | D10 | Own ranges | All below the smallest tower range, so towers always outreach sorties |
 | D11 | Barracks | As in §5 |
 | D12 | Sortie rules | As in §5 |

@@ -55,7 +55,6 @@ const HANDLERS := {
 	"send_caravan": "_send_caravan",
 	"send_unit": "_send_unit",
 	"hero_support": "_hero_support",
-	"promote_archmage": "_promote_archmage",
 	"attack_camp": "_attack_camp",
 	"restore_ruin": "_restore_ruin",
 	"assign_miner": "_assign_miner",
@@ -92,7 +91,7 @@ func submit(village: Village, type: String, args: Dictionary = {}) -> Dictionary
 ## A unit that takes no orders (MilitaryUnit.fixed: a grove's druid) that
 ## a unit command of `type` names, or null.
 func _fixed_unit(type: String, args: Dictionary) -> MilitaryUnit:
-	if not type in ["upgrade_unit", "station_unit", "withdraw_unit", "move_unit", "swap_units", "send_unit", "promote_archmage"]:
+	if not type in ["upgrade_unit", "station_unit", "withdraw_unit", "move_unit", "swap_units", "send_unit"]:
 		return null
 	for key in ["unit", "other"]:
 		var u = game.entity(int(args.get(key, 0)))
@@ -464,18 +463,6 @@ func _upgrade_unit(v: Village, a: Dictionary) -> Dictionary:
 		return fail(err)
 	v.army.upgrade(u, to)
 	return ok()
-
-
-## A spatial mage of ARCHMAGE_LEVEL leaves the army as the Spatial Archmage (a civilian).
-func _promote_archmage(v: Village, a: Dictionary) -> Dictionary:
-	var u := _unit(v, a)
-	if u == null:
-		return fail("That isn't your unit")
-	var err := v.army.archmage_error(u)
-	if err != "":
-		return fail(err)
-	var civ := v.army.promote_archmage(u)
-	return ok({"uid": civ.uid}) if civ else fail("It didn't work")
 
 
 func _station_unit(v: Village, a: Dictionary) -> Dictionary:

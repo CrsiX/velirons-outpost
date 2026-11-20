@@ -56,21 +56,6 @@ def explorer():
     person("unit_explorer", ("#3a4a44", "#2c3934"), hood="#34453f", extra=extra)
 
 
-def archmage():
-    def extra(a, layer):
-        if layer == "front":
-            a.line([(10, 0), (10, -44)], INK, 3.4)
-            a.line([(10, 0), (10, -44)], "#3a2c22", 1.8)
-            a.ellipse(10, -47, 4.2, 4.2, "#b88cff", INK, 1.2)
-            a.ellipse(10, -47, 9, 9, "#9a6cff", opacity=0.3)
-            a.raw('<path d="M-3,-30 Q0,-18 3,-30 Z" fill="#cfcfcf" stroke="%s" stroke-width="1"/>' % INK, [(-4, -31), (4, -18)])
-
-    def hat(a):
-        a.raw('<path d="M-9,-36 L9,-36 L2,-40 L-3,-58 L-4,-40 Z" fill="#2e2442" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-10, -59), (10, -35)])
-        a.ellipse(-3, -58, 1.6, 1.6, GOLD)
-    person("unit_archmage", ("#3a2d55", "#2a2040"), hat=hat, robe=True, extra=extra)
-
-
 def archer():
     def extra(a, layer):
         if layer == "back":
@@ -867,27 +852,6 @@ def acolytes():
         a.line([(0, -51), (0, -37)], GOLD, 1.6)
         a.line([(-6, -37.5), (6, -37.5)], GOLD, 1.6)
     person("unit_high_priest", ("#f0ead8", "#d4ccb6"), hat=mitre, robe=True, extra=priest)
-
-
-def spatial_archmage():
-    """Civilian: robed in violet and gold, a rune halo floating above the head."""
-    def extra(a, layer):
-        if layer == "back":
-            a.ellipse(0, -48, 13, 4.5, "none", "#c89cff", 1.6)
-            for k in range(6):
-                ang = k * math.pi / 3
-                a.ellipse(math.cos(ang) * 13, -48 + math.sin(ang) * 4.5, 1.5, 1.5, GOLD)
-        else:
-            a.poly([(-7, -26), (7, -26), (5, -12), (-5, -12)], "none", GOLD, 1.2)
-            a.line([(10, 0), (10, -46)], INK, 3.4)
-            a.line([(10, 0), (10, -46)], "#2a1a40", 1.8)
-            a.ellipse(10, -49, 5, 5, "#b08ae0", INK, 1.2)
-            a.ellipse(10, -49, 10, 10, "#b08ae0", opacity=0.3)
-
-    def hood(a):
-        a.raw('<path d="M-7,-30 Q-8,-43 0,-43 Q8,-43 7,-34 L4,-36 Q0,-40 -4,-36 Q-5,-33 -5,-28 Z" fill="#3a2458" stroke="%s" stroke-width="1.3" stroke-linejoin="round"/>' % INK, [(-8, -44), (8, -28)])
-        a.line([(-6, -37), (6, -39)], GOLD, 1.2)
-    person("unit_spatial_archmage", ("#4a3070", "#3a2458"), hat=hood, robe=True, extra=extra)
 
 
 def projectiles():
