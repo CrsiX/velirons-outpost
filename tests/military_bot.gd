@@ -608,27 +608,38 @@ func _test_branching() -> void:
 	game.economy.add("gold", 3000)
 	var ap := game.army.recruit("apprentice")
 	check(ap.upgrade_options().size() == 1, "a level 1 apprentice can only level up")
+	var dlg: UpgradeDialog = hud.upgrade_dialog
+	hud.open_upgrade(ap)
+	await frames(2)
+	var locked: Array = dlg.cards.filter(func(c: Dictionary) -> bool: return c["locked"])
+	check(dlg.visible and dlg.cards.size() == 5 and locked.size() == 4 and dlg.title.text == "Apprentice 1", "level 1: the level-up and the four mages, greyed out under a lock (%s)" % dlg.title.text)
+	check(locked.all(func(c: Dictionary) -> bool: return (c["buy"] as Button).disabled and (c["picture"] as Button).disabled and Hud.button_text(c["buy"]) == "After level %d" % Config.BRANCH_MIN_LEVEL), "their buttons say \"After level %d\" and do nothing" % Config.BRANCH_MIN_LEVEL)
+	check(Hud.button_text(dlg.cards[0]["buy"]).begins_with("+1 level  -") and not (dlg.cards[0]["buy"] as Button).disabled, "the level-up comes first: \"%s\"" % Hud.button_text(dlg.cards[0]["buy"]))
+	var lvl_facts := UpgradeDialog.fact_lines(UpgradeDialog.facts("apprentice", 0, ap.upgrade_options()[0]))
+	check(lvl_facts.size() >= 2 and lvl_facts.all(func(t: String) -> bool: return t.begins_with("+")), "a level-up shows what it adds (%s)" % ", ".join(lvl_facts))
+	var fire_facts := UpgradeDialog.fact_lines(UpgradeDialog.facts("apprentice", 0, {"to": "fire_mage", "level": 0, "cost": {}}))
+	check(not fire_facts[0].begins_with("+") and "deals fire AoE" in fire_facts, "a specialisation shows its own level 1 and its short description (%s)" % ", ".join(fire_facts))
+	var heal_facts := UpgradeDialog.fact_lines(UpgradeDialog.facts("apprentice", 2, {"to": "healing_mage", "level": 0, "cost": {}}))
+	var priest_facts := UpgradeDialog.fact_lines(UpgradeDialog.facts("acolyte", 2, {"to": "high_priest", "level": 0, "cost": {}}))
+	check(heal_facts.any(func(t: String) -> bool: return t.begins_with("heals allies ") and t.ends_with("{hp}/s")) and not "heals allies" in Config.MILITARY["healing_mage"]["short_desc"], "the healing mage: \"heals allies N {hp}/s\", one line (%s)" % ", ".join(heal_facts))
+	check(priest_facts[0].begins_with("buffs allies +") and priest_facts[0].ends_with("% {dmg}"), "the High Priest: \"%s\"" % priest_facts[0])
 	ap.level = Config.BRANCH_MIN_LEVEL - 1
 	var kinds: Array = ap.upgrade_options().map(func(o: Dictionary) -> String: return o["to"])
 	check(kinds == ["apprentice", "fire_mage", "ice_mage", "healing_mage", "spatial_mage"], "from level %d: level up or one of four mages" % Config.BRANCH_MIN_LEVEL)
-	hud.open_upgrade(ap)
-	await frames(2)
-	check(hud._upgrade_panel.visible and hud._upgrade_options.get_child_count() >= 5, "the upgrade dialog lists every option")
-	check(on_screen(hud._upgrade_panel), "the dialog fits on screen (%s)" % hud._upgrade_panel.get_global_rect())
-	var ice_btn: Button = null
-	for n in hud._upgrade_options.find_children("*", "Button", true, false):
-		if "Ice Mage" in Hud.button_text(n as Button):
-			ice_btn = n
-	check(ice_btn != null, "with the ice mage among them")
-	# Too poor while it's open: greyed out; gold earned meanwhile turns it on (also the trade dialog's buttons).
+	await wait_until(func() -> bool: return not dlg.cards[1]["locked"], 2.0)  # (it follows the unit every quarter second)
+	check(dlg.cards.size() == 5 and dlg.cards.all(func(c: Dictionary) -> bool: return not c["locked"]) and dlg.title.text == "Apprentice %d" % Config.BRANCH_MIN_LEVEL, "reaching level %d while it's open unlocks them" % Config.BRANCH_MIN_LEVEL)
+	check(on_screen(dlg), "the dialog fits on screen (%s)" % dlg.get_global_rect())
+	var ice: Dictionary = dlg.cards.filter(func(c: Dictionary) -> bool: return c["to"] == "ice_mage")[0]
+	# Too poor while it's open: greyed out, the price red; gold earned meanwhile turns it on (also the trade dialog's buttons).
 	var gold_had := game.economy.amount("gold")
-	var ice_cost := int(ap.upgrade_options().filter(func(o: Dictionary) -> bool: return o["to"] == "ice_mage")[0]["cost"]["gold"])
+	var ice_cost := int(ice["cost"]["gold"])
 	game.economy.spend({"gold": gold_had - (ice_cost - 1)})
 	await frames(2)
-	var poor := ice_btn != null and ice_btn.disabled
+	var ice_btn: Button = ice["buy"]
+	var poor := ice_btn.disabled and (ice["picture"] as Button).disabled and (ice_btn.get_node("Rich") as RichTextLabel).get_theme_color("default_color") == UiTheme.BAD
 	game.economy.add("gold", 1, "kills")
 	await frames(2)
-	check(poor and ice_btn != null and not ice_btn.disabled and hud._upgrade_panel.visible, "too little gold: the option is greyed out; gold earned while the dialog is open turns it on")
+	check(poor and not ice_btn.disabled and dlg.visible, "too little gold: the option is greyed out, its price red; gold earned while the dialog is open turns it on")
 	var five: int = int(Config.EMERGENCY_TRADE["materials"]["gold"]) * 5
 	game.economy.spend({"gold": game.economy.amount("gold") - (five - 1)})
 	await frames(2)
@@ -637,11 +648,73 @@ func _test_branching() -> void:
 	await frames(2)
 	check(trade_off and not hud._trade_buttons[1].disabled, "the trade dialog's buttons follow the gold too")
 	game.economy.add("gold", gold_had - game.economy.amount("gold"))
-	await frames(2)  # (the dialog's buttons follow the gold back)
-	if ice_btn:
-		await tap(ice_btn)
-		await frames(2)
-	check(ap.kind == "ice_mage" and ap.level == 0 and not hud._upgrade_panel.visible, "picking it makes an ice mage, level 1")
+	await frames(2)
+	# "?": the library on its units tab, the dialog still open behind it.
+	await tap(ice["help"])
+	await frames(2)
+	check(hud.library.visible and hud.library.tab == "units" and dlg.visible, "\"?\" opens the library on the units tab, the dialog stays open")
+	hud.library.close()
+	await frames(2)
+	# A level-up with gold for more: it stays open, now for the next level.
+	var lv := ap.level
+	await tap(dlg.cards[0]["buy"])
+	await frames(2)
+	check(ap.level == lv + 1 and dlg.visible and dlg.title.text == "Apprentice %d" % (lv + 2), "a level-up with gold left for more: the dialog stays, now for level %d" % (lv + 2))
+	await tap(dlg.cards.filter(func(c: Dictionary) -> bool: return c["to"] == "ice_mage")[0]["picture"])
+	await frames(2)
+	check(ap.kind == "ice_mage" and ap.level == 0 and dlg.visible and dlg.cards.size() == 1 and dlg.title.text == "Ice Mage 1", "its picture upgrades too: an ice mage 1, and the dialog offers its level 2")
+	# Only enough for one: it closes after it.
+	game.economy.spend({"gold": game.economy.amount("gold") - int(ap.upgrade_cost()["gold"])})
+	await tap(dlg.cards[0]["picture"])
+	await frames(2)
+	check(ap.level == 1 and not dlg.visible, "with no gold left for another, it closes after the upgrade")
+	game.economy.add("gold", 3000)
+	# Downed: everything greyed out, the title says why.
+	hud.open_upgrade(ap)
+	game.army.down(ap)
+	await wait_until(func() -> bool: return dlg.title.text.begins_with("Downed"), 2.0)
+	check(dlg.title.text == "Downed: Ice Mage 2" and dlg.cards.all(func(c: Dictionary) -> bool: return (c["buy"] as Button).disabled), "downed: \"%s\", and nothing can be bought" % dlg.title.text)
+	ap.revive_left = 0.0
+	await wait_until(func() -> bool: return not dlg.title.text.begins_with("Downed"), 2.0)
+	check(dlg.title.text == "Ice Mage 2" and not (dlg.cards[0]["buy"] as Button).disabled, "back on its feet: it can be upgraded again")
+	ap.train_xp = ap.train_xp_needed() * 0.5
+	await wait_until(func() -> bool: return dlg.cards[0]["bar"] != null, 2.0)
+	var bar: ProgressBar = dlg.cards[0]["bar"]
+	check(bar != null and is_equal_approx(bar.value, 0.5), "a unit trained halfway: a bar under its level-up")
+	# Portrait: the cards stacked; too many for the screen, they scroll.
+	var ap2 := game.army.recruit("apprentice")
+	ap2.level = Config.BRANCH_MIN_LEVEL - 1
+	hud.open_upgrade(ap2)
+	await frames(2)
+	check(not dlg.scroll.get_h_scroll_bar().visible, "landscape, room for all: no scrollbar")
+	for sz: Vector2i in [Vector2i(720, 1280), Vector2i(1280, 720)]:
+		get_window().size = sz
+		get_viewport().size = sz
+		await frames(6)
+		var tall := sz.y > sz.x
+		var sb: ScrollBar = dlg.scroll.get_v_scroll_bar() if tall else dlg.scroll.get_h_scroll_bar()
+		var axis := 1 if tall else 0
+		var needed := dlg._list.get_combined_minimum_size()[axis] > dlg.scroll.size[axis] + 0.5
+		var stacked := (dlg.cards[1]["card"] as Control).get_global_rect().position.y > (dlg.cards[0]["card"] as Control).get_global_rect().end.y - 1.0
+		var first_size := (dlg.cards[0]["card"] as Control).size
+		check(dlg.cards.all(func(c: Dictionary) -> bool: return (c["card"] as Control).size.is_equal_approx(first_size)), "%dx%d: every card the same size (%s)" % [sz.x, sz.y, first_size])
+		check(on_screen(dlg) and stacked == tall and sb.visible == needed, "%dx%d: it fits, %s%s (%s in %s)" % [sz.x, sz.y, "stacked" if tall else "side by side", ", with a scrollbar" if sb.visible else ", no scrollbar", dlg.get_global_rect(), get_viewport().get_visible_rect().size])
+		# Less room than all of them need (a large UI size, a phone's cutout): they scroll.
+		var room: Vector2 = hud._root.size
+		hud._root.size = Vector2(minf(room.x, 900.0), minf(room.y, 900.0))
+		dlg.refit()
+		await frames(3)
+		needed = dlg._list.get_combined_minimum_size()[axis] > dlg.scroll.size[axis] + 0.5
+		check(needed and sb.visible and Rect2(hud._root.get_global_rect()).encloses(dlg.get_global_rect()), "%dx%d with less room: it still fits, and scrolls (%s)" % [sz.x, sz.y, dlg.get_global_rect()])
+		hud._root.size = room
+	dlg.refit()
+	await frames(3)
+	var x_rect := dlg.close_button.get_global_rect()
+	check(x_rect.size.x == x_rect.size.y and absf(x_rect.get_center().y - dlg.title.get_global_rect().get_center().y) < 2.0 and absf(x_rect.end.x - dlg.scroll.get_global_rect().end.x) < 2.0, "a square X beside the title, on the right (%s)" % x_rect)
+	await tap(dlg.close_button)
+	await frames(2)
+	check(not dlg.visible, "the X closes it")
+	dlg.close()
 	# Training progress takes its share off the next level's gold, 1:1; specialising stays full price.
 	var tr := game.army.recruit("archer")
 	tr.level = Config.BRANCH_MIN_LEVEL - 1

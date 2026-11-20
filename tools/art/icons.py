@@ -1180,3 +1180,61 @@ def relic_icons():
         raise SystemExit("relic icons missing for: %s" % ", ".join(missing))
     for relic_id, symbol in RELIC_ICONS.items():
         icon_svg("relic_" + relic_id, _relic_badge(symbol))
+
+
+def _impact_star(cx, cy, r_out, r_in, n=8):
+    """A jagged hit flash: `n` spikes between radius `r_in` and `r_out`."""
+    pts = []
+    for k in range(n * 2):
+        r = r_out if k % 2 == 0 else r_in
+        ang = k * math.pi / n - math.pi / 2
+        pts.append("%s %s" % (fmt(cx + math.cos(ang) * r), fmt(cy + math.sin(ang) * r)))
+    return "M" + " L".join(pts) + "Z"
+
+
+def upgrade_icons():
+    """The unit upgrade dialog's inline icons: damage, a level and the lock over a
+    specialisation not yet reached."""
+    # Damage: a broad sword, its tip striking a red-yellow hit flash drawn beneath it
+    # (bold, to read at the size of a line of text).
+    icon_svg("icon_dmg", f"""
+  <path d="{_impact_star(50, 14, 13.5, 6)}" fill="#e0402c" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="{_impact_star(50, 14, 8, 3.5)}" fill="#ffd84a"/>
+  <g transform="translate(-2 2) rotate(45 30 34)">
+    <path d="M24 42 L24 12 L30 1 L36 12 L36 42Z" fill="{STEEL}" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="M30 8 L30 38" stroke="{STEEL_L}" stroke-width="2.6" stroke-linecap="round"/>
+    <rect x="14" y="41" width="32" height="7" rx="3.5" fill="{GOLD}" stroke="{INK}" stroke-width="3.2"/>
+    <rect x="26" y="48" width="8" height="11" rx="2" fill="{WOOD}" stroke="{INK}" stroke-width="3"/>
+    <circle cx="30" cy="61" r="4.5" fill="{GOLD}" stroke="{INK}" stroke-width="2.8"/>
+  </g>""")
+    # A level: two broad golden chevrons pointing up, like the hero's level-up.
+    icon_svg("icon_lvl", f"""
+  <path d="M6 60 L32 40 L58 60 L58 46 L32 26 L6 46 Z" fill="{GOLD_D}" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M6 38 L32 18 L58 38 L58 24 L32 4 L6 24 Z" fill="{GOLD}" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M13 25 L32 11 L51 25" fill="none" stroke="#f3dc93" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>""")
+    # The lock: a grey padlock.
+    icon_svg("icon_lock", f"""
+  <path d="M20 30 L20 20 Q20 8 32 8 Q44 8 44 20 L44 30" fill="none" stroke="{INK}" stroke-width="9" stroke-linecap="round"/>
+  <path d="M20 30 L20 20 Q20 8 32 8 Q44 8 44 20 L44 30" fill="none" stroke="#b8bec6" stroke-width="4.5" stroke-linecap="round"/>
+  <rect x="12" y="28" width="40" height="30" rx="5" fill="#8a9099" stroke="{INK}" stroke-width="3.5"/>
+  <rect x="16" y="32" width="32" height="5" rx="2.5" fill="#a8aeb6"/>
+  <circle cx="32" cy="42" r="4.5" fill="{INK}"/>
+  <path d="M30 44 L29 52 L35 52 L34 44Z" fill="{INK}"/>""")
+
+
+# The upgrade dialog's picture of each military kind: square, `unit_card_<kind>`.
+# For now one flat colour for every kind; the real pictures replace UNIT_CARD_BODY.
+UNIT_CARD_SIZE = 256
+UNIT_CARD_BODY = '<rect x="2" y="2" width="60" height="60" rx="6" fill="#4e5a6a"/>'
+
+
+def unit_cards():
+    """One square card per Config.MILITARY key."""
+    with open(os.path.join(ROOT, "scripts", "core", "config.gd")) as f:
+        cfg = f.read()
+    block = cfg[cfg.index("const MILITARY := {"):]
+    block = block[:block.index("\n}")]
+    for kind in re.findall(r'^\t"([a-z_]+)":', block, re.M):
+        with open(os.path.join(ART, "unit_card_%s.svg" % kind), "w") as f:
+            f.write('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 64 64">\n%s\n</svg>\n'
+                    % (UNIT_CARD_SIZE, UNIT_CARD_SIZE, UNIT_CARD_BODY))

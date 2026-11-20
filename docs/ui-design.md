@@ -245,8 +245,30 @@ under it.
   - Every building's panel (not huts) shows HP and, when hurt, *Repair* with its cost; gates and
     walls have panels of their own with level and *Upgrade*. A hurt building also shows a thin HP bar
     on the map (docs/siege-design.md §7).
-- **Upgrade dialog** (`Hud.open_upgrade`): one button per `MilitaryUnit.upgrade_options()`, so the
-  dialog and the rules can't disagree about what is offered.
+- **Upgrade dialog** (`UpgradeDialog`, opened by `Hud.open_upgrade`): one card per
+  `MilitaryUnit.upgrade_options()`, so the dialog and the rules can't disagree about what is offered.
+  - **Cards, not sentences.** Each card has the name, a square picture (`unit_card_<kind>`), a few
+    facts with icons and a buy button with the price, so options compare at a glance; the long
+    explanations live in the library, which the card's **?** opens (on the units tab for now; a
+    "?" next to other UI elements is meant to follow). The picture buys too: it is the biggest target.
+  - **The level-up first** (its button "+1 level" and the price), then the specialisations. A
+    level-up shows what it **adds**; a specialisation shows **its own level 1** and its few words
+    (`short_desc`), because it starts over and a difference to the old kind would mislead.
+  - **Specialisations not reached yet** (`MilitaryUnit.locked_branches`) are shown greyed out under
+    a lock with "After level N": the player sees the tree long before the choice.
+  - **The title names the unit as it is now** ("Archer 5"); "Downed:" or "Unavailable:" (away in
+    co-op) before it greys everything out.
+  - **Fast levelling:** after an upgrade the dialog shows the unit as it is now and stays open while
+    something more can be bought, so level 4 to 7 is three clicks. It follows the unit (training,
+    revival, a co-op client's news of the upgrade) on the HUD tick; a client's buttons wait for that
+    news, so a double click can't pay twice.
+  - **Landscape:** cards side by side, one fact per line; **portrait:** stacked, the numbers on one
+    line beside the picture, split by middle dots (the food on a second line when they don't fit, never split in the
+    middle) and the short description under them. No frames: a rule under the title and thin rules
+    between the cards keep it compact. A scrollbar appears only when they don't fit (a large UI
+    size, a phone's cutout).
+  - **Every card the same size** (the biggest one's), so names, pictures and buttons line up.
+  - A square **X** beside the title closes it; Esc too, like every popup.
 - **Confirmations** (`Hud._confirm_panel`): used where an action can't be undone cheaply (retiring a
   villager, leaving a game). The confirm button is red when dangerous; Cancel is always there.
 - **Buttons that cost something follow the resources while their popup is open:** what can't be paid

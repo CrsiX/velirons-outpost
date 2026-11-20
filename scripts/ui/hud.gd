@@ -80,7 +80,8 @@ var _lib_gray: ColorRect
 var _popups: Array[Control] = []
 var _popup_close: Dictionary = {}  # Control -> Callable
 var _stats_speed_before := 0
-var _upgrade_panel: PanelContainer
+## A military unit's upgrade dialog (open_upgrade).
+var upgrade_dialog: UpgradeDialog
 ## The town hall's research dialog (docs/advancements-design.md): every
 ## advancement with its conditions, cost and state; exclusive choices ask first.
 var _research_panel: PanelContainer
@@ -98,11 +99,6 @@ var _armoury_shown := ""
 ## The hero panel's four slots (hidden where there is no equipment).
 var _hero_equip_row: HBoxContainer
 var _hero_slot_buttons := {}  # slot -> Button
-var _upgrade_title: Label
-var _upgrade_options: VBoxContainer
-var _upgrade_hint: Label
-## The unit the upgrade dialog is open for (its buttons follow the gold, _refresh_dialogs).
-var _upgrade_unit: MilitaryUnit
 var _confirm_panel: PanelContainer
 var _confirm_title: Label
 var _confirm_text: Label
@@ -437,7 +433,7 @@ func _button(text: String, min_size: Vector2 = Vector2(0, 52)) -> Button:
 	return b
 
 
-const ICON_ART := {"{gold}": "icon_gold", "{food}": "icon_food", "{materials}": "icon_materials", "{xp}": "icon_xp", "{hp}": "icon_hp"}
+const ICON_ART := {"{gold}": "icon_gold", "{food}": "icon_food", "{materials}": "icon_materials", "{xp}": "icon_xp", "{hp}": "icon_hp", "{dmg}": "icon_dmg", "{lvl}": "icon_lvl"}
 
 
 ## Button text with icons: {gold} {food} {materials} {xp} are drawn as their
@@ -501,12 +497,17 @@ static func button_text(b: Button) -> String:
 	return str(b.get_meta("plain_text", b.text))
 
 
+## Icons drawn bigger than the others: thin shapes that would be hard to see.
+const ICON_SCALE := {"{dmg}": 1.5}
+
+
 ## BBCode for text with icon tokens, icons at about the font's height.
 static func icon_bbcode(text: String, font_size: int) -> String:
 	var s := text.replace("[", "[lb]")
 	var px := int(font_size * 1.15)
 	for tok in ICON_ART:
-		s = s.replace(tok, "[img=%dx%d]res://art/%s.svg[/img]" % [px, px, ICON_ART[tok]])
+		var tpx := int(px * float(ICON_SCALE.get(tok, 1.0)))
+		s = s.replace(tok, "[img=%dx%d]res://art/%s.svg[/img]" % [tpx, tpx, ICON_ART[tok]])
 	# An advancement's, an item's or a relic's icon: {adv:<id>}, {item:<id>}, {relic:<id>}.
 	for pre: String in ["adv", "item", "relic"]:
 		var tag := "{%s:" % pre
@@ -1129,7 +1130,7 @@ func _register_popups() -> void:
 	register_popup(_send_panel, func() -> void: _send_panel.visible = false)
 	register_popup(_send_unit_panel, func() -> void: _send_unit_panel.visible = false)
 	register_popup(_sell_panel, func() -> void: _sell_panel.visible = false)
-	register_popup(_upgrade_panel, func() -> void: _upgrade_panel.visible = false)
+	register_popup(upgrade_dialog, upgrade_dialog.close)
 	register_popup(_research_panel, func() -> void: _research_panel.visible = false)
 	register_popup(_armoury_panel, func() -> void: _armoury_panel.visible = false)
 	register_popup(_confirm_panel, func() -> void: _confirm_panel.visible = false)
@@ -2181,7 +2182,7 @@ func _on_build_pressed(kind: String) -> void:
 
 
 func is_over_ui(screen_pos: Vector2) -> bool:
-	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _cancel_button, _place_bar, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, _upgrade_panel, _confirm_panel, library, stats_screen]:
+	for c: Control in [_topbar, _sidebar, _sidebar_toggle, _info_panel, _mode_panel, _cancel_button, _place_bar, _trade_panel, _overlay, _hero_panel, _settings, _send_panel, _send_unit_panel, upgrade_dialog, _confirm_panel, library, stats_screen]:
 		if c.is_visible_in_tree() and c.get_global_rect().has_point(screen_pos):
 			return true
 	return false
@@ -2865,39 +2866,13 @@ func _refresh_send() -> void:
 
 # --- unit upgrades: next level, specialisations --------------------------------------------
 
-## The upgrade dialog for `unit`: one button per option (MilitaryUnit.upgrade_options).
+## The upgrade dialog for `unit` (UpgradeDialog).
 func open_upgrade(unit: MilitaryUnit) -> void:
 	_confirm_panel.visible = false
-	_upgrade_unit = unit
-	_upgrade_title.text = "Upgrade %s (level %d)" % [unit.display_name(), unit.level + 1]
-	for c in _upgrade_options.get_children():
-		_upgrade_options.remove_child(c)
-		c.queue_free()
-	for opt in unit.upgrade_options():
-		# (a wrapping button needs a width to wrap in, or it measures one word per line)
-		var trained := ", %d%% trained" % floori(100.0 * unit.trained_share()) if opt["to"] == unit.kind and unit.train_xp > 0.0 else ""
-		var b := _button("%s   (%s%s)" % [MilitaryUnit.option_text(opt, MilitaryUnit.upkeep_factor(game)), Config.cost_icons(opt["cost"]), trained], Vector2(_upgrade_width(), 52))
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.add_theme_font_size_override("font_size", 15)
-		b.set_meta("cost", opt["cost"])
-		b.disabled = not game.economy.can_afford(opt["cost"]) or not unit.is_available()
-		if opt["to"] != unit.kind:
-			UiTheme.style_primary(b)
-			var to: String = opt["to"]
-			b.pressed.connect(func() -> void: _pick_upgrade(unit, to))
-		else:
-			b.pressed.connect(func() -> void: _pick_upgrade(unit, ""))
-		_upgrade_options.add_child(b)
-	_upgrade_hint.text = "From level %d on, a unit can also specialise (it starts again at level 1)." % Config.BRANCH_MIN_LEVEL if not unit.spec().get("branches", []).is_empty() else ""
-	_upgrade_hint.visible = _upgrade_hint.text != ""
-	_upgrade_hint.custom_minimum_size.x = _upgrade_width()
-	_upgrade_title.custom_minimum_size.x = _upgrade_width()
-	_upgrade_panel.visible = true
-	_fit_dialog(_upgrade_panel)
-	_fit_dialog.call_deferred(_upgrade_panel)  # (again once the wrapped texts are laid out)
+	upgrade_dialog.open(unit)
 
 
-## Width of the upgrade dialog's content: 420 px, less on narrow screens.
+## Width of a narrow dialog's content (the armoury's): 420 px, less on narrow screens.
 func _upgrade_width() -> float:
 	return minf(420.0, _root.size.x - 64.0)
 
@@ -2907,12 +2882,6 @@ func _fit_dialog(p: Control) -> void:
 	p.reset_size()
 	var vp := _root.size
 	p.position = ((vp - p.size) / 2.0).max(Vector2(8, 8))
-
-
-func _pick_upgrade(unit: MilitaryUnit, to: String) -> void:
-	if _do("upgrade_unit", {"unit": unit.nid, "to": to})["ok"]:
-		_upgrade_panel.visible = false
-		_queue_refresh()
 
 
 ## A villager leaves for good, freeing its hut: ask first.
@@ -2968,26 +2937,10 @@ func _ask(title: String, color: Color, text: String, yes_text: String, danger: b
 
 
 func _build_upgrade_dialogs() -> void:
-	_upgrade_panel = PanelContainer.new()
-	_root.add_child(_upgrade_panel)
-	_upgrade_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_upgrade_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_upgrade_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
-	_upgrade_panel.add_child(v)
-	_upgrade_title = _label("", 21, UiTheme.GOLD)
-	v.add_child(_upgrade_title)
-	_upgrade_options = VBoxContainer.new()
-	_upgrade_options.add_theme_constant_override("separation", 6)
-	v.add_child(_upgrade_options)
-	_upgrade_hint = _label("", 14, UiTheme.MUTED)
-	_upgrade_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.add_child(_upgrade_hint)
-	var close := _button("Close", Vector2(0, 44))
-	close.pressed.connect(func() -> void: _upgrade_panel.visible = false)
-	v.add_child(close)
-	_upgrade_panel.visible = false
+	upgrade_dialog = UpgradeDialog.new()
+	_root.add_child(upgrade_dialog)
+	upgrade_dialog.setup(self)
+	_root.resized.connect(func() -> void: upgrade_dialog.refit())
 	_confirm_panel = PanelContainer.new()
 	_root.add_child(_confirm_panel)
 	_confirm_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -4223,7 +4176,7 @@ func ui_size() -> Vector2:
 
 func add_layer(c: Control, on_top: bool) -> void:
 	_root.add_child(c)
-	_root.move_child(c, _pause_gray.get_index() if on_top else _upgrade_panel.get_index())
+	_root.move_child(c, _pause_gray.get_index() if on_top else upgrade_dialog.get_index())
 
 
 ## Adds `c` under everything else in the HUD: it draws on the map.
@@ -4233,6 +4186,11 @@ func add_map_layer(c: Control) -> void:
 
 
 # --- refresh ---------------------------------------------------------------------------------
+
+## Refreshes the HUD once this frame is done (from outside: the upgrade dialog).
+func refresh_soon() -> void:
+	_queue_refresh()
+
 
 func _queue_refresh() -> void:
 	if not _refresh_queued:
@@ -4262,6 +4220,7 @@ func _process(delta: float) -> void:
 		_refresh_builder_warning(0.0 if get_tree().paused else 0.25 - _tick)
 		_refresh_food_warning()
 		_tick = 0.25
+		upgrade_dialog.refresh()  # (a unit back on its feet, a co-op client's news of an upgrade)
 		_refresh_wave()
 		_refresh_resources()
 		_refresh_hero()
@@ -4305,10 +4264,7 @@ func _refresh() -> void:
 func _refresh_dialogs() -> void:
 	if _research_panel.visible:
 		_refresh_research()
-	if _upgrade_panel.visible and is_instance_valid(_upgrade_unit):
-		for b: Button in _upgrade_options.get_children():
-			if b.has_meta("cost"):
-				b.disabled = not game.economy.can_afford(b.get_meta("cost")) or not _upgrade_unit.is_available()
+	upgrade_dialog.refresh()
 	if _confirm_panel.visible and _confirm_ready.is_valid():
 		_confirm_yes.disabled = not _confirm_ready.call()
 	var bundles: Array = Config.EMERGENCY_TRADE["bundles"]

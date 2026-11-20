@@ -288,30 +288,11 @@ func upgrade_options() -> Array[Dictionary]:
 	return out_opts
 
 
-## A short stat line for an upgrade option ("Archer 6: 27 damage, every 0.62 s").
-## `factor`: the game's upkeep_factor, for what the option eats.
-static func option_text(opt: Dictionary, factor := 1.0) -> String:
-	var k: String = opt["to"]
-	var lv: int = opt["level"]
-	var sp: Dictionary = Config.MILITARY[k]
-	var parts: Array[String] = ["%s %d:" % [sp["name"], lv + 1], "%.0f HP" % Config.unit_stat(k, "hp", lv)]
-	var st: Dictionary = sp["stats"]
-	if st.has("aura"):  # (its damage is only a counter-strike)
-		parts.append("allies +%d%% damage" % roundi(100.0 * Config.unit_stat(k, "aura", lv)))
-	elif st.has("damage"):
-		parts.append("%.0f damage every %.2f s" % [Config.unit_stat(k, "damage", lv), Config.unit_stat(k, "cooldown", lv)])
-	if st.has("heal"):
-		parts.append("heals %.0f every %.1f s" % [Config.unit_stat(k, "heal", lv), Config.unit_stat(k, "cooldown", lv)])
-	if st.has("interval"):
-		parts.append("up to %d summons" % roundi(Config.unit_stat(k, "max_summons", lv)))
-	if st.has("cry"):
-		parts.append("war cry +%d%%" % roundi(100.0 * Config.unit_stat(k, "cry", lv)))
-	if st.has("rage"):
-		parts.append("rage up to %.1fx" % (1.0 / maxf(1.0 - Config.unit_stat(k, "rage", lv), 0.05)))
-	if sp.get("hits_flyers", false):
-		parts.append("hits flyers")
-	if sp.has("range"):
-		parts.append("range %.1f" % sp["range"])
-	if factor > 0.0:
-		parts.append("eats {food} %.1f/min" % (Config.unit_upkeep(k, lv) * factor * 60.0))
-	return " ".join(parts)
+## The specialisations it will be offered once it reaches BRANCH_MIN_LEVEL
+## (none from there on, and none where the game allows no branches).
+func locked_branches() -> Array[String]:
+	var out: Array[String] = []
+	if fixed() or level + 1 >= Config.BRANCH_MIN_LEVEL or (village != null and not village.game.allows_branches()):
+		return out
+	out.assign(spec().get("branches", []))
+	return out

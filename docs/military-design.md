@@ -290,9 +290,10 @@ branch price. Their level 1 is above the shield bearer's level 3 (the rule in §
 
 ## 7. Upgrading
 
-- **Upgrade dialog.** *Upgrade* opens a small dialog with one button per option, from the reserve
-  or from a unit's panel on its post. Each button shows the cost and the option's name, level and
-  main stats (`MilitaryUnit.option_text`), so the player compares before paying.
+- **Upgrade dialog.** *Upgrade* opens a dialog with one card per option, from the reserve or from a
+  unit's panel on its post: the level-up's gains, each specialisation's level 1, and the
+  specialisations still to come under a lock, so the player compares before paying (how it looks:
+  docs/ui-design.md, "Upgrade dialog").
 - A level-up's gold price is lowered by the training progress towards it, 1:1
   (`TRAIN_GOLD_DISCOUNT`, docs/hero-design.md §4.6); a specialisation's price never is.
 - Every upgrade resets the unit's training XP and refills its HP. Specialising keeps the unit where

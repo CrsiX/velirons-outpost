@@ -424,8 +424,8 @@ func _test_unit_keys() -> void:
 	hud._unhandled_key_input(back)
 	check(order.size() >= 2 and first == order[0] and second == order[1] and game.selected_unit == first and cam_ok, "Tab selects the next posted unit and centres the view on it; Shift+Tab goes back")
 	hud._unhandled_key_input(_press(KEY_U))
-	check(hud._upgrade_panel.visible and hud._upgrade_unit == first, "U on a selected unit opens its upgrade dialog")
-	hud._upgrade_panel.visible = false
+	check(hud.upgrade_dialog.visible and hud.upgrade_dialog.unit == first, "U on a selected unit opens its upgrade dialog")
+	hud.upgrade_dialog.close()
 	var mode: int = game.hero.mode
 	hud._unhandled_key_input(_press(KEY_R))
 	check(first.state != MilitaryUnit.State.STATIONED and game.selected_unit == null and game.hero.mode == mode, "R withdraws the selected unit (and leaves the hero's mode alone)")
@@ -433,8 +433,8 @@ func _test_unit_keys() -> void:
 	hud._selected_unit = a3
 	game.deselect()
 	hud._unhandled_key_input(_press(KEY_U))
-	check(hud._upgrade_panel.visible and hud._upgrade_unit == a3, "U on a reserve card picked in the Army tab opens its upgrade dialog")
-	hud._upgrade_panel.visible = false
+	check(hud.upgrade_dialog.visible and hud.upgrade_dialog.unit == a3, "U on a reserve card picked in the Army tab opens its upgrade dialog")
+	hud.upgrade_dialog.close()
 	hud._selected_unit = null
 	for u: MilitaryUnit in [a1, a2]:
 		game.army.unstation(u)

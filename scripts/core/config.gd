@@ -1581,6 +1581,8 @@ const TARGETING_GROUP_RADIUS := 1.5
 ## §10.12) and "breaks_charge" (a charge on it gives no bonus; its blow halts a
 ## mount for MOUNTED halt_time s and spends its charge), the war cry (see
 ## "warrior") and rage and lifesteal (see "berserker").
+## "short_desc": a specialisation's few words on its upgrade dialog card (what
+## it does; written by hand, the behaviour itself is code).
 const MAX_UNIT_LEVEL := 10
 ## From this level a base unit can also turn into level 1 of a specialisation.
 const BRANCH_MIN_LEVEL := 3
@@ -1607,6 +1609,7 @@ const MILITARY := {
 		"branch_of": "archer", "branch_cost": {"gold": 100},
 		"speed": 1.6, "attack": "bolt", "range": 3.2, "pierce": true,  # (piercing: for shielded enemies, later)
 		"desc": "Slow, heavy crossbow bolts; reaches further than an archer in the field.",
+		"short_desc": ["slow, heavy bolts", "longer reach"],
 		"stats": {"hp": [44.0, 100.0], "damage": [50.0, 170.0], "cooldown": [2.25, 1.7]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1615,6 +1618,7 @@ const MILITARY := {
 		"branch_of": "archer", "branch_cost": {"gold": 100},
 		"speed": 2.0, "attack": "swift_arrow", "range": 2.6,
 		"desc": "A hail of light arrows: tiny hits, very fast.",
+		"short_desc": ["very fast, light arrows"],
 		"stats": {"hp": [44.0, 95.0], "damage": [7.5, 18.0], "cooldown": [0.3, 0.18]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1636,6 +1640,7 @@ const MILITARY := {
 		"branch_of": "shield_bearer", "branch_cost": {"gold": 100},
 		"speed": 1.4, "attack": "strike", "cry_interval": 10.0, "cry_radius": 2.5,
 		"desc": "Barracks only. Mail, shield and sword, the most HP of all; his war cry makes allies near him attack faster.",
+		"short_desc": ["the most HP of all"],
 		"stats": {"hp": [90.0, 300.0], "damage": [6.0, 30.0], "cooldown": [1.15, 0.85], "cry": [0.1, 0.5], "cry_time": [3.0, 5.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1647,6 +1652,7 @@ const MILITARY := {
 		"branch_of": "shield_bearer", "branch_cost": {"gold": 100},
 		"speed": 1.6, "attack": "strike", "lifesteal_below": 0.5,
 		"desc": "Barracks only. A great axe and no armour: the more HP he has lost, the faster he strikes, and when low he heals from his blows.",
+		"short_desc": ["heals on hits when low"],
 		"stats": {"hp": [85.0, 200.0], "damage": [8.0, 71.0], "cooldown": [1.15, 0.8], "rage": [0.3, 0.8], "lifesteal": [0.1, 0.25]},
 		"curves": {"lifesteal": 1.5},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
@@ -1657,6 +1663,7 @@ const MILITARY := {
 		"speed": 1.3, "attack": "strike", "range": 1.2, "hits_flyers": true,
 		"vs_mounted": 2.5, "breaks_charge": true,
 		"desc": "Barracks only. A long halberd reaches farther than other blades, up to flyers, and is the bane of riders.",
+		"short_desc": ["hits flyers", "bane of riders"],
 		"stats": {"hp": [85.0, 200.0], "damage": [9.0, 76.0], "cooldown": [1.25, 0.85]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1673,6 +1680,7 @@ const MILITARY := {
 		"branch_of": "summoner", "branch_cost": {"gold": 100},
 		"speed": 1.4, "summon": "fire",
 		"desc": "Summons fire elementals, fast: quick and frail, they burn themselves up and explode when they die.",
+		"short_desc": ["fast, exploding fire elementals"],
 		"stats": {"hp": [26.0, 55.0], "interval": [3.0, 1.6], "max_summons": [4.0, 8.0], "summon_hp": [36.0, 95.0], "summon_damage": [7.5, 20.0]},
 		"upgrade_cost": [70, 300], "train_xp": [45, 400],
 	},
@@ -1689,6 +1697,7 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "fireball", "range": 2.8,
 		"desc": "Fireballs that explode: an apprentice's damage, splashed over whole groups.",
+		"short_desc": ["deals fire AoE"],
 		"stats": {"hp": [29.0, 65.0], "damage": [16.0, 42.0], "cooldown": [0.95, 0.55], "splash": [1.2, 1.8]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1697,6 +1706,7 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "frost", "range": 2.8,
 		"desc": "Frost orbs: a bit more damage, and the enemy hit is slowed for a while.",
+		"short_desc": ["slows enemies"],
 		"stats": {"hp": [29.0, 65.0], "damage": [16.0, 44.0], "cooldown": [0.95, 0.55], "slow": [0.7, 0.4], "slow_time": [2.0, 3.5]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1705,6 +1715,7 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "heal",
 		"desc": "No damage. Heals every allied unit and hero around it (not summons): in a tower as far as the tower reaches, elsewhere within its own radius.",
+		"short_desc": ["no damage"],
 		"stats": {"hp": [29.0, 65.0], "heal": [6.0, 30.0], "cooldown": [3.0, 1.4], "radius": [2.5, 3.5]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1713,6 +1724,7 @@ const MILITARY := {
 		"branch_of": "apprentice", "branch_cost": {"gold": 120},
 		"speed": 1.6, "attack": "warp", "range": 2.8,
 		"desc": "An apprentice's damage, and the enemy hit is thrown back along its road.",
+		"short_desc": ["teleports enemies back"],
 		"stats": {"hp": [29.0, 65.0], "damage": [16.0, 42.0], "cooldown": [0.95, 0.55], "push": [1.5, 4.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1736,6 +1748,7 @@ const MILITARY := {
 		"speed": 1.6, "attack": "smite",
 		"hunt": {"witch": {"bonus": 4.0, "max": 7.0}, "unholy": {"bonus": 2.0, "max": 5.0}}, "hunt_switch": 1.0,
 		"desc": "Holy cross and warhammer. Hunts witches first, then the undead, then anything else. Barracks only.",
+		"short_desc": ["holy melee, barracks only", "hunts witches and undead"],
 		"stats": {"hp": [45.0, 140.0], "damage": [17.0, 57.0], "cooldown": [1.1, 0.75]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1749,6 +1762,7 @@ const MILITARY := {
 		"branch_of": "acolyte", "branch_cost": {"gold": 100},
 		"speed": 1.5, "attack": "strike", "range": 2.6, "glow": "#fff2c0", "necro_slow": 2.0,
 		"desc": "Blesses every ally around it: more damage for units, towers, the hero and summons. Units downed on a barracks bench in it get back on their feet sooner. Necromancers raise slower near it.",
+		"short_desc": ["faster revives on its bench", "slows necromancy"],
 		"stats": {"hp": [44.0, 95.0], "aura": [0.02, 0.2], "revive": [1.25, 3.0], "damage": [3.0, 10.0], "cooldown": [1.4, 1.0]},
 		"upgrade_cost": [60, 300], "train_xp": [40, 400],
 	},
@@ -1762,6 +1776,7 @@ const MILITARY := {
 		"branch_of": "summoner", "branch_cost": {"gold": 100},
 		"speed": 1.3, "summon": "thorn",
 		"desc": "Calls up thornlings: slow and tough, and every blow roots the enemy in place for a moment.",
+		"short_desc": ["thornlings root enemies"],
 		"stats": {"hp": [26.0, 56.0], "interval": [5.0, 2.5], "max_summons": [3.0, 8.0], "summon_hp": [36.0, 100.0], "summon_damage": [7.2, 23.0], "root": [0.6, 1.2]},
 		"upgrade_cost": [70, 300], "train_xp": [45, 400],
 	},
@@ -3217,7 +3232,7 @@ static func cost_icons(cost: Dictionary) -> String:
 ## Text with icon tokens ({gold} {food} {materials} {xp}, an advancement's
 ## {adv:<id>}) as plain words (an advancement's icon: nothing).
 static func plain_text(text: String) -> String:
-	var s := text.replace("{gold}", "gold").replace("{food}", "food").replace("{materials}", "materials").replace("{xp}", "XP").replace("{hp}", "HP")
+	var s := text.replace("{gold}", "gold").replace("{food}", "food").replace("{materials}", "materials").replace("{xp}", "XP").replace("{hp}", "HP").replace("{dmg}", "damage").replace("{lvl}", "level")
 	var at := s.find("{adv:")
 	while at >= 0:
 		var end := s.find("}", at)

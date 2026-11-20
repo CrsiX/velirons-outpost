@@ -27,6 +27,7 @@ from art.enemies import (
 )
 from art.icons import (
     advancement_icons, app_icon, campaign_icon, flags, icons, item_icons, relic_icons, title_icons,
+    unit_cards, upgrade_icons,
 )
 from art.field_command import field_commands
 from art.misc import arrow, biome_art, net_pin, sack, salvage, throwing_axe
@@ -104,6 +105,8 @@ def main():
     advancement_icons()
     item_icons()
     relic_icons()
+    upgrade_icons()
+    unit_cards()
     town_halls()
     field_commands()
     tile_village_path()

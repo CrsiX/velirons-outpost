@@ -189,6 +189,8 @@ func _run() -> void:
 		await _picking()
 	if only in ["", "map"]:
 		await _tactical_map()
+	if only in ["", "upgrade"]:
+		await _upgrade()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -415,6 +417,55 @@ func _game() -> void:
 		await _landscape()
 	Settings.editor_play = false
 	Settings.custom_map = null
+	g.queue_free()
+	await _frames(3)
+
+
+# --- a unit's upgrade dialog -----------------------------------------------------------
+
+func _upgrade() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 777
+	add_child(g)
+	await _frames(60)
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	var v := g.player_village
+	g.unlocks["apprentice"] = true
+	var ap := v.army.recruit("apprentice")
+	ap.level = 1
+	ap.train_xp = ap.train_xp_needed() * 0.4
+	g.economy.add("gold", 400)
+	g.hud.open_upgrade(ap)
+	await _frames(10)
+	await shot("upgrade_locked")
+	ap.level = Config.BRANCH_MIN_LEVEL - 1
+	ap.train_xp = 0.0
+	g.economy.spend({"gold": g.economy.amount("gold") - 110})
+	await _frames(30)
+	await shot("upgrade_mage_some_too_dear")
+	var sb := v.army.recruit("shield_bearer")
+	sb.level = 4
+	g.economy.add("gold", 1000)
+	g.hud.open_upgrade(sb)
+	await _frames(10)
+	await shot("upgrade_shield_bearer")
+	v.army.down(sb)
+	await _frames(30)
+	await shot("upgrade_downed")
+	var cb := v.army.recruit("archer")
+	cb.level = Config.BRANCH_MIN_LEVEL - 1
+	v.army.upgrade(cb, "crossbowman")
+	cb.level = 4
+	g.hud.open_upgrade(cb)
+	await _frames(10)
+	await shot("upgrade_single")
+	g.hud.upgrade_dialog.close()
+	await _size(Vector2i(540, 960))
+	g.hud.open_upgrade(ap)
+	await _frames(20)
+	await shot("upgrade_portrait")
+	await _landscape()
 	g.queue_free()
 	await _frames(3)
 
