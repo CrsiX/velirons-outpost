@@ -56,7 +56,7 @@ extends Node
 ## (it prints how long picking and measuring take on this renderer).
 ## (`--only=upgrade`) a unit's upgrade dialog: locked branches, prices too dear, the shield
 ## bearer, downed, a single option, the archer's, summoner's and acolyte's branches, a sheet of
-## every unit card, portrait;
+## every unit card, portrait; (`--only=portraits`) a sheet of every cutscene portrait;
 ## (`--only=store`, not in the full run) the store pictures at 2400x1080 (a
 ## 20:9 phone): the title, a hurt village being rebuilt, a big battle, the map
 ## editor and a calm village by a lake.
@@ -198,6 +198,8 @@ func _run() -> void:
 		await _tactical_map()
 	if only in ["", "upgrade"]:
 		await _upgrade()
+	if only in ["", "portraits"]:
+		await _portraits()
 	print("done: %d pictures in %s" % [_n, out])
 	get_tree().quit(0)
 
@@ -488,6 +490,28 @@ func _upgrade() -> void:
 
 ## Every unit card big, on one sheet with its kind's name.
 func _unit_cards() -> void:
+	var cards: Array[Array] = []
+	for kind: String in Config.MILITARY:
+		cards.append(["unit_card_" + kind, str(Config.MILITARY[kind].name)])
+	await _card_sheet("unit_cards", cards)
+
+
+## The cutscene portraits, every one the scenarios' speakers use (tools/art/portraits.py).
+func _portraits() -> void:
+	await _size(landscape)
+	var names: Array[String] = []
+	for f in DirAccess.get_files_at("res://art"):
+		if f.begins_with("portrait_") and f.ends_with(".svg"):
+			names.append(f.get_basename())
+	names.sort()
+	var cards: Array[Array] = []
+	for n in names:
+		cards.append([n, n.trim_prefix("portrait_")])
+	await _card_sheet("portraits", cards)
+
+
+## A sheet of square cards: [art name, label] each, six to a row.
+func _card_sheet(shot_name: String, cards: Array[Array]) -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 100
 	add_child(layer)
@@ -500,22 +524,22 @@ func _unit_cards() -> void:
 	grid.position = Vector2(16, 8)
 	grid.add_theme_constant_override("h_separation", 12)
 	layer.add_child(grid)
-	for kind: String in Config.MILITARY:
+	for c: Array in cards:
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", 0)
 		var t := TextureRect.new()
-		t.texture = Art.tex("unit_card_" + kind)
+		t.texture = Art.tex(str(c[0]))
 		t.custom_minimum_size = Vector2(196, 196)
 		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		box.add_child(t)
 		var l := Label.new()
-		l.text = Config.MILITARY[kind].name
+		l.text = str(c[1])
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(l)
 		grid.add_child(box)
 	await _frames(5)
-	await shot("unit_cards")
+	await shot(shot_name)
 	layer.queue_free()
 
 

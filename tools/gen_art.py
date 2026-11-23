@@ -31,7 +31,7 @@ from art.icons import (
 )
 from art.field_command import field_commands
 from art.misc import arrow, biome_art, net_pin, sack, salvage, throwing_axe
-from art.portraits import portraits, portraits_1011, portraits_67, portraits_89, portraits_away
+from art.portraits import portraits
 from art.props import (
     beacon, boat, boat_upturned, city_rubble, corpse_fallen, driftwood, ferry_bell, fish_rack,
     grave_cross, grave_mound, gull, harbour_crates, mooring_post, net_rack, pier, relic_sword,
@@ -216,7 +216,6 @@ def main():
     legion_captain("unit_legion_captain", "#b8bcc4")
     legion_captain("unit_legion_captain_lysa", CRIMSON, hair="#6a2a20")
     portraits()
-    portraits_away()
     corpse_fallen("corpse_fallen", "#2f4a7a", "#243a62")
     corpse_fallen("corpse_fallen_2", CRIMSON, CRIMSON_D)
     graveyard()
@@ -229,7 +228,6 @@ def main():
     eldest_priest_person()
     princess()
     campaign_houses()
-    portraits_67()
     legion_archer()
     legion_guard()
     legion_banner()
@@ -254,7 +252,6 @@ def main():
     mooring_post()
     driftwood()
     gull()
-    portraits_89()
     legion_marshal()
     legion_king()
     for i in range(3):
@@ -262,7 +259,6 @@ def main():
     city_houses()
     city_rubble()
     throne_hall()
-    portraits_1011()
     campaign_icon()
     wolf()
     corpse_wolf()

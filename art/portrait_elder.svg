@@ -1,19 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64">
-  <clipPath id="c"><rect x="3" y="3" width="58" height="58" rx="6"/></clipPath>
-  <rect x="1.5" y="1.5" width="61" height="61" rx="7" fill="#22301e" stroke="#15110d" stroke-width="3"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22301e"/><stop offset="1" stop-color="#0a100a"/></linearGradient>
+    <radialGradient id="lt" cx="0.5" cy="0.38" r="0.45"><stop offset="0" stop-color="#8ae08a" stop-opacity="0.1"/><stop offset="1" stop-color="#8ae08a" stop-opacity="0"/></radialGradient>
+    <clipPath id="c"><rect x="2" y="2" width="60" height="60" rx="6"/></clipPath>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="6" fill="url(#bg)"/>
   <g clip-path="url(#c)">
-  <path d="M6 66 Q6 46 20 43 L44 43 Q58 46 58 66Z" fill="#3e5a2c" stroke="#15110d" stroke-width="2.4"/>
-  <path d="M10 40 Q8 8 32 4 Q56 8 54 40 L46 40 Q46 16 32 14 Q18 16 18 40Z" fill="#6a5a40" stroke="#15110d" stroke-width="2.2"/>
-  <rect x="27" y="35" width="10" height="9" fill="#c49474" stroke="#15110d" stroke-width="1.8"/>
-  <path d="M20 25 Q19 13 32 12 Q45 13 44 25 Q44 36 32 39 Q20 36 20 25Z" fill="#cc9c78" stroke="#15110d" stroke-width="2.2"/>
-  <path d="M20 27 Q18 56 32 62 Q46 56 44 27 Q40 34 32 34 Q24 34 20 27Z" fill="#ece8e0" stroke="#15110d" stroke-width="2"/>
-  <path d="M26 32 Q32 30 38 32" fill="none" stroke="#c8c4bc" stroke-width="2.4" stroke-linecap="round"/>
-  <path d="M19 17 Q32 11 45 17" fill="none" stroke="#4a7a32" stroke-width="3.2"/>
-  <ellipse cx="22" cy="16" rx="3" ry="2" fill="#6aa84a" stroke="#15110d" stroke-width="0.9"/>
-  <ellipse cx="32" cy="12.5" rx="3" ry="2" fill="#6aa84a" stroke="#15110d" stroke-width="0.9"/>
-  <ellipse cx="42" cy="16" rx="3" ry="2" fill="#6aa84a" stroke="#15110d" stroke-width="0.9"/>
-  <path d="M24 22.5 L29 22 M35 22 L40 22.5" stroke="#e8e4dc" stroke-width="1.8" stroke-linecap="round"/>
-  <circle cx="27" cy="25.5" r="1.4" fill="#15110d"/><circle cx="37" cy="25.5" r="1.4" fill="#15110d"/>
+    <rect x="2" y="2" width="60" height="60" fill="url(#lt)"/>
+    <path d="M15.5 32 Q12 5 32 4 Q52 5 48.5 32 Q48 44 42 46 L22 46 Q16 44 15.5 32Z" fill="#6a5a40" stroke="#15110d" stroke-width="1.8"/>
+    <rect x="27.0" y="33" width="10" height="14" fill="#845837" stroke="#15110d" stroke-width="1.8"/>
+    <path d="M3 66 Q4 48 21 44 Q32 49 43 44 Q60 48 61 66Z" fill="#3e5a2c" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M43 44 Q60 48 61 66 L50 66 Q50.4 52 43 44Z" fill="#304622"/>
+    <path fill="none" d="M25 48 L30 66 M39 48 L34 66" stroke="#304622" stroke-width="1.4"/>
+    <defs><clipPath id="face"><path fill="none" d="M21 23 Q20.5 8.5 32 8.5 Q43.5 8.5 43 23 Q43 34 32 40 Q21 34 21 23Z"/></clipPath></defs>
+    <path d="M21 23 Q20.5 8.5 32 8.5 Q43.5 8.5 43 23 Q43 34 32 40 Q21 34 21 23Z" fill="#9a6640"/>
+    <path d="M38.6 8 Q46 14 46 24 Q46 34 35.6 41 Q41.4 30 38.6 8Z" fill="#815636" clip-path="url(#face)"/>
+    <path fill="none" d="M21 23 Q20.5 8.5 32 8.5 Q43.5 8.5 43 23 Q43 34 32 40 Q21 34 21 23Z" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M24.1 25.6 Q27.0 23.99 29.9 25.6 Q27.0 26.81 24.1 25.6Z" fill="#f4eee6"/>
+    <circle cx="27.0" cy="25.50" r="1.00" fill="#4a8a3a"/>
+    <circle cx="27.0" cy="25.50" r="0.50" fill="#15110d"/>
+    <circle cx="27.5" cy="25.00" r="0.42" fill="#ffffff"/>
+    <path fill="none" d="M23.900000000000002 25.700000000000003 Q27.0 23.69 30.0 25.6" stroke="#15110d" stroke-width="1.25" stroke-linecap="round"/>
+    <path fill="none" d="M25.0 27.900000000000002 Q27.0 28.900000000000002 29.0 27.900000000000002" stroke="#553823" stroke-width="0.7"/>
+    <path fill="none" d="M23.3 25.0 l-1.5 -0.7 M23.3 26.200000000000003 l-1.5 0.8" stroke="#553823" stroke-width="0.7" stroke-linecap="round"/>
+    <path d="M39.9 25.6 Q37.0 23.99 34.1 25.6 Q37.0 26.81 39.9 25.6Z" fill="#f4eee6"/>
+    <circle cx="37.0" cy="25.50" r="1.00" fill="#4a8a3a"/>
+    <circle cx="37.0" cy="25.50" r="0.50" fill="#15110d"/>
+    <circle cx="37.5" cy="25.00" r="0.42" fill="#ffffff"/>
+    <path fill="none" d="M40.1 25.700000000000003 Q37.0 23.69 34.0 25.6" stroke="#15110d" stroke-width="1.25" stroke-linecap="round"/>
+    <path fill="none" d="M35.0 27.900000000000002 Q37.0 28.900000000000002 39.0 27.900000000000002" stroke="#553823" stroke-width="0.7"/>
+    <path fill="none" d="M40.699999999999996 25.0 l1.5 -0.7 M40.699999999999996 26.200000000000003 l1.5 0.8" stroke="#553823" stroke-width="0.7" stroke-linecap="round"/>
+    <path fill="none" d="M23.9 21.4 Q27.0 19.6 29.9 21.2" stroke="#aeaba5" stroke-width="2.2" stroke-linecap="round"/>
+    <path fill="none" d="M40.1 21.4 Q37.0 19.6 34.1 21.2" stroke="#aeaba5" stroke-width="2.2" stroke-linecap="round"/>
+    <path fill="none" d="M32 25.6 Q34 28.4 32.8 30.6 L31 31.2 Q32 31.8 33.2 31.2" stroke="#5c3d26" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill="none" d="M26.5 16.4 Q32 15.2 37.5 16.4 M27.5 18.4 Q32 17.6 36.5 18.4" stroke="#5c3d26" stroke-width="0.7" opacity="0.8"/>
+    <path fill="none" d="M28.8 30 Q27.4 32.6 28.4 35 M35.2 30 Q36.6 32.6 35.6 35" stroke="#5c3d26" stroke-width="0.8" opacity="0.8"/>
+    <path d="M20.5 25 Q19.5 48 32 57 Q44.5 48 43.5 25 Q42 31 38.5 33 Q35 31.6 32 32 Q29 31.6 25.5 33 Q22.5 31 20.5 25Z" fill="#e8e4dc" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+    <path fill="none" d="M28 42 Q29.6 48 31 52 M36 42 Q34.4 48 33 52 M32 40 L32 50" stroke="#bab6b0" stroke-width="0.9"/>
+    <path fill="none" d="M28.4 33.6 Q32 36.6 35.6 33.6" stroke="#4d3320" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M27 32.8 Q29.5 30.8 32 31.9 Q34.5 30.8 37 32.8 Q35 33.9 32 33.2 Q29 33.9 27 32.8Z" fill="#e8e4dc" stroke="#15110d" stroke-width="1.1"/>
+    <path d="M17.2 30 Q14.4 5.6 32 5 Q49.6 5.6 46.8 30 Q44 17 32 16.2 Q20 17 17.2 30Z" fill="#6a5a40" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+    <path fill="none" d="M20.4 24 Q22.4 17.4 32 16.8 Q41.6 17.4 43.6 24" stroke="#4a3f2d" stroke-width="1.2"/>
   </g>
-  <rect x="3" y="3" width="58" height="58" rx="6" fill="none" stroke="#8f6f2a" stroke-width="1.6"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="6.5" fill="none" stroke="#15110d" stroke-width="2"/>
 </svg>
