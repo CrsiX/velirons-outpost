@@ -1,0 +1,8 @@
+- Added townhall as hero's base and 7x7 base layout for villages
+- Added equipments for the hero and map-wide or village-wide relics
+- Added extended market, trade caravans, trading, trade carts and coop trading
+- Added new enemy kind: ghoul
+- Reworked upgrade dialog with fancy cards for all units kinds
+- Removed the Spatial Archmage
+- Show banners of all buildings in the colors of the player (coop), including library
+- Upgraded map version and save game version: old saves will not load anymore
