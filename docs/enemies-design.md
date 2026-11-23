@@ -2,11 +2,11 @@
 
 Status: **built; describes the current code**. Tested by tests/enemy_bot.gd (thief, gargoyle,
 necromancer, vampire, slimes, spiders, the wrathwood, vultures, ghosts, wolves and riders,
-poison, the snake), tests/siege_bot.gd (lurking, leaving, the held wall), tests/rat_bot.gd
-(rats), tests/library_bot.gd (families) and tests/sim_bot.gd (waves, raids, corpses).
+poison, the snake, ghouls), tests/siege_bot.gd (lurking, leaving, the held wall), tests/rat_bot.gd
+(rats, packs), tests/library_bot.gd (families) and tests/sim_bot.gd (waves, raids, corpses).
 Scope: every enemy kind, how waves are put together and escalate, difficulty, damage
 categories, flyers, corpses and raids. **Every number lives in `scripts/core/config.gd`**
-(`ENEMIES`, `WAVE_MIX`, `RAT_PACKS`, `WRATHWOOD`, `VULTURES`, `GHOST`, `MOUNTED`, ...); this doc keeps
+(`ENEMIES`, `WAVE_MIX`, `PACKS`, `WRATHWOOD`, `VULTURES`, `GHOST`, `MOUNTED`, ...); this doc keeps
 the reasoning and points at the symbols.
 
 ## 1. Wave flow
@@ -30,9 +30,10 @@ the reasoning and points at the symbols.
   cap after rounding; `WAVE_FILLER` (goblin) fills the rest. The table of who joins when is
   `WAVE_MIX`; the order is a teaching curve: skeletons first, then orcs and slimes, then
   witches and wolves, then thieves and raiders, flyers, and the necromancer line.
-- **Rat packs** (`RAT_PACKS`): a chance per wave, more packs as waves go on, each from one
-  spawn, inserted as a block into the queue (never inside another pack). Not part of `WAVE_MIX`
-  because a pack is a different threat (to the food, not the walls).
+- **Packs** (`PACKS`, by kind: rats, ghouls): per kind a chance per wave, more packs as waves
+  go on, each from one spawn, inserted as a block into the queue (never inside another pack).
+  Not part of `WAVE_MIX` because a pack is a different threat: rats go for the food, and a
+  ghoul (§10.17) needs others of its kind near to rise again.
 - **Lairs** (docs/world-design.md): from `LAIR_FROM_WAVE`, one lair per village area wakes, the
   next every `LAIR_EVERY` waves. An awake lair is one more spawn point for its slice's share
   (it adds no enemies, so waking one changes where they come from, not how many). It sends only
@@ -86,6 +87,7 @@ the reasoning and points at the symbols.
 - **Holy** (docs/acolyte-design.md §3): the undead and the vampire line take more, the
   Horde a little less; anything a necromancer raised, and anything undead (`Enemy.undead`:
   a raised spider mother's eggs and spiderlings), takes another multiplier (`raised_holy`).
+  A ghoul killed by holy damage never rises again (§10.17).
 - **Unholy** (`"unholy": true`): skeleton, necromancer, vampire, ghost; raised and undead enemies
   count too (`Enemy.is_unholy`). Only the Inquisitor's targeting uses it.
 - Other resistances are per-kind data (vampire vs magic, the wrathwood vs projectiles, ...);
@@ -138,7 +140,7 @@ become a second source of truth with exceptions for the vampire or the necromanc
 |---|---|
 | The Horde | goblin, orc, goblin raider: thinking monsters, raiders and warbands |
 | Beasts | wolf, rat, vulture, spider mother (with eggs and spiderlings), wrathwood, horse, snake |
-| Undead | skeleton, ghost, vampire, necromancer |
+| Undead | skeleton, ghoul, ghost, vampire, necromancer |
 | Aquatic | crab, leviathan, siren, octopus (with its arms) |
 | Humans | thief, witch, the Dread Legion (brainwashed living soldiers, not undead) |
 | Aberrations | slimes, gargoyle: unnatural things |
@@ -178,6 +180,7 @@ become a second source of truth with exceptions for the vampire or the necromanc
 - Corpses rot after `CORPSE_LIFETIME`; all corpses of wave N and older go once wave N+1 is
   finished, so loot not collected is lost. In the tutorial they don't rot.
 - Necromancers can raise corpses (§10.7), except one marked `"revivable": false`.
+- A ghoul's corpse rises by itself while another ghoul is near (§10.17).
 - Corpses left lying at a wave's start draw vultures (§10.11).
 
 ## 8. At the village (raids)
@@ -286,7 +289,7 @@ Every enemy kind in its own section; one sharing a behaviour with others is grou
 
 ### 10.3 Rat
 
-- Packs (§1) from `RAT_PACKS`, not part of `WAVE_MIX`. Frail, fast, and their HP grows with the
+- Packs (§1) from `PACKS.rat`, not part of `WAVE_MIX`. Frail, fast, and their HP grows with the
   waves like anything's. They threaten food, not the walls, which asks for a different defence:
   barracks and the hero near the farms.
 - `RatBehavior` states: ROAD, TO_FARM, ON_FARM, CHASE.
@@ -731,6 +734,47 @@ their own (`Enemy.set_identity`). Numbers and the rest: docs/scenarios-4-6-desig
   and gone. docs/scenarios-10-11-design.md.
 - A camp of Legion soldiers only is a *Legion camp* (its own look). A scenario can set a lair's
   guards, kinds and waking wave and keep it cleared (`Scenario.lairs`).
+
+### 10.17 Ghoul
+
+A goblin-weak undead (Undead, unholy, no poison) that won't stay down while another ghoul is
+alive near it: picking a pack off one at a time doesn't work, killing it together does. All
+numbers are in `ENEMIES.ghoul` and `PACKS.ghoul`.
+- **Fights like a goblin** (`MeleeBehavior`): no behaviour of its own, no staying by its
+  fallen. The danger is only the revive, so the counters are burst and splash, holy damage,
+  and gathering the bodies.
+- **Packs** (`PACKS.ghoul`, §1), never in `WAVE_MIX`: a lone ghoul would have nothing to revive it.
+- **Its corpse.** A slain ghoul leaves an ordinary corpse (`Corpse`). While a *living*
+  ghoul (any village's, any wave's; not raised) stands within `wake_range`, the body is
+  **downed**: it twitches (`corpse_ghoul_twitch` now and then, with a jolt) and a hidden timer
+  runs (`wake_time` x a random `wake_jitter` factor, rolled anew each time it starts). The
+  waker must stay in range the whole time: when none is, the body lies still and the timer
+  starts afresh with the next ghoul to come by. That is what makes ghouls dangerous in the
+  long run: a pack walks the same roads as the bodies of the last one.
+- **Rising.** When the timer runs out it rises (`Waves.rise_ghoul`) at full HP, with
+  `rise_hp` x its max HP of before: each life is weaker, so a ghoul can't come back for ever,
+  and a late wave's ghoul (more HP) comes back more often. `min_hp` is not scaled by
+  difficulty, so difficulty only adds HP (and with it, rises). It joins the waker's wave and
+  village: the wave has one more enemy. A twitching body counts for no wave; the waker does.
+- **At rest.** A ghoul whose next life would be below `min_hp`, or that was killed by holy
+  damage, is *laid to rest*: its corpse never rises again (`Corpse.at_rest`). It looks like
+  any other corpse; only the twitch tells a downed body from a still one. Fire is no
+  exception.
+- **A High Priest's aura** on the body makes the timer `necro_slow` x as long, as with a
+  necromancer's raise (`Combat.necro_slow`).
+- **Gathering.** A downed body is an ordinary corpse to a gatherer: the usual safety rule
+  (§7, a living enemy near) keeps gatherers off while its waker is close, but one carried home
+  is gone for good. Corpses give food only (`gold_on_collect` 0); every kill pays
+  `gold_on_kill` and hero XP again, so a village that lets ghouls rise on purpose earns more,
+  if it dares.
+- Corpse rules hold otherwise: it rots and is cleared with its wave; vultures eat it, also
+  while it twitches; on deep water it sinks and doesn't rise. A necromancer can't raise it
+  (`revivable: false`). A downed body is a corpse, not an enemy, so nothing can target or hurt
+  it.
+- The first rise per village and game is logged at Info, later ones at Debug.
+- **Statistics:** each kill counts (`kill.ghoul`); rises and holy kills have counters of their
+  own (`ghoul.rises`, `ghoul.laid_to_rest`), and the balancing bot keeps risen ghouls apart
+  (`risen_ghoul` in a wave's `by_kind`).
 
 ## 11. Monster-camp guards
 

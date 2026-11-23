@@ -51,6 +51,10 @@ var behavior: EnemyBehavior
 var uid := 0
 ## Whoever dealt the killing blow (for the log, and who gets the gold).
 var killer: Node = null
+## The killing blow's damage category (a ghoul slain by holy damage is laid to rest).
+var killed_by := ""
+## A ghoul: how many times it has risen again (Waves.rise_ghoul).
+var rises := 0
 ## The village this enemy is sent against (its raid hits that village's huts).
 var target_village: Village = null
 var _jitter := Vector2.ZERO
@@ -1750,6 +1754,7 @@ func take_damage(amount: float, source: Node = null, category: String = "pure") 
 	if hp <= 0.0:
 		dead = true
 		killer = source
+		killed_by = category
 		remove_from_group("enemies")
 		behavior.on_death(self)
 		killed.emit(self)

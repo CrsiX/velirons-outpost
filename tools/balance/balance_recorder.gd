@@ -211,7 +211,9 @@ func _on_node_added(node: Node) -> void:
 
 
 func _kind_name(e: Enemy) -> String:
-	return "raised_" + e.kind if e.raised else e.kind
+	if e.raised:
+		return "raised_" + e.kind
+	return "risen_" + e.kind if e.rises > 0 else e.kind
 
 
 ## The row of enemy `e`'s kind in the by_kind table of its wave (a fresh one

@@ -1,5 +1,5 @@
 extends "res://tests/bot_base.gd"
-## Headless test of rats, villager HP, farm defence, dropped loot, tear-down,
+## Headless test of rats (and the other packs: ghouls), villager HP, farm defence, dropped loot, tear-down,
 ## fog details and safety inside the walls. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/rat_bot.tscn
 ## Exits 0 when every check passes.
@@ -27,6 +27,7 @@ func _run() -> void:
 			game.army.unstation(t.garrison)
 	_bench_hero(true)
 	await _test_packs()
+	_test_ghoul_packs()
 	await _test_farm()
 	await _test_gate()
 	await _test_villagers()
@@ -83,10 +84,44 @@ func _test_config() -> void:
 
 # --- packs ------------------------------------------------------------------------------------
 
+## Ghouls come in packs the same way (PACKS.ghoul): never before their wave,
+## whole packs of their size, each from one spawn, and never alone in a wave.
+func _test_ghoul_packs() -> void:
+	var w := game.waves
+	var gp: Dictionary = Config.PACKS["ghoul"]
+	check(not Config.WAVE_MIX.has("ghoul"), "ghouls aren't in the wave mix: only in packs")
+	var before: Array = w._share(int(gp["from_wave"]) - 1, 1.0, game.map.edge_spawns, game.player_village)
+	check(not before.any(func(sp: Dictionary) -> bool: return sp["kind"] == "ghoul"), "no ghouls before wave %d" % gp["from_wave"])
+	var runs: Array[int] = []
+	var same_spawn := true
+	var lone := false
+	var tries := 0
+	while runs.is_empty() and tries < 60:
+		tries += 1
+		var share: Array = w._share(int(gp["from_wave"]) + 2, 1.0, game.map.edge_spawns, game.player_village)
+		var count := share.filter(func(sp: Dictionary) -> bool: return sp["kind"] == "ghoul").size()
+		lone = lone or count == 1
+		var i := 0
+		while i < share.size():
+			if share[i]["kind"] == "ghoul" and not share[i].has("gap"):
+				var n := 1
+				while i + n < share.size() and share[i + n]["kind"] == "ghoul" and share[i + n].get("gap", 0.0) > 0.0:
+					same_spawn = same_spawn and share[i + n]["spawn"] == share[i]["spawn"]
+					n += 1
+				runs.append(n)
+				i += n
+			else:
+				i += 1
+	var lo := int(gp["size"][0])
+	var hi := int(gp["size"][1])
+	check(not runs.is_empty() and runs.all(func(n: int) -> bool: return n >= lo and n <= hi) and same_spawn, "from wave %d ghouls come in packs of %d-%d from one spawn %s" % [gp["from_wave"], lo, hi, str(runs)])
+	check(not lone and lo >= 2, "a ghoul never comes alone")
+
+
 func _test_packs() -> void:
 	var w := game.waves
-	var before: Array = w._share(Config.RAT_PACKS["from_wave"] - 1, 1.0, game.map.edge_spawns, game.player_village)
-	check(not before.any(func(sp: Dictionary) -> bool: return sp["kind"] == "rat"), "no rats before wave %d" % Config.RAT_PACKS["from_wave"])
+	var before: Array = w._share(Config.PACKS["rat"]["from_wave"] - 1, 1.0, game.map.edge_spawns, game.player_village)
+	check(not before.any(func(sp: Dictionary) -> bool: return sp["kind"] == "rat"), "no rats before wave %d" % Config.PACKS["rat"]["from_wave"])
 	var share: Array = []
 	for tries in 40:
 		share = w._share(6, 1.0, game.map.edge_spawns, game.player_village)
@@ -106,7 +141,7 @@ func _test_packs() -> void:
 			i += n
 		else:
 			i += 1
-	check(not runs.is_empty() and runs.all(func(n: int) -> bool: return n >= Config.RAT_PACKS["size"][0] and n <= Config.RAT_PACKS["size"][1]) and same_spawn, "later waves bring packs of 4-7 rats from one spawn %s" % str(runs))
+	check(not runs.is_empty() and runs.all(func(n: int) -> bool: return n >= Config.PACKS["rat"]["size"][0] and n <= Config.PACKS["rat"]["size"][1]) and same_spawn, "later waves bring packs of 4-7 rats from one spawn %s" % str(runs))
 	# Spawned: a moment apart, so a little space between them.
 	for sp in share:
 		if sp["kind"] == "rat":

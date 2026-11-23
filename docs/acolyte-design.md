@@ -36,7 +36,7 @@ Acolyte ────────────┬──────►  Inquisitor
 
 The factors are data on each enemy, not here. The reasoning:
 
-- The unholy (skeleton, necromancer, vampire) take more holy damage, the necromancer and
+- The unholy (skeleton, ghoul, necromancer, vampire) take more holy damage, the necromancer and
   vampire most: they are the enemies the line exists for. The goblin-like kinds (goblin, orc,
   thief, gargoyle) take a little less, so an acolyte is not simply the best unit against a
   plain wave. Animals and the rest are neutral.

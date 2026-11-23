@@ -740,12 +740,12 @@ func _test_holy() -> void:
 		game.army.unstation(u)
 	await frames(2)
 	# Config: the factors and flags of docs/acolyte-design.md, the chapel.
-	var want := {"goblin": 0.75, "skeleton": 1.25, "orc": 0.75, "witch": 1.0, "rat": 1.0, "thief": 0.75, "gargoyle": 0.75, "necromancer": 1.5, "vampire": 1.5}
+	var want := {"goblin": 0.75, "skeleton": 1.25, "ghoul": 1.25, "orc": 0.75, "witch": 1.0, "rat": 1.0, "thief": 0.75, "gargoyle": 0.75, "necromancer": 1.5, "vampire": 1.5}
 	var factors_ok := true
 	for k in want:
 		factors_ok = factors_ok and is_equal_approx(float(Config.ENEMIES[k].get("resist", {}).get("holy", 1.0)), want[k])
 	check(factors_ok, "holy factors per enemy kind as designed")
-	check(Config.ENEMIES.keys().filter(func(k: String) -> bool: return Config.ENEMIES[k].get("unholy", false)) == ["skeleton", "necromancer", "vampire", "ghost"], "skeletons, necromancers, vampires and ghosts are unholy")
+	check(Config.ENEMIES.keys().filter(func(k: String) -> bool: return Config.ENEMIES[k].get("unholy", false)) == ["skeleton", "ghoul", "necromancer", "vampire", "ghost"], "skeletons, ghouls, necromancers, vampires and ghosts are unholy")
 	check(Config.LOCKED.get("acolyte", "") == "chapel" and Config.UNLOCK_SITES["chapel"]["wave"] == 6 and Config.UNLOCK_SITES["chapel"]["distance"].map(func(v) -> int: return int(v)) == [16, 24], "the acolyte is unlocked at the ruined chapel, from wave 6, 16-24 tiles out")
 	check(Config.MILITARY["acolyte"]["cost"] == {"gold": 50} and Config.MILITARY["acolyte"]["range"] < Config.MILITARY["archer"]["range"], "acolyte: 50 gold, shorter field range than the archer")
 	check(absf(Config.unit_stat("acolyte", "hp", 0) - Config.unit_stat("archer", "hp", 0)) < 0.01 and _dps("acolyte", 9) <= _dps("archer", 9) and _dps("acolyte", 9) > 0.7 * _dps("archer", 9), "acolyte: archer HP, a little less DPS")

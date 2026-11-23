@@ -250,11 +250,8 @@ func _share(n: int, hp_scale: float, spawns: Array[Vector2i], target: Village) -
 	points = points.slice(0, mini(Config.wave_spawn_points(n), points.size()))
 	var pool: Array = []  # (untyped: edge tiles and lairs)
 	pool.append_array(points)
-	var rat_pool: Array = pool.duplicate()
-	for l in game.world.awake_lairs(int(game.map.villages[target.id].get("slice", 0))):
-		pool.append(l)
-		if (l.theme()["kinds"] as Array).has("rat"):
-			rat_pool.append(l)
+	var lairs: Array = game.world.awake_lairs(int(game.map.villages[target.id].get("slice", 0)))
+	pool.append_array(lairs)
 	var kinds := _kinds(n, target)
 	kinds.shuffle()
 	var out := []
@@ -263,12 +260,19 @@ func _share(n: int, hp_scale: float, spawns: Array[Vector2i], target: Village) -
 	_theme_lairs(out, n)
 	_pack_up(out, hp_scale, target)
 	_water_spawns(out, target)
-	# Rat packs: whole packs, each from one spawn, the rats a moment apart.
-	var rp: Dictionary = Config.RAT_PACKS
-	if n >= int(rp["from_wave"]) and _rng.randf() < float(rp["chance"]):
+	# Packs (rats, ghouls): rolled per kind; whole packs, each from one spawn
+	# (an edge spawn, or an awake lair whose theme sends that kind), a moment apart.
+	for kind: String in Config.PACKS:
+		var rp: Dictionary = Config.PACKS[kind]
+		if n < int(rp["from_wave"]) or _rng.randf() >= float(rp["chance"]):
+			continue
+		var from: Array = points.duplicate()
+		for l in lairs:
+			if (l.theme()["kinds"] as Array).has(kind):
+				from.append(l)
 		var packs := _rng.randi_range(int(rp["packs"][0]), int(rp["packs"][1])) + (n - int(rp["from_wave"])) / int(rp["more_every"])
 		for p in packs:
-			_insert_pack(out, rat_pool[_rng.randi() % rat_pool.size()], _rng.randi_range(int(rp["size"][0]), int(rp["size"][1])), hp_scale, target)
+			_insert_pack(out, from[_rng.randi() % from.size()], _rng.randi_range(int(rp["size"][0]), int(rp["size"][1])), hp_scale, target, kind)
 	return out
 
 
@@ -402,11 +406,11 @@ func _pack_up(out: Array, hp_scale: float, target: Village) -> void:
 			p += 1
 
 
-## A pack of `size` of `kind` (rats, wolves) from `at` into `out`, at a
+## A pack of `size` of `kind` (rats, ghouls, wolves) from `at` into `out`, at a
 ## random place (never into the middle of another pack), a moment apart.
 func _insert_pack(out: Array, at, size: int, hp_scale: float, target: Village, kind := "rat") -> void:
 	var pack := []
-	var gap := float(Config.RAT_PACKS["gap"]) if kind == "rat" else float(Config.ENEMIES[kind]["pack_gap"])
+	var gap := float(Config.PACKS[kind]["gap"]) if Config.PACKS.has(kind) else float(Config.ENEMIES[kind]["pack_gap"])
 	for k in size:
 		var spec := _spec(kind, at, hp_scale, target)
 		if k > 0:
@@ -789,6 +793,37 @@ func raise_corpse(c: Corpse, by: Enemy) -> Enemy:
 	return g
 
 
+## Villages whose first risen ghoul is logged already (at Info; later: Debug).
+var _rise_logged := {}
+
+
+## A ghoul's corpse rises (Corpse, docs/enemies-design.md §10.17): a ghoul
+## again where it lay, with the corpse's next max HP (`rise_max`) at full HP,
+## joining the wave and village of `waker` (the living ghoul that kept it
+## downed); it counts for that wave (or for none, like a debug waker).
+func rise_ghoul(c: Corpse, waker: Enemy) -> Enemy:
+	if not game.corpses.corpses.has(c):
+		return null
+	var target: Village = waker.target_village if is_instance_valid(waker.target_village) else game.villages[0]
+	var g := _walker(c.kind, c.grid_pos, c.hp_scale, target)
+	g.max_hp = c.rise_max
+	g.hp = g.max_hp
+	g.rises = c.rises + 1
+	g.wave = waker.wave
+	game.corpses.remove(c)
+	_add(g, target)
+	if _uncounted.has(waker):
+		_alive -= 1
+		_uncounted[g] = true
+	game.stats.count(target, "ghoul.rises")
+	var first := not _rise_logged.has(target.id)
+	_rise_logged[target.id] = true
+	target.events.add(EventLog.Level.INFO if first else EventLog.Level.DEBUG, "A slain ghoul gets up again!" if first else "%s gets up again (%d HP)" % [g.label(), roundi(g.max_hp)])
+	Combat.burst(game, "warp", g.position + Vector2(0, -16), 0.5)
+	g.pop_in()
+	return g
+
+
 ## An enemy of `kind` standing at `pos` (grid), not yet added: its road from
 ## the nearest road tile (an amphibian in water: from there) to `target`.
 func _walker(kind: String, pos: Vector2, hp_scale: float, target: Village) -> Enemy:
@@ -876,12 +911,26 @@ func _on_enemy_killed(g: Enemy) -> void:
 		var c := game.corpses.spawn(g.kind, g.wave, g.grid_pos)
 		c.extra_gold = g.loot_gold
 		c.hp_scale = g.hp_scale
+		if g.spec().has("rise_hp"):
+			_ghoul_corpse(g, c, v)
 	ItemDrops.drop_carried(game, g, v)
 	if not g.loot_cargo.is_empty():  # (a thief's haul from a trade caravan)
 		TradeCaravan.drop_salvage(game, g.current_tile(), game.entity(int(g.loot_cargo["market"])) as Market, g.loot_cargo["goods"], bool(g.loot_cargo["merchants"]), str(g.loot_cargo.get("item", "")), int(g.loot_cargo.get("price", -1)))
 		g.loot_cargo = {}
 	_split(g)
 	_enemy_gone(g)
+
+
+## A slain ghoul's corpse `c`: its next life (rise_hp x its max HP), or laid
+## to rest (a holy kill, or a next life below min_hp; counted for `v`, the payee).
+func _ghoul_corpse(g: Enemy, c: Corpse, v: Village) -> void:
+	c.rises = g.rises
+	c.rise_max = g.max_hp * float(g.spec()["rise_hp"])
+	if g.killed_by == "holy" or c.rise_max < float(g.spec()["min_hp"]):
+		c.at_rest = true
+		if g.killed_by == "holy":
+			game.stats.count(v, "ghoul.laid_to_rest")
+			v.events.debug("%s is laid to rest by holy light" % g.label())
 
 
 ## The kill pays whoever made it (tower, elemental, hero); else the village

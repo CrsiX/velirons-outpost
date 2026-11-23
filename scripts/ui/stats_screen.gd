@@ -220,6 +220,8 @@ func summary_sections() -> Array[Dictionary]:
 	mil.append(_sub("Others", "kill.other", "high"))
 	for by in [["by towers", "tower"], ["by barracks units", "units"], ["by summons", "summons"], ["by the hero", "hero"]]:
 		mil.append(_sub(by[0], "kill_by." + by[1], "high"))
+	mil.append(_row("Ghouls that got up again", "ghoul.rises", "low"))
+	mil.append(_row("Ghouls laid to rest by holy light", "ghoul.laid_to_rest", "high"))
 	mil.append(_row("Got into the village", "gate", "low"))
 	mil.append(_row("Huts burned", "huts_burned", "low", "hut_ruin"))
 	mil.append(_row("Waves survived", "waves", "high"))

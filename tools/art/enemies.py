@@ -1,6 +1,6 @@
 """Enemies and their corpses: goblins, orcs, skeletons, witches, thieves, gargoyles,
 vultures, ghosts, necromancers, vampires, slimes, rats, spiders, wrathwoods, water
-monsters, wolves, the snake, horses and riders, and the monster lairs."""
+monsters, wolves, the snake, ghouls, horses and riders, and the monster lairs."""
 
 import math
 import os
@@ -1402,3 +1402,78 @@ def riders():
     mounted("unit_legion_captain_lysa", "unit_legion_captain_lysa_mounted", CRIMSON_D, GOLD_D)
     mounted("unit_legion_marshal", "unit_legion_marshal_mounted", "#5e626c", GOLD)
     mounted("unit_legion_king", "unit_legion_king_mounted", "#c4c8d2", GOLD, coat=("#d8d4cc", "#b4b0a8", "#e8e4dc"), leg="#a4a8b2")
+
+
+GHOUL_SKIN, GHOUL_SKIN_D = "#8f9a8a", "#6c776a"
+
+
+def ghoul():
+    """Hunched, grey-pale and gaunt, long arms ending in claws, rags, glowing eyes."""
+    a = Art()
+    a.shadow(11, 4.5, opacity=0.4)
+    for x0, x1 in ((-3, -5), (3, 4)):  # bent, bony legs
+        a.line([(x0, -1), (x1, -6), (x0 * 0.6, -11)], INK, 4.4)
+        a.line([(x0, -1.5), (x1, -6), (x0 * 0.6, -11)], GHOUL_SKIN_D, 2.6)
+        a.ellipse(x0 + (-1 if x0 < 0 else 1), -1, 3, 1.4, GHOUL_SKIN_D, INK, 1)
+    a.poly([(-6, -13), (5, -13), (4, -8), (1, -10), (-2, -7), (-5, -9)], "#3e3631", INK, 1)  # rags
+    # hunched torso, leaning forward
+    a.poly([(-5, -13), (5, -13), (8, -24), (0, -28), (-5, -22)], GHOUL_SKIN, INK, 1.2)
+    for y in (-17, -20, -23):  # ribs showing
+        a.line([(-2, y), (4, y - 1)], GHOUL_SKIN_D, 0.9)
+    # long arms, the front one reaching out low with claws
+    for pts in ([(5, -24), (11, -18), (15, -12)], [(-2, -25), (-7, -17), (-6, -9)]):
+        a.line(pts, INK, 3.8)
+        a.line(pts, GHOUL_SKIN, 2.2)
+    for dx, dy in ((2.5, 1.5), (3, -0.5), (1, 2.5)):
+        a.line([(15, -12), (15 + dx, -12 + dy)], "#e6dcc4", 1.0)
+    # head thrust forward: bald, sunken, a wide mouth
+    a.ellipse(6, -30, 5.5, 5, GHOUL_SKIN, INK, 1.2)
+    a.poly([(3, -32), (1, -36), (5, -34)], GHOUL_SKIN, INK, 0.8)  # ragged ear
+    a.line([(5, -27), (10, -27.5)], "#2a1a18", 1.4)
+    for x in (6, 7.5, 9):
+        a.line([(x, -27.5), (x, -26.5)], "#e6dcc4", 0.6)
+    a.ellipse(6, -31, 1.3, 1.1, "#1a1612")
+    a.ellipse(9, -31, 1.3, 1.1, "#1a1612")
+    a.ellipse(6, -31, 0.7, 0.7, "#c8f07a")
+    a.ellipse(9, -31, 0.7, 0.7, "#c8f07a")
+    a.save("unit_ghoul")
+
+
+def _ghoul_body(a, twitch):
+    a.ellipse(0, 0, 18, 6, "#000", opacity=0.3)
+    a.ellipse(0, 1, 13, 4, "#2a3326", opacity=0.5)  # dark stain
+    a.poly([(-11, -1), (6, -5), (8, 1), (-9, 4)], GHOUL_SKIN, INK, 1.1)  # body, lying down
+    a.poly([(-11, -1), (-5, -2), (-4, 3), (-9, 4)], "#3e3631")  # rags
+    for x in (-1, 2, 5):
+        a.line([(x, -3.5), (x - 0.5, 1)], GHOUL_SKIN_D, 0.8)
+    a.line([(-11, 1), (-18, 3)], INK, 3.6)  # legs
+    a.line([(-11, 1), (-18, 3)], GHOUL_SKIN_D, 2)
+    a.line([(-9, 3), (-15, 7)], INK, 3.6)
+    a.line([(-9, 3), (-15, 7)], GHOUL_SKIN_D, 2)
+    if twitch:
+        # head lifted, a clawed hand raised off the ground
+        a.ellipse(12, -6, 5.5, 4.8, GHOUL_SKIN, INK, 1.2)
+        a.ellipse(13.5, -7, 1, 0.9, "#c8f07a")
+        a.ellipse(10.5, -7, 1, 0.9, "#c8f07a")
+        pts = [(3, -3), (5, -10), (8, -15)]
+        a.line(pts, INK, 3.6)
+        a.line(pts, GHOUL_SKIN, 2)
+        for dx, dy in ((-1.5, -2.5), (0.5, -3), (2, -2)):
+            a.line([(8, -15), (8 + dx, -15 + dy)], "#e6dcc4", 1.0)
+    else:
+        a.ellipse(12, -3, 5.5, 4.8, GHOUL_SKIN, INK, 1.2)
+        a.line([(10.5, -4), (12, -2.5)], INK, 1)
+        a.line([(12, -4), (10.5, -2.5)], INK, 1)
+        pts = [(3, -3), (8, 4), (13, 6)]
+        a.line(pts, INK, 3.6)
+        a.line(pts, GHOUL_SKIN, 2)
+
+
+def corpse_ghoul():
+    """A slain ghoul, and the frame it twitches into while another ghoul is near."""
+    a = Art()
+    _ghoul_body(a, False)
+    a.save("corpse_ghoul")
+    a = Art()
+    _ghoul_body(a, True)
+    a.save("corpse_ghoul_twitch")

@@ -18,9 +18,9 @@ from art.buildings import (
 )
 from art.enemies import (
     corpse_crab, corpse_gargoyle, corpse_goblin, corpse_horse, corpse_leviathan, corpse_necromancer,
-    corpse_octopus, corpse_orc, corpse_siren, corpse_skeleton, corpse_snake, corpse_spider_mother,
+    corpse_ghoul, corpse_octopus, corpse_orc, corpse_siren, corpse_skeleton, corpse_snake, corpse_spider_mother,
     corpse_thief, corpse_vampire, corpse_vulture, corpse_witch, corpse_wolf, corpse_wrathwood, crab,
-    gargoyle, ghost, goblin, horse, leviathan, necromancer, octopus, octopus_arm, orc, rat, riders,
+    gargoyle, ghost, ghoul, goblin, horse, leviathan, necromancer, octopus, octopus_arm, orc, rat, riders,
     siren, skeleton, slimes, snake, SNAKE_FRAMES, snake_slither, spell_bolt, spell_glow,
     spider_eggs, spider_mother, spiderling, thief, vampire, vampire_bat, vulture, vulture_landed,
     witch, wolf, wrathwood,
@@ -155,6 +155,8 @@ def main():
     training_grounds()
     skeleton()
     corpse_skeleton()
+    ghoul()
+    corpse_ghoul()
     summoner()
     earth_elemental()
     orc()

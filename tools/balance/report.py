@@ -246,7 +246,9 @@ def casters(runs):
     time that is not known: only the seconds), the bolts that landed on manned
     towers, the damage her bolts did elsewhere, and the necromancers' raises
     (by what rose), the time they channelled and stood waiting, spells lost,
-    how many raised dead reached a gate and the necromancers killed."""
+    how many raised dead reached a gate and the necromancers killed; the ghouls
+    killed (every life), how often one rose again and how many holy damage laid
+    to rest."""
     def m(key):
         return mean([float(r["counters"].get(key, 0)) for r in runs]) if runs else 0.0
     kinds = sorted({k[len("witch.disabled_s."):] for r in runs for k in r["counters"] if k.startswith("witch.disabled_s.")})
@@ -269,6 +271,9 @@ def casters(runs):
         ["necromancer: raised dead that reached a gate", f(m("necro.raised_gate"), 1)],
         ["necromancer: necromancers killed", f(m("kill.necromancer"), 1)],
         ["raised dead killed", f(m("kill.raised"), 1)],
+        ["ghoul: kills (every life)", f(m("kill.ghoul"), 1)],
+        ["ghoul: rose again", f(m("ghoul.rises"), 1)],
+        ["ghoul: laid to rest by holy damage", f(m("ghoul.laid_to_rest"), 1)],
     ]
     return rows
 

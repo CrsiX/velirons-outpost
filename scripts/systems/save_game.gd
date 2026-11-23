@@ -11,7 +11,7 @@ extends RefCounted
 ## length (u32) and the body (var_to_bytes, zstd). Plain values only: entities
 ## refer to each other by nid, villages by index, map objects by index.
 
-const FORMAT := 10
+const FORMAT := 11
 const MAGIC := "VOSV"
 const EXT := "vsave"
 const AUTO_PREFIX := "auto-"
@@ -327,7 +327,7 @@ static func capture(game: Game) -> Dictionary:
 	var corpses: Array = []
 	for c in game.corpses.corpses:
 		if is_instance_valid(c):
-			corpses.append({"k": c.kind, "w": c.wave, "pos": c.grid_pos, "tl": c.time_left, "u": c.uid, "n": c.nid, "eg": c.extra_gold, "hs": c.hp_scale})
+			corpses.append({"k": c.kind, "w": c.wave, "pos": c.grid_pos, "tl": c.time_left, "u": c.uid, "n": c.nid, "eg": c.extra_gold, "hs": c.hp_scale, "gr": [c.rises, c.rise_max, c.at_rest]})
 	b["corpses"] = corpses
 	b["waves"] = {"wave": game.waves.wave, "countdown": game.waves.countdown}
 	b["wrathwoods"] = game.wrathwoods.save_state()
@@ -882,6 +882,9 @@ static func _restore_corpse(game: Game, d: Dictionary) -> void:
 	c.time_left = float(d["tl"])
 	c.extra_gold = int(d["eg"])
 	c.hp_scale = float(d["hs"])
+	c.rises = int(d["gr"][0])
+	c.rise_max = float(d["gr"][1])
+	c.at_rest = bool(d["gr"][2])
 	c.uid = int(d["u"])
 	c.nid = int(d["n"])
 	game.register_as(c, c.nid)

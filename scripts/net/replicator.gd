@@ -376,7 +376,7 @@ func _describe(n: Node) -> Array:
 		return [ca.nid, "ca", {"from": ca.from.id, "to": ca.to.id, "u": ca.uid}, _unit_state(ca), ca.current_tile(), vid, false]
 	if n is Corpse:
 		var co := n as Corpse
-		return [co.nid, "co", {"k": co.kind, "u": co.uid, "p": co.grid_pos}, {"a": snappedf(co.modulate.a, 0.1)}, co.tile(), -1, false]
+		return [co.nid, "co", {"k": co.kind, "u": co.uid, "p": co.grid_pos}, {"a": snappedf(co.modulate.a, 0.1), "dn": co.downed}, co.tile(), -1, false]
 	return []
 
 
@@ -645,6 +645,7 @@ func _apply_state(o, st: Dictionary, first: bool = false) -> void:
 		return
 	if o is Corpse:
 		o.modulate.a = st.get("a", 1.0)
+		(o as Corpse).net_downed(bool(st.get("dn", false)))
 		return
 	if o is Unit:
 		var u := o as Unit

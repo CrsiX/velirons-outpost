@@ -278,7 +278,7 @@ const STATS := {
 	"sample_interval": 15.0,
 	"client_refresh": 5.0,
 	"unit_sent_value": 50,
-	"kill_kinds": ["goblin", "skeleton", "orc", "witch", "rat", "wolf", "goblin_raider", "thief", "gargoyle", "necromancer", "wrathwood"],
+	"kill_kinds": ["goblin", "skeleton", "ghoul", "orc", "witch", "rat", "wolf", "goblin_raider", "thief", "gargoyle", "necromancer", "wrathwood"],
 }
 
 ## Saving and loading games (docs/save-design.md): where the save files go,
@@ -2290,6 +2290,7 @@ const CAMERA_KEY_ZOOM := 1.12
 ## library (false: no library entry of its own), library_name (its name there),
 ## habitat, submerges and the other water keys (see "crab" and AQUA),
 ## revivable (false: a necromancer can't raise its corpse),
+## wake_range, wake_time, wake_jitter, rise_hp, min_hp (its corpse rises again, see "ghoul"),
 ## pin_proof (true: a boss; the hero's net never holds it, see ITEMS),
 ## fixed_hp (true: its hp is never scaled by difficulty or wave, see "spider_egg"),
 ## low_priority (true: towers and fighters go for it only when nothing else is in reach),
@@ -2342,6 +2343,24 @@ const ENEMIES := {
 		"damage": 4.0, "attack_cooldown": 1.0,
 		"gold_on_kill": 3, "gold_on_collect": 3, "food_on_collect": 0,
 		"resist": {"poison": 0.0, "holy": 1.25}, "unholy": true,
+	},
+	# A goblin's strength, undead, in packs (PACKS.ghoul; docs/enemies-design.md
+	# §10.17). Its corpse rises again while a living ghoul stays within
+	# wake_range for wake_time x a random wake_jitter factor (rolled anew each
+	# time; x Combat.necro_slow in a High Priest's aura), with rise_hp x its
+	# max HP of before, at full HP; it joins the waker's wave. A ghoul killed by
+	# holy damage, or whose next max HP would be below min_hp (not scaled by
+	# difficulty), is laid to rest: its corpse never rises. Gold only on kill
+	# (each time), food only as a corpse.
+	"ghoul": {
+		"name": "Ghoul", "art": "ghoul", "behavior": "melee", "family": "undead",
+		"siege": 1.0,
+		"desc": "Weak, but it won't stay dead: its body gets up again while another ghoul is near, a little weaker each time. Kill the pack together, or use holy light.",
+		"hp": 18.0, "speed": 1.1,
+		"damage": 3.5, "attack_cooldown": 1.0,
+		"gold_on_kill": 3, "gold_on_collect": 0, "food_on_collect": 2,
+		"resist": {"poison": 0.0, "holy": 1.25}, "unholy": true, "revivable": false,
+		"wake_range": 2.5, "wake_time": 6.0, "wake_jitter": [0.8, 1.2], "rise_hp": 0.5, "min_hp": 4.0,
 	},
 	# Slower and much tougher; hits hard. Gold only on kill, lots of food as a corpse.
 	"orc": {
@@ -2412,7 +2431,7 @@ const ENEMIES := {
 		# target attacks her again (which resets its count). Stops endless stalls.
 		"spell_ignore_after": 20,
 	},
-	# Rats come in packs (RAT_PACKS), faster than anything, frail but growing
+	# Rats come in packs (PACKS.rat), faster than anything, frail but growing
 	# with the waves like the rest. They don't burn huts: they go for farms.
 	# On the road they look out for a farm within farm_search; there they eat
 	# (the farm grows nothing, and each rat eats farm_eat stored food per
@@ -3085,10 +3104,15 @@ const AQUA_FIRST := {
 	"leviathan": "A leviathan rises from the deep!",
 	"octopus": "A gigantic octopus rises from the deep!",
 }
-## Rat packs: from `from_wave`, a wave gets rat packs with chance `chance`:
-## `packs` of them (more every `more_every` waves), `size` rats each, spawned
-## `gap` seconds apart (a little space between them).
-const RAT_PACKS := {"from_wave": 3, "chance": 0.6, "packs": [1, 2], "more_every": 5, "size": [4, 7], "gap": 0.25}
+## Packs by kind (docs/enemies-design.md §1; not in WAVE_MIX): from
+## `from_wave`, a wave gets packs of that kind with chance `chance` (rolled per
+## kind): `packs` of them (more every `more_every` waves), `size` each, all of
+## a pack from one spawn, `gap` seconds apart (a little space between them).
+## Rats go for the farms; ghouls (see "ghoul") need each other to rise again.
+const PACKS := {
+	"rat": {"from_wave": 3, "chance": 0.6, "packs": [1, 2], "more_every": 5, "size": [4, 7], "gap": 0.25},
+	"ghoul": {"from_wave": 6, "chance": 0.5, "packs": [1, 1], "more_every": 6, "size": [3, 5], "gap": 0.6},
+}
 ## Barracks also guard their village's farms against rats: within this x their
 ## range (level 3: 12 tiles), when no other enemy is in their normal range.
 ## Units out for a farm stay within FARM_DEFENSE_LEASH of it.

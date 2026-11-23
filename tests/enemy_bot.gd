@@ -1,7 +1,7 @@
 extends "res://tests/bot_base.gd"
 ## Headless test of the thief, the gargoyle, the necromancer, the vampire,
 ## the monster lairs, slimes, the spider mother, the wrathwood, vultures,
-## wolves and riders, and ghosts. Run with:
+## wolves and riders, ghosts, poison, the snake and ghouls. Run with:
 ##   godot --headless --fixed-fps 60 --path . res://tests/enemy_bot.tscn
 ## Exits 0 when every check passes.
 
@@ -48,6 +48,7 @@ func _run() -> void:
 	await _test_ghosts()
 	await _test_poison()
 	await _test_snake()
+	await _test_ghouls()
 	Engine.time_scale = 1.0
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures.size()])
 	for f in failures:
@@ -634,7 +635,7 @@ func _test_lairs() -> void:
 	# One more spawn point: its share of the wave, its theme's kinds only.
 	var share: Array = w._share(10, 1.0, game.map.edge_spawns, v)
 	var pts := mini(Config.wave_spawn_points(10), game.map.edge_spawns.size())
-	var plain := share.filter(func(sp: Dictionary) -> bool: return sp["kind"] != "rat")
+	var plain := share.filter(func(sp: Dictionary) -> bool: return not Config.PACKS.has(sp["kind"]))  # (packs come on top)
 	var from_lair := plain.filter(func(sp: Dictionary) -> bool: return sp.has("lair"))
 	var expect := 0
 	for i in plain.size():
@@ -2037,3 +2038,120 @@ func _gold_sources() -> Array:
 		if k.begins_with("earn.gold."):
 			parts.append("%s %d" % [k.trim_prefix("earn.gold."), int(c[k])])
 	return [", ".join(parts)]
+
+
+
+# --- ghouls --------------------------------------------------------------------------------------
+
+## The ghoul (docs/enemies-design.md §10.17): its corpse rises while a living
+## ghoul stays near it, weaker each time, until it is laid to rest.
+func _test_ghouls() -> void:
+	var v := game.player_village
+	var gs: Dictionary = Config.ENEMIES["ghoul"]
+	await clear_enemies()
+	await clear_corpses()
+	check(gs["family"] == "undead" and gs.get("unholy", false) and float(gs["resist"]["poison"]) == 0.0 and float(gs["resist"]["holy"]) > 1.0, "a ghoul is undead: unholy, no poison, extra holy damage")
+	check(float(gs["hp"]) <= float(Config.ENEMIES["goblin"]["hp"]) and int(gs["gold_on_collect"]) == 0 and int(gs["food_on_collect"]) > 0, "as weak as a goblin; its corpse gives food only")
+	var slow_most := float(gs["wake_time"]) * float(gs["wake_jitter"][1])
+	var quick_least := float(gs["wake_time"]) * float(gs["wake_jitter"][0])
+	var at := Vector2(road_out(10))
+	# Alone it stays dead.
+	var g := spawn("ghoul", at, 2.0)
+	var full := g.max_hp
+	var gold0 := int(v.economy.amount("gold"))
+	kill(g, game.hero)
+	await frames(2)
+	check(int(v.economy.amount("gold")) - gold0 == v.kill_gold(Config.enemy_stat_int("ghoul", "gold_on_kill")), "killed: its kill gold")
+	var c: Corpse = game.corpses.corpses.back() if not game.corpses.corpses.is_empty() else null
+	check(c != null and c.kind == "ghoul" and not c.revivable and not c.at_rest and is_equal_approx(c.rise_max, full * float(gs["rise_hp"])), "it leaves a corpse a necromancer can't raise, with a next life of %d %% of its HP" % roundi(100.0 * float(gs["rise_hp"])))
+	if c == null:
+		return
+	await wait(slow_most * 1.2)
+	check(game.corpses.corpses.has(c) and not c.downed, "no other ghoul near: it lies still and stays dead")
+	# A living ghoul near: downed (it twitches), and it gets up after its timer.
+	var waker := spawn("ghoul", at + Vector2(1.2, 0.0), 2.0)
+	var alive0: int = game.waves._alive
+	var t0: float = game.clock
+	var twitching := await wait_until(func() -> bool: return c.downed, 2.0)
+	var twitched := await wait_until(func() -> bool: return not game.corpses.corpses.has(c) or c._twitch_left > 0.0, slow_most)
+	check(twitching and twitched, "another ghoul near: the body is downed and twitches")
+	var risen := await wait_until(when_gone(c, func(x: Object) -> bool: return not game.corpses.corpses.has(x)), slow_most * 1.5)
+	var took: float = game.clock - t0
+	var up: Enemy = null
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e != waker and e.kind == "ghoul" and not e.dead:
+			up = e
+	check(risen and up != null and took >= quick_least * 0.9 and took <= slow_most * 1.1 + 0.6, "after %.1f-%.1f s it gets up again (%.1f s)" % [quick_least, slow_most, took])
+	if up == null:
+		return
+	check(is_equal_approx(up.max_hp, full * float(gs["rise_hp"])) and is_equal_approx(up.hp, up.max_hp) and up.rises == 1, "with %d %% of its max HP, at full HP (%.1f of %.1f)" % [roundi(100.0 * float(gs["rise_hp"])), up.max_hp, full])
+	check(up.wave == waker.wave and up.target_village == waker.target_village and game.waves._alive == alive0 + 1, "it joins the waker's wave: one more enemy")
+	check(logs.any(func(l: String) -> bool: return "A slain ghoul gets up again!" in l) and game.stats.value(v.id, "ghoul.rises") >= 1.0, "the first rise is logged and counted")
+	up.speed = 0.0
+	# Killed again: its kill gold again, and the next life halves once more.
+	gold0 = int(v.economy.amount("gold"))
+	kill(up, game.hero)
+	await frames(2)
+	check(int(v.economy.amount("gold")) - gold0 == v.kill_gold(Config.enemy_stat_int("ghoul", "gold_on_kill")), "every life pays its kill gold")
+	var c2: Corpse = game.corpses.corpses.back()
+	check(c2.kind == "ghoul" and c2.rises == 1 and is_equal_approx(c2.rise_max, up.max_hp * float(gs["rise_hp"])), "the next life: half of that again")
+	# The waker walks off: the body lies still, and the timer starts afresh.
+	await wait_until(func() -> bool: return c2.downed, 2.0)
+	await wait(quick_least * 0.6)
+	waker.set_grid_pos(at + Vector2(float(gs["wake_range"]) + 3.0, 0.0))
+	var stilled := await wait_until(func() -> bool: return not c2.downed, 1.0)
+	waker.set_grid_pos(at + Vector2(1.2, 0.0))
+	await wait_until(func() -> bool: return c2.downed, 2.0)
+	await wait(quick_least * 0.6)
+	check(stilled and game.corpses.corpses.has(c2), "the waker gone out of range: still again; back, the timer starts afresh")
+	# Gathered while downed: gone for good.
+	game.corpses.remove(c2)
+	await wait(slow_most * 1.2)
+	check(get_tree().get_nodes_in_group("enemies").filter(func(e: Enemy) -> bool: return e.kind == "ghoul" and not e.dead).size() == 1, "a downed body carried away never rises")
+	# Below min_hp: laid to rest.
+	var weak := spawn("ghoul", at, 1.0)
+	weak.max_hp = float(gs["min_hp"]) / float(gs["rise_hp"]) * 0.9
+	weak.hp = weak.max_hp
+	kill(weak, game.hero)
+	await frames(2)
+	var c3: Corpse = game.corpses.corpses.back()
+	await wait(slow_most * 1.2)
+	check(c3.at_rest and game.corpses.corpses.has(c3) and not c3.downed, "a next life below %s HP: laid to rest, it never rises" % _n(gs["min_hp"]))
+	await clear_corpses()
+	# Holy damage lays it to rest at once.
+	var holy := spawn("ghoul", at, 5.0)
+	var rest0 := game.stats.value(v.id, "ghoul.laid_to_rest")
+	holy.take_damage(1e9, game.hero, "holy")
+	await frames(2)
+	var c4: Corpse = game.corpses.corpses.back()
+	await wait(slow_most * 1.2)
+	check(c4.at_rest and game.corpses.corpses.has(c4) and not c4.downed and game.stats.value(v.id, "ghoul.laid_to_rest") == rest0 + 1.0, "killed by holy damage: laid to rest (and counted)")
+	await clear_corpses()
+	# Fire is no exception.
+	var burnt := spawn("ghoul", at, 5.0)
+	burnt.take_damage(1e9, game.hero, "fire")
+	await frames(2)
+	check(not (game.corpses.corpses.back() as Corpse).at_rest, "killed by fire it can rise again")
+	await clear_corpses()
+	# A High Priest's aura makes the timer necro_slow x as long.
+	var tw: Tower = game.world.towers().filter(func(t: Tower) -> bool: return not t is TownHall)[0]
+	var pr := MilitaryUnit.new("high_priest")
+	pr.village = v
+	pr.state = MilitaryUnit.State.STATIONED
+	var old_garrison := tw.garrison
+	tw.garrison = pr
+	var near_t := Vector2(tw.tile) + Vector2(1.5, 0.5)
+	var slowed := spawn("ghoul", near_t, 2.0)
+	waker.set_grid_pos(near_t + Vector2(1.0, 0.0))
+	var f := Combat.necro_slow(game, near_t)
+	kill(slowed, game.hero)
+	await frames(2)
+	var c5: Corpse = game.corpses.corpses.back()
+	await wait(slow_most * 1.2)
+	var held := game.corpses.corpses.has(c5) and c5.downed
+	var later := await wait_until(when_gone(c5, func(x: Object) -> bool: return not game.corpses.corpses.has(x)), slow_most * f)
+	tw.garrison = old_garrison
+	check(f > 1.0 and held and later, "in a High Priest's aura it takes %.0f x as long" % f)
+	await clear_enemies()
+	await clear_corpses()
+

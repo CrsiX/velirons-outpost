@@ -167,7 +167,8 @@ One JSON line per run. The schema is whatever `balance_recorder.gd` writes (it c
   from a weak bot.
 
 Notes on definitions that would otherwise mislead:
-- Raised dead are tallied as `raised_<kind>`. Camp guards are not recorded. A wrathwood (never part
+- Raised dead are tallied as `raised_<kind>`, ghouls that rose again as `risen_ghoul` (so a
+  ghoul's first life alone is `ghoul`; its kills are in `kill.ghoul` either way). Camp guards are not recorded. A wrathwood (never part
   of a wave) is tallied in the row of the wave running when it woke; the timeline's enemy count
   leaves it out, as it does camp guards.
 - *Nominal DPS* of a unit is damage / cooldown from its curves (a summoner: its cap of elementals

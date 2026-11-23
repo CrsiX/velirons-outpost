@@ -407,7 +407,7 @@ static func _enemy(kind: String) -> Dictionary:
 	var f := PackedStringArray(["%s: %s" % [fam["name"], fam["text"]]])
 	var from := _enemy_from_wave(kind)
 	if from > 0:
-		f.append("In the waves from wave %d%s" % [from, " (in packs)" if kind == "rat" or e.has("pack") else ""])
+		f.append("In the waves from wave %d%s" % [from, " (in packs)" if Config.PACKS.has(kind) or e.has("pack") else ""])
 	f.append("HP %s · speed %s tiles/s" % [_n(Config.enemy_stat(kind, "hp")), _n(Config.enemy_stat(kind, "speed"))])
 	f.append_array(_mounted_facts(kind))
 	if kind == Wrathwoods.KIND:
@@ -431,6 +431,11 @@ static func _enemy(kind: String) -> Dictionary:
 		f.append("Floats, never walks. When its target runs home and hides it lurks faded, strolling about, until they come out again; after %d such escapes it gives up" % int(gc["retreats"]))
 		f.append("After %s s of hunting it moves %sx as fast. Its target gone (dead, retired or given up), it roams faded and vanishes after %s s: no gold" % [_n(gc["enrage_after"]), _n(gc["enrage_speed"]), _n(gc["roam_time"])])
 		f.append("Lit and hurt, it fights back at whoever hurt it that it can reach, never at towers")
+	if e.has("rise_hp"):
+		var j: Array = e["wake_jitter"]
+		f.append("Slain, its body twitches while another living ghoul stays within %s tiles of it, and after %s-%s s it gets up again; the timer starts afresh when no ghoul is near. A High Priest's aura makes it take longer" % [_n(e["wake_range"]), _n(float(e["wake_time"]) * float(j[0])), _n(float(e["wake_time"]) * float(j[1]))])
+		f.append("Each new life has %d %% of the max HP of the one before; below %s HP it stays dead. Killed by holy damage, it is laid to rest for good" % [roundi(100.0 * float(e["rise_hp"])), _n(e["min_hp"])])
+		f.append("Pays its kill gold every time it dies; its body can be gathered also while it twitches. A necromancer can't raise it")
 	if e.has("lays"):
 		var egg: Dictionary = Config.ENEMIES[e["lays"]]
 		f.append("Lays %d-%d eggs as she walks, the first time within %s tiles of a manned tower or barracks, then every %s s, %d clutches at most; each has %s HP and hatches into a %s after %s s" % [e["clutch"][0], e["clutch"][1], _n(e["lay_near"]), _n(e["lay_every"]), e["max_clutches"], _n(egg["hp"]), str(Config.ENEMIES[egg["hatch_into"]]["name"]).to_lower(), _n(egg["hatch_time"])])
@@ -583,8 +588,8 @@ static func _enemy_from_wave(kind: String) -> int:
 		return 1
 	if Config.WAVE_MIX.has(kind):
 		return int(Config.WAVE_MIX[kind]["from_wave"])
-	if kind == "rat":
-		return int(Config.RAT_PACKS["from_wave"])
+	if Config.PACKS.has(kind):
+		return int(Config.PACKS[kind]["from_wave"])
 	return 0
 
 

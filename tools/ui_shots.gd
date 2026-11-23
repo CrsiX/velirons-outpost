@@ -25,6 +25,8 @@ extends Node
 ## (`--only=court`) scenarios 8 and 9 (`--only=abbey`: just 9): Lothar under his flag, a crypt and its
 ## guards, a Legion camp and its panel, the Legion's kinds on a road, Rurik;
 ## the drowned abbey on its island with the octopus, the harbour and church, the octopus holding a priest, the eldest priest, Lysa coming, the seal struck, the leviathan;
+## (`--only=ghouls`) ghouls: a pack, a still corpse, a downed one twitching, the
+## rise, a risen one, one laid to rest, the library and the statistics;
 ## (`--only=spiders`) a spider mother laying eggs, eggs wobbling and hatching,
 ## the broken shells, spiderlings at a gate, undead ones, the library, and
 ## (`--only=undead_spiders`) a spider mother raised by a necromancer, in real
@@ -188,6 +190,8 @@ func _run() -> void:
 		await _riders()
 	if only in ["", "ghosts"]:
 		await _ghosts()
+	if only in ["", "ghouls"]:
+		await _ghouls()
 	if only in ["", "picking"]:
 		await _picking()
 	if only in ["", "map"]:
@@ -2455,6 +2459,147 @@ func _snakes() -> void:
 	await _scroll_to(g.hud.library, "Barracks")
 	await shot("snake_library_barracks")
 	g.hud.library.close()
+	g.queue_free()
+	await _frames(3)
+
+
+## Ghouls (docs/enemies-design.md §10.17): a pack on the road beside a goblin,
+## one walking, a still corpse, a downed one twitching by a living ghoul, the
+## rise, the weaker risen ghoul, one laid to rest by holy damage, the library
+## and the statistics.
+func _ghouls() -> void:
+	var g: Game = load("res://scenes/main.tscn").instantiate()
+	g.map_seed = 4242
+	g.disable_fog = true
+	add_child(g)
+	await _frames(30)
+	g.fog.reveal_all()
+	g.waves.countdown = 99999.0
+	g.waves.hold = true
+	g.events.shown_level = EventLog.Level.DEBUG
+	var v := g.player_village
+	var h := g.hero  # (out of the way: she'd fight everything)
+	h.process_mode = Node.PROCESS_MODE_DISABLED
+	h.remove_from_group("melee_defenders")
+	h.visible = false
+	for tw in g.world.towers():
+		if tw.garrison:
+			g.army.unstation(tw.garrison)
+	var gate: Vector2i = v.gates[0]
+	var path: Array[Vector2i] = [gate]
+	var seen := {gate: true}
+	for i in 14:
+		for n in MapData.neighbors4(path.back()):
+			if g.map.is_road(n) and not seen.has(n) and not g.map.in_village(n):
+				seen[n] = true
+				path.append(n)
+				break
+	var far := Vector2(path[mini(10, path.size() - 1)])
+	var spawn := func(kind: String, at: Vector2, hp_scale: float, still: bool) -> Enemy:
+		g.waves._spawn({"kind": kind, "spawn": g.map.edge_spawns[0], "hp_scale": hp_scale, "village": v})
+		var e: Enemy = get_tree().get_nodes_in_group("enemies").back()
+		e.set_grid_pos(at)
+		if still:
+			e.speed = 0.0
+			e.follow(PackedVector2Array([at, at + Vector2(0.001, 0)]))
+		else:
+			var route := g.world.pathing.enemy_route(Vector2i(at.round()), RandomNumberGenerator.new(), -1)
+			var pts := PackedVector2Array([at])
+			for t in route:
+				pts.append(Vector2(t))
+			e.follow(pts)
+		return e
+	var clear := func() -> void:
+		for node in get_tree().get_nodes_in_group("enemies"):
+			(node as Enemy).vanish()
+		for c in g.corpses.corpses.duplicate():
+			g.corpses.remove(c)
+	var look := func(at: Vector2, zoom: float) -> void:
+		g.camera.focus(Iso.to_world(at))
+		g.camera.zoom = Vector2(zoom, zoom)
+	# A pack of three on the road, a goblin beside them for size.
+	for k in 3:
+		spawn.call("ghoul", far + Vector2(0.55 * k, -0.35 * k), 20.0, true)
+	spawn.call("goblin", far + Vector2(-0.6, 0.7), 20.0, true)
+	look.call(far, 2.4)
+	await _frames(20)
+	await shot("ghoul_pack")
+	clear.call()
+	await _frames(5)
+	# Walking.
+	var walker: Enemy = spawn.call("ghoul", far, 20.0, false)
+	await _frames(25)
+	look.call(walker.grid_pos, 2.4)
+	await _frames(2)
+	await shot("ghoul_walking")
+	clear.call()
+	await _frames(5)
+	# Slain alone: a still corpse, next to a goblin's.
+	var lone: Enemy = spawn.call("ghoul", far, 2.0, true)
+	var gob: Enemy = spawn.call("goblin", far + Vector2(1.2, 0.4), 2.0, true)
+	await _frames(3)
+	lone.take_damage(1e9, null)
+	gob.take_damage(1e9, null)
+	await _frames(30)
+	look.call(far, 2.6)
+	await _frames(5)
+	var c: Corpse = null
+	for x in g.corpses.corpses:
+		if x.kind == "ghoul":
+			c = x
+	await shot("ghoul_corpse_still")
+	# A living ghoul comes near: the body is downed and twitches.
+	var waker: Enemy = spawn.call("ghoul", far + Vector2(-1.3, -0.6), 2.0, true)
+	var f := 0
+	while f < 300 and not (c.downed and c._twitch_left > 0.05):
+		await _frames(1)
+		f += 1
+	print("ghoul corpse: downed=%s twitching=%s after %d frames" % [c.downed, c._twitch_left > 0.0, f])
+	await shot("ghoul_corpse_twitch")
+	f = 0
+	while f < 200 and c._twitch_left > 0.0:
+		await _frames(1)
+		f += 1
+	await shot("ghoul_corpse_downed_between_twitches")
+	# It gets up: the moment, and the weaker ghoul after.
+	f = 0
+	var cpos := c.grid_pos
+	while f < 1500 and is_instance_valid(c) and not c.is_queued_for_deletion():
+		await _frames(1)
+		f += 1
+	await _frames(4)
+	await shot("ghoul_rising")
+	var up: Enemy = null
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e != waker and e.kind == "ghoul" and not e.dead:
+			up = e
+	if up != null:
+		print("risen: %.1f / %.1f HP (rises %d); corpse at %s, risen at %s (%s), path %s" % [up.hp, up.max_hp, up.rises, str(cpos), str(up.grid_pos), str(up.position), str(up.path.slice(0, 3))])
+		up.take_damage(up.max_hp * 0.3, null)  # (its HP bar shows)
+		await _frames(20)
+		look.call(up.grid_pos, 2.6)
+		await _frames(3)
+		await shot("ghoul_risen_hurt")
+		# Holy damage: laid to rest, by the waker, never twitching.
+		up.take_damage(1e9, null, "holy")
+	await _frames(90)
+	for x in g.corpses.corpses:
+		if x.kind == "ghoul":
+			print("holy kill: at rest=%s downed=%s" % [x.at_rest, x.downed])
+	await shot("ghoul_laid_to_rest")
+	clear.call()
+	await _frames(5)
+	# The library and the statistics.
+	g.hud.open_library("enemies")
+	await _frames(10)
+	await _scroll_to(g.hud.library, "Ghoul")
+	await shot("ghoul_library")
+	g.hud.library.close()
+	g.waves.wave = 8
+	g.hud.open_stats("summary")
+	await _frames(10)
+	await shot("ghoul_stats_summary")
+	g.hud.stats_screen.close()
 	g.queue_free()
 	await _frames(3)
 

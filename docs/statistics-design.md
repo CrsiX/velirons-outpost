@@ -56,6 +56,9 @@ why:
 **Military**
 - Kills, by kind and by whom (towers, barracks units, summons, the hero), so
   the player sees what the defence really rests on.
+- A ghoul counts as a kill every time it dies (it pays every time); how often
+  ghouls got up again and how many holy damage laid to rest have rows of their
+  own, so the player sees whether the packs were put down or kept coming back.
 - Enemies that got in, huts burned, waves survived, the biggest and the
   fastest wave: the pressure the village was under. Waves survived is the
   number of the last wave that ended with the village standing (not a count

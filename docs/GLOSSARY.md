@@ -12,7 +12,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Village colour**: the colour a co-op player picks in the lobby; their hero, carts, caravans and banner cloth wear it. A game with one village wears Veliron's crimson instead. `multiplayer-design.md`
 - **Post**: a slot a military unit can be stationed in (tower, training grounds). **Bench**: a barracks' slot. **Reserve**: where bought or withdrawn units wait at home.
 - **Sortie**: a barracks' units turning out to fight when enemies come in range.
-- **Downed**: at 0 HP a unit or the hero is out until it revives (in the reserve, on its bench, or in the village centre).
+- **Downed**: at 0 HP a unit or the hero is out until it revives (in the reserve, on its bench, or in the village centre). A ghoul's body is downed while a living ghoul is near it: it twitches and will get up. `enemies-design.md` §10.17
 - **Devastated**: a building at 0 HP. It does nothing and shows its ruin; repair brings it back. "Does its job" is `working()`. `siege-design.md`
 - **Build queue**: how builders (and the hero in Build mode) choose the next job. `village-design.md`
 - **Builder crew**: the builders (and the hero) working one site together; their work adds up, and a builder joins only if that saves more than its walk. `village-design.md`
@@ -41,7 +41,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Better targeting / manual targeting**: two exclusive advancements; one rule per unit kind for every tower, or a targeting switch per tower. `advancements-design.md`
 - **Drill**: advancements that make a unit's level-ups (never a specialisation) cheaper in gold and in training XP. `advancements-design.md`
 - **Aura**: a High Priest's buff, strongest counts, no stacking. **War cry**: the Warrior's haste shout.
-- **Holy / unholy**: the acolyte line's damage; skeletons, necromancers, vampires and anything raised or undead count as unholy. `acolyte-design.md`
+- **Holy / unholy**: the acolyte line's damage; skeletons, ghouls, necromancers, vampires and anything raised or undead count as unholy. `acolyte-design.md`
 - **Raised**: an enemy a necromancer brings back; it drains away and is undead.
 - **Held wall / lurking / leftovers**: no ground enemy burns a hut while the walls stand; enemies that can't break in roam outside (lurk) until a breach, or leave. `enemies-design.md` §9
 - **Siege field**: the cost field enemies near a village follow to its cheapest way in. **Breached**: an enemy is inside. **Slip**: rats and thieves get through gates unharmed after a delay. `siege-design.md`
