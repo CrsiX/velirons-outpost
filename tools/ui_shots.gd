@@ -52,6 +52,9 @@ extends Node
 ## (`--only=picking`) picking on the map in scenario 9's harbour village: taps
 ## through the church to the gate and wall behind it, the church see-through
 ## (it prints how long picking and measuring take on this renderer).
+## (`--only=upgrade`) a unit's upgrade dialog: locked branches, prices too dear, the shield
+## bearer, downed, a single option, the archer's, summoner's and acolyte's branches, a sheet of
+## every unit card, portrait;
 ## (`--only=store`, not in the full run) the store pictures at 2400x1080 (a
 ## 20:9 phone): the title, a hurt village being rebuilt, a big battle, the map
 ## editor and a calm village by a lake.
@@ -460,6 +463,15 @@ func _upgrade() -> void:
 	g.hud.open_upgrade(cb)
 	await _frames(10)
 	await shot("upgrade_single")
+	for kind in ["archer", "summoner", "acolyte"]:
+		g.unlocks[kind] = true
+		var u := v.army.recruit(kind)
+		u.level = Config.BRANCH_MIN_LEVEL
+		g.hud.open_upgrade(u)
+		await _frames(10)
+		await shot("upgrade_branches_" + kind)
+	g.hud.upgrade_dialog.close()
+	await _unit_cards()
 	g.hud.upgrade_dialog.close()
 	await _size(Vector2i(540, 960))
 	g.hud.open_upgrade(ap)
@@ -468,6 +480,39 @@ func _upgrade() -> void:
 	await _landscape()
 	g.queue_free()
 	await _frames(3)
+
+
+## Every unit card big, on one sheet with its kind's name.
+func _unit_cards() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	add_child(layer)
+	var bg := ColorRect.new()
+	bg.color = Color("#20242c")
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(bg)
+	var grid := GridContainer.new()
+	grid.columns = 6
+	grid.position = Vector2(16, 8)
+	grid.add_theme_constant_override("h_separation", 12)
+	layer.add_child(grid)
+	for kind: String in Config.MILITARY:
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 0)
+		var t := TextureRect.new()
+		t.texture = Art.tex("unit_card_" + kind)
+		t.custom_minimum_size = Vector2(196, 196)
+		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		box.add_child(t)
+		var l := Label.new()
+		l.text = Config.MILITARY[kind].name
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(l)
+		grid.add_child(box)
+	await _frames(5)
+	await shot("unit_cards")
+	layer.queue_free()
 
 
 # --- the tactical map (M) --------------------------------------------------------------

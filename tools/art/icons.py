@@ -1221,20 +1221,3 @@ def upgrade_icons():
   <circle cx="32" cy="42" r="4.5" fill="{INK}"/>
   <path d="M30 44 L29 52 L35 52 L34 44Z" fill="{INK}"/>""")
 
-
-# The upgrade dialog's picture of each military kind: square, `unit_card_<kind>`.
-# For now one flat colour for every kind; the real pictures replace UNIT_CARD_BODY.
-UNIT_CARD_SIZE = 256
-UNIT_CARD_BODY = '<rect x="2" y="2" width="60" height="60" rx="6" fill="#4e5a6a"/>'
-
-
-def unit_cards():
-    """One square card per Config.MILITARY key."""
-    with open(os.path.join(ROOT, "scripts", "core", "config.gd")) as f:
-        cfg = f.read()
-    block = cfg[cfg.index("const MILITARY := {"):]
-    block = block[:block.index("\n}")]
-    for kind in re.findall(r'^\t"([a-z_]+)":', block, re.M):
-        with open(os.path.join(ART, "unit_card_%s.svg" % kind), "w") as f:
-            f.write('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 64 64">\n%s\n</svg>\n'
-                    % (UNIT_CARD_SIZE, UNIT_CARD_SIZE, UNIT_CARD_BODY))

@@ -1,3 +1,57 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64">
-<rect x="2" y="2" width="60" height="60" rx="6" fill="#4e5a6a"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#44201a"/><stop offset="1" stop-color="#140806"/></linearGradient>
+    <radialGradient id="lt" cx="0.5" cy="0.38" r="0.45"><stop offset="0" stop-color="#ff8a30" stop-opacity="0.1"/><stop offset="1" stop-color="#ff8a30" stop-opacity="0"/></radialGradient>
+    <clipPath id="c"><rect x="2" y="2" width="60" height="60" rx="6"/></clipPath>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="6" fill="url(#bg)"/>
+  <g clip-path="url(#c)">
+    <rect x="2" y="2" width="60" height="60" fill="url(#lt)"/>
+    <g transform="translate(0 3)">
+    <path d="M18.5 24 Q15 7 32 6 Q49 7 45.5 24 Q47 36 48.5 50 Q44 53 40 48 L39 36 L25 36 L24 48 Q20 53 15.5 50 Q17 36 18.5 24Z" fill="#1e1a18" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+    <path fill="none" d="M19 32 Q18.5 44 17.5 49 M45 32 Q45.5 44 46.5 49" stroke="#181513" stroke-width="1"/>
+    </g>
+    <g transform="translate(0 3)">
+    <rect x="28.0" y="33" width="8" height="14" fill="#4d301c" stroke="#15110d" stroke-width="1.8"/>
+    </g>
+    <path d="M6 66 Q7 48 21 44 Q32 49 43 44 Q57 48 58 66Z" fill="#5a2418" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M43 44 Q57 48 58 66 L50 66 Q50.4 52 43 44Z" fill="#461c13"/>
+    <path fill="none" d="M25 48 L30 66 M39 48 L34 66" stroke="#461c13" stroke-width="1.4"/>
+    <path d="M21 45 Q32 51 43 45 L40 50 Q32 54 24 50Z" fill="#ff8a30" stroke="#15110d" stroke-width="1.4"/>
+    <g transform="translate(0 3)">
+    <ellipse cx="19.8" cy="26" rx="2.4" ry="3.4" fill="#5a3820" stroke="#15110d" stroke-width="1.8"/>
+    <ellipse cx="44.2" cy="26" rx="2.4" ry="3.4" fill="#4c2f1b" stroke="#15110d" stroke-width="1.8"/>
+    <defs><clipPath id="face"><path fill="none" d="M20 24 Q19 10 32 10 Q45 10 44 24 Q44 33 32 39 Q20 33 20 24Z"/></clipPath></defs>
+    <path d="M20 24 Q19 10 32 10 Q45 10 44 24 Q44 33 32 39 Q20 33 20 24Z" fill="#5a3820"/>
+    <path d="M38.6 8 Q46 14 46 24 Q46 34 35.6 41 Q41.4 30 38.6 8Z" fill="#4c2f1b" clip-path="url(#face)"/>
+    <path fill="none" d="M20 24 Q19 10 32 10 Q45 10 44 24 Q44 33 32 39 Q20 33 20 24Z" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M24.1 25.6 Q27.0 23.65 29.9 25.6 Q27.0 27.07 24.1 25.6Z" fill="#f4eee6"/>
+    <circle cx="27.0" cy="25.50" r="1.21" fill="#c08020"/>
+    <circle cx="27.0" cy="25.50" r="0.61" fill="#15110d"/>
+    <circle cx="27.5" cy="25.00" r="0.42" fill="#ffffff"/>
+    <path fill="none" d="M23.900000000000002 25.700000000000003 Q27.0 23.35 30.0 25.6" stroke="#15110d" stroke-width="1.25" stroke-linecap="round"/>
+    <path d="M39.9 25.6 Q37.0 23.65 34.1 25.6 Q37.0 27.07 39.9 25.6Z" fill="#f4eee6"/>
+    <circle cx="37.0" cy="25.50" r="1.21" fill="#c08020"/>
+    <circle cx="37.0" cy="25.50" r="0.61" fill="#15110d"/>
+    <circle cx="37.5" cy="25.00" r="0.42" fill="#ffffff"/>
+    <path fill="none" d="M40.1 25.700000000000003 Q37.0 23.35 34.0 25.6" stroke="#15110d" stroke-width="1.25" stroke-linecap="round"/>
+    <path fill="none" d="M23.9 22.1 Q27.0 20.6 29.9 21.8" stroke="#161412" stroke-width="1.4" stroke-linecap="round"/>
+    <path fill="none" d="M40.1 21.4 Q37.0 19.6 34.1 21.2" stroke="#161412" stroke-width="1.4" stroke-linecap="round"/>
+    <path fill="none" d="M32.4 25.8 L31 30.8 Q32 31.6 33.4 31" stroke="#362213" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill="none" d="M29 34.6 Q32 35.199999999999996 35.4 33.4" stroke="#2d1c10" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M20 25 Q18 8 32 8 Q46 8 44 25 Q43 16 34 13.4 Q32 15.2 30 13.4 Q21 16 20 25Z" fill="#1e1a18" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+    <path fill="none" d="M25 11.4 Q29 9.6 34 9.8" stroke="#26201e" stroke-width="1.1" opacity="0.6" stroke-linecap="round"/>
+    </g>
+    <path d="M6 23 Q32 15 58 23 Q46 26 32 26 Q18 26 6 23Z" fill="#6a2418" stroke="#15110d" stroke-width="1.8"/>
+    <path d="M19 22 Q22 12 28 8 Q31 -2 40 -4 Q35 4 37 10 Q43 16 45 22 Q32 19 19 22Z" fill="#6a2418" stroke="#15110d" stroke-width="1.8" stroke-linejoin="round"/>
+    <path fill="none" d="M19.6 20 Q32 16.5 44.4 20" stroke="#ff8a30" stroke-width="2.2"/>
+    <defs><radialGradient id="g51_46"><stop offset="0" stop-color="#ff8a30" stop-opacity="0.7"/><stop offset="1" stop-color="#ff8a30" stop-opacity="0"/></radialGradient></defs>
+    <circle cx="51" cy="46" r="15" fill="url(#g51_46)"/>
+    <path d="M51 32 Q60 41 57 48 Q55 53 51 53 Q46 53 45 48 Q44 43 48 39 Q48 44 51 44 Q53 38 51 32Z" fill="#ff8a30" stroke="#15110d" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M51 40 Q56 45 54 49 Q53 51 51 51 Q48 51 48 48 Q48 45 50 44 Q51 43 51 40Z" fill="#ffc040"/>
+    <path d="M43 31.24 L43.48 32.52 L44.76 33 L43.48 33.48 L43 34.76 L42.52 33.48 L41.24 33 L42.52 32.52Z" fill="#ffc060"/>
+    <path d="M59 34.24 L59.48 35.52 L60.76 36 L59.48 36.48 L59 37.76 L58.52 36.48 L57.24 36 L58.52 35.52Z" fill="#ffc060"/>
+    <ellipse cx="51" cy="55.5" rx="3.4" ry="2.89" fill="#5a3820" stroke="#15110d" stroke-width="1.8"/>
+  </g>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="6.5" fill="none" stroke="#15110d" stroke-width="2"/>
 </svg>
