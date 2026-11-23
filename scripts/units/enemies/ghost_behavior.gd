@@ -8,7 +8,8 @@ extends EnemyBehavior
 ## within melee range + solid_margin of its target. A miner target inside a
 ## mine is driven out once the ghost stands by the mine. Its target fled home
 ## (hidden in the village) it lurks: faded, strolling a few tiles at a time,
-## until they come out again; after `retreats` such escapes it gives up. Its
+## until they come out again; after `retreats` such escapes, or lurk_max s of
+## lurking in all, it gives up. Its
 ## target gone (dead, retired or given up) it roams faded for roam_time s, then
 ## vanishes. Revealed and
 ## hurt, it hits back at whoever hurt it if they are in reach (a tower it
@@ -24,6 +25,8 @@ var hunted := 0.0
 var enraged := false
 ## How often its target got home safe while it was after them.
 var retreats := 0
+## Seconds it has lurked in all (over all its lurks; lurk_max ends the hunt).
+var lurked := 0.0
 ## The target was running (evading) and not home yet.
 var _chased := false
 var _picked := false
@@ -55,6 +58,10 @@ func tick(enemy: Enemy, delta: float) -> bool:
 			_lose_target(enemy, _gone_why())
 		else:
 			_track_retreats(enemy)
+	if mode == Mode.LURK:
+		lurked += delta
+		if lurked >= float(gc["lurk_max"]):
+			_lose_target(enemy, "%s stayed home %d s" % [target.label(), roundi(lurked)])
 	if mode == Mode.ROAD or mode == Mode.SEARCH:
 		hunted += delta
 		if not enraged and hunted >= float(gc["enrage_after"]):

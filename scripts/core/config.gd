@@ -3043,6 +3043,9 @@ const VULTURES := {
 ##                    tiles (from, to) from where it stands, within lurk_leash tiles of
 ##                    its target) until they come out again; after this many retreats
 ##                    it gives up: the target counts as gone (below)
+##   lurk_max ....... ... and after lurking this many seconds in all (over all its
+##                    lurks) it gives up too, so a target who stays home (never
+##                    fleeing, so no escape counts) can't hold it there for ever
 ##   roam_time ...... its target gone (dead, retired or given up), it roams faded
 ##                    this long and then vanishes: its maximum lifetime from then on
 ##   roam_leg ....... each leg of its roaming is about this many tiles
@@ -3050,7 +3053,7 @@ const GHOST := {
 	"road_share": 0.9, "replan": 1.5, "detour_chance": 0.2, "detour_length": 5.0,
 	"solid_margin": 1.0, "faded_alpha": 0.2, "phase_time": 0.4,
 	"enrage_after": 60.0, "enrage_speed": 2.0,
-	"retreats": 3, "lurk_step": [3.0, 6.0], "lurk_leash": 12.0,
+	"retreats": 3, "lurk_max": 60.0, "lurk_step": [3.0, 6.0], "lurk_leash": 12.0,
 	"roam_time": 20.0, "roam_leg": 8.0,
 }
 

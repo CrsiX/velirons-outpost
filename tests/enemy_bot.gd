@@ -1820,13 +1820,29 @@ func _test_ghosts() -> void:
 	check(lb.retreats == int(gc["retreats"]) and lb.mode == GhostBehavior.Mode.ROAM and lb.target == null, "the %dth escape and it gives up: it roams, its decay starts" % int(gc["retreats"]))
 	var given_up := await wait_until(when_gone(lurker), float(gc["roam_time"]) + 8.0)
 	check(given_up, "and it vanishes within %d s" % int(gc["roam_time"]))
+	# A target already home when it arrives (never fled, so no escape counts): after
+	# lurk_max s of lurking it gives up all the same.
+	await clear_enemies()
+	var homebody := stand_villager("builder", home)
+	homebody.at_home = true
+	homebody.visible = false
+	var waiter := spawn_ghost(home + Vector2(2, 0), homebody)
+	var wb := waiter.behavior as GhostBehavior
+	await frames(3)
+	check(wb.mode == GhostBehavior.Mode.LURK and wb.retreats == 0, "its target already home: it lurks, and no escape counts (retreats %d)" % wb.retreats)
+	wb.lurked = float(gc["lurk_max"]) - 0.5
+	await wait(1.0)
+	check(wb.mode == GhostBehavior.Mode.ROAM and wb.target == null, "after %s s of lurking in all it gives up and roams" % gc["lurk_max"])
+	waiter.vanish()
+	homebody.at_home = false
+	homebody.visible = true
 	# The target gone (killed, retired): it fades, roams, and vanishes after roam_time, no gold.
 	for how in ["retired", "killed"]:
 		await clear_enemies()
 		var victim := stand_villager("forester", home) if how == "retired" else stand_villager("builder", home)
 		var h2 := spawn_ghost(home + Vector2(1, 0), victim)
 		await frames(3)
-		var gold0: int = game.economy.amount("gold")
+		var gold0 := _kill_gold()  # (kill gold only: a chest looted meanwhile isn't the ghost's)
 		var corpses0: int = game.corpses.corpses.size()
 		var left0: int = w._alive
 		if how == "retired":
@@ -1838,7 +1854,7 @@ func _test_ghosts() -> void:
 		check(roam.mode == GhostBehavior.Mode.ROAM and roam.target == null and h2.faded, "its target %s: it fades and roams" % how)
 		var gone := await wait_until(when_gone(h2), float(gc["roam_time"]) + 8.0)
 		await frames(2)
-		check(gone and w._alive == left0 - 1 and game.economy.amount("gold") == gold0 and game.corpses.corpses.size() == corpses0, "it vanishes within %d s of it: no gold, no corpse, and the wave no longer counts it (gone %s, alive %d of %d, gold %+d, corpses %+d; gold earned from %s)" % ([int(gc["roam_time"]), gone, w._alive, left0 - 1, game.economy.amount("gold") - gold0, game.corpses.corpses.size() - corpses0] + _gold_sources()))
+		check(gone and w._alive == left0 - 1 and _kill_gold() == gold0 and game.corpses.corpses.size() == corpses0, "it vanishes within %d s of it: no gold, no corpse, and the wave no longer counts it (gone %s, alive %d of %d, kill gold %+d, corpses %+d; gold earned from %s)" % ([int(gc["roam_time"]), gone, w._alive, left0 - 1, _kill_gold() - gold0, game.corpses.corpses.size() - corpses0] + _gold_sources()))
 	# A miner inside his mine is driven out when the ghost stands by it.
 	await clear_enemies()
 	var mines: Array = game.world.map_objects.filter(func(o: MapObject) -> bool: return o is Mine)
@@ -2006,6 +2022,11 @@ func _test_snake() -> void:
 	_mend_walls(v)
 	await clear_enemies()
 	await clear_corpses()
+
+
+## The gold the village has earned from kills (its statistics).
+func _kill_gold() -> int:
+	return int(game.stats.value(game.player_village.id, "earn.gold.kills"))
 
 
 ## Gold earned so far by source (the statistics), for a failure's message.
