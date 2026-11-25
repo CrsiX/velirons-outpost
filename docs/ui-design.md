@@ -319,7 +319,9 @@ under it.
   research with its time left and *Cancel research*, and *Research...* opening the list
   (`Hud.open_research`): each advancement by tier with its icon, what it does, its conditions (met or
   not), its cost and time; exclusive choices ask before they are taken, saying what they lock
-  for good (docs/advancements-design.md).
+  for good (docs/advancements-design.md). Agreed, not yet built: a research dialog with a tab
+  per advancement category and a tree, and the panel without *Cancel research*
+  (docs/advancements-design.md §8.3).
 - **Marketplace panel:** buying from the guild's stock, putting goods up for sale, caravans out,
   the equipment and relic offers, a Sell action per item in the armoury and relic (each saying
   what the guild pays), what is on sale with its countdown, and in co-op the order book and the

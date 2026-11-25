@@ -6,7 +6,7 @@ The research is `Research` (one per village), the effects are read where they ap
 `Village` (`adv_bonus`, `max_piece_level`, `walk_bonus`, `targeting`, `kill_gold`, `crit`,
 `recruit_cost`).
 Scope: what advancements are, how they are researched and unlocked, exclusive choices, the
-targeting advancements, and the list. The town hall (where research happens) is in
+targeting advancements, the list, and the agreed categories and research dialog (§8, not yet built). The town hall (where research happens) is in
 docs/village-design.md.
 
 ## 1. Why
@@ -194,8 +194,100 @@ Dropped: **shared exploration for all players** (tier 2): shared vision covers i
 - **Co-op:** the host researches; a client sees its own village's research (the snapshot) and
   its towers' settings.
 - **Commands:** `research`, `cancel_research`, `set_targeting`.
-- **Library:** an Advancements tab, tier by tier, built from `Config`.
+- **Library:** an Advancements tab, tier by tier, built from `Config` (sorted by category once
+  §8 is built).
 - **Tests:** `advancement_bot` (conditions, research and cancelling, a devastated hall pausing
   it, exclusive locks, each effect, both targeting modes, the save, shared vision, a food price paid
   and refunded, the hall's resident, its death and its save). The balancing
   bot's `research` policy researches at random (docs/balance-bot-design.md §3).
+
+## 8. Categories and the research dialog (agreed, not yet built)
+
+Agreed in a design session; replaces the *Research...* list of §2 once built. The dependencies
+between the advancements are being reorganised to fit the tree's rules below first; new
+advancements come after that.
+
+### 8.1 Categories
+
+Every advancement belongs to one of four **categories**, by what it improves:
+
+- **Arms**: the army in a fight (targeting, attack speed, damage, crits, Drill, recruiting and
+  specialising costs).
+- **Stronghold**: walls, towers, building and repairs (Fortifications, Raised platforms, Master
+  builders / Cheaper repairs).
+- **Hearth**: villagers, food, materials, population (Quick feet, Thick-skinned, Hall quarters).
+- **Frontier**: everything outside the walls: trade and caravans, loot, vision and exploring
+  (Caravan rights, Guild partners / One more caravan, Skilled looting, Shared vision).
+
+- **Only a grouping.** A category changes nothing in play: no queue per category, no gating
+  between categories, no building of its own. The one research queue of §2 stays.
+- **Not for the hero.** Advancements are for the village; one that also helps the hero (a crit
+  with a melee weapon, building) does so on the side. There is no hero category.
+- **Chosen for the tree as a whole**, never to fill a category in a particular mode or
+  scenario. The filters of §6 (market-only, co-op-only) stay: an advancement whose effect can't
+  happen would be research wasted.
+- **Look:** each category has an emblem (Arms crossed blades, Stronghold a crenellated tower,
+  Hearth a hearth fire, Frontier a compass rose) and tints the inner disc of its advancements'
+  badges (Arms dark crimson, Stronghold cold slate, Hearth warm umber, Frontier deep moss), so
+  the category shows wherever the icon does; the ring still tells the tier.
+- Still two tiers (town hall levels 2 and 3); a third tier is not planned for now.
+
+### 8.2 The tree and its rules
+
+Each category's advancements form a small tree, drawn from `needs` and `excludes` alone (no
+positions in `Config`): **tier 1 is the bottom row, tier 2 the top row**, a dotted line between
+them, lines going upwards from what is needed to what needs it. Each connected group gets its own
+columns, in `Config` order. The edges come in these shapes:
+
+- **I:** B needs A.
+- **Λ:** D and E both need C; both can be researched.
+- **T:** G and H both need F and exclude each other; the bar between them is the exclusion,
+  its stem goes down to F.
+- **Bar alone:** an exclusive pair with no parent (e.g. a tier-1 pair, which has no row below).
+- **Upside-down T:** a node above a pair's bar needs *either* half. In `Config` its `needs`
+  names both halves; a `needs` naming both halves of a pair is met by either (both can never
+  be had). Every other `needs` means all of them.
+
+Rules, checked by advancement_bot, so the tree can always be drawn:
+
+- A `needs` runs from tier 1 to tier 2 only, never within a tier.
+- Both halves of a pair have the same `needs` (Guild partners needs Caravan rights, like One
+  more caravan).
+- A `needs` names both halves of a pair or neither, never one half alone.
+- **Every advancement has an edge** (it needs something, is needed, or is half of a pair). No
+  exceptions: Shared vision gets a co-op partner.
+- An advancement hidden by a filter (market, co-op) is linked only to others hidden by the same
+  filter, so no shown node loses an edge or needs something never offered.
+
+### 8.3 The research dialog
+
+Opened by *Research...* in the town hall's panel (also at hall level 1: everything greyed out,
+the conditions saying what is missing, for planning ahead). A HUD popup: the X or Esc closes it.
+
+- **Heading:** one tab per category (emblem and name; on a narrow screen the emblems only, the
+  selected tab's name below the bar) and a square X. The selected tab is highlighted. A tab
+  with nothing offered in this game is hidden. No marks on tabs.
+- **Tree:** the selected category's tree, icons only. A node looks:
+  - can be researched: normal;
+  - researched: normal, a green tick over it;
+  - not yet (conditions unmet): greyscale;
+  - locked for good (the other half chosen): greyscale, a lock over it;
+  - under way: normal, a golden pulse behind it as a halo; no progress shown on the node;
+  - selected: the tab's highlight (with the halo too when it is the research under way).
+  A line is bright once its parent is researched, dim before; a pair's bar is bright once a half
+  is chosen; an upside-down T's stem once either half is researched.
+- **Details:** below the tree in portrait, beside it in landscape (`Layout.portrait`): name,
+  icon, description, the conditions (each met or not), cost and time, and one button:
+  *Research* (with cost and time) when it can start; for the research under way its progress
+  bar above *Cancel*; otherwise disabled with a one-line reason ("Another research is under
+  way", "Locked by Manual targeting"). The confirmation of §3 for a final choice stays.
+- **Selecting:** a tap or click on a node; no hover tooltips (the same for touch).
+- **Opening:** on the tab of the research under way, else the tab last open in this game (not
+  saved), else Arms; selected is the research under way, else the tab's first that can be
+  researched, else its first node.
+- **Keys:** arrows move between nodes, Tab / Shift+Tab switch tabs (skipping hidden ones), Enter
+  presses the button, Esc closes. The dialog stays open after *Research* or *Cancel*.
+- **Town hall panel:** *Research...* always reads so; the research under way is a plain text
+  line (its icon and name, no time, not clickable). The panel has no *Cancel research* any more:
+  cancelling is in the dialog. The golden bar over the hall stays.
+- **Library:** the Advancements tab keeps tiers as its sections, sorted by category within each.
