@@ -39,6 +39,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Specialisation (branch)**: a base unit turns into a specialised kind from a minimum level and starts again at level 1. `military-design.md`
 - **Summon / elemental**: units a summoner creates (earth, fire, thornlings); they crumble with their summoner.
 - **Better targeting / manual targeting**: two exclusive advancements; one rule per unit kind for every tower, or a targeting switch per tower. `advancements-design.md`
+- **Camouflaged carts**: an advancement under which only thieves notice a village's own trade caravans; other enemies don't wait for them, block them or target them, though stray splash still hits. `advancements-design.md`
 - **Drill**: advancements that make a unit's level-ups (never a specialisation) cheaper in gold and in training XP. `advancements-design.md`
 - **Aura**: a High Priest's buff, strongest counts, no stacking. **War cry**: the Warrior's haste shout.
 - **Holy / unholy**: the acolyte line's damage; skeletons, ghouls, necromancers, vampires and anything raised or undead count as unholy. `acolyte-design.md`

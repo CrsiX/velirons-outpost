@@ -171,6 +171,13 @@ func kill_gold(base: int) -> int:
 	return base + maxi(1, roundi(base * b))
 
 
+## Does an enemy of `kind` notice this village's own trade caravans? Every
+## kind does, except under Camouflaged carts: then only its "camouflage" kinds.
+func caravans_noticed_by(kind: String) -> bool:
+	var only: Variant = research.effect("camouflage", null) if research else null
+	return only == null or (only as Array).has(kind)
+
+
 ## Its critical hits ({"chance", "factor"}; empty: none): Eye for vital points.
 func crit() -> Dictionary:
 	return research.effect("crit", {}) if research else {}

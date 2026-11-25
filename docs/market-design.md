@@ -89,7 +89,7 @@ each other.
   level; the Toll charter relic and the Guild partners advancement cut it further, adding up,
   never below none). It is the only deduction; there is none between players.
 - **The trader's packing rate** and the **caravans in transit at once** (by level, plus the
-  Caravan rights and One more caravan advancements) cap throughput: the real brake.
+  Caravan rights advancement) cap throughput: the real brake.
 - **Rejected: changing prices.** Prices that fall with every sale (and rise with every buy)
   were considered and dropped: two brakes on one problem are hard to explain and to balance,
   and the stock, the trader's rate and the caravan slots already limit both directions more
@@ -111,7 +111,8 @@ with its own rules; the two must never be confused.
   leaving when full or when the pile is empty; or **one item** (§8), never mixed with goods,
   packed in a short time of its own.
 - **Departure:** a trade caravan (outgoing *and* the guild's) sets off only when no enemy its
-  village can see is near its route (camp guards don't count: they keep to their camps). The
+  village can see is near its route (camp guards don't count: they keep to their camps; under
+  Camouflaged carts, neither do enemies that don't notice the village's own carts, below). The
   player can't choose the route: the nearest edge by road (single player, or when no player
   buys), or the buyer's village (§7).
 - **Head-on is intended.** The roads lead to the spawns, so a caravan to the edge meets the
@@ -122,6 +123,10 @@ with its own rules; the two must never be confused.
   to the edge and comes again later); its load waits at the market for the next try. Back home
   it tops up the load being packed to one full load and the rest goes back on the for-sale
   pile, so no caravan carries more than a load; an item goes back where it waits (§8).
+- **Camouflaged carts** (the advancement, docs/advancements-design.md): only the kinds on its
+  exception list (thieves) notice the village's own carts; every other enemy neither blocks the
+  road for them (departure, turning back) nor goes for them. Accidental harm (cleave, splash)
+  still hits. The guild's carts are unaffected.
 - **Home to a market that is gone** (torn down while the cart was out): nothing is lost. An
   order's gold goes back to the buyer, goods go back into the village stock, an item into the
   armoury (or a sack by the town hall when the armoury is full).

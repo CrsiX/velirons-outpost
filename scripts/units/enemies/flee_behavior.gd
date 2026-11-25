@@ -55,7 +55,7 @@ static func _danger(enemy: Enemy, at: Vector2) -> float:
 	var n := 0.0
 	var tree := enemy.get_tree()
 	for node in tree.get_nodes_in_group("melee_defenders") + tree.get_nodes_in_group("villagers"):
-		if not node.dead and not _sheltered(node) and (node.grid_pos as Vector2).distance_to(at) <= WATCH:
+		if not node.dead and not _unseen(enemy, node) and (node.grid_pos as Vector2).distance_to(at) <= WATCH:
 			n += 1.0
 	for b in enemy.game.world.towers():
 		var t := b as Tower

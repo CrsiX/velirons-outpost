@@ -718,7 +718,7 @@ func _restock(delta: float) -> void:
 	if cargo.is_empty():
 		return
 	var edge := edge_tile()
-	if edge == Vector2i(-1, -1) or not route_clear(game.world.pathing.find_path(edge, work_tile())):
+	if edge == Vector2i(-1, -1) or not route_clear(game.world.pathing.find_path(edge, work_tile()), true):
 		restock_timer = 10.0  # (try again soon)
 		village.events.debug("%s: the guild's caravan waits at the edge (%s)" % [label(), "no road to the edge" if edge == Vector2i(-1, -1) else "an enemy near the route from %s" % str(edge)])
 		return
@@ -886,9 +886,10 @@ func edge_tile() -> Vector2i:
 
 
 ## No enemy our village can see is within MARKET "blocked_radius" of `path`
-## (camp guards stay at their camps and don't count).
-func route_clear(path: PackedVector2Array) -> bool:
-	return TradeCaravan.first_block(game, village, path, 0, path.size()) < 0
+## (camp guards stay at their camps and don't count; for our own carts, not
+## the `guild`'s, neither do enemies that don't notice them: Camouflaged carts).
+func route_clear(path: PackedVector2Array, guild := false) -> bool:
+	return TradeCaravan.first_block(game, village, path, 0, path.size(), guild) < 0
 
 
 ## Salvage brought back (TradeCaravan.drop_salvage): our goods back on the

@@ -57,8 +57,20 @@ func effect(key: String, fallback: Variant = null) -> Variant:
 	return fallback
 
 
+## Advancements a save may still name under an id that is gone: what each
+## became (same place in the tree). SaveGame reads ids through `renamed`.
+const RENAMED := {"extra_caravan": "camouflaged_carts"}
+
+
+static func renamed(ids: Array) -> Array[String]:
+	var out: Array[String] = []
+	for id in ids:
+		out.append(str(RENAMED.get(str(id), str(id))))
+	return out
+
+
 ## Effects that make an advancement the marketplace's (docs/advancements-design.md).
-const MARKET_EFFECTS: Array[String] = ["caravans", "tax"]
+const MARKET_EFFECTS: Array[String] = ["caravans", "tax", "camouflage"]
 
 
 ## Every advancement this game offers (the co-op ones only with several

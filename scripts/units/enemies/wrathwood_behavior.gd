@@ -264,7 +264,7 @@ func _ours(enemy: Enemy) -> Array:
 	var out := []
 	var seen := {}
 	for node in enemy.get_tree().get_nodes_in_group("melee_defenders") + enemy.get_tree().get_nodes_in_group("villagers"):
-		if seen.has(node) or node.dead or _sheltered(node):
+		if seen.has(node) or node.dead or _unseen(enemy, node):
 			continue
 		seen[node] = true
 		out.append(node)

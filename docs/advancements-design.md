@@ -161,13 +161,20 @@ conditions are `Config` values (`ADVANCEMENTS`), agreed when built.
   the newest recruits pick it would empty the huts and quietly take away the risk of a burning
   hut. A **devastated** hall kills its resident wherever they are, as a burning hut does; once the
   hall is repaired the room is free again. Not exclusive.
-- **Guild partners** (a lower guild tax, adding to a Toll charter) ***or*** **One more caravan**
-  (needs Caravan rights). Both need a deed: sales delivered, of any kind (`trade.sold`: goods or
+- **Guild partners** (a lower guild tax, adding to a Toll charter) ***or*** **Camouflaged carts**
+  (needs Caravan rights). With Camouflaged carts, most enemies don't
+  notice the village's own trade caravans on any trip, home included. They don't hold a cart at
+  the market, don't make it turn back and never go for it, so it drives past a wave untouched.
+  Harm meant for something else still lands (a cleave, splash, a blast): not being noticed isn't
+  being invulnerable. Thieves are the exception because robbing caravans is what they are for;
+  they keep every rule of docs/market-design.md §5. The guild's own carts are nobody's and get
+  nothing from it. It replaced *One more caravan* (old saves load that as this, the same slot):
+  one caravan more was a number, this changes how trading between waves feels. Both need a deed: sales delivered, of any kind (`trade.sold`: goods or
   an item, to the guild or to a player; buying doesn't count), so they come to a village that
   trades. Guild partners needs Caravan rights too: both halves of a pair need the same
   (§8.2).
 
-The market's three are there exactly where a marketplace can be built (`Game.market_enabled`):
+The market's three (Caravan rights and this pair) are there exactly where a marketplace can be built (`Game.market_enabled`):
 always in free play and co-op, in a scenario only if it allows a marketplace. Elsewhere they
 are left out of the list, not shown locked.
 
@@ -222,7 +229,7 @@ Every advancement belongs to one of four **categories**, by what it improves:
   builders / Cheaper repairs).
 - **Hearth**: villagers, food, materials, population (Quick feet, Thick-skinned, Hall quarters).
 - **Frontier**: everything outside the walls: trade and caravans, loot, vision and exploring
-  (Caravan rights, Guild partners / One more caravan, Skilled looting, Shared vision).
+  (Caravan rights, Guild partners / Camouflaged carts, Skilled looting, Shared vision).
 
 - **Only a grouping.** A category changes nothing in play: no queue per category, no gating
   between categories, no building of its own. The one research queue of §2 stays.

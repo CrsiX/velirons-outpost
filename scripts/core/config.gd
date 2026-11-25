@@ -1483,11 +1483,15 @@ const EXPLORER_BLOCKED_RADIUS := 4.0
 ##   recruit_cost     recruiting military units costs this share less gold
 ##   caravans         the marketplace may have this many more trade caravans on the road
 ##   tax              the guild tax this share lower (adds to a Toll charter)
+##   camouflage       [enemy kinds]: only these notice the village's own trade
+##                    caravans (TradeCaravan.noticed_by); the rest don't hold them
+##                    at the market, turn them back or go for them. Accidental
+##                    harm (cleave, splash, blasts) still hits them
 ##   tower_range      towers (watchtowers, wall towers, the town hall's post) reach
 ##                    this share farther; adds to the relics' tower_range
 ##   hall_home        the town hall houses one villager (huts are filled first);
 ##                    a devastated hall kills its resident and houses nobody
-## An advancement with a "caravans" or "tax" effect is the market's: offered only
+## An advancement with a "caravans", "tax" or "camouflage" effect is the market's: offered only
 ## where a marketplace can be built (Research.offered).
 const ADVANCEMENT_TIERS := {1: 2, 2: 3}
 ## The categories, in the research dialog's tab order: only a grouping, never a
@@ -1537,12 +1541,12 @@ const ADVANCEMENTS := {
 		"desc": "One villager can live in the town hall (huts are filled first). Devastated, the hall kills its resident."},
 	"caravan_rights": {"name": "Caravan rights", "tier": 1, "category": "frontier", "cost": {"gold": 120}, "time": 60.0, "caravans": 1,
 		"desc": "Your marketplace may have one more trade caravan on the road."},
-	"guild_partners": {"name": "Guild partners", "tier": 2, "category": "frontier", "cost": {"gold": 200}, "time": 75.0, "needs": ["caravan_rights"], "excludes": "extra_caravan", "tax": 0.25,
+	"guild_partners": {"name": "Guild partners", "tier": 2, "category": "frontier", "cost": {"gold": 200}, "time": 75.0, "needs": ["caravan_rights"], "excludes": "camouflaged_carts", "tax": 0.25,
 		"deed": {"stat": "trade.sold", "count": 10, "text": "sales delivered"},
 		"desc": "The guild tax is a quarter lower (adds to a Toll charter)."},
-	"extra_caravan": {"name": "One more caravan", "tier": 2, "category": "frontier", "cost": {"gold": 200}, "time": 75.0, "excludes": "guild_partners", "needs": ["caravan_rights"], "caravans": 1,
+	"camouflaged_carts": {"name": "Camouflaged carts", "tier": 2, "category": "frontier", "cost": {"gold": 200}, "time": 75.0, "excludes": "guild_partners", "needs": ["caravan_rights"], "camouflage": ["thief"],
 		"deed": {"stat": "trade.sold", "count": 10, "text": "sales delivered"},
-		"desc": "One more trade caravan on the road (adds to Caravan rights)."},
+		"desc": "Your trade caravans travel unnoticed: no enemy but a thief waits for them, blocks them or goes for them. A stray blow or blast can still hit them."},
 }
 ## Better targeting (docs/advancements-design.md §5): the rule per unit kind
 ## (and summon kind); anyone not listed keeps the default. Rules: "default"

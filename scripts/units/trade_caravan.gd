@@ -12,7 +12,8 @@ extends Unit
 ## docs/market-design.md §8.1), never both.
 ## On the road it is a villager to enemies (group "villagers", is_exposed):
 ## hit when in reach, never hunted, never poisoned. It never flees, but turns
-## back when an enemy its village sees blocks the road ahead. A thief robs it
+## back when an enemy its village sees blocks the road ahead. Under
+## Camouflaged carts most enemies don't notice it at all (`noticed_by`). A thief robs it
 ## (`rob`): the cargo goes with the thief, the empty cart home. Destroyed, it
 ## leaves its cargo as salvage (`drop_salvage`).
 
@@ -122,6 +123,12 @@ func loaded() -> bool:
 
 func is_exposed() -> bool:
 	return not dead and is_inside_tree()
+
+
+## Does an enemy of `kind` notice it (block its road, go for it)? A guild
+## cart is nobody's: always. Accidental harm (cleave, splash) ignores this.
+func noticed_by(kind: String) -> bool:
+	return trip == Trip.INCOMING or village == null or village.caravans_noticed_by(kind)
 
 
 func inside_walls() -> bool:
@@ -241,7 +248,7 @@ func _process(delta: float) -> void:
 		_look = 0.5
 		if not returning and loaded() and village != null:
 			var to := mini(path_index + int(Config.MARKET["look_ahead"]), path.size())
-			var at := first_block(game, village, path, path_index, to)
+			var at := first_block(game, village, path, path_index, to, trip == Trip.INCOMING)
 			if at >= 0:
 				_debug("enemy near waypoint %d %s (it is at %d of %d, at %s): turns back" % [at, str(Vector2i(path[at].round())), path_index, path.size(), str(current_tile())])
 				_log_owner(EventLog.Level.INFO, "%s turns back: enemies on the road" % label().capitalize())
@@ -253,8 +260,9 @@ func _process(delta: float) -> void:
 
 ## Index of the first waypoint of `p` (from `from` up to `to`) that an enemy
 ## `v` can see is within MARKET "blocked_radius" of, or -1. Camp guards and
-## faded ghosts don't count.
-static func first_block(p_game: Game, v: Village, p: PackedVector2Array, from: int, to: int) -> int:
+## faded ghosts don't count, nor, for `v`'s own carts (not `guild`), enemies
+## that don't notice them (Camouflaged carts).
+static func first_block(p_game: Game, v: Village, p: PackedVector2Array, from: int, to: int, guild := false) -> int:
 	var r := float(Config.MARKET["blocked_radius"])
 	var foes: Array[Vector2] = []
 	for node in p_game.get_tree().get_nodes_in_group("enemies"):
@@ -262,6 +270,8 @@ static func first_block(p_game: Game, v: Village, p: PackedVector2Array, from: i
 		if e.dead or not e.scary() or e.behavior is CampBehavior:
 			continue
 		if v != null and not p_game.fog.is_watched_by(v.id, e.current_tile()):
+			continue
+		if v != null and not guild and not v.caravans_noticed_by(e.kind):
 			continue
 		foes.append(e.grid_pos)
 	if foes.is_empty():

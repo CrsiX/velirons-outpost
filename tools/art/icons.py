@@ -431,6 +431,21 @@ def _cart(x=0, y=0):
   </g>'''
 
 
+def _camouflage_net():
+    """A net of leaves and branches draped over the cart (Camouflaged carts)."""
+    leaves = "".join(
+        f'\n  <path d="M{x} {y} q{dx * 0.5 - dy * 0.6:.1f} {dy * 0.5 + dx * 0.6:.1f} {dx} {dy} q{-dx * 0.5 + dy * 0.6:.1f} {-dy * 0.5 - dx * 0.6:.1f} {-dx} {-dy}Z" fill="{c}" stroke="{INK}" stroke-width="1.4" stroke-linejoin="round"/>'
+        for x, y, dx, dy, c in [
+            (12, 34, -4, 7, "#5a7a3a"), (16, 27, -6, 2, "#6f9a44"), (22, 22, -3, -6, "#5a7a3a"), (28, 20, 2, -7, "#6f9a44"),
+            (35, 20, 5, -5, "#5a7a3a"), (41, 23, 7, -1, "#6f9a44"), (46, 29, 6, 4, "#5a7a3a"), (47, 36, 2, 7, "#6f9a44"),
+            (24, 27, 4, -5, "#7fae4e"), (34, 26, -3, -5, "#7fae4e"), (40, 30, 6, -2, "#7fae4e"), (19, 32, -5, -3, "#7fae4e"),
+        ])
+    return f'''
+  <path d="M10 40 Q10 18 30 17 Q50 18 49 40" fill="#3e5a2a" fill-opacity="0.55" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M14 38 Q16 24 30 21 M22 38 Q22 24 36 21 M31 38 Q33 26 44 25 M18 26 Q30 30 45 28 M12 33 Q30 36 48 34" fill="none" stroke="#a8925e" stroke-width="1.3" stroke-linecap="round"/>
+  <path d="M20 21 Q16 16 12 15 M40 20 Q45 14 50 14" fill="none" stroke="#6a4a2a" stroke-width="2" stroke-linecap="round"/>''' + leaves
+
+
 def _plus(x, y):
     return f'''
   <path d="M{x - 6} {y} L{x + 6} {y} M{x} {y - 6} L{x} {y + 6}" stroke="{INK}" stroke-width="5.5" stroke-linecap="round"/>
@@ -543,7 +558,7 @@ ADV_ICONS = {
     "caravan_rights": (f'''
   <path d="M30 10 L46 10 Q49 10 49 13 L49 20 L30 20 Q33 15 30 10Z" fill="#efe3c8" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
   <circle cx="44" cy="20" r="3.5" fill="#c83a30" stroke="{INK}" stroke-width="1.5"/>''' + _cart(0, 4) + _plus(48, 40)),
-    "extra_caravan": ('\n  <g transform="translate(5 6) scale(0.82)">' + _cart(-2, -8) + _cart(8, 8) + "\n  </g>" + _plus(47, 17)),
+    "camouflaged_carts": (_cart(0, 6) + _camouflage_net()),
     "guild_partners": (f'''
   <circle cx="26" cy="30" r="12" fill="{GOLD}" stroke="{INK}" stroke-width="2.6"/>
   <circle cx="26" cy="30" r="7.5" fill="none" stroke="#8a5a26" stroke-width="1.8"/>

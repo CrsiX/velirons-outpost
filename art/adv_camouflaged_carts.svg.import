@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1x5ps8a6wudb"
-path="res://.godot/imported/adv_extra_caravan.svg-c02753cc29dc70d0345a9dbe344dec88.ctex"
+uid="uid://cr5fl7yvfsex8"
+path="res://.godot/imported/adv_camouflaged_carts.svg-c38d0266b40a97abf174ed8e74d50c9a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/adv_extra_caravan.svg"
-dest_files=["res://.godot/imported/adv_extra_caravan.svg-c02753cc29dc70d0345a9dbe344dec88.ctex"]
+source_file="res://art/adv_camouflaged_carts.svg"
+dest_files=["res://.godot/imported/adv_camouflaged_carts.svg-c38d0266b40a97abf174ed8e74d50c9a.ctex"]
 
 [params]
 

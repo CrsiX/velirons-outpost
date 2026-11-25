@@ -89,7 +89,7 @@ func _choose_target(enemy: Enemy) -> Node:
 	candidates.append_array(enemy.get_tree().get_nodes_in_group("field_units"))
 	candidates.append_array(enemy.get_tree().get_nodes_in_group("villagers"))
 	for t in candidates:
-		if not _valid(t) or is_ignoring(t, enemy):
+		if not _valid(t) or is_ignoring(t, enemy) or _unseen(enemy, t):
 			continue
 		var d := _target_grid(t).distance_to(enemy.grid_pos)
 		if d <= reach and d < best_d:

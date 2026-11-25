@@ -9,6 +9,13 @@ static func _sheltered(node) -> bool:
 	return node is Civilian and not (node is Hero) and not (node as Civilian).is_exposed()
 
 
+## Nothing `enemy` goes for or fights: a sheltered villager, or a trade
+## caravan it doesn't notice (Camouflaged carts: TradeCaravan.noticed_by).
+## Accidental harm (cleave, splash, blasts) checks `_sheltered` only.
+static func _unseen(enemy: Enemy, node) -> bool:
+	return _sheltered(node) or (node is TradeCaravan and not (node as TradeCaravan).noticed_by(enemy.kind))
+
+
 ## A debug line about what `enemy` does now (a change of its behavior's
 ## state), for its village's log (every village's without one). Not on a
 ## co-op client: the host logs it.

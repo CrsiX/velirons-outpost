@@ -45,6 +45,7 @@ func _run() -> void:
 	await _test_robbery()
 	await _test_destroyed()
 	await _test_restock()
+	await _test_camouflage()
 	_test_save()
 	await _test_item_sales()
 	await _test_home_to_nothing()
@@ -281,6 +282,39 @@ func _test_destroyed() -> void:
 	check(await wait_until(func() -> bool: return m.stock("food") >= stock + cargo - 0.5, 150.0), "a gatherer carries it to the market: into the guild's stock")
 	var fee := floori(cargo * float(Config.MARKET["buy"]["food"]["gold"]) / float(Config.MARKET["buy"]["food"]["amount"]) * float(Config.MARKET["finder_fee"]))
 	check(fee > 0 and v.economy.amount("gold") >= gold + fee - 0.5, "for a finder's fee (%d gold)" % fee)
+
+
+## Camouflaged carts (docs/advancements-design.md): enemies but a thief don't
+## notice our own carts; the guild's still count; accidental harm still hits.
+func _test_camouflage() -> void:
+	await wait_until(func() -> bool: return m.caravans_out().is_empty(), 120.0)
+	v.research.done.append("camouflaged_carts")
+	var way := game.world.pathing.find_path(m.work_tile(), m.edge_tile())
+	var gob := _foe("goblin", way[way.size() / 2])
+	game.fog.update_surveillance()
+	check(m.route_clear(way) and not m.route_clear(way, true), "a goblin on the way: our cart may set off, the guild's waits")
+	var thief := _foe("thief", way[way.size() / 3])
+	game.fog.update_surveillance()
+	check(not m.route_clear(way), "a thief on the way still holds it")
+	kill(thief)
+	await frames(3)
+	var tc: TradeCaravan = m._send(TradeCaravan.Trip.OUTGOING, {"food": 9}, m.edge_tile())
+	check(tc.noticed_by("thief") and not tc.noticed_by("goblin"), "only a thief notices it")
+	await wait(0.5)
+	game.fog.update_surveillance()
+	check(await wait_until(func() -> bool: return tc.dead or tc.grid_pos.distance_to(gob.grid_pos) > 4.0 and tc.path_index > way.size() / 2, 60.0) and not tc.dead,
+		"it drives past the goblin")
+	check(not tc.returning and is_equal_approx(tc.hp, tc.max_hp), "without turning back, and the goblin never goes for it (%.1f / %.1f hp)" % [tc.hp, tc.max_hp])
+	var champ := _foe("legion_champion", tc.grid_pos)
+	EnemyBehavior.cleave(champ, gob)
+	gob.set_grid_pos(tc.grid_pos)
+	EnemyBehavior.cleave(champ, gob)
+	check(tc.hp < tc.max_hp, "a cleave beside it still hits it (%.1f / %.1f hp)" % [tc.hp, tc.max_hp])
+	kill(champ)
+	kill(gob)
+	v.research.done.erase("camouflaged_carts")
+	await frames(3)
+	await wait_until(when_gone(tc, func(x: TradeCaravan) -> bool: return x.dead), 200.0)
 
 
 func _test_restock() -> void:

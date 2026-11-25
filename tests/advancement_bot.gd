@@ -131,7 +131,7 @@ func _test_conditions() -> void:
 	check(r.error("skilled_looting").contains("gold earned"), "an earned-gold condition (%s)" % r.error("skilled_looting"))
 	check(r.error("vital_points").contains("melee kills"), "a deed (%s)" % r.error("vital_points"))
 	check(r.error("caravan_rights") == "", "Caravan rights: nothing but the tier")
-	check(Research.is_market("caravan_rights") and Research.is_market("guild_partners") and Research.is_market("extra_caravan") and not Research.is_market("drill_1"), "the market's three are known by their effects (offered only where a marketplace can be built)")
+	check(Research.is_market("caravan_rights") and Research.is_market("guild_partners") and Research.is_market("camouflaged_carts") and not Research.is_market("drill_1"), "the market's are known by their effects (offered only where a marketplace can be built)")
 	game.stats.count(v, "earn.gold", 500.0)
 	check(r.error("skilled_looting") == "", "500 gold earned: it opens")
 	game.stats.count(v, "kill_by.melee", 40.0)
@@ -146,7 +146,7 @@ func _test_conditions() -> void:
 	var deed := func() -> bool: return r.conditions("guild_partners").any(func(c: Array) -> bool: return str(c[0]).contains("sales delivered") and c[1])
 	check(not deed.call(), "Guild partners: a deed of sales (%s)" % str(r.conditions("guild_partners")))
 	game.stats.count(v, "trade.sold", 10.0)
-	check(deed.call() and r.error("guild_partners").contains("Caravan rights") and r.error("extra_caravan").contains("Caravan rights"), "after 10 sales both halves still need Caravan rights (%s)" % r.error("guild_partners"))
+	check(deed.call() and r.error("guild_partners").contains("Caravan rights") and r.error("camouflaged_carts").contains("Caravan rights"), "after 10 sales both halves still need Caravan rights (%s)" % r.error("guild_partners"))
 	game.waves.wave = 10
 
 
@@ -171,7 +171,7 @@ func _test_dialog() -> void:
 	d.select("caravan_rights")
 	d._step(Vector2.LEFT)
 	check(int(Config.ADVANCEMENTS[right]["tier"]) == 1 and int(Config.ADVANCEMENTS[d.selected]["tier"]) == 1, "left and right stay in the tier (%s, %s)" % [right, d.selected])
-	d.select("extra_caravan")
+	d.select("camouflaged_carts")
 	d._step(Vector2.DOWN)
 	check(d.selected == "caravan_rights", "down from a tier-2 half: what it needs, though not straight under it (%s)" % d.selected)
 	d.select("guild_partners")
@@ -318,7 +318,7 @@ func _test_effects() -> void:
 	ar.level = Config.BRANCH_MIN_LEVEL - 1
 	var opts := ar.upgrade_options().filter(func(o: Dictionary) -> bool: return o["to"] != "archer")
 	check(not opts.is_empty() and int(opts[0]["cost"]["gold"]) == roundi(int(Config.MILITARY[opts[0]["to"]]["branch_cost"]["gold"]) * 0.75), "cheaper specialising: 25 % less")
-	# The market's: more caravans, a lower guild tax.
+	# The market's: more caravans, camouflage, a lower guild tax.
 	var spot := find_spot("market", v.center)
 	var mk := v.construction.place("market", spot) as Market if spot != Vector2i(-1, -1) else null
 	check(mk != null, "a marketplace for the market's advancements")
@@ -329,9 +329,10 @@ func _test_effects() -> void:
 		var tax0 := mk.tax()
 		grant("caravan_rights")
 		check(mk.caravan_cap() == cap0 + 1, "Caravan rights: one more caravan (%d)" % mk.caravan_cap())
-		grant("extra_caravan")
-		check(mk.caravan_cap() == cap0 + 2 and r.locked.has("guild_partners"), "One more caravan adds another; Guild partners locked")
-		r.done.erase("extra_caravan")
+		grant("camouflaged_carts")
+		check(mk.caravan_cap() == cap0 + 1 and r.locked.has("guild_partners") and not v.caravans_noticed_by("goblin") and v.caravans_noticed_by("thief"),
+			"Camouflaged carts: only thieves notice our carts, no caravan more; Guild partners locked")
+		r.done.erase("camouflaged_carts")
 		r.locked.erase("guild_partners")
 		grant("guild_partners")
 		check(is_equal_approx(mk.tax(), tax0 * 0.75) and mk.guild_price("hearth") > 0, "Guild partners: the guild tax a quarter lower (%.3f)" % mk.tax())
@@ -451,6 +452,7 @@ func _test_save() -> void:
 	r.paid = {"gold": 7, "food": 3}
 	var civ_id := civ.nid
 	body = SaveGame.capture(game)
+	(body["villages"][0]["res"]["locked"] as Array).append("extra_caravan")  # (an old save: it was renamed)
 	game.queue_free()
 	await frames(3)
 	Settings.pending_save = body
@@ -463,6 +465,7 @@ func _test_save() -> void:
 	var lhall := game.player_village.town_hall()
 	check(lhall != null and is_instance_valid(lhall.resident) and lhall.resident.home_building() == lhall, "loaded: the hall's resident lives there still")
 	check(game.player_village.research.paid == {"gold": 7, "food": 3}, "loaded: what the research under way was paid with (%s)" % str(game.player_village.research.paid))
+	check(game.player_village.research.locked.has("camouflaged_carts") and not game.player_village.research.locked.has("extra_caravan"), "an old save's One more caravan loads as Camouflaged carts")
 	get_tree().paused = false
 	game.queue_free()
 
