@@ -337,16 +337,32 @@ def app_icon():
 # ------------------------------------------------------------- advancement icons
 
 # The advancements' icons (Config.ADVANCEMENTS; "adv_<id>"): one badge for all, a dark
-# disc with an iron ring (tier 1) or a gold one (tier 2), and the advancement's sign in it.
+# disc with an iron ring (tier 1) or a gold one (tier 2), its inner disc tinted by the
+# advancement's category (ADV_CATEGORY_TINTS), and the advancement's sign in it. Tier and
+# category are read from config.gd (_advancement_specs), the one place they are set.
 ADV_RING = {1: "#9aa0a8", 2: "#e0b84a"}
+# Dark enough for every sign to stay readable: crimson, cold slate, warm umber, deep moss.
+ADV_CATEGORY_TINTS = {"arms": "#4a2024", "stronghold": "#2e3642", "hearth": "#4a3220", "frontier": "#263a22"}
 
 
-def _adv_badge(tier, symbol):
+def _adv_badge(tier, category, symbol):
     return f'''
   <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="{INK}" stroke-width="3"/>
   <circle cx="32" cy="32" r="26" fill="none" stroke="{ADV_RING[tier]}" stroke-width="3"/>
-  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+  <circle cx="32" cy="32" r="23.5" fill="{ADV_CATEGORY_TINTS[category]}"/>
 {symbol}'''
+
+
+def _advancement_specs():
+    """{id: (tier, category)} for every Config.ADVANCEMENTS entry, read from config.gd."""
+    with open(os.path.join(ROOT, "scripts", "core", "config.gd")) as f:
+        cfg = f.read()
+    block = cfg[cfg.index("const ADVANCEMENTS := {"):]
+    block = block[:block.index("\n}")]
+    out = {}
+    for m in re.finditer(r'^\t"([a-z_0-9]+)": \{"name": [^\n]*?"tier": (\d), "category": "([a-z]+)"', block, re.M):
+        out[m.group(1)] = (int(m.group(2)), m.group(3))
+    return out
 
 
 def _numeral(text, y=55):
@@ -421,30 +437,30 @@ def _plus(x, y):
   <path d="M{x - 6} {y} L{x + 6} {y} M{x} {y - 6} L{x} {y + 6}" stroke="#5cc24a" stroke-width="3" stroke-linecap="round"/>'''
 
 ADV_ICONS = {
-    "fortifications_4": (1, _battlement(STONE_T, STONE_L) + _numeral("IV")),
-    "fortifications_5": (2, _battlement(GOLD, "#8f8a80") + f'''
+    "fortifications_4": (_battlement(STONE_T, STONE_L) + _numeral("IV")),
+    "fortifications_5": (_battlement(GOLD, "#8f8a80") + f'''
   <path d="M14 24 L19 24 M24 24 L29 24 M35 24 L40 24 M45 24 L50 24" stroke="{GOLD}" stroke-width="2.5"/>''' + _numeral("V")),
-    "better_targeting": (1, _target() + f'''
+    "better_targeting": (_target() + f'''
   <path d="M50 14 L35 29" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>
   <path d="M50 14 L35 29" stroke="{WOOD_L}" stroke-width="2.6" stroke-linecap="round"/>
   <path d="M47 11 L54 11 L53 18 M44 14 L51 14 L50 21" fill="none" stroke="#e8e0cc" stroke-width="2" stroke-linecap="round"/>
   <path d="M38 23 L33 31 L41 26Z" fill="#9a9a9a" stroke="{INK}" stroke-width="1.5" stroke-linejoin="round"/>'''),
-    "manual_targeting": (1, _target("#3f7fbf") + f'''
+    "manual_targeting": (_target("#3f7fbf") + f'''
   <circle cx="44" cy="44" r="9" fill="#8a929c" stroke="{INK}" stroke-width="2.5"/>
   <path d="M44 44 L44 36.5" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>
   <path d="M37 47 L40 46 M44 51.5 L44 49 M51 47 L48 46" stroke="{INK}" stroke-width="1.6"/>'''),
-    "faster_attacks": (1, f'''
+    "faster_attacks": (f'''
   <path d="M14 44 L44 20" stroke="{INK}" stroke-width="6" stroke-linecap="round"/>
   <path d="M14 44 L44 20" stroke="{WOOD_L}" stroke-width="3" stroke-linecap="round"/>
   <path d="M40 16 L52 13 L49 25Z" fill="#c9ced6" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
   <path d="M12 40 L8 46 L16 47 M17 44 L13 50 L21 51" fill="none" stroke="#e8e0cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M16 22 L28 22 M12 29 L24 29 M24 50 L38 50" stroke="#ffd27a" stroke-width="2.6" stroke-linecap="round"/>'''),
-    "quick_feet": (1, f'''
+    "quick_feet": (f'''
   <path d="M22 16 L34 16 L34 36 L46 42 Q50 44 49 49 L20 49 L20 40Z" fill="#7a5a38" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
   <path d="M20 44 L49 44" stroke="#5a3e26" stroke-width="2"/>
   <path d="M34 20 Q46 12 54 16 Q48 18 52 22 Q44 22 47 26 Q40 26 34 30Z" fill="#efe3c8" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
   <path d="M8 30 L16 30 M6 37 L16 37 M10 44 L16 44" stroke="#ffd27a" stroke-width="2.4" stroke-linecap="round"/>'''),
-    "thick_skinned": (1, f'''
+    "thick_skinned": (f'''
   <path d="M15 50 Q16 40 32 38 Q48 40 49 50 Q32 58 15 50Z" fill="#7a5a38" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
   <path d="M28 38 L32 44 L36 38" fill="none" stroke="#5a3e26" stroke-width="2"/>
   <circle cx="30" cy="24" r="12" fill="#e8b98a" stroke="{INK}" stroke-width="2.8"/>
@@ -457,7 +473,7 @@ ADV_ICONS = {
   <circle cx="41.5" cy="42.5" r="5.4" fill="none" stroke="#6a4424" stroke-width="1.6" stroke-dasharray="2 1.6"/>
   <circle cx="41.5" cy="42.5" r="2.3" fill="#c9ced6" stroke="{INK}" stroke-width="1.2"/>'''),
     # A timber lookout on tall stilts, a gold arrow pointing up beside it.
-    "raised_platforms": (1, f'''
+    "raised_platforms": (f'''
   <path d="M22 52 L26 30 M38 52 L34 30" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>
   <path d="M22 52 L26 30 M38 52 L34 30" stroke="{WOOD_L}" stroke-width="2.6" stroke-linecap="round"/>
   <path d="M23.5 47 L35.5 37 M36.5 47 L24.5 37" stroke="{WOOD_D}" stroke-width="2.2" stroke-linecap="round"/>
@@ -467,10 +483,10 @@ ADV_ICONS = {
   <path d="M50 46 L50 18" stroke="{INK}" stroke-width="5.5" stroke-linecap="round"/>
   <path d="M50 46 L50 18" stroke="{GOLD}" stroke-width="3" stroke-linecap="round"/>
   <path d="M44 22 L50 13 L56 22Z" fill="{GOLD}" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>'''),
-    "drill_1": (1, _chevrons(1) + _numeral("I")),
-    "drill_2": (2, _chevrons(2) + _numeral("II")),
+    "drill_1": (_chevrons(1) + _numeral("I")),
+    "drill_2": (_chevrons(2) + _numeral("II")),
     # A bed with a red blanket under a hall's gable roof.
-    "hall_quarters": (2, f'''
+    "hall_quarters": (f'''
   <path d="M10 30 L32 13 L54 30" fill="none" stroke="{INK}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M10 30 L32 13 L54 30" fill="none" stroke="{CRIMSON_D}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M16 29 L16 50 M48 29 L48 50" stroke="{INK}" stroke-width="4.5" stroke-linecap="round"/>
@@ -480,7 +496,7 @@ ADV_ICONS = {
   <rect x="21" y="36" width="9" height="5" rx="2.2" fill="#efe3c8" stroke="{INK}" stroke-width="2"/>
   <path d="M28 41 L45 41 L45 46 L21 46 L21 41Z" fill="{CRIMSON}" stroke="{INK}" stroke-width="2.4" stroke-linejoin="round"/>
   <path d="M30 41 Q34 38 38 41" fill="none" stroke="{CRIMSON_D}" stroke-width="1.8"/>'''),
-    "skilled_looting": (1, f'''
+    "skilled_looting": (f'''
   <path d="M22 26 Q14 34 16 44 Q18 52 32 52 Q46 52 48 44 Q50 34 42 26Z" fill="#b89a60" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
   <path d="M22 26 Q32 21 42 26" fill="none" stroke="#6a5230" stroke-width="2.4"/>
   <path d="M24 26 L26 20 L38 20 L40 26" fill="#8a6c34" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
@@ -488,47 +504,47 @@ ADV_ICONS = {
   <circle cx="24" cy="13" r="4.5" fill="{GOLD}" stroke="{INK}" stroke-width="1.8"/>
   <circle cx="41" cy="12" r="4.5" fill="{GOLD}" stroke="{INK}" stroke-width="1.8"/>
   <path d="M28 40 L36 40 M32 36 L32 44" stroke="{GOLD_D}" stroke-width="2.6" stroke-linecap="round"/>'''),
-    "shared_vision": (1, f'''
+    "shared_vision": (f'''
   <path d="M8 32 Q32 10 56 32 Q32 54 8 32Z" fill="#efe3c8" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
   <circle cx="32" cy="32" r="9" fill="#3f7fbf" stroke="{INK}" stroke-width="2.2"/>
   <circle cx="32" cy="32" r="4" fill="{INK}"/>
   <circle cx="29" cy="29" r="1.8" fill="#ffffff"/>
   <path d="M12 47 Q20 40 28 47 M36 47 Q44 40 52 47" fill="none" stroke="#5fbf5a" stroke-width="2.6" stroke-linecap="round"/>'''),
-    "vital_points": (1, f'''
+    "vital_points": (f'''
   <path d="M40 14 L48 6 L50 8 L42 16Z" fill="{WOOD_L}" stroke="{INK}" stroke-width="2"/>
   <path d="M38 12 L46 20" stroke="{INK}" stroke-width="3.5" stroke-linecap="round"/>
   <path d="M42 16 L20 38 L17 44 L23 41 L45 19Z" fill="#c9ced6" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
   <path d="M21 41 L18 38 L12 40 L10 34 L16 32 L14 26 L20 28 L22 22 L26 28 L32 26 L28 32" fill="#d8342c" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round" transform="translate(-4 10)"/>
   <circle cx="14" cy="42" r="3.5" fill="#ffd27a"/>'''),
-    "more_damage": (2, f'''
+    "more_damage": (f'''
   <path d="M16 46 L42 20 L48 14 L50 16 L44 22 L18 48Z" fill="#c9ced6" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
   <path d="M48 46 L22 20 L16 14 L14 16 L20 22 L46 48Z" fill="#b8bec8" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
   <path d="M12 42 L22 52 M52 42 L42 52" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>
   <path d="M12 42 L22 52 M52 42 L42 52" stroke="{GOLD}" stroke-width="2.6" stroke-linecap="round"/>
   <path d="M32 8 L35 15 L42 16 L36 20 L38 27 L32 23 L26 27 L28 20 L22 16 L29 15Z" fill="#ffd27a" stroke="{INK}" stroke-width="1.6" stroke-linejoin="round"/>'''),
-    "master_builders": (2, f'''
+    "master_builders": (f'''
   <g transform="rotate(-40 32 34)">
     <rect x="29" y="22" width="6" height="30" rx="2" fill="#b08a58" stroke="{INK}" stroke-width="2.5"/>
     <rect x="18" y="14" width="28" height="11" rx="2.5" fill="#8a929c" stroke="{INK}" stroke-width="2.8"/>
     <rect x="20" y="16" width="11" height="3" rx="1.5" fill="#b8c0ca"/>
   </g>
   <path d="M46 8 L48 13 L53 13 L49 16 L51 21 L46 18 L41 21 L43 16 L39 13 L44 13Z" fill="{GOLD}" stroke="{INK}" stroke-width="1.5" stroke-linejoin="round"/>'''),
-    "cheaper_repairs": (2, f'''
+    "cheaper_repairs": (f'''
   <path d="M12 46 L12 36 L30 36 L30 46Z M30 46 L30 36 L50 36 L50 46Z M20 36 L20 26 L40 26 L40 36Z" fill="{STONE_L}" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
   <path d="M20 41 L22 41 M40 41 L42 41" stroke="{STONE_D}" stroke-width="2"/>''' + _price_tag(44, 18)),
-    "cheaper_specialising": (2, f'''
+    "cheaper_specialising": (f'''
   <path d="M18 46 L32 34 L46 46 L46 40 L32 28 L18 40Z" fill="#5cc24a" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
   <path d="M32 10 L35 18 L43 19 L37 24 L39 32 L32 28 L25 32 L27 24 L21 19 L29 18Z" fill="{GOLD}" stroke="{INK}" stroke-width="1.8" stroke-linejoin="round"/>''' + _price_tag(46, 18)),
-    "cheaper_recruits": (2, f'''
+    "cheaper_recruits": (f'''
   <path d="M18 40 Q18 18 32 18 Q46 18 46 40Z" fill="#8a929c" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
   <path d="M14 40 L50 40 L48 45 L16 45Z" fill="#6a727c" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>
   <path d="M32 18 L32 40" stroke="#5a626c" stroke-width="2.4"/>
   <path d="M24 28 L28 28 L28 34 M36 28 L40 28" stroke="{INK}" stroke-width="2"/>''' + _price_tag(46, 18)),
-    "caravan_rights": (1, f'''
+    "caravan_rights": (f'''
   <path d="M30 10 L46 10 Q49 10 49 13 L49 20 L30 20 Q33 15 30 10Z" fill="#efe3c8" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>
   <circle cx="44" cy="20" r="3.5" fill="#c83a30" stroke="{INK}" stroke-width="1.5"/>''' + _cart(0, 4) + _plus(48, 40)),
-    "extra_caravan": (2, '\n  <g transform="translate(5 6) scale(0.82)">' + _cart(-2, -8) + _cart(8, 8) + "\n  </g>" + _plus(47, 17)),
-    "guild_partners": (2, f'''
+    "extra_caravan": ('\n  <g transform="translate(5 6) scale(0.82)">' + _cart(-2, -8) + _cart(8, 8) + "\n  </g>" + _plus(47, 17)),
+    "guild_partners": (f'''
   <circle cx="26" cy="30" r="12" fill="{GOLD}" stroke="{INK}" stroke-width="2.6"/>
   <circle cx="26" cy="30" r="7.5" fill="none" stroke="#8a5a26" stroke-width="1.8"/>
   <path d="M12 44 Q22 38 30 44 Q38 50 50 42" fill="none" stroke="#d8dde4" stroke-width="3" stroke-linecap="round"/>
@@ -537,9 +553,49 @@ ADV_ICONS = {
 }
 
 
+# The categories' emblems (Config.ADVANCEMENT_CATEGORIES; "adv_cat_<id>"), shown on the
+# research dialog's tabs: crossed blades, a crenellated tower, a hearth fire, a compass rose.
+ADV_CATEGORY_EMBLEMS = {
+    "arms": f'''
+  <path d="M12 50 L44 14 L50 10 L52 12 L48 18 L14 52Z" fill="#c9ced6" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M52 50 L20 14 L14 10 L12 12 L16 18 L50 52Z" fill="#b8bec8" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M8 44 L20 56 M56 44 L44 56" stroke="{INK}" stroke-width="7" stroke-linecap="round"/>
+  <path d="M8 44 L20 56 M56 44 L44 56" stroke="{GOLD}" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="12" cy="54" r="3" fill="{CRIMSON}" stroke="{INK}" stroke-width="1.8"/>
+  <circle cx="52" cy="54" r="3" fill="{CRIMSON}" stroke="{INK}" stroke-width="1.8"/>''',
+    "stronghold": f'''
+  <path d="M16 58 L16 22 L12 22 L12 8 L20 8 L20 14 L28 14 L28 8 L36 8 L36 14 L44 14 L44 8 L52 8 L52 22 L48 22 L48 58Z" fill="{STONE_T}" stroke="{INK}" stroke-width="3.2" stroke-linejoin="round"/>
+  <path d="M16 22 L48 22" stroke="{INK}" stroke-width="2.4"/>
+  <path d="M20 32 L28 32 M36 32 L44 32 M24 42 L40 42 M20 50 L28 50" stroke="{STONE_D}" stroke-width="2.2"/>
+  <path d="M26 58 L26 46 Q32 38 38 46 L38 58Z" fill="{INK}"/>
+  <path d="M30 28 L30 22 Q32 19 34 22 L34 28Z" fill="{INK}"/>''',
+    "hearth": f'''
+  <path d="M10 54 L54 54 L54 60 L10 60Z" fill="{STONE_L}" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M16 54 L30 46 M48 54 L34 46" stroke="{INK}" stroke-width="7" stroke-linecap="round"/>
+  <path d="M16 54 L30 46 M48 54 L34 46" stroke="{WOOD_L}" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M32 6 Q42 18 44 30 Q46 42 38 48 Q42 38 34 32 Q36 42 28 48 Q18 42 22 30 Q24 22 28 26 Q26 14 32 6Z" fill="#e8642a" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M32 26 Q38 34 36 42 Q34 46 30 46 Q26 42 28 36 Q30 32 32 26Z" fill="#ffd27a"/>''',
+    "frontier": f'''
+  <circle cx="32" cy="32" r="22" fill="#efe3c8" stroke="{INK}" stroke-width="3"/>
+  <circle cx="32" cy="32" r="17" fill="none" stroke="#a8997c" stroke-width="1.6"/>
+  <path d="M32 4 L37 27 L60 32 L37 37 L32 60 L27 37 L4 32 L27 27Z" fill="#c9ced6" stroke="{INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M32 4 L37 27 L32 32 L27 27Z" fill="{CRIMSON}" stroke="{INK}" stroke-width="2.2" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="3.5" fill="{GOLD}" stroke="{INK}" stroke-width="1.8"/>''',
+}
+
+
 def advancement_icons():
-    for adv_id, (tier, symbol) in ADV_ICONS.items():
-        icon_svg("adv_" + adv_id, _adv_badge(tier, symbol))
+    """One per Config.ADVANCEMENTS key; the generator stops if one is missing or has
+    no tier and category in config.gd."""
+    specs = _advancement_specs()
+    missing = [k for k in specs if k not in ADV_ICONS] + [k for k in ADV_ICONS if k not in specs]
+    if missing:
+        raise SystemExit("advancement icons or their tier/category missing for: %s" % ", ".join(missing))
+    for adv_id, symbol in ADV_ICONS.items():
+        tier, category = specs[adv_id]
+        icon_svg("adv_" + adv_id, _adv_badge(tier, category, symbol))
+    for category, symbol in ADV_CATEGORY_EMBLEMS.items():
+        icon_svg("adv_cat_" + category, symbol)
 
 
 # ------------------------------------------------------------------ item icons

@@ -2,7 +2,7 @@
 
   <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="#15110d" stroke-width="3"/>
   <circle cx="32" cy="32" r="26" fill="none" stroke="#9aa0a8" stroke-width="3"/>
-  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+  <circle cx="32" cy="32" r="23.5" fill="#263a22"/>
 
   <path d="M22 26 Q14 34 16 44 Q18 52 32 52 Q46 52 48 44 Q50 34 42 26Z" fill="#b89a60" stroke="#15110d" stroke-width="2.8" stroke-linejoin="round"/>
   <path d="M22 26 Q32 21 42 26" fill="none" stroke="#6a5230" stroke-width="2.4"/>

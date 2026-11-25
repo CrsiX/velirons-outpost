@@ -6,7 +6,8 @@ The research is `Research` (one per village), the effects are read where they ap
 `Village` (`adv_bonus`, `max_piece_level`, `walk_bonus`, `targeting`, `kill_gold`, `crit`,
 `recruit_cost`).
 Scope: what advancements are, how they are researched and unlocked, exclusive choices, the
-targeting advancements, the list, and the agreed categories and research dialog (§8, not yet built). The town hall (where research happens) is in
+targeting advancements, the list, and the categories and the research dialog (§8,
+`ResearchDialog`). The town hall (where research happens) is in
 docs/village-design.md.
 
 ## 1. Why
@@ -29,10 +30,11 @@ docs/village-design.md.
   research that can't pay all of it can't start. Cancelling gives back the same share of each.
 - While research runs, a **golden bar** over the town hall fills with it (like a construction
   site's progress bar), so it can be followed without opening the hall's panel.
-- The hall's panel shows the research under way and opens the list (*Research...*): every
-  advancement with what it does, its conditions (met or not), its cost and time.
+- The hall's panel shows the research under way and opens the research dialog
+  (*Research...*, §8.3): every advancement with what it does, its conditions (met or not),
+  its cost and time.
 - **Icons:** every advancement has its own (`Config.advancement_icon`, drawn by
-  `tools/art/icons.py`, `ADV_ICONS`), shown beside its name in the list, the library and the
+  `tools/art/icons.py`, `ADV_ICONS`), shown in the research dialog, the library and the
   hall's panel (the `{adv:<id>}` text token). One badge for all, its ring telling the tier
   (iron: tier 1, gold: tier 2), so a new advancement needs a sign in `ADV_ICONS`
   (advancement_bot checks every one has its icon).
@@ -162,8 +164,8 @@ conditions are `Config` values (`ADVANCEMENTS`), agreed when built.
 - **Guild partners** (a lower guild tax, adding to a Toll charter) ***or*** **One more caravan**
   (needs Caravan rights). Both need a deed: sales delivered, of any kind (`trade.sold`: goods or
   an item, to the guild or to a player; buying doesn't count), so they come to a village that
-  trades. Guild partners needs nothing else: the tax side of the pair is open without the
-  caravans.
+  trades. Guild partners needs Caravan rights too: both halves of a pair need the same
+  (§8.2).
 
 The market's three are there exactly where a marketplace can be built (`Game.market_enabled`):
 always in free play and co-op, in a scenario only if it allows a marketplace. Elsewhere they
@@ -194,18 +196,21 @@ Dropped: **shared exploration for all players** (tier 2): shared vision covers i
 - **Co-op:** the host researches; a client sees its own village's research (the snapshot) and
   its towers' settings.
 - **Commands:** `research`, `cancel_research`, `set_targeting`.
-- **Library:** an Advancements tab, tier by tier, built from `Config` (sorted by category once
-  §8 is built).
+- **Library:** an Advancements tab, a section per tier, by category within it, built from
+  `Config`.
 - **Tests:** `advancement_bot` (conditions, research and cancelling, a devastated hall pausing
   it, exclusive locks, each effect, both targeting modes, the save, shared vision, a food price paid
-  and refunded, the hall's resident, its death and its save). The balancing
+  and refunded, the hall's resident, its death and its save; the tree's rules and its layout; the
+  research dialog: tabs, selection, Research and Cancel, where it opens, the hall's panel; library_bot
+  the library's order). The balancing
   bot's `research` policy researches at random (docs/balance-bot-design.md §3).
 
-## 8. Categories and the research dialog (agreed, not yet built)
+## 8. Categories and the research dialog
 
-Agreed in a design session; replaces the *Research...* list of §2 once built. The dependencies
-between the advancements are being reorganised to fit the tree's rules below first; new
-advancements come after that.
+The categories are `Config.ADVANCEMENT_CATEGORIES` (each advancement's `"category"`), the
+dialog is `ResearchDialog` (scripts/ui/research_dialog.gd). The dependencies between the
+advancements are being reorganised to fit the tree's rules below; new advancements come
+after that.
 
 ### 8.1 Categories
 
@@ -248,7 +253,10 @@ columns, in `Config` order. The edges come in these shapes:
   names both halves; a `needs` naming both halves of a pair is met by either (both can never
   be had). Every other `needs` means all of them.
 
-Rules, checked by advancement_bot, so the tree can always be drawn:
+Rules, checked by advancement_bot (all but the edge rule, which waits for the reorganisation:
+Quick feet, Raised platforms, Eye for vital points, Skilled looting and Shared vision have none
+yet and stand alone in their trees), so the tree can always be drawn. A need also stays within
+its category, one tree per tab:
 
 - A `needs` runs from tier 1 to tier 2 only, never within a tier.
 - Both halves of a pair have the same `needs` (Guild partners needs Caravan rights, like One
@@ -277,17 +285,21 @@ the conditions saying what is missing, for planning ahead). A HUD popup: the X o
   A line is bright once its parent is researched, dim before; a pair's bar is bright once a half
   is chosen; an upside-down T's stem once either half is researched.
 - **Details:** below the tree in portrait, beside it in landscape (`Layout.portrait`): name,
-  icon, description, the conditions (each met or not), cost and time, and one button:
-  *Research* (with cost and time) when it can start; for the research under way its progress
-  bar above *Cancel*; otherwise disabled with a one-line reason ("Another research is under
-  way", "Locked by Manual targeting"). The confirmation of §3 for a final choice stays.
+  icon, description, the conditions (each met or not), then at the bottom the reason it can't
+  start now ("Needs: Wave 10", "Another research is under way"), and one button: *Research*
+  (with cost and time) when it can start; for the research under way its progress bar above
+  *Cancel*; otherwise disabled ("Researched", "Locked by Manual targeting"). The confirmation of
+  §3 for a final choice stays. The details are as tall as the tallest of every advancement
+  offered (with room for its longest possible reason), so the dialog keeps its size while you
+  click or tab through them.
 - **Selecting:** a tap or click on a node; no hover tooltips (the same for touch).
 - **Opening:** on the tab of the research under way, else the tab last open in this game (not
   saved), else Arms; selected is the research under way, else the tab's first that can be
   researched, else its first node.
-- **Keys:** arrows move between nodes, Tab / Shift+Tab switch tabs (skipping hidden ones), Enter
-  presses the button, Esc closes. The dialog stays open after *Research* or *Cancel*.
+- **Keys:** left and right step through the selected node's tier, up and down go to the other
+  tier, to the node nearest across (straight over or under if there is one, else diagonally);
+  the arrows don't move the view while it is open (WASD still do); Tab / Shift+Tab switch tabs (skipping hidden ones), Enter presses the button, Esc closes. The dialog stays open after *Research* or *Cancel*.
 - **Town hall panel:** *Research...* always reads so; the research under way is a plain text
-  line (its icon and name, no time, not clickable). The panel has no *Cancel research* any more:
+  line (its icon and name, no time, not clickable; "paused" while the hall is devastated). The panel has no *Cancel research* any more:
   cancelling is in the dialog. The golden bar over the hall stays.
 - **Library:** the Advancements tab keeps tiers as its sections, sorted by category within each.

@@ -26,6 +26,9 @@ var press_filter: Callable
 ## trackpad zoom / pan; if it returns true the pointer is over the UI (the
 ## dock), which keeps the scroll for itself, so the map neither zooms nor pans.
 var wheel_filter: Callable
+## Optional: while it returns true the arrow keys belong to the UI (the
+## research dialog's tree), so they don't move the view; WASD still do.
+var arrow_filter: Callable
 
 var _pressing := false
 var _dragging := false
@@ -171,13 +174,14 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	var dir := Vector2.ZERO
-	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+	var arrows: bool = not (arrow_filter.is_valid() and arrow_filter.call())
+	if Input.is_key_pressed(KEY_A) or (arrows and Input.is_key_pressed(KEY_LEFT)):
 		dir.x -= 1
-	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+	if Input.is_key_pressed(KEY_D) or (arrows and Input.is_key_pressed(KEY_RIGHT)):
 		dir.x += 1
-	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+	if Input.is_key_pressed(KEY_W) or (arrows and Input.is_key_pressed(KEY_UP)):
 		dir.y -= 1
-	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+	if Input.is_key_pressed(KEY_S) or (arrows and Input.is_key_pressed(KEY_DOWN)):
 		dir.y += 1
 	if dir != Vector2.ZERO:
 		# Real delta so panning speed ignores the game-speed setting.

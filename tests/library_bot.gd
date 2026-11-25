@@ -106,11 +106,27 @@ func _pages() -> void:
 	var holy := _facts("damage", "Holy")
 	check("acolyte" in holy and "inquisitor" in holy and not "healing mage" in holy and "Necromancer x1.5" in holy and "Goblin x0.75" in holy and "x2 more on top" in holy, "holy: the acolyte line (not the healer); the undead more, the wilderness less, the raised x2\n%s" % holy)
 	check("Enemies: the witch, the leviathan" in _facts("damage", "Magical") and "archer" in _facts("damage", "Projectile") and "Nothing resists it" in _facts("damage", "Pure"), "magical: the witch's and leviathan's spells; projectile: archers; pure: unresisted")
+	# Advancements: a section per tier, by category within it.
+	var adv := Library.entries("advancements")
+	var heads := adv.filter(func(e: Dictionary) -> bool: return e.has("heading"))
+	var cats: Array = Config.ADVANCEMENT_CATEGORIES.keys()
+	var in_order := true
+	var last := [0, 0]
+	for e in adv:
+		if e.has("heading"):
+			continue
+		var a: Dictionary = Config.ADVANCEMENTS.values().filter(func(x: Dictionary) -> bool: return x["name"] == e["name"])[0]
+		var at := [int(a["tier"]), cats.find(a["category"])]
+		in_order = in_order and (at[0] > last[0] or (at[0] == last[0] and at[1] >= last[1]))
+		last = at
+	check(heads.size() == 2 and in_order and adv.size() == Config.ADVANCEMENTS.size() + 2, "advancements: a section per tier, by category within it")
 	# Every entry has text or facts, and its art exists.
 	var bad: Array[String] = []
 	var empty: Array[String] = []
 	for tab in Library.TABS:
 		for e in Library.entries(tab):
+			if e.has("heading"):
+				continue  # (a section's title)
 			if not ResourceLoader.exists("res://art/%s.svg" % e["art"]):
 				bad.append("%s (%s)" % [e["name"], e["art"]])
 			if str(e.get("text", "")) == "" and (e["facts"] as PackedStringArray).is_empty():

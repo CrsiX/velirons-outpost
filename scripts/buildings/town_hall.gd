@@ -228,19 +228,18 @@ func info() -> Dictionary:
 	return d
 
 
-## Research (docs/advancements-design.md): what is under way, and the way to the list.
+## Research (docs/advancements-design.md §8.3): what is under way (its icon and name;
+## cancelling is in the research dialog), and the way to the dialog.
 func _research_info(lines: Array[String], actions: Array[Dictionary]) -> void:
 	var r := village.research
 	if not r.enabled():
 		return
 	if r.current != "":
 		var a: Dictionary = Config.ADVANCEMENTS[r.current]
-		lines.append("Researching {adv:%s} %s: %d%%, %d s left%s" % [r.current, a["name"], int(100.0 * r.progress / float(a["time"])), ceili(r.time_left()), "  (paused: devastated)" if devastated else ""])
-		var back := r.cancel_refund()
-		actions.append({"label": "Cancel research (+%s)" % Config.cost_icons(back) if not back.is_empty() else "Cancel research",
-			"action": func() -> void: game.command("cancel_research")})
+		lines.append("Researching {adv:%s} %s%s" % [r.current, a["name"], "  (paused: devastated)" if devastated else ""])
 	elif level < int(Config.ADVANCEMENT_TIERS[1]):
 		lines.append("Advancements: from town hall level %d." % int(Config.ADVANCEMENT_TIERS[1]))
+		actions.append({"label": "Research...", "action": func() -> void: game.hud.open_research()})
 		return
 	lines.append("Advancements researched: %d" % r.done.size())
 	actions.append({"label": "Research...", "action": func() -> void: game.hud.open_research()})

@@ -31,6 +31,7 @@ func _run() -> void:
 	game.economy.add("materials", 2000)
 	Engine.time_scale = 6.0
 	_test_conditions()
+	await _test_dialog()
 	await _test_research()
 	_test_effects()
 	await _test_targeting()
@@ -63,6 +64,59 @@ func _test_config() -> void:
 	check(not Config.ADVANCEMENTS.values().any(func(a: Dictionary) -> bool: return a.has("max_piece_level") and a.has("excludes")), "wall levels are never part of an exclusive pair")
 	check(Config.ADVANCEMENTS.keys().all(func(id: String) -> bool: return ResourceLoader.exists("res://art/%s.svg" % Config.advancement_icon(id))), "every advancement has its icon")
 	check(Config.plain_text("Researching {adv:drill_1} Drill I") == "Researching Drill I", "an advancement's icon token reads as nothing in plain text")
+	_test_tree_rules()
+
+
+## The tree's rules (docs/advancements-design.md §8.2), so every category's tree can be drawn.
+func _test_tree_rules() -> void:
+	var cats := true
+	var up := true
+	var same_cat := true
+	var pairs := true
+	var halves := true
+	var filters := true
+	var filter := func(id: String) -> String: return "market" if Research.is_market(id) else ("coop" if Config.ADVANCEMENTS[id].get("coop", false) else "")
+	for id: String in Config.ADVANCEMENTS:
+		var a: Dictionary = Config.ADVANCEMENTS[id]
+		cats = cats and Config.ADVANCEMENT_CATEGORIES.has(a.get("category", ""))
+		var needs: Array = a.get("needs", [])
+		for n: String in needs:
+			var b: Dictionary = Config.ADVANCEMENTS[n]
+			up = up and int(b["tier"]) == 1 and int(a["tier"]) == 2
+			same_cat = same_cat and b["category"] == a["category"]
+			filters = filters and filter.call(n) == filter.call(id)
+			if b.has("excludes"):
+				halves = halves and needs.has(b["excludes"])
+		if a.has("excludes"):
+			var o: Dictionary = Config.ADVANCEMENTS[str(a["excludes"])]
+			var mine := needs.duplicate()
+			var theirs: Array = o.get("needs", []).duplicate()
+			mine.sort()
+			theirs.sort()
+			pairs = pairs and o["tier"] == a["tier"] and o["category"] == a["category"] and mine == theirs
+			filters = filters and filter.call(str(a["excludes"])) == filter.call(id)
+	check(cats, "every advancement has a category")
+	check(up, "a need runs from tier 1 to tier 2 only")
+	check(same_cat, "a need stays within its category (one tree per tab)")
+	check(pairs, "both halves of a pair: same tier, category and needs")
+	check(halves, "a need names both halves of a pair or neither")
+	check(filters, "a market or co-op advancement is linked only to its own kind")
+	var groups := Research.needs_groups(["better_targeting", "drill_1", "manual_targeting"])
+	check(groups == [["better_targeting", "manual_targeting"], ["drill_1"]], "needing both halves of a pair is one group, met by either (%s)" % str(groups))
+	var lay := ResearchDialog.layout(["better_targeting", "manual_targeting", "faster_attacks", "more_damage", "cheaper_specialising", "cheaper_recruits"])
+	var pos: Dictionary = lay["pos"]
+	check(pos["better_targeting"].y == 0 and pos["more_damage"].y == 1 and pos["faster_attacks"].x == pos["more_damage"].x and absf(pos["better_targeting"].x - pos["manual_targeting"].x) == 1.0,
+		"the tree's layout: tier 1 in row 0, a child over its parent, a pair's halves side by side (%s)" % str(pos))
+	var spots := {}
+	for cat: String in Config.ADVANCEMENT_CATEGORIES:
+		var ids: Array[String] = []
+		for id: String in Config.ADVANCEMENTS:
+			if Config.ADVANCEMENTS[id]["category"] == cat:
+				ids.append(id)
+		var p: Dictionary = ResearchDialog.layout(ids)["pos"]
+		for id: String in p:
+			spots["%s|%s" % [cat, p[id]]] = true
+	check(spots.size() == Config.ADVANCEMENTS.size(), "every category's tree: no two nodes on one spot")
 
 
 func _test_conditions() -> void:
@@ -89,11 +143,81 @@ func _test_conditions() -> void:
 	check(r.error("drill_2").contains("Wave 14"), "tier 2 at level 3, still its wave (%s)" % r.error("drill_2"))
 	game.waves.wave = 14
 	check(r.error("drill_2").contains("Drill I"), "and a prerequisite (%s)" % r.error("drill_2"))
-	check(r.error("guild_partners").contains("sales delivered"), "Guild partners: a deed of sales (%s)" % r.error("guild_partners"))
+	var deed := func() -> bool: return r.conditions("guild_partners").any(func(c: Array) -> bool: return str(c[0]).contains("sales delivered") and c[1])
+	check(not deed.call(), "Guild partners: a deed of sales (%s)" % str(r.conditions("guild_partners")))
 	game.stats.count(v, "trade.sold", 10.0)
-	check(r.error("guild_partners") == "", "10 sales of any kind: it opens")
-	check(r.error("extra_caravan").contains("Caravan rights"), "One more caravan needs Caravan rights (%s)" % r.error("extra_caravan"))
+	check(deed.call() and r.error("guild_partners").contains("Caravan rights") and r.error("extra_caravan").contains("Caravan rights"), "after 10 sales both halves still need Caravan rights (%s)" % r.error("guild_partners"))
 	game.waves.wave = 10
+
+
+## The research dialog (docs/advancements-design.md §8.3): tabs, the tree, the
+## details' button, where it opens, and the town hall's panel beside it.
+func _test_dialog() -> void:
+	var d: ResearchDialog = game.hud.research_dialog
+	game.hud.open_research()
+	await frames(2)
+	check(d.visible and d.tab == "arms" and d.shown_tabs().size() == Config.ADVANCEMENT_CATEGORIES.size(), "it opens on Arms the first time, every category a tab in a free game (%s)" % str(d.shown_tabs()))
+	check(d.selected == "better_targeting", "selected: the tab's first that can be researched (%s)" % d.selected)
+	check(d.nodes.size() == r.offered_in("arms").size(), "a node for each of the tab's advancements")
+	check((d.centres["faster_attacks"] as Vector2).y > (d.centres["more_damage"] as Vector2).y, "tier 1 is the bottom row")
+	check(d.node_state("drill_2") == "not_yet" and (d.nodes["drill_2"].get_node("Icon") as CanvasItem).material != null, "a node whose conditions aren't met is grey")
+	check(game.camera.arrow_filter.call(), "while it is open the arrow keys are the dialog's, not the view's")
+	d._step(Vector2.UP)
+	check(int(Config.ADVANCEMENTS[d.selected]["tier"]) == 2, "an arrow up: to the tier above (%s)" % d.selected)
+	d.show_tab("frontier")
+	d.select("caravan_rights")
+	d._step(Vector2.RIGHT)
+	var right := d.selected
+	d.select("caravan_rights")
+	d._step(Vector2.LEFT)
+	check(int(Config.ADVANCEMENTS[right]["tier"]) == 1 and int(Config.ADVANCEMENTS[d.selected]["tier"]) == 1, "left and right stay in the tier (%s, %s)" % [right, d.selected])
+	d.select("extra_caravan")
+	d._step(Vector2.DOWN)
+	check(d.selected == "caravan_rights", "down from a tier-2 half: what it needs, though not straight under it (%s)" % d.selected)
+	d.select("guild_partners")
+	d._step(Vector2.UP)
+	check(d.selected == "guild_partners", "up from the top tier: nothing")
+	var sizes := {}
+	for id in r.offered():
+		d.show_tab(str(Config.ADVANCEMENTS[id]["category"]))
+		d.select(id)
+		await frames(2)
+		sizes[str(d.size)] = true
+	check(sizes.size() == 1, "the dialog keeps its size through every advancement and tab (%s)" % str(sizes.keys()))
+	d.show_tab("arms")
+	d._next_tab(1)
+	check(d.tab == "stronghold", "Tab: the next category")
+	d._next_tab(-1)
+	d._next_tab(-1)
+	check(d.tab == "frontier", "Shift+Tab from the first: the last")
+	d.show_tab("hearth")
+	d.select("quick_feet")
+	d.press_button()
+	await frames(2)
+	check(r.current == "quick_feet" and d.node_state("quick_feet") == "current" and d.visible, "Research starts it; the dialog stays open")
+	check(d.find_child("Progress", true, false) != null and (d.find_child("Action", true, false) as Button).get_meta("plain_text", "").begins_with("Cancel"),
+		"under way: its progress bar above Cancel")
+	var info: Dictionary = v.town_hall().info()
+	check((info["lines"] as Array).any(func(l: String) -> bool: return l.begins_with("Researching {adv:quick_feet}") and not l.contains(" s left"))
+		and not (info["actions"] as Array).any(func(x: Dictionary) -> bool: return str(x["label"]).begins_with("Cancel")),
+		"the hall's panel: the research under way as text, no Cancel there")
+	d.close()
+	check(not game.camera.arrow_filter.call(), "closed: the arrows move the view again")
+	d.last_tab = "stronghold"
+	game.hud.open_research()
+	check(d.tab == "hearth" and d.selected == "quick_feet", "it opens on the research under way")
+	d.press_button()
+	check(r.current == "", "Cancel calls it off")
+	d.close()
+	game.hud.open_research()
+	check(d.tab == "hearth", "with nothing under way: the tab last open")
+	d.show_tab("arms")
+	d.select("manual_targeting")
+	d.press_button()
+	await frames(1)
+	check(r.current == "" and game.hud.top_popup() != d, "a final choice asks first")
+	game.hud.close_confirm()
+	d.close()
 
 
 func _test_research() -> void:

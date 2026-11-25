@@ -2,7 +2,7 @@
 
   <circle cx="32" cy="32" r="29.5" fill="#2a2420" stroke="#15110d" stroke-width="3"/>
   <circle cx="32" cy="32" r="26" fill="none" stroke="#e0b84a" stroke-width="3"/>
-  <circle cx="32" cy="32" r="23.5" fill="#3a3028"/>
+  <circle cx="32" cy="32" r="23.5" fill="#2e3642"/>
 
   <path d="M14 46 L14 24 L19 24 L19 29 L24 29 L24 24 L29 24 L29 29 L35 29 L35 24 L40 24 L40 29 L45 29 L45 24 L50 24 L50 46Z" fill="#8f8a80" stroke="#15110d" stroke-width="2.8" stroke-linejoin="round"/>
   <path d="M14 34 L50 34 M14 40 L50 40 M24 29 L24 34 M35 29 L35 34 M20 34 L20 40 M32 34 L32 40 M44 34 L44 40 M26 40 L26 46 M38 40 L38 46" stroke="#46433f" stroke-width="1.6"/>

@@ -88,6 +88,35 @@ static func is_market(id: String) -> bool:
 	return false
 
 
+## A `needs` list as groups, each met by any one of its advancements: both
+## halves of an exclusive pair named together are one group (either will do,
+## since both can never be had: the tree's upside-down T); every other one is
+## a group of its own. In the list's order.
+static func needs_groups(needs: Array) -> Array[Array]:
+	var out: Array[Array] = []
+	var seen := {}
+	for n: String in needs:
+		if seen.has(n):
+			continue
+		seen[n] = true
+		var other := str(Config.ADVANCEMENTS[n].get("excludes", ""))
+		if other != "" and needs.has(other):
+			seen[other] = true
+			out.append([n, other])
+		else:
+			out.append([n])
+	return out
+
+
+## Every advancement of `category` this game offers, tier by tier.
+func offered_in(category: String) -> Array[String]:
+	var out: Array[String] = []
+	for id in offered():
+		if Config.ADVANCEMENTS[id]["category"] == category:
+			out.append(id)
+	return out
+
+
 ## Its unlock conditions: [[text, met]], in the panel's order.
 func conditions(id: String) -> Array[Array]:
 	var a: Dictionary = Config.ADVANCEMENTS[id]
@@ -97,8 +126,9 @@ func conditions(id: String) -> Array[Array]:
 	out.append(["Town hall level %d" % need_level, hall != null and hall.level >= need_level])
 	if a.has("wave"):
 		out.append(["Wave %d" % int(a["wave"]), game.waves.wave >= int(a["wave"])])
-	for n: String in a.get("needs", []):
-		out.append([str(Config.ADVANCEMENTS[n]["name"]), has(n)])
+	for group in needs_groups(a.get("needs", [])):
+		var names: Array = group.map(func(n: String) -> String: return str(Config.ADVANCEMENTS[n]["name"]))
+		out.append([" or ".join(names), group.any(func(n: String) -> bool: return has(n))])
 	if a.has("earned_gold"):
 		var earned := game.stats.value(village.id, "earn.gold")
 		out.append(["%d gold earned (%d so far)" % [int(a["earned_gold"]), int(earned)], earned >= float(a["earned_gold"])])

@@ -1457,10 +1457,11 @@ const EXPLORER_BLOCKED_RADIUS := 4.0
 ## Researched at the town hall, one at a time, for a price and research time;
 ## one village's own, for this game only. Tier 1 needs the hall at level
 ## ADVANCEMENT_TIERS[1], tier 2 at ADVANCEMENT_TIERS[2]. Per advancement:
-## "name", "tier", "cost" (any of gold, food and materials: paid when the
+## "name", "tier", "category" (an ADVANCEMENT_CATEGORIES key), "cost" (any of gold, food and materials: paid when the
 ## research starts, the same share of each back on cancelling), "time"
 ## (research seconds), "desc"; conditions (all
-## must hold): "wave" (reached), "needs" [advancements], "earned_gold" (gold
+## must hold): "wave" (reached), "needs" [advancements; naming both halves of an
+## exclusive pair needs either of them], "earned_gold" (gold
 ## earned this game, the statistics' earn.gold), "deed" {"stat": a statistics
 ## key of this game, "count", "text"}, "coop" (only with several villages);
 ## "excludes": the other half of an exclusive pair (researching one locks the
@@ -1489,53 +1490,57 @@ const EXPLORER_BLOCKED_RADIUS := 4.0
 ## An advancement with a "caravans" or "tax" effect is the market's: offered only
 ## where a marketplace can be built (Research.offered).
 const ADVANCEMENT_TIERS := {1: 2, 2: 3}
+## The categories, in the research dialog's tab order: only a grouping, never a
+## rule (docs/advancements-design.md §8). Each has an emblem (advancement_category_icon)
+## and tints its advancements' badges (tools/art/icons.py, ADV_CATEGORY_TINTS).
+const ADVANCEMENT_CATEGORIES := {"arms": "Arms", "stronghold": "Stronghold", "hearth": "Hearth", "frontier": "Frontier"}
 const ADVANCEMENTS := {
-	"fortifications_4": {"name": "Fortifications IV", "tier": 1, "cost": {"gold": 150, "materials": 30}, "time": 60.0, "wave": 6, "max_piece_level": 4,
+	"fortifications_4": {"name": "Fortifications IV", "tier": 1, "category": "stronghold", "cost": {"gold": 150, "materials": 30}, "time": 60.0, "wave": 6, "max_piece_level": 4,
 		"desc": "Walls, gates, wall towers and watchtowers can be upgraded to level 4."},
-	"better_targeting": {"name": "Better targeting", "tier": 1, "cost": {"gold": 120}, "time": 45.0, "excludes": "manual_targeting", "targeting": "better",
+	"better_targeting": {"name": "Better targeting", "tier": 1, "category": "arms", "cost": {"gold": 120}, "time": 45.0, "excludes": "manual_targeting", "targeting": "better",
 		"desc": "Every tower's unit picks its targets by what it is good at (its kind)."},
-	"manual_targeting": {"name": "Manual targeting", "tier": 1, "cost": {"gold": 120}, "time": 45.0, "excludes": "better_targeting", "targeting": "manual",
+	"manual_targeting": {"name": "Manual targeting", "tier": 1, "category": "arms", "cost": {"gold": 120}, "time": 45.0, "excludes": "better_targeting", "targeting": "manual",
 		"desc": "Every tower gets a switch: nearest the centre, weakest, strongest, fastest or support first."},
-	"faster_attacks": {"name": "Faster attacks", "tier": 1, "cost": {"gold": 180}, "time": 75.0, "wave": 10, "attack_rate": 0.1,
+	"faster_attacks": {"name": "Faster attacks", "tier": 1, "category": "arms", "cost": {"gold": 180}, "time": 75.0, "wave": 10, "attack_rate": 0.1,
 		"desc": "Every unit attacks 10 % faster."},
-	"quick_feet": {"name": "Quick feet", "tier": 1, "cost": {"gold": 100}, "time": 45.0,
+	"quick_feet": {"name": "Quick feet", "tier": 1, "category": "hearth", "cost": {"gold": 100}, "time": 45.0,
 		"walk": {"forester": 0.15, "farmer": 0.15, "gatherer": 0.15, "builder": 0.15},
 		"desc": "Foresters, farmers, gatherers and builders walk 15 % faster."},
-	"thick_skinned": {"name": "Thick-skinned", "tier": 1, "cost": {"gold": 120, "food": 50}, "time": 60.0, "wave": 5, "civilian_hp": 1.0,
+	"thick_skinned": {"name": "Thick-skinned", "tier": 1, "category": "hearth", "cost": {"gold": 120, "food": 50}, "time": 60.0, "wave": 5, "civilian_hp": 1.0,
 		"desc": "Double every villager's max HP."},
-	"raised_platforms": {"name": "Raised platforms", "tier": 1, "cost": {"gold": 200, "materials": 40}, "time": 75.0, "wave": 10, "tower_range": 0.1,
+	"raised_platforms": {"name": "Raised platforms", "tier": 1, "category": "stronghold", "cost": {"gold": 200, "materials": 40}, "time": 75.0, "wave": 10, "tower_range": 0.1,
 		"desc": "Watchtowers, wall towers and the town hall's tower reach 10 % farther (and see farther)."},
-	"drill_1": {"name": "Drill I", "tier": 1, "cost": {"gold": 150}, "time": 60.0, "wave": 7, "drill": 0.15,
+	"drill_1": {"name": "Drill I", "tier": 1, "category": "arms", "cost": {"gold": 150}, "time": 60.0, "wave": 7, "drill": 0.15,
 		"desc": "A unit's level-up costs 15 % less gold and training XP."},
-	"skilled_looting": {"name": "Skilled looting", "tier": 1, "cost": {"gold": 120}, "time": 60.0, "earned_gold": 500, "kill_gold": 0.25,
+	"skilled_looting": {"name": "Skilled looting", "tier": 1, "category": "frontier", "cost": {"gold": 120}, "time": 60.0, "earned_gold": 500, "kill_gold": 0.25,
 		"desc": "25 % more gold per kill (at least 1 more)."},
-	"shared_vision": {"name": "Shared vision", "tier": 1, "cost": {"gold": 100}, "time": 45.0, "coop": true, "shared_vision": true,
+	"shared_vision": {"name": "Shared vision", "tier": 1, "category": "frontier", "cost": {"gold": 100}, "time": 45.0, "coop": true, "shared_vision": true,
 		"desc": "You see what the other villages see (they don't see yours)."},
-	"vital_points": {"name": "Eye for vital points", "tier": 1, "cost": {"gold": 160}, "time": 60.0,
+	"vital_points": {"name": "Eye for vital points", "tier": 1, "category": "arms", "cost": {"gold": 160}, "time": 60.0,
 		"deed": {"stat": "kill_by.melee", "count": 40, "text": "melee kills (the hero's too)"}, "crit": {"chance": 0.1, "factor": 2.0},
 		"desc": "Melee units and the hero's sword: a 10 % chance of a critical hit for double damage."},
-	"fortifications_5": {"name": "Fortifications V", "tier": 2, "cost": {"gold": 250, "materials": 50}, "time": 90.0, "wave": 20, "needs": ["fortifications_4"], "max_piece_level": 5,
+	"fortifications_5": {"name": "Fortifications V", "tier": 2, "category": "stronghold", "cost": {"gold": 250, "materials": 50}, "time": 90.0, "wave": 20, "needs": ["fortifications_4"], "max_piece_level": 5,
 		"desc": "Walls, gates, wall towers and watchtowers can be upgraded to level 5."},
-	"more_damage": {"name": "More damage", "tier": 2, "cost": {"gold": 280}, "time": 100.0, "needs": ["faster_attacks"], "damage": 0.1,
+	"more_damage": {"name": "More damage", "tier": 2, "category": "arms", "cost": {"gold": 280}, "time": 100.0, "needs": ["faster_attacks"], "damage": 0.1,
 		"desc": "Every unit deals 10 % more damage."},
-	"drill_2": {"name": "Drill II", "tier": 2, "cost": {"gold": 240}, "time": 90.0, "wave": 14, "needs": ["drill_1"], "drill": 0.15,
+	"drill_2": {"name": "Drill II", "tier": 2, "category": "arms", "cost": {"gold": 240}, "time": 90.0, "wave": 14, "needs": ["drill_1"], "drill": 0.15,
 		"desc": "Level-ups cost another 15 % less (30 % with Drill I)."},
-	"master_builders": {"name": "Master builders", "tier": 2, "cost": {"gold": 220, "materials": 40}, "time": 75.0, "excludes": "cheaper_repairs", "build_speed": 0.25,
+	"master_builders": {"name": "Master builders", "tier": 2, "category": "stronghold", "cost": {"gold": 220, "materials": 40}, "time": 75.0, "excludes": "cheaper_repairs", "build_speed": 0.25,
 		"desc": "Builders and the hero build 25 % faster."},
-	"cheaper_repairs": {"name": "Cheaper repairs", "tier": 2, "cost": {"gold": 220, "materials": 40}, "time": 75.0, "excludes": "master_builders", "repair_cost": 0.25,
+	"cheaper_repairs": {"name": "Cheaper repairs", "tier": 2, "category": "stronghold", "cost": {"gold": 220, "materials": 40}, "time": 75.0, "excludes": "master_builders", "repair_cost": 0.25,
 		"desc": "Repairs cost 25 % less building material."},
-	"cheaper_specialising": {"name": "Cheaper specialising", "tier": 2, "cost": {"gold": 240, "food": 80}, "time": 75.0, "excludes": "cheaper_recruits", "branch_cost": 0.25,
+	"cheaper_specialising": {"name": "Cheaper specialising", "tier": 2, "category": "arms", "cost": {"gold": 240, "food": 80}, "time": 75.0, "excludes": "cheaper_recruits", "branch_cost": 0.25,
 		"desc": "Specialising a unit costs 25 % less gold."},
-	"cheaper_recruits": {"name": "Cheaper base units", "tier": 2, "cost": {"gold": 240, "food": 80}, "time": 75.0, "excludes": "cheaper_specialising", "recruit_cost": 0.2,
+	"cheaper_recruits": {"name": "Cheaper base units", "tier": 2, "category": "arms", "cost": {"gold": 240, "food": 80}, "time": 75.0, "excludes": "cheaper_specialising", "recruit_cost": 0.2,
 		"desc": "Recruiting military units costs 20 % less gold."},
-	"hall_quarters": {"name": "Hall quarters", "tier": 2, "cost": {"gold": 150, "food": 300}, "time": 90.0, "needs": ["thick_skinned"], "hall_home": true,
+	"hall_quarters": {"name": "Hall quarters", "tier": 2, "category": "hearth", "cost": {"gold": 150, "food": 300}, "time": 90.0, "needs": ["thick_skinned"], "hall_home": true,
 		"desc": "One villager can live in the town hall (huts are filled first). Devastated, the hall kills its resident."},
-	"caravan_rights": {"name": "Caravan rights", "tier": 1, "cost": {"gold": 120}, "time": 60.0, "caravans": 1,
+	"caravan_rights": {"name": "Caravan rights", "tier": 1, "category": "frontier", "cost": {"gold": 120}, "time": 60.0, "caravans": 1,
 		"desc": "Your marketplace may have one more trade caravan on the road."},
-	"guild_partners": {"name": "Guild partners", "tier": 2, "cost": {"gold": 200}, "time": 75.0, "excludes": "extra_caravan", "tax": 0.25,
+	"guild_partners": {"name": "Guild partners", "tier": 2, "category": "frontier", "cost": {"gold": 200}, "time": 75.0, "needs": ["caravan_rights"], "excludes": "extra_caravan", "tax": 0.25,
 		"deed": {"stat": "trade.sold", "count": 10, "text": "sales delivered"},
 		"desc": "The guild tax is a quarter lower (adds to a Toll charter)."},
-	"extra_caravan": {"name": "One more caravan", "tier": 2, "cost": {"gold": 200}, "time": 75.0, "excludes": "guild_partners", "needs": ["caravan_rights"], "caravans": 1,
+	"extra_caravan": {"name": "One more caravan", "tier": 2, "category": "frontier", "cost": {"gold": 200}, "time": 75.0, "excludes": "guild_partners", "needs": ["caravan_rights"], "caravans": 1,
 		"deed": {"stat": "trade.sold", "count": 10, "text": "sales delivered"},
 		"desc": "One more trade caravan on the road (adds to Caravan rights)."},
 }
@@ -3273,6 +3278,11 @@ static func plain_text(text: String) -> String:
 ## An advancement's icon (art name; tools/art/icons.py, ADV_ICONS, draws one for each).
 static func advancement_icon(id: String) -> String:
 	return "adv_" + id
+
+
+## An advancement category's emblem (art name; tools/art/icons.py, ADV_CATEGORY_EMBLEMS).
+static func advancement_category_icon(category: String) -> String:
+	return "adv_cat_" + category
 
 
 static func cost_text(cost: Dictionary) -> String:

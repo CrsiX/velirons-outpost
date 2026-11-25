@@ -181,7 +181,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 # --- one entry -------------------------------------------------------------------
 
 ## (Nothing in an entry takes the mouse: a drag anywhere scrolls the list.)
+## An entry with "heading" is a section's title instead (its "name" is "").
 func _entry(e: Dictionary) -> Control:
+	if e.has("heading"):
+		var head := _label(str(e["heading"]), 20, UiTheme.GOLD)
+		head.set_meta("entry_name", "")
+		return head
 	var box := PanelContainer.new()
 	box.add_theme_stylebox_override("panel", UiTheme.box(Color("1f1611"), Color("4a3a26"), 1, 8, 10))
 	box.set_meta("entry_name", e["name"])
@@ -362,32 +367,39 @@ static func item_facts(id: String) -> PackedStringArray:
 	return f
 
 
-## Every advancement (Config.ADVANCEMENTS), tier by tier: what it does, what it
-## costs and takes, its conditions, and the other half of an exclusive pair.
+## Every advancement (Config.ADVANCEMENTS), a section per tier, by category
+## within it (Config.ADVANCEMENT_CATEGORIES' order): what it does, what it costs
+## and takes, its conditions, and the other half of an exclusive pair.
 static func _advancements() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for tier in [1, 2]:
-		for id: String in Config.ADVANCEMENTS:
-			var a: Dictionary = Config.ADVANCEMENTS[id]
-			if int(a["tier"]) != tier:
-				continue
-			var f := PackedStringArray()
-			f.append("Tier %d: town hall level %d" % [tier, int(Config.ADVANCEMENT_TIERS[tier])])
-			f.append("Research: %s, %s s" % [Config.cost_text(a["cost"]), _n(a["time"])])
-			if a.has("wave"):
-				f.append("From wave %d" % int(a["wave"]))
-			for n: String in a.get("needs", []):
-				f.append("Needs %s" % Config.ADVANCEMENTS[n]["name"])
-			if a.has("earned_gold"):
-				f.append("Once %d gold has been earned this game" % int(a["earned_gold"]))
-			if a.has("deed"):
-				f.append("Deed: %d %s this game" % [int(a["deed"]["count"]), a["deed"]["text"]])
-			if a.has("excludes"):
-				f.append("Exclusive with %s: one locks the other for good" % Config.ADVANCEMENTS[str(a["excludes"])]["name"])
-			if a.get("coop", false):
-				f.append("Only with other villages (co-op)")
-			out.append({"name": a["name"], "art": Config.advancement_icon(id), "text": a["desc"], "facts": f})
+		out.append({"name": "", "heading": "Tier %d: town hall level %d" % [tier, int(Config.ADVANCEMENT_TIERS[tier])]})
+		for cat: String in Config.ADVANCEMENT_CATEGORIES:
+			for id: String in Config.ADVANCEMENTS:
+				var a: Dictionary = Config.ADVANCEMENTS[id]
+				if int(a["tier"]) == tier and a["category"] == cat:
+					out.append(_advancement(id))
 	return out
+
+
+static func _advancement(id: String) -> Dictionary:
+	var a: Dictionary = Config.ADVANCEMENTS[id]
+	var f := PackedStringArray()
+	f.append("%s, tier %d" % [Config.ADVANCEMENT_CATEGORIES[a["category"]], int(a["tier"])])
+	f.append("Research: %s, %s s" % [Config.cost_text(a["cost"]), _n(a["time"])])
+	if a.has("wave"):
+		f.append("From wave %d" % int(a["wave"]))
+	for group in Research.needs_groups(a.get("needs", [])):
+		f.append("Needs %s" % " or ".join(group.map(func(n: String) -> String: return str(Config.ADVANCEMENTS[n]["name"]))))
+	if a.has("earned_gold"):
+		f.append("Once %d gold has been earned this game" % int(a["earned_gold"]))
+	if a.has("deed"):
+		f.append("Deed: %d %s this game" % [int(a["deed"]["count"]), a["deed"]["text"]])
+	if a.has("excludes"):
+		f.append("Exclusive with %s: one locks the other for good" % Config.ADVANCEMENTS[str(a["excludes"])]["name"])
+	if a.get("coop", false):
+		f.append("Only with other villages (co-op)")
+	return {"name": a["name"], "art": Config.advancement_icon(id), "text": a["desc"], "facts": f}
 
 
 ## Every enemy kind with an entry, family by family (Config.ENEMY_FAMILY_ORDER).

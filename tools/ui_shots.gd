@@ -65,7 +65,8 @@ extends Node
 ##
 ## `--max`: the window maximised (the display's size) instead of 1280x720 for
 ## the landscape pictures; `--size=WxH` another size (e.g. 1920x1080);
-## portrait is always 540x960.
+## portrait is 540x960, `--portrait=WxH` another size (only the research set
+## uses it; e.g. 1080x1920).
 ##
 ## `--cutout=l,t,r,b`: pretend the screen has a camera cutout (unusable edges
 ## in canvas units, Layout.force_insets), drawn black like the real thing;
@@ -78,6 +79,7 @@ var out := ""
 var only := ""
 var maximize := false
 var landscape := Vector2i(1280, 720)
+var portrait := Vector2i(540, 960)
 var cutout := Vector4.ZERO
 var _cut_layer: CanvasLayer
 var _n := 0
@@ -95,6 +97,10 @@ func _ready() -> void:
 			var wh := a.trim_prefix("--size=").split("x")
 			if wh.size() == 2:
 				landscape = Vector2i(int(wh[0]), int(wh[1]))
+		if a.begins_with("--portrait="):
+			var pwh := a.trim_prefix("--portrait=").split("x")
+			if pwh.size() == 2:
+				portrait = Vector2i(int(pwh[0]), int(pwh[1]))
 		if a.begins_with("--cutout="):
 			var v := a.trim_prefix("--cutout=").split_floats(",")
 			if v.size() == 4:
@@ -972,8 +978,10 @@ func _siege() -> void:
 	await _frames(3)
 
 
-## Advancements (docs/advancements-design.md): the research list, the hall's
-## panel with a research under way, a final choice, a tower's targeting switch.
+## Advancements (docs/advancements-design.md): the research dialog (every
+## tab; a final choice; a research under way), the hall's panel, the hall's
+## bars, the library, a tower's targeting switch; the dialog and the panel in
+## portrait (`--portrait`).
 func _research() -> void:
 	var g: Game = load("res://scenes/main.tscn").instantiate()
 	g.map_seed = 4242
@@ -985,30 +993,43 @@ func _research() -> void:
 	g.waves.wave = 8
 	var v := g.player_village
 	g.economy.add("gold", 2000)
+	g.economy.add("food", 400)
+	g.economy.add("materials", 200)
 	var h := v.town_hall()
-	h.level = 2
+	h.level = 3
 	h.refresh()
 	g.stats.count(v, "earn.gold", 620.0)
 	g.stats.count(v, "kill_by.melee", 12.0)
-	v.research.done.append("quick_feet")
+	v.research.done.append_array(["quick_feet", "drill_1", "caravan_rights"])
 	g.camera.focus(h.position + Vector2(0, -60))
 	g.camera.zoom = Vector2(1.1, 1.1)
+	var d := g.hud.research_dialog
 	g.hud.open_research()
 	await _frames(10)
-	await shot("research_list")
-	g.hud._start_research("manual_targeting")
+	await shot("research_arms")
+	d.select("manual_targeting")
+	d.press_button()
 	await _frames(6)
 	await shot("research_final_choice")
-	g.hud._confirm_panel.visible = false
-	g.hud._research_panel.visible = false
-	g.command("research", {"id": "drill_1"})
-	await _frames(20)
+	g.hud.close_confirm()
+	v.research.done.append("manual_targeting")
+	v.research.locked.append("better_targeting")
+	g.command("research", {"id": "fortifications_4"})
+	v.research.progress = 0.4 * float(Config.ADVANCEMENTS["fortifications_4"]["time"])
+	d.close()
+	g.hud.open_research()
+	await _frames(10)
+	await shot("research_stronghold_under_way")
+	for cat in ["arms", "hearth", "frontier"]:
+		d.show_tab(cat)
+		await _frames(6)
+		await shot("research_" + cat)
+	d.close()
 	g.select(h)
 	await _frames(6)
 	await shot("research_hall_panel")
 	g.deselect()
 	# The hall's bars: research alone, with HP (hurt), with an upgrade too.
-	v.research.progress = 0.4 * float(Config.ADVANCEMENTS["drill_1"]["time"])
 	g.camera.focus(h.position + Vector2(0, -120))
 	g.camera.zoom = Vector2(2.0, 2.0)
 	h.hp = h.max_hp()
@@ -1019,6 +1040,7 @@ func _research() -> void:
 	h.queue_redraw()
 	await _frames(6)
 	await shot("research_bar_hurt")
+	h.level = 2
 	h.start_upgrade()
 	h.upgrade_progress = 0.7 * h.upgrade_time
 	h.queue_redraw()
@@ -1030,18 +1052,20 @@ func _research() -> void:
 	await _frames(10)
 	await shot("research_library")
 	g.hud.library.close()
-	v.research.done.append("manual_targeting")
 	var wt: Tower = v.buildings().filter(func(b: Building) -> bool: return b.kind == "wall_tower")[0]
 	g.select(wt)
 	await _frames(6)
 	await shot("research_tower_targeting")
 	g.deselect()
-	# Portrait (a phone): the list and the hall's panel.
-	await _size(Vector2i(540, 960))
+	# Portrait (a phone): the dialog and the hall's panel.
+	await _size(portrait)
 	g.hud.open_research()
 	await _frames(15)
-	await shot("research_list_portrait")
-	g.hud._research_panel.visible = false
+	await shot("research_stronghold_portrait")
+	d.show_tab("arms")
+	await _frames(6)
+	await shot("research_arms_portrait")
+	d.close()
 	g.select(h)
 	await _frames(15)
 	await shot("research_hall_panel_portrait")

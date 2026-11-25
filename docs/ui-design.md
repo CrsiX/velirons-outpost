@@ -316,12 +316,12 @@ under it.
   command (docs/items-design.md §3). The debug page has *Give item...*.
 - **Town hall panel** (built: `TownHall.info`): its level and upgrade, the last stand's seconds
   left, its tower post and its bench (unit, *Upgrade*, *Withdraw*), and research: the one under
-  research with its time left and *Cancel research*, and *Research...* opening the list
-  (`Hud.open_research`): each advancement by tier with its icon, what it does, its conditions (met or
-  not), its cost and time; exclusive choices ask before they are taken, saying what they lock
-  for good (docs/advancements-design.md). Agreed, not yet built: a research dialog with a tab
-  per advancement category and a tree, and the panel without *Cancel research*
-  (docs/advancements-design.md §8.3).
+  way as a plain line (its icon and name), and *Research...* (also at hall level 1) opening the
+  **research dialog** (`ResearchDialog`, `Hud.open_research`): a tab per advancement category,
+  the category's tree (icons only) and the selected advancement's details with *Research* or,
+  under its progress bar, *Cancel*; exclusive choices ask before they are taken, saying what
+  they lock for good. Its layout, node looks, keys and where it opens:
+  docs/advancements-design.md §8.3.
 - **Marketplace panel:** buying from the guild's stock, putting goods up for sale, caravans out,
   the equipment and relic offers, a Sell action per item in the armoury and relic (each saying
   what the guild pays), what is on sale with its countdown, and in co-op the order book and the

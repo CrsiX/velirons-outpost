@@ -59,7 +59,7 @@ Game terms as used in code, docs and tests. One line each, no numbers (the code 
 - **Rumour** (tactical map): a "?" over a place the village hasn't found yet, shown by the Cartographer's chart; also the log line about an unlock site not found yet. `items-design.md` §7
 - **Deed**: something done in the current game (kills by one unit kind, goods sold at the marketplace) that an advancement may need. `advancements-design.md`
 - **Advancement**: a lasting upgrade researched at the town hall during one game; one village's unless it says it is for all players. Some are exclusive choices that can't be undone. `advancements-design.md`
-- **Advancement category**: Arms, Stronghold, Hearth or Frontier; what an advancement improves, only a grouping (a tab in the research dialog, the tint of its badge), never a rule (agreed, not yet built). `advancements-design.md` §8
+- **Advancement category**: Arms, Stronghold, Hearth or Frontier; what an advancement improves, only a grouping (a tab in the research dialog, the tint of its badge), never a rule. `advancements-design.md` §8
 - **Lair**: wakes late and adds a spawn point; the hero can clear it.
 - **Spawn / water spawn**: where enemies enter at the map edge or from deep water.
 - **Slice**: a co-op village's part of the map. **Ownerless village**: a village on a map file nobody plays; it is ruins.
